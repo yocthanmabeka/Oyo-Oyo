@@ -77,6 +77,7 @@ Le dépôt contient maintenant **Proposition code by GPT5.6 — HoloCode v0.1**,
 Prérequis : Python 3.11 ou plus récent.
 
 ```bash
+cd proposals/GPT5.6/holocode-v0.1
 python -m holocode examples/automatic_door.holo --ticks 2
 ```
 
@@ -87,3 +88,5 @@ python -m unittest discover -s tests -v
 ```
 
 Le prototype, sa syntaxe et ses limites sont décrits dans la [spécification HoloCode v0.1](docs/01-holocode/SPECIFICATION-V0.1.md).
+
+Les implémentations expérimentales sont classées par auteur dans le [registre des propositions de code](proposals/README.md). Toute modification doit rester visible sur GitHub selon la [politique de synchronisation](GITHUB-SYNC-POLICY.md).
