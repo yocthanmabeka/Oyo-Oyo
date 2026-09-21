@@ -3,6 +3,8 @@
 **Statut : `EXPÉRIMENTATION`**  
 **Implémentation de référence : Python 3.11+**
 
+**Code source :** [`proposals/GPT5.6/holocode-v0.1`](../../proposals/GPT5.6/holocode-v0.1/)
+
 ## Objectif
 
 Cette version teste une seule hypothèse : un programme peut être organisé comme un graphe de monde dans lequel une relation évaluée par le runtime déclenche un phénomène et transforme l'état d'une entité.
