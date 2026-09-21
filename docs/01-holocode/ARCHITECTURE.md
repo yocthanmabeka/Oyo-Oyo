@@ -1,5 +1,7 @@
 # Architecture technique de HoloCode
 
+> **Mise à jour v0.1 :** un interpréteur de référence expérimental implémente désormais le chemin `source → lexer → AST → runtime` pour les entités, relations de proximité et phénomènes. HoloIR, HoloVM et la compilation native restent des cibles futures. Voir la [spécification exécutable](SPECIFICATION-V0.1.md).
+
 **Statut : `PROPOSITION`**
 **Discussions sources : `HC-005`, `HC-006`, `HC-007`**
 
