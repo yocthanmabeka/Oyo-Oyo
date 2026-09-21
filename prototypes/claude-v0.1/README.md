@@ -152,14 +152,16 @@ Le protocole demande de comparer toute primitive aux solutions existantes. Aucun
 
 | Primitive | Précédent | Ce que fait le prototype |
 |---|---|---|
-| Archétype composé | ECS (Unity DOTS, Bevy, Flecs) | Identique, avec refus des collisions à la vérification |
+| Archétype composé | ECS (Unity DOTS, Bevy, Flecs) pour les données ; traits de Rust pour le comportement | Proche d'un ECS pour la composition des champs, avec refus des collisions à la vérification. Différent pour le comportement : dans un ECS, l'archétype est une donnée passive et le comportement vit dans des systèmes ; ici, les capacités sont attachées à l'archétype |
 | Relation interrogeable | Datalog, relations de Flecs | Limitée à la proximité entre deux entités |
 | Phénomène | Règles de production, règles événement-condition-action | Identique, quantifié sur un archétype |
-| Loi | Contraintes, invariants | Limitée à l'interdiction d'une capacité |
-| Capacité | Modèle object-capability | Seul accès en écriture à l'état |
+| Loi | Contraintes, invariants ; règles « Instead » d'Inform 7 | Limitée à l'interdiction d'une capacité |
+| Capacité | Encapsulation : un mutateur confiné à son archétype | Seul accès en écriture à l'état. Ce n'est pas le modèle object-capability : une capacité au sens de la sécurité est un jeton infalsifiable et transférable, et ce prototype n'en a pas. Le mot vient du paradigme du dépôt |
 | Unités | F# | Deux dimensions : longueur et durée |
 | `for 3s` | Langages synchrones, logique temporelle | Un seul opérateur |
 | Journal causal | Event sourcing | Produit par le runtime, sans code dans le programme |
+
+Les lignes « Archétype composé », « Loi » et « Capacité » ont été corrigées après la revue comparative de Gemini : la première version disait à tort « identique à l'ECS » et rattachait les capacités au modèle object-capability.
 
 L'apport éventuel n'est donc pas dans les briques. Il est dans leur réunion en une seule sémantique où le vérificateur connaît à la fois les unités, les archétypes, les capacités et les règles. Ce prototype montre que cette réunion est faisable en petit. Il ne montre pas qu'elle vaut mieux qu'un ECS bien conçu.
 
