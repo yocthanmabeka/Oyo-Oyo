@@ -28,6 +28,9 @@ flowchart TD
 | `HC-007` | HoloCompiler, HoloIR, HoloVM et HoloRuntime | [Paradigme holoscénique développement][CG-003] · [Métavers expliqué][CG-002] | [Architecture](../01-holocode/ARCHITECTURE.md) | Chaîne d'exécution |
 | `HC-008` | Hologrammes, interfaces et matériel futur | [Métaverse : Origines et Technologies][CG-004] · [Créer le metaverse de zéro][CG-001] | Dossier de recherche à créer | HoloEngine, HoloHardware Research |
 | `HC-009` | Coordination entre ChatGPT, Claude, Gemini et autres IA | [Conversation Claude privée][CL-001] · conversation ChatGPT actuelle non partagée | [Protocole IA](PROTOCOLE-IA.md) | Gouvernance |
+| `HC-013` | Le web devient le métavers : format `.holo`, moteur Rust, imports, place de l'IA, description honnête du paradigme | [Fiche](../05-discussions/HC-013-web-metavers-et-format-holo.md) — session Claude Code, sans URL de partage | [`ADR-007` à `ADR-015`](DECISIONS.md) | Tous |
+
+Les identifiants `HC-010` à `HC-012` sont réservés à des fiches Claude antérieures, pas encore publiées.
 
 ## Registre des conversations sources
 
