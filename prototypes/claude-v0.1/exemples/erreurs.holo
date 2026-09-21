@@ -1,0 +1,33 @@
+// Contre-exemple : ce programme est refusé avant toute exécution.
+// python -m holocode exemples/erreurs.holo --check
+
+archetype Person { }
+
+archetype Openable {
+    state {
+        opened: Bool = false
+        width: Length = 90cm
+    }
+    capability open  { opened = true }
+    capability close { opened = false }
+    capability break { locked = true }          // écrit hors de son archétype
+}
+
+archetype Shutter {
+    state { opened: Bool = false }              // même champ que Openable
+}
+
+world Broken {
+    space House {
+        entity Alice: Person at (0m, 0s, 0m)    // une coordonnée en secondes
+        entity Door: Openable + Shutter at (0m, 0m, 1m)
+    }
+
+    relation Near(p: Person, d: Openable) when distance(p, d) <= 2s     // une distance en secondes
+
+    phenomenon AutoOpening {
+        forall d: Openable
+        when some Near(_, d) and d.width > 3s   // une longueur comparée à une durée
+        effect d.unlock                         // capacité que Openable n'offre pas
+    }
+}
