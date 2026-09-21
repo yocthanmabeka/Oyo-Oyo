@@ -1,11 +1,11 @@
 # ADR-015 — Règle des appels : tout changement d'état passe par un arbitre
 
-- Statut : PROPOSITION
+- Statut : ACCEPTÉ
 - Date : 2026-09-21
 - Responsable : Yocthan Mabeka
 - Discussions sources : HC-013, HC-003, HC-004
 - Projets affectés : HoloCode, HoloCompiler, HoloRuntime
-- Proposé par : Claude. Non validé.
+- Proposé par : Claude. Validé par Yocthan le 2026-09-21, après lecture. La fusion de la pull request qui introduit cette fiche vaut confirmation.
 
 ## Contexte
 
@@ -13,7 +13,7 @@ L'écriture en blocs retenue par `ADR-009` vient de Flutter, qui est orienté ob
 
 Tout ce qui décrit « ce qui existe » est effectivement de l'objet sans héritage : une entité avec son état est un objet avec ses champs, un archétype est une classe, un bloc est la création d'un objet. La différence porte sur « ce qui arrive ».
 
-## Décision proposée
+## Décision
 
 Oui, il y a des appels. Deux sortes sont permises, une troisième est interdite.
 

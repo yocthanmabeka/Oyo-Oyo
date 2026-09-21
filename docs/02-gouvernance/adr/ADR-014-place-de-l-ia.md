@@ -1,17 +1,17 @@
 # ADR-014 — L'IA agit à la création, jamais à la lecture
 
-- Statut : PROPOSITION
+- Statut : ACCEPTÉ
 - Date : 2026-09-21
 - Responsable : Yocthan Mabeka
 - Discussions sources : HC-013
 - Projets affectés : HoloCode, HoloCompiler, outils de création
-- Proposé par : Claude. Non validé.
+- Proposé par : Claude. Validé par Yocthan le 2026-09-21, après lecture. La fusion de la pull request qui introduit cette fiche vaut confirmation.
 
 ## Contexte
 
 Yocthan veut que l'IA participe à la composition des mondes, à la manière de Genie 3 : un monde apparaît à partir de très peu de données. Il veut que l'IA respecte des mesures pour que le monde ne se dégrade pas, que les couleurs et les apparences soient choisies par l'utilisateur, et qu'un mode automatique tire des valeurs au hasard pour donner de la diversité. Il pensait qu'il faudrait importer Python.
 
-## Décision proposée
+## Décision
 
 - **Pas besoin de Python.** Python sert à entraîner les modèles. Pour en utiliser un, on l'appelle par le réseau ou on fait tourner un petit modèle dans le téléphone ; le moteur en Rust fait les deux.
 - **L'IA agit à la création.** L'utilisateur dit « fais-moi une forêt avec une rivière » ; l'IA écrit du `.holo` ; le fichier est enregistré. Ensuite tout le monde voit le même monde, sans IA. C'est la conséquence directe de `ADR-008`.

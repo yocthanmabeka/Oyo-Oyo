@@ -33,7 +33,7 @@ Elle ne figure pas encore dans [VISION.md](../00-vision/VISION.md).
 4. **Moteur en Rust** (`ADR-010`), qui tourne sous les navigateurs actuels, puis dans un navigateur propre au projet. Zig a été écarté : plus léger, mais pas stable, sans date de stabilité connue.
 5. **Ponts vers JavaScript et CSS seulement, dans la première version** (`ADR-012`).
 
-### Proposé par Claude, non validé
+### Proposé par Claude, validé par Yocthan après lecture
 
 6. **Rendu par vue** (`ADR-011`) : vue à plat par génération de HTML et CSS, vue en profondeur par le moteur dans une zone de dessin.
 7. **Deux étages et trois sortes d'import** (`ADR-013`) : HoloCode en haut, modules compilés en WebAssembly en bas.

@@ -1,11 +1,11 @@
 # ADR-011 — Rendu : la vue à plat par génération de HTML et CSS, la vue en profondeur par le moteur
 
-- Statut : PROPOSITION
+- Statut : ACCEPTÉ
 - Date : 2026-09-21
 - Responsable : Yocthan Mabeka
 - Discussions sources : HC-013
 - Projets affectés : HoloCompiler, HoloEngine
-- Proposé par : Claude. Non validé.
+- Proposé par : Claude. Validé par Yocthan le 2026-09-21, après lecture. La fusion de la pull request qui introduit cette fiche vaut confirmation.
 
 ## Contexte
 
@@ -13,7 +13,7 @@ Il existe deux routes pour faire tourner HoloCode dans un navigateur. **La tradu
 
 Yocthan préférerait, si possible, qu'il n'y ait aucun HTML ni CSS du tout.
 
-## Décision proposée
+## Décision
 
 Utiliser les deux routes, une par vue (`ADR-007`) :
 

@@ -1,11 +1,11 @@
 # ADR-013 — Deux étages et trois sortes d'import
 
-- Statut : PROPOSITION
+- Statut : ACCEPTÉ
 - Date : 2026-09-21
 - Responsable : Yocthan Mabeka
 - Discussions sources : HC-013, HC-006
 - Projets affectés : HoloCode, HoloCode-Core, HoloRuntime
-- Proposé par : Claude. Non validé.
+- Proposé par : Claude. Validé par Yocthan le 2026-09-21, après lecture. La fusion de la pull request qui introduit cette fiche vaut confirmation.
 
 ## Contexte
 
@@ -13,7 +13,7 @@ Yocthan a demandé comment écrire en HoloCode un programme d'IA, un programme s
 
 Tous les grands systèmes ont deux étages : Python et le C de NumPy et PyTorch ; Luau et le C++ de Roblox ; C# et le C++ d'Unity ; GDScript et le C++ de Godot ; Verse et Unreal.
 
-## Décision proposée
+## Décision
 
 **Deux étages.**
 
