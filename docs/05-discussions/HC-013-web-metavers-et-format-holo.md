@@ -37,7 +37,7 @@ Elle ne figure pas encore dans [VISION.md](../00-vision/VISION.md).
 
 6. **Rendu par vue** (`ADR-011`) : vue à plat par génération de HTML et CSS, vue en profondeur par le moteur dans une zone de dessin.
 7. **Deux étages et trois sortes d'import** (`ADR-013`) : HoloCode en haut, modules compilés en WebAssembly en bas.
-8. **L'IA agit à la création, jamais à la lecture** (`ADR-014`).
+8. **Un monde se lit sans IA** (`ADR-014`, reformulée par ChatGPT) : l'IA crée du `.holo` qui passe le vérificateur, et peut agir en direct comme acteur extérieur.
 9. **Règle des appels** (`ADR-015`) : calculs purs et demandes de capacité, jamais de code libre caché dans un bloc.
 
 ### Description honnête du paradigme
@@ -57,6 +57,10 @@ Notes données par Claude, qui est juge et partie ; ChatGPT et Gemini sont invit
 | Base pour un vrai langage | 15 % | 30 % | 5 % |
 
 Aucune ne couvre plus de 30 % des objectifs ; le meilleur de chacune en couvre environ 44 %. Gemini a la meilleure direction et la preuve la plus faible (voir la revue dans la PR n° 3).
+
+### Revue de ChatGPT, le même jour
+
+ChatGPT a relu cette fiche et les ADR. Trois de ses remarques ont été retenues par Yocthan. Trop de choix techniques étaient marqués `ACCEPTÉ` avant toute mesure : `ADR-010`, `011`, `012` et `013` passent en `EXPÉRIMENTATION`. Le titre de `ADR-014` était trop absolu : elle est reformulée, le monde se lit sans IA, mais des agents IA peuvent agir comme acteurs extérieurs. Les trois prototypes ne testent pas le même problème : les pourcentages ci-dessus sont une appréciation, pas une évaluation ; une suite de conformité commune est créée dans `experiments/`. ChatGPT note la maturité globale du projet à 5,5 sur 10, avec 0 sur 10 pour la preuve sur téléphone : « la documentation court désormais plus vite que le moteur ». Les trois IA s'accordent sur ce point.
 
 ## Désaccords et limites
 

@@ -17,7 +17,7 @@ On n'attend ni processeur spatial, ni interface holographique. La cible de la pr
 
 - **n'importe quel téléphone actuel** ; les téléphones anciens affichent la vue à plat (`ADR-007`) ;
 - **dans un navigateur**, sans rien installer (`ADR-010`) ;
-- **un premier test qui tient dans 1 Go au maximum**. Dans un onglet de téléphone, le budget réel est plus bas : l'onglet est souvent tué entre 300 et 500 Mo. Ce chiffre est à vérifier par la mesure.
+- **un premier test qui tient dans 1 Go au maximum**. Dans un onglet de téléphone, le budget réel est plus bas : l'onglet est souvent tué entre 300 et 500 Mo. Ce chiffre est à vérifier par la mesure. Le plafond de 1 Go est la cible fixée par Yocthan, pas un résultat : c'est sa faisabilité que les sprints mesurent.
 
 Le matériel spécialisé reste un axe de recherche à long terme, jamais une capacité supposée acquise.
 

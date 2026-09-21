@@ -13,16 +13,18 @@ Ce registre empêche une proposition séduisante de devenir accidentellement une
 | [`ADR-007`](adr/ADR-007-web-mis-a-jour-deux-vues.md) | Le métavers est une mise à jour du web : une seule description, deux vues (à plat, en profondeur) | `ACCEPTÉ` | `HC-013` | Tous |
 | [`ADR-008`](adr/ADR-008-fichier-vraie-source.md) | Le fichier est une vraie source, toujours lue de la même façon ; l'IA aide à écrire, jamais à lire | `ACCEPTÉ` | `HC-013` | HoloCode, HoloCompiler, HoloRuntime |
 | [`ADR-009`](adr/ADR-009-format-holo.md) | Format `.holo` : blocs nommés par leur sens, à la Flutter ; texte en Markdown dans les blocs ; ni HTML, ni CSS, ni JavaScript pour l'auteur | `ACCEPTÉ` | `HC-013` | HoloCode, HoloCompiler |
-| [`ADR-010`](adr/ADR-010-moteur-rust-deux-enveloppes.md) | Un moteur écrit en Rust, sous les navigateurs actuels (WebAssembly) puis dans un navigateur propre | `ACCEPTÉ` | `HC-013`, `HC-007` | HoloRuntime, HoloEngine, HoloCode-Core |
-| [`ADR-011`](adr/ADR-011-rendu-par-vue.md) | Vue à plat par génération de HTML et CSS, vue en profondeur par le moteur | `ACCEPTÉ` | `HC-013` | HoloCompiler, HoloEngine |
-| [`ADR-012`](adr/ADR-012-ponts-javascript-css.md) | Première version : des ponts vers JavaScript et CSS seulement, comme outils de transition | `ACCEPTÉ` | `HC-013` | HoloCode, HoloCompiler |
-| [`ADR-013`](adr/ADR-013-deux-etages-trois-imports.md) | Deux étages (HoloCode, modules WebAssembly enfermés) et trois sortes d'import (`import`, `module`, `pont`) | `ACCEPTÉ` | `HC-013`, `HC-006` | HoloCode, HoloCode-Core, HoloRuntime |
-| [`ADR-014`](adr/ADR-014-place-de-l-ia.md) | L'IA agit à la création et passe le vérificateur ; le hasard passe par des graines | `ACCEPTÉ` | `HC-013` | HoloCode, outils de création |
+| [`ADR-010`](adr/ADR-010-moteur-rust-deux-enveloppes.md) | Un moteur écrit en Rust, sous les navigateurs actuels (WebAssembly) puis dans un navigateur propre | `EXPÉRIMENTATION` | `HC-013`, `HC-007` | HoloRuntime, HoloEngine, HoloCode-Core |
+| [`ADR-011`](adr/ADR-011-rendu-par-vue.md) | Vue à plat par génération de HTML et CSS, vue en profondeur par le moteur | `EXPÉRIMENTATION` | `HC-013` | HoloCompiler, HoloEngine |
+| [`ADR-012`](adr/ADR-012-ponts-javascript-css.md) | Première version : des ponts vers JavaScript et CSS seulement, comme outils de transition | `EXPÉRIMENTATION` | `HC-013` | HoloCode, HoloCompiler |
+| [`ADR-013`](adr/ADR-013-deux-etages-trois-imports.md) | Deux étages (HoloCode, modules WebAssembly enfermés) et trois sortes d'import (`import`, `module`, `pont`) | `EXPÉRIMENTATION` | `HC-013`, `HC-006` | HoloCode, HoloCode-Core, HoloRuntime |
+| [`ADR-014`](adr/ADR-014-place-de-l-ia.md) | Un monde se lit sans IA ; l'IA crée du `.holo` qui passe le vérificateur, et peut agir en direct comme acteur extérieur, par des capacités journalisées ; le hasard passe par des graines | `ACCEPTÉ` | `HC-013` | HoloCode, outils de création |
 | [`ADR-015`](adr/ADR-015-regle-des-appels.md) | Tout changement d'état passe par un arbitre ; pas de code libre dans un bloc ; description honnête du paradigme | `ACCEPTÉ` | `HC-013`, `HC-003` | HoloCode, HoloRuntime |
 
 `ADR-003` à `ADR-006` ont été proposées par ChatGPT. Le 2026-09-21, Yocthan a accepté `ADR-003` (reformulée par Claude), `ADR-004` (telle quelle) et `ADR-005` (complétée par les chiffres de sa vision), et a laissé `ADR-006` en proposition. ChatGPT est invité à réagir aux reformulations.
 
 Les décisions `ADR-003` à `ADR-015` ont chacune une fiche détaillée dans [`adr/`](adr/). Toutes ont été validées par Yocthan le 2026-09-21 : `ADR-007`, `008`, `009`, `010` et `012` sont ses propres décisions ; `ADR-011`, `013`, `014` et `015` ont été proposées par Claude, puis acceptées par Yocthan après lecture.
+
+Après la revue de ChatGPT, Yocthan a classé en `EXPÉRIMENTATION` les choix techniques qu'aucune mesure n'a encore confirmés : `ADR-010`, `011`, `012` et `013`. La direction est retenue et le travail commence dans ce sens ; c'est la mesure sur un vrai téléphone qui les fera passer en `ACCEPTÉ`. `ADR-014` a été reformulée par ChatGPT.
 
 ## Autorité de validation
 

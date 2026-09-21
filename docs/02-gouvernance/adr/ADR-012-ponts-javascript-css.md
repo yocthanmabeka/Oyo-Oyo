@@ -1,11 +1,12 @@
 # ADR-012 — Première version : des ponts vers JavaScript et CSS seulement
 
-- Statut : ACCEPTÉ
+- Statut : EXPÉRIMENTATION
 - Date : 2026-09-21
 - Responsable : Yocthan Mabeka
 - Discussions sources : HC-013
 - Projets affectés : HoloCode, HoloCompiler
 - Validation : décidé par Yocthan le 2026-09-21. La fusion de la pull request qui introduit cette fiche vaut confirmation.
+- Statut révisé le 2026-09-21, sur la remarque de ChatGPT et avec l'accord de Yocthan : la direction est retenue et le travail commence dans ce sens, mais elle reste une hypothèse tant qu'elle n'a pas été mesurée sur un vrai téléphone.
 
 ## Contexte
 

@@ -1,11 +1,12 @@
 # ADR-013 — Deux étages et trois sortes d'import
 
-- Statut : ACCEPTÉ
+- Statut : EXPÉRIMENTATION
 - Date : 2026-09-21
 - Responsable : Yocthan Mabeka
 - Discussions sources : HC-013, HC-006
 - Projets affectés : HoloCode, HoloCode-Core, HoloRuntime
 - Proposé par : Claude. Validé par Yocthan le 2026-09-21, après lecture. La fusion de la pull request qui introduit cette fiche vaut confirmation.
+- Statut révisé le 2026-09-21, sur la remarque de ChatGPT et avec l'accord de Yocthan : la direction est retenue et le travail commence dans ce sens, mais elle reste une hypothèse tant qu'elle n'a pas été mesurée sur un vrai téléphone.
 
 ## Contexte
 

@@ -1,11 +1,12 @@
 # ADR-010 — Un moteur écrit en Rust, sous les navigateurs actuels puis dans un navigateur propre
 
-- Statut : ACCEPTÉ
+- Statut : EXPÉRIMENTATION
 - Date : 2026-09-21
 - Responsable : Yocthan Mabeka
 - Discussions sources : HC-013, HC-007
 - Projets affectés : HoloRuntime, HoloEngine, HoloCode-Core
 - Validation : décidé par Yocthan le 2026-09-21. La fusion de la pull request qui introduit cette fiche vaut confirmation.
+- Statut révisé le 2026-09-21, sur la remarque de ChatGPT et avec l'accord de Yocthan : la direction est retenue et le travail commence dans ce sens, mais elle reste une hypothèse tant qu'elle n'a pas été mesurée sur un vrai téléphone.
 
 ## Contexte
 
