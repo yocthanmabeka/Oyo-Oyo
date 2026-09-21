@@ -4,3 +4,9 @@ Thumbs.db
 .vscode/
 *.log
 tmp/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+dist/
+build/
