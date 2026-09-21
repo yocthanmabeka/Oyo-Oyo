@@ -1,0 +1,27 @@
+{
+  "verdict": "accepté",
+  "decisions": [
+    "ADR-005",
+    "ADR-009"
+  ],
+  "arbre": {
+    "bloc": "Point",
+    "nom": "Galerie",
+    "graine": 7,
+    "interieur": {
+      "bloc": "Monde",
+      "contenu": [
+        {
+          "bloc": "Image"
+        }
+      ]
+    }
+  },
+  "budget": {
+    "declare_octets": 500000,
+    "utilise_octets": 300000
+  },
+  "proprietes": [
+    "meme-fichier-meme-resultat"
+  ]
+}

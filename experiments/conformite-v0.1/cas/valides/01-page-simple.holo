@@ -1,0 +1,10 @@
+// Une page ordinaire : un titre et un texte.
+Page(
+  titre: "Bonjour",
+  contenu: [
+    Texte("""
+      # Bonjour
+      Ceci est une **page** ordinaire.
+    """),
+  ],
+)

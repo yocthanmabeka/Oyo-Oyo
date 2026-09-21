@@ -1,0 +1,10 @@
+// Un point n'offre pas la capacité « voler ».
+Page(
+  contenu: [
+    Bouton(nom: Ouvrir, texte: "Ouvrir"),
+    Point(nom: Atelier, graine: 42),
+  ],
+  phenomenes: [
+    Quand(Ouvrir.touche, effet: Atelier.voler),
+  ],
+)

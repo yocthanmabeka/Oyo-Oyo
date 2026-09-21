@@ -1,0 +1,51 @@
+{
+  "verdict": "accepté",
+  "decisions": [
+    "ADR-007",
+    "ADR-009",
+    "ADR-015"
+  ],
+  "arbre": {
+    "bloc": "Page",
+    "titre": "Ma boutique",
+    "contenu": [
+      {
+        "bloc": "Bouton",
+        "nom": "Ouvrir"
+      },
+      {
+        "bloc": "Point",
+        "nom": "Atelier",
+        "graine": 42,
+        "interieur": {
+          "bloc": "Monde",
+          "contenu": [
+            {
+              "bloc": "Texte"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "scenario": [
+    {
+      "signal": "Ouvrir.touche"
+    }
+  ],
+  "journal": [
+    {
+      "entite": "Atelier",
+      "capacite": "entrer",
+      "parce_que": [
+        "Ouvrir.touche"
+      ]
+    }
+  ],
+  "contexte_final": "Atelier",
+  "proprietes": [
+    "meme-fichier-meme-resultat",
+    "lisible-a-plat",
+    "visitable-en-profondeur"
+  ]
+}
