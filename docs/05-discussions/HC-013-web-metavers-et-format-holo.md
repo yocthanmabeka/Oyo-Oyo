@@ -68,7 +68,7 @@ Aucune ne couvre plus de 30 % des objectifs ; le meilleur de chacune en couvre e
 ## Décisions produites ou affectées
 
 - Produites : `ADR-007` à `ADR-015`.
-- Affectées : `ADR-003` et `ADR-004` (la règle des appels précise ce que sont une capacité et un phénomène) ; `ADR-005` (le matériel existant devient : tout téléphone actuel, dans un navigateur).
+- Propositions de ChatGPT tranchées par Yocthan le même jour : `ADR-003` acceptée avec la reformulation de Claude (briques de « ce qui arrive », description honnête) ; `ADR-004` acceptée telle quelle ; `ADR-005` acceptée avec les chiffres de la vision (téléphone actuel, navigateur, 1 Go) ; `ADR-006` laissée en proposition, jugée bonne mais prématurée. ChatGPT est invité à réagir aux reformulations.
 - Dette décisionnelle : « choisir le langage d'implémentation » est traité par `ADR-010` pour le moteur.
 
 ## Projets affectés

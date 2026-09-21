@@ -6,10 +6,10 @@ Ce registre empêche une proposition séduisante de devenir accidentellement une
 |---|---|---|---|---|
 | `ADR-001` | Utiliser un référentiel Git privé comme source de vérité documentaire | `ACCEPTÉ` | `HC-009` | Tous |
 | `ADR-002` | Séparer discussions, décisions, spécifications et implémentations | `ACCEPTÉ` | `HC-009` | Gouvernance |
-| `ADR-003` | Considérer le monde, l'espace, les relations, lois et phénomènes comme primitives candidates | `PROPOSITION` | `HC-002`, `HC-003` | HoloCode |
-| `ADR-004` | Explorer les archétypes et capacités plutôt que l'héritage de classes comme mécanisme central | `PROPOSITION` | `HC-003`, `HC-004` | HoloCode, HoloIR |
-| `ADR-005` | Faire fonctionner la première version sur le matériel existant | `PROPOSITION` | `HC-005`, `HC-007` | Tous les prototypes |
-| `ADR-006` | Préserver l'information spatiale et temporelle dans HoloIR | `PROPOSITION` | `HC-007` | HoloCompiler, HoloIR |
+| [`ADR-003`](adr/ADR-003-briques-du-langage.md) | Le monde, l'espace, les relations, les lois et les phénomènes sont les briques du langage pour décrire ce qui arrive ; description honnête : des objets sans méthodes, des règles du monde, des relations | `ACCEPTÉ` | `HC-002`, `HC-003`, `HC-013` | HoloCode |
+| [`ADR-004`](adr/ADR-004-composition-et-capacites.md) | Des archétypes composés et des capacités, plutôt que l'héritage de classes | `ACCEPTÉ` | `HC-003`, `HC-004`, `HC-013` | HoloCode, HoloIR |
+| [`ADR-005`](adr/ADR-005-materiel-existant.md) | La première version tourne sur le matériel existant : tout téléphone actuel, dans un navigateur, premier test sous 1 Go | `ACCEPTÉ` | `HC-005`, `HC-007`, `HC-013` | Tous les prototypes |
+| [`ADR-006`](adr/ADR-006-holoir.md) | Préserver l'information spatiale et temporelle dans HoloIR (bonne idée, prématurée : à trancher quand le moteur existera) | `PROPOSITION` | `HC-007`, `HC-013` | HoloCompiler, HoloIR |
 | [`ADR-007`](adr/ADR-007-web-mis-a-jour-deux-vues.md) | Le métavers est une mise à jour du web : une seule description, deux vues (à plat, en profondeur) | `ACCEPTÉ` | `HC-013` | Tous |
 | [`ADR-008`](adr/ADR-008-fichier-vraie-source.md) | Le fichier est une vraie source, toujours lue de la même façon ; l'IA aide à écrire, jamais à lire | `ACCEPTÉ` | `HC-013` | HoloCode, HoloCompiler, HoloRuntime |
 | [`ADR-009`](adr/ADR-009-format-holo.md) | Format `.holo` : blocs nommés par leur sens, à la Flutter ; texte en Markdown dans les blocs ; ni HTML, ni CSS, ni JavaScript pour l'auteur | `ACCEPTÉ` | `HC-013` | HoloCode, HoloCompiler |
@@ -20,7 +20,9 @@ Ce registre empêche une proposition séduisante de devenir accidentellement une
 | [`ADR-014`](adr/ADR-014-place-de-l-ia.md) | L'IA agit à la création et passe le vérificateur ; le hasard passe par des graines | `ACCEPTÉ` | `HC-013` | HoloCode, outils de création |
 | [`ADR-015`](adr/ADR-015-regle-des-appels.md) | Tout changement d'état passe par un arbitre ; pas de code libre dans un bloc ; description honnête du paradigme | `ACCEPTÉ` | `HC-013`, `HC-003` | HoloCode, HoloRuntime |
 
-Les décisions `ADR-007` à `ADR-015` ont chacune une fiche détaillée dans [`adr/`](adr/). Toutes ont été validées par Yocthan le 2026-09-21 : `ADR-007`, `008`, `009`, `010` et `012` sont ses propres décisions ; `ADR-011`, `013`, `014` et `015` ont été proposées par Claude, puis acceptées par Yocthan après lecture.
+`ADR-003` à `ADR-006` ont été proposées par ChatGPT. Le 2026-09-21, Yocthan a accepté `ADR-003` (reformulée par Claude), `ADR-004` (telle quelle) et `ADR-005` (complétée par les chiffres de sa vision), et a laissé `ADR-006` en proposition. ChatGPT est invité à réagir aux reformulations.
+
+Les décisions `ADR-003` à `ADR-015` ont chacune une fiche détaillée dans [`adr/`](adr/). Toutes ont été validées par Yocthan le 2026-09-21 : `ADR-007`, `008`, `009`, `010` et `012` sont ses propres décisions ; `ADR-011`, `013`, `014` et `015` ont été proposées par Claude, puis acceptées par Yocthan après lecture.
 
 ## Autorité de validation
 
