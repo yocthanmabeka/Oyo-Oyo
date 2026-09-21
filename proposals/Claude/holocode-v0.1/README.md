@@ -116,7 +116,7 @@ Le vérificateur émet aussi un avertissement quand deux phénomènes peuvent é
 
 ## Correspondance avec le critère de réussite de la vision
 
-| Critère de [VISION.md](../../docs/00-vision/VISION.md) | Dans ce prototype |
+| Critère de [VISION.md](../../../docs/00-vision/VISION.md) | Dans ce prototype |
 |---|---|
 | Un monde et deux espaces | `Home`, avec `House` et `Garden` |
 | Plusieurs entités composées | `FrontDoor: Openable + Lockable` |
@@ -224,6 +224,6 @@ UNITE       = "mm" | "cm" | "m" | "km" | "ms" | "s" | "min" | "h" ;
 
 Aucun document existant n'est modifié par cette proposition. Si Yocthan la retient, en tout ou en partie :
 
-- [PARADIGME-HOLOSCENIQUE.md](../../docs/01-holocode/PARADIGME-HOLOSCENIQUE.md) : corriger l'exemple `AutomaticDoor` et reprendre la définition de la loi et du phénomène ;
-- [DECISIONS.md](../../docs/02-gouvernance/DECISIONS.md) : ouvrir des ADR sur la composition des archétypes, sur l'écriture par capacité et sur la priorité des lois ;
-- [ROADMAP.md](../../docs/04-roadmap/ROADMAP.md) : placer la comparaison avec la POO et l'ECS avant la construction de HoloIR.
+- [PARADIGME-HOLOSCENIQUE.md](../../../docs/01-holocode/PARADIGME-HOLOSCENIQUE.md) : corriger l'exemple `AutomaticDoor` et reprendre la définition de la loi et du phénomène ;
+- [DECISIONS.md](../../../docs/02-gouvernance/DECISIONS.md) : ouvrir des ADR sur la composition des archétypes, sur l'écriture par capacité et sur la priorité des lois ;
+- [ROADMAP.md](../../../docs/04-roadmap/ROADMAP.md) : placer la comparaison avec la POO et l'ECS avant la construction de HoloIR.
