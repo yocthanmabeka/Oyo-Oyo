@@ -70,7 +70,7 @@ Les URL de conversations qui ne sont pas encore disponibles sont marquées `À A
 
 ## État actuel
 
-Le dépôt contient maintenant **HoloCode v0.1**, une première preuve exécutable capable de définir un monde minimal, d'instancier des entités, d'évaluer une relation spatiale et de déclencher un phénomène observable.
+Le dépôt contient maintenant **Proposition code by GPT5.6 — HoloCode v0.1**, une première preuve exécutable capable de définir un monde minimal, d'instancier des entités, d'évaluer une relation spatiale et de déclencher un phénomène observable.
 
 ### Exécuter la première scène
 
