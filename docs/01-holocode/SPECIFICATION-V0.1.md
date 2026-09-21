@@ -1,4 +1,4 @@
-# HoloCode v0.1 — Spécification exécutable
+# Proposition code by GPT5.6 — HoloCode v0.1
 
 **Statut : `EXPÉRIMENTATION`**  
 **Implémentation de référence : Python 3.11+**
