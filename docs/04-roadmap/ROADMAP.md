@@ -1,5 +1,17 @@
 # Feuille de route
 
+## Prototype v0.1 — réalisé
+
+- [x] Lexer minimal
+- [x] Parseur et AST
+- [x] Monde et entités
+- [x] Positions 3D en mètres
+- [x] Relation de proximité
+- [x] Phénomènes conditionnels
+- [x] Effets atomiques par tick
+- [x] Détection des effets contradictoires
+- [x] CLI, exemple et tests automatisés
+
 ## Phase 0 — Fondation documentaire
 
 - [x] Créer le référentiel central.

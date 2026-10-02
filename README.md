@@ -70,4 +70,23 @@ Les URL de conversations qui ne sont pas encore disponibles sont marquées `À A
 
 ## État actuel
 
-Le dépôt décrit une **direction de recherche structurée**, pas un langage terminé. La première cible mesurable est un prototype capable de définir un monde minimal, d'instancier des entités, d'évaluer une relation et de déclencher un phénomène observable.
+Le dépôt contient maintenant **Proposition code by GPT5.6 — HoloCode v0.1**, une première preuve exécutable capable de définir un monde minimal, d'instancier des entités, d'évaluer une relation spatiale et de déclencher un phénomène observable.
+
+### Exécuter la première scène
+
+Prérequis : Python 3.11 ou plus récent.
+
+```bash
+cd proposals/GPT5.6/holocode-v0.1
+python -m holocode examples/automatic_door.holo --ticks 2
+```
+
+Lancer les tests :
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Le prototype, sa syntaxe et ses limites sont décrits dans la [spécification HoloCode v0.1](docs/01-holocode/SPECIFICATION-V0.1.md).
+
+Les implémentations expérimentales sont classées par auteur dans le [registre des propositions de code](proposals/README.md). Toute modification doit rester visible sur GitHub selon la [politique de synchronisation](GITHUB-SYNC-POLICY.md).
