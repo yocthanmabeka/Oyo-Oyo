@@ -2,11 +2,12 @@
 
 ## Contribution
 
-- **Sujet :** Noyau spatial fractal, transition d'échelle continue, garantie d'empreinte mémoire bornée ($O(1)$ théorique < 1 Go) et ontologie unifiée Nœud = Avatar = Monde.
+- **Sujet :** Noyau spatial fractal, transition d'échelle continue, mémoire comptée sous un plafond déclaré (< 1 Go), constante au départ puis croissante de 64 Ko par niveau descendu et ontologie unifiée Nœud = Avatar = Monde.
 - **Discussions sources :** `HC-001`, `HC-005`, `HC-007`, `HC-013`
 - **Décisions concernées :** `ADR-003`, `ADR-005`, `ADR-006`, `ADR-007`
 - **Statut proposé :** `EXPÉRIMENTATION`
 - **Implémentation :** Python 3.11 ou plus récent, bibliothèque standard stricte, sans dépendance externe.
+- **Corrections de Claude, le 2026-10-02, à la demande de Yocthan :** une ligne de `runtime.py` (entrée dans un nœud sans enfants), et dans ce README les affirmations que la mesure contredisait : mémoire « constante », quota par nœud, cohérence du registre, ligne « passage à l'échelle » du tableau. La section « Résultats mesurés » est ajoutée. Le reste est de Gemini.
 
 ---
 
@@ -18,7 +19,7 @@ Ce prototype vérifie une **logique de comptage et de gestion de quotas déclar�
 
 ## Hypothèse testée
 
-> Si l'on unifie l'entité, le monde et le portail sous une primitive unique (le Nœud Fractal) et que l'on applique une règle de chargement à la demande avec congélation en imposteurs au franchissement des seuils d'échelle, il est possible de naviguer dans une arborescence de mondes imbriqués sans dépasser un budget mémoire déclaré (< 1 Go), avec un coût mémoire actif borné à chaque niveau.
+> Si l'on unifie l'entité, le monde et le portail sous une primitive unique (le Nœud Fractal) et que l'on applique une règle de chargement à la demande avec congélation en imposteurs au franchissement des seuils d'échelle, il est possible de naviguer dans une arborescence de mondes imbriqués sans dépasser un budget mémoire déclaré (< 1 Go), avec un coût mémoire de départ indépendant de la taille de l'univers.
 
 Ce prototype étudie la sémantique de navigation spatiale continue du **Web spatial fractal** : naviguer consiste à plonger à l'intérieur d'un nœud géométrique ou à en ressortir.
 
@@ -44,8 +45,8 @@ Ce prototype étudie la sémantique de navigation spatiale continue du **Web spa
    * Lors de la sortie d'un sous-monde (`zoom_out`), les enfants du sous-monde sont déchargés, le parent et les frères sont dégelés à pleine résolution, et le signal `SCALE_EXIT` est émis.
 3. **Contrôle Budgétaire Inviolable :**
    * **Plafond global de l'arène :** Le gestionnaire (`MemoryLedger`) rejette toute allocation menant à un dépassement du budget global (ex. 1 Go).
-   * **Quotas individuels par nœud :** Chaque nœud déclare un plafond de triangles (`max_triangles`) et de mémoire (`max_memory_bytes`), strictement vérifié à l'enregistrement.
-   * **Cohérence des mutations d'état :** Toute addition ou suppression de variable d'état réajuste en temps réel le solde du registre pour prévenir toute dérive ou valeur négative.
+   * **Quotas individuels par nœud :** Chaque nœud déclare un plafond de triangles (`max_triangles`) et de mémoire (`max_memory_bytes`), vérifié à l'enregistrement, et seulement à ce moment-là : un nœud peut ensuite dépasser son quota en accumulant de l'état.
+   * **Cohérence des mutations d'état :** Toute modification d'état faite par `set_node_state` réajuste aussitôt le solde du registre, qui ne devient plus négatif. Une écriture directe dans `node.state` n'est comptée qu'au prochain gel : le registre peut alors sous-estimer.
 4. **Réactivité Déclarative Sans Code :** Les interactions s'associent par liaisons Cause $\to$ Effet (Signaux $\to$ Actions) déterministes sans boucles libres, incluant la mutation d'état, le morphing d'apparence et la propagation d'impulsions (`PULSE_SIGNAL`).
 
 ---
@@ -57,7 +58,7 @@ Ce prototype étudie la sémantique de navigation spatiale continue du **Web spa
 | Forme du Monde | Boîte 3D fermée | Salles isolées (Espaces) | Arborescence fractale continue |
 | Gestion du 1 Go | Aucune | Aucune | Comptabilité stricte au niveau de l'octet + Sas d'imposteurs |
 | Modèle d'accès | DSL textuel déclaratif (relations & phénomènes) | DSL déclaratif avec vérificateur de types & lois | Nœuds déclaratifs réactifs (Zéro-Code ready) |
-| Passage à l'échelle | Dégradation globale | Grille spatiale locale | Paging hiérarchique : mémoire active locale bornée |
+| Passage à l'échelle | Non mesuré | Grille spatiale locale | Chargement à la demande : mémoire de départ constante, puis 64 Ko de plus par niveau descendu |
 
 ---
 
@@ -66,6 +67,24 @@ Ce prototype étudie la sémantique de navigation spatiale continue du **Web spa
 1. **Calcul théorique d'octets déclarés :** En Python pur, les coûts sont calculés sur des modèles théoriques et non sur des allocations de mémoire physique du système d'exploitation mobile.
 2. **Perte de parallaxe de l'imposteur :** Quand le monde parent et les frères sont congelés en imposteurs cubiques, ils sont perçus sous forme de skybox/proxy simplifié, nécessitant un traitement graphique adapté pour masquer la transition.
 3. **Non-Turing complétude volontaire :** L'interdiction des boucles libres et du code arbitraire empêche les algorithmes procéduraux complexes en cours d'exécution, au bénéfice de la stabilité du runtime sur mobile.
+
+4. **La mémoire comptée n'est pas constante avec la profondeur :** l'imposteur de chaque ancêtre reste compté, soit 64 Ko de plus par niveau descendu. Pour une mémoire réellement constante, seuls le parent direct et ses frères ont besoin d'un imposteur ; les ancêtres plus lointains pourraient être déchargés.
+
+---
+
+## Résultats mesurés
+
+Mesures faites par Claude en exécutant ce code sous Python 3.14. Ce sont des octets déclarés et additionnés par le registre, pas de la mémoire de téléphone.
+
+| Mesure | Résultat |
+|---|---|
+| Tests unitaires | 8 sur 8, exécutés aussi automatiquement sur GitHub |
+| Mémoire comptée au départ | 1 212 Ko, que l'univers ait 5, 50, 150 ou 2 000 niveaux |
+| Pendant la descente | 64 Ko de plus par niveau : 1 980 Ko au niveau 12 |
+| Descente puis remontée de 12 niveaux | Le registre revient exactement à sa valeur de départ |
+| Univers de 2 000 niveaux | Descente complète sans plantage ; 124,9 Mo comptés au niveau 1 998 |
+| Plafond de 1 Go | Atteint vers 15 000 niveaux descendus |
+| Nœud au quota de 10 Mo | A accepté 100 000 variables d'état et pesait alors 12,2 Mo |
 
 ---
 
