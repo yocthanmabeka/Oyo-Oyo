@@ -1,0 +1,9 @@
+// Un point déclare son budget ; son contenu déclare son poids.
+Point(
+  nom: Galerie,
+  graine: 7,
+  budget: 500Ko,
+  interieur: Monde(contenu: [
+    Image(source: "tableau.png", poids: 300Ko),
+  ]),
+)

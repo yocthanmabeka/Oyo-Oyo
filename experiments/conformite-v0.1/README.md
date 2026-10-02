@@ -1,0 +1,96 @@
+# Suite de conformité v0.1
+
+- Statut : `PROPOSITION`
+- Discussions sources : `HC-013`, revue de ChatGPT du 2026-09-21
+- Décisions concernées : `ADR-007`, `ADR-008`, `ADR-009`, `ADR-014`, `ADR-015`
+
+## À quoi sert ce dossier
+
+Les propositions dans `proposals/` appartiennent aux IA qui les ont écrites. **Cette suite appartient au projet.** Elle dit ce que tout moteur HoloCode doit faire, quel que soit son auteur et quel que soit son langage : pour chaque fichier `.holo`, le résultat attendu est écrit à côté.
+
+Les trois prototypes Python ne testent pas le même problème et utilisent une ancienne syntaxe ; on ne peut pas les départager proprement. Plutôt que de les comparer entre eux, on les mesurera, eux et surtout le futur moteur en Rust (`ADR-010`), contre cette suite.
+
+Aucun moteur ne passe encore cette suite : elle précède le moteur, volontairement.
+
+## Le format des cas
+
+Chaque cas est une paire de fichiers dans `cas/` :
+
+- `nom.holo` : le programme ;
+- `nom.attendu.json` : ce que le moteur doit en faire.
+
+Un cas **accepté** (`cas/valides/`) :
+
+```json
+{
+  "verdict": "accepté",
+  "decisions": ["ADR-009"],
+  "arbre": { "bloc": "Page", "titre": "Bonjour", "contenu": [ { "bloc": "Texte" } ] },
+  "scenario": [ { "signal": "Ouvrir.touche" } ],
+  "journal": [ { "entite": "Atelier", "capacite": "entrer", "parce_que": ["Ouvrir.touche"] } ],
+  "proprietes": ["meme-fichier-meme-resultat"]
+}
+```
+
+Un cas **refusé** (`cas/refuses/`) doit être rejeté avant toute exécution :
+
+```json
+{ "verdict": "refusé", "etape": "vérification", "categorie": "budget", "ligne": 5, "decisions": ["ADR-005"] }
+```
+
+`etape` vaut `syntaxe` ou `vérification`. `ligne` est la ligne que le message d'erreur doit désigner.
+
+### Catégories de refus
+
+| Catégorie | Signification |
+|---|---|
+| `code-libre` | Du code caché dans un bloc (`ADR-015`) |
+| `unite` | Une valeur n'a pas l'unité attendue |
+| `budget` | Le contenu pèse plus que le budget déclaré |
+| `graine` | Une graine n'est pas fixée : le résultat ne serait pas reproductible |
+| `bloc-inconnu` | Un bloc qui n'existe pas |
+| `capacite-inconnue` | Une capacité que l'entité n'offre pas |
+| `nom-en-double` | Deux blocs portent le même nom |
+
+### Propriétés
+
+| Propriété | Signification |
+|---|---|
+| `meme-fichier-meme-resultat` | Deux lectures du fichier, sur deux machines, donnent le même état et le même journal (`ADR-008`) |
+| `lisible-a-plat` | Le fichier s'affiche comme une page ordinaire (`ADR-007`) |
+| `visitable-en-profondeur` | Le fichier s'affiche comme un lieu où l'on zoome et où l'on entre (`ADR-007`) |
+| `graines-enfants-distinctes` | Les points nés d'un morcellement ont tous des graines différentes |
+| `graines-enfants-reproductibles` | Ces graines sont les mêmes d'une exécution à l'autre |
+| `lisible-sans-ia` | Le monde se lit sans aucune IA (`ADR-014`) |
+
+## La syntaxe utilisée : un brouillon
+
+`ADR-009` fixe la forme générale (des blocs nommés par leur sens, le texte en Markdown dans les blocs) mais pas la grammaire. Les cas de cette suite utilisent le brouillon suivant, à critiquer :
+
+```ebnf
+fichier   = { import } bloc ;
+import    = ( "import" | "module" ) TEXTE | "pont" ( "js" | "css" ) TEXTE ;
+bloc      = NOM "(" [ argument { "," argument } [ "," ] ] ")" ;
+argument  = [ NOM ":" ] valeur ;
+valeur    = bloc | liste | TEXTE | TEXTE_LONG | NOMBRE [ UNITE ] | "true" | "false" | NOM [ "." NOM ] ;
+liste     = "[" [ valeur { "," valeur } [ "," ] ] "]" ;
+UNITE     = "mm" | "cm" | "m" | "km" | "ms" | "s" | "min" | "h" | "o" | "Ko" | "Mo" | "Go" ;
+```
+
+Un commentaire commence par `//`. `TEXTE_LONG` est entouré de `"""` et contient du Markdown. Les tailles sont décimales : 1 Ko = 1 000 octets, 1 Go = 1 000 000 000 octets.
+
+Blocs utilisés : `Page`, `Texte`, `Bouton` (signal `touche`), `Image`, `Point` (capacités `entrer` et `sortir`), `Monde`, `Quand`.
+
+## Ce que la suite contient, et ce qui manque
+
+Quatre cas acceptés et sept cas refusés, centrés sur le premier sprint (le Big Bang) et sur la règle des appels.
+
+À ajouter ensuite, en reprenant les tests de la PR n° 2 : les archétypes composés, les relations spatiales, les lois, les durées (`for 3s`), les conflits entre phénomènes ; et depuis la PR n° 3 : l'entrée et la sortie sur plusieurs niveaux, avec une mémoire mesurée et non déclarée.
+
+## Vérifier la suite elle-même
+
+```bash
+python verifier_suite.py
+```
+
+Ce script ne fait tourner aucun moteur. Il contrôle que chaque cas est complet et bien formé, pour qu'un cas bancal ne passe pas inaperçu.

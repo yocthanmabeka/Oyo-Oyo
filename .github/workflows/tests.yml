@@ -1,0 +1,46 @@
+# Lance les tests de chaque proposition, pour que chaque pull request affiche
+# son vrai résultat. Un README peut se tromper ; ce fichier exécute le code.
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: ${{ matrix.nom }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # l'échec d'une proposition ne cache pas le résultat des autres
+      matrix:
+        include:
+          - nom: GPT5.6 — HoloCode v0.1
+            dossier: proposals/GPT5.6/holocode-v0.1
+            commande: python -m unittest discover -s tests -v
+          - nom: Claude — HoloCode v0.1
+            dossier: proposals/Claude/holocode-v0.1
+            commande: python -m unittest discover -s tests -v
+          - nom: Gemini — HoloFractal v0.1
+            dossier: proposals/Gemini
+            commande: python -m unittest test_fractal.py -v
+          - nom: Suite de conformité
+            dossier: experiments/conformite-v0.1
+            commande: python verifier_suite.py
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Lancer les tests
+        run: |
+          if [ ! -d "${{ matrix.dossier }}" ]; then
+            echo "Le dossier ${{ matrix.dossier }} n'existe pas sur cette branche : rien à tester."
+            exit 0
+          fi
+          cd "${{ matrix.dossier }}"
+          ${{ matrix.commande }}
