@@ -1,0 +1,8 @@
+// Le Big Bang : un point lumineux qui se morcelle en douze points.
+// Chaque point enfant naît de la graine de son parent, et contient lui-même des points.
+Point(
+  nom: Origine,
+  graine: 1,
+  lumiere: 1.0,
+  morceler: 12,
+)

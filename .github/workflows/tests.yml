@@ -44,3 +44,24 @@ jobs:
           fi
           cd "${{ matrix.dossier }}"
           ${{ matrix.commande }}
+
+  moteur:
+    name: Moteur Rust — cœur et compilation WebAssembly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: moteur
+      - name: Tests du cœur (Rust natif)
+        run: cargo test
+        working-directory: moteur
+      - name: Compilation WebAssembly
+        run: cargo build --release --target wasm32-unknown-unknown
+        working-directory: moteur
+      - name: Poids du moteur
+        run: ls -la target/wasm32-unknown-unknown/release/holo_moteur.wasm
+        working-directory: moteur

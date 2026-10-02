@@ -1,0 +1,34 @@
+[package]
+name = "holo-moteur"
+version = "0.1.0"
+edition = "2021"
+description = "Moteur HoloCode, sprint Big Bang : un point lumineux qui se morcelle en mondes, piloté par un fichier .holo"
+license = "UNLICENSED"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+bytemuck = { version = "1", features = ["derive"] }
+
+# Tout ce qui touche au navigateur et à la carte graphique n'est compilé que pour WebAssembly.
+# Le cœur (lecture du .holo, graines, mondes, navigation) reste du Rust pur, testable sur le PC.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wgpu = { version = "24", default-features = false, features = ["webgpu", "webgl", "wgsl"] }
+wasm-bindgen = "=0.2.100"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+console_error_panic_hook = "0.1"
+web-sys = { version = "0.3", features = [
+    "Window", "Document", "Element", "HtmlCanvasElement", "HtmlElement", "CssStyleDeclaration",
+    "PointerEvent", "WheelEvent", "MouseEvent", "Event", "EventTarget", "AddEventListenerOptions",
+    "Performance", "console",
+] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
