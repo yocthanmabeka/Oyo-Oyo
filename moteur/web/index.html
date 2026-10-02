@@ -1,0 +1,23 @@
+<!doctype html>
+<!-- Porte d'entrée vers le moteur : la seule page HTML, identique pour tous les mondes.
+     L'auteur d'un monde n'écrit que du .holo (ADR-009). -->
+<html lang="fr"><head><meta charset="utf-8"><title>Big Bang</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}canvas{display:block;width:100vw;height:100vh;touch-action:none}</style>
+</head><body><canvas id="monde"></canvas>
+<script type="module">
+  import init, { demarrer } from "./pkg/holo_moteur.js";
+  const params = new URLSearchParams(location.search);
+  const monde = params.get("monde") ?? "big-bang";
+  try {
+    await init();
+    await demarrer(document.getElementById("monde"), await (await fetch(`/mondes/${monde}.holo`)).text(), Number(params.get("zoom") ?? 0));
+  } catch (e) {
+    const pre = document.body.appendChild(document.createElement("pre"));
+    pre.id = "erreur";
+    pre.style.cssText = "position:fixed;left:8px;bottom:8px;right:8px;color:#f88;font:13px monospace;white-space:pre-wrap";
+    pre.textContent = "Le moteur n'a pas pu démarrer : " + (e?.message ?? e);
+  }
+</script>
+<script type="module" src="./mesures.js"></script>
+</body></html>
