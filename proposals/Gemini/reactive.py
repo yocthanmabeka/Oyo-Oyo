@@ -15,7 +15,7 @@ except ImportError:
 class SignalKind(Enum):
     TOUCH = auto()         # Pression tactile de l'utilisateur
     SCALE_ENTER = auto()   # La caméra franchit le seuil vers l'intérieur
-    SCALE_EXIT = auto()    # La caméra recule et sort du monde
+    SCALE_EXIT = auto()    # La caméra recule et sort du monde intérieur
     STATE_CHANGE = auto()  # Une variable d'état a muté
 
 
@@ -30,7 +30,7 @@ class Signal:
 class ActionKind(Enum):
     SET_STATE = auto()         # Mutation d'une variable déclarative
     MORPH_APPEARANCE = auto()  # Changement de couleur ou de maillage
-    PULSE_SIGNAL = auto()      # Émission d'une onde à propagation locale
+    PULSE_SIGNAL = auto()      # Émission d'une impulsion locale réactive
 
 
 @dataclass(frozen=True)
