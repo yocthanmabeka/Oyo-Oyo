@@ -1,0 +1,10 @@
+{
+  "verdict": "refusé",
+  "etape": "vérification",
+  "categorie": "capacite-inconnue",
+  "ligne": 8,
+  "decisions": [
+    "ADR-004",
+    "ADR-015"
+  ]
+}

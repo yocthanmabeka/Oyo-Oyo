@@ -1,0 +1,9 @@
+// Le contenu pèse plus que le budget déclaré : refusé avant l'exécution.
+Point(
+  nom: Galerie,
+  graine: 7,
+  budget: 200Ko,
+  interieur: Monde(contenu: [
+    Image(source: "tableau.png", poids: 300Ko),
+  ]),
+)
