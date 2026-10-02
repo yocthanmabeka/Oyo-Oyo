@@ -67,6 +67,12 @@ Le rapport contient : le moteur de rendu utilisé, les images par seconde, la pi
 
 Les images par seconde et la mémoire mesurées sur le PC sans carte graphique (rendu logiciel) n'ont aucun sens et ne sont pas reportées. **Les mesures qui comptent sont celles du téléphone, et elles ne sont pas encore faites.**
 
+## Captures (Chrome sans fenêtre, rendu WebGL 2 logiciel)
+
+| Zoom 0 | Zoom 0,8 | Zoom 3,4 | Zoom 4,6 |
+|---|---|---|---|
+| ![le point entier](captures/1-point-entier.png) | ![morcellement](captures/2-morcellement.png) | ![plongée, monde intérieur visible](captures/3-plongee-apercu-du-monde-interieur.png) | ![entré, profondeur 2](captures/4-entre-profondeur-2.png) |
+
 ## Critères d'abandon du sprint
 
 Repris de la proposition de Gemini, à vérifier sur le téléphone :
