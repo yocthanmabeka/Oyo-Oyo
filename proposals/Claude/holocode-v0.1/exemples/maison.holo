@@ -1,0 +1,53 @@
+// Une maison, un jardin, trois portes, trois personnes.
+// Une loi, deux phénomènes, une relation spatiale.
+
+archetype Person { }
+
+archetype Openable {
+    state { opened: Bool = false }
+    capability open  { opened = true }
+    capability close { opened = false }
+}
+
+archetype Lockable {
+    state { locked: Bool = false }
+    capability lock   { locked = true }
+    capability unlock { locked = false }
+}
+
+world Home {
+    space House {
+        entity Alice: Person at (0m, 0m, 0m)
+        entity Bob:   Person at (20m, 0m, 0m)
+        entity FrontDoor: Openable + Lockable at (0m, 0m, 1m)
+        entity BackDoor:  Openable + Lockable at (20m, 0m, 1m) { locked = true }
+    }
+
+    // Le portail a les mêmes coordonnées que FrontDoor, mais dans un autre
+    // espace : Alice n'en est pas proche.
+    space Garden {
+        entity Carol: Person at (40m, 0m, 0m)
+        entity Gate:  Openable at (0m, 0m, 1m)
+    }
+
+    relation Near(p: Person, d: Openable) when distance(p, d) <= 2m
+
+    // Une loi ne change rien : elle interdit. Elle vaut pour toute entité
+    // composée de Openable et de Lockable, présente ou future.
+    law LockedStaysClosed {
+        forall d: Openable + Lockable where d.locked
+        forbid d.open
+    }
+
+    phenomenon AutoOpening {
+        forall d: Openable
+        when some Near(_, d) and not d.opened
+        effect d.open
+    }
+
+    phenomenon AutoClosing {
+        forall d: Openable
+        when d.opened and no Near(_, d) for 3s
+        effect d.close
+    }
+}
