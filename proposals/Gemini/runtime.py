@@ -114,7 +114,7 @@ class FractalRuntime:
         self.camera.advance_towards(target.transform.position, ratio)
         distance = self.camera.position.distance_to(target.transform.position)
 
-        if distance <= target.scale_threshold and target.children:
+        if distance <= target.scale_threshold:
             events.extend(self._enter_node_interior(target, distance))
 
         return events
