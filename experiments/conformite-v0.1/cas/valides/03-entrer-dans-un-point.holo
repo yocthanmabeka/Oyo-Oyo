@@ -1,0 +1,16 @@
+// Un bouton, un point, et une règle du monde qui relie les deux.
+// Le bouton ne contient aucun code : c'est la règle qui demande la capacité.
+Page(
+  titre: "Ma boutique",
+  contenu: [
+    Bouton(nom: Ouvrir, texte: "Ouvrir l'atelier"),
+    Point(
+      nom: Atelier,
+      graine: 42,
+      interieur: Monde(contenu: [ Texte("## L'atelier") ]),
+    ),
+  ],
+  phenomenes: [
+    Quand(Ouvrir.touche, effet: Atelier.entrer),
+  ],
+)

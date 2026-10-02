@@ -1,0 +1,21 @@
+{
+  "verdict": "accepté",
+  "decisions": [
+    "ADR-007",
+    "ADR-009"
+  ],
+  "arbre": {
+    "bloc": "Page",
+    "titre": "Bonjour",
+    "contenu": [
+      {
+        "bloc": "Texte"
+      }
+    ]
+  },
+  "proprietes": [
+    "meme-fichier-meme-resultat",
+    "lisible-a-plat",
+    "lisible-sans-ia"
+  ]
+}

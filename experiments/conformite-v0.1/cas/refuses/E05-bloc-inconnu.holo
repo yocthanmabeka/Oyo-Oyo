@@ -1,0 +1,6 @@
+// Pas de div : les blocs sont nommés par leur sens (ADR-009).
+Page(
+  contenu: [
+    Div(contenu: [ Texte("Bonjour") ]),
+  ],
+)

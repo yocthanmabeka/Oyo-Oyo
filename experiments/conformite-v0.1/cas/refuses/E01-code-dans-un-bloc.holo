@@ -1,0 +1,6 @@
+// Interdit par ADR-015 : du code libre caché dans un bloc.
+Page(
+  contenu: [
+    Bouton(nom: Payer, texte: "Payer", quand_touche: () { commande.etat = "payée" }),
+  ],
+)

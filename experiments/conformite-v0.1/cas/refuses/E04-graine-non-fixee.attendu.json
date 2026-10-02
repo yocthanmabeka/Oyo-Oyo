@@ -1,0 +1,10 @@
+{
+  "verdict": "refusé",
+  "etape": "vérification",
+  "categorie": "graine",
+  "ligne": 5,
+  "decisions": [
+    "ADR-008",
+    "ADR-014"
+  ]
+}

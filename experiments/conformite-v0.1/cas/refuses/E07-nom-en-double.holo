@@ -1,0 +1,7 @@
+// Deux blocs ne peuvent pas porter le même nom.
+Page(
+  contenu: [
+    Bouton(nom: Ouvrir, texte: "Ouvrir"),
+    Bouton(nom: Ouvrir, texte: "Ouvrir encore"),
+  ],
+)
