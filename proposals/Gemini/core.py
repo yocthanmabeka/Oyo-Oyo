@@ -58,7 +58,7 @@ class VisualEnvelope:
 
     @property
     def estimated_geometry_bytes(self) -> int:
-        # Encodage quantifié : 16 octets par sommet, 3 sommets par triangle
+        # Encodage quantifié théorique : 16 octets par sommet, 3 sommets par triangle
         return self.estimated_triangles * 3 * 16
 
     @property
@@ -87,7 +87,7 @@ class FractalNode:
         node_type: NodeType,
         envelope: VisualEnvelope,
         budget: NodeBudget,
-        scale_threshold: float = 0.05,
+        scale_threshold: float = 0.1,  # Seuil métrique d'entrée par défaut (10 cm)
         parent: FractalNode | None = None,
     ):
         self.node_id = node_id
@@ -96,7 +96,7 @@ class FractalNode:
         self.transform = Transform()
         self.envelope = envelope
         self.budget = budget
-        self.scale_threshold = scale_threshold  # Distance d'entrée en mètres
+        self.scale_threshold = scale_threshold
         self.parent = parent
         self.children: dict[NodeId, FractalNode] = {}
         self.state: dict[str, Any] = {}
@@ -111,7 +111,7 @@ class FractalNode:
         return self.children.pop(node_id)
 
     def compute_local_active_bytes(self) -> int:
-        """Calcule le coût mémoire du nœud dans son état de résolution actuel."""
+        """Calcule le coût mémoire déclaré du nœud selon sa résolution actuelle."""
         if self.is_frozen_as_impostor:
             return self.budget.reserved_impostor_bytes
         state_overhead = len(self.state) * 128
