@@ -1,0 +1,20 @@
+{
+  "verdict": "accepté",
+  "decisions": [
+    "ADR-007",
+    "ADR-008"
+  ],
+  "arbre": {
+    "bloc": "Point",
+    "nom": "Origine",
+    "graine": 1,
+    "enfants_generes": 12
+  },
+  "proprietes": [
+    "meme-fichier-meme-resultat",
+    "graines-enfants-distinctes",
+    "graines-enfants-reproductibles",
+    "visitable-en-profondeur",
+    "lisible-sans-ia"
+  ]
+}

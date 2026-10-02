@@ -1,0 +1,9 @@
+{
+  "verdict": "refusé",
+  "etape": "syntaxe",
+  "categorie": "code-libre",
+  "ligne": 4,
+  "decisions": [
+    "ADR-015"
+  ]
+}

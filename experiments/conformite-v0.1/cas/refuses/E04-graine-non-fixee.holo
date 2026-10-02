@@ -1,0 +1,7 @@
+// « auto » doit être remplacé par un nombre au moment de la création (ADR-014).
+// Un fichier enregistré avec « auto » ne donnerait pas deux fois le même monde.
+Point(
+  nom: Origine,
+  graine: auto,
+  morceler: 12,
+)
