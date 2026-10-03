@@ -1,0 +1,46 @@
+// PROPOSITION : syntaxe du brouillon v0.1, sémantique de page non implémentée.
+Page(
+  titre: "Atelier des trois objets",
+  contenu: [
+    Texte("""
+      # Atelier des trois objets
+      Des objets fabriqués à la main à Kinshasa.
+      Commandes : [écrire à l'atelier](mailto:atelier@example.com).
+      Adresse de démonstration à remplacer avant publication.
+    """),
+    Texte("""
+      ## Lampe en bois — 45 USD
+      Une petite lampe de bureau, fabriquée sur commande.
+      [Demander la lampe](mailto:atelier@example.com?subject=Lampe).
+    """),
+    Texte("""
+      ## Carnet cousu — 12 USD
+      Un carnet de 80 pages, couverture en tissu.
+      [Demander le carnet](mailto:atelier@example.com?subject=Carnet).
+    """),
+    Texte("""
+      ## Bol en argile — 18 USD
+      Un bol tourné à la main, chaque pièce est différente.
+      [Demander le bol](mailto:atelier@example.com?subject=Bol).
+    """),
+    Bouton(nom: Ouvrir, texte: "Entrer dans l'atelier"),
+    Point(
+      nom: Atelier,
+      graine: 42,
+      interieur: Monde(
+        contenu: [
+          Texte("""
+            # Dans l'atelier
+            À gauche, l'établi pour les lampes ; à droite, la table de reliure.
+            Au fond, le tour de potier. Visite sur rendez-vous.
+          """),
+          Bouton(nom: Retour, texte: "Revenir à la boutique"),
+        ],
+      ),
+    ),
+  ],
+  phenomenes: [
+    Quand(Ouvrir.touche, effet: Atelier.entrer),
+    Quand(Retour.touche, effet: Atelier.sortir),
+  ],
+)
