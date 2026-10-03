@@ -1,0 +1,8 @@
+// A style targets a block type or a dotted name, nothing else:
+// no compound selectors, no cascade to work out.
+Page(
+  children: [ P.card("Hello") ],
+)
+.card P {
+  color: gray;
+}

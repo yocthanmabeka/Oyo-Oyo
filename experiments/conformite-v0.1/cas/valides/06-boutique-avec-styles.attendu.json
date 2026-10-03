@@ -1,0 +1,58 @@
+{
+  "verdict": "accepté",
+  "decisions": [
+    "ADR-007",
+    "ADR-017",
+    "ADR-020"
+  ],
+  "arbre": {
+    "bloc": "Page",
+    "title": "My shop",
+    "children": [
+      {
+        "bloc": "H1"
+      },
+      {
+        "bloc": "P"
+      },
+      {
+        "bloc": "P",
+        "style": "card"
+      },
+      {
+        "bloc": "Button",
+        "style": "card"
+      },
+      {
+        "bloc": "Point"
+      }
+    ]
+  },
+  "styles": [
+    "Page",
+    "H1",
+    "P",
+    ".card",
+    "World"
+  ],
+  "scenario": [
+    {
+      "signal": "Open.tap"
+    }
+  ],
+  "journal": [
+    {
+      "entite": "Workshop",
+      "capacite": "enter",
+      "parce_que": [
+        "Open.tap"
+      ]
+    }
+  ],
+  "proprietes": [
+    "meme-fichier-meme-resultat",
+    "lisible-a-plat",
+    "visitable-en-profondeur",
+    "lisible-sans-ia"
+  ]
+}

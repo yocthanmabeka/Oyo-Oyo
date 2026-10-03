@@ -1,0 +1,8 @@
+// A style says how things look, never where they are (ADR-017).
+// The layout comes from the blocks.
+Page(
+  children: [ P("Hello") ],
+)
+P {
+  display: flex;
+}

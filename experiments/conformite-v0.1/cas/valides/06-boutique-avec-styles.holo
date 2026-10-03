@@ -1,0 +1,39 @@
+// A small shop. The styles come after the root block, written as in CSS.
+// A style targets a block type (P) or a dotted name (.card): nothing else.
+Page(
+  title: "My shop",
+  children: [
+    H1("My shop"),
+    P("Paintings made by hand."),
+    P.card("Free delivery from 30 euros."),
+    Button.card(name: Open, text: "Enter the workshop"),
+    Point(
+      name: Workshop,
+      seed: 42,
+      inside: World(children: [ H1("The workshop") ]),
+    ),
+  ],
+  rules: [
+    On(Open.tap, effect: Workshop.enter),
+  ],
+)
+
+// The theme is the style of the page: its content takes it.
+Page {
+  background: #101020;
+  color: white;
+  font-family: Georgia, serif;
+}
+
+H1 { color: #E9B44C; font-size: 32px; }
+
+P { font-size: 16px; }
+
+.card {
+  background: #1a1a2e;
+  border: 1px solid #E9B44C;
+  border-radius: 12px;
+  padding: 8px 16px;
+}
+
+World { background: black; }

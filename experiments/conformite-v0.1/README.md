@@ -53,6 +53,8 @@ Un cas **refusé** (`cas/refuses/`) doit être rejeté avant toute exécution :
 | `nom-en-double` | Deux blocs portent le même nom |
 | `vocabulaire` | Un mot français d'avant `ADR-016` ; le moteur indique le mot anglais à écrire |
 | `casse` | Un bloc écrit sans majuscule (`h1`) ; le moteur indique l'écriture attendue (`ADR-020`) |
+| `style` | Un style mal écrit : réglage inconnu, valeur incorrecte, « ; » oublié, sélecteur composé, style défini deux fois ou posé sans être défini (`ADR-017`) |
+| `disposition` | Un réglage de disposition (`display`, `position`, `float`…) dans un style : un style ne dit que l'apparence (`ADR-017`) |
 | `niveau-de-titre` | Un titre qui saute un niveau (`H3` après `H1`), ou un premier titre qui n'est pas `H1` (`ADR-020`) |
 
 ### Propriétés
@@ -71,9 +73,10 @@ Un cas **refusé** (`cas/refuses/`) doit être rejeté avant toute exécution :
 `ADR-009` fixe la forme générale (des blocs nommés par leur sens, le texte en Markdown dans les blocs) mais pas la grammaire. Les cas de cette suite utilisent le brouillon suivant, à critiquer :
 
 ```ebnf
-fichier   = { import } bloc ;
+fichier   = { import } bloc { style } ;
+style     = ( NOM | "." NOM ) "{" { REGLAGE ":" VALEUR ";" } "}" ;
 import    = ( "import" | "module" ) TEXTE | "bridge" ( "js" | "css" ) TEXTE ;
-bloc      = NOM "(" [ argument { "," argument } [ "," ] ] ")" ;
+bloc      = NOM [ "." NOM ] "(" [ argument { "," argument } [ "," ] ] ")" ;
 argument  = [ NOM ":" ] valeur ;
 valeur    = bloc | liste | TEXTE | TEXTE_LONG | NOMBRE [ UNITE ] | "true" | "false" | NOM [ "." NOM ] ;
 liste     = "[" [ valeur { "," valeur } [ "," ] ] "]" ;
@@ -86,9 +89,11 @@ Règles lexicales précisées après la revue Codex du 2026-10-03 : un entier sa
 
 **Vocabulaire en anglais** (`ADR-016`), avec une règle : un mot que les programmeurs connaissent déjà garde le sens qu'ils connaissent. Blocs utilisés : `Page`, `Text` (du texte sans rôle), `P` et `H1` à `H3` (un `Text` avec un rôle, `ADR-020`), `Button` (signal `tap`), `Image`, `Point` (capacités `enter` et `leave`), `World`, `On`. Paramètres : `name`, `title`, `children`, `inside`, `rules`, `effect`, `seed`, `brightness`, `fragments`, `budget`, `weight`, `source`, `text`. Dans une liste `children`, une phrase entre guillemets est un paragraphe à elle seule (`ADR-019`) : elle vaut un `P`. Une seule écriture par mot : un bloc commence par une majuscule, un paramètre par une minuscule.
 
+**Styles** (`ADR-017`) : ils s'écrivent comme en CSS, après le bloc racine. Un style vise un type de bloc (`P { … }`) ou un nom à point (`.card { … }`), posé sur un bloc par `P.card(...)`. Le dernier `;` avant `}` est facultatif sur la même ligne ; partout ailleurs il est obligatoire. Réglages connus : `color`, `background`, `font-size`, `font-weight`, `font-style`, `font-family`, `text-align`, `border`, `border-radius`, `padding`, `margin`, `width`, `height`, `max-width`, `opacity`. Tailles en `px` ou en `%`.
+
 ## Ce que la suite contient, et ce qui manque
 
-Cinq cas acceptés et onze cas refusés, centrés sur le premier sprint (le Big Bang), sur la règle des appels, sur le vocabulaire et sur le texte.
+Six cas acceptés et seize cas refusés, centrés sur le premier sprint (le Big Bang), sur la règle des appels, sur le vocabulaire, sur le texte et sur les styles.
 
 À ajouter ensuite, en reprenant les tests de la PR n° 2 : les archétypes composés, les relations spatiales, les lois, les durées (`for 3s`), les conflits entre phénomènes ; et depuis la PR n° 3 : l'entrée et la sortie sur plusieurs niveaux, avec une mémoire mesurée et non déclarée.
 

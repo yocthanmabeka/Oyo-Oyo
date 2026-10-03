@@ -1,0 +1,7 @@
+// A style name put on a block must be defined somewhere.
+// In HTML, an unknown class does nothing and says nothing.
+Page(
+  children: [
+    P.card("Hello"),
+  ],
+)
