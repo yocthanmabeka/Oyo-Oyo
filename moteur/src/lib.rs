@@ -130,6 +130,22 @@ mod tests {
     }
 
     #[test]
+    fn les_exemples_du_guide_sont_acceptes_par_le_moteur() {
+        let guide = include_str!("../../docs/01-holocode/GUIDE.md");
+        let exemples: Vec<&str> = guide.split("```holo
+").skip(1).map(|suite| suite.split("```").next().unwrap()).collect();
+        assert!(exemples.len() >= 7, "le guide a perdu ses exemples : {}", exemples.len());
+        for exemple in exemples {
+            // Une page passe toutes les vérifications et se fabrique ; un point seul s'ouvre en profondeur.
+            let resultat = if exemple.trim_start().starts_with("Point(") { verifier(exemple).map(|_| ()) } else { vue_a_plat(exemple, "").map(|_| ()) };
+            if let Err(erreur) = resultat {
+                panic!("un exemple du guide est refusé : {erreur}
+{exemple}");
+            }
+        }
+    }
+
+    #[test]
     fn un_fichier_refuse_ne_donne_ni_page_ni_effet() {
         let casse = BOUTIQUE.replace("Workshop.enter", "Workshop.fly");
         assert!(vue_a_plat(&casse, "").unwrap_err().message.contains("capacité inconnue"));

@@ -1,8 +1,20 @@
-// The Big Bang: one bright point that breaks into twelve points.
-// Each child point is born from its parent's seed, and holds points of its own.
+// Le Big Bang : un seul point, qui se morcelle en mondes.
+//
+// On zoome : le point se morcelle en ses fragments. On zoome encore sur l'un d'eux : on y
+// entre, et il se morcelle à son tour, sans fin. Rien n'est stocké : chaque monde se calcule
+// à partir de sa graine.
+//
+// Pour le voir : ouvrir ce fichier dans VS Code et cliquer sur le bouton ▶ en haut à droite.
+// Le guide du langage : docs/01-holocode/GUIDE.md
+
 Point(
-  name: Origin,
-  seed: 1,
-  brightness: 1.0,
-  fragments: 12,
+  name: Origin,       // son nom, affiché dans le chemin : Origin › 7 › 2
+  seed: 1,            // sa graine : change ce nombre, tu obtiens un autre univers
+  brightness: 1.0,    // sa lumière, de 0 (éteint) à 1
+  fragments: 12,      // en combien de points il se morcelle, de 1 à 64
+
+  // Deux réglages facultatifs. Sans eux, c'est la graine qui choisit les couleurs.
+  // Retire les deux barres en début de ligne pour les essayer :
+  // color: "#E9B44C",                 // la couleur du point
+  // palette: ["#E9B44C", "#245C45"],  // les couleurs de ses fragments
 )
