@@ -54,9 +54,10 @@
 <script type="module">
   import init, {
     demarrer, changer_de_monde, pause, surface, vue_a_plat, effets, source_du_point, monde_d_accueil,
-    demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner, mosaique_pivoter, mosaique_de_face, reglages_de_vue,
+    demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner, mosaique_pivoter, mosaique_de_face, reglages_de_vue, reveiller, images_dessinees,
   } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
+  window.__holoImages = images_dessinees; // combien d'images le moteur a dessinées : pour vérifier la sobriété
   const params = new URLSearchParams(location.search);
   // L'adresse est celle du fichier .holo lui-même ; sinon ?monde=… ou la boutique d'exemple.
   const chemin = location.pathname.endsWith(".holo") ? location.pathname : params.get("monde") ?? "/exemples/boutique-comparee/boutique.holo";
@@ -187,7 +188,23 @@
     return dessin.getImageData(0, 0, toile.width, toile.height);
   }
 
+  // Le suivi ne tourne que pendant qu'on bouge : immobile, il s'arrête, comme le moteur.
+  let suiviActif = false;
+  let derniereCamera = "";
+  let imagesImmobiles = 0;
+
+  function reveillerLeSuivi() {
+    if (!enPoints) return;
+    reveiller();
+    imagesImmobiles = 0;
+    if (!suiviActif) {
+      suiviActif = true;
+      requestAnimationFrame(suivreLesPoints);
+    }
+  }
+
   function suivreLesPoints() {
+    suiviActif = false;
     if (!enPoints) return;
     const camera = mosaique_camera();
     if (camera.length) {
@@ -209,6 +226,11 @@
         ? `${nombre.format(image.naturalWidth * image.naturalHeight)} points — zoomez`
         : `${nombre.format(points)} points à l'écran · morcelés ${niveau} fois`;
     }
+    const cle = camera.join();
+    imagesImmobiles = cle === derniereCamera ? imagesImmobiles + 1 : 0;
+    derniereCamera = cle;
+    if (imagesImmobiles > 6) return; // plus rien ne bouge : on s'arrête jusqu'au prochain geste
+    suiviActif = true;
     requestAnimationFrame(suivreLesPoints);
   }
 
@@ -233,7 +255,7 @@
       boutonPoints.textContent = "Vue web";
       enPoints = true;
       aQuitteLeRepos = false;
-      requestAnimationFrame(suivreLesPoints);
+      reveillerLeSuivi();
     })().finally(() => { entreeEnCours = null; });
     return entreeEnCours;
   }
@@ -315,7 +337,14 @@
       boutonTourner.setAttribute("aria-pressed", String(actif));
       mosaique_tourner(actif);
     });
-    document.getElementById("face").addEventListener("click", () => mosaique_de_face());
+    document.getElementById("face").addEventListener("click", () => { mosaique_de_face(); reveillerLeSuivi(); });
+    // En vue points, tout geste relance le suivi ; une souris qui passe sans bouton ne compte pas.
+    for (const nom of ["wheel", "pointerdown", "pointermove", "pointerup"]) {
+      addEventListener(nom, (evenement) => {
+        if (nom !== "pointermove" || evenement.buttons !== 0) reveillerLeSuivi();
+      }, { capture: true, passive: true });
+    }
+    addEventListener("resize", reveillerLeSuivi);
     // En vue points, le bouton droit sert à tourner la page : pas de menu.
     addEventListener("contextmenu", (evenement) => { if (enPoints) evenement.preventDefault(); });
 
@@ -332,6 +361,7 @@
         }));
       }
       mosaique_pivoter(Number(params.get("lacet") ?? 0) * Math.PI / 180, Number(params.get("tangage") ?? 0) * Math.PI / 180);
+      reveillerLeSuivi();
     }
   } catch (e) {
     const pre = document.body.appendChild(document.createElement("pre"));
