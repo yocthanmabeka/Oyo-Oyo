@@ -12,7 +12,7 @@ from pathlib import Path
 
 CAS = Path(__file__).resolve().parent / "cas"
 CATEGORIES = {
-    "code-libre", "unite", "budget", "graine", "bloc-inconnu", "capacite-inconnue", "nom-en-double",
+    "code-libre", "unite", "budget", "graine", "bloc-inconnu", "capacite-inconnue", "nom-en-double", "vocabulaire",
 }
 PROPRIETES = {
     "meme-fichier-meme-resultat", "lisible-a-plat", "visitable-en-profondeur",

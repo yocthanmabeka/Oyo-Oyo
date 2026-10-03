@@ -1,9 +1,9 @@
-// Le contenu pèse plus que le budget déclaré : refusé avant l'exécution.
+// The content weighs more than the declared budget: refused before running.
 Point(
-  nom: Galerie,
-  graine: 7,
-  budget: 200Ko,
-  interieur: Monde(contenu: [
-    Image(source: "tableau.png", poids: 300Ko),
+  name: Gallery,
+  seed: 7,
+  budget: 200KB,
+  inside: World(children: [
+    Image(source: "painting.png", weight: 300KB),
   ]),
 )

@@ -326,7 +326,7 @@ mod tests {
     use super::*;
 
     fn depart() -> Navigation {
-        Navigation::new(PointDecl { nom: "Origine".into(), graine: 1, lumiere: 1.0, morceler: 12 })
+        Navigation::new(PointDecl { nom: "Origin".into(), graine: 1, lumiere: 1.0, morceler: 12 })
     }
 
     #[test]
@@ -334,7 +334,7 @@ mod tests {
         let nav = depart();
         let sprites = nav.sprites(0.5);
         assert_eq!(nav.profondeur(), 1);
-        assert_eq!(nav.chemin(), "Origine");
+        assert_eq!(nav.chemin(), "Origin");
         assert!(sprites.len() >= 1 && sprites.len() <= 13);
         assert!(sprites.iter().all(|s| s.x.is_finite() && s.y.is_finite() && s.rayon.is_finite()));
     }
@@ -346,7 +346,7 @@ mod tests {
             nav.zoomer(0.1);
         }
         assert_eq!(nav.profondeur(), 2, "zoom {}", nav.zoom);
-        assert!(nav.chemin().starts_with("Origine › "));
+        assert!(nav.chemin().starts_with("Origin › "));
         assert!((nav.zoom - ZOOM_APRES_ENTREE).abs() < 1e-5 || nav.zoom > ZOOM_APRES_ENTREE);
         let graine_interieure = nav.graine_courante();
         assert_ne!(graine_interieure, 1);

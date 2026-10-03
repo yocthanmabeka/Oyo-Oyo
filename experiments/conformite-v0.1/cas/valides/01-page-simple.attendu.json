@@ -2,14 +2,19 @@
   "verdict": "accepté",
   "decisions": [
     "ADR-007",
-    "ADR-009"
+    "ADR-009",
+    "ADR-016",
+    "ADR-019"
   ],
   "arbre": {
     "bloc": "Page",
-    "titre": "Bonjour",
-    "contenu": [
+    "title": "Hello",
+    "children": [
       {
-        "bloc": "Texte"
+        "bloc": "Text"
+      },
+      {
+        "bloc": "Text"
       }
     ]
   },

@@ -3,25 +3,26 @@
   "decisions": [
     "ADR-007",
     "ADR-009",
-    "ADR-015"
+    "ADR-015",
+    "ADR-016"
   ],
   "arbre": {
     "bloc": "Page",
-    "titre": "Ma boutique",
-    "contenu": [
+    "title": "My shop",
+    "children": [
       {
-        "bloc": "Bouton",
-        "nom": "Ouvrir"
+        "bloc": "Button",
+        "name": "Open"
       },
       {
         "bloc": "Point",
-        "nom": "Atelier",
-        "graine": 42,
-        "interieur": {
-          "bloc": "Monde",
-          "contenu": [
+        "name": "Workshop",
+        "seed": 42,
+        "inside": {
+          "bloc": "World",
+          "children": [
             {
-              "bloc": "Texte"
+              "bloc": "Text"
             }
           ]
         }
@@ -30,19 +31,19 @@
   },
   "scenario": [
     {
-      "signal": "Ouvrir.touche"
+      "signal": "Open.tap"
     }
   ],
   "journal": [
     {
-      "entite": "Atelier",
-      "capacite": "entrer",
+      "entite": "Workshop",
+      "capacite": "enter",
       "parce_que": [
-        "Ouvrir.touche"
+        "Open.tap"
       ]
     }
   ],
-  "contexte_final": "Atelier",
+  "contexte_final": "Workshop",
   "proprietes": [
     "meme-fichier-meme-resultat",
     "lisible-a-plat",

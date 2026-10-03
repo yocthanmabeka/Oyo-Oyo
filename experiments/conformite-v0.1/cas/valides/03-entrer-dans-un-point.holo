@@ -1,16 +1,16 @@
-// Un bouton, un point, et une règle du monde qui relie les deux.
-// Le bouton ne contient aucun code : c'est la règle qui demande la capacité.
+// A button, a point, and a rule of the world that links the two.
+// The button holds no code: the rule asks for the capability.
 Page(
-  titre: "Ma boutique",
-  contenu: [
-    Bouton(nom: Ouvrir, texte: "Ouvrir l'atelier"),
+  title: "My shop",
+  children: [
+    Button(name: Open, text: "Open the workshop"),
     Point(
-      nom: Atelier,
-      graine: 42,
-      interieur: Monde(contenu: [ Texte("## L'atelier") ]),
+      name: Workshop,
+      seed: 42,
+      inside: World(children: [ "## The workshop" ]),
     ),
   ],
-  phenomenes: [
-    Quand(Ouvrir.touche, effet: Atelier.entrer),
+  rules: [
+    On(Open.tap, effect: Workshop.enter),
   ],
 )

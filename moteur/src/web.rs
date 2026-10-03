@@ -69,7 +69,7 @@ pub async fn demarrer(canvas: HtmlCanvasElement, source: &str, zoom_initial: f32
 #[wasm_bindgen]
 pub fn verifier_holo(source: &str) -> String {
     match crate::verifier(source) {
-        Ok(d) => format!("ok : Point « {} », graine {}, {} morceaux", d.nom, d.graine, d.morceler),
+        Ok(d) => format!("ok : Point « {} », seed {}, {} fragments", d.nom, d.graine, d.morceler),
         Err(e) => e.to_string(),
     }
 }

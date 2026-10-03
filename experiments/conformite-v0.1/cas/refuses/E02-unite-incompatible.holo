@@ -1,6 +1,6 @@
-// Une durée là où une taille est attendue.
+// A duration where a size is expected.
 Point(
-  nom: Galerie,
-  graine: 7,
+  name: Gallery,
+  seed: 7,
   budget: 3s,
 )

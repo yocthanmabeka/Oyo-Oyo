@@ -41,7 +41,7 @@ pub struct Bloc {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Import {
-    /// `import`, `module` ou `pont js` / `pont css` (ADR-013).
+    /// `import`, `module` ou `bridge js` / `bridge css` (ADR-013, ADR-016).
     pub sorte: String,
     pub cible: String,
     pub pos: Pos,
@@ -71,7 +71,7 @@ impl Bloc {
     }
 }
 
-const UNITES: &[&str] = &["mm", "cm", "m", "km", "ms", "s", "min", "h", "o", "Ko", "Mo", "Go"];
+const UNITES: &[&str] = &["mm", "cm", "m", "km", "ms", "s", "min", "h", "B", "KB", "MB", "GB"];
 
 // ---------------------------------------------------------------- découpage en mots
 
@@ -283,16 +283,16 @@ impl Analyseur {
     fn programme(mut self) -> Result<Programme, Erreur> {
         let mut imports = Vec::new();
         while let Mot::Nom(n) = &self.courant().mot {
-            if n != "import" && n != "module" && n != "pont" {
+            if n != "import" && n != "module" && n != "bridge" {
                 break;
             }
             let pos = self.courant().pos;
             let mut sorte = n.clone();
             self.avancer();
-            if sorte == "pont" {
+            if sorte == "bridge" {
                 match self.avancer().mot {
-                    Mot::Nom(l) if l == "js" || l == "css" => sorte = format!("pont {l}"),
-                    _ => return Err(Erreur { message: "« pont » doit être suivi de « js » ou « css » (ADR-012)".into(), pos }),
+                    Mot::Nom(l) if l == "js" || l == "css" => sorte = format!("bridge {l}"),
+                    _ => return Err(Erreur { message: "« bridge » doit être suivi de « js » ou « css » (ADR-012)".into(), pos }),
                 }
             }
             match self.avancer().mot {
@@ -416,69 +416,72 @@ mod tests {
     fn lit_le_big_bang() {
         let p = lire(BIG_BANG).unwrap();
         assert_eq!(p.racine.nom, "Point");
-        assert_eq!(p.racine.argument("nom").unwrap().valeur, Valeur::Nom("Origine".into()));
-        assert_eq!(p.racine.argument("graine").unwrap().valeur, Valeur::Entier(1));
-        assert_eq!(p.racine.argument("morceler").unwrap().valeur, Valeur::Entier(12));
-        assert_eq!(p.racine.argument("lumiere").unwrap().valeur, Valeur::Nombre { valeur: 1.0, unite: None });
+        assert_eq!(p.racine.argument("name").unwrap().valeur, Valeur::Nom("Origin".into()));
+        assert_eq!(p.racine.argument("seed").unwrap().valeur, Valeur::Entier(1));
+        assert_eq!(p.racine.argument("fragments").unwrap().valeur, Valeur::Entier(12));
+        assert_eq!(p.racine.argument("brightness").unwrap().valeur, Valeur::Nombre { valeur: 1.0, unite: None });
     }
 
     #[test]
     fn lit_des_blocs_imbriques_du_texte_et_des_unites() {
         let p = lire(r#"
-            import "boutons.holo"
+            import "buttons.holo"
             Page(
-              titre: "Ma boutique",
-              contenu: [
-                Texte("""
+              title: "Ma boutique",
+              children: [
+                "Un paragraphe s'écrit tel quel.",
+                Text("""
                   # Bienvenue
                   Voici **mes créations**.
                 """),
-                Point(nom: Atelier, graine: 42, budget: 500Ko),
+                Point(name: Atelier, seed: 42, budget: 500KB),
               ],
-              phenomenes: [ Quand(Ouvrir.touche, effet: Atelier.entrer) ],
+              rules: [ On(Open.tap, effect: Atelier.enter) ],
             )
         "#)
         .unwrap();
         assert_eq!(p.imports[0].sorte, "import");
-        let contenu = match &p.racine.argument("contenu").unwrap().valeur {
+        let contenu = match &p.racine.argument("children").unwrap().valeur {
             Valeur::Liste(l) => l,
             _ => panic!(),
         };
+        assert_eq!(contenu[0], Valeur::Texte("Un paragraphe s'écrit tel quel.".into()));
+        let contenu = &contenu[1..];
         match &contenu[0] {
             Valeur::Bloc(b) => assert_eq!(b.arguments[0].valeur, Valeur::Texte("# Bienvenue\nVoici **mes créations**.".into())),
             _ => panic!(),
         }
         match &contenu[1] {
-            Valeur::Bloc(b) => assert_eq!(b.argument("budget").unwrap().valeur, Valeur::Nombre { valeur: 500.0, unite: Some("Ko".into()) }),
+            Valeur::Bloc(b) => assert_eq!(b.argument("budget").unwrap().valeur, Valeur::Nombre { valeur: 500.0, unite: Some("KB".into()) }),
             _ => panic!(),
         }
     }
 
     #[test]
     fn refuse_le_code_libre_avec_la_bonne_ligne() {
-        let e = lire("Page(\n  contenu: [\n    Bouton(nom: Payer, quand_touche: () { x = 1 }),\n  ],\n)").unwrap_err();
+        let e = lire("Page(\n  children: [\n    Button(name: Pay, on_tap: () { x = 1 }),\n  ],\n)").unwrap_err();
         assert_eq!(e.pos.ligne, 3);
         assert!(e.message.contains("ADR-015"), "{e}");
     }
 
     #[test]
     fn refuse_une_unite_inconnue_et_un_texte_ouvert() {
-        assert!(lire("Point(graine: 3parsecs)").unwrap_err().message.contains("unité inconnue"));
-        assert_eq!(lire("Point(nom: \"oups)").unwrap_err().message, "texte jamais refermé");
+        assert!(lire("Point(seed: 3parsecs)").unwrap_err().message.contains("unité inconnue"));
+        assert_eq!(lire("Point(name: \"oups)").unwrap_err().message, "texte jamais refermé");
     }
 
     #[test]
     fn les_grands_entiers_restent_exacts() {
         // Revue Codex : 9007199254740993 (2^53 + 1) devenait 9007199254740992 en passant par f64.
-        let p = lire("Point(graine: 9007199254740993, max: 18446744073709551615)").unwrap();
-        assert_eq!(p.racine.argument("graine").unwrap().valeur, Valeur::Entier(9_007_199_254_740_993));
+        let p = lire("Point(seed: 9007199254740993, max: 18446744073709551615)").unwrap();
+        assert_eq!(p.racine.argument("seed").unwrap().valeur, Valeur::Entier(9_007_199_254_740_993));
         assert_eq!(p.racine.argument("max").unwrap().valeur, Valeur::Entier(u64::MAX));
-        assert!(lire("Point(graine: 18446744073709551616)").is_ok(), "au-delà de u64, c'est un nombre flottant, refusé plus loin comme graine");
-        assert!(lire("Point(budget: 500 Ko)").is_err(), "l'unité se colle au nombre : « 500 Ko » n'est pas accepté");
+        assert!(lire("Point(seed: 18446744073709551616)").is_ok(), "au-delà de u64, c'est un nombre flottant, refusé plus loin comme graine");
+        assert!(lire("Point(budget: 500 KB)").is_err(), "l'unité se colle au nombre : « 500 KB » n'est pas accepté");
     }
 
     #[test]
     fn refuse_deux_blocs_racines() {
-        assert!(lire("Point(graine: 1) Point(graine: 2)").unwrap_err().message.contains("un seul bloc racine"));
+        assert!(lire("Point(seed: 1) Point(seed: 2)").unwrap_err().message.contains("un seul bloc racine"));
     }
 }

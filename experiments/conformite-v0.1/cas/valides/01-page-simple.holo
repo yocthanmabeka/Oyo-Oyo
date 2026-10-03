@@ -1,10 +1,12 @@
-// Une page ordinaire : un titre et un texte.
+// An ordinary page: a title and two paragraphs.
+// A sentence between quotes is a paragraph: nothing else to write.
 Page(
-  titre: "Bonjour",
-  contenu: [
-    Texte("""
-      # Bonjour
-      Ceci est une **page** ordinaire.
+  title: "Hello",
+  children: [
+    "Hello World",
+    Text("""
+      # Hello
+      This is an ordinary **page**.
     """),
   ],
 )
