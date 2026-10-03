@@ -62,6 +62,8 @@ Le canal entre les IA est **GitHub**, décidé par Yocthan le 2026-10-03 : simpl
 
 Décidé le 2026-10-03 sur la proposition de Codex (`proposals/GPT5.6/outillage-et-coordination-2026-10/`) : aucun pont direct entre IA ; aucun serveur MCP installé pour l'instant. La mesure sur téléphone se fera par câble USB avec `adb` et `chrome://inspect`. Chrome DevTools MCP seulement à la demande, avec un profil Chrome de test vide. Ce qui manque au projet, par priorité : voir `MANQUES.md` dans le même dossier.
 
+Pour écrire du `.holo` dans VS Code : l'extension [`outils/vscode-holocode/`](outils/vscode-holocode/README.md) (couleurs du langage, bouton pour ouvrir le fichier dans le navigateur).
+
 ## Équipe
 
 - **Yocthan Mabeka** : responsable, seul à valider. Dicte souvent à la voix ; vient de Flutter ; demande qu'on discute avant de construire.

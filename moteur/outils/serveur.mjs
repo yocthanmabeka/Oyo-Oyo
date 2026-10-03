@@ -11,13 +11,17 @@
 
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
-import { extname, join, normalize } from "node:path";
+import { extname, join, normalize, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { brotliCompressSync, constants } from "node:zlib";
 import { networkInterfaces } from "node:os";
 
 const racine = fileURLToPath(new URL("..", import.meta.url));
-const exemples = fileURLToPath(new URL("../../exemples/", import.meta.url));
+// HOLO_DEPOT : le dossier du dépôt dont on affiche les fichiers .holo (exemples/ et moteur/mondes/),
+// quand ce n'est pas celui où le moteur a été construit. Sert à afficher ce qu'on écrit dans VS Code.
+const depot = process.env.HOLO_DEPOT ?? fileURLToPath(new URL("../..", import.meta.url));
+const exemples = join(depot, "exemples") + sep;
+const mondes = join(depot, "moteur", "mondes") + sep;
 const port = Number(process.env.PORT ?? 8080);
 const types = {
   ".html": "text/html; charset=utf-8",
@@ -46,10 +50,11 @@ createServer(async (req, res) => {
     let url = decodeURIComponent(new URL(req.url, "http://x").pathname);
     if (url === "/") url = "/index.html";
     const dansExemples = url.startsWith("/exemples/");
+    const dansMondes = url.startsWith("/mondes/");
     const chemin = dansExemples
       ? join(exemples, normalize(url.slice("/exemples/".length)))
-      : url.startsWith("/mondes/") ? join(racine, normalize(url)) : join(racine, "web", normalize(url));
-    if (!chemin.startsWith(dansExemples ? exemples : racine)) throw Object.assign(new Error("hors racine"), { code: "ENOENT" });
+      : dansMondes ? join(mondes, normalize(url.slice("/mondes/".length))) : join(racine, "web", normalize(url));
+    if (!chemin.startsWith(dansExemples ? exemples : dansMondes ? mondes : racine)) throw Object.assign(new Error("hors racine"), { code: "ENOENT" });
     // Un .holo demandé pour être affiché (et non lu par le moteur) : on sert la porte d'entrée,
     // celle des pages ou celle des points selon le premier bloc du fichier.
     const pourAffichage = extname(chemin) === ".holo" && /text\/html/.test(req.headers.accept ?? "");
@@ -73,6 +78,7 @@ createServer(async (req, res) => {
   }
 }).listen(port, "0.0.0.0", () => {
   const ips = Object.values(networkInterfaces()).flat().filter((i) => i.family === "IPv4" && !i.internal).map((i) => i.address);
+  console.log(`Fichiers .holo : ${depot}`);
   console.log(`Sur ce PC      : http://localhost:${port}`);
   for (const ip of ips) console.log(`Sur le téléphone (même Wi-Fi) : http://${ip}:${port}`);
   console.log("WebGPU exige une page sécurisée : sur le téléphone, voir « Tester sur le téléphone » dans moteur/README.md.");
