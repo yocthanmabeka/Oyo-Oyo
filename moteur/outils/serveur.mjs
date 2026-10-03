@@ -69,6 +69,8 @@ createServer(async (req, res) => {
     res.writeHead(200, {
       "content-type": type,
       "cache-control": "no-cache",
+      // Un fichier .holo et ses images sont publics : un site rangé ailleurs peut y mener.
+      "access-control-allow-origin": "*",
       ...(accepteBr ? { "content-encoding": "br" } : {}),
     });
     res.end(accepteBr ? br : brut);
