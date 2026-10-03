@@ -2,9 +2,21 @@
 
 **Statut : `PROPOSITION`**
 
+> **Mise à jour du 2026-10-03.** La vision de Yocthan, cadrée dans `HC-011` et `HC-013`, et les décisions `ADR-007` à `ADR-015` complètent ce document. Les sections ajoutées sont marquées ; le texte d'origine de ChatGPT est conservé.
+
 ## Ambition
 
 Holoverse vise à rendre programmables des mondes numériques persistants dans lesquels l'espace, le temps, les relations, les règles et les phénomènes sont décrits explicitement. L'ambition va du langage jusqu'au runtime et, à long terme seulement, à des interfaces holographiques et architectures matérielles spécialisées.
+
+## La vision de Yocthan (ajouté, `ADR-007`, `HC-013`)
+
+- **Le métavers est une mise à jour du web, pas un jeu.** Les métavers précédents ont proposé un jeu dans lequel il fallait entrer ; or bien plus de gens vivent sur Internet que dans les jeux. « Quelqu'un verra un web normal, mais pourtant c'est le métavers. » Un même fichier s'affiche de deux façons : **à plat**, comme une page ordinaire, et **en profondeur**, comme un lieu où l'on zoome et où l'on entre.
+- **Le Big Bang.** Tout part d'un petit point lumineux en 3D qui se morcelle en d'autres points ; à l'intérieur de chaque point se trouve un monde, ou une multitude de mondes. Ce point, une sphère, est aussi le premier personnage et peut prendre n'importe quelle apparence. Un point contient des points comme un bloc contient des blocs.
+- **La limite de perception.** Le premier test tient dans 1 Go au maximum et tourne sur n'importe quel téléphone actuel, dans un navigateur (`ADR-005`). Un monde se calcule à partir d'une graine ; il n'est pas stocké.
+- **Créer est à la portée de quelqu'un qui n'a jamais programmé.** L'auteur n'écrit jamais de HTML, de CSS ni de JavaScript (`ADR-009`).
+- Horizon 2030, par sprints de 24 heures.
+
+Première preuve exécutable : le [sprint Big Bang](../../moteur/README.md), un moteur en Rust piloté par un fichier `.holo` de huit lignes.
 
 ## Problème de départ
 

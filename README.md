@@ -41,6 +41,9 @@ flowchart TD
 | Voir les sous-projets prévus | [Carte des projets](docs/03-projets/PROJETS.md) |
 | Suivre les étapes de réalisation | [Feuille de route](docs/04-roadmap/ROADMAP.md) |
 | Contribuer correctement | [Guide de contribution](CONTRIBUTING.md) |
+| Voir la première preuve exécutable | [Sprint Big Bang](moteur/README.md) |
+| Savoir ce qu'un moteur doit faire | [Suite de conformité](experiments/conformite-v0.1/README.md) |
+| Lire les propositions des IA | [Registre des propositions](proposals/README.md) |
 
 ## Statuts documentaires
 

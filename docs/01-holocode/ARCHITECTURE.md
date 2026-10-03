@@ -3,7 +3,16 @@
 > **Mise à jour v0.1 :** un interpréteur de référence expérimental implémente désormais le chemin `source → lexer → AST → runtime` pour les entités, relations de proximité et phénomènes. HoloIR, HoloVM et la compilation native restent des cibles futures. Voir la [spécification exécutable](SPECIFICATION-V0.1.md).
 
 **Statut : `PROPOSITION`**
-**Discussions sources : `HC-005`, `HC-006`, `HC-007`**
+**Discussions sources : `HC-005`, `HC-006`, `HC-007`, `HC-013`**
+
+## Architecture décidée le 2026-09-21 (ajouté ; `ADR-010`, `ADR-011`, `ADR-013`, en `EXPÉRIMENTATION`)
+
+- **Un moteur écrit en Rust, deux enveloppes.** Le moteur lit les fichiers `.holo` et dessine le résultat. Compilé en WebAssembly, il tourne dans les navigateurs actuels, avec `wgpu` (WebGPU, ou WebGL 2 en repli). Compilé en natif, le même moteur deviendra le navigateur propre au projet, qui ouvrira directement une adresse vers un fichier `.holo`, sans aucun HTML.
+- **Un rendu par vue.** La vue à plat est traduite en HTML et CSS générés, pour rester légère, lisible par les moteurs de recherche et par les téléphones anciens. La vue en profondeur est dessinée par le moteur dans une zone de dessin. Dans les deux cas, l'auteur n'écrit que du `.holo`.
+- **Deux étages.** HoloCode en haut : pages, mondes, règles, comportements, utilisation d'une IA ; sûr, petit, réapprenable. En bas, des modules compilés en WebAssembly (Rust, C, Zig…) pour le rendu, la physique lourde, les réseaux de neurones ; chaque module est enfermé (mémoire plafonnée, temps limité, droits déclarés) et se présente en holoscénique. Trois sortes d'import : `import` (du `.holo`), `module` (une boîte fermée), `pont js` / `pont css` (le vieux web, transition seulement, `ADR-012`).
+- **Première réalisation :** le [sprint Big Bang](../../moteur/README.md) : 1 529 lignes de Rust, 489 Ko transférés, un fichier `.holo` de huit lignes. Les mesures sur téléphone décideront du passage de ces décisions en `ACCEPTÉ`.
+
+Les sections qui suivent décrivent la chaîne cible de départ (compilateur, HoloIR, VM). HoloIR reste une proposition (`ADR-006`) : le moteur lit aujourd'hui directement le `.holo`.
 
 ## Chaîne cible
 
