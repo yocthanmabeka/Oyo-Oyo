@@ -1,0 +1,11 @@
+[package]
+name = "revue-gpt56-holocode-hostile"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+path = "harness.rs"
+
+[dependencies]
+holo-moteur = { path = "../../../moteur" }

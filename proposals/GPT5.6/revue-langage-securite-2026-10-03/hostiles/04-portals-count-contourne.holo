@@ -1,0 +1,9 @@
+Page(
+  title: "Portal count is not a cap",
+  portals: Portals(count: 1),
+  children: [
+    Point(name: One, seed: 1, inside: World(children: [ P("One") ])),
+    Point(name: Two, seed: 2, inside: World(children: [ P("Two") ])),
+    Point(name: Three, seed: 3, inside: World(children: [ P("Three") ])),
+  ],
+)

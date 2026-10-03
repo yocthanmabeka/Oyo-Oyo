@@ -1,0 +1,15 @@
+Page(
+  title: "The anchor exists, but not in the visible main element",
+  children: [
+    Point(
+      name: Container,
+      seed: 6,
+      inside: World(children: [
+        Button(name: Inner, text: "Nested anchor"),
+      ]),
+    ),
+  ],
+  pixels: [
+    Point(name: Hidden, above: Inner, seed: 7),
+  ],
+)

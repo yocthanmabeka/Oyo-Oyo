@@ -1,0 +1,10 @@
+Page(
+  title: "Remote passage",
+  children: [
+    Point(
+      name: Tracker,
+      seed: 8,
+      inside: "http://127.0.0.1:8081/tracker.holo",
+    ),
+  ],
+)
