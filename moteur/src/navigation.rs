@@ -242,6 +242,16 @@ impl Navigation {
         [c[0] * recentrage, c[1] * recentrage]
     }
 
+    /// Où se trouve, à l'écran, une surface plate posée au centre du monde et tournant avec
+    /// lui : la page que voit un personnage, comme une feuille tenue dans le lieu.
+    /// Rend : x, y (mêmes unités que les points), agrandissement d'une unité du monde,
+    /// lacet, tangage, profondeur dans les mondes, distance de la caméra.
+    pub fn surface(&self) -> [f32; 7] {
+        let (m, s, recentrage) = self.parametres();
+        let centre = self.centre_ecran(m, recentrage);
+        [-centre[0] * s, -centre[1] * s, FOCALE / DISTANCE_CAMERA * s, self.lacet, self.tangage, self.chemin.len() as f32, DISTANCE_CAMERA]
+    }
+
     /// Où est chaque point enfant à l'écran. Sert au dessin et au toucher.
     pub fn points_ecran(&self, _aspect: f32) -> Vec<PointEcran> {
         let (m, s, recentrage) = self.parametres();
@@ -337,6 +347,26 @@ mod tests {
         assert_eq!(nav.chemin(), "Origin");
         assert!(sprites.len() >= 1 && sprites.len() <= 13);
         assert!(sprites.iter().all(|s| s.x.is_finite() && s.y.is_finite() && s.rayon.is_finite()));
+    }
+
+    #[test]
+    fn la_surface_suit_le_monde() {
+        let mut nav = depart();
+        let depart = nav.surface();
+        assert_eq!(&depart[..2], &[0.0, 0.0], "au départ, la surface est au centre de l'écran");
+        assert!((depart[2] - FOCALE / DISTANCE_CAMERA).abs() < 1e-6);
+        assert_eq!(depart[5], 0.0);
+        nav.tourner(0.3, -0.2);
+        let tournee = nav.surface();
+        assert_eq!((tournee[3], tournee[4]), (nav.lacet, nav.tangage), "elle tourne avec le monde");
+        for _ in 0..8 {
+            nav.zoomer(0.25);
+        }
+        assert!(nav.surface()[2] > depart[2], "elle grandit quand on s'approche");
+        for _ in 0..8 {
+            nav.zoomer(0.25);
+        }
+        assert_eq!(nav.surface()[5], 1.0, "entré dans un point, on a quitté le lieu de la surface");
     }
 
     #[test]
