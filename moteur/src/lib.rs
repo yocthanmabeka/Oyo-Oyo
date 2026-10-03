@@ -85,6 +85,16 @@ pub fn source_du_point(source: &str, nom: &str) -> Option<String> {
     Some(format!("Point({})", reglages.join(", ")))
 }
 
+/// Le monde où la page est posée quand on la regarde en personnage. Provisoire : tant que
+/// le langage ne sait pas écrire « un monde qui contient une page », la graine de ce monde
+/// se tire du nom de la page, pour que le même fichier redonne le même lieu (ADR-008).
+pub fn monde_d_accueil(source: &str) -> Option<String> {
+    let programme = verifier_page(source).ok()?;
+    let nom = regles::nom_de(&programme.racine).unwrap_or("Home");
+    let graine = nom.bytes().fold(0u64, |g, octet| graine::melanger(g ^ u64::from(octet)));
+    Some(format!("Point(name: {nom}, seed: {graine}, fragments: 12)"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -101,6 +111,17 @@ mod tests {
         let decl = verifier(&point).unwrap();
         assert_eq!((decl.graine, decl.morceler, decl.palette.len()), (42, 6, 2));
         assert_eq!(source_du_point(BOUTIQUE, "Open"), None);
+    }
+
+    #[test]
+    fn le_monde_d_accueil_est_toujours_le_meme() {
+        let accueil = monde_d_accueil(BOUTIQUE).unwrap();
+        assert_eq!(Some(accueil.clone()), monde_d_accueil(BOUTIQUE));
+        let decl = verifier(&accueil).unwrap();
+        assert_eq!((decl.nom.as_str(), decl.morceler), ("Shop", 12));
+        // Une autre page a un autre lieu.
+        assert_ne!(monde_d_accueil("Page(name: Blog)").unwrap(), accueil);
+        assert!(monde_d_accueil("Page(children: [ Div() ])").is_none());
     }
 
     #[test]

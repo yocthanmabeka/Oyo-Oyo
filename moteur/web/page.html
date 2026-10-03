@@ -1,51 +1,124 @@
 <!doctype html>
 <!-- Porte d'entrée pour une page : identique pour tous les fichiers .holo.
-     Le moteur fabrique la page (vue à plat) ; entrer dans un point ouvre la vue en profondeur,
-     avec le contenu du monde lisible sur un panneau (ADR-018, option A).
+
+     Le même fichier se voit de deux places :
+     - vue web : le site en 2D classique, fabriqué par le moteur (vue à plat) ;
+     - vue personnage : on est dans un monde, et la même page y est posée comme une
+       feuille, à la manière d'un téléphone tenu dans un jeu. Rien n'est rechargé.
+     Entrer dans un point ouvre son monde, avec son contenu lisible sur un panneau.
+
      Cette page ne décide de rien : chaque toucher est envoyé au moteur, qui répond par les
      effets que les règles du fichier demandent (ADR-015). -->
 <html lang="fr"><head><meta charset="utf-8"><title>HoloCode</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   html,body{margin:0;background:#000}
-  canvas.holo-profondeur{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
-  #erreur{position:fixed;left:8px;bottom:8px;right:8px;color:#f88;font:13px monospace;white-space:pre-wrap}
+  canvas.holo-profondeur{position:fixed;inset:0;width:100vw;height:100vh;display:none;touch-action:none;z-index:0}
+  .avec-monde>canvas.holo-profondeur{display:block}
+  .holo-Page>main{position:relative;z-index:1}
+  /* Le fond d'un monde est la vue en profondeur elle-même. */
+  .holo-World{background:none!important;z-index:2}
+  /* Vue personnage : la page devient une feuille posée dans le monde. */
+  .mode-personnage{height:100vh;overflow:hidden}
+  .mode-personnage>main{position:fixed;left:50%;top:50%;width:420px;height:640px;box-sizing:border-box;overflow:auto;
+    background:inherit;padding:inherit;border-radius:16px;box-shadow:0 0 40px rgba(233,180,76,.25);
+    transform-origin:center;backface-visibility:hidden;will-change:transform}
+  #mode{position:fixed;top:8px;right:8px;z-index:5;padding:8px 12px;border:1px solid #888;border-radius:8px;
+    background:rgba(0,0,0,.6);color:#fff;font:14px system-ui,sans-serif;cursor:pointer}
+  #mode[hidden]{display:none}
+  #erreur{position:fixed;left:8px;bottom:8px;right:8px;z-index:6;color:#f88;font:13px monospace;white-space:pre-wrap}
 </style>
 </head><body><div id="page"></div>
+<button id="mode" type="button" hidden>Vue personnage</button>
 <script type="module">
-  import init, { demarrer, pause, vue_a_plat, effets, source_du_point } from "./pkg/holo_moteur.js";
+  import init, { demarrer, changer_de_monde, pause, surface, vue_a_plat, effets, source_du_point, monde_d_accueil } from "./pkg/holo_moteur.js";
   window.__holoPause = pause;
   const params = new URLSearchParams(location.search);
   const chemin = params.get("monde") ?? "/exemples/boutique-comparee/boutique.holo";
   const base = chemin.slice(0, chemin.lastIndexOf("/") + 1);
   const racine = document.getElementById("page");
+  const boutonMode = document.getElementById("mode");
+  // La feuille mesure 2 unités de haut dans le monde, dont les points sont sur une sphère de rayon 1.
+  const HAUTEUR_FEUILLE_MONDE = 2;
+  const HAUTEUR_FEUILLE_PX = 640;
   let source = "";
-  let page = null;
-  let enProfondeur = null; // le point dont la vue en profondeur tourne
+  let cadre = null;         // l'élément .holo-Page
+  let page = null;          // son contenu, <main>
+  let moteurLance = false;
+  let personnage = false;   // vue personnage ou vue web
+  let dansLePoint = null;   // le point dans lequel on est entré
+
+  // Montre la vue en profondeur d'un point (un fichier .holo réduit à ce point).
+  async function montrerMonde(sourceDuPoint, zoom) {
+    cadre.classList.add("avec-monde");
+    if (!moteurLance) {
+      moteurLance = true;
+      const canvas = document.createElement("canvas");
+      canvas.className = "holo-profondeur";
+      cadre.prepend(canvas);
+      await demarrer(canvas, sourceDuPoint, zoom);
+      // Si la carte graphique a exigé une nouvelle zone de dessin, elle garde la même place.
+      cadre.querySelector("canvas")?.classList.add("holo-profondeur");
+    } else {
+      changer_de_monde(sourceDuPoint, zoom);
+      pause(false);
+    }
+  }
+
+  function cacherMonde() {
+    cadre.classList.remove("avec-monde");
+    if (moteurLance) pause(true);
+  }
+
+  // Vue personnage : la page suit le monde, comme un objet qu'on y aurait posé.
+  function poserLaFeuille() {
+    if (!personnage || dansLePoint) return;
+    const s = surface();
+    if (s.length) {
+      const [x, y, echelle, lacet, tangage, profondeur, distance] = s;
+      const demiHauteur = innerHeight / 2;
+      const unite = echelle * demiHauteur; // pixels pour une unité du monde
+      const f = (unite * HAUTEUR_FEUILLE_MONDE) / HAUTEUR_FEUILLE_PX;
+      // Plongé dans un point né de la graine, on a quitté le lieu où se trouve la feuille.
+      page.style.visibility = profondeur > 0 ? "hidden" : "visible";
+      page.style.transform =
+        `translate(-50%,-50%) translate(${x * demiHauteur}px,${-y * demiHauteur}px) ` +
+        `perspective(${distance * unite}px) rotateX(${tangage}rad) rotateY(${-lacet}rad) scale(${f})`;
+    }
+    requestAnimationFrame(poserLaFeuille);
+  }
+
+  async function changerDeVue(versPersonnage) {
+    personnage = versPersonnage;
+    boutonMode.textContent = personnage ? "Vue web" : "Vue personnage";
+    cadre.classList.toggle("mode-personnage", personnage);
+    page.style.transform = "";
+    page.style.visibility = "visible";
+    if (dansLePoint) return;
+    if (personnage) {
+      await montrerMonde(monde_d_accueil(source), 1);
+      requestAnimationFrame(poserLaFeuille);
+    } else {
+      cacherMonde();
+    }
+    window.scrollTo(0, 0);
+  }
 
   async function appliquer(effet) {
     const [nom, capacite] = effet.split(".");
     const monde = racine.querySelector(`section[data-world="${CSS.escape(nom)}"]`);
     if (!monde) return;
     if (capacite === "enter") {
+      dansLePoint = nom;
       page.hidden = true;
       monde.hidden = false;
-      if (enProfondeur === null) {
-        enProfondeur = nom;
-        const canvas = document.createElement("canvas");
-        canvas.className = "holo-profondeur";
-        monde.prepend(canvas);
-        // Zoom 2 : le point est déjà morcelé, on voit ses enfants sans être entré dans l'un d'eux.
-        await demarrer(canvas, source_du_point(source, nom), 2);
-        // Si la carte graphique a exigé une nouvelle zone de dessin, elle garde la même place.
-        monde.querySelector("canvas")?.classList.add("holo-profondeur");
-      } else if (enProfondeur === nom) {
-        pause(false);
-      }
-    } else if (capacite === "leave") {
+      // Zoom 2 : le point est déjà morcelé, on voit ses enfants sans être entré dans l'un d'eux.
+      await montrerMonde(source_du_point(source, nom), 2);
+    } else if (capacite === "leave" && dansLePoint === nom) {
+      dansLePoint = null;
       monde.hidden = true;
       page.hidden = false;
-      if (enProfondeur === nom) pause(true);
+      await changerDeVue(personnage);
     }
     window.scrollTo(0, 0);
   }
@@ -54,8 +127,9 @@
     await init();
     source = await (await fetch(chemin)).text();
     racine.innerHTML = vue_a_plat(source, base);
-    page = racine.querySelector("main");
-    document.title = page.parentElement.dataset.title || "HoloCode";
+    cadre = racine.querySelector(".holo-Page");
+    page = cadre.querySelector("main");
+    document.title = cadre.dataset.title || "HoloCode";
     racine.addEventListener("click", async (evenement) => {
       const bloc = evenement.target.closest("[data-name]");
       if (!bloc) return;
@@ -63,7 +137,10 @@
         await appliquer(effet);
       }
     });
-    // Pour les captures d'écran : ?entrer=Workshop
+    boutonMode.hidden = false;
+    boutonMode.addEventListener("click", () => changerDeVue(!personnage));
+    // Pour les captures d'écran : ?vue=personnage, ?entrer=Workshop
+    if (params.get("vue") === "personnage") await changerDeVue(true);
     if (params.get("entrer")) await appliquer(`${params.get("entrer")}.enter`);
   } catch (e) {
     const pre = document.body.appendChild(document.createElement("pre"));

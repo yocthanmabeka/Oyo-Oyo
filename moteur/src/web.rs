@@ -38,16 +38,7 @@ pub async fn demarrer(canvas: HtmlCanvasElement, source: &str, zoom_initial: f32
     let decl = crate::verifier(source).map_err(|e| JsValue::from_str(&format!("fichier .holo refusé : {e}")))?;
     ajuster_taille(&canvas);
     let (rendu, canvas) = Rendu::nouveau(canvas).await?;
-    let mut nav = Navigation::new(decl);
-    // Pour les tests et les captures d'écran : partir d'un zoom donné, par petits pas pour
-    // franchir les seuils d'entrée exactement comme le ferait un pincement.
-    let mut restant = zoom_initial.max(0.0);
-    while restant > 0.0 {
-        let pas = restant.min(0.25);
-        nav.zoomer(pas);
-        restant -= pas;
-    }
-    nav.avancer_temps(10.0);
+    let nav = navigation(decl, zoom_initial);
     let etat = Rc::new(RefCell::new(Etat {
         nav,
         rendu,
@@ -63,6 +54,46 @@ pub async fn demarrer(canvas: HtmlCanvasElement, source: &str, zoom_initial: f32
     }));
     brancher(&canvas, &etat)?;
     boucle(etat)
+}
+
+/// Prépare la visite d'un point, en partant d'un zoom donné : par petits pas, pour franchir
+/// les seuils d'entrée exactement comme le ferait un pincement.
+fn navigation(decl: crate::univers::PointDecl, zoom_initial: f32) -> Navigation {
+    let mut nav = Navigation::new(decl);
+    let mut restant = zoom_initial.max(0.0);
+    while restant > 0.0 {
+        let pas = restant.min(0.25);
+        nav.zoomer(pas);
+        restant -= pas;
+    }
+    nav.avancer_temps(10.0);
+    nav
+}
+
+/// Remplace le monde affiché par celui d'un autre point, sans relancer la carte graphique.
+#[wasm_bindgen]
+pub fn changer_de_monde(source: &str, zoom_initial: f32) -> Result<(), JsValue> {
+    let decl = crate::verifier(source).map_err(|e| JsValue::from_str(&format!("fichier .holo refusé : {e}")))?;
+    ETAT.with(|e| match e.borrow().as_ref() {
+        Some(etat) => {
+            etat.borrow_mut().nav = navigation(decl, zoom_initial);
+            Ok(())
+        }
+        None => Err(JsValue::from_str("le moteur n'est pas encore démarré")),
+    })
+}
+
+/// Où poser la page dans le monde, pour la vue personnage : voir `Navigation::surface`.
+/// Vide tant que le moteur n'est pas démarré.
+#[wasm_bindgen]
+pub fn surface() -> Vec<f32> {
+    ETAT.with(|e| e.borrow().as_ref().map(|etat| etat.borrow().nav.surface().to_vec()).unwrap_or_default())
+}
+
+/// Le monde où la page est posée quand on la regarde en personnage.
+#[wasm_bindgen]
+pub fn monde_d_accueil(source: &str) -> Option<String> {
+    crate::monde_d_accueil(source)
 }
 
 /// La vue à plat : la page web ordinaire d'un fichier `.holo`, fabriquée par le moteur.

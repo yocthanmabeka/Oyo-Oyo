@@ -17,10 +17,10 @@ const BASE: &str = "\
 :where(.holo-Button){font:inherit;color:inherit;cursor:pointer;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 12px}\
 :where(.holo-Point){width:64px;height:64px;padding:0;border:0;border-radius:50%;cursor:pointer;\
 background:radial-gradient(circle,white 0%,var(--holo-color,white) 35%,transparent 70%);opacity:var(--holo-brightness,1)}\
-:where(.holo-World){position:fixed;inset:0;margin:0}\
+:where(.holo-World){position:fixed;inset:0;margin:0;pointer-events:none}\
 :where(.holo-World[hidden]){display:none}\
 :where(.holo-panneau){position:absolute;z-index:1;left:0;right:0;bottom:0;max-height:46vh;overflow:auto;padding:16px;\
-box-sizing:border-box;background:rgba(0,0,0,0.6)}";
+box-sizing:border-box;background:rgba(0,0,0,0.6);pointer-events:auto}";
 
 /// Fabrique la page. `base` est le dossier du fichier `.holo`, pour retrouver ses images.
 /// Le fichier doit avoir passé les vérifications (`crate::verifier_page`).
