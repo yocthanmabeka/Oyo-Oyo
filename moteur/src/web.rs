@@ -56,7 +56,8 @@ pub async fn demarrer_mosaique(canvas: HtmlCanvasElement, couleurs: Vec<u8>, lar
 
 /// Où est la mosaïque : centre (x, y, en pixels de l'image), pixels d'écran par pixel
 /// d'image, opacité des points (0 : on voit l'image, 1 : on voit les points), niveau de
-/// morcellement, nombre de points dessinés. Vide s'il n'y a pas de mosaïque.
+/// morcellement, nombre de points dessinés, lacet, tangage, distance de l'œil en pixels.
+/// Vide s'il n'y a pas de mosaïque.
 #[wasm_bindgen]
 pub fn mosaique_camera() -> Vec<f64> {
     ETAT.with(|e| {
@@ -64,10 +65,41 @@ pub fn mosaique_camera() -> Vec<f64> {
             .as_ref()
             .and_then(|etat| {
                 let etat = etat.borrow();
-                etat.mosaique.as_ref().map(|m| vec![m.cx, m.cy, m.echelle, m.opacite_des_points(), f64::from(m.niveau()), etat.nb_points as f64])
+                let (_, vue_h) = taille_vue(&etat.canvas);
+                etat.mosaique.as_ref().map(|m| {
+                    vec![m.cx, m.cy, m.echelle, m.opacite_des_points(), f64::from(m.niveau()), etat.nb_points as f64, m.lacet, m.tangage, crate::mosaique::distance(vue_h)]
+                })
             })
             .unwrap_or_default()
     })
+}
+
+fn avec_la_mosaique(f: impl FnOnce(&mut Mosaique)) {
+    ETAT.with(|e| {
+        if let Some(etat) = e.borrow().as_ref() {
+            if let Some(m) = etat.borrow_mut().mosaique.as_mut() {
+                f(m);
+            }
+        }
+    });
+}
+
+/// Choisit ce que fait un glissement sur la mosaïque : tourner la page, ou la déplacer.
+#[wasm_bindgen]
+pub fn mosaique_tourner(actif: bool) {
+    avec_la_mosaique(|m| m.tourner = actif);
+}
+
+/// Fait tourner la page de la mosaïque (en radians) : on la voit de biais.
+#[wasm_bindgen]
+pub fn mosaique_pivoter(lacet: f64, tangage: f64) {
+    avec_la_mosaique(|m| m.pivoter(lacet, tangage));
+}
+
+/// Remet la page de la mosaïque de face.
+#[wasm_bindgen]
+pub fn mosaique_de_face() {
+    avec_la_mosaique(Mosaique::de_face);
 }
 
 /// La taille de la zone de dessin, en pixels de la page.
@@ -222,7 +254,11 @@ fn brancher(canvas: &HtmlCanvasElement, etat: &Rc<RefCell<Etat>>) -> Result<(), 
             } else {
                 let etat = &mut *etat;
                 match etat.mosaique.as_mut() {
-                    // Glisser : on déplace l'image.
+                    // Glisser avec le bouton droit, avec Maj, ou en mode « tourner » : la page
+                    // tourne, on la voit de biais. Sinon, glisser la déplace.
+                    Some(m) if m.tourner || ev.shift_key() || ev.buttons() & 2 != 0 => {
+                        m.pivoter(f64::from(nouveau.0 - ancien.0) * 0.005, -f64::from(nouveau.1 - ancien.1) * 0.005)
+                    }
                     Some(m) => m.deplacer(f64::from(nouveau.0 - ancien.0), f64::from(nouveau.1 - ancien.1)),
                     // Glisser : on tourne le monde.
                     None => {
