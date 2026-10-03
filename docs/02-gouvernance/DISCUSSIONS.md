@@ -28,9 +28,12 @@ flowchart TD
 | `HC-007` | HoloCompiler, HoloIR, HoloVM et HoloRuntime | [Paradigme holoscénique développement][CG-003] · [Métavers expliqué][CG-002] | [Architecture](../01-holocode/ARCHITECTURE.md) | Chaîne d'exécution |
 | `HC-008` | Hologrammes, interfaces et matériel futur | [Métaverse : Origines et Technologies][CG-004] · [Créer le metaverse de zéro][CG-001] | Dossier de recherche à créer | HoloEngine, HoloHardware Research |
 | `HC-009` | Coordination entre ChatGPT, Claude, Gemini et autres IA | [Conversation Claude privée][CL-001] · conversation ChatGPT actuelle non partagée | [Protocole IA](PROTOCOLE-IA.md) | Gouvernance |
+| `HC-010` | Premier sprint de Claude, refusé, et règle « discuter avant de construire » | [Fiche](../05-discussions/HC-010-premier-sprint-et-remise-a-zero.md) · [transcription](../05-discussions/transcriptions/HC-010.md) — session Claude Code | Aucun | Aucun |
+| `HC-011` | Cadrage de la vision : Big Bang, budget de 1 Go, cible téléphone, nouveau langage | [Fiche](../05-discussions/HC-011-cadrage-big-bang.md) · [transcription](../05-discussions/transcriptions/HC-011.md) — session Claude Code | Repris dans `HC-013` et la [vision](../00-vision/VISION.md) | Holoverse, HoloCode |
+| `HC-012` | Revue critique du paradigme par Claude, comparaison avec la POO ; la transcription couvre toute la session, du 2026-09-21 au 2026-10-03 (décisions, propositions, sprint Big Bang) | [Fiche](../05-discussions/HC-012-revue-critique-du-paradigme.md) · [transcription](../05-discussions/transcriptions/HC-012.md) — session Claude Code | `HC-013`, `ADR-007` à `ADR-015`, `moteur/` | HoloCode, gouvernance |
 | `HC-013` | Le web devient le métavers : format `.holo`, moteur Rust, imports, place de l'IA, description honnête du paradigme | [Fiche](../05-discussions/HC-013-web-metavers-et-format-holo.md) — session Claude Code, sans URL de partage | [`ADR-007` à `ADR-015`](DECISIONS.md) | Tous |
 
-Les identifiants `HC-010` à `HC-012` sont réservés à des fiches Claude antérieures, pas encore publiées.
+Les sessions tenues dans Claude Code (extension VS Code ou terminal) sont enregistrées sur la machine de Yocthan et n'ont pas d'URL de partage. Leur source dans ce dépôt est une fiche dans `docs/05-discussions/`, accompagnée d'une transcription générée par `outils/exporter_sessions_claude.py` (seuls les messages de Yocthan et les réponses textuelles de Claude sont conservés ; appels d'outils, e-mails et chemins personnels sont retirés).
 
 ## Registre des conversations sources
 
