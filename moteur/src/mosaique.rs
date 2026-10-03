@@ -15,21 +15,10 @@
 
 use crate::graine::{graine_enfant, melanger};
 use crate::navigation::Sprite;
+use crate::vue::Reglages;
 
-/// Un point se morcelle en une grille de 4 × 4.
-pub const COTE: u64 = 4;
-/// En dessous de cette taille à l'écran (en pixels), un point se confond avec un pixel :
-/// l'image ordinaire suffit, aucun point n'est dessiné.
-pub const SEUIL_POINT: f64 = 6.0;
-/// Au-delà de cette taille, un point se morcelle.
-pub const SEUIL_MORCELER: f64 = 40.0;
-/// Profondeur maximale : 4^20 points par côté dans un seul pixel.
-pub const NIVEAU_MAX: u32 = 20;
-/// On ne tourne pas la page au-delà de cet angle (en radians, environ 52°) : plus loin, on
-/// la verrait par la tranche et il faudrait dessiner des points jusqu'à l'horizon.
-pub const ANGLE_MAX: f64 = 0.9;
-/// Hauteur, en pixels de l'image, à laquelle un point blanc se soulève quand la page est de biais.
-pub const RELIEF: f64 = 10.0;
+// Les tailles, la grille, la profondeur, le relief et les limites du zoom viennent du fichier
+// `.holo` (voir `vue.rs`) : `self.r`.
 /// Le relief ne dépasse jamais cette hauteur à l'écran (en pixels) : en zoomant très profond,
 /// il emporterait sinon les points hors de vue.
 pub const RELIEF_MAX: f64 = 80.0;
@@ -48,6 +37,12 @@ pub struct Mosaique {
     /// Pixels d'écran pour un pixel de l'image.
     pub echelle: f64,
     echelle_min: f64,
+    echelle_max: f64,
+    /// L'échelle où l'on voit la page entière, telle qu'elle est : un point par pixel.
+    pub echelle_repos: f64,
+    /// La couleur moyenne de la page : celle du point qu'elle devient quand on la réduit.
+    moyenne: [f32; 3],
+    r: Reglages,
     /// La page tournée autour de son axe vertical (lacet) et horizontal (tangage), en radians.
     pub lacet: f64,
     pub tangage: f64,
@@ -64,11 +59,26 @@ pub fn distance(vue_h: f64) -> f64 {
 impl Mosaique {
     /// `couleurs` contient `largeur × hauteur × 4` octets. L'image est montrée entière dans
     /// une vue de `vue_l × vue_h` pixels.
-    pub fn new(largeur: u32, hauteur: u32, couleurs: Vec<u8>, graine: u64, vue_l: f64, vue_h: f64) -> Option<Mosaique> {
+    pub fn new(largeur: u32, hauteur: u32, couleurs: Vec<u8>, graine: u64, vue_l: f64, vue_h: f64, r: Reglages) -> Option<Mosaique> {
         if largeur == 0 || hauteur == 0 || couleurs.len() != largeur as usize * hauteur as usize * 4 {
             return None;
         }
         let echelle = (vue_l / f64::from(largeur)).min(vue_h / f64::from(hauteur)).max(1e-6);
+        // Les garde-fous du zoom. Vers le petit : la page entière, ou, si l'auteur le permet
+        // (`Zoom(shrink: true)`), la page réduite à un seul pixel. Vers le grand : ce que
+        // l'auteur a fixé, et jamais au-delà du dernier morcellement.
+        let echelle_min = if r.reduire { 1.0 / f64::from(largeur.max(hauteur)) } else { echelle };
+        let echelle_max = (echelle * r.zoom_max).min(r.taille_morceler * (r.cote as f64).powi(r.niveaux as i32)).max(echelle);
+        let mut somme = [0f64; 3];
+        for pixel in couleurs.chunks_exact(4) {
+            for (s, c) in somme.iter_mut().zip(pixel) {
+                *s += f64::from(*c);
+            }
+        }
+        let moyenne = somme.map(|s| (s / (f64::from(largeur) * f64::from(hauteur)) / 255.0) as f32);
+        // Une page sombre réduite à un point resterait invisible : on garde sa teinte, plus claire.
+        let clarte = moyenne[0].max(moyenne[1]).max(moyenne[2]);
+        let moyenne = if clarte > 0.0 && clarte < 0.6 { moyenne.map(|c| c * 0.6 / clarte) } else { moyenne };
         Some(Mosaique {
             largeur,
             hauteur,
@@ -77,7 +87,11 @@ impl Mosaique {
             cx: f64::from(largeur) / 2.0,
             cy: f64::from(hauteur) / 2.0,
             echelle,
-            echelle_min: echelle,
+            echelle_min,
+            echelle_max,
+            echelle_repos: echelle,
+            moyenne,
+            r,
             lacet: 0.0,
             tangage: 0.0,
             tourner: false,
@@ -88,8 +102,8 @@ impl Mosaique {
     pub fn niveau(&self) -> u32 {
         let mut niveau = 0;
         let mut taille = self.echelle;
-        while taille >= SEUIL_MORCELER && niveau < NIVEAU_MAX {
-            taille /= COTE as f64;
+        while taille >= self.r.taille_morceler && niveau < self.r.niveaux {
+            taille /= self.r.cote as f64;
             niveau += 1;
         }
         niveau
@@ -97,7 +111,7 @@ impl Mosaique {
 
     /// De 0 (on voit l'image ordinaire) à 1 (on voit les points).
     pub fn opacite_des_points(&self) -> f64 {
-        ((self.echelle - SEUIL_POINT) / SEUIL_POINT).clamp(0.0, 1.0)
+        ((self.echelle - self.r.taille_point) / self.r.taille_point).clamp(0.0, 1.0)
     }
 
     /// De 0 (la page est de face, plate) à 1 (elle est de biais, le relief est entier).
@@ -107,8 +121,11 @@ impl Mosaique {
 
     /// Zoome en gardant sous le doigt le point de l'image qui s'y trouvait.
     pub fn zoomer(&mut self, facteur: f64, x: f64, y: f64, vue_l: f64, vue_h: f64) {
-        let max = SEUIL_MORCELER * (COTE as f64).powi(NIVEAU_MAX as i32);
-        let nouvelle = (self.echelle * facteur).clamp(self.echelle_min, max);
+        let mut nouvelle = (self.echelle * facteur).clamp(self.echelle_min, self.echelle_max);
+        // En passant par la page entière, on s'y arrête : c'est là qu'on retrouve le site normal.
+        if (self.echelle - self.echelle_repos) * (nouvelle - self.echelle_repos) < 0.0 {
+            nouvelle = self.echelle_repos;
+        }
         let (dx, dy) = (x - vue_l / 2.0, y - vue_h / 2.0);
         // Où le doigt touche la page, en pixels d'écran comptés sur la page elle-même.
         let [ux, uy] = self.sur_la_page(dx, dy, distance(vue_h)).unwrap_or([dx, dy]);
@@ -127,8 +144,8 @@ impl Mosaique {
 
     /// Fait tourner la page : on la voit de biais.
     pub fn pivoter(&mut self, lacet: f64, tangage: f64) {
-        self.lacet = (self.lacet + lacet).clamp(-ANGLE_MAX, ANGLE_MAX);
-        self.tangage = (self.tangage + tangage).clamp(-ANGLE_MAX, ANGLE_MAX);
+        self.lacet = (self.lacet + lacet).clamp(-self.r.angle_max, self.r.angle_max);
+        self.tangage = (self.tangage + tangage).clamp(-self.r.angle_max, self.r.angle_max);
     }
 
     /// Remet la page de face.
@@ -216,17 +233,28 @@ impl Mosaique {
     /// Les points à dessiner pour une vue de `vue_l × vue_h` pixels. Seuls ceux qui sont à
     /// l'écran sont calculés : leur nombre ne dépend pas de la profondeur du zoom.
     pub fn sprites(&self, vue_l: f64, vue_h: f64) -> Vec<Sprite> {
+        let d = distance(vue_h);
+        let demi_ecran = vue_h / 2.0;
+        // La page réduite à presque rien : elle n'est plus qu'un point, de sa couleur moyenne.
+        let cote_ecran = f64::from(self.largeur.max(self.hauteur)) * self.echelle;
+        if cote_ecran < 12.0 {
+            let centre = [(f64::from(self.largeur) / 2.0 - self.cx) * self.echelle, (f64::from(self.hauteur) / 2.0 - self.cy) * self.echelle, 0.0];
+            return match self.projeter(centre, d) {
+                Some(([x, y], _)) => vec![Sprite { x: (x / demi_ecran) as f32, y: (-y / demi_ecran) as f32, rayon: (cote_ecran.max(5.0) / demi_ecran) as f32, couleur: [self.moyenne[0], self.moyenne[1], self.moyenne[2], 1.0] }],
+                None => Vec::new(),
+            };
+        }
         let opacite = self.opacite_des_points() as f32;
         if opacite <= 0.0 {
             return Vec::new();
         }
+        let (cote, seuil_morceler) = (self.r.cote, self.r.taille_morceler);
         let niveau = self.niveau();
-        let par_pixel = COTE.pow(niveau); // cellules par côté dans un pixel de l'image
+        let par_pixel = cote.pow(niveau); // cellules par côté dans un pixel de l'image
         let taille = self.echelle / par_pixel as f64; // taille d'une cellule à l'écran
         // Juste après un morcellement, les enfants ont encore la couleur de leur parent ;
         // elle se déplace vers la leur à mesure qu'ils grossissent.
-        let avancement = if niveau == 0 { 1.0 } else { ((taille - SEUIL_MORCELER / COTE as f64) / (SEUIL_MORCELER / 2.0)).clamp(0.0, 1.0) as f32 };
-        let d = distance(vue_h);
+        let avancement = if niveau == 0 { 1.0 } else { ((taille - seuil_morceler / cote as f64) / (seuil_morceler / 2.0)).clamp(0.0, 1.0) as f32 };
         let inclinaison = self.inclinaison();
 
         // La partie de l'image qui est à l'écran : ce que couvrent les quatre coins de la vue.
@@ -248,7 +276,6 @@ impl Mosaique {
         let fin_x = (u64::from(self.largeur) * par_pixel).saturating_sub(1);
         let fin_y = (u64::from(self.hauteur) * par_pixel).saturating_sub(1);
 
-        let demi_ecran = vue_h / 2.0;
         let mut sprites = Vec::new();
         for cy in y0..=y1.min(fin_y) {
             for cx in x0..=x1.min(fin_x) {
@@ -264,21 +291,21 @@ impl Mosaique {
                 let mut ecart = 0.0; // de combien ce point s'écarte de la page, vers l'œil
                 // On descend du pixel jusqu'à la cellule, un morcellement à la fois.
                 for etage in (0..niveau).rev() {
-                    let diviseur = COTE.pow(etage);
-                    let index = (cx / diviseur % COTE) + COTE * (cy / diviseur % COTE);
+                    let diviseur = cote.pow(etage);
+                    let index = (cx / diviseur % cote) + cote * (cy / diviseur % cote);
                     graine = graine_enfant(graine, index as u32);
                     let force = (0.05 * (niveau - etage) as f32).min(0.4);
                     let enfant = Self::varier(couleur, graine, force);
                     couleur = if etage == 0 { melange(couleur, enfant, avancement) } else { enfant };
                     // Les enfants d'un point ne sont pas tous à la même hauteur.
-                    ecart += (((graine >> 20) & 0xFFFF) as f64 / 65535.0 - 0.5) * self.echelle / (diviseur * COTE) as f64 * 1.5;
+                    ecart += (((graine >> 20) & 0xFFFF) as f64 / 65535.0 - 0.5) * self.echelle / (diviseur * cote) as f64 * 1.5;
                 }
                 if couleur[0].max(couleur[1]).max(couleur[2]) * opacite < 0.02 {
                     continue; // un point éteint n'est pas dessiné
                 }
                 // Le relief : ce qui est lumineux dans l'image se soulève, quand la page est de biais.
                 let lumiere = f64::from(fond[0].max(fond[1]).max(fond[2]));
-                let z = ((RELIEF * self.echelle).min(RELIEF_MAX) * lumiere + ecart.clamp(-RELIEF_MAX, RELIEF_MAX)) * inclinaison;
+                let z = ((self.r.relief * self.echelle).min(RELIEF_MAX) * lumiere + ecart.clamp(-RELIEF_MAX, RELIEF_MAX)) * inclinaison;
                 let Some(([x, y], k)) = self.projeter([(ix - self.cx) * self.echelle, (iy - self.cy) * self.echelle, z], d) else { continue };
                 let rayon = taille * 0.46 * k;
                 if x.abs() > vue_l / 2.0 + rayon * 2.0 || y.abs() > vue_h / 2.0 + rayon * 2.0 {
@@ -305,17 +332,22 @@ mod tests {
     use super::*;
 
     const VUE: (f64, f64) = (800.0, 600.0);
+    const SEUIL_POINT: f64 = 6.0;
+
+    fn mosaique(largeur: u32, hauteur: u32, couleurs: Vec<u8>) -> Option<Mosaique> {
+        Mosaique::new(largeur, hauteur, couleurs, 1, VUE.0, VUE.1, Reglages::default())
+    }
 
     /// Une image de 80 × 60 pixels, toute dorée sauf un pixel noir en haut à gauche.
     fn image() -> Mosaique {
         let mut couleurs = [233u8, 180, 76, 255].repeat(80 * 60);
         couleurs[..3].copy_from_slice(&[0, 0, 0]);
-        Mosaique::new(80, 60, couleurs, 1, VUE.0, VUE.1).unwrap()
+        mosaique(80, 60, couleurs).unwrap()
     }
 
     #[test]
     fn au_repos_l_image_suffit_puis_chaque_pixel_devient_un_point() {
-        let m = Mosaique::new(800, 600, vec![255; 800 * 600 * 4], 1, VUE.0, VUE.1).unwrap();
+        let m = mosaique(800, 600, vec![255; 800 * 600 * 4]).unwrap();
         assert_eq!(m.echelle, 1.0, "un point fait exactement un pixel");
         assert!(m.sprites(VUE.0, VUE.1).is_empty(), "des points de la taille d'un pixel : l'image ordinaire suffit");
 
@@ -389,7 +421,7 @@ mod tests {
 
     #[test]
     fn meme_le_noir_contient_des_points() {
-        let noir = Mosaique::new(80, 60, [0u8, 0, 0, 255].repeat(80 * 60), 1, VUE.0, VUE.1);
+        let noir = mosaique(80, 60, [0u8, 0, 0, 255].repeat(80 * 60));
         let mut m = noir.unwrap();
         assert!(m.sprites(VUE.0, VUE.1).is_empty(), "une page noire : aucun point allumé");
         for _ in 0..14 {
@@ -416,7 +448,8 @@ mod tests {
 
         // On ne passe pas derrière la page, et « de face » la remet à plat.
         m.pivoter(10.0, 10.0);
-        assert_eq!((m.lacet, m.tangage), (ANGLE_MAX, ANGLE_MAX));
+        let angle_max = Reglages::default().angle_max;
+        assert_eq!((m.lacet, m.tangage), (angle_max, angle_max));
         assert!(m.sprites(VUE.0, VUE.1).len() <= POINTS_MAX);
         m.de_face();
         assert_eq!((m.inclinaison(), m.lacet), (0.0, 0.0));
@@ -426,7 +459,7 @@ mod tests {
     fn de_biais_ce_qui_est_lumineux_se_souleve() {
         // Moitié gauche noire, moitié droite blanche.
         let couleurs: Vec<u8> = (0..80 * 60).flat_map(|i| if i % 80 < 40 { [20, 20, 20, 255] } else { [255, 255, 255, 255] }).collect();
-        let mut m = Mosaique::new(80, 60, couleurs, 1, VUE.0, VUE.1).unwrap();
+        let mut m = mosaique(80, 60, couleurs).unwrap();
         let d = distance(VUE.1);
         m.pivoter(0.0, -0.5);
         // Un point de la page sans relief, à la même place, serait dessiné ici :
@@ -446,7 +479,7 @@ mod tests {
         // Une frontière nette entre noir et blanc : les points nés du morcellement font le
         // dégradé entre les deux, au lieu de dessiner des carrés.
         let couleurs: Vec<u8> = (0..80 * 60).flat_map(|i| if i % 80 < 40 { [0, 0, 0, 255] } else { [255, 255, 255, 255] }).collect();
-        let m = Mosaique::new(80, 60, couleurs, 1, VUE.0, VUE.1).unwrap();
+        let m = mosaique(80, 60, couleurs).unwrap();
         let milieu = m.couleur_fondue(40.0, 30.0)[0];
         assert!((milieu - 0.5).abs() < 0.01, "à la frontière, la couleur est entre les deux : {milieu}");
         assert_eq!(m.couleur_fondue(39.5, 30.0)[0], 0.0, "au centre d'un pixel, c'est sa couleur exacte");
@@ -455,7 +488,48 @@ mod tests {
 
     #[test]
     fn une_image_mal_decrite_est_refusee() {
-        assert!(Mosaique::new(2, 2, vec![0; 15], 1, 10.0, 10.0).is_none());
-        assert!(Mosaique::new(0, 2, vec![], 1, 10.0, 10.0).is_none());
+        assert!(mosaique(2, 2, vec![0; 15]).is_none());
+        assert!(mosaique(0, 2, vec![]).is_none());
+    }
+
+    #[test]
+    fn les_garde_fous_du_zoom_viennent_du_fichier() {
+        let image = |r: Reglages| Mosaique::new(80, 60, [233u8, 180, 76, 255].repeat(80 * 60), 1, VUE.0, VUE.1, r).unwrap();
+        // « Zoom(max: 50) » : on ne grossit pas la page plus de cinquante fois.
+        let mut m = image(Reglages { zoom_max: 50.0, ..Reglages::default() });
+        for _ in 0..40 {
+            m.zoomer(3.0, 400.0, 300.0, VUE.0, VUE.1);
+        }
+        assert_eq!(m.echelle, 10.0 * 50.0);
+        // Sans « shrink », on ne dézoome pas en deçà de la page entière.
+        for _ in 0..40 {
+            m.zoomer(0.3, 400.0, 300.0, VUE.0, VUE.1);
+        }
+        assert_eq!(m.echelle, m.echelle_repos);
+
+        // « Zoom(shrink: true) » : la page se réduit jusqu'à un pixel, et n'est plus qu'un point.
+        let mut m = image(Reglages { reduire: true, ..Reglages::default() });
+        for _ in 0..40 {
+            m.zoomer(0.3, 400.0, 300.0, VUE.0, VUE.1);
+        }
+        assert_eq!(m.echelle, 1.0 / 80.0, "la page fait un pixel de large");
+        let points = m.sprites(VUE.0, VUE.1);
+        assert_eq!(points.len(), 1, "la page entière est devenue un point");
+        assert!(points[0].couleur[0] > 0.9 && points[0].couleur[2] < 0.35, "de sa couleur moyenne");
+        // En remontant, on s'arrête sur la page entière : c'est là qu'on retrouve le site.
+        for _ in 0..40 {
+            m.zoomer(1.9, 400.0, 300.0, VUE.0, VUE.1);
+            if m.echelle == m.echelle_repos {
+                break;
+            }
+        }
+        assert_eq!(m.echelle, m.echelle_repos);
+
+        // « Points(grid: 2, depth: 3) » : trois morcellements, en grilles de 2 × 2, pas un de plus.
+        let mut m = image(Reglages { cote: 2, niveaux: 3, ..Reglages::default() });
+        for _ in 0..40 {
+            m.zoomer(3.0, 400.0, 300.0, VUE.0, VUE.1);
+        }
+        assert_eq!((m.niveau(), m.echelle), (3, 40.0 * 8.0));
     }
 }

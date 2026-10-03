@@ -4,7 +4,7 @@ Demandé par Yocthan le 2026-10-03 : un même exemple écrit en HoloCode et dans
 
 | | Fichiers | Lignes utiles (sans les lignes vides ni les commentaires) |
 |---|---|---|
-| HoloCode | [`boutique.holo`](boutique.holo) | 62 |
+| HoloCode | [`boutique.holo`](boutique.holo) | 79 |
 | Web | [`web/index.html`](web/index.html), [`web/style.css`](web/style.css), [`web/script.js`](web/script.js) | 178 (36 + 61 + 81) |
 
 Les deux décrivent la même chose : une page de boutique (titres, paragraphes, image, liste, bouton), un point lumineux, et le monde dans lequel on entre par ce point, avec ses six points nés du morcellement.
@@ -50,8 +50,11 @@ Les deux décrivent la même chose : une page de boutique (titres, paragraphes, 
 Ils existent dans la grammaire mais aucun bloc ne s'en sert aujourd'hui, donc ils ne figurent pas dans l'exemple :
 
 - les unités de longueur et de durée (`mm`, `cm`, `m`, `km`, `ms`, `s`, `min`, `h`) et les tailles `B`, `MB`, `GB` (seul `KB` est employé) ;
-- `true` et `false` ;
 - `seed: auto`, qui n'est permis qu'au moment de la création, avant d'être remplacé par un nombre.
+
+## Ce que la version web ne fait pas
+
+Depuis le 2026-10-03, `boutique.holo` écrit aussi comment sa page se regarde (`Zoom`, `Points`, `Relief`, voir `ADR-021`) : en zoomant, chaque pixel devient un point qui se morcelle, et la page prend du relief quand on la tourne. La version web n'a pas d'équivalent : il faudrait écrire un moteur de rendu. Ces dix-sept lignes de `boutique.holo` ne comptent donc pour rien du côté web.
 
 ## Choix faits pour cet exemple
 

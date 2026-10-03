@@ -107,7 +107,7 @@ impl Bloc {
     }
 }
 
-const UNITES: &[&str] = &["mm", "cm", "m", "km", "ms", "s", "min", "h", "B", "KB", "MB", "GB"];
+const UNITES: &[&str] = &["mm", "cm", "m", "km", "ms", "s", "min", "h", "B", "KB", "MB", "GB", "px", "deg"];
 
 // ---------------------------------------------------------------- découpage en mots
 

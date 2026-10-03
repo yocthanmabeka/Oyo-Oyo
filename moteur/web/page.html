@@ -54,7 +54,7 @@
 <script type="module">
   import init, {
     demarrer, changer_de_monde, pause, surface, vue_a_plat, effets, source_du_point, monde_d_accueil,
-    demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner, mosaique_pivoter, mosaique_de_face,
+    demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner, mosaique_pivoter, mosaique_de_face, reglages_de_vue,
   } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
   const params = new URLSearchParams(location.search);
@@ -71,8 +71,9 @@
   // La feuille mesure 2 unités de haut dans le monde, dont les points sont sur une sphère de rayon 1.
   const HAUTEUR_FEUILLE_MONDE = 2;
   const HAUTEUR_FEUILLE_PX = 640;
-  // Vue points : deux points par pixel de l'écran dans chaque sens, pour des lettres plus fines.
-  const DENSITE = 2;
+  // Vue points : ce que le fichier en dit (Zoom, Points). Lu au démarrage.
+  let densite = 2;          // points par pixel d'écran, dans chaque sens
+  let reduire = false;      // dézoomer réduit-il la page jusqu'à un point ?
   let source = "";
   let cadre = null;         // l'élément .holo-Page
   let page = null;          // son contenu, <main>
@@ -81,7 +82,7 @@
   let dansLePoint = null;   // le point dans lequel on est entré
   let enPoints = false;     // la page est vue comme un ensemble de points
   let entreeEnCours = null; // l'entrée en vue points, tant qu'elle se prépare
-  let echelleAuRepos = 0;   // l'échelle à laquelle les points se confondent avec la page
+  let aQuitteLeRepos = false; // a-t-on zoomé ou tourné depuis l'entrée en vue points ?
 
   // La zone de dessin du moteur : une seule, pour les mondes comme pour les points.
   function zoneDeDessin() {
@@ -172,13 +173,13 @@
     }
     const [l, h] = [innerWidth, innerHeight];
     const svg =
-      `<svg xmlns="http://www.w3.org/2000/svg" width="${l * DENSITE}" height="${h * DENSITE}" viewBox="0 0 ${l} ${h}">` +
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${l * densite}" height="${h * densite}" viewBox="0 0 ${l} ${h}">` +
       `<foreignObject width="${l}" height="${h}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${l}px;height:${h}px;overflow:hidden">` +
       `<style>.holo-Page{min-height:${h}px!important}</style>` +
       `<div style="margin-top:${-scrollY}px">${new XMLSerializer().serializeToString(copie)}</div></div></foreignObject></svg>`;
     image.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
     await image.decode();
-    const toile = new OffscreenCanvas(l * DENSITE, h * DENSITE);
+    const toile = new OffscreenCanvas(l * densite, h * densite);
     const dessin = toile.getContext("2d");
     dessin.drawImage(image, 0, 0, toile.width, toile.height);
     image.style.width = `${toile.width}px`;
@@ -190,7 +191,14 @@
     if (!enPoints) return;
     const camera = mosaique_camera();
     if (camera.length) {
-      const [cx, cy, echelle, opacite, niveau, points, lacet, tangage, distance] = camera;
+      const [cx, cy, echelle, opacite, niveau, points, lacet, tangage, distance, echelleAuRepos] = camera;
+      // Revenu exactement à la page entière, de face : c'est le site normal, on y retourne.
+      const auRepos = Math.abs(echelle / echelleAuRepos - 1) < 1e-9 && lacet === 0 && tangage === 0;
+      if (auRepos && aQuitteLeRepos) {
+        sortirDesPoints();
+        return;
+      }
+      aQuitteLeRepos ||= !auRepos;
       // L'image de la page suit la même vue, de face comme de biais, et s'efface quand les
       // points prennent le relais.
       image.style.transform =
@@ -214,17 +222,17 @@
       cadre.classList.add("avec-monde");
       if (!moteurLance) {
         moteurLance = true;
-        await demarrer_mosaique(zoneDeDessin(), couleurs, pixels.width, pixels.height);
+        await demarrer_mosaique(zoneDeDessin(), couleurs, pixels.width, pixels.height, source);
         zoneDeDessin();
       } else {
-        poser_mosaique(couleurs, pixels.width, pixels.height);
+        poser_mosaique(couleurs, pixels.width, pixels.height, source);
         pause(false);
       }
       page.hidden = true;
       document.body.classList.add("en-points");
       boutonPoints.textContent = "Vue web";
       enPoints = true;
-      echelleAuRepos = mosaique_camera()[2];
+      aQuitteLeRepos = false;
       requestAnimationFrame(suivreLesPoints);
     })().finally(() => { entreeEnCours = null; });
     return entreeEnCours;
@@ -248,15 +256,12 @@
 
   // Zoomer sur la page (Ctrl + molette, ou pincer) : c'est le zoom qui fait passer aux points.
   addEventListener("wheel", async (evenement) => {
-    if (enPoints) {
-      // Dézoomer alors qu'on voit déjà la page entière, de face : retour au site normal.
-      const [, , echelle, , , , lacet, tangage] = mosaique_camera();
-      if (evenement.deltaY > 0 && echelle <= echelleAuRepos * 1.0001 && lacet === 0 && tangage === 0) sortirDesPoints();
-      return;
-    }
-    if (!evenement.ctrlKey || personnage || dansLePoint || !cadre) return;
-    evenement.preventDefault(); // sinon Chrome grossit toute la fenêtre
-    if (evenement.deltaY >= 0) return;
+    // Sinon Chrome grossit ou réduit toute la fenêtre, et le site sort de son cadre.
+    if (evenement.ctrlKey) evenement.preventDefault();
+    if (enPoints || !evenement.ctrlKey || personnage || dansLePoint || !cadre) return;
+    // Garde-fou : on ne dézoome pas en deçà de la page entière, sauf si le fichier le permet
+    // (Zoom(shrink: true)).
+    if (evenement.deltaY >= 0 && !reduire) return;
     const { clientX, clientY } = evenement;
     const deltaY = pasDeZoom(evenement);
     await entrerEnPoints();
@@ -290,6 +295,8 @@
     await init();
     source = await (await fetch(chemin, { headers: { accept: "text/plain" } })).text();
     racine.innerHTML = vue_a_plat(source, base);
+    [densite, reduire] = reglages_de_vue(source);
+    reduire = reduire === 1;
     cadre = racine.querySelector(".holo-Page");
     page = cadre.querySelector("main");
     document.title = cadre.dataset.title || "HoloCode";

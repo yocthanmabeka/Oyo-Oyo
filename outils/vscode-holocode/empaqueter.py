@@ -1,7 +1,7 @@
 """Fabrique le paquet de l'extension VS Code, sans rien installer d'autre que Python.
 
     python outils/vscode-holocode/empaqueter.py
-    code --install-extension outils/vscode-holocode/holocode-0.1.0.vsix
+    code --install-extension outils/vscode-holocode/holocode-0.1.1.vsix
 
 Un fichier .vsix est une archive zip : l'extension dans un dossier « extension », plus deux
 fichiers de description que VS Code attend.

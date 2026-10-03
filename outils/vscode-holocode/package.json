@@ -2,7 +2,7 @@
   "name": "holocode",
   "displayName": "HoloCode",
   "description": "Reconnaît les fichiers .holo : couleurs du langage, commentaires, et un bouton pour ouvrir le fichier dans le navigateur.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "holoverse",
   "license": "UNLICENSED",
   "engines": { "vscode": "^1.80.0" },

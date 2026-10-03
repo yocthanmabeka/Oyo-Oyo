@@ -13,6 +13,27 @@ Page(
   name: Shop,
   title: "My shop",
 
+  // Comment la page se regarde. Ce sont des garde-fous : le visiteur ne peut pas les dépasser.
+  zoom: Zoom(
+    max: 1000000,     // on ne grossit pas la page plus d'un million de fois
+    shrink: false,    // true : dézoomer réduit la page jusqu'à ce qu'elle soit un seul point
+  ),
+
+  // Quand on zoome (Ctrl + molette, ou pincer), chaque pixel de la page devient un point.
+  points: Points(
+    size: 6px,        // un pixel devient un point lumineux quand il atteint cette taille
+    fragment: 40px,   // un point se morcelle quand il atteint cette taille…
+    grid: 4,          // …en une grille de 4 × 4…
+    depth: 20,        // …et cela au plus vingt fois de suite
+    density: 2,       // points par pixel d'écran, dans chaque sens
+  ),
+
+  // Quand on tourne la page, ce qui est lumineux se soulève au-dessus du fond.
+  relief: Relief(
+    height: 10px,     // la hauteur du relief
+    tilt: 52deg,      // jusqu'où l'on peut tourner la page
+  ),
+
   children: [
     H1("My shop"),
 

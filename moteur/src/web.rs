@@ -45,10 +45,10 @@ pub async fn demarrer(canvas: HtmlCanvasElement, source: &str, zoom_initial: f32
 /// Affiche une image comme une mosaïque de points, un point par pixel (voir `mosaique.rs`).
 /// `couleurs` contient quatre octets par pixel : rouge, vert, bleu, opacité.
 #[wasm_bindgen]
-pub async fn demarrer_mosaique(canvas: HtmlCanvasElement, couleurs: Vec<u8>, largeur: u32, hauteur: u32) -> Result<(), JsValue> {
+pub async fn demarrer_mosaique(canvas: HtmlCanvasElement, couleurs: Vec<u8>, largeur: u32, hauteur: u32, source: Option<String>) -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
     let (vue_l, vue_h) = taille_vue(&canvas);
-    let mosaique = Mosaique::new(largeur, hauteur, couleurs, 1, vue_l, vue_h).ok_or_else(|| JsValue::from_str("image mal décrite : il faut largeur × hauteur × 4 octets"))?;
+    let mosaique = Mosaique::new(largeur, hauteur, couleurs, 1, vue_l, vue_h, reglages_de(source)?).ok_or_else(|| JsValue::from_str("image mal décrite : il faut largeur × hauteur × 4 octets"))?;
     // Le monde n'est pas affiché tant que la mosaïque est là ; il faut pourtant un point.
     let decl = crate::univers::PointDecl { nom: "Mosaic".into(), graine: 1, lumiere: 0.0, morceler: 1, couleur: None, palette: Vec::new() };
     lancer(canvas, Navigation::new(decl), Some(mosaique)).await
@@ -56,7 +56,8 @@ pub async fn demarrer_mosaique(canvas: HtmlCanvasElement, couleurs: Vec<u8>, lar
 
 /// Où est la mosaïque : centre (x, y, en pixels de l'image), pixels d'écran par pixel
 /// d'image, opacité des points (0 : on voit l'image, 1 : on voit les points), niveau de
-/// morcellement, nombre de points dessinés, lacet, tangage, distance de l'œil en pixels.
+/// morcellement, nombre de points dessinés, lacet, tangage, distance de l'œil en pixels,
+/// échelle où l'on voit la page entière.
 /// Vide s'il n'y a pas de mosaïque.
 #[wasm_bindgen]
 pub fn mosaique_camera() -> Vec<f64> {
@@ -67,11 +68,27 @@ pub fn mosaique_camera() -> Vec<f64> {
                 let etat = etat.borrow();
                 let (_, vue_h) = taille_vue(&etat.canvas);
                 etat.mosaique.as_ref().map(|m| {
-                    vec![m.cx, m.cy, m.echelle, m.opacite_des_points(), f64::from(m.niveau()), etat.nb_points as f64, m.lacet, m.tangage, crate::mosaique::distance(vue_h)]
+                    vec![m.cx, m.cy, m.echelle, m.opacite_des_points(), f64::from(m.niveau()), etat.nb_points as f64, m.lacet, m.tangage, crate::mosaique::distance(vue_h), m.echelle_repos]
                 })
             })
             .unwrap_or_default()
     })
+}
+
+/// Les réglages de vue écrits dans un fichier `.holo` ; sans fichier, les réglages par défaut.
+fn reglages_de(source: Option<String>) -> Result<crate::vue::Reglages, JsValue> {
+    match source {
+        Some(source) => crate::verifier_page(&source).and_then(|p| crate::vue::reglages(&p)).map_err(|e| JsValue::from_str(&e.to_string())),
+        None => Ok(crate::vue::Reglages::default()),
+    }
+}
+
+/// Ce que la page d'entrée doit savoir des réglages d'un fichier : la densité des points,
+/// et si dézoomer réduit la page (1) ou non (0).
+#[wasm_bindgen]
+pub fn reglages_de_vue(source: &str) -> Result<Vec<f64>, JsValue> {
+    let r = reglages_de(Some(source.to_string()))?;
+    Ok(vec![r.densite, f64::from(u8::from(r.reduire))])
 }
 
 fn avec_la_mosaique(f: impl FnOnce(&mut Mosaique)) {
@@ -86,12 +103,13 @@ fn avec_la_mosaique(f: impl FnOnce(&mut Mosaique)) {
 
 /// Affiche une mosaïque alors que le moteur tourne déjà : la page devient des points.
 #[wasm_bindgen]
-pub fn poser_mosaique(couleurs: Vec<u8>, largeur: u32, hauteur: u32) -> Result<(), JsValue> {
+pub fn poser_mosaique(couleurs: Vec<u8>, largeur: u32, hauteur: u32, source: Option<String>) -> Result<(), JsValue> {
+    let reglages = reglages_de(source)?;
     ETAT.with(|e| match e.borrow().as_ref() {
         Some(etat) => {
             let mut etat = etat.borrow_mut();
             let (vue_l, vue_h) = taille_vue(&etat.canvas);
-            let mosaique = Mosaique::new(largeur, hauteur, couleurs, 1, vue_l, vue_h);
+            let mosaique = Mosaique::new(largeur, hauteur, couleurs, 1, vue_l, vue_h, reglages);
             etat.mosaique = Some(mosaique.ok_or_else(|| JsValue::from_str("image mal décrite : il faut largeur × hauteur × 4 octets"))?);
             Ok(())
         }
