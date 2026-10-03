@@ -12,9 +12,8 @@ Les deux décrivent la même chose : une page de boutique (titres, paragraphes, 
 ## Où en est chaque version
 
 - **La version web fonctionne aujourd'hui** : ouvrir `web/index.html` dans un navigateur. Le bouton fait entrer dans l'atelier, « Back to the shop » en fait sortir. Les graines des six points sont calculées comme dans le moteur (vérifié : mêmes valeurs que `moteur/src/graine.rs`).
-- **La version HoloCode est lue et vérifiée par le moteur** (un test la relit à chaque changement et contrôle qu'aucun mot du langage n'y manque), **mais elle n'est pas encore affichée** : le moteur ne sait afficher que le Big Bang. L'affichage de cette boutique est l'étape suivante.
-
-La comparaison porte donc sur l'écriture, pas encore sur le résultat à l'écran.
+- **La version HoloCode s'affiche aussi** : lancer `node outils/serveur.mjs` dans `moteur/`, puis ouvrir `http://localhost:8080/page.html`. Le moteur fabrique la page à partir de `boutique.holo` ; le bouton fait entrer dans le point, dont le monde est celui du moteur (les points sur une sphère où l'on zoome), avec son contenu lisible sur un panneau. Un test relit le fichier à chaque changement et contrôle qu'aucun mot du langage n'y manque.
+- Pour comparer côte à côte : `http://localhost:8080/exemples/boutique-comparee/web/index.html`.
 
 ## Terme par terme
 

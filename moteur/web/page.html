@@ -1,0 +1,74 @@
+<!doctype html>
+<!-- Porte d'entrée pour une page : identique pour tous les fichiers .holo.
+     Le moteur fabrique la page (vue à plat) ; entrer dans un point ouvre la vue en profondeur,
+     avec le contenu du monde lisible sur un panneau (ADR-018, option A).
+     Cette page ne décide de rien : chaque toucher est envoyé au moteur, qui répond par les
+     effets que les règles du fichier demandent (ADR-015). -->
+<html lang="fr"><head><meta charset="utf-8"><title>HoloCode</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html,body{margin:0;background:#000}
+  canvas.holo-profondeur{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+  #erreur{position:fixed;left:8px;bottom:8px;right:8px;color:#f88;font:13px monospace;white-space:pre-wrap}
+</style>
+</head><body><div id="page"></div>
+<script type="module">
+  import init, { demarrer, pause, vue_a_plat, effets, source_du_point } from "./pkg/holo_moteur.js";
+  window.__holoPause = pause;
+  const params = new URLSearchParams(location.search);
+  const chemin = params.get("monde") ?? "/exemples/boutique-comparee/boutique.holo";
+  const base = chemin.slice(0, chemin.lastIndexOf("/") + 1);
+  const racine = document.getElementById("page");
+  let source = "";
+  let page = null;
+  let enProfondeur = null; // le point dont la vue en profondeur tourne
+
+  async function appliquer(effet) {
+    const [nom, capacite] = effet.split(".");
+    const monde = racine.querySelector(`section[data-world="${CSS.escape(nom)}"]`);
+    if (!monde) return;
+    if (capacite === "enter") {
+      page.hidden = true;
+      monde.hidden = false;
+      if (enProfondeur === null) {
+        enProfondeur = nom;
+        const canvas = document.createElement("canvas");
+        canvas.className = "holo-profondeur";
+        monde.prepend(canvas);
+        // Zoom 2 : le point est déjà morcelé, on voit ses enfants sans être entré dans l'un d'eux.
+        await demarrer(canvas, source_du_point(source, nom), 2);
+        // Si la carte graphique a exigé une nouvelle zone de dessin, elle garde la même place.
+        monde.querySelector("canvas")?.classList.add("holo-profondeur");
+      } else if (enProfondeur === nom) {
+        pause(false);
+      }
+    } else if (capacite === "leave") {
+      monde.hidden = true;
+      page.hidden = false;
+      if (enProfondeur === nom) pause(true);
+    }
+    window.scrollTo(0, 0);
+  }
+
+  try {
+    await init();
+    source = await (await fetch(chemin)).text();
+    racine.innerHTML = vue_a_plat(source, base);
+    page = racine.querySelector("main");
+    document.title = page.parentElement.dataset.title || "HoloCode";
+    racine.addEventListener("click", async (evenement) => {
+      const bloc = evenement.target.closest("[data-name]");
+      if (!bloc) return;
+      for (const effet of effets(source, `${bloc.dataset.name}.tap`).split(",").filter(Boolean)) {
+        await appliquer(effet);
+      }
+    });
+    // Pour les captures d'écran : ?entrer=Workshop
+    if (params.get("entrer")) await appliquer(`${params.get("entrer")}.enter`);
+  } catch (e) {
+    const pre = document.body.appendChild(document.createElement("pre"));
+    pre.id = "erreur";
+    pre.textContent = "Le moteur a refusé ce fichier : " + (e?.message ?? e);
+  }
+</script>
+</body></html>

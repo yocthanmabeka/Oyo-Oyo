@@ -65,6 +65,24 @@ pub async fn demarrer(canvas: HtmlCanvasElement, source: &str, zoom_initial: f32
     boucle(etat)
 }
 
+/// La vue à plat : la page web ordinaire d'un fichier `.holo`, fabriquée par le moteur.
+#[wasm_bindgen]
+pub fn vue_a_plat(source: &str, base: &str) -> Result<String, JsValue> {
+    crate::vue_a_plat(source, base).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+/// Les effets demandés par un signal (`Open.tap`), séparés par des virgules.
+#[wasm_bindgen]
+pub fn effets(source: &str, signal: &str) -> String {
+    crate::effets(source, signal).join(",")
+}
+
+/// Le fichier `.holo` d'un seul point de la page, pour ouvrir sa vue en profondeur.
+#[wasm_bindgen]
+pub fn source_du_point(source: &str, nom: &str) -> Option<String> {
+    crate::source_du_point(source, nom)
+}
+
 /// Vérifie un fichier `.holo` sans rien lancer. Rend `ok` ou le message d'erreur.
 #[wasm_bindgen]
 pub fn verifier_holo(source: &str) -> String {
