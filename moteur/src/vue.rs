@@ -3,8 +3,8 @@
 //!
 //! ```holo
 //! Page(
-//!   zoom: Zoom(max: 1000000, shrink: false),
-//!   points: Points(size: 6px, fragment: 40px, grid: 4, depth: 20, density: 2),
+//!   zoom: Zoom(max: 1000000, shrink: false, levels: 8),
+//!   points: Points(after: 4, size: 6px, fragment: 40px, grid: 4, depth: 20, density: 2),
 //!   relief: Relief(height: 10px, tilt: 52deg),
 //! )
 //! ```
@@ -22,6 +22,11 @@ pub struct Reglages {
     /// `Zoom(shrink:)` : vrai, dézoomer réduit la page jusqu'à un seul point ; faux, on ne
     /// dézoome pas en deçà de la page entière.
     pub reduire: bool,
+    /// `Zoom(levels:)` : combien de sites peuvent s'emboîter les uns dans les autres, au plus.
+    pub niveaux_de_sites: u32,
+    /// `Points(after:)` : jusqu'à ce grossissement, la page reste un site ordinaire, qu'on lit,
+    /// qu'on sélectionne et qu'on copie ; au-delà, ses pixels deviennent des points.
+    pub apres: f64,
     /// `Points(size:)` : la taille à l'écran (en pixels) où un pixel de la page devient un point.
     pub taille_point: f64,
     /// `Points(fragment:)` : la taille où un point se morcelle.
@@ -40,7 +45,7 @@ pub struct Reglages {
 
 impl Default for Reglages {
     fn default() -> Self {
-        Reglages { zoom_max: 1e12, reduire: false, taille_point: 6.0, taille_morceler: 40.0, cote: 4, niveaux: 20, densite: 2.0, relief: 10.0, angle_max: 52f64.to_radians() }
+        Reglages { zoom_max: 1e12, reduire: false, niveaux_de_sites: 8, apres: 4.0, taille_point: 6.0, taille_morceler: 40.0, cote: 4, niveaux: 20, densite: 2.0, relief: 10.0, angle_max: 52f64.to_radians() }
     }
 }
 
@@ -101,7 +106,8 @@ pub fn reglages(programme: &Programme) -> Result<Reglages, Erreur> {
         return Ok(r);
     }
     if let Some(zoom) = bloc_de(page, "zoom", "Zoom")? {
-        seulement(zoom, &["max", "shrink"])?;
+        seulement(zoom, &["max", "shrink", "levels"])?;
+        r.niveaux_de_sites = entier(zoom, "levels", 1, 16, u64::from(r.niveaux_de_sites))? as u32;
         r.zoom_max = nombre(zoom, "max", None, 1.0, 1e12, r.zoom_max)?;
         r.reduire = match zoom.argument("shrink").map(|a| &a.valeur) {
             None => r.reduire,
@@ -110,7 +116,8 @@ pub fn reglages(programme: &Programme) -> Result<Reglages, Erreur> {
         };
     }
     if let Some(points) = bloc_de(page, "points", "Points")? {
-        seulement(points, &["size", "fragment", "grid", "depth", "density"])?;
+        seulement(points, &["after", "size", "fragment", "grid", "depth", "density"])?;
+        r.apres = nombre(points, "after", None, 1.0, 16.0, r.apres)?;
         r.taille_point = nombre(points, "size", Some("px"), 2.0, 32.0, r.taille_point)?;
         r.cote = entier(points, "grid", 2, 8, r.cote)?;
         r.niveaux = entier(points, "depth", 0, 20, u64::from(r.niveaux))? as u32;
@@ -127,7 +134,33 @@ pub fn reglages(programme: &Programme) -> Result<Reglages, Erreur> {
         r.relief = nombre(relief, "height", Some("px"), 0.0, 40.0, r.relief)?;
         r.angle_max = nombre(relief, "tilt", Some("deg"), 0.0, 80.0, r.angle_max.to_degrees())?.to_radians();
     }
+    // Garde-fou : les sites ne s'emboîtent pas plus profond que `Zoom(levels:)`.
+    sites_emboites(page, 1, r.niveaux_de_sites)?;
     Ok(r)
+}
+
+/// Parcourt les sites contenus dans un site (les points qui ont un `inside`), et refuse celui
+/// qui dépasse le nombre de niveaux permis.
+fn sites_emboites(site: &Bloc, niveau: u32, max: u32) -> Result<(), Erreur> {
+    fn visiter(valeur: &Valeur, niveau: u32, max: u32) -> Result<(), Erreur> {
+        match valeur {
+            Valeur::Liste(elements) => elements.iter().try_for_each(|e| visiter(e, niveau, max)),
+            Valeur::Bloc(bloc) => match (bloc.nom.as_str(), bloc.argument("inside").map(|a| &a.valeur)) {
+                ("Point", Some(Valeur::Bloc(monde))) => {
+                    if niveau + 1 > max {
+                        return Err(Erreur {
+                            message: format!("trop de sites emboîtés : ce point ouvrirait un niveau {} alors que la limite est {max} (Zoom(levels: {max}))", niveau + 1),
+                            pos: bloc.pos,
+                        });
+                    }
+                    sites_emboites(monde, niveau + 1, max)
+                }
+                _ => bloc.arguments.iter().try_for_each(|a| visiter(&a.valeur, niveau, max)),
+            },
+            _ => Ok(()),
+        }
+    }
+    site.arguments.iter().try_for_each(|a| visiter(&a.valeur, niveau, max))
 }
 
 #[cfg(test)]
@@ -148,7 +181,7 @@ mod tests {
     #[test]
     fn la_boutique_ecrit_ses_reglages() {
         let r = lus(include_str!("../../exemples/boutique-comparee/boutique.holo")).unwrap();
-        assert_eq!((r.zoom_max, r.reduire), (1_000_000.0, false));
+        assert_eq!((r.zoom_max, r.reduire, r.niveaux_de_sites, r.apres), (1_000_000.0, false, 8, 4.0));
         assert_eq!((r.taille_point, r.taille_morceler, r.cote, r.niveaux, r.densite), (6.0, 40.0, 4, 20, 2.0));
         assert_eq!(r.relief, 10.0);
         assert!((r.angle_max - 52f64.to_radians()).abs() < 1e-12);
@@ -163,6 +196,8 @@ mod tests {
             ("zoom: Zoom(speed: 3)", "n'a pas de paramètre « speed »"),
             ("zoom: 4", "un bloc « Zoom(...) »"),
             ("zoom: Points(size: 6px)", "un bloc « Zoom(...) »"),
+            ("zoom: Zoom(levels: 0)", "entier entre 1 et 16"),
+            ("points: Points(after: 40)", "entre 1 et 16"),
             ("points: Points(size: 6)", "entre 2px et 32px"),
             ("points: Points(size: 1px)", "entre 2px et 32px"),
             ("points: Points(grid: 20)", "entier entre 2 et 8"),
@@ -178,5 +213,20 @@ mod tests {
         }
         let r = lus(&page("zoom: Zoom(max: 50, shrink: true), points: Points(size: 8px, fragment: 64px, grid: 2, depth: 3), relief: Relief(height: 0px, tilt: 0deg)")).unwrap();
         assert_eq!((r.zoom_max, r.reduire, r.taille_point, r.taille_morceler, r.cote, r.niveaux, r.relief, r.angle_max), (50.0, true, 8.0, 64.0, 2, 3, 0.0, 0.0));
+    }
+
+    #[test]
+    fn les_sites_ne_s_emboitent_pas_sans_limite() {
+        // Trois sites : la page, A dans la page, B dans A.
+        let fichier = |limite: &str| {
+            format!("Page({limite}children: [\n Point(name: A, seed: 1, inside: World(children: [\n  Point(name: B, seed: 2, inside: World(children: [ P(\"x\") ])),\n ])),\n])")
+        };
+        assert!(lus(&fichier("")).is_ok(), "huit niveaux sont permis sans rien écrire");
+        assert!(lus(&fichier("zoom: Zoom(levels: 3), ")).is_ok());
+        let erreur = lus(&fichier("zoom: Zoom(levels: 2), ")).unwrap_err();
+        assert!(erreur.message.contains("la limite est 2"), "{erreur}");
+        assert_eq!(erreur.pos.ligne, 3, "l'erreur désigne le point de trop");
+        // Les points plantés dans un pixel comptent aussi.
+        assert!(lus("Page(zoom: Zoom(levels: 1), pixels: [ Point(name: A, above: A, seed: 1, inside: World(children: [])) ])").is_err());
     }
 }

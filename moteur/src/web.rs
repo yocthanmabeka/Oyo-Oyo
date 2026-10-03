@@ -88,11 +88,12 @@ fn reglages_de(source: Option<String>) -> Result<crate::vue::Reglages, JsValue> 
 }
 
 /// Ce que la page d'entrée doit savoir des réglages d'un fichier : la densité des points,
-/// et si dézoomer réduit la page (1) ou non (0).
+/// si dézoomer réduit la page (1) ou non (0), et jusqu'à quel grossissement la page reste
+/// un site ordinaire avant que ses pixels deviennent des points.
 #[wasm_bindgen]
 pub fn reglages_de_vue(source: &str) -> Result<Vec<f64>, JsValue> {
     let r = reglages_de(Some(source.to_string()))?;
-    Ok(vec![r.densite, f64::from(u8::from(r.reduire))])
+    Ok(vec![r.densite, f64::from(u8::from(r.reduire)), r.apres])
 }
 
 fn avec_la_mosaique(f: impl FnOnce(&mut Mosaique)) {

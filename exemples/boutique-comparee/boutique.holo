@@ -17,10 +17,12 @@ Page(
   zoom: Zoom(
     max: 1000000,     // on ne grossit pas la page plus d'un million de fois
     shrink: false,    // true : dézoomer réduit la page jusqu'à ce qu'elle soit un seul point
+    levels: 8,        // au plus huit sites emboîtés les uns dans les autres
   ),
 
   // Quand on zoome (Ctrl + molette, ou pincer), chaque pixel de la page devient un point.
   points: Points(
+    after: 4,         // jusqu'à un zoom × 4, la page reste un site ordinaire : on lit, on copie
     size: 6px,        // un pixel devient un point lumineux quand il atteint cette taille
     fragment: 40px,   // un point se morcelle quand il atteint cette taille…
     grid: 4,          // …en une grille de 4 × 4…

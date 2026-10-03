@@ -2,34 +2,25 @@
 <!-- Porte d'entrée pour une page : identique pour tous les fichiers .holo.
 
      On est d'abord devant un site web normal, fabriqué par le moteur (vue à plat).
-     - Zoomer (Ctrl + molette, ou pincer) : les pixels de la page grossissent et deviennent
-       des points lumineux bien rangés, qui se morcellent ensuite sans fin. C'est la même
-       page, vue de plus près. Dézoomer jusqu'au bout ramène au site normal.
-     - Tourner la page : on la voit de biais, et ce qui est lumineux se soulève.
-     - Vue personnage : la page est posée comme une feuille dans un monde.
-     - Entrer dans un point ouvre son monde, avec son contenu lisible sur un panneau.
+     - Zoomer (Ctrl + molette, ou pincer) grossit d'abord la page comme n'importe quel site :
+       on lit, on sélectionne, on copie. Au-delà du grossissement fixé par le fichier
+       (Points(after:)), ses pixels deviennent des points lumineux, qui se morcellent ensuite.
+       Dézoomer ramène au site normal.
+     - Tourner la page, en vue points : on la voit de biais, et ce qui est lumineux se soulève.
+     - Entrer dans un point qui contient un site ouvre le carrefour : des portails vers les
+       sites voisins, chacun montrant le site où il mène. Un clic sur un portail l'ouvre en
+       grand. Un site peut en contenir d'autres, sans changer de page : la boucle continue.
+     - Chaque site a son adresse : le fichier, puis # et le chemin des points traversés.
 
      Cette page ne décide de rien : chaque toucher est envoyé au moteur, qui répond par les
      effets que les règles du fichier demandent (ADR-015). -->
 <html lang="fr"><head><meta charset="utf-8"><title>HoloCode</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  html,body{margin:0;background:#000}
-  canvas.holo-profondeur{position:fixed;inset:0;width:100vw;height:100vh;display:none;touch-action:none;z-index:0}
-  .avec-monde>canvas.holo-profondeur{display:block}
-  .holo-Page>main{position:relative;z-index:1}
-  /* Le site contenu dans un point : une feuille posée dans le monde de ce point, comme la
-     page en vue personnage. On est dans un point, donc on le voit en personnage. */
-  .holo-World{position:fixed;inset:auto;left:50%;top:50%;width:420px;height:640px;box-sizing:border-box;overflow:auto;
-    padding:24px 16px;background:#111;color:#fff;border-radius:16px;box-shadow:0 0 40px rgba(255,255,255,.18);
-    pointer-events:auto;z-index:2;transform:translate(-50%,-50%);transform-origin:center;backface-visibility:hidden;
-    will-change:transform}
-  .holo-World .holo-panneau{position:static;max-height:none;overflow:visible;padding:0;background:none}
-  /* Vue personnage : la page devient une feuille posée dans le monde. */
-  .mode-personnage{height:100vh;overflow:hidden}
-  .mode-personnage>main{position:fixed;left:50%;top:50%;width:420px;height:640px;box-sizing:border-box;overflow:auto;
-    background:inherit;padding:inherit;border-radius:16px;box-shadow:0 0 40px rgba(233,180,76,.25);
-    transform:translate(-50%,-50%);transform-origin:center;backface-visibility:hidden;will-change:transform}
+  html,body{margin:0}
+  /* La zone de dessin du moteur ne sert qu'en vue points. */
+  canvas{position:fixed;inset:0;width:100vw;height:100vh;display:none;touch-action:none;z-index:1}
+  .en-points canvas{display:block}
   /* Vue points : l'image de la page suit la vue, et s'efface quand les points prennent le relais. */
   #image{position:fixed;left:0;top:0;z-index:3;transform-origin:0 0;pointer-events:none;display:none;will-change:transform,opacity}
   .en-points{overflow:hidden}
@@ -39,18 +30,40 @@
     background:rgba(0,0,0,.6);color:#bbb;font:12px system-ui,sans-serif;pointer-events:none}
   .en-points #commandes{display:flex;position:fixed;right:8px;bottom:8px;z-index:5;gap:8px}
   .en-points #mode{display:none}
-  #vues{position:fixed;top:8px;right:8px;z-index:5;display:flex;gap:8px}
+  #vues{position:fixed;top:8px;right:8px;z-index:8;display:flex;gap:8px}
   #vues[hidden]{display:none}
   #vues button,#commandes button{padding:8px 12px;border:1px solid #888;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;
     font:14px system-ui,sans-serif;cursor:pointer}
   #commandes button[aria-pressed="true"]{border-color:#E9B44C;color:#E9B44C}
-  #erreur{position:fixed;left:8px;bottom:8px;right:8px;z-index:6;color:#f88;font:13px monospace;white-space:pre-wrap}
+
+  /* Le carrefour : des portails vers les sites voisins, posés sur le fond du site où l'on est. */
+  #carrefour{position:fixed;inset:0;z-index:6;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
+    align-content:center;gap:28px 40px;padding:56px 24px 24px;box-sizing:border-box;overflow:auto;
+    background:color-mix(in srgb,var(--fond,#000) 86%,transparent);backdrop-filter:blur(6px)}
+  #carrefour[hidden]{display:none}
+  .portail{display:flex;flex-direction:column;align-items:center;gap:10px;padding:0;border:0;background:none;color:inherit;
+    font:15px system-ui,sans-serif;cursor:pointer}
+  .portail .apercu{display:block;position:relative;width:var(--taille);height:var(--taille);border-radius:50%;overflow:hidden;
+    box-shadow:0 0 0 3px var(--couleur),0 0 28px 6px var(--couleur);transition:transform .2s,box-shadow .2s}
+  .portail:hover .apercu,.portail:focus-visible .apercu{transform:scale(1.06);box-shadow:0 0 0 4px var(--couleur),0 0 44px 12px var(--couleur)}
+  .portail .contenu{display:block;position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none;text-align:left}
+  .portail .contenu .holo-Page{min-height:100%}
+  .portail:focus{outline:none}
+  .portail .nom{padding:4px 10px;border-radius:999px;background:rgba(0,0,0,.55);color:#fff}
+  .portail.vers .apercu{box-shadow:0 0 0 5px var(--couleur),0 0 60px 16px var(--couleur)}
+  /* Un portail qui s'ouvre : son aperçu grandit jusqu'à remplir la fenêtre, puis devient le site. */
+  .apercu.ouverture{position:fixed;z-index:9;box-shadow:none;transition:left .45s ease-in,top .45s ease-in,width .45s ease-in,height .45s ease-in,border-radius .45s ease-in}
+  .apercu.ouverture .contenu{transition:transform .45s ease-in}
+  @media (prefers-reduced-motion:reduce){.apercu.ouverture,.apercu.ouverture .contenu,.portail .apercu{transition:none}}
+
+  #erreur{position:fixed;left:8px;bottom:8px;right:8px;z-index:10;color:#f88;font:13px monospace;white-space:pre-wrap}
 </style>
-</head><body><div id="page"></div>
+</head><body><canvas id="zone"></canvas><div id="page"></div>
 <img id="image" alt=""><div id="etat"></div>
+<div id="carrefour" hidden></div>
 <div id="vues" hidden>
   <button id="points" type="button" title="Ou : Ctrl + molette, ou pincer, directement sur la page">Vue points</button>
-  <button id="mode" type="button">Vue personnage</button>
+  <button id="mode" type="button" title="Les sites voisins, sous forme de portails">Carrefour</button>
 </div>
 <div id="commandes">
   <button id="tourner" type="button" aria-pressed="false" title="Glisser fait tourner la page (ou : bouton droit, ou Maj)">Tourner</button>
@@ -58,8 +71,8 @@
 </div>
 <script type="module">
   import init, {
-    demarrer, changer_de_monde, pause, surface, vue_a_plat, effets, source_du_point, monde_d_accueil,
-    demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner, mosaique_pivoter, mosaique_de_face, mosaique_sous, reglages_de_vue, reveiller, images_dessinees,
+    pause, vue_a_plat, effets, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
+    mosaique_pivoter, mosaique_de_face, mosaique_sous, reglages_de_vue, reveiller, images_dessinees,
   } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
   window.__holoImages = images_dessinees; // combien d'images le moteur a dessinées : pour vérifier la sobriété
@@ -68,138 +81,90 @@
   const chemin = location.pathname.endsWith(".holo") ? location.pathname : params.get("monde") ?? "/exemples/boutique-comparee/boutique.holo";
   const base = chemin.slice(0, chemin.lastIndexOf("/") + 1);
   const racine = document.getElementById("page");
+  const carrefour = document.getElementById("carrefour");
   const boutonMode = document.getElementById("mode");
   const boutonPoints = document.getElementById("points");
   const boutonTourner = document.getElementById("tourner");
   const image = document.getElementById("image");
   const etat = document.getElementById("etat");
   const nombre = new Intl.NumberFormat("fr-FR");
-  // Le site affiché : la page du fichier, ou le monde d'un de ses points, ouvert en grand.
-  // Son chemin est dans l'adresse, après le # : boutique.holo#Workshop.
-  const cheminDuSite = decodeURIComponent(location.hash.slice(1));
-  addEventListener("hashchange", () => location.reload());
-  // Les points d'un monde sont sur une sphère de rayon 1. La page vue en personnage y mesure
-  // 2 unités de haut ; le site d'un point, 1,3 : il laisse voir les autres points autour de lui.
-  const HAUTEUR_PAGE_MONDE = 2;
-  const HAUTEUR_SITE_MONDE = 1.3;
-  const HAUTEUR_FEUILLE_PX = 640;
-  let hauteurFeuilleMonde = HAUTEUR_PAGE_MONDE;
-  let ouvertureEnCours = false;
-  // Vue points : ce que le fichier en dit (Zoom, Points). Lu au démarrage.
+  const zone = () => document.querySelector("canvas"); // le moteur peut l'avoir remplacée
+  // Ce que le fichier dit de sa vue (Zoom, Points). Lu au démarrage.
   let densite = 2;          // points par pixel d'écran, dans chaque sens
   let reduire = false;      // dézoomer réduit-il la page jusqu'à un point ?
+  let zoomAvantPoints = 4;  // jusqu'à ce grossissement, la page reste un site ordinaire
   let source = "";
+  let site = "";            // le site affiché : "" pour la page du fichier, sinon le chemin des points traversés
   let cadre = null;         // l'élément .holo-Page
   let page = null;          // son contenu, <main>
   let moteurLance = false;
-  let personnage = false;   // vue personnage ou vue web
-  let dansLePoint = null;   // le point dans lequel on est entré
+  let zoomVif = 1;          // le grossissement de la page vivante
   let enPoints = false;     // la page est vue comme un ensemble de points
   let entreeEnCours = null; // l'entrée en vue points, tant qu'elle se prépare
   let aQuitteLeRepos = false; // a-t-on zoomé ou tourné depuis l'entrée en vue points ?
-  let feuille = null;       // ce qui est posé dans le monde affiché : la page, ou le site d'un point
   let pixelsPlantes = [];   // les points plantés dans un pixel de la page, et où ils sont
 
-  // La zone de dessin du moteur : une seule, pour les mondes comme pour les points.
-  function zoneDeDessin() {
-    let canvas = cadre.querySelector("canvas");
-    if (!canvas) {
-      canvas = document.createElement("canvas");
-      cadre.prepend(canvas);
-    }
-    canvas.classList.add("holo-profondeur");
-    return canvas;
-  }
+  const parent = (cheminDeSite) => cheminDeSite.split("/").filter(Boolean).slice(0, -1).join("/");
+  const dernier = (cheminDeSite) => cheminDeSite.split("/").filter(Boolean).at(-1) ?? "";
 
-  // Montre la vue en profondeur d'un point (un fichier .holo réduit à ce point).
-  async function montrerMonde(sourceDuPoint, zoom) {
-    cadre.classList.add("avec-monde");
-    if (!moteurLance) {
-      moteurLance = true;
-      await demarrer(zoneDeDessin(), sourceDuPoint, zoom);
-      zoneDeDessin(); // si la carte graphique a exigé une nouvelle zone, elle garde la même place
-    } else {
-      changer_de_monde(sourceDuPoint, zoom);
-      pause(false);
-    }
-  }
+  // ---------------------------------------------------------------- le site affiché
 
-  function cacherMonde() {
-    cadre.classList.remove("avec-monde");
-    if (moteurLance) pause(true);
-  }
-
-  // ---------------------------------------------------------------- vue personnage
-
-  // La feuille suit le monde, comme un objet qu'on y aurait posé.
-  let feuilleSuivie = false;
-
-  function poserLaFeuille() {
-    feuilleSuivie = false;
-    if (!feuille) return;
-    const s = surface();
-    if (s.length) {
-      const [x, y, echelle, lacet, tangage, profondeur, distance] = s;
-      const demiHauteur = innerHeight / 2;
-      const unite = echelle * demiHauteur; // pixels pour une unité du monde
-      const f = (unite * hauteurFeuilleMonde) / HAUTEUR_FEUILLE_PX;
-      // En zoomant, le site d'un point grossit ; assez gros, il s'ouvre en grand.
-      if (feuille.dataset.world && f > 1.25 && profondeur === 0) {
-        ouvrirEnGrand(feuille);
-        return;
-      }
-      // Plongé dans un point né de la graine, on a quitté le lieu où se trouve la feuille.
-      feuille.style.visibility = profondeur > 0 ? "hidden" : "visible";
-      feuille.style.transform =
-        `translate(-50%,-50%) translate(${x * demiHauteur}px,${-y * demiHauteur}px) ` +
-        `perspective(${distance * unite}px) rotateX(${tangage}rad) rotateY(${-lacet}rad) scale(${f})`;
-    }
-    feuilleSuivie = true;
-    requestAnimationFrame(poserLaFeuille);
-  }
-
-  // Le site d'un point passe de la feuille à la page entière : il devient le site affiché,
-  // avec ses propres points où l'on peut zoomer et entrer. La boucle recommence.
-  async function ouvrirEnGrand(monde) {
-    if (ouvertureEnCours) return;
-    ouvertureEnCours = true;
-    feuille = null;
-    monde.style.visibility = "visible";
-    monde.style.transition = "transform .4s ease-in";
-    monde.style.transform = `translate(-50%,-50%) scale(${Math.max(innerWidth / 420, innerHeight / 640) * 1.05})`;
-    await new Promise((suite) => setTimeout(suite, 420));
-    location.hash = [...cheminDuSite.split("/").filter(Boolean), monde.dataset.world].join("/");
-  }
-
-  // Pose un élément dans le monde affiché (ou plus rien, avec null).
-  function poser(element, hauteur = HAUTEUR_PAGE_MONDE) {
-    hauteurFeuilleMonde = hauteur;
-    if (feuille && feuille !== element) {
-      feuille.style.transform = "";
-      feuille.style.visibility = "visible";
-    }
-    feuille = element;
-    if (feuille && !feuilleSuivie) {
-      feuilleSuivie = true;
-      requestAnimationFrame(poserLaFeuille);
+  // Affiche un site du fichier, sans recharger la page : pas de noir entre deux sites.
+  function afficherSite(cheminDeSite, { dansLHistorique = true } = {}) {
+    sortirDesPoints();
+    fermerCarrefour();
+    site = cheminDeSite;
+    racine.innerHTML = vue_a_plat(source, base, site);
+    cadre = racine.querySelector(".holo-Page");
+    page = cadre.querySelector("main");
+    document.title = cadre.dataset.title || "HoloCode";
+    // Le fond de la fenêtre est celui du site : jamais de noir autour d'un site clair.
+    const fond = getComputedStyle(cadre).backgroundColor;
+    document.documentElement.style.setProperty("--fond", fond);
+    document.body.style.background = fond;
+    grossir(1);
+    placerLesPixels();
+    scrollTo(0, 0);
+    if (dansLHistorique && decodeURIComponent(location.hash.slice(1)) !== site) {
+      history.pushState(null, "", site ? `#${site}` : location.pathname + location.search);
     }
   }
 
-  async function changerDeVue(versPersonnage) {
-    if (enPoints) sortirDesPoints();
-    personnage = versPersonnage;
-    boutonMode.textContent = personnage ? "Vue web" : "Vue personnage";
-    boutonPoints.hidden = personnage;
-    cadre.classList.toggle("mode-personnage", personnage);
-    if (dansLePoint) return;
-    if (personnage) {
-      await montrerMonde(monde_d_accueil(source), 1);
-      poser(page);
-    } else {
-      poser(null);
-      cacherMonde();
+  // Les points plantés dans un pixel de la page : chacun se place juste au-dessus du bloc
+  // que son « above » désigne, à l'extrémité droite de la page.
+  function placerLesPixels() {
+    for (const pixel of page.querySelectorAll(".holo-pixel")) {
+      const repere = page.querySelector(`[data-name="${CSS.escape(pixel.dataset.above)}"]`);
+      if (!repere) continue;
+      pixel.style.left = `${page.clientWidth - 1}px`;
+      pixel.style.top = `${repere.offsetTop - 6}px`;
     }
-    window.scrollTo(0, 0);
+  }
+
+  // Les sites contenus dans le site affiché : ses points qui ont un intérieur.
+  function sitesContenus() {
+    return [...page.querySelectorAll(".holo-Point, .holo-pixel")]
+      .filter((point) => racine.querySelector(`section[data-world="${CSS.escape(point.dataset.name)}"]`))
+      .map((point) => ({
+        chemin: [site, point.dataset.name].filter(Boolean).join("/"),
+        nom: point.dataset.name,
+        couleur: point.style.getPropertyValue("--holo-color") || "#E9B44C",
+      }));
+  }
+
+  // ---------------------------------------------------------------- le zoom ordinaire
+
+  // Grossit la page vivante, comme le zoom d'un navigateur : le texte reste du texte.
+  function grossir(valeur, x = innerWidth / 2, y = innerHeight / 2) {
+    const [avantX, avantY] = [(scrollX + x) / zoomVif, (scrollY + y) / zoomVif];
+    zoomVif = valeur;
+    // Un vrai agrandissement, depuis le coin de la page : la mise en page ne bouge pas, tout
+    // grossit ensemble. La zone à faire défiler grandit d'autant.
+    const grossi = zoomVif !== 1;
+    Object.assign(cadre.style, { transformOrigin: "0 0", transform: grossi ? `scale(${zoomVif})` : "", width: grossi ? `${document.documentElement.clientWidth}px` : "" });
+    Object.assign(racine.style, { width: grossi ? `${cadre.offsetWidth * zoomVif}px` : "", height: grossi ? `${cadre.offsetHeight * zoomVif}px` : "", overflow: grossi ? "hidden" : "" });
+    // Ce qui était sous le doigt y reste.
+    scrollTo(avantX * zoomVif - x, avantY * zoomVif - y);
   }
 
   // ---------------------------------------------------------------- vue points
@@ -216,7 +181,6 @@
   // fabriquée : on peut la remettre dans une image (un SVG qui la contient).
   async function imageDeLaPage() {
     const copie = racine.cloneNode(true);
-    copie.querySelectorAll("canvas").forEach((c) => c.remove());
     // Une image ne peut pas aller chercher d'autres fichiers : celles de la page sont copiées dedans.
     const originales = racine.querySelectorAll("img");
     for (const [i, img] of [...copie.querySelectorAll("img")].entries()) {
@@ -226,8 +190,8 @@
     const svg =
       `<svg xmlns="http://www.w3.org/2000/svg" width="${l * densite}" height="${h * densite}" viewBox="0 0 ${l} ${h}">` +
       `<foreignObject width="${l}" height="${h}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${l}px;height:${h}px;overflow:hidden">` +
-      `<style>.holo-Page{min-height:${h}px!important}</style>` +
-      `<div style="margin-top:${-scrollY}px">${new XMLSerializer().serializeToString(copie)}</div></div></foreignObject></svg>`;
+      `<style>.holo-Page{min-height:${h / zoomVif}px!important}</style>` +
+      `<div style="margin:${-scrollY}px 0 0 ${-scrollX}px">${new XMLSerializer().serializeToString(copie)}</div></div></foreignObject></svg>`;
     image.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
     await image.decode();
     const toile = new OffscreenCanvas(l * densite, h * densite);
@@ -259,7 +223,7 @@
     const camera = mosaique_camera();
     if (camera.length) {
       const [cx, cy, echelle, opacite, niveau, points, lacet, tangage, distance, echelleAuRepos] = camera;
-      // Revenu exactement à la page entière, de face : c'est le site normal, on y retourne.
+      // Revenu exactement à la vue de départ, de face : c'est le site normal, on y retourne.
       const auRepos = Math.abs(echelle / echelleAuRepos - 1) < 1e-9 && lacet === 0 && tangage === 0;
       if (auRepos && aQuitteLeRepos) {
         sortirDesPoints();
@@ -273,7 +237,7 @@
         `translate(${-cx * echelle}px,${-cy * echelle}px) scale(${echelle})`;
       image.style.opacity = 1 - opacite;
       etat.textContent = opacite === 0
-        ? `${nombre.format(image.naturalWidth * image.naturalHeight)} points — zoomez`
+        ? `${nombre.format(image.naturalWidth * image.naturalHeight)} points — zoomez encore`
         : `${nombre.format(points)} points à l'écran · morcelés ${niveau} fois`;
     }
     const cle = camera.join();
@@ -284,64 +248,50 @@
     requestAnimationFrame(suivreLesPoints);
   }
 
-  // Les points plantés dans un pixel de la page : chacun se place juste au-dessus du bloc
-  // que son « above » désigne, à l'extrémité droite de la page.
-  function placerLesPixels() {
-    for (const pixel of racine.querySelectorAll(".holo-pixel")) {
-      const repere = racine.querySelector(`[data-name="${CSS.escape(pixel.dataset.above)}"]`);
-      if (!repere) continue;
-      pixel.style.left = `${page.clientWidth - 1}px`;
-      pixel.style.top = `${repere.offsetTop - 6}px`;
-    }
-  }
-
   // On zoome vers un endroit de l'écran, comme si on s'en approchait.
   async function approcher(x, y) {
-    const canvas = cadre.querySelector("canvas");
-    for (let pas = 0; pas < 45 && mosaique_camera()[2] * densite < 280; pas++) {
-      canvas.dispatchEvent(new WheelEvent("wheel", { deltaY: -70, clientX: x, clientY: y, cancelable: true }));
+    for (let pas = 0; pas < 45 && mosaique_camera()[2] * densite * zoomVif < 280; pas++) {
+      zone().dispatchEvent(new WheelEvent("wheel", { deltaY: -70, clientX: x, clientY: y, cancelable: true }));
       reveillerLeSuivi();
       await new Promise(requestAnimationFrame);
     }
   }
 
-  // En vue points, toucher un point planté par l'auteur l'active : on s'en approche, puis on
-  // entre dans le site qu'il contient.
+  // En vue points, toucher un point planté par l'auteur l'active : on s'en approche, puis le
+  // carrefour s'ouvre sur le site qu'il contient.
   async function toucherUnPoint(x, y) {
     const sous = mosaique_sous(x, y);
     if (!sous.length) return;
-    const tolerance = Math.max(1.5 * densite, 14 / mosaique_camera()[2]);
+    const tolerance = Math.max(1.5 * densite * zoomVif, 14 / mosaique_camera()[2]);
     const plante = pixelsPlantes.find((p) => Math.abs(p.x - sous[0]) < tolerance && Math.abs(p.y - sous[1]) < tolerance);
     if (!plante) return;
     await approcher(x, y);
     sortirDesPoints();
     for (const effet of effets(source, `${plante.nom}.tap`).split(",").filter(Boolean)) {
-      await appliquer(effet);
+      appliquer(effet);
     }
   }
 
   // La page devient un ensemble de points, un par pixel. Au départ rien ne change à l'écran :
   // un point fait exactement un pixel.
   function entrerEnPoints() {
-    if (enPoints || personnage || dansLePoint) return Promise.resolve();
+    if (enPoints || !carrefour.hidden) return Promise.resolve();
     entreeEnCours ??= (async () => {
       const pixels = await imageDeLaPage();
       const couleurs = new Uint8Array(pixels.data.buffer);
-      pixelsPlantes = [...racine.querySelectorAll(".holo-pixel")].map((pixel) => {
+      pixelsPlantes = [...page.querySelectorAll(".holo-pixel")].map((pixel) => {
         const cadreDuPixel = pixel.getBoundingClientRect();
         return { nom: pixel.dataset.name, x: (cadreDuPixel.left + cadreDuPixel.width / 2) * densite, y: (cadreDuPixel.top + cadreDuPixel.height / 2) * densite };
       });
-      cadre.classList.add("avec-monde");
+      document.body.classList.add("en-points");
       if (!moteurLance) {
         moteurLance = true;
-        await demarrer_mosaique(zoneDeDessin(), couleurs, pixels.width, pixels.height, source);
-        zoneDeDessin();
+        await demarrer_mosaique(zone(), couleurs, pixels.width, pixels.height, source);
       } else {
         poser_mosaique(couleurs, pixels.width, pixels.height, source);
         pause(false);
       }
-      page.hidden = true;
-      document.body.classList.add("en-points");
+      page.style.visibility = "hidden";
       boutonPoints.textContent = "Vue web";
       enPoints = true;
       aQuitteLeRepos = false;
@@ -356,72 +306,136 @@
     mosaique_de_face();
     mosaique_tourner(false);
     retirer_mosaique();
+    pause(true);
     boutonTourner.setAttribute("aria-pressed", "false");
     document.body.classList.remove("en-points");
     boutonPoints.textContent = "Vue points";
-    page.hidden = false;
-    cacherMonde();
+    page.style.visibility = "";
   }
 
   // Un pincement arrive comme une molette avec Ctrl, par petits pas : on les grossit.
   const pasDeZoom = (evenement) => evenement.deltaY * (Math.abs(evenement.deltaY) < 50 ? 6 : 1);
 
-  // Zoomer sur la page (Ctrl + molette, ou pincer) : c'est le zoom qui fait passer aux points.
+  // Zoomer sur la page (Ctrl + molette, ou pincer). D'abord un zoom ordinaire, où la page reste
+  // un site qu'on lit et qu'on copie ; au-delà de Points(after:), ses pixels deviennent des points.
   addEventListener("wheel", async (evenement) => {
     // Sinon Chrome grossit ou réduit toute la fenêtre, et le site sort de son cadre.
     if (evenement.ctrlKey) evenement.preventDefault();
-    if (enPoints || !evenement.ctrlKey || personnage || dansLePoint || !cadre) return;
-    // Garde-fou : on ne dézoome pas en deçà de la page entière, sauf si le fichier le permet
-    // (Zoom(shrink: true)).
-    if (evenement.deltaY >= 0 && !reduire) return;
+    if (enPoints || !evenement.ctrlKey || !carrefour.hidden || !cadre || entreeEnCours) return;
     const { clientX, clientY } = evenement;
     const deltaY = pasDeZoom(evenement);
+    const voulu = zoomVif * 2 ** (-deltaY * 0.003);
+    if (voulu <= zoomAvantPoints && (voulu >= 1 || zoomVif > 1)) {
+      grossir(Math.max(1, voulu), clientX, clientY);
+      return;
+    }
+    // Garde-fou : on ne dézoome pas en deçà de la page entière, sauf si le fichier le permet
+    // (Zoom(shrink: true)).
+    if (voulu < 1 && !reduire) return;
+    if (voulu > zoomAvantPoints && zoomVif < zoomAvantPoints) grossir(zoomAvantPoints, clientX, clientY);
     await entrerEnPoints();
-    cadre.querySelector("canvas")?.dispatchEvent(new WheelEvent("wheel", { deltaY, clientX, clientY, cancelable: true }));
+    zone().dispatchEvent(new WheelEvent("wheel", { deltaY, clientX, clientY, cancelable: true }));
   }, { passive: false });
+
+  // ---------------------------------------------------------------- le carrefour
+
+  // Un portail : un rond lumineux qui montre le site où il mène.
+  function portail({ chemin: versSite, nom, couleur }, taille, vers) {
+    const bouton = document.createElement("button");
+    bouton.type = "button";
+    bouton.className = vers ? "portail vers" : "portail";
+    bouton.dataset.chemin = versSite;
+    bouton.style.setProperty("--taille", `${taille}px`);
+    bouton.style.setProperty("--couleur", couleur);
+    const apercu = document.createElement("span");
+    apercu.className = "apercu";
+    const contenu = document.createElement("span");
+    contenu.className = "contenu";
+    contenu.inert = true;
+    contenu.style.width = `${innerWidth}px`;
+    contenu.style.height = `${innerWidth}px`; // un carré : l'aperçu remplit le rond
+    contenu.style.transform = `scale(${taille / innerWidth})`;
+    contenu.innerHTML = vue_a_plat(source, base, versSite);
+    apercu.append(contenu);
+    const etiquette = document.createElement("span");
+    etiquette.className = "nom";
+    etiquette.textContent = nom;
+    bouton.append(apercu, etiquette);
+    return bouton;
+  }
+
+  // Ouvre le carrefour. « vers » : le site contenu vers lequel on se dirige, mis en avant ;
+  // sans lui, c'est la carte de ce qui entoure le site où l'on est.
+  function ouvrirCarrefour(vers = null) {
+    sortirDesPoints();
+    const contenus = sitesContenus();
+    const ici = { chemin: site, nom: site ? `Ici : ${dernier(site)}` : "Ici", couleur: "#ffffff" };
+    const cible = contenus.find((s) => s.nom === vers);
+    const portails = [];
+    if (site) portails.push(portail({ chemin: parent(site), nom: `Retour : ${dernier(parent(site)) || "accueil"}`, couleur: "#9aa4b2" }, 150, false));
+    for (const contenu of contenus) {
+      if (contenu !== cible) portails.push(portail(contenu, 170, false));
+    }
+    // Le portail mis en avant se place au milieu des autres.
+    const grand = Math.round(Math.min(innerWidth, innerHeight) * 0.42);
+    portails.splice(Math.ceil(portails.length / 2), 0, portail(cible ?? ici, grand, true));
+    if (cible) portails.push(portail(ici, 150, false));
+    carrefour.replaceChildren(...portails);
+    carrefour.hidden = false;
+    boutonMode.textContent = "Fermer";
+    boutonPoints.hidden = true;
+    carrefour.querySelector(".vers").focus({ preventScroll: true });
+  }
+
+  function fermerCarrefour() {
+    carrefour.hidden = true;
+    carrefour.replaceChildren();
+    boutonMode.textContent = "Carrefour";
+    boutonPoints.hidden = false;
+  }
+
+  // Le portail s'ouvre : son aperçu grandit jusqu'à remplir la fenêtre, et devient le site.
+  async function franchir(bouton) {
+    const versSite = bouton.dataset.chemin;
+    if (versSite === site) {
+      fermerCarrefour();
+      return;
+    }
+    const apercu = bouton.querySelector(".apercu");
+    const depart = apercu.getBoundingClientRect();
+    Object.assign(apercu.style, { left: `${depart.left}px`, top: `${depart.top}px`, width: `${depart.width}px`, height: `${depart.height}px` });
+    apercu.classList.add("ouverture");
+    apercu.getBoundingClientRect(); // le départ est pris en compte avant de lancer le mouvement
+    Object.assign(apercu.style, { left: "0px", top: "0px", width: "100vw", height: "100vh", borderRadius: "0" });
+    Object.assign(apercu.querySelector(".contenu").style, { transform: "scale(1)", height: `${innerHeight}px` });
+    const immobile = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    await new Promise((suite) => setTimeout(suite, immobile ? 0 : 470));
+    afficherSite(versSite);
+  }
 
   // ---------------------------------------------------------------- les règles du fichier
 
-  async function appliquer(effet) {
+  function appliquer(effet) {
     const [nom, capacite] = effet.split(".");
-    // Sortir du site ouvert en grand : on remonte au site qui le contient.
-    const sites = cheminDuSite.split("/").filter(Boolean);
-    if (capacite === "leave" && !dansLePoint && sites.at(-1) === nom) {
-      location.hash = sites.slice(0, -1).join("/");
-      return;
+    if (capacite === "enter" && sitesContenus().some((s) => s.nom === nom)) {
+      ouvrirCarrefour(nom);
+    } else if (capacite === "leave") {
+      // Sortir d'un site : on remonte à celui qui le contient.
+      if (!carrefour.hidden) fermerCarrefour();
+      else if (dernier(site) === nom) afficherSite(parent(site));
     }
-    const monde = racine.querySelector(`section[data-world="${CSS.escape(nom)}"]`);
-    if (!monde) return;
-    if (capacite === "enter") {
-      dansLePoint = nom;
-      page.hidden = true;
-      monde.hidden = false;
-      document.getElementById("vues").hidden = true;
-      // Le point s'est morcelé : ses enfants entourent la feuille, sur toute la fenêtre.
-      await montrerMonde(source_du_point(source, nom), 1.5);
-      poser(monde, HAUTEUR_SITE_MONDE);
-    } else if (capacite === "leave" && dansLePoint === nom) {
-      dansLePoint = null;
-      poser(null);
-      monde.hidden = true;
-      page.hidden = false;
-      document.getElementById("vues").hidden = params.has("nu");
-      await changerDeVue(personnage);
-    }
-    window.scrollTo(0, 0);
   }
 
   try {
     await init();
     source = await (await fetch(chemin, { headers: { accept: "text/plain" } })).text();
-    racine.innerHTML = vue_a_plat(source, base, cheminDuSite);
-    [densite, reduire] = reglages_de_vue(source);
+    [densite, reduire, zoomAvantPoints] = reglages_de_vue(source);
     reduire = reduire === 1;
-    cadre = racine.querySelector(".holo-Page");
-    page = cadre.querySelector("main");
-    document.title = cadre.dataset.title || "HoloCode";
-    placerLesPixels();
-    addEventListener("resize", placerLesPixels);
+    afficherSite(decodeURIComponent(location.hash.slice(1)), { dansLHistorique: false });
+    // Le bouton « retour » du navigateur, ou une adresse changée à la main.
+    addEventListener("popstate", () => afficherSite(decodeURIComponent(location.hash.slice(1)), { dansLHistorique: false }));
+    addEventListener("resize", () => { placerLesPixels(); reveillerLeSuivi(); });
+
     // En vue points, un toucher sans glissement active le point planté qui se trouve dessous.
     let appui = null;
     addEventListener("pointerdown", (evenement) => { appui = [evenement.clientX, evenement.clientY]; }, true);
@@ -430,18 +444,23 @@
       appui = null;
       if (enPoints && glissement < 6 && !evenement.target.closest("button")) toucherUnPoint(evenement.clientX, evenement.clientY);
     }, true);
-    racine.addEventListener("click", async (evenement) => {
+    // Sur la page : un toucher est envoyé au moteur, qui répond par les effets demandés.
+    racine.addEventListener("click", (evenement) => {
       const bloc = evenement.target.closest("[data-name]");
-      // Un deuxième clic, sur le site d'un point posé dans son monde : il s'ouvre en grand.
-      const monde = evenement.target.closest("section[data-world]");
-      if (!bloc && monde && dansLePoint === monde.dataset.world) ouvrirEnGrand(monde);
       if (!bloc) return;
       for (const effet of effets(source, `${bloc.dataset.name}.tap`).split(",").filter(Boolean)) {
-        await appliquer(effet);
+        appliquer(effet);
       }
     });
+    carrefour.addEventListener("click", (evenement) => {
+      const bouton = evenement.target.closest(".portail");
+      if (bouton) franchir(bouton);
+      else fermerCarrefour(); // un clic à côté des portails : on reste où l'on est
+    });
+    addEventListener("keydown", (evenement) => { if (evenement.key === "Escape" && !carrefour.hidden) fermerCarrefour(); });
+
     document.getElementById("vues").hidden = params.has("nu"); // ?nu : sans les boutons, pour en tirer une image
-    boutonMode.addEventListener("click", () => changerDeVue(!personnage));
+    boutonMode.addEventListener("click", () => (carrefour.hidden ? ouvrirCarrefour() : fermerCarrefour()));
     boutonPoints.addEventListener("click", () => (enPoints ? sortirDesPoints() : entrerEnPoints()));
     boutonTourner.addEventListener("click", () => {
       const actif = boutonTourner.getAttribute("aria-pressed") !== "true";
@@ -455,18 +474,17 @@
         if (nom !== "pointermove" || evenement.buttons !== 0) reveillerLeSuivi();
       }, { capture: true, passive: true });
     }
-    addEventListener("resize", reveillerLeSuivi);
     // En vue points, le bouton droit sert à tourner la page : pas de menu.
     addEventListener("contextmenu", (evenement) => { if (enPoints) evenement.preventDefault(); });
 
-    // Pour les captures d'écran : ?vue=personnage, ?entrer=Workshop,
+    // Pour les captures d'écran : ?vue=carrefour, ?entrer=Workshop,
     // ?vue=points avec &zoom=…&x=…&y=… (comme la molette à cet endroit) et &lacet=…&tangage=… (en degrés).
-    if (params.get("vue") === "personnage") await changerDeVue(true);
-    if (params.get("entrer")) await appliquer(`${params.get("entrer")}.enter`);
+    if (params.get("vue") === "carrefour") ouvrirCarrefour();
+    if (params.get("entrer")) appliquer(`${params.get("entrer")}.enter`);
     if (params.get("vue") === "points") {
       await entrerEnPoints();
       if (params.get("zoom")) {
-        cadre.querySelector("canvas").dispatchEvent(new WheelEvent("wheel", {
+        zone().dispatchEvent(new WheelEvent("wheel", {
           deltaY: -Math.log2(Number(params.get("zoom"))) / 0.003,
           clientX: Number(params.get("x") ?? innerWidth / 2), clientY: Number(params.get("y") ?? innerHeight / 2), cancelable: true,
         }));
