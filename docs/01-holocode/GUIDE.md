@@ -190,7 +190,7 @@ Page(
 
 - `On(Open.tap, effect: Workshop.enter)` : quand le bouton `Open` est touché, on entre dans le point `Workshop`.
 - Signaux : `tap` (un `Button` ou un `Point` touché).
-- Capacités : `enter` et `leave` (pour un `Point`).
+- Capacités : `enter` et `leave` (pour un `Point`), `portals` (pour la `Page` : ouvrir son carrefour).
 - Toucher un point y fait entrer, sans règle à écrire.
 
 ### Planter un site dans un pixel de la page
@@ -287,6 +287,46 @@ Page(
 
 Ce sont des garde-fous : le visiteur ne dépasse pas ceux de l'auteur, et l'auteur ne dépasse pas ceux du langage.
 
+### Le carrefour : `Portals`
+
+Le carrefour montre les mondes voisins sous forme de portails. Il s'ouvre quand on entre dans un point qui contient un site, par le bouton « Carrefour », ou par une règle : `On(Map.tap, effect: Shop.portals)`, où `Shop` est le nom de la page.
+
+```holo
+Page(
+  name: Shop,
+  title: "My shop",
+
+  zoom: Zoom(active: true),
+
+  portals: Portals(
+    layout: grid,
+    count: 12,
+    size: 170px,
+    brightness: 0.15,
+  ),
+
+  children: [
+    H1("My shop"),
+    Button(name: Map, text: "See the other worlds"),
+  ],
+  rules: [
+    On(Map.tap, effect: Shop.portals),
+  ],
+)
+```
+
+| Réglage | Sens | Bornes |
+|---|---|---|
+| `Portals(layout:)` | `grid` : en grille sur toute la fenêtre. `row` : une ligne, on défile de gauche à droite. `column` : une colonne, de haut en bas. `diagonal` : en diagonale. | l'un de ces quatre mots |
+| `Portals(count:)` | Combien de mondes on montre. | 1 à 64 |
+| `Portals(size:)` | La taille d'un portail. | 80px à 400px |
+| `Portals(brightness:)` | La lumière du fond, pour y voir même sur un site sombre. | 0 à 1 |
+| `Zoom(active:)` | `false` : le visiteur ne peut pas zoomer dans la page. | `true`, `false` |
+
+- Les sites écrits dans le fichier passent d'abord, et montrent leur contenu. Le reste de la place est rempli par des mondes calculés à partir d'une graine : des boules de lumière, dans lesquelles on entre comme dans le Big Bang.
+- Là où le curseur se pose, le monde s'avance : il grandit et devient une feuille lisible.
+- Un monde calculé a lui aussi son adresse : `my-shop.holo#~` suivi de sa graine.
+
 ## 8. Un monde seul
 
 Un fichier peut ne contenir qu'un `Point` : il s'ouvre alors directement en profondeur. C'est le Big Bang.
@@ -317,7 +357,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 
 | Bloc | Réglages | Où |
 |---|---|---|
-| `Page` | `name`, `title`, `children`, `pixels`, `rules`, `zoom`, `points`, `relief` | À la racine |
+| `Page` | `name`, `title`, `children`, `pixels`, `rules`, `zoom`, `points`, `relief`, `portals` | À la racine |
 | `H1`, `H2`, `H3`, `P`, `Text` | le texte entre guillemets ; `name` | Dans `children` |
 | `Image` | `source`, `weight`, `name` | Dans `children` |
 | `List` | `children`, `name` | Dans `children` |
@@ -325,7 +365,39 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Point` | `name`, `seed`, `brightness`, `fragments`, `color`, `palette`, `budget`, `inside` ; `above` quand il est planté dans un pixel | Dans `children` ou `pixels`, ou à la racine |
 | `World` | `children`, `pixels`, `rules` | Dans `inside:` d'un `Point` |
 | `On` | le signal, puis `effect:` | Dans `rules` |
-| `Zoom`, `Points`, `Relief` | voir la partie 7 | Dans `zoom:`, `points:`, `relief:` d'une `Page` |
+| `Zoom`, `Points`, `Relief`, `Portals` | voir la partie 7 | Dans `zoom:`, `points:`, `relief:`, `portals:` d'une `Page` |
+
+## 10 bis. Chaque notion et son mot
+
+Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l'on en est.
+
+| Notion | Son mot dans le langage | État |
+|---|---|---|
+| Une page, un texte, un titre | `Page`, `Text`, `P`, `H1` à `H3` | fait |
+| Une image | `Image(source:, weight:)` | fait |
+| Une liste, un bouton | `List`, `Button` | fait |
+| L'apparence | les styles : `P { color: … }`, `.card { … }` | fait |
+| Un point, un monde | `Point`, `World`, `seed`, `brightness`, `color`, `palette` | fait |
+| Le morcellement d'un point | `fragments` | fait |
+| Le pixel d'une page | `pixels:` et `above:` | fait, écriture provisoire |
+| Le pixel qui devient un point | `Points(after:, size:)` | fait |
+| Le morcellement des points d'une page | `Points(fragment:, grid:, depth:)` | fait |
+| Le relief | `Relief(height:, tilt:)` | fait |
+| Activer ou désactiver le zoom | `Zoom(active:)` | fait |
+| Les limites du zoom | `Zoom(max:, shrink:)` | fait |
+| Le nombre de sites emboîtés | `Zoom(levels:)` | fait |
+| Entrer dans un site, en sortir | `enter`, `leave` | fait |
+| Le carrefour, les portails | `Portals(layout:, count:, size:, brightness:)`, et la capacité `portals` | fait |
+| Le poids permis | `budget`, `weight` | fait |
+| Le toucher | le signal `tap` | fait |
+| Le son | aucun | à faire |
+| La vidéo | aucun | à faire |
+| Le survol, l'approche | aucun | à faire |
+| Réagir au zoom par une règle (« quand on zoome, alors… ») | aucun | à faire |
+| La disposition côte à côte | aucun | à faire |
+| Les liens vers un autre fichier | aucun (les imports sont lus, pas appliqués) | à faire |
+| Les formulaires, les valeurs qui changent | aucun | à faire |
+| Le personnage | aucun | à faire |
 
 L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../exemples/boutique-comparee/boutique.holo).
 

@@ -87,13 +87,29 @@ fn reglages_de(source: Option<String>) -> Result<crate::vue::Reglages, JsValue> 
     }
 }
 
-/// Ce que la page d'entrée doit savoir des réglages d'un fichier : la densité des points,
-/// si dézoomer réduit la page (1) ou non (0), et jusqu'à quel grossissement la page reste
-/// un site ordinaire avant que ses pixels deviennent des points.
+/// Ce que la page d'entrée doit savoir des réglages d'un fichier, dans cet ordre : la densité
+/// des points ; si dézoomer réduit la page (1) ou non (0) ; jusqu'à quel grossissement la page
+/// reste un site ordinaire ; si le zoom est permis (1) ou non (0) ; la disposition des portails
+/// (0 grille, 1 ligne, 2 colonne, 3 diagonale), leur nombre, leur taille, la lumière du fond.
 #[wasm_bindgen]
 pub fn reglages_de_vue(source: &str) -> Result<Vec<f64>, JsValue> {
     let r = reglages_de(Some(source.to_string()))?;
-    Ok(vec![r.densite, f64::from(u8::from(r.reduire)), r.apres])
+    let disposition = match r.portails_disposition {
+        crate::vue::Disposition::Grille => 0.0,
+        crate::vue::Disposition::Ligne => 1.0,
+        crate::vue::Disposition::Colonne => 2.0,
+        crate::vue::Disposition::Diagonale => 3.0,
+    };
+    Ok(vec![r.densite, f64::from(u8::from(r.reduire)), r.apres, f64::from(u8::from(r.zoom_actif)), disposition, f64::from(r.portails_nombre), r.portails_taille, r.portails_lumiere])
+}
+
+/// Les mondes voisins d'un site, calculés à partir d'une graine, pour remplir le carrefour.
+/// Chacun s'écrit « graine:rouge,vert,bleu » ; ils sont séparés par des points-virgules. La
+/// graine reste un texte : un nombre de 64 bits ne tient pas dans un nombre de JavaScript.
+#[wasm_bindgen]
+pub fn mondes_voisins(source: &str, chemin: &str, nombre: u32) -> String {
+    let texte = |(graine, c): (u64, [f32; 3])| format!("{graine}:{},{},{}", (c[0] * 255.0) as u8, (c[1] * 255.0) as u8, (c[2] * 255.0) as u8);
+    crate::mondes_voisins(source, chemin, nombre).into_iter().map(texte).collect::<Vec<_>>().join(";")
 }
 
 fn avec_la_mosaique(f: impl FnOnce(&mut Mosaique)) {

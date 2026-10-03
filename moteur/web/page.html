@@ -36,16 +36,39 @@
     font:14px system-ui,sans-serif;cursor:pointer}
   #commandes button[aria-pressed="true"]{border-color:#E9B44C;color:#E9B44C}
 
-  /* Le carrefour : des portails vers les sites voisins, posés sur le fond du site où l'on est. */
-  #carrefour{position:fixed;inset:0;z-index:6;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
-    align-content:center;gap:28px 40px;padding:56px 24px 24px;box-sizing:border-box;overflow:auto;
-    background:color-mix(in srgb,var(--fond,#000) 86%,transparent);backdrop-filter:blur(6px)}
+  /* Un monde calculé, ouvert en profondeur. */
+  .en-monde canvas{display:block}
+  .en-monde #page{display:none}
+  .en-monde #points{display:none}
+
+  /* Le carrefour : des portails vers les mondes voisins, sur le fond du site où l'on est,
+     éclairci par une lueur pour qu'on y voie même sur un site sombre (Portals(brightness:)). */
+  #carrefour{position:fixed;inset:0;z-index:6;display:flex;gap:36px 44px;padding:64px 32px 32px;box-sizing:border-box;overflow:auto;
+    background:radial-gradient(circle at 50% 42%,color-mix(in srgb,#fff var(--lueur,15%),var(--fond,#000)),var(--fond,#000) 85%)}
   #carrefour[hidden]{display:none}
+  /* Portals(layout: grid) : en grille, sur toute la fenêtre. */
+  #carrefour.grille{flex-wrap:wrap;align-items:center;justify-content:safe center;align-content:safe center}
+  /* Portals(layout: row) : une ligne, on défile de gauche à droite. */
+  #carrefour.ligne{flex-wrap:nowrap;align-items:center;overflow-y:hidden}
+  /* Portals(layout: column) : une colonne, on défile de haut en bas. */
+  #carrefour.colonne{flex-direction:column;flex-wrap:nowrap;align-items:center;overflow-x:hidden}
+  /* Portals(layout: diagonal) : en diagonale, chaque portail un cran plus bas que le précédent. */
+  #carrefour.diagonale{flex-wrap:nowrap;align-items:flex-start}
+  #carrefour.diagonale .portail{margin-top:calc(var(--rang) * var(--taille) * .55)}
+  #carrefour .portail{flex:none}
   .portail{display:flex;flex-direction:column;align-items:center;gap:10px;padding:0;border:0;background:none;color:inherit;
     font:15px system-ui,sans-serif;cursor:pointer}
   .portail .apercu{display:block;position:relative;width:var(--taille);height:var(--taille);border-radius:50%;overflow:hidden;
     box-shadow:0 0 0 3px var(--couleur),0 0 28px 6px var(--couleur);transition:transform .2s,box-shadow .2s}
-  .portail:hover .apercu,.portail:focus-visible .apercu{transform:scale(1.06);box-shadow:0 0 0 4px var(--couleur),0 0 44px 12px var(--couleur)}
+  /* Là où le curseur se pose, le monde s'avance : il grandit et devient une feuille lisible. */
+  .portail:hover{position:relative;z-index:2}
+  .portail:hover .apercu{transform:scale(1.45);border-radius:16px;box-shadow:0 0 0 3px var(--couleur),0 0 60px 18px var(--couleur)}
+  .portail:focus-visible .apercu{box-shadow:0 0 0 6px #fff,0 0 44px 12px var(--couleur)}
+  /* Un monde calculé : une boule de lumière de sa couleur, avec ses points. */
+  .portail .apercu.calcule{background:
+    radial-gradient(circle at 34% 30%,#fff 0 3%,transparent 4%),radial-gradient(circle at 68% 42%,#fff 0 2%,transparent 3%),
+    radial-gradient(circle at 46% 70%,#fff 0 2.5%,transparent 3.5%),radial-gradient(circle at 24% 62%,#fff 0 1.5%,transparent 2.5%),
+    radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--couleur) 70%,#fff) 0,var(--couleur) 38%,color-mix(in srgb,var(--couleur) 25%,#000) 72%)}
   .portail .contenu{display:block;position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none;text-align:left}
   .portail .contenu .holo-Page{min-height:100%}
   .portail:focus{outline:none}
@@ -71,7 +94,7 @@
 </div>
 <script type="module">
   import init, {
-    pause, vue_a_plat, effets, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
+    pause, vue_a_plat, effets, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
     mosaique_pivoter, mosaique_de_face, mosaique_sous, reglages_de_vue, reveiller, images_dessinees,
   } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
@@ -93,6 +116,13 @@
   let densite = 2;          // points par pixel d'écran, dans chaque sens
   let reduire = false;      // dézoomer réduit-il la page jusqu'à un point ?
   let zoomAvantPoints = 4;  // jusqu'à ce grossissement, la page reste un site ordinaire
+  let zoomActif = true;     // le visiteur peut-il zoomer ? (Zoom(active:))
+  // Le carrefour (Portals) : disposition, nombre de mondes, taille d'un portail, lumière du fond.
+  let disposition = "grille";
+  let nombreDePortails = 12;
+  let tailleDePortail = 170;
+  let lumiereDuFond = 0.15;
+  let enMonde = false;      // on est dans un monde calculé, ouvert en profondeur
   let source = "";
   let site = "";            // le site affiché : "" pour la page du fichier, sinon le chemin des points traversés
   let cadre = null;         // l'élément .holo-Page
@@ -113,6 +143,16 @@
   function afficherSite(cheminDeSite, { dansLHistorique = true } = {}) {
     sortirDesPoints();
     fermerCarrefour();
+    if (cheminDeSite.startsWith("~")) {
+      ouvrirMonde(cheminDeSite.slice(1), dansLHistorique);
+      return;
+    }
+    if (enMonde) {
+      enMonde = false;
+      document.body.classList.remove("en-monde");
+      pause(true);
+      boutonMode.textContent = "Carrefour";
+    }
     site = cheminDeSite;
     racine.innerHTML = vue_a_plat(source, base, site);
     cadre = racine.querySelector(".holo-Page");
@@ -127,6 +167,27 @@
     scrollTo(0, 0);
     if (dansLHistorique && decodeURIComponent(location.hash.slice(1)) !== site) {
       history.pushState(null, "", site ? `#${site}` : location.pathname + location.search);
+    }
+  }
+
+  // Un monde calculé à partir d'une graine s'ouvre en profondeur : c'est le Big Bang. On y
+  // zoome, on entre dans ses points, sans fin. Son adresse : fichier.holo#~graine.
+  async function ouvrirMonde(graine, dansLHistorique) {
+    if (!/^[0-9]+$/.test(graine)) return;
+    const point = `Point(name: World, seed: ${graine}, fragments: 12)`;
+    enMonde = true;
+    document.body.classList.add("en-monde");
+    document.body.style.background = "#000";
+    document.title = `Monde ${graine.slice(-4)}`;
+    boutonMode.textContent = "Retour";
+    if (dansLHistorique) history.pushState(null, "", `#~${graine}`);
+    if (!moteurLance) {
+      moteurLance = true;
+      await demarrer(zone(), point, 1);
+    } else {
+      retirer_mosaique();
+      changer_de_monde(point, 1);
+      pause(false);
     }
   }
 
@@ -324,7 +385,7 @@
   addEventListener("wheel", async (evenement) => {
     // Sinon Chrome grossit ou réduit toute la fenêtre, et le site sort de son cadre.
     if (evenement.ctrlKey) evenement.preventDefault();
-    if (enPoints || !evenement.ctrlKey || !carrefour.hidden || !cadre || entreeEnCours) return;
+    if (enPoints || !evenement.ctrlKey || !carrefour.hidden || !cadre || entreeEnCours || enMonde || !zoomActif) return;
     const { clientX, clientY } = evenement;
     const deltaY = pasDeZoom(evenement);
     const voulu = zoomVif * 2 ** (-deltaY * 0.003);
@@ -343,7 +404,7 @@
   // ---------------------------------------------------------------- le carrefour
 
   // Un portail : un rond lumineux qui montre le site où il mène.
-  function portail({ chemin: versSite, nom, couleur }, taille, vers) {
+  function portail({ chemin: versSite, nom, couleur, calcule = false }, taille, vers) {
     const bouton = document.createElement("button");
     bouton.type = "button";
     bouton.className = vers ? "portail vers" : "portail";
@@ -351,7 +412,15 @@
     bouton.style.setProperty("--taille", `${taille}px`);
     bouton.style.setProperty("--couleur", couleur);
     const apercu = document.createElement("span");
-    apercu.className = "apercu";
+    apercu.className = calcule ? "apercu calcule" : "apercu";
+    const etiquetteSeule = document.createElement("span");
+    etiquetteSeule.className = "nom";
+    etiquetteSeule.textContent = nom;
+    if (calcule) {
+      // Un monde calculé n'a pas de page à montrer : une boule de lumière de sa couleur.
+      bouton.append(apercu, etiquetteSeule);
+      return bouton;
+    }
     const contenu = document.createElement("span");
     contenu.className = "contenu";
     contenu.inert = true;
@@ -375,14 +444,24 @@
     const ici = { chemin: site, nom: site ? `Ici : ${dernier(site)}` : "Ici", couleur: "#ffffff" };
     const cible = contenus.find((s) => s.nom === vers);
     const portails = [];
-    if (site) portails.push(portail({ chemin: parent(site), nom: `Retour : ${dernier(parent(site)) || "accueil"}`, couleur: "#9aa4b2" }, 150, false));
+    if (site) portails.push(portail({ chemin: parent(site), nom: `Retour : ${dernier(parent(site)) || "accueil"}`, couleur: "#9aa4b2" }, tailleDePortail, false));
     for (const contenu of contenus) {
-      if (contenu !== cible) portails.push(portail(contenu, 170, false));
+      if (contenu !== cible) portails.push(portail(contenu, tailleDePortail, false));
     }
-    // Le portail mis en avant se place au milieu des autres.
-    const grand = Math.round(Math.min(innerWidth, innerHeight) * 0.42);
-    portails.splice(Math.ceil(portails.length / 2), 0, portail(cible ?? ici, grand, true));
-    if (cible) portails.push(portail(ici, 150, false));
+    if (cible) portails.push(portail(ici, tailleDePortail, false));
+    // Le reste de la place est rempli par des mondes calculés à partir d'une graine : on peut
+    // y entrer, comme dans le Big Bang.
+    const manquants = Math.max(0, nombreDePortails - portails.length - 1);
+    for (const voisin of mondes_voisins(source, site, manquants).split(";").filter(Boolean)) {
+      const [graine, couleur] = voisin.split(":");
+      portails.push(portail({ chemin: `~${graine}`, nom: `Monde ${graine.slice(-4)}`, couleur: `rgb(${couleur})`, calcule: true }, tailleDePortail, false));
+    }
+    // Le portail mis en avant est plus grand ; en grille il se place au milieu des autres.
+    const grand = Math.round(Math.min(tailleDePortail * 1.9, Math.min(innerWidth, innerHeight) * 0.42));
+    portails.splice(disposition === "grille" ? Math.ceil(portails.length / 2) : 0, 0, portail(cible ?? ici, grand, true));
+    portails.forEach((element, rang) => element.style.setProperty("--rang", rang));
+    carrefour.className = disposition;
+    carrefour.style.setProperty("--lueur", `${Math.round(lumiereDuFond * 100)}%`);
     carrefour.replaceChildren(...portails);
     carrefour.hidden = false;
     boutonMode.textContent = "Fermer";
@@ -405,6 +484,10 @@
       return;
     }
     const apercu = bouton.querySelector(".apercu");
+    if (apercu.classList.contains("calcule")) {
+      afficherSite(versSite);
+      return;
+    }
     const depart = apercu.getBoundingClientRect();
     Object.assign(apercu.style, { left: `${depart.left}px`, top: `${depart.top}px`, width: `${depart.width}px`, height: `${depart.height}px` });
     apercu.classList.add("ouverture");
@@ -422,6 +505,9 @@
     const [nom, capacite] = effet.split(".");
     if (capacite === "enter" && sitesContenus().some((s) => s.nom === nom)) {
       ouvrirCarrefour(nom);
+    } else if (capacite === "portals") {
+      // La page demande son carrefour : On(Map.tap, effect: Shop.portals).
+      ouvrirCarrefour();
     } else if (capacite === "leave") {
       // Sortir d'un site : on remonte à celui qui le contient.
       if (!carrefour.hidden) fermerCarrefour();
@@ -432,8 +518,12 @@
   try {
     await init();
     source = await (await fetch(chemin, { headers: { accept: "text/plain" } })).text();
-    [densite, reduire, zoomAvantPoints] = reglages_de_vue(source);
+    let actif, rangement;
+    [densite, reduire, zoomAvantPoints, actif, rangement, nombreDePortails, tailleDePortail, lumiereDuFond] = reglages_de_vue(source);
     reduire = reduire === 1;
+    zoomActif = actif === 1;
+    disposition = ["grille", "ligne", "colonne", "diagonale"][rangement];
+    boutonPoints.style.display = zoomActif ? "" : "none";
     afficherSite(decodeURIComponent(location.hash.slice(1)), { dansLHistorique: false });
     // Le bouton « retour » du navigateur, ou une adresse changée à la main.
     addEventListener("popstate", () => afficherSite(decodeURIComponent(location.hash.slice(1)), { dansLHistorique: false }));
@@ -484,7 +574,11 @@
     addEventListener("keydown", (evenement) => { if (evenement.key === "Escape" && !carrefour.hidden) fermerCarrefour(); });
 
     document.getElementById("vues").hidden = params.has("nu"); // ?nu : sans les boutons, pour en tirer une image
-    boutonMode.addEventListener("click", () => (carrefour.hidden ? ouvrirCarrefour() : fermerCarrefour()));
+    boutonMode.addEventListener("click", () => {
+      if (enMonde) history.back(); // on quitte le monde calculé pour revenir au site
+      else if (carrefour.hidden) ouvrirCarrefour();
+      else fermerCarrefour();
+    });
     boutonPoints.addEventListener("click", () => (enPoints ? sortirDesPoints() : entrerEnPoints()));
     boutonTourner.addEventListener("click", () => {
       const actif = boutonTourner.getAttribute("aria-pressed") !== "true";

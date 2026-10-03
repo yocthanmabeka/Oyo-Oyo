@@ -53,6 +53,11 @@ Page(
 | `Zoom(shrink:)` | `true` ou `false` | `false` |
 | `Zoom(levels:)` | 1 à 16 | 8 |
 | `Points(after:)` | 1 à 16 | 4 |
+| `Zoom(active:)` | `true` ou `false` | `true` |
+| `Portals(layout:)` | `grid`, `row`, `column`, `diagonal` | `grid` |
+| `Portals(count:)` | 1 à 64 | 12 |
+| `Portals(size:)` | 80px à 400px | 170px |
+| `Portals(brightness:)` | 0 à 1 | 0,15 |
 | `Points(size:)` | 2px à 32px | 6px |
 | `Points(fragment:)` | 8px à 400px, et au moins `size` × `grid` | 40px |
 | `Points(grid:)` | 2 à 8 | 4 |
@@ -66,6 +71,8 @@ La borne « `fragment` au moins égal à `size` × `grid` » garantit qu'il n'y 
 **Deux unités de plus dans le langage** : `px` (pixels d'écran) et `deg` (degrés).
 
 **Ajouts du même jour.** `Zoom(levels:)` limite le nombre de sites emboîtés les uns dans les autres ; un fichier qui en emboîte davantage est refusé. `Points(after:)` fixe le grossissement jusqu'où la page reste un site ordinaire, qu'on lit et qu'on copie : Yocthan veut que la « métaversification » ne commence qu'à partir d'une certaine profondeur de zoom, pour qu'un visiteur qui zoome seulement pour mieux lire garde l'expérience qu'il connaît.
+
+**Le carrefour et l'interrupteur du zoom.** `Zoom(active:)` permet ou interdit le zoom. Un quatrième bloc, `Portals(layout:, count:, size:, brightness:)`, règle le carrefour : la disposition des portails (`grid`, `row`, `column`, `diagonal`, donc aussi le sens où on les fait défiler), leur nombre, leur taille, la lumière du fond. La page gagne une capacité, `portals`, pour ouvrir le carrefour par une règle. Demandé par Yocthan le 2026-10-03 : « chaque action doit être dans le code ».
 
 ## Comparaison faite avant de choisir
 

@@ -15,6 +15,7 @@ Page(
 
   // Comment la page se regarde. Ce sont des garde-fous : le visiteur ne peut pas les dépasser.
   zoom: Zoom(
+    active: true,     // false : le visiteur ne peut pas zoomer dans la page
     max: 1000000,     // on ne grossit pas la page plus d'un million de fois
     shrink: false,    // true : dézoomer réduit la page jusqu'à ce qu'elle soit un seul point
     levels: 8,        // au plus huit sites emboîtés les uns dans les autres
@@ -34,6 +35,17 @@ Page(
   relief: Relief(
     height: 10px,     // la hauteur du relief
     tilt: 52deg,      // jusqu'où l'on peut tourner la page
+  ),
+
+  // Le carrefour : les portails vers les mondes voisins. Il s'ouvre quand on entre dans un
+  // point, ou par le bouton « Carrefour ». Les sites écrits dans ce fichier passent d'abord ;
+  // le reste est rempli par des mondes calculés.
+  portals: Portals(
+    layout: grid,     // grid (grille), row (ligne, on défile de gauche à droite),
+                      // column (colonne, de haut en bas) ou diagonal
+    count: 12,        // combien de mondes on montre
+    size: 170px,      // la taille d'un portail
+    brightness: 0.15, // la lumière du fond, de 0 à 1, pour y voir même sur un site sombre
   ),
 
   children: [
