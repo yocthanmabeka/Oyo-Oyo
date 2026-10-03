@@ -3,6 +3,7 @@
 Ce guide montre comment écrire un fichier `.holo` aujourd'hui, avec ce que le moteur sait vraiment faire. Tous les exemples entre balises `holo` sont relus par un test du moteur à chaque changement : s'ils cessaient de marcher, le test échouerait.
 
 - État : langage en construction (2026-10-03). Ce qui n'existe pas encore est listé à la fin.
+- Ce que HoloCode couvre et ne couvre pas du web classique, balise par balise : [`COMPARAISON-WEB.md`](COMPARAISON-WEB.md).
 - Les décisions derrière chaque règle : [`docs/02-gouvernance/DECISIONS.md`](../02-gouvernance/DECISIONS.md).
 
 ## 1. Voir ce qu'on écrit
@@ -228,6 +229,9 @@ Page(
 - Les fichiers où mènent les points d'une page sont lus d'avance (ils sont petits) : le passage est immédiat. Un fichier introuvable ou refusé par le moteur laisse le passage fermé.
 - **Dézoomer** alors que la page est déjà à sa taille normale fait ressortir du monde où l'on est : on revient au site, ou au fichier, d'où l'on venait.
 - La différence avec `A` : `A` fait changer de page, à l'ancienne ; un `Point` se traverse à pied.
+- **Vers le site de quelqu'un d'autre** : `inside` accepte aussi l'adresse complète d'un fichier, `inside: "https://ami.example/jardin.holo"`. Le portail affiche alors le nom du serveur, pour qu'on sache où l'on va. Ce fichier n'est lu qu'à l'ouverture du carrefour, pas d'avance. Le serveur d'en face doit autoriser la lecture (l'en-tête `access-control-allow-origin`).
+- Un navigateur interdit à une page d'afficher l'adresse d'un autre serveur comme si elle y était : l'adresse garde donc le fichier de départ, suivi de `#@` et de l'adresse réelle.
+- On peut passer d'un fichier à l'autre sans fin. La mémoire, elle, est bornée : le moteur ne garde que les 32 derniers fichiers lus.
 
 L'exemple complet : [`exemples/maison/`](../../exemples/maison/salon.holo), un salon et un jardin.
 

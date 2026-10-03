@@ -107,6 +107,11 @@
   const dossierDe = (fichier) => fichier.slice(0, fichier.lastIndexOf("/") + 1);
   // Les fichiers déjà lus, par adresse : leur texte, ou null s'ils sont introuvables ou refusés.
   const fichiersLus = new Map();
+  // Garde-fou : on ne garde en mémoire que les derniers fichiers lus. On peut passer d'un
+  // fichier à l'autre sans fin ; la mémoire, elle, ne grandit pas sans fin.
+  const FICHIERS_GARDES = 32;
+  const adresseEntiere = (fichier) => new URL(fichier, location.href).href;
+  const dAilleurs = (fichier) => new URL(fichier, location.href).origin !== location.origin;
   let dernierePassage = 0;  // pour qu'un seul coup de molette ne fasse pas remonter deux mondes
   const racine = document.getElementById("page");
   const carrefour = document.getElementById("carrefour");
@@ -147,7 +152,17 @@
   // Lit un fichier .holo et le fait vérifier par le moteur. Un fichier est petit : on peut
   // lire d'avance ceux où mènent les points de la page, pour que le passage soit immédiat.
   function lire(fichier) {
+    if (fichiersLus.has(fichier)) {
+      // Relu à l'instant : il repasse en tête des fichiers gardés.
+      const deja = fichiersLus.get(fichier);
+      fichiersLus.delete(fichier);
+      fichiersLus.set(fichier, deja);
+    }
     if (!fichiersLus.has(fichier)) {
+      for (const ancien of fichiersLus.keys()) {
+        if (fichiersLus.size < FICHIERS_GARDES) break;
+        if (ancien !== chemin) fichiersLus.delete(ancien);
+      }
       fichiersLus.set(fichier, (async () => {
         try {
           const reponse = await fetch(fichier, { headers: { accept: "text/plain" } });
@@ -181,7 +196,12 @@
     const depuis = location.pathname + location.hash;
     [chemin, base, source] = [fichier, dossierDe(fichier), texte];
     lireLesReglages();
-    if (dansLHistorique) history.pushState({ depuis }, "", fichier + (cheminDeSite ? `#${cheminDeSite}` : ""));
+    // Un navigateur interdit à une page d'afficher l'adresse d'un autre serveur comme si elle
+    // y était. Pour un fichier d'ailleurs, l'adresse garde donc le fichier de départ, suivi de
+    // #@ et de l'adresse où l'on est vraiment.
+    if (dansLHistorique) {
+      history.pushState({ depuis }, "", dAilleurs(fichier) ? `#@${adresseEntiere(fichier)}` : fichier + (cheminDeSite ? `#${cheminDeSite}` : ""));
+    }
     afficherSite(cheminDeSite, { dansLHistorique: false });
     return true;
   }
@@ -223,13 +243,15 @@
     grossir(1);
     placerLesPixels();
     scrollTo(0, 0);
-    if (dansLHistorique && decodeURIComponent(location.hash.slice(1)) !== site) {
+    if (dansLHistorique && !dAilleurs(chemin) && decodeURIComponent(location.hash.slice(1)) !== site) {
       history.pushState(history.state, "", site ? `#${site}` : location.pathname + location.search);
     }
     dernierePassage = performance.now();
     // Les fichiers où mènent les points de cette page sont lus d'avance, discrètement.
+    // Seulement ceux du même serveur : on ne contacte pas le serveur de quelqu'un d'autre tant
+    // que le visiteur n'a pas ouvert le carrefour.
     for (const contenu of sitesContenus()) {
-      if (contenu.fichier) lire(contenu.fichier);
+      if (contenu.fichier && !dAilleurs(contenu.fichier)) lire(contenu.fichier);
     }
   }
 
@@ -309,7 +331,11 @@
     // Une image ne peut pas aller chercher d'autres fichiers : celles de la page sont copiées dedans.
     const originales = racine.querySelectorAll("img");
     for (const [i, img] of [...copie.querySelectorAll("img")].entries()) {
-      img.setAttribute("src", await enAdresse(await (await fetch(originales[i].src)).blob()));
+      try {
+        img.setAttribute("src", await enAdresse(await (await fetch(originales[i].src)).blob()));
+      } catch {
+        img.removeAttribute("src"); // une image qu'un autre serveur ne laisse pas copier
+      }
     }
     const [l, h] = [innerWidth, innerHeight];
     const svg =
@@ -485,6 +511,9 @@
       couleur = "#555";
       nom = `${nom} (fermé)`;
       bouton.disabled = true;
+    } else if (fichier && dAilleurs(fichier)) {
+      // On dit où mène un passage vers le site de quelqu'un d'autre.
+      nom = `${nom} · ${new URL(fichier, location.href).host}`;
     }
     bouton.style.setProperty("--taille", `${taille}px`);
     bouton.style.setProperty("--couleur", couleur);
@@ -611,12 +640,17 @@
     source = await (await fetch(chemin, { headers: { accept: "text/plain" } })).text();
     fichiersLus.set(chemin, Promise.resolve(source));
     lireLesReglages();
-    afficherSite(decodeURIComponent(location.hash.slice(1)), { dansLHistorique: false });
+    const departDuSite = decodeURIComponent(location.hash.slice(1));
+    // Une adresse en #@… : on arrive directement dans le fichier d'un autre serveur.
+    if (!departDuSite.startsWith("@") || !(await ouvrirFichier(departDuSite.slice(1), "", { dansLHistorique: false }))) {
+      afficherSite(departDuSite.startsWith("@") ? "" : departDuSite, { dansLHistorique: false });
+    }
     // Le bouton « retour » du navigateur, ou une adresse changée à la main.
     addEventListener("popstate", () => {
       const cheminDeSite = decodeURIComponent(location.hash.slice(1));
       // L'adresse désigne un autre fichier : on y passe, toujours sans recharger.
-      if (location.pathname !== chemin && location.pathname.endsWith(".holo")) ouvrirFichier(location.pathname, cheminDeSite, { dansLHistorique: false });
+      if (cheminDeSite.startsWith("@")) ouvrirFichier(cheminDeSite.slice(1), "", { dansLHistorique: false });
+      else if (location.pathname !== chemin && location.pathname.endsWith(".holo")) ouvrirFichier(location.pathname, cheminDeSite, { dansLHistorique: false });
       else afficherSite(cheminDeSite, { dansLHistorique: false });
     });
     // Dans un monde calculé : dézoomer alors qu'on est revenu tout en haut en fait ressortir.

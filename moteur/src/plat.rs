@@ -181,8 +181,13 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
             // sans changer de page ; la page d'entrée va le chercher.
             let fichier = match bloc.argument("inside").map(|a| &a.valeur) {
                 Some(Valeur::Texte(fichier)) if chemin_sur(fichier) && fichier.ends_with(".holo") => format!(" data-file=\"{}{}\"", echapper(base), echapper(fichier)),
+                // Le fichier d'un autre auteur, sur un autre serveur : son adresse complète.
+                Some(Valeur::Texte(adresse)) if adresse_web(adresse) && adresse.ends_with(".holo") => format!(" data-file=\"{}\"", echapper(adresse)),
                 Some(Valeur::Texte(_)) => {
-                    return Err(Erreur { message: "« inside » attend un monde, ou un fichier .holo rangé à côté : inside: \"garden.holo\"".into(), pos: bloc.pos })
+                    return Err(Erreur {
+                        message: "« inside » attend un monde, un fichier .holo rangé à côté (\"garden.holo\"), ou l'adresse complète d'un fichier .holo (\"https://…/garden.holo\")".into(),
+                        pos: bloc.pos,
+                    })
                 }
                 _ => String::new(),
             };
@@ -266,8 +271,7 @@ fn texte_de(bloc: &Bloc) -> Result<&str, Erreur> {
 /// de `javascript:`, pas de caractères qui sortiraient de l'attribut.
 fn adresse_sure(adresse: &str, base: &str) -> Option<String> {
     if adresse.starts_with("https://") || adresse.starts_with("http://") {
-        let propre = adresse.len() > 8 && adresse.chars().all(|c| c.is_ascii_graphic() && !matches!(c, '"' | '<' | '>' | '\\' | '`'));
-        return propre.then(|| adresse.to_string());
+        return adresse_web(adresse).then(|| adresse.to_string());
     }
     let (fichier, ancre) = adresse.split_once('#').unwrap_or((adresse, ""));
     let ancre_sure = ancre.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '/'));
@@ -276,6 +280,13 @@ fn adresse_sure(adresse: &str, base: &str) -> Option<String> {
         (false, _) if chemin_sur(fichier) && ancre_sure => Some(if ancre.is_empty() { format!("{base}{fichier}") } else { format!("{base}{fichier}#{ancre}") }),
         _ => None,
     }
+}
+
+/// Une adresse du web, en http ou https, sans caractère qui sortirait d'un attribut.
+fn adresse_web(adresse: &str) -> bool {
+    (adresse.starts_with("https://") || adresse.starts_with("http://"))
+        && adresse.len() > 8
+        && adresse.chars().all(|c| c.is_ascii_graphic() && !matches!(c, '"' | '<' | '>' | '\\' | '`'))
 }
 
 /// Une image se range à côté du fichier : ni adresse complète, ni remontée de dossier.
@@ -393,6 +404,11 @@ mod tests {
         }
         assert!(page("Page(children: [ A(\"x\") ])").unwrap_err().message.contains("« to »"));
         assert!(page("Page(children: [ Point(name: G, seed: 1, inside: \"garden.txt\") ])").unwrap_err().message.contains("fichier .holo"));
+        // Le fichier d'un autre auteur, sur un autre serveur.
+        let ailleurs = page("Page(children: [ Point(name: G, seed: 1, inside: \"https://friend.example/home/garden.holo\") ])").unwrap();
+        assert!(ailleurs.contains("data-file=\"https://friend.example/home/garden.holo\""), "{ailleurs}");
+        assert!(page("Page(children: [ Point(name: G, seed: 1, inside: \"https://friend.example/x.html\") ])").is_err());
+        assert!(page("Page(children: [ Point(name: G, seed: 1, inside: \"javascript:x.holo\") ])").is_err());
     }
 
     #[test]

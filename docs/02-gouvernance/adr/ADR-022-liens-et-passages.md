@@ -39,8 +39,15 @@ Défauts de HTML, CSS et JavaScript évités : une adresse `javascript:` dans un
 ### Négatives et risques
 
 - Le premier passage vers un autre serveur dépend du réseau ; la lecture d'avance le masque sans le supprimer.
-- La limite `Zoom(levels:)` ne compte pas les passages d'un fichier à l'autre : on peut tourner en rond entre deux fichiers. C'est voulu (le salon mène au jardin, qui ramène au salon), mais rien ne borne la mémoire de ce qui a été lu.
-- Seuls les fichiers rangés à côté (même dossier ou sous-dossier) sont acceptés pour l'instant, pas une adresse complète vers le site de quelqu'un d'autre.
+- La limite `Zoom(levels:)` ne compte pas les passages d'un fichier à l'autre : on peut tourner en rond entre deux fichiers. C'est voulu : le salon mène au jardin, qui ramène au salon, comme on tourne dans une maison. Ce qui devait être borné, c'est la mémoire : le moteur ne garde que les 32 derniers fichiers lus.
+- Vers un autre serveur, la barre d'adresse ne peut pas montrer l'adresse réelle (règle de sécurité des navigateurs) : elle affiche le fichier de départ suivi de `#@` et de l'adresse réelle. Dans un navigateur propre à l'Holoverse, cette gêne disparaîtrait.
+
+## Complément du même jour : le site de quelqu'un d'autre
+
+Les deux limites de la première version ont été revues à la demande de Yocthan.
+
+- **« Seuls les fichiers rangés à côté » était une mauvaise limite** : sans elle levée, chacun reste enfermé dans son dossier, et il n'y a pas de web. `inside` accepte maintenant l'adresse complète d'un fichier `.holo`, en `http` ou `https`. Trois précautions : le portail affiche le nom du serveur ; un fichier d'un autre serveur n'est lu qu'à l'ouverture du carrefour, jamais d'avance (lire d'avance préviendrait ce serveur de chaque visite, sans que le visiteur ait rien demandé) ; et il passe par le même vérificateur que les autres, donc ne peut contenir aucun code.
+- **« Rien ne borne le nombre de passages » était une bonne limite à moitié** : ne pas borner les passages est juste ; ne pas borner la mémoire ne l'était pas. Voir ci-dessus.
 
 ## Critères de validation
 
@@ -49,4 +56,4 @@ Défauts de HTML, CSS et JavaScript évités : une adresse `javascript:` dans un
 
 ## Conditions de réexamen
 
-- Quand il faudra traverser vers le site d'un autre auteur, sur un autre serveur.
+- Quand un navigateur propre à l'Holoverse permettra d'afficher la vraie adresse d'un fichier d'un autre serveur.
