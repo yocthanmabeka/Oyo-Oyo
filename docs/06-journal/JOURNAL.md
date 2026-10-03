@@ -6,6 +6,24 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-03 — Glisser déplace la page pendant tout le zoom
+
+**Ce que Yocthan a relevé**
+
+- Depuis le zoom ordinaire, on ne pouvait plus déplacer le site en glissant, à gauche ou à droite, comme on le faisait en vue points. Il ne savait plus comment se rapprocher d'un point : « ça devient n'importe quoi ».
+
+**La cause**
+
+- Claude avait fait deux zooms qui se suivent (la page vivante jusqu'à × 4, les points ensuite) avec deux façons de se déplacer : la barre de défilement d'abord, le glissement ensuite. Et en revenant des points, la page reprenait à l'endroit d'où l'on était parti, pas à celui où l'on était arrivé.
+
+**Fait**
+
+- Dès que la page est grossie, glisser la déplace, dans tous les sens : le geste est le même du début à la fin du zoom. Une main l'indique. Un double clic sélectionne toujours un mot.
+- En revenant de la vue points, la page vivante reprend là où l'on se trouvait.
+- Vérifié avec de vrais gestes envoyés à Chrome (voir la pull request).
+
+---
+
 ## 2026-10-03 — Le carrefour à portails, le zoom ordinaire avant les points, la limite des niveaux
 
 **Retour de Yocthan sur la boucle**

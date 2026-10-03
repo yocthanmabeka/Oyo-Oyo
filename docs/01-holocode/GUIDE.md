@@ -239,7 +239,7 @@ Cette écriture est provisoire : elle sert à voir l'effet, et sera revue.
 
 ## 7. Comment la page se regarde : `Zoom`, `Points`, `Relief`
 
-Quand le visiteur zoome sur la page (Ctrl + molette, ou pincer), elle grossit d'abord comme n'importe quel site : le texte reste du texte, on le lit, on le sélectionne, on le copie. Au-delà du grossissement fixé par `Points(after:)`, chaque pixel devient un point lumineux, qui se morcelle ensuite. Quand il tourne la page, elle prend du relief. Ces trois blocs règlent cela. Ils sont facultatifs : sans eux, la page prend les valeurs ci-dessous.
+Quand le visiteur zoome sur la page (Ctrl + molette, ou pincer), elle grossit d'abord comme n'importe quel site : le texte reste du texte, on le lit, on le sélectionne, on le copie. Au-delà du grossissement fixé par `Points(after:)`, chaque pixel devient un point lumineux, qui se morcelle ensuite. Dès que la page est grossie, glisser la déplace, dans tous les sens ; c'est le même geste avant et après le passage aux points. Quand il tourne la page, elle prend du relief. Ces trois blocs règlent cela. Ils sont facultatifs : sans eux, la page prend les valeurs ci-dessous.
 
 ```holo
 Page(
