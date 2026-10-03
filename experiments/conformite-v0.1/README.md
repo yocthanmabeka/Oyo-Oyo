@@ -79,6 +79,8 @@ UNITE     = "mm" | "cm" | "m" | "km" | "ms" | "s" | "min" | "h" | "o" | "Ko" | "
 
 Un commentaire commence par `//`. `TEXTE_LONG` est entouré de `"""` et contient du Markdown. Les tailles sont décimales : 1 Ko = 1 000 octets, 1 Go = 1 000 000 000 octets.
 
+Règles lexicales précisées après la revue Codex du 2026-10-03 : un entier sans point ni unité est gardé exact (64 bits non signés) et ne passe jamais par un nombre flottant ; une unité se colle au nombre (`500Ko`, jamais `500 Ko`) ; un nom est fait de lettres, chiffres, `_` et points, et un nom de bloc commence par une majuscule. Le contrôle de cette suite (`verifier_suite.py`) vérifie que les cas sont bien formés ; il ne constitue pas le passage d'un moteur, qui demandera un exécuteur comparant arbre, diagnostics et journal.
+
 Blocs utilisés : `Page`, `Texte`, `Bouton` (signal `touche`), `Image`, `Point` (capacités `entrer` et `sortir`), `Monde`, `Quand`.
 
 ## Ce que la suite contient, et ce qui manque
