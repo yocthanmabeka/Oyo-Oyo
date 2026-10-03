@@ -2,12 +2,13 @@
   "verdict": "accepté",
   "decisions": [
     "ADR-007",
-    "ADR-008"
+    "ADR-008",
+    "ADR-016"
   ],
   "arbre": {
     "bloc": "Point",
-    "nom": "Origine",
-    "graine": 1,
+    "name": "Origin",
+    "seed": 1,
     "enfants_generes": 12
   },
   "proprietes": [

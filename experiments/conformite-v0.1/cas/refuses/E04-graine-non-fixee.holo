@@ -1,7 +1,7 @@
-// « auto » doit être remplacé par un nombre au moment de la création (ADR-014).
-// Un fichier enregistré avec « auto » ne donnerait pas deux fois le même monde.
+// "auto" must be replaced by a number when the world is created (ADR-014).
+// A saved file with "auto" would not give the same world twice.
 Point(
-  nom: Origine,
-  graine: auto,
-  morceler: 12,
+  name: Origin,
+  seed: auto,
+  fragments: 12,
 )

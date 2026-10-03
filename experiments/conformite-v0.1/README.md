@@ -2,7 +2,7 @@
 
 - Statut : `PROPOSITION`
 - Discussions sources : `HC-013`, revue de ChatGPT du 2026-09-21
-- Décisions concernées : `ADR-007`, `ADR-008`, `ADR-009`, `ADR-014`, `ADR-015`
+- Décisions concernées : `ADR-007`, `ADR-008`, `ADR-009`, `ADR-014`, `ADR-015`, `ADR-016` à `ADR-019`
 
 ## À quoi sert ce dossier
 
@@ -25,9 +25,9 @@ Un cas **accepté** (`cas/valides/`) :
 {
   "verdict": "accepté",
   "decisions": ["ADR-009"],
-  "arbre": { "bloc": "Page", "titre": "Bonjour", "contenu": [ { "bloc": "Texte" } ] },
-  "scenario": [ { "signal": "Ouvrir.touche" } ],
-  "journal": [ { "entite": "Atelier", "capacite": "entrer", "parce_que": ["Ouvrir.touche"] } ],
+  "arbre": { "bloc": "Page", "title": "Hello", "children": [ { "bloc": "Text" } ] },
+  "scenario": [ { "signal": "Open.tap" } ],
+  "journal": [ { "entite": "Workshop", "capacite": "enter", "parce_que": ["Open.tap"] } ],
   "proprietes": ["meme-fichier-meme-resultat"]
 }
 ```
@@ -51,6 +51,7 @@ Un cas **refusé** (`cas/refuses/`) doit être rejeté avant toute exécution :
 | `bloc-inconnu` | Un bloc qui n'existe pas |
 | `capacite-inconnue` | Une capacité que l'entité n'offre pas |
 | `nom-en-double` | Deux blocs portent le même nom |
+| `vocabulaire` | Un mot français d'avant `ADR-016` ; le moteur indique le mot anglais à écrire |
 
 ### Propriétés
 
@@ -69,23 +70,23 @@ Un cas **refusé** (`cas/refuses/`) doit être rejeté avant toute exécution :
 
 ```ebnf
 fichier   = { import } bloc ;
-import    = ( "import" | "module" ) TEXTE | "pont" ( "js" | "css" ) TEXTE ;
+import    = ( "import" | "module" ) TEXTE | "bridge" ( "js" | "css" ) TEXTE ;
 bloc      = NOM "(" [ argument { "," argument } [ "," ] ] ")" ;
 argument  = [ NOM ":" ] valeur ;
 valeur    = bloc | liste | TEXTE | TEXTE_LONG | NOMBRE [ UNITE ] | "true" | "false" | NOM [ "." NOM ] ;
 liste     = "[" [ valeur { "," valeur } [ "," ] ] "]" ;
-UNITE     = "mm" | "cm" | "m" | "km" | "ms" | "s" | "min" | "h" | "o" | "Ko" | "Mo" | "Go" ;
+UNITE     = "mm" | "cm" | "m" | "km" | "ms" | "s" | "min" | "h" | "B" | "KB" | "MB" | "GB" ;
 ```
 
-Un commentaire commence par `//`. `TEXTE_LONG` est entouré de `"""` et contient du Markdown. Les tailles sont décimales : 1 Ko = 1 000 octets, 1 Go = 1 000 000 000 octets.
+Un commentaire commence par `//`. `TEXTE_LONG` est entouré de `"""` et contient du Markdown. Les tailles sont décimales : 1 KB = 1 000 octets, 1 GB = 1 000 000 000 octets.
 
-Règles lexicales précisées après la revue Codex du 2026-10-03 : un entier sans point ni unité est gardé exact (64 bits non signés) et ne passe jamais par un nombre flottant ; une unité se colle au nombre (`500Ko`, jamais `500 Ko`) ; un nom est fait de lettres, chiffres, `_` et points, et un nom de bloc commence par une majuscule. Le contrôle de cette suite (`verifier_suite.py`) vérifie que les cas sont bien formés ; il ne constitue pas le passage d'un moteur, qui demandera un exécuteur comparant arbre, diagnostics et journal.
+Règles lexicales précisées après la revue Codex du 2026-10-03 : un entier sans point ni unité est gardé exact (64 bits non signés) et ne passe jamais par un nombre flottant ; une unité se colle au nombre (`500KB`, jamais `500 KB`) ; un nom est fait de lettres, chiffres, `_` et points, et un nom de bloc commence par une majuscule. Le contrôle de cette suite (`verifier_suite.py`) vérifie que les cas sont bien formés ; il ne constitue pas le passage d'un moteur, qui demandera un exécuteur comparant arbre, diagnostics et journal.
 
-Blocs utilisés : `Page`, `Texte`, `Bouton` (signal `touche`), `Image`, `Point` (capacités `entrer` et `sortir`), `Monde`, `Quand`.
+**Vocabulaire en anglais** (`ADR-016`), avec une règle : un mot que les programmeurs connaissent déjà garde le sens qu'ils connaissent. Blocs utilisés : `Page`, `Text`, `Button` (signal `tap`), `Image`, `Point` (capacités `enter` et `leave`), `World`, `On`. Paramètres : `name`, `title`, `children`, `inside`, `rules`, `effect`, `seed`, `brightness`, `fragments`, `budget`, `weight`, `source`, `text`. Dans une liste `children`, une phrase entre guillemets est un paragraphe à elle seule (`ADR-019`) : elle vaut un `Text`.
 
 ## Ce que la suite contient, et ce qui manque
 
-Quatre cas acceptés et sept cas refusés, centrés sur le premier sprint (le Big Bang) et sur la règle des appels.
+Quatre cas acceptés et huit cas refusés, centrés sur le premier sprint (le Big Bang), sur la règle des appels et sur le vocabulaire.
 
 À ajouter ensuite, en reprenant les tests de la PR n° 2 : les archétypes composés, les relations spatiales, les lois, les durées (`for 3s`), les conflits entre phénomènes ; et depuis la PR n° 3 : l'entrée et la sortie sur plusieurs niveaux, avec une mémoire mesurée et non déclarée.
 

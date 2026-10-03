@@ -2,15 +2,16 @@
   "verdict": "accepté",
   "decisions": [
     "ADR-005",
-    "ADR-009"
+    "ADR-009",
+    "ADR-016"
   ],
   "arbre": {
     "bloc": "Point",
-    "nom": "Galerie",
-    "graine": 7,
-    "interieur": {
-      "bloc": "Monde",
-      "contenu": [
+    "name": "Gallery",
+    "seed": 7,
+    "inside": {
+      "bloc": "World",
+      "children": [
         {
           "bloc": "Image"
         }

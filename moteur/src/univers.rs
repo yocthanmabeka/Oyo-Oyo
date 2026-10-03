@@ -26,19 +26,25 @@ pub fn point_depuis(programme: &Programme) -> Result<PointDecl, Erreur> {
     let bloc = &programme.racine;
     match bloc.nom.as_str() {
         "Point" => {}
-        "Page" | "Monde" | "Texte" | "Bouton" | "Image" | "Liste" | "Quand" => {
+        "Page" | "World" | "Text" | "Button" | "Image" | "List" | "On" | "Theme" | "Style" => {
             return Err(Erreur {
                 message: format!("le bloc « {} » existe dans le format .holo mais ce sprint ne lit que « Point »", bloc.nom),
                 pos: bloc.pos,
             })
         }
-        autre => return Err(Erreur { message: format!("bloc inconnu « {autre} »"), pos: bloc.pos }),
+        autre => {
+            let message = match ancien_mot(autre) {
+                Some(nouveau) => format!("bloc inconnu « {autre} » : le vocabulaire est en anglais, écris « {nouveau} » (ADR-016)"),
+                None => format!("bloc inconnu « {autre} »"),
+            };
+            return Err(Erreur { message, pos: bloc.pos });
+        }
     }
     let mut decl = PointDecl { nom: String::new(), graine: 0, lumiere: 1.0, morceler: 12 };
     let mut vus: Vec<&str> = Vec::new();
     for arg in &bloc.arguments {
         let nom = arg.nom.as_deref().ok_or_else(|| Erreur {
-            message: "chaque paramètre de « Point » est nommé : nom, graine, lumiere, morceler".into(),
+            message: "chaque paramètre de « Point » est nommé : name, seed, brightness, fragments".into(),
             pos: arg.pos,
         })?;
         if vus.contains(&nom) {
@@ -46,36 +52,60 @@ pub fn point_depuis(programme: &Programme) -> Result<PointDecl, Erreur> {
         }
         vus.push(nom);
         match (nom, &arg.valeur) {
-            ("nom", Valeur::Nom(n)) => decl.nom = n.clone(),
-            ("nom", _) => return Err(attendu("nom", "un nom, comme « Origine »", arg.pos)),
-            ("graine", Valeur::Nom(a)) if a == "auto" => {
+            ("name", Valeur::Nom(n)) => decl.nom = n.clone(),
+            ("name", _) => return Err(attendu("name", "un nom, comme « Origin »", arg.pos)),
+            ("seed", Valeur::Nom(a)) if a == "auto" => {
                 return Err(Erreur {
                     message: "graine non fixée : « auto » doit être remplacé par un nombre au moment de la création (ADR-008, ADR-014)".into(),
                     pos: arg.pos,
                 })
             }
-            ("graine", Valeur::Entier(graine)) => decl.graine = *graine,
-            ("graine", _) => return Err(attendu("graine", "un nombre entier positif, sans unité, jusqu'à 18446744073709551615", arg.pos)),
-            ("lumiere", Valeur::Nombre { valeur, unite: None }) if (0.0..=1.0).contains(valeur) => decl.lumiere = *valeur as f32,
-            ("lumiere", Valeur::Entier(e)) if *e <= 1 => decl.lumiere = *e as f32,
-            ("lumiere", _) => return Err(attendu("lumiere", "un nombre entre 0 et 1, sans unité", arg.pos)),
-            ("morceler", Valeur::Entier(n)) if (1..=u64::from(MORCELER_MAX)).contains(n) => decl.morceler = *n as u32,
-            ("morceler", _) => return Err(attendu("morceler", &format!("un nombre entier entre 1 et {MORCELER_MAX}"), arg.pos)),
+            ("seed", Valeur::Entier(graine)) => decl.graine = *graine,
+            ("seed", _) => return Err(attendu("seed", "un nombre entier positif, sans unité, jusqu'à 18446744073709551615", arg.pos)),
+            ("brightness", Valeur::Nombre { valeur, unite: None }) if (0.0..=1.0).contains(valeur) => decl.lumiere = *valeur as f32,
+            ("brightness", Valeur::Entier(e)) if *e <= 1 => decl.lumiere = *e as f32,
+            ("brightness", _) => return Err(attendu("brightness", "un nombre entre 0 et 1, sans unité", arg.pos)),
+            ("fragments", Valeur::Entier(n)) if (1..=u64::from(MORCELER_MAX)).contains(n) => decl.morceler = *n as u32,
+            ("fragments", _) => return Err(attendu("fragments", &format!("un nombre entier entre 1 et {MORCELER_MAX}"), arg.pos)),
             (autre, _) => {
-                return Err(Erreur {
-                    message: format!("« Point » n'a pas de paramètre « {autre} » ; paramètres possibles : nom, graine, lumiere, morceler"),
-                    pos: arg.pos,
-                })
+                let message = match ancien_mot(autre) {
+                    Some(nouveau) => format!("le paramètre « {autre} » s'écrit « {nouveau} » : le vocabulaire est en anglais (ADR-016)"),
+                    None => format!("« Point » n'a pas de paramètre « {autre} » ; paramètres possibles : name, seed, brightness, fragments"),
+                };
+                return Err(Erreur { message, pos: arg.pos });
             }
         }
     }
     if decl.nom.is_empty() {
-        return Err(Erreur { message: "« Point » doit avoir un paramètre « nom »".into(), pos: bloc.pos });
+        return Err(Erreur { message: "« Point » doit avoir un paramètre « name »".into(), pos: bloc.pos });
     }
-    if !vus.contains(&"graine") {
-        return Err(Erreur { message: "« Point » doit avoir un paramètre « graine »".into(), pos: bloc.pos });
+    if !vus.contains(&"seed") {
+        return Err(Erreur { message: "« Point » doit avoir un paramètre « seed »".into(), pos: bloc.pos });
     }
     Ok(decl)
+}
+
+/// Les mots français d'avant ADR-016, pour guider vers le mot anglais plutôt que de dire
+/// seulement « inconnu ».
+fn ancien_mot(mot: &str) -> Option<&'static str> {
+    Some(match mot {
+        "nom" => "name",
+        "graine" => "seed",
+        "lumiere" => "brightness",
+        "morceler" => "fragments",
+        "contenu" => "children",
+        "interieur" => "inside",
+        "phenomenes" => "rules",
+        "titre" => "title",
+        "texte" => "text",
+        "couleur" => "color",
+        "Texte" => "Text",
+        "Bouton" => "Button",
+        "Monde" => "World",
+        "Liste" => "List",
+        "Quand" => "On",
+        _ => return None,
+    })
 }
 
 fn attendu(param: &str, forme: &str, pos: Pos) -> Erreur {
@@ -165,26 +195,32 @@ mod tests {
     #[test]
     fn le_big_bang_est_accepte() {
         let d = point(include_str!("../mondes/big-bang.holo")).unwrap();
-        assert_eq!(d, PointDecl { nom: "Origine".into(), graine: 1, lumiere: 1.0, morceler: 12 });
+        assert_eq!(d, PointDecl { nom: "Origin".into(), graine: 1, lumiere: 1.0, morceler: 12 });
         assert_eq!(Monde::racine(&d).enfants.len(), 12);
     }
 
     #[test]
     fn refuse_ce_que_la_suite_de_conformite_refuse() {
-        let auto = point("Point(\n  nom: Origine,\n  graine: auto,\n  morceler: 12,\n)").unwrap_err();
+        let auto = point("Point(\n  name: Origin,\n  seed: auto,\n  fragments: 12,\n)").unwrap_err();
         assert_eq!(auto.pos.ligne, 3);
         assert!(auto.message.contains("graine non fixée"));
         assert!(point("Div(contenu: [])").unwrap_err().message.contains("bloc inconnu"));
-        assert!(point("Point(nom: A, graine: 1, budget: 3s)").unwrap_err().message.contains("n'a pas de paramètre"));
-        assert!(point("Point(nom: A, graine: 1, graine: 2)").unwrap_err().message.contains("deux fois"));
-        assert!(point("Point(graine: 1)").unwrap_err().message.contains("« nom »"));
-        assert!(point("Point(nom: A, graine: 1, morceler: 500)").unwrap_err().message.contains("entre 1 et 64"));
+        assert!(point("Point(name: A, seed: 1, budget: 3s)").unwrap_err().message.contains("n'a pas de paramètre"));
+        assert!(point(include_str!("../../experiments/conformite-v0.1/cas/refuses/E08-ancien-vocabulaire.holo")).unwrap_err().message.contains("s'écrit « name »"));
+        assert_eq!(point(include_str!("../../experiments/conformite-v0.1/cas/valides/02-big-bang.holo")).unwrap().morceler, 12);
+        assert!(point(include_str!("../../experiments/conformite-v0.1/cas/refuses/E04-graine-non-fixee.holo")).unwrap_err().message.contains("graine non fixée"));
+        assert!(point("Point(name: A, seed: 1, seed: 2)").unwrap_err().message.contains("deux fois"));
+        assert!(point("Point(seed: 1)").unwrap_err().message.contains("« name »"));
+        assert!(point("Point(name: A, seed: 1, fragments: 500)").unwrap_err().message.contains("entre 1 et 64"));
+        // Les anciens mots français sont refusés, avec le mot anglais à écrire à la place.
+        assert!(point("Point(nom: A, graine: 1)").unwrap_err().message.contains("s'écrit « name »"));
+        assert!(point("Point(name: A, graine: 1)").unwrap_err().message.contains("s'écrit « seed »"));
+        assert!(point("Texte(\"Bonjour\")").unwrap_err().message.contains("écris « Text »"));
         assert!(point("Page(contenu: [])").unwrap_err().message.contains("ne lit que « Point »"));
-        assert!(point("import \"absent.holo\"
-Point(nom: A, graine: 1)").unwrap_err().message.contains("pas encore pris en charge"));
-        assert_eq!(point("Point(nom: A, graine: 9007199254740993)").unwrap().graine, 9_007_199_254_740_993);
-        assert!(point("Point(nom: A, graine: 1.5)").unwrap_err().message.contains("entier"));
-        assert!(point("Point(nom: A, graine: -1)").unwrap_err().message.contains("entier"));
+        assert!(point("import \"absent.holo\"\nPoint(name: A, seed: 1)").unwrap_err().message.contains("pas encore pris en charge"));
+        assert_eq!(point("Point(name: A, seed: 9007199254740993)").unwrap().graine, 9_007_199_254_740_993);
+        assert!(point("Point(name: A, seed: 1.5)").unwrap_err().message.contains("entier"));
+        assert!(point("Point(name: A, seed: -1)").unwrap_err().message.contains("entier"));
     }
 
     #[test]

@@ -1,0 +1,9 @@
+{
+  "verdict": "refusé",
+  "etape": "vérification",
+  "categorie": "vocabulaire",
+  "ligne": 4,
+  "decisions": [
+    "ADR-016"
+  ]
+}

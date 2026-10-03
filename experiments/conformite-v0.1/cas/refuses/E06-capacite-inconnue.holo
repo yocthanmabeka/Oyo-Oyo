@@ -1,10 +1,10 @@
-// Un point n'offre pas la capacité « voler ».
+// A point has no "fly" capability.
 Page(
-  contenu: [
-    Bouton(nom: Ouvrir, texte: "Ouvrir"),
-    Point(nom: Atelier, graine: 42),
+  children: [
+    Button(name: Open, text: "Open"),
+    Point(name: Workshop, seed: 42),
   ],
-  phenomenes: [
-    Quand(Ouvrir.touche, effet: Atelier.voler),
+  rules: [
+    On(Open.tap, effect: Workshop.fly),
   ],
 )

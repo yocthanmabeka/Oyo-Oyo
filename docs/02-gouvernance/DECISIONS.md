@@ -19,6 +19,10 @@ Ce registre empêche une proposition séduisante de devenir accidentellement une
 | [`ADR-013`](adr/ADR-013-deux-etages-trois-imports.md) | Deux étages (HoloCode, modules WebAssembly enfermés) et trois sortes d'import (`import`, `module`, `pont`) | `EXPÉRIMENTATION` | `HC-013`, `HC-006` | HoloCode, HoloCode-Core, HoloRuntime |
 | [`ADR-014`](adr/ADR-014-place-de-l-ia.md) | Un monde se lit sans IA ; l'IA crée du `.holo` qui passe le vérificateur, et peut agir en direct comme acteur extérieur, par des capacités journalisées ; le hasard passe par des graines | `ACCEPTÉ` | `HC-013` | HoloCode, outils de création |
 | [`ADR-015`](adr/ADR-015-regle-des-appels.md) | Tout changement d'état passe par un arbitre ; pas de code libre dans un bloc ; description honnête du paradigme | `ACCEPTÉ` | `HC-013`, `HC-003` | HoloCode, HoloRuntime |
+| [`ADR-016`](adr/ADR-016-vocabulaire-anglais.md) | Le vocabulaire du langage est en anglais ; un mot que les programmeurs connaissent garde son sens (`fragments`, `leave`, `On`, `brightness`, `children`) | `ACCEPTÉ` | `HC-013`, revue Codex | HoloCode, suite de conformité |
+| [`ADR-017`](adr/ADR-017-forme-et-couleurs.md) | La forme : `Theme`, styles nommés à point (`.card`), réglages par bloc ; couleur d'un point par la graine, par `color` ou par `palette` | `ACCEPTÉ` (place des styles à décider) | `HC-013`, revue Codex | HoloCode, HoloEngine |
+| [`ADR-018`](adr/ADR-018-vue-en-profondeur.md) | En profondeur, seuls les points ont de la profondeur ; le reste se lit sur un panneau (option A ; l'option B sera montrée) | `ACCEPTÉ` | `HC-013` | HoloEngine |
+| [`ADR-019`](adr/ADR-019-texte-nu-et-import-md.md) | Le texte s'écrit sans artifice, comme « Hello World » ; un `.md` ne s'importe que pour un long texte | `ACCEPTÉ` (écriture exacte proposée) | `HC-013` | HoloCode |
 
 `ADR-003` à `ADR-006` ont été proposées par ChatGPT. Le 2026-09-21, Yocthan a accepté `ADR-003` (reformulée par Claude), `ADR-004` (telle quelle) et `ADR-005` (complétée par les chiffres de sa vision), et a laissé `ADR-006` en proposition. ChatGPT est invité à réagir aux reformulations.
 
@@ -40,3 +44,5 @@ Le responsable du projet est **Yocthan Mabeka**. Une IA peut proposer, tester, c
 - Choisir le langage d'implémentation du prototype : traité par `ADR-010` pour le moteur (Rust).
 - Définir comment chaque bloc se présente dans la vue en profondeur (`ADR-007`).
 - Faire converger la syntaxe `.holo` des prototypes des PR n° 1 et n° 2 avec le format en blocs (`ADR-009`).
+- Choisir le nom du bloc `Point` : `Point`, `Sphere` ou `Orb` (`ADR-016`).
+- Décider où se rangent les styles : dans la page, dans un fichier importé, ou à la manière du CSS (`ADR-017`).

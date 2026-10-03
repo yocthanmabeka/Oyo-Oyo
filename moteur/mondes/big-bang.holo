@@ -1,8 +1,8 @@
-// Le Big Bang : un point lumineux qui se morcelle en douze points.
-// Chaque point enfant naît de la graine de son parent, et contient lui-même des points.
+// The Big Bang: one bright point that breaks into twelve points.
+// Each child point is born from its parent's seed, and holds points of its own.
 Point(
-  nom: Origine,
-  graine: 1,
-  lumiere: 1.0,
-  morceler: 12,
+  name: Origin,
+  seed: 1,
+  brightness: 1.0,
+  fragments: 12,
 )

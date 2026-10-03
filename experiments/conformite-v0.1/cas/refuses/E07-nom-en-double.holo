@@ -1,7 +1,7 @@
-// Deux blocs ne peuvent pas porter le même nom.
+// Two blocks cannot share a name.
 Page(
-  contenu: [
-    Bouton(nom: Ouvrir, texte: "Ouvrir"),
-    Bouton(nom: Ouvrir, texte: "Ouvrir encore"),
+  children: [
+    Button(name: Open, text: "Open"),
+    Button(name: Open, text: "Open again"),
   ],
 )

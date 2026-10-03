@@ -1,0 +1,6 @@
+// The vocabulary is English (ADR-016): the French words are refused,
+// and the engine says which word to write instead.
+Point(
+  nom: Origine,
+  graine: 1,
+)

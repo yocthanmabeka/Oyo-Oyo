@@ -10,12 +10,14 @@ La première preuve exécutable de la vision de Yocthan : un point lumineux qui 
 
 ```holo
 Point(
-  nom: Origine,
-  graine: 1,
-  lumiere: 1.0,
-  morceler: 12,
+  name: Origin,
+  seed: 1,
+  brightness: 1.0,
+  fragments: 12,
 )
 ```
+
+Le vocabulaire est en anglais depuis `ADR-016` ; le moteur refuse les anciens mots français en indiquant le mot à écrire.
 
 Le décor n'est pas stocké, il est régénérable : chaque monde se calcule à partir de sa graine, et chaque point enfant reçoit une graine dérivée de celle de son parent. Descendre de mille niveaux coûte mille fois 16 octets (la graine du monde quitté et l'index du point traversé) ; le monde actif et l'aperçu du point visé sont en mémoire, le reste non. Ce qu'un humain ajoutera un jour (une commande, un objet déposé) devra être enregistré : une graine ne recrée pas les achats. Le même fichier donne le même univers sur toutes les machines, à la version du générateur près : si l'algorithme change, les mondes changent ; le test `les_valeurs_sont_figees` sert de garde-fou.
 
@@ -59,7 +61,7 @@ Le rapport contient : le moteur de rendu utilisé, les images par seconde, la pi
 
 | Mesure | Résultat | Cible du sprint |
 |---|---|---|
-| Tests du cœur (`cargo test`, Rust natif) | 19 sur 19 (17 au premier sprint, 18 avec le toucher, 19 avec les corrections de la revue Codex) | |
+| Tests du cœur (`cargo test`, Rust natif) | 19 sur 19 (17 au premier sprint, 18 avec le toucher, 19 avec les corrections de la revue Codex) ; trois cas de la suite de conformité y sont lus directement | |
 | Poids du moteur WebAssembly, brut | 1 942 815 octets (1 943 Ko, 1 Ko = 1 000 octets, comme dans la suite de conformité) | |
 | Poids transféré (Brotli, qualité 11, mesuré localement) | **502 435 octets (502 Ko)**, plus 14 373 octets de JavaScript | moins de 2 Mo |
 | Commit de cette mesure | `8348169`, PC Windows, Rust 1.99 ; le flux GitHub affiche le poids brut à chaque changement | |

@@ -1,6 +1,6 @@
-// Interdit par ADR-015 : du code libre caché dans un bloc.
+// Forbidden by ADR-015: free code hidden in a block.
 Page(
-  contenu: [
-    Bouton(nom: Payer, texte: "Payer", quand_touche: () { commande.etat = "payée" }),
+  children: [
+    Button(name: Pay, text: "Pay", on_tap: () { order.state = "paid" }),
   ],
 )
