@@ -19,8 +19,11 @@ mod tests {
     }
 
     #[test]
-    fn le_schema_javascript_est_refuse() {
-        let erreur = verifier_page(JAVASCRIPT).expect_err("javascript: ne doit jamais être accepté");
+    fn la_verification_accepte_javascript_mais_le_rendu_le_refuse() {
+        verifier_page(JAVASCRIPT)
+            .expect("constat CI : verifier_page accepte actuellement le schéma javascript:");
+        let erreur = vue_a_plat(JAVASCRIPT, "")
+            .expect_err("le rendu doit refuser une adresse javascript:");
         assert!(erreur.message.contains("to"), "diagnostic inattendu : {erreur}");
     }
 
