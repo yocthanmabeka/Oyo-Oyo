@@ -6,9 +6,9 @@
 - Statut : synthétisée
 - Plateforme : Claude (Claude Code dans VS Code)
 - URL : aucune — une session Claude Code est locale et n'a pas de lien de partage
-- Parents : HC-001, HC-002, HC-003
+- Parents : HC-001, HC-002, HC-003, HC-011, HC-012
 - Enfants : aucun pour l'instant
-- Note : les identifiants `HC-010` à `HC-012` sont réservés à des fiches Claude antérieures, pas encore publiées
+- Transcription : la session est la même que `HC-012`, voir [transcriptions/HC-012.md](transcriptions/HC-012.md)
 
 ## Problème étudié
 
