@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My shop</title>
+
+  <!-- Les imports du web : une feuille de style et un script. -->
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+
+  <!-- La page -->
+  <main id="shop" class="page">
+    <h1>My shop</h1>
+
+    <p>Paintings made by hand, one at a time.</p>
+
+    <p class="card">Free delivery from <strong>30 euros</strong>.</p>
+
+    <h2>The paintings</h2>
+    <img src="../painting.svg" alt="">
+    <ul>
+      <li>Sunrise over the river</li>
+      <li>The blue door</li>
+      <li>Market day</li>
+    </ul>
+
+    <h3>Today</h3>
+    <span class="note">Open until 6 pm</span>
+
+    <button id="open" class="card" type="button">Enter the workshop</button>
+
+    <!-- Le point : HTML n'a pas ce mot. On prend un div, et le script fera le reste. -->
+    <div id="workshop-point" class="point" role="button" tabindex="0" aria-label="Workshop"></div>
+  </main>
+
+  <!-- Le monde à l'intérieur du point. Il est dans la page dès le départ, caché. -->
+  <section id="workshop" class="world" hidden>
+    <h1>The workshop</h1>
+    <p>Here the paintings are made.</p>
+    <img src="../easel.svg" alt="">
+    <button id="back" type="button">Back to the shop</button>
+
+    <!-- Les points nés du morcellement : le script les crée ici. -->
+    <div id="fragments" class="fragments"></div>
+
+    <div id="storeroom-point" class="point" aria-label="Storeroom"></div>
+  </section>
+
+</body>
+</html>

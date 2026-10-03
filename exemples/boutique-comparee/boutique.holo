@@ -1,0 +1,104 @@
+// Une boutique, écrite en HoloCode.
+// La même boutique est écrite en HTML, CSS et JavaScript dans le dossier web/.
+// Ce fichier emploie tout le vocabulaire actuel du langage.
+
+// Les trois sortes d'import. Le moteur sait les lire mais ne les applique pas encore :
+// elles restent en commentaire pour que ce fichier soit valable aujourd'hui.
+//   import "shelves.holo"        un autre fichier .holo
+//   module "physics.wasm"        un module WebAssembly, enfermé
+//   bridge js "old-cart.js"      un pont vers du JavaScript existant
+//   bridge css "old-theme.css"   un pont vers du CSS existant
+
+Page(
+  name: Shop,
+  title: "My shop",
+
+  children: [
+    H1("My shop"),
+
+    // Une phrase seule est un paragraphe.
+    "Paintings made by hand, one at a time.",
+
+    // Le même paragraphe, écrit avec son bloc, pour lui poser un style nommé.
+    P.card("Free delivery from **30 euros**."),
+
+    H2("The paintings"),
+    Image(source: "painting.svg", weight: 1KB),
+    List(children: [
+      "Sunrise over the river",
+      "The blue door",
+      "Market day",
+    ]),
+
+    H3("Today"),
+    // Du texte sans rôle : une étiquette, une ligne d'état.
+    Text.note("Open until 6 pm"),
+
+    Button.card(name: Open, text: "Enter the workshop"),
+
+    // Un point : le pixel de l'Holoverse. Vu de loin, une lumière ;
+    // quand on y entre, un monde.
+    Point(
+      name: Workshop,
+      seed: 42,                          // la graine : le même nombre redonne le même monde
+      brightness: 0.8,                   // de 0 à 1
+      fragments: 6,                      // en combien de points il se morcelle
+      color: "#E9B44C",                  // la couleur de ce point
+      palette: ["#E9B44C", "#245C45"],   // les couleurs de ses enfants
+      budget: 500KB,                     // ce que son contenu a le droit de peser
+
+      inside: World(
+        children: [
+          H1("The workshop"),
+          P("Here the paintings are made."),
+          Image(source: "easel.svg", weight: 1KB),
+          Button(name: Back, text: "Back to the shop"),
+
+          // Un point dans un point : sans couleur imposée, la graine décide.
+          Point(name: Storeroom, seed: 7),
+        ],
+        // Les règles d'un monde vivent dans ce monde.
+        rules: [
+          On(Back.tap, effect: Workshop.leave),
+        ],
+      ),
+    ),
+  ],
+
+  // Le bouton ne contient aucun code : une règle de la page relie
+  // le signal (tap) à la capacité demandée (enter).
+  rules: [
+    On(Open.tap, effect: Workshop.enter),
+  ],
+)
+
+// ---------------------------------------------------------------- les styles
+// Ils s'écrivent comme en CSS. Un style vise un type de bloc ou un nom à point.
+
+// Le thème : le style de la page, que son contenu reprend.
+Page {
+  background: #101020;
+  color: white;
+  font-family: Georgia, serif;
+  padding: 24px 16px;
+}
+
+H1 { color: #E9B44C; font-size: 32px; font-weight: bold; text-align: center; margin: 0 0 16px 0; }
+H2 { color: #E9B44C; font-size: 22px; }
+H3 { font-size: 16px; font-style: italic; opacity: 0.8; }
+
+P { font-size: 16px; }
+
+Image { width: 100%; max-width: 480px; height: 180px; border-radius: 12px; }
+
+.card {
+  background: #1a1a2e;
+  border: 1px solid #E9B44C;
+  border-radius: 12px;
+  padding: 8px 16px;
+}
+
+.note { font-size: 14px; color: silver; }
+
+// Le thème du monde où l'on entre.
+World { background: black; color: white; text-align: center; }

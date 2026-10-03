@@ -1,0 +1,84 @@
+/* La même boutique : la forme. */
+
+/* Le thème. En CSS il se répartit entre body et le conteneur de la page. */
+body {
+  margin: 0;
+  background: #101020;
+  color: white;
+  font-family: Georgia, serif;
+}
+
+.page {
+  padding: 24px 16px;
+}
+
+h1 { color: #E9B44C; font-size: 32px; font-weight: bold; text-align: center; margin: 0 0 16px 0; }
+h2 { color: #E9B44C; font-size: 22px; }
+h3 { font-size: 16px; font-style: italic; opacity: 0.8; }
+
+p { font-size: 16px; }
+
+img { width: 100%; max-width: 480px; height: 180px; border-radius: 12px; }
+
+.card {
+  background: #1a1a2e;
+  border: 1px solid #E9B44C;
+  border-radius: 12px;
+  padding: 8px 16px;
+}
+
+.note { font-size: 14px; color: silver; }
+
+/* Ce qui suit n'a pas d'équivalent à écrire en HoloCode : le moteur s'en charge. */
+
+/* Un bouton ne reprend pas la couleur ni la police de la page : il faut le lui dire. */
+button {
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* La disposition : en CSS, elle se mêle à l'apparence. */
+.page { max-width: 640px; margin: 0 auto; }
+.page > * { display: block; margin-top: 16px; }
+.page > h1 { margin-top: 0; }
+
+/* Le point : une boule lumineuse, fabriquée avec un dégradé. */
+.point {
+  width: 64px;
+  height: 64px;
+  margin: 24px auto;
+  border-radius: 50%;
+  cursor: pointer;
+  background: radial-gradient(circle, white 0%, var(--color, white) 35%, transparent 70%);
+  opacity: var(--brightness, 1);
+}
+
+/* Le monde à l'intérieur du point. */
+.world {
+  position: fixed;
+  inset: 0;
+  overflow: auto;
+  padding: 24px 16px;
+  background: black;
+  color: white;
+  text-align: center;
+}
+
+.world[hidden] { display: none; }
+.world img { max-width: 320px; }
+
+/* Les points nés du morcellement, placés par le script. */
+.fragments {
+  position: relative;
+  width: 240px;
+  height: 240px;
+  margin: 24px auto;
+}
+
+.fragments .point {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  margin: -20px;
+}

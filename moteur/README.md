@@ -61,7 +61,7 @@ Le rapport contient : le moteur de rendu utilisé, les images par seconde, la pi
 
 | Mesure | Résultat | Cible du sprint |
 |---|---|---|
-| Tests du cœur (`cargo test`, Rust natif) | 28 sur 28 (17 au premier sprint, 18 avec le toucher, 19 avec les corrections de la revue Codex, 23 avec la vérification des blocs de texte, 28 avec les styles) ; dix-sept cas de la suite de conformité y sont lus directement | |
+| Tests du cœur (`cargo test`, Rust natif) | 29 sur 29 (17 au premier sprint, 18 avec le toucher, 19 avec les corrections de la revue Codex, 23 avec la vérification des blocs de texte, 28 avec les styles, 29 avec l'exemple de la boutique comparée) ; dix-sept cas de la suite de conformité y sont lus directement | |
 | Poids du moteur WebAssembly, brut | 1 942 815 octets (1 943 Ko, 1 Ko = 1 000 octets, comme dans la suite de conformité) | |
 | Poids transféré (Brotli, qualité 11, mesuré localement) | **502 435 octets (502 Ko)**, plus 14 373 octets de JavaScript | moins de 2 Mo |
 | Commit de cette mesure | `8348169`, PC Windows, Rust 1.99 ; le flux GitHub affiche le poids brut à chaque changement | |
