@@ -74,9 +74,17 @@
   const image = document.getElementById("image");
   const etat = document.getElementById("etat");
   const nombre = new Intl.NumberFormat("fr-FR");
-  // La feuille mesure 2 unités de haut dans le monde, dont les points sont sur une sphère de rayon 1.
-  const HAUTEUR_FEUILLE_MONDE = 2;
+  // Le site affiché : la page du fichier, ou le monde d'un de ses points, ouvert en grand.
+  // Son chemin est dans l'adresse, après le # : boutique.holo#Workshop.
+  const cheminDuSite = decodeURIComponent(location.hash.slice(1));
+  addEventListener("hashchange", () => location.reload());
+  // Les points d'un monde sont sur une sphère de rayon 1. La page vue en personnage y mesure
+  // 2 unités de haut ; le site d'un point, 1,3 : il laisse voir les autres points autour de lui.
+  const HAUTEUR_PAGE_MONDE = 2;
+  const HAUTEUR_SITE_MONDE = 1.3;
   const HAUTEUR_FEUILLE_PX = 640;
+  let hauteurFeuilleMonde = HAUTEUR_PAGE_MONDE;
+  let ouvertureEnCours = false;
   // Vue points : ce que le fichier en dit (Zoom, Points). Lu au démarrage.
   let densite = 2;          // points par pixel d'écran, dans chaque sens
   let reduire = false;      // dézoomer réduit-il la page jusqu'à un point ?
@@ -134,7 +142,12 @@
       const [x, y, echelle, lacet, tangage, profondeur, distance] = s;
       const demiHauteur = innerHeight / 2;
       const unite = echelle * demiHauteur; // pixels pour une unité du monde
-      const f = (unite * HAUTEUR_FEUILLE_MONDE) / HAUTEUR_FEUILLE_PX;
+      const f = (unite * hauteurFeuilleMonde) / HAUTEUR_FEUILLE_PX;
+      // En zoomant, le site d'un point grossit ; assez gros, il s'ouvre en grand.
+      if (feuille.dataset.world && f > 1.25 && profondeur === 0) {
+        ouvrirEnGrand(feuille);
+        return;
+      }
       // Plongé dans un point né de la graine, on a quitté le lieu où se trouve la feuille.
       feuille.style.visibility = profondeur > 0 ? "hidden" : "visible";
       feuille.style.transform =
@@ -145,8 +158,22 @@
     requestAnimationFrame(poserLaFeuille);
   }
 
+  // Le site d'un point passe de la feuille à la page entière : il devient le site affiché,
+  // avec ses propres points où l'on peut zoomer et entrer. La boucle recommence.
+  async function ouvrirEnGrand(monde) {
+    if (ouvertureEnCours) return;
+    ouvertureEnCours = true;
+    feuille = null;
+    monde.style.visibility = "visible";
+    monde.style.transition = "transform .4s ease-in";
+    monde.style.transform = `translate(-50%,-50%) scale(${Math.max(innerWidth / 420, innerHeight / 640) * 1.05})`;
+    await new Promise((suite) => setTimeout(suite, 420));
+    location.hash = [...cheminDuSite.split("/").filter(Boolean), monde.dataset.world].join("/");
+  }
+
   // Pose un élément dans le monde affiché (ou plus rien, avec null).
-  function poser(element) {
+  function poser(element, hauteur = HAUTEUR_PAGE_MONDE) {
+    hauteurFeuilleMonde = hauteur;
     if (feuille && feuille !== element) {
       feuille.style.transform = "";
       feuille.style.visibility = "visible";
@@ -357,6 +384,12 @@
 
   async function appliquer(effet) {
     const [nom, capacite] = effet.split(".");
+    // Sortir du site ouvert en grand : on remonte au site qui le contient.
+    const sites = cheminDuSite.split("/").filter(Boolean);
+    if (capacite === "leave" && !dansLePoint && sites.at(-1) === nom) {
+      location.hash = sites.slice(0, -1).join("/");
+      return;
+    }
     const monde = racine.querySelector(`section[data-world="${CSS.escape(nom)}"]`);
     if (!monde) return;
     if (capacite === "enter") {
@@ -364,9 +397,9 @@
       page.hidden = true;
       monde.hidden = false;
       document.getElementById("vues").hidden = true;
-      // Zoom 1 : le point vient de se morceler, ses enfants entourent la feuille.
-      await montrerMonde(source_du_point(source, nom), 1);
-      poser(monde);
+      // Le point s'est morcelé : ses enfants entourent la feuille, sur toute la fenêtre.
+      await montrerMonde(source_du_point(source, nom), 1.5);
+      poser(monde, HAUTEUR_SITE_MONDE);
     } else if (capacite === "leave" && dansLePoint === nom) {
       dansLePoint = null;
       poser(null);
@@ -381,7 +414,7 @@
   try {
     await init();
     source = await (await fetch(chemin, { headers: { accept: "text/plain" } })).text();
-    racine.innerHTML = vue_a_plat(source, base);
+    racine.innerHTML = vue_a_plat(source, base, cheminDuSite);
     [densite, reduire] = reglages_de_vue(source);
     reduire = reduire === 1;
     cadre = racine.querySelector(".holo-Page");
@@ -399,6 +432,9 @@
     }, true);
     racine.addEventListener("click", async (evenement) => {
       const bloc = evenement.target.closest("[data-name]");
+      // Un deuxième clic, sur le site d'un point posé dans son monde : il s'ouvre en grand.
+      const monde = evenement.target.closest("section[data-world]");
+      if (!bloc && monde && dansLePoint === monde.dataset.world) ouvrirEnGrand(monde);
       if (!bloc) return;
       for (const effet of effets(source, `${bloc.dataset.name}.tap`).split(",").filter(Boolean)) {
         await appliquer(effet);

@@ -54,6 +54,26 @@ pub fn bloc_nomme<'a>(programme: &'a Programme, nom: &str) -> Option<&'a Bloc> {
     trouve
 }
 
+/// Le site que désigne un chemin de points : vide, c'est la page du fichier ; `Shop/Secret`,
+/// c'est le monde du point `Secret`, lui-même dans le monde du point `Shop`.
+pub fn site_de<'a>(programme: &'a Programme, chemin: &str) -> Result<&'a Bloc, Erreur> {
+    let mut site = &programme.racine;
+    for nom in chemin.split('/').filter(|n| !n.is_empty()) {
+        let mut trouve = None;
+        let _ = pour_chaque_bloc(site, &mut |bloc| {
+            if trouve.is_none() && bloc.nom == "Point" && nom_de(bloc) == Some(nom) {
+                trouve = Some(bloc);
+            }
+            Ok(())
+        });
+        site = match trouve.and_then(|point| point.argument("inside")).map(|a| &a.valeur) {
+            Some(Valeur::Bloc(monde)) if monde.nom == "World" => monde,
+            _ => return Err(Erreur { message: format!("aucun point nommé « {nom} » ne contient un monde, à cet endroit du fichier"), pos: site.pos }),
+        };
+    }
+    Ok(site)
+}
+
 /// Vérifie les noms (aucun en double), les règles (signaux et capacités connus) et les
 /// budgets (le contenu d'un point ne pèse pas plus que ce qu'il déclare).
 pub fn verifier_regles(programme: &Programme) -> Result<(), Erreur> {

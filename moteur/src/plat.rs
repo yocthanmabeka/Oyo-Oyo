@@ -25,8 +25,15 @@ box-sizing:border-box;background:rgba(0,0,0,0.6);pointer-events:auto}";
 /// Fabrique la page. `base` est le dossier du fichier `.holo`, pour retrouver ses images.
 /// Le fichier doit avoir passé les vérifications (`crate::verifier_page`).
 pub fn page_html(programme: &Programme, base: &str) -> Result<String, Erreur> {
-    let page = &programme.racine;
-    if page.nom != "Page" {
+    site_html(programme, &programme.racine, base, "")
+}
+
+/// Fabrique la page d'un site. Un site est la `Page` du fichier, ou le monde contenu dans
+/// l'un de ses points : ouvert en grand, ce monde se regarde exactement comme une page, avec
+/// ses propres points, dans lesquels on peut entrer à leur tour. `titre` sert au monde, qui
+/// n'en a pas.
+pub fn site_html(programme: &Programme, page: &Bloc, base: &str, titre: &str) -> Result<String, Erreur> {
+    if page.nom != "Page" && page.nom != "World" {
         return Err(Erreur { message: format!("la vue à plat affiche une « Page » ; ce fichier commence par « {} »", page.nom), pos: page.pos });
     }
     let mut corps = String::new();
@@ -39,12 +46,17 @@ pub fn page_html(programme: &Programme, base: &str) -> Result<String, Erreur> {
     }
     let titre = match page.argument("title").map(|a| &a.valeur) {
         Some(Valeur::Texte(t)) => echapper(t),
-        _ => String::new(),
+        _ => echapper(titre),
+    };
+    // Un monde ouvert en grand prend le thème de la page, puis son propre style.
+    let classes = match (page.nom.as_str(), &page.style) {
+        ("World", Some(style)) => format!("holo-Page holo-monde-ouvert holo-s-{style}"),
+        ("World", None) => "holo-Page holo-monde-ouvert".to_string(),
+        _ => classes(page),
     };
     Ok(format!(
-        "<style>{BASE}{}</style><div class=\"{}\" data-title=\"{titre}\"><main>{corps}</main>{mondes}</div>",
-        css(programme),
-        classes(page)
+        "<style>{BASE}{}</style><div class=\"{classes}\" data-title=\"{titre}\"><main>{corps}</main>{mondes}</div>",
+        css(programme)
     ))
 }
 
@@ -61,6 +73,8 @@ fn css(programme: &Programme) -> String {
     let mut sortie = String::new();
     for regle in regles {
         let selecteur = match &regle.cible {
+            // Le style d'un monde vaut aussi quand ce monde est ouvert en grand.
+            Cible::Type(t) if t == "World" => ".holo-World,.holo-monde-ouvert".to_string(),
             Cible::Type(t) => format!(".holo-{t}"),
             Cible::Nom(n) => format!(".holo-s-{n}"),
         };
@@ -281,7 +295,7 @@ mod tests {
         }
         // Le thème avant les types, les types avant les styles nommés.
         let place = |morceau: &str| html.find(morceau).unwrap();
-        assert!(place(".holo-Page{") < place(".holo-H1{") && place(".holo-World{") < place(".holo-H1{") && place(".holo-P{") < place(".holo-s-card{"));
+        assert!(place(".holo-Page{") < place(".holo-H1{") && place(".holo-World,") < place(".holo-H1{") && place(".holo-P{") < place(".holo-s-card{"));
     }
 
     #[test]
@@ -294,6 +308,25 @@ mod tests {
         assert!(html.contains("data-world=\"Secret\" hidden><div class=\"holo-panneau\"><h1 class=\"holo-H1\">Hidden</h1>"));
         assert!(page("Page(pixels: [ P(\"x\") ])").unwrap_err().message.contains("des blocs « Point(...) »"));
         assert!(page("Page(pixels: [ Point(name: A, seed: 1) ])").unwrap_err().message.contains("un nom et un repère"));
+    }
+
+    #[test]
+    fn le_monde_d_un_point_s_ouvre_comme_une_page() {
+        let programme = lire(
+            "Page(title: \"Top\", children: [ Point(name: A, seed: 1, inside: World.rose(children: [ H1(\"Inside\"), Button(name: Out, text: \"x\") ], pixels: [ Point(name: B, above: Out, seed: 2, inside: World(children: [ P(\"Deeper\") ])) ])) ])\n.rose { background: #3a0d1a; }\nWorld { color: white; }",
+        )
+        .unwrap();
+        let monde = crate::regles::site_de(&programme, "A").unwrap();
+        let html = site_html(&programme, monde, "", "A").unwrap();
+        assert!(html.contains("<div class=\"holo-Page holo-monde-ouvert holo-s-rose\" data-title=\"A\"><main><h1 class=\"holo-H1\">Inside</h1>"), "{html}");
+        assert!(html.contains(".holo-World,.holo-monde-ouvert{color:white;}"));
+        // Il a ses propres points plantés, et leurs mondes : la boucle continue.
+        assert!(html.contains("<i class=\"holo-pixel\" data-name=\"B\" data-above=\"Out\""));
+        assert!(html.contains("data-world=\"B\" hidden>"));
+        let plus_profond = crate::regles::site_de(&programme, "A/B").unwrap();
+        assert!(site_html(&programme, plus_profond, "", "B").unwrap().contains("Deeper"));
+        assert!(crate::regles::site_de(&programme, "A/Nobody").unwrap_err().message.contains("aucun point"));
+        assert_eq!(crate::regles::site_de(&programme, "").unwrap().nom, "Page");
     }
 
     #[test]

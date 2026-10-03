@@ -240,8 +240,8 @@ pub fn monde_d_accueil(source: &str) -> Option<String> {
 
 /// La vue à plat : la page web ordinaire d'un fichier `.holo`, fabriquée par le moteur.
 #[wasm_bindgen]
-pub fn vue_a_plat(source: &str, base: &str) -> Result<String, JsValue> {
-    crate::vue_a_plat(source, base).map_err(|e| JsValue::from_str(&e.to_string()))
+pub fn vue_a_plat(source: &str, base: &str, chemin: Option<String>) -> Result<String, JsValue> {
+    crate::vue_a_plat_de(source, base, chemin.as_deref().unwrap_or("")).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
 /// Les effets demandés par un signal (`Open.tap`), séparés par des virgules.

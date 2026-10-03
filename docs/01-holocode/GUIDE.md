@@ -229,7 +229,10 @@ Page(
 - `above: Open` place le point juste au-dessus du bloc nommé `Open`, à l'extrémité droite de la page. C'est, pour l'instant, la seule façon de dire où il est.
 - `color` lui donne une couleur qui le distingue de la page.
 - `World.secret(...)` donne au site du dedans son propre style.
-- Le site contenu dans un point se voit comme une feuille posée dans le monde de ce point.
+- Le site contenu dans un point se voit d'abord comme une feuille posée dans le monde de ce point, entourée des autres points de ce monde.
+- Un deuxième clic sur la feuille (ou un zoom) l'ouvre en grand : c'est alors un site comme un autre, avec ses propres pixels où l'on peut zoomer. Le `World` d'un point accepte lui aussi `pixels:`, donc un site peut en contenir un autre, qui en contient un autre, sans fin.
+- Chaque site a son adresse : celle du fichier, puis `#` et le chemin des points traversés, comme `mon-site.holo#Secret/Tresor`. Le bouton « retour » du navigateur remonte d'un site.
+- `On(Out.tap, effect: Secret.leave)` fait ressortir du site `Secret`, qu'il soit en feuille ou ouvert en grand.
 
 Cette écriture est provisoire : elle sert à voir l'effet, et sera revue.
 
@@ -315,7 +318,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `List` | `children`, `name` | Dans `children` |
 | `Button` | `name`, `text` | Dans `children` |
 | `Point` | `name`, `seed`, `brightness`, `fragments`, `color`, `palette`, `budget`, `inside` ; `above` quand il est planté dans un pixel | Dans `children` ou `pixels`, ou à la racine |
-| `World` | `children`, `rules` | Dans `inside:` d'un `Point` |
+| `World` | `children`, `pixels`, `rules` | Dans `inside:` d'un `Point` |
 | `On` | le signal, puis `effect:` | Dans `rules` |
 | `Zoom`, `Points`, `Relief` | voir la partie 7 | Dans `zoom:`, `points:`, `relief:` d'une `Page` |
 

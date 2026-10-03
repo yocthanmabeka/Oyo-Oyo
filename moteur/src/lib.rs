@@ -52,7 +52,15 @@ pub fn verifier_page(source: &str) -> Result<Programme, Erreur> {
 
 /// La vue à plat d'un fichier `.holo` : une page web ordinaire, fabriquée par le moteur.
 pub fn vue_a_plat(source: &str, base: &str) -> Result<String, Erreur> {
-    plat::page_html(&verifier_page(source)?, base)
+    vue_a_plat_de(source, base, "")
+}
+
+/// La vue à plat d'un site du fichier : sa page (chemin vide), ou le monde d'un de ses points
+/// (`Shop/Secret`), ouvert en grand comme une page.
+pub fn vue_a_plat_de(source: &str, base: &str, chemin: &str) -> Result<String, Erreur> {
+    let programme = verifier_page(source)?;
+    let site = regles::site_de(&programme, chemin)?;
+    plat::site_html(&programme, site, base, chemin.rsplit('/').next().unwrap_or(""))
 }
 
 /// Les effets que les règles du fichier demandent pour un signal, comme `Open.tap`.
