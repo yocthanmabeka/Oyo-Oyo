@@ -1,0 +1,34 @@
+// Une page dont l'auteur a changé les garde-fous du zoom.
+// À comparer avec exemples/boutique-comparee/boutique.holo, qui garde les réglages habituels.
+
+Page(
+  name: Small,
+  title: "A page that can shrink",
+
+  zoom: Zoom(
+    max: 500,         // ici, on ne grossit pas plus de 500 fois
+    shrink: true,     // et dézoomer réduit la page jusqu'à ce qu'elle soit un seul point
+  ),
+
+  points: Points(
+    size: 8px,        // des points plus gros que d'habitude
+    fragment: 48px,
+    grid: 2,          // qui se morcellent en 2 × 2 seulement
+    depth: 4,         // et quatre fois au plus
+  ),
+
+  relief: Relief(
+    height: 20px,     // un relief plus marqué
+    tilt: 70deg,      // et une page qu'on peut tourner davantage
+  ),
+
+  children: [
+    H1("3D by HoloCode"),
+    P("Zoom out with Ctrl + wheel: the whole page becomes one point."),
+    P("Zoom in: each pixel becomes a point, then splits in four."),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 48px; text-align: center; }
+P { font-size: 18px; text-align: center; }

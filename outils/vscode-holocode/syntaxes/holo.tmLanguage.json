@@ -29,7 +29,7 @@
     { "comment": "Un paramètre ou un réglage : name:, font-size:", "name": "variable.parameter.holo", "match": "\\b[a-z_][a-z0-9_-]*(?=\\s*:)" },
     { "name": "constant.other.color.holo", "match": "#[0-9A-Fa-f]{3,8}\\b" },
     {
-      "match": "(?<![A-Za-z_#])(-?[0-9]+(?:\\.[0-9]+)?)(mm|cm|m|km|ms|s|min|h|B|KB|MB|GB|px|%)?",
+      "match": "(?<![A-Za-z_#])(-?[0-9]+(?:\\.[0-9]+)?)(mm|cm|m|km|ms|s|min|h|B|KB|MB|GB|px|deg|%)?",
       "captures": { "1": { "name": "constant.numeric.holo" }, "2": { "name": "keyword.other.unit.holo" } }
     },
     { "name": "constant.language.holo", "match": "\\b(true|false|auto)\\b" },

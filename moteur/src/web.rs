@@ -45,10 +45,10 @@ pub async fn demarrer(canvas: HtmlCanvasElement, source: &str, zoom_initial: f32
 /// Affiche une image comme une mosaïque de points, un point par pixel (voir `mosaique.rs`).
 /// `couleurs` contient quatre octets par pixel : rouge, vert, bleu, opacité.
 #[wasm_bindgen]
-pub async fn demarrer_mosaique(canvas: HtmlCanvasElement, couleurs: Vec<u8>, largeur: u32, hauteur: u32) -> Result<(), JsValue> {
+pub async fn demarrer_mosaique(canvas: HtmlCanvasElement, couleurs: Vec<u8>, largeur: u32, hauteur: u32, source: Option<String>) -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
     let (vue_l, vue_h) = taille_vue(&canvas);
-    let mosaique = Mosaique::new(largeur, hauteur, couleurs, 1, vue_l, vue_h).ok_or_else(|| JsValue::from_str("image mal décrite : il faut largeur × hauteur × 4 octets"))?;
+    let mosaique = Mosaique::new(largeur, hauteur, couleurs, 1, vue_l, vue_h, reglages_de(source)?).ok_or_else(|| JsValue::from_str("image mal décrite : il faut largeur × hauteur × 4 octets"))?;
     // Le monde n'est pas affiché tant que la mosaïque est là ; il faut pourtant un point.
     let decl = crate::univers::PointDecl { nom: "Mosaic".into(), graine: 1, lumiere: 0.0, morceler: 1, couleur: None, palette: Vec::new() };
     lancer(canvas, Navigation::new(decl), Some(mosaique)).await
@@ -56,7 +56,9 @@ pub async fn demarrer_mosaique(canvas: HtmlCanvasElement, couleurs: Vec<u8>, lar
 
 /// Où est la mosaïque : centre (x, y, en pixels de l'image), pixels d'écran par pixel
 /// d'image, opacité des points (0 : on voit l'image, 1 : on voit les points), niveau de
-/// morcellement, nombre de points dessinés. Vide s'il n'y a pas de mosaïque.
+/// morcellement, nombre de points dessinés, lacet, tangage, distance de l'œil en pixels,
+/// échelle où l'on voit la page entière.
+/// Vide s'il n'y a pas de mosaïque.
 #[wasm_bindgen]
 pub fn mosaique_camera() -> Vec<f64> {
     ETAT.with(|e| {
@@ -64,10 +66,83 @@ pub fn mosaique_camera() -> Vec<f64> {
             .as_ref()
             .and_then(|etat| {
                 let etat = etat.borrow();
-                etat.mosaique.as_ref().map(|m| vec![m.cx, m.cy, m.echelle, m.opacite_des_points(), f64::from(m.niveau()), etat.nb_points as f64])
+                let (_, vue_h) = taille_vue(&etat.canvas);
+                etat.mosaique.as_ref().map(|m| {
+                    vec![m.cx, m.cy, m.echelle, m.opacite_des_points(), f64::from(m.niveau()), etat.nb_points as f64, m.lacet, m.tangage, crate::mosaique::distance(vue_h), m.echelle_repos]
+                })
             })
             .unwrap_or_default()
     })
+}
+
+/// Les réglages de vue écrits dans un fichier `.holo` ; sans fichier, les réglages par défaut.
+fn reglages_de(source: Option<String>) -> Result<crate::vue::Reglages, JsValue> {
+    match source {
+        Some(source) => crate::verifier_page(&source).and_then(|p| crate::vue::reglages(&p)).map_err(|e| JsValue::from_str(&e.to_string())),
+        None => Ok(crate::vue::Reglages::default()),
+    }
+}
+
+/// Ce que la page d'entrée doit savoir des réglages d'un fichier : la densité des points,
+/// et si dézoomer réduit la page (1) ou non (0).
+#[wasm_bindgen]
+pub fn reglages_de_vue(source: &str) -> Result<Vec<f64>, JsValue> {
+    let r = reglages_de(Some(source.to_string()))?;
+    Ok(vec![r.densite, f64::from(u8::from(r.reduire))])
+}
+
+fn avec_la_mosaique(f: impl FnOnce(&mut Mosaique)) {
+    ETAT.with(|e| {
+        if let Some(etat) = e.borrow().as_ref() {
+            if let Some(m) = etat.borrow_mut().mosaique.as_mut() {
+                f(m);
+            }
+        }
+    });
+}
+
+/// Affiche une mosaïque alors que le moteur tourne déjà : la page devient des points.
+#[wasm_bindgen]
+pub fn poser_mosaique(couleurs: Vec<u8>, largeur: u32, hauteur: u32, source: Option<String>) -> Result<(), JsValue> {
+    let reglages = reglages_de(source)?;
+    ETAT.with(|e| match e.borrow().as_ref() {
+        Some(etat) => {
+            let mut etat = etat.borrow_mut();
+            let (vue_l, vue_h) = taille_vue(&etat.canvas);
+            let mosaique = Mosaique::new(largeur, hauteur, couleurs, 1, vue_l, vue_h, reglages);
+            etat.mosaique = Some(mosaique.ok_or_else(|| JsValue::from_str("image mal décrite : il faut largeur × hauteur × 4 octets"))?);
+            Ok(())
+        }
+        None => Err(JsValue::from_str("le moteur n'est pas encore démarré")),
+    })
+}
+
+/// Retire la mosaïque : le moteur affiche de nouveau son monde.
+#[wasm_bindgen]
+pub fn retirer_mosaique() {
+    ETAT.with(|e| {
+        if let Some(etat) = e.borrow().as_ref() {
+            etat.borrow_mut().mosaique = None;
+        }
+    });
+}
+
+/// Choisit ce que fait un glissement sur la mosaïque : tourner la page, ou la déplacer.
+#[wasm_bindgen]
+pub fn mosaique_tourner(actif: bool) {
+    avec_la_mosaique(|m| m.tourner = actif);
+}
+
+/// Fait tourner la page de la mosaïque (en radians) : on la voit de biais.
+#[wasm_bindgen]
+pub fn mosaique_pivoter(lacet: f64, tangage: f64) {
+    avec_la_mosaique(|m| m.pivoter(lacet, tangage));
+}
+
+/// Remet la page de la mosaïque de face.
+#[wasm_bindgen]
+pub fn mosaique_de_face() {
+    avec_la_mosaique(Mosaique::de_face);
 }
 
 /// La taille de la zone de dessin, en pixels de la page.
@@ -222,7 +297,11 @@ fn brancher(canvas: &HtmlCanvasElement, etat: &Rc<RefCell<Etat>>) -> Result<(), 
             } else {
                 let etat = &mut *etat;
                 match etat.mosaique.as_mut() {
-                    // Glisser : on déplace l'image.
+                    // Glisser avec le bouton droit, avec Maj, ou en mode « tourner » : la page
+                    // tourne, on la voit de biais. Sinon, glisser la déplace.
+                    Some(m) if m.tourner || ev.shift_key() || ev.buttons() & 2 != 0 => {
+                        m.pivoter(f64::from(nouveau.0 - ancien.0) * 0.005, -f64::from(nouveau.1 - ancien.1) * 0.005)
+                    }
                     Some(m) => m.deplacer(f64::from(nouveau.0 - ancien.0), f64::from(nouveau.1 - ancien.1)),
                     // Glisser : on tourne le monde.
                     None => {
@@ -269,7 +348,11 @@ fn brancher(canvas: &HtmlCanvasElement, etat: &Rc<RefCell<Etat>>) -> Result<(), 
         let (vue_l, vue_h) = taille_vue(&etat.canvas);
         let etat = &mut *etat;
         match etat.mosaique.as_mut() {
-            Some(m) => m.zoomer(2f64.powf(-ev.delta_y() * 0.003), f64::from(ev.client_x()), f64::from(ev.client_y()), vue_l, vue_h),
+            Some(m) => {
+                // Un pincement arrive comme une molette avec Ctrl, par petits pas : on les grossit.
+                let pas = if ev.ctrl_key() && ev.delta_y().abs() < 50.0 { ev.delta_y() * 6.0 } else { ev.delta_y() };
+                m.zoomer(2f64.powf(-pas * 0.003), f64::from(ev.client_x()), f64::from(ev.client_y()), vue_l, vue_h)
+            }
             None => etat.nav.zoomer(-(ev.delta_y() as f32) * 0.0018),
         }
     });

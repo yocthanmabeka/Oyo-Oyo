@@ -1,11 +1,13 @@
 <!doctype html>
 <!-- Porte d'entrée pour une page : identique pour tous les fichiers .holo.
 
-     Le même fichier se voit de deux places :
-     - vue web : le site en 2D classique, fabriqué par le moteur (vue à plat) ;
-     - vue personnage : on est dans un monde, et la même page y est posée comme une
-       feuille, à la manière d'un téléphone tenu dans un jeu. Rien n'est rechargé.
-     Entrer dans un point ouvre son monde, avec son contenu lisible sur un panneau.
+     On est d'abord devant un site web normal, fabriqué par le moteur (vue à plat).
+     - Zoomer (Ctrl + molette, ou pincer) : les pixels de la page grossissent et deviennent
+       des points lumineux bien rangés, qui se morcellent ensuite sans fin. C'est la même
+       page, vue de plus près. Dézoomer jusqu'au bout ramène au site normal.
+     - Tourner la page : on la voit de biais, et ce qui est lumineux se soulève.
+     - Vue personnage : la page est posée comme une feuille dans un monde.
+     - Entrer dans un point ouvre son monde, avec son contenu lisible sur un panneau.
 
      Cette page ne décide de rien : chaque toucher est envoyé au moteur, qui répond par les
      effets que les règles du fichier demandent (ADR-015). -->
@@ -23,15 +25,37 @@
   .mode-personnage>main{position:fixed;left:50%;top:50%;width:420px;height:640px;box-sizing:border-box;overflow:auto;
     background:inherit;padding:inherit;border-radius:16px;box-shadow:0 0 40px rgba(233,180,76,.25);
     transform:translate(-50%,-50%);transform-origin:center;backface-visibility:hidden;will-change:transform}
-  #mode{position:fixed;top:8px;right:8px;z-index:5;padding:8px 12px;border:1px solid #888;border-radius:8px;
-    background:rgba(0,0,0,.6);color:#fff;font:14px system-ui,sans-serif;cursor:pointer}
-  #mode[hidden]{display:none}
+  /* Vue points : l'image de la page suit la vue, et s'efface quand les points prennent le relais. */
+  #image{position:fixed;left:0;top:0;z-index:3;transform-origin:0 0;pointer-events:none;display:none;will-change:transform,opacity}
+  .en-points{overflow:hidden}
+  .en-points #image{display:block}
+  #etat,#commandes{display:none}
+  .en-points #etat{display:block;position:fixed;left:8px;bottom:8px;z-index:5;padding:4px 8px;border-radius:6px;
+    background:rgba(0,0,0,.6);color:#bbb;font:12px system-ui,sans-serif;pointer-events:none}
+  .en-points #commandes{display:flex;position:fixed;right:8px;bottom:8px;z-index:5;gap:8px}
+  .en-points #mode{display:none}
+  #vues{position:fixed;top:8px;right:8px;z-index:5;display:flex;gap:8px}
+  #vues[hidden]{display:none}
+  #vues button,#commandes button{padding:8px 12px;border:1px solid #888;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;
+    font:14px system-ui,sans-serif;cursor:pointer}
+  #commandes button[aria-pressed="true"]{border-color:#E9B44C;color:#E9B44C}
   #erreur{position:fixed;left:8px;bottom:8px;right:8px;z-index:6;color:#f88;font:13px monospace;white-space:pre-wrap}
 </style>
 </head><body><div id="page"></div>
-<button id="mode" type="button" hidden>Vue personnage</button>
+<img id="image" alt=""><div id="etat"></div>
+<div id="vues" hidden>
+  <button id="points" type="button" title="Ou : Ctrl + molette, ou pincer, directement sur la page">Vue points</button>
+  <button id="mode" type="button">Vue personnage</button>
+</div>
+<div id="commandes">
+  <button id="tourner" type="button" aria-pressed="false" title="Glisser fait tourner la page (ou : bouton droit, ou Maj)">Tourner</button>
+  <button id="face" type="button" title="Remettre la page de face">De face</button>
+</div>
 <script type="module">
-  import init, { demarrer, changer_de_monde, pause, surface, vue_a_plat, effets, source_du_point, monde_d_accueil } from "/pkg/holo_moteur.js";
+  import init, {
+    demarrer, changer_de_monde, pause, surface, vue_a_plat, effets, source_du_point, monde_d_accueil,
+    demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner, mosaique_pivoter, mosaique_de_face, reglages_de_vue,
+  } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
   const params = new URLSearchParams(location.search);
   // L'adresse est celle du fichier .holo lui-même ; sinon ?monde=… ou la boutique d'exemple.
@@ -39,27 +63,45 @@
   const base = chemin.slice(0, chemin.lastIndexOf("/") + 1);
   const racine = document.getElementById("page");
   const boutonMode = document.getElementById("mode");
+  const boutonPoints = document.getElementById("points");
+  const boutonTourner = document.getElementById("tourner");
+  const image = document.getElementById("image");
+  const etat = document.getElementById("etat");
+  const nombre = new Intl.NumberFormat("fr-FR");
   // La feuille mesure 2 unités de haut dans le monde, dont les points sont sur une sphère de rayon 1.
   const HAUTEUR_FEUILLE_MONDE = 2;
   const HAUTEUR_FEUILLE_PX = 640;
+  // Vue points : ce que le fichier en dit (Zoom, Points). Lu au démarrage.
+  let densite = 2;          // points par pixel d'écran, dans chaque sens
+  let reduire = false;      // dézoomer réduit-il la page jusqu'à un point ?
   let source = "";
   let cadre = null;         // l'élément .holo-Page
   let page = null;          // son contenu, <main>
   let moteurLance = false;
   let personnage = false;   // vue personnage ou vue web
   let dansLePoint = null;   // le point dans lequel on est entré
+  let enPoints = false;     // la page est vue comme un ensemble de points
+  let entreeEnCours = null; // l'entrée en vue points, tant qu'elle se prépare
+  let aQuitteLeRepos = false; // a-t-on zoomé ou tourné depuis l'entrée en vue points ?
+
+  // La zone de dessin du moteur : une seule, pour les mondes comme pour les points.
+  function zoneDeDessin() {
+    let canvas = cadre.querySelector("canvas");
+    if (!canvas) {
+      canvas = document.createElement("canvas");
+      cadre.prepend(canvas);
+    }
+    canvas.classList.add("holo-profondeur");
+    return canvas;
+  }
 
   // Montre la vue en profondeur d'un point (un fichier .holo réduit à ce point).
   async function montrerMonde(sourceDuPoint, zoom) {
     cadre.classList.add("avec-monde");
     if (!moteurLance) {
       moteurLance = true;
-      const canvas = document.createElement("canvas");
-      canvas.className = "holo-profondeur";
-      cadre.prepend(canvas);
-      await demarrer(canvas, sourceDuPoint, zoom);
-      // Si la carte graphique a exigé une nouvelle zone de dessin, elle garde la même place.
-      cadre.querySelector("canvas")?.classList.add("holo-profondeur");
+      await demarrer(zoneDeDessin(), sourceDuPoint, zoom);
+      zoneDeDessin(); // si la carte graphique a exigé une nouvelle zone, elle garde la même place
     } else {
       changer_de_monde(sourceDuPoint, zoom);
       pause(false);
@@ -71,7 +113,9 @@
     if (moteurLance) pause(true);
   }
 
-  // Vue personnage : la page suit le monde, comme un objet qu'on y aurait posé.
+  // ---------------------------------------------------------------- vue personnage
+
+  // La page suit le monde, comme un objet qu'on y aurait posé.
   function poserLaFeuille() {
     if (!personnage || dansLePoint) return;
     const s = surface();
@@ -90,8 +134,10 @@
   }
 
   async function changerDeVue(versPersonnage) {
+    if (enPoints) sortirDesPoints();
     personnage = versPersonnage;
     boutonMode.textContent = personnage ? "Vue web" : "Vue personnage";
+    boutonPoints.hidden = personnage;
     cadre.classList.toggle("mode-personnage", personnage);
     page.style.transform = "";
     page.style.visibility = "visible";
@@ -105,6 +151,125 @@
     window.scrollTo(0, 0);
   }
 
+  // ---------------------------------------------------------------- vue points
+
+  const enAdresse = (blob) => new Promise((ok, raté) => {
+    const lecteur = new FileReader();
+    lecteur.onload = () => ok(lecteur.result);
+    lecteur.onerror = raté;
+    lecteur.readAsDataURL(blob);
+  });
+
+  // La page telle qu'on la voit, redessinée dans une image aux dimensions de la fenêtre.
+  // Chrome ne donne pas les pixels d'une page ; mais celle-ci, c'est le moteur qui l'a
+  // fabriquée : on peut la remettre dans une image (un SVG qui la contient).
+  async function imageDeLaPage() {
+    const copie = racine.cloneNode(true);
+    copie.querySelectorAll("canvas").forEach((c) => c.remove());
+    // Une image ne peut pas aller chercher d'autres fichiers : celles de la page sont copiées dedans.
+    const originales = racine.querySelectorAll("img");
+    for (const [i, img] of [...copie.querySelectorAll("img")].entries()) {
+      img.setAttribute("src", await enAdresse(await (await fetch(originales[i].src)).blob()));
+    }
+    const [l, h] = [innerWidth, innerHeight];
+    const svg =
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${l * densite}" height="${h * densite}" viewBox="0 0 ${l} ${h}">` +
+      `<foreignObject width="${l}" height="${h}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${l}px;height:${h}px;overflow:hidden">` +
+      `<style>.holo-Page{min-height:${h}px!important}</style>` +
+      `<div style="margin-top:${-scrollY}px">${new XMLSerializer().serializeToString(copie)}</div></div></foreignObject></svg>`;
+    image.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    await image.decode();
+    const toile = new OffscreenCanvas(l * densite, h * densite);
+    const dessin = toile.getContext("2d");
+    dessin.drawImage(image, 0, 0, toile.width, toile.height);
+    image.style.width = `${toile.width}px`;
+    image.style.height = `${toile.height}px`;
+    return dessin.getImageData(0, 0, toile.width, toile.height);
+  }
+
+  function suivreLesPoints() {
+    if (!enPoints) return;
+    const camera = mosaique_camera();
+    if (camera.length) {
+      const [cx, cy, echelle, opacite, niveau, points, lacet, tangage, distance, echelleAuRepos] = camera;
+      // Revenu exactement à la page entière, de face : c'est le site normal, on y retourne.
+      const auRepos = Math.abs(echelle / echelleAuRepos - 1) < 1e-9 && lacet === 0 && tangage === 0;
+      if (auRepos && aQuitteLeRepos) {
+        sortirDesPoints();
+        return;
+      }
+      aQuitteLeRepos ||= !auRepos;
+      // L'image de la page suit la même vue, de face comme de biais, et s'efface quand les
+      // points prennent le relais.
+      image.style.transform =
+        `translate(${innerWidth / 2}px,${innerHeight / 2}px) perspective(${distance}px) rotateX(${tangage}rad) rotateY(${lacet}rad) ` +
+        `translate(${-cx * echelle}px,${-cy * echelle}px) scale(${echelle})`;
+      image.style.opacity = 1 - opacite;
+      etat.textContent = opacite === 0
+        ? `${nombre.format(image.naturalWidth * image.naturalHeight)} points — zoomez`
+        : `${nombre.format(points)} points à l'écran · morcelés ${niveau} fois`;
+    }
+    requestAnimationFrame(suivreLesPoints);
+  }
+
+  // La page devient un ensemble de points, un par pixel. Au départ rien ne change à l'écran :
+  // un point fait exactement un pixel.
+  function entrerEnPoints() {
+    if (enPoints || personnage || dansLePoint) return Promise.resolve();
+    entreeEnCours ??= (async () => {
+      const pixels = await imageDeLaPage();
+      const couleurs = new Uint8Array(pixels.data.buffer);
+      cadre.classList.add("avec-monde");
+      if (!moteurLance) {
+        moteurLance = true;
+        await demarrer_mosaique(zoneDeDessin(), couleurs, pixels.width, pixels.height, source);
+        zoneDeDessin();
+      } else {
+        poser_mosaique(couleurs, pixels.width, pixels.height, source);
+        pause(false);
+      }
+      page.hidden = true;
+      document.body.classList.add("en-points");
+      boutonPoints.textContent = "Vue web";
+      enPoints = true;
+      aQuitteLeRepos = false;
+      requestAnimationFrame(suivreLesPoints);
+    })().finally(() => { entreeEnCours = null; });
+    return entreeEnCours;
+  }
+
+  function sortirDesPoints() {
+    if (!enPoints) return;
+    enPoints = false;
+    mosaique_de_face();
+    mosaique_tourner(false);
+    retirer_mosaique();
+    boutonTourner.setAttribute("aria-pressed", "false");
+    document.body.classList.remove("en-points");
+    boutonPoints.textContent = "Vue points";
+    page.hidden = false;
+    cacherMonde();
+  }
+
+  // Un pincement arrive comme une molette avec Ctrl, par petits pas : on les grossit.
+  const pasDeZoom = (evenement) => evenement.deltaY * (Math.abs(evenement.deltaY) < 50 ? 6 : 1);
+
+  // Zoomer sur la page (Ctrl + molette, ou pincer) : c'est le zoom qui fait passer aux points.
+  addEventListener("wheel", async (evenement) => {
+    // Sinon Chrome grossit ou réduit toute la fenêtre, et le site sort de son cadre.
+    if (evenement.ctrlKey) evenement.preventDefault();
+    if (enPoints || !evenement.ctrlKey || personnage || dansLePoint || !cadre) return;
+    // Garde-fou : on ne dézoome pas en deçà de la page entière, sauf si le fichier le permet
+    // (Zoom(shrink: true)).
+    if (evenement.deltaY >= 0 && !reduire) return;
+    const { clientX, clientY } = evenement;
+    const deltaY = pasDeZoom(evenement);
+    await entrerEnPoints();
+    cadre.querySelector("canvas")?.dispatchEvent(new WheelEvent("wheel", { deltaY, clientX, clientY, cancelable: true }));
+  }, { passive: false });
+
+  // ---------------------------------------------------------------- les règles du fichier
+
   async function appliquer(effet) {
     const [nom, capacite] = effet.split(".");
     const monde = racine.querySelector(`section[data-world="${CSS.escape(nom)}"]`);
@@ -113,12 +278,14 @@
       dansLePoint = nom;
       page.hidden = true;
       monde.hidden = false;
+      document.getElementById("vues").hidden = true;
       // Zoom 2 : le point est déjà morcelé, on voit ses enfants sans être entré dans l'un d'eux.
       await montrerMonde(source_du_point(source, nom), 2);
     } else if (capacite === "leave" && dansLePoint === nom) {
       dansLePoint = null;
       monde.hidden = true;
       page.hidden = false;
+      document.getElementById("vues").hidden = params.has("nu");
       await changerDeVue(personnage);
     }
     window.scrollTo(0, 0);
@@ -128,6 +295,8 @@
     await init();
     source = await (await fetch(chemin, { headers: { accept: "text/plain" } })).text();
     racine.innerHTML = vue_a_plat(source, base);
+    [densite, reduire] = reglages_de_vue(source);
+    reduire = reduire === 1;
     cadre = racine.querySelector(".holo-Page");
     page = cadre.querySelector("main");
     document.title = cadre.dataset.title || "HoloCode";
@@ -138,11 +307,32 @@
         await appliquer(effet);
       }
     });
-    boutonMode.hidden = params.has("nu"); // ?nu : sans le bouton, pour en tirer une image
+    document.getElementById("vues").hidden = params.has("nu"); // ?nu : sans les boutons, pour en tirer une image
     boutonMode.addEventListener("click", () => changerDeVue(!personnage));
-    // Pour les captures d'écran : ?vue=personnage, ?entrer=Workshop
+    boutonPoints.addEventListener("click", () => (enPoints ? sortirDesPoints() : entrerEnPoints()));
+    boutonTourner.addEventListener("click", () => {
+      const actif = boutonTourner.getAttribute("aria-pressed") !== "true";
+      boutonTourner.setAttribute("aria-pressed", String(actif));
+      mosaique_tourner(actif);
+    });
+    document.getElementById("face").addEventListener("click", () => mosaique_de_face());
+    // En vue points, le bouton droit sert à tourner la page : pas de menu.
+    addEventListener("contextmenu", (evenement) => { if (enPoints) evenement.preventDefault(); });
+
+    // Pour les captures d'écran : ?vue=personnage, ?entrer=Workshop,
+    // ?vue=points avec &zoom=…&x=…&y=… (comme la molette à cet endroit) et &lacet=…&tangage=… (en degrés).
     if (params.get("vue") === "personnage") await changerDeVue(true);
     if (params.get("entrer")) await appliquer(`${params.get("entrer")}.enter`);
+    if (params.get("vue") === "points") {
+      await entrerEnPoints();
+      if (params.get("zoom")) {
+        cadre.querySelector("canvas").dispatchEvent(new WheelEvent("wheel", {
+          deltaY: -Math.log2(Number(params.get("zoom"))) / 0.003,
+          clientX: Number(params.get("x") ?? innerWidth / 2), clientY: Number(params.get("y") ?? innerHeight / 2), cancelable: true,
+        }));
+      }
+      mosaique_pivoter(Number(params.get("lacet") ?? 0) * Math.PI / 180, Number(params.get("tangage") ?? 0) * Math.PI / 180);
+    }
   } catch (e) {
     const pre = document.body.appendChild(document.createElement("pre"));
     pre.id = "erreur";

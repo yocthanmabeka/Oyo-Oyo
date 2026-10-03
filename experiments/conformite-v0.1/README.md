@@ -80,7 +80,7 @@ bloc      = NOM [ "." NOM ] "(" [ argument { "," argument } [ "," ] ] ")" ;
 argument  = [ NOM ":" ] valeur ;
 valeur    = bloc | liste | TEXTE | TEXTE_LONG | NOMBRE [ UNITE ] | "true" | "false" | NOM [ "." NOM ] ;
 liste     = "[" [ valeur { "," valeur } [ "," ] ] "]" ;
-UNITE     = "mm" | "cm" | "m" | "km" | "ms" | "s" | "min" | "h" | "B" | "KB" | "MB" | "GB" ;
+UNITE     = "mm" | "cm" | "m" | "km" | "ms" | "s" | "min" | "h" | "B" | "KB" | "MB" | "GB" | "px" | "deg" ;
 ```
 
 Un commentaire commence par `//`. `TEXTE_LONG` est entouré de `"""` et contient du Markdown. Les tailles sont décimales : 1 KB = 1 000 octets, 1 GB = 1 000 000 000 octets.

@@ -10,7 +10,7 @@ Fait reconnaître les fichiers `.holo` par VS Code.
 
 ```
 python outils/vscode-holocode/empaqueter.py
-code --install-extension outils/vscode-holocode/holocode-0.1.0.vsix
+code --install-extension outils/vscode-holocode/holocode-0.1.1.vsix
 ```
 
 Puis recharger la fenêtre de VS Code.

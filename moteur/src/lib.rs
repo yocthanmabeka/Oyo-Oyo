@@ -21,6 +21,7 @@ pub mod plat;
 pub mod regles;
 pub mod styles;
 pub mod univers;
+pub mod vue;
 
 #[cfg(target_arch = "wasm32")]
 mod rendu;
@@ -45,6 +46,7 @@ pub fn verifier_page(source: &str) -> Result<Programme, Erreur> {
     blocs::verifier_blocs(&programme)?;
     styles::verifier_styles(&programme)?;
     regles::verifier_regles(&programme)?;
+    vue::reglages(&programme)?;
     Ok(programme)
 }
 
