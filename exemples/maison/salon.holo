@@ -1,0 +1,40 @@
+// Une maison en deux fichiers : le salon (ce fichier) et le jardin (jardin.holo).
+// Du salon au jardin, on passe par un point dont l'intérieur est l'autre fichier.
+// On traverse sans changer de page, par une animation et un zoom, comme on marche d'une
+// pièce à l'autre. Les liens écrits avec A, eux, font changer de page, à l'ancienne.
+
+Page(
+  name: Salon,
+  title: "Le salon",
+
+  children: [
+    H1("Le salon"),
+    P("Tu es dans le salon. Le passage vers le jardin est le point vert, plus bas."),
+
+    Button(name: Sortir, text: "Aller au jardin"),
+
+    // Le passage : le monde de ce point est un autre fichier, rangé à côté de celui-ci.
+    Point(
+      name: Jardin,
+      seed: 12,
+      color: "#3FA34D",
+      inside: "jardin.holo",
+    ),
+
+    H2("Des liens à l'ancienne"),
+    // Une liste numérotée (ordered: true), dont chaque élément est un lien.
+    List(ordered: true, children: [
+      A("Le jardin, en changeant de page", to: "jardin.holo"),
+      A("Le code source du projet", to: "https://github.com/yocthanmabeka/Metaverse"),
+    ]),
+  ],
+
+  rules: [
+    On(Sortir.tap, effect: Jardin.enter),
+  ],
+)
+
+Page { background: #2b1d14; color: #f4e9dc; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 32px; text-align: center; }
+H2 { color: #E9B44C; font-size: 20px; }
+A { color: #8fd3ff; }

@@ -70,7 +70,6 @@
     radial-gradient(circle at 46% 70%,#fff 0 2.5%,transparent 3.5%),radial-gradient(circle at 24% 62%,#fff 0 1.5%,transparent 2.5%),
     radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--couleur) 70%,#fff) 0,var(--couleur) 38%,color-mix(in srgb,var(--couleur) 25%,#000) 72%)}
   .portail .contenu{display:block;position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none;text-align:left}
-  .portail .contenu .holo-Page{min-height:100%}
   .portail:focus{outline:none}
   .portail .nom{padding:4px 10px;border-radius:999px;background:rgba(0,0,0,.55);color:#fff}
   .portail.vers .apercu{box-shadow:0 0 0 5px var(--couleur),0 0 60px 16px var(--couleur)}
@@ -101,8 +100,14 @@
   window.__holoImages = images_dessinees; // combien d'images le moteur a dessinées : pour vérifier la sobriété
   const params = new URLSearchParams(location.search);
   // L'adresse est celle du fichier .holo lui-même ; sinon ?monde=… ou la boutique d'exemple.
-  const chemin = location.pathname.endsWith(".holo") ? location.pathname : params.get("monde") ?? "/exemples/boutique-comparee/boutique.holo";
-  const base = chemin.slice(0, chemin.lastIndexOf("/") + 1);
+  // Ce fichier peut changer en cours de route : on passe d'un fichier à l'autre par un point,
+  // sans recharger la page.
+  let chemin = location.pathname.endsWith(".holo") ? location.pathname : params.get("monde") ?? "/exemples/boutique-comparee/boutique.holo";
+  let base = chemin.slice(0, chemin.lastIndexOf("/") + 1);
+  const dossierDe = (fichier) => fichier.slice(0, fichier.lastIndexOf("/") + 1);
+  // Les fichiers déjà lus, par adresse : leur texte, ou null s'ils sont introuvables ou refusés.
+  const fichiersLus = new Map();
+  let dernierePassage = 0;  // pour qu'un seul coup de molette ne fasse pas remonter deux mondes
   const racine = document.getElementById("page");
   const carrefour = document.getElementById("carrefour");
   const boutonMode = document.getElementById("mode");
@@ -137,6 +142,59 @@
   const parent = (cheminDeSite) => cheminDeSite.split("/").filter(Boolean).slice(0, -1).join("/");
   const dernier = (cheminDeSite) => cheminDeSite.split("/").filter(Boolean).at(-1) ?? "";
 
+  // ---------------------------------------------------------------- les fichiers
+
+  // Lit un fichier .holo et le fait vérifier par le moteur. Un fichier est petit : on peut
+  // lire d'avance ceux où mènent les points de la page, pour que le passage soit immédiat.
+  function lire(fichier) {
+    if (!fichiersLus.has(fichier)) {
+      fichiersLus.set(fichier, (async () => {
+        try {
+          const reponse = await fetch(fichier, { headers: { accept: "text/plain" } });
+          if (!reponse.ok) return null;
+          const texte = await reponse.text();
+          vue_a_plat(texte, dossierDe(fichier), ""); // refusé par le moteur : le passage reste fermé
+          return texte;
+        } catch {
+          return null;
+        }
+      })());
+    }
+    return fichiersLus.get(fichier);
+  }
+
+  // Ce que le fichier affiché dit de sa vue (Zoom, Points, Portals).
+  function lireLesReglages() {
+    let actif, rangement;
+    [densite, reduire, zoomAvantPoints, actif, rangement, nombreDePortails, tailleDePortail, lumiereDuFond] = reglages_de_vue(source);
+    reduire = reduire === 1;
+    zoomActif = actif === 1;
+    disposition = ["grille", "ligne", "colonne", "diagonale"][rangement];
+    boutonPoints.style.display = zoomActif ? "" : "none";
+  }
+
+  // Passe à un autre fichier sans recharger la page : son adresse devient celle de la barre
+  // du navigateur, et le bouton « retour » ramène d'où l'on vient.
+  async function ouvrirFichier(fichier, cheminDeSite = "", { dansLHistorique = true } = {}) {
+    const texte = await lire(fichier);
+    if (texte === null) return false;
+    const depuis = location.pathname + location.hash;
+    [chemin, base, source] = [fichier, dossierDe(fichier), texte];
+    lireLesReglages();
+    if (dansLHistorique) history.pushState({ depuis }, "", fichier + (cheminDeSite ? `#${cheminDeSite}` : ""));
+    afficherSite(cheminDeSite, { dansLHistorique: false });
+    return true;
+  }
+
+  // Remonte d'un monde : au site qui contient celui-ci, ou au fichier d'où l'on est venu.
+  function remonter() {
+    if (performance.now() - dernierePassage < 700) return;
+    if (site) afficherSite(parent(site));
+    else if (history.state?.depuis) history.back();
+    else return;
+    dernierePassage = performance.now();
+  }
+
   // ---------------------------------------------------------------- le site affiché
 
   // Affiche un site du fichier, sans recharger la page : pas de noir entre deux sites.
@@ -166,7 +224,12 @@
     placerLesPixels();
     scrollTo(0, 0);
     if (dansLHistorique && decodeURIComponent(location.hash.slice(1)) !== site) {
-      history.pushState(null, "", site ? `#${site}` : location.pathname + location.search);
+      history.pushState(history.state, "", site ? `#${site}` : location.pathname + location.search);
+    }
+    dernierePassage = performance.now();
+    // Les fichiers où mènent les points de cette page sont lus d'avance, discrètement.
+    for (const contenu of sitesContenus()) {
+      if (contenu.fichier) lire(contenu.fichier);
     }
   }
 
@@ -205,8 +268,9 @@
   // Les sites contenus dans le site affiché : ses points qui ont un intérieur.
   function sitesContenus() {
     return [...page.querySelectorAll(".holo-Point, .holo-pixel")]
-      .filter((point) => racine.querySelector(`section[data-world="${CSS.escape(point.dataset.name)}"]`))
+      .filter((point) => point.dataset.file || racine.querySelector(`section[data-world="${CSS.escape(point.dataset.name)}"]`))
       .map((point) => ({
+        fichier: point.dataset.file ?? null, // le monde de ce point est un autre fichier
         chemin: [site, point.dataset.name].filter(Boolean).join("/"),
         nom: point.dataset.name,
         couleur: point.style.getPropertyValue("--holo-color") || "#E9B44C",
@@ -395,7 +459,11 @@
     }
     // Garde-fou : on ne dézoome pas en deçà de la page entière, sauf si le fichier le permet
     // (Zoom(shrink: true)).
-    if (voulu < 1 && !reduire) return;
+    if (voulu < 1 && !reduire) {
+      // Dézoomer alors que la page est déjà entière : on ressort du monde où l'on est.
+      if (zoomVif === 1) remonter();
+      return;
+    }
     if (voulu > zoomAvantPoints && zoomVif < zoomAvantPoints) grossir(zoomAvantPoints, clientX, clientY);
     await entrerEnPoints();
     zone().dispatchEvent(new WheelEvent("wheel", { deltaY, clientX, clientY, cancelable: true }));
@@ -404,11 +472,20 @@
   // ---------------------------------------------------------------- le carrefour
 
   // Un portail : un rond lumineux qui montre le site où il mène.
-  function portail({ chemin: versSite, nom, couleur, calcule = false }, taille, vers) {
+  function portail({ chemin: versSite, nom, couleur, calcule = false, fichier = null, texte = null, retour = false }, taille, vers) {
     const bouton = document.createElement("button");
     bouton.type = "button";
     bouton.className = vers ? "portail vers" : "portail";
-    bouton.dataset.chemin = versSite;
+    if (retour) bouton.dataset.retour = "oui";
+    else if (fichier) bouton.dataset.fichier = fichier;
+    else bouton.dataset.chemin = versSite;
+    // Un fichier introuvable ou refusé par le moteur : le passage reste fermé.
+    if (fichier && texte === null) {
+      calcule = true;
+      couleur = "#555";
+      nom = `${nom} (fermé)`;
+      bouton.disabled = true;
+    }
     bouton.style.setProperty("--taille", `${taille}px`);
     bouton.style.setProperty("--couleur", couleur);
     const apercu = document.createElement("span");
@@ -427,7 +504,10 @@
     contenu.style.width = `${innerWidth}px`;
     contenu.style.height = `${innerWidth}px`; // un carré : l'aperçu remplit le rond
     contenu.style.transform = `scale(${taille / innerWidth})`;
-    contenu.innerHTML = vue_a_plat(source, base, versSite);
+    // L'aperçu est enfermé : les styles d'un autre fichier ne débordent ni sur la page ni sur
+    // les autres aperçus.
+    contenu.attachShadow({ mode: "open" }).innerHTML =
+      "<style>.holo-Page{min-height:100%!important}</style>" + (fichier ? vue_a_plat(texte, dossierDe(fichier), "") : vue_a_plat(source, base, versSite));
     apercu.append(contenu);
     const etiquette = document.createElement("span");
     etiquette.className = "nom";
@@ -438,13 +518,19 @@
 
   // Ouvre le carrefour. « vers » : le site contenu vers lequel on se dirige, mis en avant ;
   // sans lui, c'est la carte de ce qui entoure le site où l'on est.
-  function ouvrirCarrefour(vers = null) {
+  async function ouvrirCarrefour(vers = null) {
     sortirDesPoints();
     const contenus = sitesContenus();
+    // Les autres fichiers sont petits et déjà demandés : on les attend pour montrer leur aperçu.
+    for (const contenu of contenus) {
+      if (contenu.fichier) contenu.texte = await lire(contenu.fichier);
+    }
     const ici = { chemin: site, nom: site ? `Ici : ${dernier(site)}` : "Ici", couleur: "#ffffff" };
     const cible = contenus.find((s) => s.nom === vers);
     const portails = [];
     if (site) portails.push(portail({ chemin: parent(site), nom: `Retour : ${dernier(parent(site)) || "accueil"}`, couleur: "#9aa4b2" }, tailleDePortail, false));
+    // Venu d'un autre fichier : un portail pour y retourner.
+    else if (history.state?.depuis) portails.push(portail({ nom: "Retour", couleur: "#9aa4b2", calcule: true, retour: true }, tailleDePortail, false));
     for (const contenu of contenus) {
       if (contenu !== cible) portails.push(portail(contenu, tailleDePortail, false));
     }
@@ -479,6 +565,10 @@
   // Le portail s'ouvre : son aperçu grandit jusqu'à remplir la fenêtre, et devient le site.
   async function franchir(bouton) {
     const versSite = bouton.dataset.chemin;
+    if (bouton.dataset.retour) {
+      history.back();
+      return;
+    }
     if (versSite === site) {
       fermerCarrefour();
       return;
@@ -496,7 +586,8 @@
     Object.assign(apercu.querySelector(".contenu").style, { transform: "scale(1)", height: `${innerHeight}px` });
     const immobile = matchMedia("(prefers-reduced-motion: reduce)").matches;
     await new Promise((suite) => setTimeout(suite, immobile ? 0 : 470));
-    afficherSite(versSite);
+    if (bouton.dataset.fichier) await ouvrirFichier(bouton.dataset.fichier);
+    else afficherSite(versSite);
   }
 
   // ---------------------------------------------------------------- les règles du fichier
@@ -518,15 +609,24 @@
   try {
     await init();
     source = await (await fetch(chemin, { headers: { accept: "text/plain" } })).text();
-    let actif, rangement;
-    [densite, reduire, zoomAvantPoints, actif, rangement, nombreDePortails, tailleDePortail, lumiereDuFond] = reglages_de_vue(source);
-    reduire = reduire === 1;
-    zoomActif = actif === 1;
-    disposition = ["grille", "ligne", "colonne", "diagonale"][rangement];
-    boutonPoints.style.display = zoomActif ? "" : "none";
+    fichiersLus.set(chemin, Promise.resolve(source));
+    lireLesReglages();
     afficherSite(decodeURIComponent(location.hash.slice(1)), { dansLHistorique: false });
     // Le bouton « retour » du navigateur, ou une adresse changée à la main.
-    addEventListener("popstate", () => afficherSite(decodeURIComponent(location.hash.slice(1)), { dansLHistorique: false }));
+    addEventListener("popstate", () => {
+      const cheminDeSite = decodeURIComponent(location.hash.slice(1));
+      // L'adresse désigne un autre fichier : on y passe, toujours sans recharger.
+      if (location.pathname !== chemin && location.pathname.endsWith(".holo")) ouvrirFichier(location.pathname, cheminDeSite, { dansLHistorique: false });
+      else afficherSite(cheminDeSite, { dansLHistorique: false });
+    });
+    // Dans un monde calculé : dézoomer alors qu'on est revenu tout en haut en fait ressortir.
+    addEventListener("wheel", (evenement) => {
+      const mesures = window.__holo;
+      if (enMonde && evenement.deltaY > 0 && mesures && mesures.profondeur === 0 && mesures.zoom === 0 && performance.now() - dernierePassage > 1500) {
+        dernierePassage = performance.now();
+        history.back();
+      }
+    }, { passive: true });
     addEventListener("resize", () => { placerLesPixels(); reveillerLeSuivi(); });
 
     // En vue points, un toucher sans glissement active le point planté qui se trouve dessous.

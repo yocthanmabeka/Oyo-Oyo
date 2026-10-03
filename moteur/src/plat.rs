@@ -145,7 +145,9 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
             sortie.push_str(&format!("<img class=\"{classes}\"{nom} src=\"{}{}\" alt=\"\">", echapper(base), echapper(source)));
         }
         "List" => {
-            sortie.push_str(&format!("<ul class=\"{classes}\"{nom}>"));
+            // `ordered: true` : une liste numérotée.
+            let balise = if matches!(bloc.argument("ordered").map(|a| &a.valeur), Some(Valeur::Bool(true))) { "ol" } else { "ul" };
+            sortie.push_str(&format!("<{balise} class=\"{classes}\"{nom}>"));
             if let Some(Valeur::Liste(elements)) = bloc.argument("children").map(|a| &a.valeur) {
                 for element in elements {
                     sortie.push_str("<li>");
@@ -156,12 +158,35 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
                     sortie.push_str("</li>");
                 }
             }
-            sortie.push_str("</ul>");
+            sortie.push_str(&format!("</{balise}>"));
+        }
+        // Le lien classique : on quitte la page pour une autre adresse, comme <a href> en HTML.
+        "A" => {
+            let adresse = match bloc.argument("to").map(|a| &a.valeur) {
+                Some(Valeur::Texte(adresse)) => adresse_sure(adresse, base),
+                _ => None,
+            };
+            let Some(adresse) = adresse else {
+                return Err(Erreur {
+                    message: "« A » attend un paramètre « to » : un fichier rangé à côté (\"garden.holo\") ou une adresse du web (\"https://…\")".into(),
+                    pos: bloc.pos,
+                });
+            };
+            sortie.push_str(&format!("<a class=\"{classes}\"{nom} href=\"{}\">{}</a>", echapper(&adresse), markdown(texte_de(bloc)?)));
         }
         "Point" => {
             let allure = allure_du_point(bloc)?;
             let etiquette = nom_de(bloc).map(|n| format!(" aria-label=\"{}\"", echapper(n))).unwrap_or_default();
-            sortie.push_str(&format!("<button type=\"button\" class=\"{classes}\"{nom}{etiquette} style=\"{allure}\"></button>"));
+            // `inside: "garden.holo"` : le monde de ce point est un autre fichier. On y passe
+            // sans changer de page ; la page d'entrée va le chercher.
+            let fichier = match bloc.argument("inside").map(|a| &a.valeur) {
+                Some(Valeur::Texte(fichier)) if chemin_sur(fichier) && fichier.ends_with(".holo") => format!(" data-file=\"{}{}\"", echapper(base), echapper(fichier)),
+                Some(Valeur::Texte(_)) => {
+                    return Err(Erreur { message: "« inside » attend un monde, ou un fichier .holo rangé à côté : inside: \"garden.holo\"".into(), pos: bloc.pos })
+                }
+                _ => String::new(),
+            };
+            sortie.push_str(&format!("<button type=\"button\" class=\"{classes}\"{nom}{etiquette}{fichier} style=\"{allure}\"></button>"));
             monde_interieur(bloc, mondes, base)?;
         }
         autre => return Err(Erreur { message: format!("« {autre} » ne se place pas dans « children »"), pos: bloc.pos }),
@@ -234,6 +259,23 @@ fn texte_de(bloc: &Bloc) -> Result<&str, Erreur> {
             _ => None,
         })
         .ok_or_else(|| Erreur { message: format!("« {} » attend un texte entre guillemets : {}(\"…\")", bloc.nom, bloc.nom), pos: bloc.pos })
+}
+
+/// L'adresse d'un lien : un fichier rangé à côté (rendu relatif au dossier du `.holo`), un
+/// site de la page (`#Workshop`), ou une adresse du web en http ou https. Rien d'autre : pas
+/// de `javascript:`, pas de caractères qui sortiraient de l'attribut.
+fn adresse_sure(adresse: &str, base: &str) -> Option<String> {
+    if adresse.starts_with("https://") || adresse.starts_with("http://") {
+        let propre = adresse.len() > 8 && adresse.chars().all(|c| c.is_ascii_graphic() && !matches!(c, '"' | '<' | '>' | '\\' | '`'));
+        return propre.then(|| adresse.to_string());
+    }
+    let (fichier, ancre) = adresse.split_once('#').unwrap_or((adresse, ""));
+    let ancre_sure = ancre.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '/'));
+    match (fichier.is_empty(), ancre.is_empty()) {
+        (true, false) if ancre_sure => Some(format!("#{ancre}")),
+        (false, _) if chemin_sur(fichier) && ancre_sure => Some(if ancre.is_empty() { format!("{base}{fichier}") } else { format!("{base}{fichier}#{ancre}") }),
+        _ => None,
+    }
 }
 
 /// Une image se range à côté du fichier : ni adresse complète, ni remontée de dossier.
@@ -327,6 +369,30 @@ mod tests {
         assert!(site_html(&programme, plus_profond, "", "B").unwrap().contains("Deeper"));
         assert!(crate::regles::site_de(&programme, "A/Nobody").unwrap_err().message.contains("aucun point"));
         assert_eq!(crate::regles::site_de(&programme, "").unwrap().nom, "Page");
+    }
+
+    #[test]
+    fn les_liens_et_les_portes_vers_un_autre_fichier() {
+        let html = page_html(
+            &lire("Page(children: [ A(\"The garden\", to: \"garden.holo\"), A(\"Elsewhere\", to: \"https://example.com/a?b=1\"), A(\"Inside\", to: \"#Workshop\"), List(ordered: true, children: [ A(\"x\", to: \"a/b.holo#S\") ]), Point(name: Garden, seed: 3, inside: \"garden.holo\") ])").unwrap(),
+            "/ex/",
+        )
+        .unwrap();
+        for attendu in [
+            "<a class=\"holo-A\" href=\"/ex/garden.holo\">The garden</a>",
+            "<a class=\"holo-A\" href=\"https://example.com/a?b=1\">Elsewhere</a>",
+            "<a class=\"holo-A\" href=\"#Workshop\">Inside</a>",
+            "<ol class=\"holo-List\"><li><a class=\"holo-A\" href=\"/ex/a/b.holo#S\">x</a></li></ol>",
+            "data-name=\"Garden\" aria-label=\"Garden\" data-file=\"/ex/garden.holo\"",
+        ] {
+            assert!(html.contains(attendu), "manque : {attendu}\n{html}");
+        }
+        // Un lien ne peut pas cacher de code, ni sortir de son dossier.
+        for mauvais in ["javascript:alert(1)", "../secret.holo", "https://a.example/\\\"onclick=", "data:text/html,x", ""] {
+            assert!(page(&format!("Page(children: [ A(\"x\", to: \"{mauvais}\") ])")).is_err(), "{mauvais}");
+        }
+        assert!(page("Page(children: [ A(\"x\") ])").unwrap_err().message.contains("« to »"));
+        assert!(page("Page(children: [ Point(name: G, seed: 1, inside: \"garden.txt\") ])").unwrap_err().message.contains("fichier .holo"));
     }
 
     #[test]

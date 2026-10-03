@@ -83,6 +83,27 @@ Page(
 - `List(children: [...])` : une liste.
 - `Button(name:, text:)` : un bouton. `name` lui donne un nom, qui sert aux règles. Deux blocs ne portent pas le même nom.
 
+### Les liens et les listes numérotées
+
+```holo
+Page(
+  title: "My shop",
+  children: [
+    H1("My shop"),
+    A("The garden", to: "garden.holo"),
+    A("Somewhere else on the web", to: "https://example.com"),
+    List(ordered: true, children: [
+      A("First link", to: "one.holo"),
+      A("Second link", to: "two.holo"),
+    ]),
+  ],
+)
+```
+
+- `A("texte", to: "adresse")` est le lien classique, celui de HTML (`<a href>`) : on quitte la page pour une autre adresse. `to` accepte un fichier rangé à côté (`"garden.holo"`), un site de la page (`"#Workshop"`), ou une adresse du web en `http` ou `https`. Rien d'autre : pas de `javascript:`.
+- `List(ordered: true, …)` numérote la liste. Un élément de liste peut être une phrase ou un bloc, par exemple un lien.
+- Il n'y a ni `UL`, ni `OL`, ni `LI` : un seul bloc `List` suffit, et ses éléments n'ont pas besoin de balise.
+
 ## 5. Les styles
 
 Les styles s'écrivent comme en CSS, **après** le bloc racine.
@@ -185,6 +206,30 @@ Page(
 | `palette` | Les couleurs de ses enfants. |
 | `budget` | Ce que son contenu a le droit de peser. Dépassé, le fichier est refusé. |
 | `inside` | Le monde qu'il contient : `World(children: [...], rules: [...])`. |
+
+**Passer dans un autre fichier.** Le monde d'un point peut être un autre fichier, rangé à côté :
+
+```holo
+Page(
+  name: LivingRoom,
+  title: "The living room",
+  children: [
+    H1("The living room"),
+    Button(name: Out, text: "Go to the garden"),
+    Point(name: Garden, seed: 12, color: "#3FA34D", inside: "garden.holo"),
+  ],
+  rules: [
+    On(Out.tap, effect: Garden.enter),
+  ],
+)
+```
+
+- On y passe **sans changer de page** : le carrefour s'ouvre, le portail montre l'autre fichier, on le franchit par une animation. L'adresse de la barre devient celle de l'autre fichier, et le bouton « retour » ramène.
+- Les fichiers où mènent les points d'une page sont lus d'avance (ils sont petits) : le passage est immédiat. Un fichier introuvable ou refusé par le moteur laisse le passage fermé.
+- **Dézoomer** alors que la page est déjà à sa taille normale fait ressortir du monde où l'on est : on revient au site, ou au fichier, d'où l'on venait.
+- La différence avec `A` : `A` fait changer de page, à l'ancienne ; un `Point` se traverse à pied.
+
+L'exemple complet : [`exemples/maison/`](../../exemples/maison/salon.holo), un salon et un jardin.
 
 **Les règles.** Un bloc ne contient jamais de code. Une règle relie un signal à une capacité :
 
@@ -359,8 +404,9 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 |---|---|---|
 | `Page` | `name`, `title`, `children`, `pixels`, `rules`, `zoom`, `points`, `relief`, `portals` | À la racine |
 | `H1`, `H2`, `H3`, `P`, `Text` | le texte entre guillemets ; `name` | Dans `children` |
+| `A` | le texte entre guillemets, `to` | Dans `children` |
 | `Image` | `source`, `weight`, `name` | Dans `children` |
-| `List` | `children`, `name` | Dans `children` |
+| `List` | `children`, `ordered`, `name` | Dans `children` |
 | `Button` | `name`, `text` | Dans `children` |
 | `Point` | `name`, `seed`, `brightness`, `fragments`, `color`, `palette`, `budget`, `inside` ; `above` quand il est planté dans un pixel | Dans `children` ou `pixels`, ou à la racine |
 | `World` | `children`, `pixels`, `rules` | Dans `inside:` d'un `Point` |
@@ -375,7 +421,10 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 |---|---|---|
 | Une page, un texte, un titre | `Page`, `Text`, `P`, `H1` à `H3` | fait |
 | Une image | `Image(source:, weight:)` | fait |
-| Une liste, un bouton | `List`, `Button` | fait |
+| Une liste, une liste numérotée, un bouton | `List`, `List(ordered: true)`, `Button` | fait |
+| Un lien classique (on change de page) | `A("texte", to: "adresse")` | fait |
+| Passer dans un autre fichier sans changer de page | `Point(inside: "fichier.holo")` | fait |
+| Ressortir d'un monde | dézoomer, ou la capacité `leave` | fait |
 | L'apparence | les styles : `P { color: … }`, `.card { … }` | fait |
 | Un point, un monde | `Point`, `World`, `seed`, `brightness`, `color`, `palette` | fait |
 | Le morcellement d'un point | `fragments` | fait |
@@ -395,7 +444,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Le survol, l'approche | aucun | à faire |
 | Réagir au zoom par une règle (« quand on zoome, alors… ») | aucun | à faire |
 | La disposition côte à côte | aucun | à faire |
-| Les liens vers un autre fichier | aucun (les imports sont lus, pas appliqués) | à faire |
+| Réutiliser un morceau de fichier (les imports) | `import` est lu, pas appliqué | à faire |
 | Les formulaires, les valeurs qui changent | aucun | à faire |
 | Le personnage | aucun | à faire |
 
@@ -405,7 +454,6 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 
 - Les imports (`import`, `module`, `bridge js`, `bridge css`) : le moteur les lit mais ne les applique pas.
 - La disposition (côte à côte, en grille) : tout est l'un sous l'autre.
-- Les liens d'une page à une autre.
 - Les formulaires, les valeurs qui changent (un panier), les données venues d'ailleurs.
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
