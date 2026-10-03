@@ -134,6 +134,24 @@ pub fn retirer_mosaique() {
     let _ = reveiller();
 }
 
+/// Quel endroit de la page se trouve sous ce point de l'écran : x et y, en pixels de l'image.
+/// Vide s'il n'y a pas de mosaïque, ou si l'on vise à côté de la page.
+#[wasm_bindgen]
+pub fn mosaique_sous(x: f64, y: f64) -> Vec<f64> {
+    ETAT.with(|e| {
+        e.borrow()
+            .as_ref()
+            .and_then(|etat| {
+                let etat = etat.borrow();
+                let (vue_l, vue_h) = taille_vue(&etat.canvas);
+                let m = etat.mosaique.as_ref()?;
+                let [ux, uy] = m.sur_la_page(x - vue_l / 2.0, y - vue_h / 2.0, crate::mosaique::distance(vue_h))?;
+                Some(vec![m.cx + ux / m.echelle, m.cy + uy / m.echelle])
+            })
+            .unwrap_or_default()
+    })
+}
+
 /// Choisit ce que fait un glissement sur la mosaïque : tourner la page, ou la déplacer.
 #[wasm_bindgen]
 pub fn mosaique_tourner(actif: bool) {

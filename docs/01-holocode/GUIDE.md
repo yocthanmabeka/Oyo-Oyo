@@ -193,6 +193,46 @@ Page(
 - Capacités : `enter` et `leave` (pour un `Point`).
 - Toucher un point y fait entrer, sans règle à écrire.
 
+### Planter un site dans un pixel de la page
+
+Quand on zoome sur une page, chacun de ses pixels devient un point. L'auteur peut planter un site dans l'un d'eux, avec `pixels:`. Au repos, ce point occupe un seul pixel : on ne le remarque qu'en s'approchant. En vue points, on clique dessus : on s'en approche, puis on entre dans le site qu'il contient.
+
+```holo
+Page(
+  title: "My site",
+  children: [
+    H1("My site"),
+    Button(name: Open, text: "A button"),
+  ],
+  pixels: [
+    Point(
+      name: Secret,
+      above: Open,
+      seed: 77,
+      color: "#FF4D6D",
+      inside: World.secret(
+        children: [
+          H1("The hidden site"),
+          Button(name: Out, text: "Leave"),
+        ],
+        rules: [
+          On(Out.tap, effect: Secret.leave),
+        ],
+      ),
+    ),
+  ],
+)
+
+.secret { background: #3a0d1a; color: #FFD6DE; }
+```
+
+- `above: Open` place le point juste au-dessus du bloc nommé `Open`, à l'extrémité droite de la page. C'est, pour l'instant, la seule façon de dire où il est.
+- `color` lui donne une couleur qui le distingue de la page.
+- `World.secret(...)` donne au site du dedans son propre style.
+- Le site contenu dans un point se voit comme une feuille posée dans le monde de ce point.
+
+Cette écriture est provisoire : elle sert à voir l'effet, et sera revue.
+
 ## 7. Comment la page se regarde : `Zoom`, `Points`, `Relief`
 
 Quand le visiteur zoome sur la page (Ctrl + molette, ou pincer), chaque pixel devient un point lumineux, qui se morcelle ensuite. Quand il tourne la page, elle prend du relief. Ces trois blocs règlent cela. Ils sont facultatifs : sans eux, la page prend les valeurs ci-dessous.
@@ -269,12 +309,12 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 
 | Bloc | Réglages | Où |
 |---|---|---|
-| `Page` | `name`, `title`, `children`, `rules`, `zoom`, `points`, `relief` | À la racine |
+| `Page` | `name`, `title`, `children`, `pixels`, `rules`, `zoom`, `points`, `relief` | À la racine |
 | `H1`, `H2`, `H3`, `P`, `Text` | le texte entre guillemets ; `name` | Dans `children` |
 | `Image` | `source`, `weight`, `name` | Dans `children` |
 | `List` | `children`, `name` | Dans `children` |
 | `Button` | `name`, `text` | Dans `children` |
-| `Point` | `name`, `seed`, `brightness`, `fragments`, `color`, `palette`, `budget`, `inside` | Dans `children`, ou à la racine |
+| `Point` | `name`, `seed`, `brightness`, `fragments`, `color`, `palette`, `budget`, `inside` ; `above` quand il est planté dans un pixel | Dans `children` ou `pixels`, ou à la racine |
 | `World` | `children`, `rules` | Dans `inside:` d'un `Point` |
 | `On` | le signal, puis `effect:` | Dans `rules` |
 | `Zoom`, `Points`, `Relief` | voir la partie 7 | Dans `zoom:`, `points:`, `relief:` d'une `Page` |

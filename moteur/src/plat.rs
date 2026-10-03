@@ -13,11 +13,11 @@ use crate::styles::est_couleur;
 /// toujours le dernier mot aux styles du fichier.
 const BASE: &str = "\
 :where(.holo-Page){min-height:100vh;box-sizing:border-box;margin:0}\
-:where(.holo-Page>main){max-width:640px;margin:0 auto}:where(.holo-Page>main,.holo-panneau)>*{display:block;box-sizing:border-box;margin:0 0 16px 0}\
+:where(.holo-Page>main){max-width:640px;margin:0 auto;position:relative}:where(.holo-Page>main,.holo-panneau)>*{display:block;box-sizing:border-box;margin:0 0 16px 0}\
 :where(.holo-Button){font:inherit;color:inherit;cursor:pointer;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 12px}\
 :where(.holo-Point){width:64px;height:64px;padding:0;border:0;border-radius:50%;cursor:pointer;\
 background:radial-gradient(circle,white 0%,var(--holo-color,white) 35%,transparent 70%);opacity:var(--holo-brightness,1)}\
-:where(.holo-World){position:fixed;inset:0;margin:0;pointer-events:none}\
+:where(.holo-pixel){position:absolute;width:1px;height:1px;margin:0;padding:0;background:var(--holo-color,white);cursor:pointer}:where(.holo-World){position:fixed;inset:0;margin:0;pointer-events:none}\
 :where(.holo-World[hidden]){display:none}\
 :where(.holo-panneau){position:absolute;z-index:1;left:0;right:0;bottom:0;max-height:46vh;overflow:auto;padding:16px max(16px,calc(50% - 320px));\
 box-sizing:border-box;background:rgba(0,0,0,0.6);pointer-events:auto}";
@@ -32,6 +32,11 @@ pub fn page_html(programme: &Programme, base: &str) -> Result<String, Erreur> {
     let mut corps = String::new();
     let mut mondes = String::new();
     enfants(page, &mut corps, &mut mondes, base)?;
+    if let Some(Valeur::Liste(plantes)) = page.argument("pixels").map(|a| &a.valeur) {
+        for plante in plantes {
+            pixel_plante(plante, &mut corps, &mut mondes, base, page)?;
+        }
+    }
     let titre = match page.argument("title").map(|a| &a.valeur) {
         Some(Valeur::Texte(t)) => echapper(t),
         _ => String::new(),
@@ -140,42 +145,70 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
             sortie.push_str("</ul>");
         }
         "Point" => {
-            let mut allure = String::new();
-            if let Some(Valeur::Texte(couleur)) = bloc.argument("color").map(|a| &a.valeur) {
-                if !est_couleur(couleur) {
-                    return Err(Erreur { message: format!("« color: \"{couleur}\" » : une couleur est attendue, comme \"#E9B44C\""), pos: bloc.pos });
-                }
-                allure.push_str(&format!("--holo-color:{couleur};"));
-            }
-            match bloc.argument("brightness").map(|a| &a.valeur) {
-                Some(Valeur::Nombre { valeur, unite: None }) => allure.push_str(&format!("--holo-brightness:{valeur};")),
-                Some(Valeur::Entier(entier)) => allure.push_str(&format!("--holo-brightness:{entier};")),
-                _ => {}
-            }
-            // Sans couleur imposée, la graine décide : la même que dans la vue en profondeur.
-            if allure.is_empty() || !allure.contains("--holo-color") {
-                if let Some(Valeur::Entier(graine)) = bloc.argument("seed").map(|a| &a.valeur) {
-                    let [r, v, b] = crate::univers::Monde::depuis_graine(*graine).couleur.map(|c| (c * 255.0).round() as u8);
-                    allure.push_str(&format!("--holo-color:rgb({r},{v},{b});"));
-                }
-            }
+            let allure = allure_du_point(bloc)?;
             let etiquette = nom_de(bloc).map(|n| format!(" aria-label=\"{}\"", echapper(n))).unwrap_or_default();
             sortie.push_str(&format!("<button type=\"button\" class=\"{classes}\"{nom}{etiquette} style=\"{allure}\"></button>"));
-            // Le monde à l'intérieur : un panneau lisible, caché tant qu'on n'y est pas entré.
-            if let (Some(Valeur::Bloc(monde)), Some(nom_du_point)) = (bloc.argument("inside").map(|a| &a.valeur), nom_de(bloc)) {
-                let mut panneau = String::new();
-                let mut plus_profond = String::new();
-                enfants(monde, &mut panneau, &mut plus_profond, base)?;
-                mondes.push_str(&format!(
-                    "<section class=\"{}\" data-world=\"{}\" hidden><div class=\"holo-panneau\">{panneau}</div></section>{plus_profond}",
-                    self::classes(monde),
-                    echapper(nom_du_point)
-                ));
-            }
+            monde_interieur(bloc, mondes, base)?;
         }
         autre => return Err(Erreur { message: format!("« {autre} » ne se place pas dans « children »"), pos: bloc.pos }),
     }
     Ok(())
+}
+
+/// La couleur et la lumière d'un point, pour la page : celles que l'auteur impose, sinon
+/// celles que donne la graine, la même que dans la vue en profondeur.
+fn allure_du_point(bloc: &Bloc) -> Result<String, Erreur> {
+    let mut allure = String::new();
+    if let Some(Valeur::Texte(couleur)) = bloc.argument("color").map(|a| &a.valeur) {
+        if !est_couleur(couleur) {
+            return Err(Erreur { message: format!("« color: \"{couleur}\" » : une couleur est attendue, comme \"#E9B44C\""), pos: bloc.pos });
+        }
+        allure.push_str(&format!("--holo-color:{couleur};"));
+    } else if let Some(Valeur::Entier(graine)) = bloc.argument("seed").map(|a| &a.valeur) {
+        let [r, v, b] = crate::univers::Monde::depuis_graine(*graine).couleur.map(|c| (c * 255.0).round() as u8);
+        allure.push_str(&format!("--holo-color:rgb({r},{v},{b});"));
+    }
+    match bloc.argument("brightness").map(|a| &a.valeur) {
+        Some(Valeur::Nombre { valeur, unite: None }) => allure.push_str(&format!("--holo-brightness:{valeur};")),
+        Some(Valeur::Entier(entier)) => allure.push_str(&format!("--holo-brightness:{entier};")),
+        _ => {}
+    }
+    Ok(allure)
+}
+
+/// Le monde à l'intérieur d'un point : son contenu, caché tant qu'on n'y est pas entré.
+fn monde_interieur(point: &Bloc, mondes: &mut String, base: &str) -> Result<(), Erreur> {
+    if let (Some(Valeur::Bloc(monde)), Some(nom_du_point)) = (point.argument("inside").map(|a| &a.valeur), nom_de(point)) {
+        let mut panneau = String::new();
+        let mut plus_profond = String::new();
+        enfants(monde, &mut panneau, &mut plus_profond, base)?;
+        mondes.push_str(&format!(
+            "<section class=\"{}\" data-world=\"{}\" hidden><div class=\"holo-panneau\">{panneau}</div></section>{plus_profond}",
+            classes(monde),
+            echapper(nom_du_point)
+        ));
+    }
+    Ok(())
+}
+
+/// Un point planté dans un pixel de la page (`pixels:` d'une `Page`). Au repos il occupe un
+/// seul pixel : on ne le remarque qu'en s'approchant. La page d'entrée le place juste
+/// au-dessus du bloc nommé par `above`, à l'extrémité droite.
+fn pixel_plante(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str, page: &Bloc) -> Result<(), Erreur> {
+    let point = match valeur {
+        Valeur::Bloc(bloc) if bloc.nom == "Point" => bloc,
+        _ => return Err(Erreur { message: "« pixels » contient des blocs « Point(...) »".into(), pos: page.argument("pixels").map_or(page.pos, |a| a.pos) }),
+    };
+    let (Some(nom), Some(Valeur::Nom(repere))) = (nom_de(point), point.argument("above").map(|a| &a.valeur)) else {
+        return Err(Erreur { message: "un point planté dans un pixel a un nom et un repère : Point(name: Secret, above: Open, ...)".into(), pos: point.pos });
+    };
+    sortie.push_str(&format!(
+        "<i class=\"holo-pixel\" data-name=\"{}\" data-above=\"{}\" style=\"{}\"></i>",
+        echapper(nom),
+        echapper(repere),
+        allure_du_point(point)?
+    ));
+    monde_interieur(point, mondes, base)
 }
 
 /// Le texte d'un bloc : `P("Bonjour")`.
@@ -249,6 +282,18 @@ mod tests {
         // Le thème avant les types, les types avant les styles nommés.
         let place = |morceau: &str| html.find(morceau).unwrap();
         assert!(place(".holo-Page{") < place(".holo-H1{") && place(".holo-World{") < place(".holo-H1{") && place(".holo-P{") < place(".holo-s-card{"));
+    }
+
+    #[test]
+    fn un_site_se_plante_dans_un_pixel_de_la_page() {
+        let html = page(
+            "Page(children: [ Button(name: Open, text: \"x\") ], pixels: [ Point(name: Secret, above: Open, seed: 7, color: \"#FF4D6D\", inside: World(children: [ H1(\"Hidden\") ])) ])",
+        )
+        .unwrap();
+        assert!(html.contains("<i class=\"holo-pixel\" data-name=\"Secret\" data-above=\"Open\" style=\"--holo-color:#FF4D6D;\"></i>"), "{html}");
+        assert!(html.contains("data-world=\"Secret\" hidden><div class=\"holo-panneau\"><h1 class=\"holo-H1\">Hidden</h1>"));
+        assert!(page("Page(pixels: [ P(\"x\") ])").unwrap_err().message.contains("des blocs « Point(...) »"));
+        assert!(page("Page(pixels: [ Point(name: A, seed: 1) ])").unwrap_err().message.contains("un nom et un repère"));
     }
 
     #[test]

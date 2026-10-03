@@ -74,6 +74,13 @@ pub fn verifier_regles(programme: &Programme) -> Result<(), Erreur> {
         }
         if bloc.nom == "Point" {
             verifier_budget(bloc)?;
+            // Un point planté dans un pixel se repère par rapport à un bloc qui existe.
+            if let Some(argument) = bloc.argument("above") {
+                let connu = matches!(&argument.valeur, Valeur::Nom(repere) if noms.iter().any(|(nom, _)| nom == repere));
+                if !connu {
+                    return Err(Erreur { message: "« above » attend le nom d'un bloc de la page : above: Open".into(), pos: argument.pos });
+                }
+            }
         }
         Ok(())
     })
@@ -214,6 +221,8 @@ mod tests {
         assert!(verifier(&page("On(Nobody.tap, effect: A.enter)")).unwrap_err().message.contains("aucun bloc ne s'appelle « Nobody »"));
         assert!(verifier(&page("On(Open.tap, effect: Open.enter)")).unwrap_err().message.contains("un « Button » offre rien"));
         assert!(verifier(&page("On(Open.tap)")).unwrap_err().message.contains("l'effet manque"));
+        assert!(verifier("Page(children: [ Button(name: Open, text: \"x\") ], pixels: [ Point(name: S, seed: 1, above: Open) ])").is_ok());
+        assert!(verifier("Page(pixels: [ Point(name: S, seed: 1, above: Nobody) ])").unwrap_err().message.contains("le nom d'un bloc de la page"));
     }
 
     #[test]
