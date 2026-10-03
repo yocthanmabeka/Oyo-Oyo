@@ -65,6 +65,9 @@ Page(
       "Market day",
     ]),
 
+    // Un lien classique : on quitte la page pour une autre adresse.
+    A("The source code of this project", to: "https://github.com/yocthanmabeka/Metaverse"),
+
     H3("Today"),
     // Du texte sans rôle : une étiquette, une ligne d'état.
     Text.note("Open until 6 pm"),
@@ -125,6 +128,8 @@ H3 { font-size: 16px; font-style: italic; opacity: 0.8; }
 P { font-size: 16px; }
 
 Image { width: 100%; max-width: 480px; height: 180px; border-radius: 12px; }
+
+A { color: #8fd3ff; }
 
 .card {
   background: #1a1a2e;

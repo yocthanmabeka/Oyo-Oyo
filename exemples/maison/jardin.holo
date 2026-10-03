@@ -1,0 +1,28 @@
+// Le jardin : l'autre fichier de la maison. C'est un site clair, pour changer du salon.
+// Son point brun ramène au salon.
+
+Page(
+  name: Jardin,
+  title: "Le jardin",
+
+  children: [
+    H1("Le jardin"),
+    P("Tu es dehors. Le passage vers le salon est le point brun."),
+
+    Button(name: Rentrer, text: "Rentrer au salon"),
+
+    Point(
+      name: Salon,
+      seed: 4,
+      color: "#8B5A2B",
+      inside: "salon.holo",
+    ),
+  ],
+
+  rules: [
+    On(Rentrer.tap, effect: Salon.enter),
+  ],
+)
+
+Page { background: #eaf7e4; color: #1d3b1f; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #2e7d32; font-size: 32px; text-align: center; }

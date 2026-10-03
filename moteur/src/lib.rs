@@ -157,7 +157,7 @@ mod tests {
         let guide = include_str!("../../docs/01-holocode/GUIDE.md");
         let exemples: Vec<&str> = guide.split("```holo
 ").skip(1).map(|suite| suite.split("```").next().unwrap()).collect();
-        assert!(exemples.len() >= 9, "le guide a perdu ses exemples : {}", exemples.len());
+        assert!(exemples.len() >= 11, "le guide a perdu ses exemples : {}", exemples.len());
         for exemple in exemples {
             // Une page passe toutes les vérifications et se fabrique ; un point seul s'ouvre en profondeur.
             let resultat = if exemple.trim_start().starts_with("Point(") { verifier(exemple).map(|_| ()) } else { vue_a_plat(exemple, "").map(|_| ()) };
@@ -180,6 +180,15 @@ mod tests {
         assert!(mondes_voisins("Page(children: [ Div() ])", "", 9).is_empty());
         // Chacun est un monde que la vue en profondeur sait ouvrir.
         assert!(verifier(&format!("Point(name: World, seed: {}, fragments: 12)", voisins[0].0)).is_ok());
+    }
+
+    #[test]
+    fn la_maison_et_son_jardin_sont_deux_fichiers_valables() {
+        for fichier in [include_str!("../../exemples/maison/salon.holo"), include_str!("../../exemples/maison/jardin.holo")] {
+            vue_a_plat(fichier, "/exemples/maison/").unwrap();
+        }
+        // Le salon a une porte vers le jardin : toucher le point demande d'y entrer.
+        assert_eq!(effets(include_str!("../../exemples/maison/salon.holo"), "Jardin.tap"), ["Jardin.enter"]);
     }
 
     #[test]
