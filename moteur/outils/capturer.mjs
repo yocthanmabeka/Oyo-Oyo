@@ -55,7 +55,9 @@ try {
   // HOLO_GESTES : une liste de commandes du protocole de Chrome à jouer avant la capture, pour
   // essayer un geste (molette, clic) comme le ferait une main. Exemple dans moteur/README.md.
   for (const geste of JSON.parse(process.env.HOLO_GESTES ?? "[]")) {
-    await demander(geste.method, geste.params);
+    const reponse = await demander(geste.method, geste.params);
+    // Une valeur demandée à la page (Runtime.evaluate) est affichée : pour mesurer.
+    if (reponse.result?.result) console.log(`${geste.params.expression} → ${reponse.result.result.value}`);
     await pause(geste.attente ?? 400);
   }
   const { result } = await demander("Page.captureScreenshot", { format: "png" });

@@ -20,6 +20,10 @@ struct Etat {
     nav: Navigation,
     /// Quand elle est là, c'est elle qu'on affiche et qu'on manipule, à la place du monde.
     mosaique: Option<Mosaique>,
+    /// La vue de la mosaïque à la dernière image, et depuis combien d'images elle n'a pas
+    /// bougé : une vue immobile n'est pas redessinée.
+    derniere_vue: Option<[f64; 7]>,
+    immobiles: u8,
     rendu: Rendu,
     canvas: HtmlCanvasElement,
     pointeurs: HashMap<i32, (f32, f32)>,
@@ -99,6 +103,7 @@ fn avec_la_mosaique(f: impl FnOnce(&mut Mosaique)) {
             }
         }
     });
+    let _ = reveiller();
 }
 
 /// Affiche une mosaïque alors que le moteur tourne déjà : la page devient des points.
@@ -111,7 +116,8 @@ pub fn poser_mosaique(couleurs: Vec<u8>, largeur: u32, hauteur: u32, source: Opt
             let (vue_l, vue_h) = taille_vue(&etat.canvas);
             let mosaique = Mosaique::new(largeur, hauteur, couleurs, 1, vue_l, vue_h, reglages);
             etat.mosaique = Some(mosaique.ok_or_else(|| JsValue::from_str("image mal décrite : il faut largeur × hauteur × 4 octets"))?);
-            Ok(())
+            drop(etat);
+            reveiller()
         }
         None => Err(JsValue::from_str("le moteur n'est pas encore démarré")),
     })
@@ -125,6 +131,7 @@ pub fn retirer_mosaique() {
             etat.borrow_mut().mosaique = None;
         }
     });
+    let _ = reveiller();
 }
 
 /// Choisit ce que fait un glissement sur la mosaïque : tourner la page, ou la déplacer.
@@ -156,6 +163,8 @@ async fn lancer(canvas: HtmlCanvasElement, nav: Navigation, mosaique: Option<Mos
     let etat = Rc::new(RefCell::new(Etat {
         nav,
         mosaique,
+        derniere_vue: None,
+        immobiles: 0,
         rendu,
         canvas: canvas.clone(),
         pointeurs: HashMap::new(),
@@ -192,7 +201,7 @@ pub fn changer_de_monde(source: &str, zoom_initial: f32) -> Result<(), JsValue> 
     ETAT.with(|e| match e.borrow().as_ref() {
         Some(etat) => {
             etat.borrow_mut().nav = navigation(decl, zoom_initial);
-            Ok(())
+            reveiller()
         }
         None => Err(JsValue::from_str("le moteur n'est pas encore démarré")),
     })
@@ -360,6 +369,18 @@ fn brancher(canvas: &HtmlCanvasElement, etat: &Rc<RefCell<Etat>>) -> Result<(), 
     options.set_passive(false);
     canvas.add_event_listener_with_callback_and_add_event_listener_options("wheel", molette.as_ref().unchecked_ref(), &options)?;
     molette.forget();
+
+    // Tout geste sur la zone de dessin relance la boucle si elle s'était arrêtée.
+    for nom in ["pointerdown", "pointermove", "pointerup", "wheel"] {
+        let reveil = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |ev: web_sys::MouseEvent| {
+            // Une souris qui passe sans bouton enfoncé ne change rien à la vue.
+            if nom != "pointermove" || ev.buttons() != 0 {
+                let _ = reveiller();
+            }
+        });
+        canvas.add_event_listener_with_callback(nom, reveil.as_ref().unchecked_ref())?;
+        reveil.forget();
+    }
     Ok(())
 }
 
@@ -367,6 +388,10 @@ thread_local! {
     /// La boucle d'affichage, gardée ici pour pouvoir la relancer après une pause.
     static BOUCLE: RefCell<Option<Closure<dyn FnMut(f64)>>> = const { RefCell::new(None) };
     static EN_PAUSE: Cell<bool> = const { Cell::new(false) };
+    /// Vrai quand la boucle s'est arrêtée d'elle-même parce que rien ne bougeait.
+    static AU_REPOS: Cell<bool> = const { Cell::new(false) };
+    /// Combien d'images ont été dessinées depuis le démarrage : sert à vérifier la sobriété.
+    static IMAGES: Cell<u32> = const { Cell::new(0) };
     static ETAT: RefCell<Option<Rc<RefCell<Etat>>>> = const { RefCell::new(None) };
 }
 
@@ -376,6 +401,7 @@ thread_local! {
 pub fn pause(active: bool) -> Result<(), JsValue> {
     let avant = EN_PAUSE.with(|p| p.replace(active));
     if avant && !active {
+        AU_REPOS.with(|r| r.set(false));
         // À la reprise, on repart du temps présent : pas de saut d'animation.
         ETAT.with(|e| {
             if let Some(etat) = e.borrow().as_ref() {
@@ -399,9 +425,18 @@ fn boucle(etat: Rc<RefCell<Etat>>) -> Result<(), JsValue> {
         if EN_PAUSE.with(|p| p.get()) {
             return;
         }
-        if let Err(e) = image(&etat, t) {
-            web_sys::console::error_1(&e);
-            return;
+        match image(&etat, t) {
+            Err(e) => {
+                web_sys::console::error_1(&e);
+                return;
+            }
+            // Rien n'a bougé : la boucle s'arrête, jusqu'au prochain geste. Plus rien n'est
+            // calculé ni dessiné, la machine se repose.
+            Ok(false) => {
+                AU_REPOS.with(|r| r.set(true));
+                return;
+            }
+            Ok(true) => {}
         }
         let suite = BOUCLE.with(|b| match b.borrow().as_ref() {
             Some(c) => demander_image(c),
@@ -418,21 +453,57 @@ fn boucle(etat: Rc<RefCell<Etat>>) -> Result<(), JsValue> {
     })
 }
 
+/// Relance la boucle d'affichage si elle s'était arrêtée faute de mouvement.
+#[wasm_bindgen]
+pub fn reveiller() -> Result<(), JsValue> {
+    if AU_REPOS.with(|r| r.replace(false)) && !EN_PAUSE.with(|p| p.get()) {
+        BOUCLE.with(|b| match b.borrow().as_ref() {
+            Some(c) => demander_image(c),
+            None => Ok(()),
+        })?;
+    }
+    Ok(())
+}
+
+/// Combien d'images le moteur a dessinées depuis son démarrage.
+#[wasm_bindgen]
+pub fn images_dessinees() -> u32 {
+    IMAGES.with(|i| i.get())
+}
+
 fn demander_image(c: &Closure<dyn FnMut(f64)>) -> Result<(), JsValue> {
     web_sys::window().ok_or("pas de fenêtre")?.request_animation_frame(c.as_ref().unchecked_ref())?;
     Ok(())
 }
 
-fn image(etat: &Rc<RefCell<Etat>>, t: f64) -> Result<(), JsValue> {
+/// Dessine une image. Rend faux quand il n'y a plus rien à redessiner.
+fn image(etat: &Rc<RefCell<Etat>>, t: f64) -> Result<bool, JsValue> {
     let mut e = etat.borrow_mut();
     let dt = if e.dernier_t > 0.0 { ((t - e.dernier_t) / 1000.0).min(0.1) as f32 } else { 0.0 };
     let duree_image = if e.dernier_t > 0.0 { t - e.dernier_t } else { 0.0 };
     e.dernier_t = t;
 
-    if ajuster_taille(&e.canvas) {
+    let redimensionnee = ajuster_taille(&e.canvas);
+    if redimensionnee {
         let (l, h) = (e.canvas.width(), e.canvas.height());
         e.rendu.redimensionner(l, h);
     }
+    // Une mosaïque ne bouge que si on la touche : immobile depuis quelques images, on ne la
+    // redessine plus. (Un monde, lui, vit : ses points pulsent.)
+    let vue = e.mosaique.as_ref().map(|m| {
+        let (vue_l, vue_h) = taille_vue(&e.canvas);
+        [m.cx, m.cy, m.echelle, m.lacet, m.tangage, vue_l, vue_h]
+    });
+    if vue.is_some() && vue == e.derniere_vue && !redimensionnee {
+        e.immobiles = e.immobiles.saturating_add(1);
+        if e.immobiles > 3 {
+            return Ok(false);
+        }
+    } else {
+        e.immobiles = 0;
+    }
+    e.derniere_vue = vue;
+    IMAGES.with(|i| i.set(i.get().wrapping_add(1)));
     e.nav.avancer_temps(dt);
     let aspect = e.rendu.aspect();
     let sprites = match &e.mosaique {
@@ -457,7 +528,7 @@ fn image(etat: &Rc<RefCell<Etat>>, t: f64) -> Result<(), JsValue> {
         e.pire_ms = 0.0;
         e.dernier_rapport = t;
     }
-    Ok(())
+    Ok(true)
 }
 
 /// Écrit les mesures dans `window.__holo`, que la page affiche et copie.
