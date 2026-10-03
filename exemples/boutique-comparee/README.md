@@ -4,7 +4,7 @@ Demandé par Yocthan le 2026-10-03 : un même exemple écrit en HoloCode et dans
 
 | | Fichiers | Lignes utiles (sans les lignes vides ni les commentaires) |
 |---|---|---|
-| HoloCode | [`boutique.holo`](boutique.holo) | 79 |
+| HoloCode | [`boutique.holo`](boutique.holo) | 77 |
 | Web | [`web/index.html`](web/index.html), [`web/style.css`](web/style.css), [`web/script.js`](web/script.js) | 178 (36 + 61 + 81) |
 
 Les deux décrivent la même chose : une page de boutique (titres, paragraphes, image, liste, bouton), un point lumineux, et le monde dans lequel on entre par ce point, avec ses six points nés du morcellement.
