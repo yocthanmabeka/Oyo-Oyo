@@ -44,5 +44,4 @@ Le responsable du projet est **Yocthan Mabeka**. Une IA peut proposer, tester, c
 - Choisir le langage d'implémentation du prototype : traité par `ADR-010` pour le moteur (Rust).
 - Définir comment chaque bloc se présente dans la vue en profondeur (`ADR-007`).
 - Faire converger la syntaxe `.holo` des prototypes des PR n° 1 et n° 2 avec le format en blocs (`ADR-009`).
-- Choisir le nom du bloc `Point` : `Point`, `Sphere` ou `Orb` (`ADR-016`).
 - Décider où se rangent les styles : dans la page, dans un fichier importé, ou à la manière du CSS (`ADR-017`).

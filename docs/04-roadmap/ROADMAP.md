@@ -14,6 +14,9 @@
 
 ## Ensuite, dans l'ordre proposé
 
+La liste des manques dressée par Codex le 2026-10-03 (`proposals/GPT5.6/outillage-et-coordination-2026-10/MANQUES.md`) complète cet ordre : une commande `holo check` qui fasse autorité, un test visuel reproductible du Big Bang, des plafonds de mémoire par sous-système, un corpus de fichiers hostiles, une extension VS Code minimale.
+
+
 - [ ] La vue à plat (`ADR-007`, `ADR-011`) : `Page`, `Texte`, `Bouton`, `Image` ; la même source dans les deux vues.
 - [ ] Les lois, phénomènes et capacités dans le moteur, en reprenant la sémantique de `proposals/Claude/` dans le format en blocs.
 - [ ] Faire passer au moteur la [suite de conformité](../../experiments/conformite-v0.1/README.md), et l'étendre.

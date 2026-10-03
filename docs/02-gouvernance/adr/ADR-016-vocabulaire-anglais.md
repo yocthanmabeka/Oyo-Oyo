@@ -1,10 +1,10 @@
 # ADR-016 — Le vocabulaire du langage est en anglais, et un mot connu garde son sens
 
 - Statut : ACCEPTÉ
-- Date : 2026-10-04
+- Date : 2026-10-03
 - Responsable : Yocthan Mabeka
-- Discussions sources : HC-013, revue Codex du 2026-10-03 (`proposals/GPT5.6/revue-2026-10-03/`), journal du 2026-10-04
-- Validation : décidé par Yocthan le 2026-10-04, en discussion avec Claude.
+- Discussions sources : HC-013, revue Codex du 2026-10-03 (`proposals/GPT5.6/revue-2026-10-03/`), journal du 2026-10-03
+- Validation : décidé par Yocthan le 2026-10-03, en discussion avec Claude.
 - Projets affectés : HoloCode, HoloCompiler, suite de conformité
 
 ## Contexte
@@ -33,9 +33,22 @@ Les premiers fichiers `.holo` mélangeaient le français et l'anglais (`Page`, `
 
 Le moteur refuse les anciens mots français et indique le mot à écrire : « le paramètre « graine » s'écrit « seed » ».
 
-## Question laissée ouverte
+## Le nom du bloc `Point` : il reste, et voici ce qu'il veut dire
 
-Le nom du bloc `Point`. Pour un programmeur, `Point` est d'abord une coordonnée `Point(x, y)`, ce qui contredit la règle 2. Candidats : garder `Point` (le mot de la vision, « un point lumineux »), `Sphere`, ou `Orb`. Yocthan n'a pas tranché ; `Point` reste en attendant.
+Question soulevée par Claude : pour un programmeur, `Point` est d'abord une coordonnée `Point(x, y)`. Candidats examinés : `Point`, `Sphere`, `Orb`, puis `Pixel`.
+
+Yocthan a expliqué d'où vient le mot : **sa réflexion part du pixel.** Sur un écran, une image est faite de pixels ; dans l'Holoverse, un monde est fait de points. Un point est la plus petite chose que l'on voit, et quand on zoome dessus, il se divise en mondes. Prendre une image ou une vidéo, en découper un petit carré : c'est cela, un point. Il a laissé Claude trancher selon ce que le mot désigne en 3D.
+
+**Décision : le bloc s'appelle `Point`.**
+
+- `Pixel` désigne déjà l'élément d'un écran, et `px` est l'unité des tailles dans les styles : dans un langage qui met aussi des pages en forme, le mot créerait une vraie confusion.
+- `Voxel` est le mot de la 3D pour « pixel en volume », mais il désigne un cube dans une grille régulière, ce que le bloc n'est pas.
+- `Sphere` ne décrit qu'une forme ; `Orb` est peu connu.
+- Dans Blender et les logiciels 3D, un point est une position sans épaisseur (un sommet, un élément de nuage de points) : c'est le sens le plus proche de l'idée, une chose minuscule qui grandit quand on s'en approche.
+
+Définition retenue : **un `Point` est le pixel de l'Holoverse : la plus petite unité visible, qui révèle un monde quand on zoome dessus.**
+
+Conséquence technique à instruire : la « limite de perception » peut se mesurer en pixels d'écran. Un point ne développe son monde que lorsqu'il occupe assez de pixels pour qu'on y voie quelque chose ; en dessous, il reste un point de lumière. Aujourd'hui le moteur utilise des seuils de zoom fixes ; les remplacer par une taille à l'écran est proposé pour un prochain sprint.
 
 ## Alternatives étudiées
 

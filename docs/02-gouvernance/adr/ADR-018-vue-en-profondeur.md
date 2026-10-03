@@ -1,10 +1,10 @@
 # ADR-018 — En profondeur, seuls les points ont de la profondeur ; le reste se lit sur un panneau
 
 - Statut : ACCEPTÉ
-- Date : 2026-10-04
+- Date : 2026-10-03
 - Responsable : Yocthan Mabeka
-- Discussions sources : HC-013, revue Codex du 2026-10-03 (`proposals/GPT5.6/revue-2026-10-03/`), journal du 2026-10-04
-- Validation : décidé par Yocthan le 2026-10-04, en discussion avec Claude.
+- Discussions sources : HC-013, revue Codex du 2026-10-03 (`proposals/GPT5.6/revue-2026-10-03/`), journal du 2026-10-03
+- Validation : décidé par Yocthan le 2026-10-03, en discussion avec Claude.
 - Projets affectés : HoloEngine, HoloCompiler
 
 ## Contexte
