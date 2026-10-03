@@ -138,7 +138,7 @@
         await appliquer(effet);
       }
     });
-    boutonMode.hidden = false;
+    boutonMode.hidden = params.has("nu"); // ?nu : sans le bouton, pour en tirer une image
     boutonMode.addEventListener("click", () => changerDeVue(!personnage));
     // Pour les captures d'écran : ?vue=personnage, ?entrer=Workshop
     if (params.get("vue") === "personnage") await changerDeVue(true);

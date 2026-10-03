@@ -1,0 +1,46 @@
+{
+  "name": "HoloCode",
+  "scopeName": "source.holo",
+  "patterns": [
+    { "name": "comment.line.double-slash.holo", "match": "//.*$" },
+    { "name": "string.quoted.triple.holo", "begin": "\"\"\"", "end": "\"\"\"", "patterns": [{ "include": "#markdown" }] },
+    { "name": "string.quoted.double.holo", "begin": "\"", "end": "\"|$", "patterns": [{ "include": "#markdown" }] },
+    { "name": "keyword.control.import.holo", "match": "^\\s*(import|module|bridge\\s+(js|css))\\b" },
+    {
+      "comment": "Un bloc, avec son style nommé : P.card(",
+      "match": "\\b([A-Z][A-Za-z0-9]*)(\\.[A-Za-z_][A-Za-z0-9_]*)?(?=\\s*\\()",
+      "captures": { "1": { "name": "entity.name.type.class.holo" }, "2": { "name": "entity.other.attribute-name.class.holo" } }
+    },
+    {
+      "comment": "Un style qui vise un type de bloc : P {",
+      "match": "^\\s*([A-Z][A-Za-z0-9]*)(?=\\s*\\{)",
+      "captures": { "1": { "name": "entity.name.tag.holo" } }
+    },
+    {
+      "comment": "Un style qui vise un nom : .card {",
+      "match": "^\\s*(\\.[A-Za-z_][A-Za-z0-9_]*)(?=\\s*\\{)",
+      "captures": { "1": { "name": "entity.other.attribute-name.class.holo" } }
+    },
+    {
+      "comment": "Un signal ou une capacité : Open.tap, Workshop.enter",
+      "match": "\\b([A-Z][A-Za-z0-9_]*)\\.(tap|enter|leave)\\b",
+      "captures": { "1": { "name": "variable.other.constant.holo" }, "2": { "name": "support.function.holo" } }
+    },
+    { "comment": "Un paramètre ou un réglage : name:, font-size:", "name": "variable.parameter.holo", "match": "\\b[a-z_][a-z0-9_-]*(?=\\s*:)" },
+    { "name": "constant.other.color.holo", "match": "#[0-9A-Fa-f]{3,8}\\b" },
+    {
+      "match": "(?<![A-Za-z_#])(-?[0-9]+(?:\\.[0-9]+)?)(mm|cm|m|km|ms|s|min|h|B|KB|MB|GB|px|%)?",
+      "captures": { "1": { "name": "constant.numeric.holo" }, "2": { "name": "keyword.other.unit.holo" } }
+    },
+    { "name": "constant.language.holo", "match": "\\b(true|false|auto)\\b" },
+    { "comment": "Un nom donné par l'auteur : name: Workshop", "name": "variable.other.constant.holo", "match": "\\b[A-Z][A-Za-z0-9_]*\\b" }
+  ],
+  "repository": {
+    "markdown": {
+      "patterns": [
+        { "name": "markup.bold.holo", "match": "\\*\\*[^*\"]+\\*\\*" },
+        { "name": "markup.italic.holo", "match": "\\*[^*\"]+\\*" }
+      ]
+    }
+  }
+}

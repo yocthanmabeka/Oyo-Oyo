@@ -1,0 +1,62 @@
+<!doctype html>
+<!-- Essai : une image vue comme un ensemble de points, un point par pixel.
+     Au repos on voit l'image ordinaire. En zoomant, les pixels grossissent, deviennent des
+     points lumineux bien rangés, puis chaque point se morcelle en une grille de points.
+     L'image est fixe pour ce premier essai : Chrome ne donne pas au moteur les pixels d'une
+     page vivante. ?image=… pour essayer une autre image. -->
+<html lang="fr"><head><meta charset="utf-8"><title>Mosaïque : un point par pixel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden}
+  canvas{position:fixed;inset:0;width:100vw;height:100vh;display:block;touch-action:none}
+  #image{position:fixed;left:0;top:0;transform-origin:0 0;image-rendering:pixelated;pointer-events:none;will-change:transform,opacity}
+  #etat{position:fixed;left:8px;bottom:8px;padding:4px 8px;border-radius:6px;background:rgba(0,0,0,.6);color:#bbb;
+    font:12px system-ui,sans-serif;pointer-events:none}
+  #erreur{position:fixed;left:8px;top:8px;right:8px;color:#f88;font:13px monospace;white-space:pre-wrap}
+</style>
+</head><body><canvas id="monde"></canvas><img id="image" alt=""><div id="etat"></div>
+<script type="module">
+  import init, { demarrer_mosaique, mosaique_camera } from "/pkg/holo_moteur.js";
+  const params = new URLSearchParams(location.search);
+  const image = document.getElementById("image");
+  const etat = document.getElementById("etat");
+  const nombre = new Intl.NumberFormat("fr-FR");
+
+  function suivre() {
+    const camera = mosaique_camera();
+    if (camera.length) {
+      const [cx, cy, echelle, opacite, niveau, points] = camera;
+      // L'image ordinaire suit la même vue, et s'efface quand les points prennent le relais.
+      image.style.transform = `translate(${innerWidth / 2 - cx * echelle}px,${innerHeight / 2 - cy * echelle}px) scale(${echelle})`;
+      image.style.opacity = 1 - opacite;
+      etat.textContent = opacite === 0
+        ? `${nombre.format(image.naturalWidth * image.naturalHeight)} points, un par pixel — zoomez`
+        : `${nombre.format(points)} points à l'écran · morcelés ${niveau} fois`;
+    }
+    requestAnimationFrame(suivre);
+  }
+
+  try {
+    await init();
+    image.src = params.get("image") ?? "/mosaique/boutique.png";
+    await image.decode();
+    const toile = new OffscreenCanvas(image.naturalWidth, image.naturalHeight);
+    const dessin = toile.getContext("2d");
+    dessin.drawImage(image, 0, 0);
+    const pixels = dessin.getImageData(0, 0, toile.width, toile.height);
+    await demarrer_mosaique(document.getElementById("monde"), new Uint8Array(pixels.data.buffer), toile.width, toile.height);
+    // ?zoom=…&x=…&y=… : pour les captures d'écran, comme le ferait la molette à cet endroit.
+    if (params.get("zoom")) {
+      document.querySelector("canvas").dispatchEvent(new WheelEvent("wheel", {
+        deltaY: -Math.log2(Number(params.get("zoom"))) / 0.003,
+        clientX: Number(params.get("x") ?? innerWidth / 2), clientY: Number(params.get("y") ?? innerHeight / 2), cancelable: true,
+      }));
+    }
+    requestAnimationFrame(suivre);
+  } catch (e) {
+    const pre = document.body.appendChild(document.createElement("pre"));
+    pre.id = "erreur";
+    pre.textContent = "La mosaïque n'a pas pu démarrer : " + (e?.message ?? e);
+  }
+</script>
+</body></html>

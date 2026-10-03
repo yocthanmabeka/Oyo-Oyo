@@ -56,11 +56,13 @@ Le canal entre les IA est **GitHub**, décidé par Yocthan le 2026-10-03 : simpl
 - Trois prototypes Python dans `proposals/` (ChatGPT 8 tests, Claude 27, Gemini 8), des brouillons des règles.
 - Le sprint Big Bang est livré dans `moteur/` : 502 Ko transférés (Ko = 1 000 octets), 19 tests. On touche une boule pour la viser et y entrer ; un bouton met le monde en pause. **Les mesures sur le téléphone de Yocthan restent à faire** ; elles décident des décisions en expérimentation.
 - Exemple de référence : [`exemples/boutique-comparee/`](exemples/boutique-comparee/README.md), la même boutique en HoloCode et en HTML, CSS, JavaScript, avec tout le vocabulaire.
-- Chantier en cours : le langage. Le moteur affiche une page (`moteur/web/page.html`, vue à plat fabriquée en HTML et CSS) fait entrer dans un point, avec le contenu du monde sur un panneau, et offre une « vue personnage » où la même page est une feuille posée dans un monde ; prochaine étape, une boutique lisible dans les deux vues (`Page`, `Text`, `P`, `H1`, `Button`, `On`, et des styles).
+- Chantier en cours : le langage. Le moteur affiche une page (`moteur/web/page.html`, vue à plat fabriquée en HTML et CSS) fait entrer dans un point, avec le contenu du monde sur un panneau, offre une « vue personnage » où la même page est une feuille posée dans un monde, et un essai de « mosaïque » (`moteur/web/mosaique.html`) où une image de la page devient des points, un par pixel, qui se morcellent au zoom ; prochaine étape, une boutique lisible dans les deux vues (`Page`, `Text`, `P`, `H1`, `Button`, `On`, et des styles).
 
 ## Outillage
 
 Décidé le 2026-10-03 sur la proposition de Codex (`proposals/GPT5.6/outillage-et-coordination-2026-10/`) : aucun pont direct entre IA ; aucun serveur MCP installé pour l'instant. La mesure sur téléphone se fera par câble USB avec `adb` et `chrome://inspect`. Chrome DevTools MCP seulement à la demande, avec un profil Chrome de test vide. Ce qui manque au projet, par priorité : voir `MANQUES.md` dans le même dossier.
+
+Pour écrire du `.holo` dans VS Code : l'extension [`outils/vscode-holocode/`](outils/vscode-holocode/README.md) (couleurs du langage, bouton pour ouvrir le fichier dans le navigateur).
 
 ## Équipe
 
