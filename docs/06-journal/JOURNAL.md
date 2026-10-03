@@ -6,6 +6,49 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-03 — Le carrefour à portails, le zoom ordinaire avant les points, la limite des niveaux
+
+**Retour de Yocthan sur la boucle**
+
+- Le bref noir à l'ouverture d'un site dérange. Son idée : à la place, des points gros et proches, prêts à être cliqués, « comme les portails de Strange dans Avengers Endgame » : des mondes déjà là, sur toute la page, qui incitent à changer de monde. C'est ce qu'il appelait la « roadmap métaverse ».
+- Pas de fond noir quand le site est clair : il faut suivre le style du site.
+- Les points autour de la feuille ne doivent pas être seulement calculés par la graine.
+- Mettre une limite au nombre de niveaux.
+- Un visiteur est habitué à zoomer pour lire, à sélectionner, à copier. Le zoom doit d'abord rester normal ; la « métaversification » ne commence qu'à partir d'une certaine profondeur.
+- Question : une photo, une vidéo se décomposent-elles de la même façon ?
+
+**Fait**
+
+- **Le carrefour.** Entrer dans un point qui contient un site n'ouvre plus une feuille dans un monde noir, mais des portails ronds posés sur le fond du site où l'on est. Chaque portail montre le site où il mène, en petit. Autour du portail visé : les autres sites contenus dans la page, le site où l'on est, celui d'où l'on vient. Ce sont de vrais sites, écrits dans le fichier, pas des points tirés d'une graine. Un bouton « Carrefour » l'ouvre à tout moment.
+- **Plus de noir.** Un clic sur un portail le fait grandir jusqu'à remplir la fenêtre, et il devient le site, sans recharger la page. Le fond de la fenêtre prend la couleur du site.
+- **Le zoom ordinaire d'abord.** Ctrl + molette grossit d'abord la page vivante, jusqu'à `Points(after: 4)` : le texte reste du texte. Au-delà, ses pixels deviennent des points. En revenant, on retrouve la page grossie, puis sa taille normale. Pendant le zoom ordinaire, le moteur ne dessine rien.
+- **La limite.** `Zoom(levels: 8)` : un fichier qui emboîte plus de sites est refusé, avec la ligne du point de trop.
+- Vérifié avec de vrais gestes envoyés à Chrome : un cran de zoom, page vivante grossie 1,9 fois, zéro image dessinée ; trois crans, passage aux points ; retour à la taille normale en dézoomant. Zoom sur le pixel rose, clic : le carrefour s'ouvre sur « Secret » ; clic sur le portail : adresse `#Secret`, sans rechargement.
+- Guide et `ADR-021` mis à jour. Tests du cœur : 60 sur 60.
+
+![Le carrefour : trois portails vers trois sites](images/2026-10-03-pixel-2-dedans.png)
+
+**Réponse donnée sur la photo et la vidéo**
+
+- Une photo dans la page se décompose déjà comme le reste : ses pixels font partie de l'image de la page. Une vidéo, pas encore : il faudrait redécomposer chaque image, vingt-cinq fois par seconde. C'est faisable pour la partie visible à l'écran, mais c'est un chantier à mesurer.
+
+**Retiré**
+
+- La « vue personnage » (la page en feuille dans un monde noir) et la feuille d'un site dans le monde de son point : le carrefour les remplace. Yocthan avait précisé que la vue personnage vaut pour un jeu, où le monde est l'environnement du joueur.
+
+**Erreurs en route**
+
+- Le zoom ordinaire, fait d'abord avec la propriété `zoom` du CSS, déplaçait la mise en page : ce qui était sous la souris n'y restait pas. Refait avec un vrai agrandissement.
+- À la fusion de la pull request n° 33, une coupure de réseau a masqué le résultat des vérifications ; la fusion est partie quand même. Contrôlé juste après : tout était vert. À l'avenir, vérifier avant, dans une commande séparée.
+
+**Limites**
+
+- En vue points sur un site clair, les points sont lumineux sur fond noir : le blanc de la page devient des points blancs.
+- Les portails ne montrent que les sites à un pas de distance ; il n'y a pas encore de carte d'ensemble.
+- La première entrée en vue points prend un instant (la page est redessinée dans une image).
+
+---
+
 ## 2026-10-03 — La boucle : un site dans un pixel, dans un site, dans un pixel…
 
 **Retour de Yocthan sur le site planté dans un pixel**

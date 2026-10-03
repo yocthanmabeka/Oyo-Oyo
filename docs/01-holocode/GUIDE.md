@@ -229,16 +229,17 @@ Page(
 - `above: Open` place le point juste au-dessus du bloc nommé `Open`, à l'extrémité droite de la page. C'est, pour l'instant, la seule façon de dire où il est.
 - `color` lui donne une couleur qui le distingue de la page.
 - `World.secret(...)` donne au site du dedans son propre style.
-- Le site contenu dans un point se voit d'abord comme une feuille posée dans le monde de ce point, entourée des autres points de ce monde.
-- Un deuxième clic sur la feuille (ou un zoom) l'ouvre en grand : c'est alors un site comme un autre, avec ses propres pixels où l'on peut zoomer. Le `World` d'un point accepte lui aussi `pixels:`, donc un site peut en contenir un autre, qui en contient un autre, sans fin.
+- Entrer dans un point qui contient un site ouvre le **carrefour** : des portails ronds, chacun montrant le site où il mène. Celui vers lequel on va est au milieu, en grand ; autour, les autres sites contenus dans la page, le site où l'on est, et celui d'où l'on vient. Le bouton « Carrefour », en haut à droite, l'ouvre à tout moment.
+- Un clic sur un portail l'ouvre : il grandit jusqu'à remplir la fenêtre et devient le site, sans recharger la page. C'est alors un site comme un autre, avec ses propres pixels où l'on peut zoomer. Le `World` d'un point accepte lui aussi `pixels:`, donc un site peut en contenir un autre, qui en contient un autre, sans fin.
 - Chaque site a son adresse : celle du fichier, puis `#` et le chemin des points traversés, comme `mon-site.holo#Secret/Tresor`. Le bouton « retour » du navigateur remonte d'un site.
-- `On(Out.tap, effect: Secret.leave)` fait ressortir du site `Secret`, qu'il soit en feuille ou ouvert en grand.
+- `On(Out.tap, effect: Secret.leave)` fait ressortir du site `Secret`.
+- `Zoom(levels: 8)` limite le nombre de sites emboîtés : au-delà, le fichier est refusé.
 
 Cette écriture est provisoire : elle sert à voir l'effet, et sera revue.
 
 ## 7. Comment la page se regarde : `Zoom`, `Points`, `Relief`
 
-Quand le visiteur zoome sur la page (Ctrl + molette, ou pincer), chaque pixel devient un point lumineux, qui se morcelle ensuite. Quand il tourne la page, elle prend du relief. Ces trois blocs règlent cela. Ils sont facultatifs : sans eux, la page prend les valeurs ci-dessous.
+Quand le visiteur zoome sur la page (Ctrl + molette, ou pincer), elle grossit d'abord comme n'importe quel site : le texte reste du texte, on le lit, on le sélectionne, on le copie. Au-delà du grossissement fixé par `Points(after:)`, chaque pixel devient un point lumineux, qui se morcelle ensuite. Quand il tourne la page, elle prend du relief. Ces trois blocs règlent cela. Ils sont facultatifs : sans eux, la page prend les valeurs ci-dessous.
 
 ```holo
 Page(
@@ -247,9 +248,11 @@ Page(
   zoom: Zoom(
     max: 1000000,
     shrink: false,
+    levels: 8,
   ),
 
   points: Points(
+    after: 4,
     size: 6px,
     fragment: 40px,
     grid: 4,
@@ -272,6 +275,8 @@ Page(
 |---|---|---|
 | `Zoom(max:)` | Combien de fois on peut grossir la page, au plus. | 1 à 1 000 000 000 000 |
 | `Zoom(shrink:)` | `true` : dézoomer réduit la page jusqu'à un seul point. `false` : la page reste entière. | `true`, `false` |
+| `Zoom(levels:)` | Combien de sites peuvent s'emboîter, au plus. | 1 à 16 |
+| `Points(after:)` | Jusqu'à ce grossissement, la page reste un site ordinaire. | 1 à 16 |
 | `Points(size:)` | La taille où un pixel devient un point. | 2px à 32px |
 | `Points(fragment:)` | La taille où un point se morcelle. | 8px à 400px, au moins `size` × `grid` |
 | `Points(grid:)` | Un point se morcelle en `grid` × `grid`. | 2 à 8 |
