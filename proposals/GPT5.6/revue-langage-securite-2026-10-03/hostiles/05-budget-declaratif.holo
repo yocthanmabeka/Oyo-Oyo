@@ -1,0 +1,13 @@
+Page(
+  title: "Declared weight is trusted",
+  children: [
+    Point(
+      name: TinyBudget,
+      seed: 5,
+      budget: 1B,
+      inside: World(children: [
+        Image(source: "actually-huge.png", weight: 1B),
+      ]),
+    ),
+  ],
+)
