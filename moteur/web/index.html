@@ -6,13 +6,14 @@
 <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}canvas{display:block;width:100vw;height:100vh;touch-action:none}</style>
 </head><body><canvas id="monde"></canvas>
 <script type="module">
-  import init, { demarrer, pause } from "./pkg/holo_moteur.js";
+  import init, { demarrer, pause } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
   const params = new URLSearchParams(location.search);
-  const monde = params.get("monde") ?? "big-bang";
+  // L'adresse est celle du fichier .holo lui-même ; sinon ?monde=… ou le Big Bang.
+  const fichier = location.pathname.endsWith(".holo") ? location.pathname : `/mondes/${params.get("monde") ?? "big-bang"}.holo`;
   try {
     await init();
-    await demarrer(document.getElementById("monde"), await (await fetch(`/mondes/${monde}.holo`)).text(), Number(params.get("zoom") ?? 0));
+    await demarrer(document.getElementById("monde"), await (await fetch(fichier, { headers: { accept: "text/plain" } })).text(), Number(params.get("zoom") ?? 0));
   } catch (e) {
     const pre = document.body.appendChild(document.createElement("pre"));
     pre.id = "erreur";
@@ -20,5 +21,5 @@
     pre.textContent = "Le moteur n'a pas pu démarrer : " + (e?.message ?? e);
   }
 </script>
-<script type="module" src="./mesures.js"></script>
+<script type="module" src="/mesures.js"></script>
 </body></html>

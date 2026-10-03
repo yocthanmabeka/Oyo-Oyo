@@ -22,7 +22,7 @@
   .mode-personnage{height:100vh;overflow:hidden}
   .mode-personnage>main{position:fixed;left:50%;top:50%;width:420px;height:640px;box-sizing:border-box;overflow:auto;
     background:inherit;padding:inherit;border-radius:16px;box-shadow:0 0 40px rgba(233,180,76,.25);
-    transform-origin:center;backface-visibility:hidden;will-change:transform}
+    transform:translate(-50%,-50%);transform-origin:center;backface-visibility:hidden;will-change:transform}
   #mode{position:fixed;top:8px;right:8px;z-index:5;padding:8px 12px;border:1px solid #888;border-radius:8px;
     background:rgba(0,0,0,.6);color:#fff;font:14px system-ui,sans-serif;cursor:pointer}
   #mode[hidden]{display:none}
@@ -31,10 +31,11 @@
 </head><body><div id="page"></div>
 <button id="mode" type="button" hidden>Vue personnage</button>
 <script type="module">
-  import init, { demarrer, changer_de_monde, pause, surface, vue_a_plat, effets, source_du_point, monde_d_accueil } from "./pkg/holo_moteur.js";
+  import init, { demarrer, changer_de_monde, pause, surface, vue_a_plat, effets, source_du_point, monde_d_accueil } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
   const params = new URLSearchParams(location.search);
-  const chemin = params.get("monde") ?? "/exemples/boutique-comparee/boutique.holo";
+  // L'adresse est celle du fichier .holo lui-même ; sinon ?monde=… ou la boutique d'exemple.
+  const chemin = location.pathname.endsWith(".holo") ? location.pathname : params.get("monde") ?? "/exemples/boutique-comparee/boutique.holo";
   const base = chemin.slice(0, chemin.lastIndexOf("/") + 1);
   const racine = document.getElementById("page");
   const boutonMode = document.getElementById("mode");
@@ -125,7 +126,7 @@
 
   try {
     await init();
-    source = await (await fetch(chemin)).text();
+    source = await (await fetch(chemin, { headers: { accept: "text/plain" } })).text();
     racine.innerHTML = vue_a_plat(source, base);
     cadre = racine.querySelector(".holo-Page");
     page = cadre.querySelector("main");

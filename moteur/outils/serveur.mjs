@@ -4,6 +4,10 @@
 //
 // Sert web/ à la racine, mondes/ sous /mondes/ et les exemples du dépôt sous /exemples/. Compresse en Brotli ce que le navigateur
 // accepte, pour que le poids transféré mesuré par la page soit celui d'un vrai hébergement.
+//
+// Un fichier .holo s'ouvre directement : quand le navigateur demande son adresse pour l'afficher,
+// le serveur répond par la porte d'entrée du moteur, qui va ensuite chercher le fichier lui-même.
+// C'est le rôle que tiendra plus tard un navigateur qui sait lire le .holo.
 
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
@@ -46,8 +50,16 @@ createServer(async (req, res) => {
       ? join(exemples, normalize(url.slice("/exemples/".length)))
       : url.startsWith("/mondes/") ? join(racine, normalize(url)) : join(racine, "web", normalize(url));
     if (!chemin.startsWith(dansExemples ? exemples : racine)) throw Object.assign(new Error("hors racine"), { code: "ENOENT" });
-    const { brut, br } = await fichier(chemin);
-    const type = types[extname(chemin)] ?? "application/octet-stream";
+    // Un .holo demandé pour être affiché (et non lu par le moteur) : on sert la porte d'entrée,
+    // celle des pages ou celle des points selon le premier bloc du fichier.
+    const pourAffichage = extname(chemin) === ".holo" && /text\/html/.test(req.headers.accept ?? "");
+    let aServir = chemin;
+    if (pourAffichage) {
+      const source = (await readFile(chemin, "utf8")).replace(/\/\/.*$/gm, "");
+      aServir = join(racine, "web", /^\s*Point/.test(source) ? "index.html" : "page.html");
+    }
+    const { brut, br } = await fichier(aServir);
+    const type = types[extname(aServir)] ?? "application/octet-stream";
     const accepteBr = /\bbr\b/.test(req.headers["accept-encoding"] ?? "");
     res.writeHead(200, {
       "content-type": type,
