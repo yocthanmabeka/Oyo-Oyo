@@ -1,0 +1,6 @@
+Page(
+  title: "Unsafe link",
+  children: [
+    A("Run code", to: "javascript:alert(1)"),
+  ],
+)
