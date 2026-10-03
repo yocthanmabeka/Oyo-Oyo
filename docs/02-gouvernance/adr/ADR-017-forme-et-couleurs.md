@@ -1,10 +1,10 @@
 # ADR-017 — La forme : un thème, des styles nommés à point, des réglages par bloc ; les couleurs d'un point
 
 - Statut : ACCEPTÉ pour le principe ; la place des styles dans le fichier reste à décider
-- Date : 2026-10-04
+- Date : 2026-10-03
 - Responsable : Yocthan Mabeka
-- Discussions sources : HC-013, revue Codex du 2026-10-03 (`proposals/GPT5.6/revue-2026-10-03/`), journal du 2026-10-04
-- Validation : décidé par Yocthan le 2026-10-04, en discussion avec Claude.
+- Discussions sources : HC-013, revue Codex du 2026-10-03 (`proposals/GPT5.6/revue-2026-10-03/`), journal du 2026-10-03
+- Validation : décidé par Yocthan le 2026-10-03, en discussion avec Claude.
 - Projets affectés : HoloCode, HoloCompiler, HoloEngine
 
 ## Contexte
