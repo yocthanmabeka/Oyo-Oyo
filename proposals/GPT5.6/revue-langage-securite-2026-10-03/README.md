@@ -17,8 +17,9 @@ Les mots « observé » et « déduit » ne sont pas interchangeables dans cette
 |---|---|
 | Lecture dans l'ordre demandé | `AGENTS.md`, `GUIDE.md`, `COMPARAISON-WEB.md`, `ADR-020` à `ADR-022`, la boutique, la maison, puis les trente premières entrées du journal ont été lus. `ADR-016` et les documents obligatoires d'`AGENTS.md` ont ensuite été relus. |
 | `cargo test` dans `moteur/` | **Exécuté localement, échec d'environnement** : `/bin/bash: line 1: cargo: command not found`, code 127. Rien n'a été installé. Le job GitHub « Moteur Rust » de la pull request est donc la preuve exécutable attendue. |
-| Tests Python de GPT5.6 | **Exécutés** : 9 tests découverts, 8 réussis, 1 ignoré parce que `cargo` est absent ; code 0. |
-| Fichiers hostiles | Sept fichiers sont dans [`hostiles/`](hostiles/). Le harnais Rust [`harness.rs`](harness.rs) décrit leurs résultats vérifiables. **Non exécuté localement**, faute de `cargo` ; la sonde Python le lance dans GitHub Actions lorsque `cargo` est disponible. |
+| Tests Python de GPT5.6, exécution locale initiale | **Exécutés** : 9 tests découverts, 8 réussis, 1 ignoré parce que `cargo` était absent ; code 0. Après la revue automatique de la PR, l'ignorance silencieuse a été remplacée par un échec explicite si Cargo manque. |
+| Tests Python de GPT5.6, nouvelle exécution locale | **Exécutés après correction** : 9 tests découverts, 8 réussis, 1 échec explicite (`cargo absent : les sept sondes adversariales Rust ne doivent pas être ignorées silencieusement`) ; code 1. Ce résultat décrit l'environnement local, pas le moteur. |
+| Fichiers hostiles | Sept fichiers sont dans [`hostiles/`](hostiles/). Le harnais Rust [`harness.rs`](harness.rs) décrit leurs résultats vérifiables. **Non exécuté localement**, faute de `cargo` ; **exécuté en CI** : 7 tests Rust réussis. La sonde Python exige désormais Cargo et la CI Python termine avec 9 tests réussis. |
 | Audit d'injection | Inspection de tous les chemins de génération HTML/CSS dans `plat.rs`, des règles, des URL et des trois usages de `innerHTML` dans `page.html`. Aucun chemin d'injection par un fichier `.holo` vérifié n'a été démontré. |
 
 ## Verdict court
