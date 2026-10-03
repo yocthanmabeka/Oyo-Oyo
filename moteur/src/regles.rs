@@ -17,6 +17,8 @@ fn signaux(bloc: &str) -> &'static [&'static str] {
 fn capacites(bloc: &str) -> &'static [&'static str] {
     match bloc {
         "Point" => &["enter", "leave"],
+        // Ouvrir le carrefour : les portails vers les mondes voisins.
+        "Page" => &["portals"],
         _ => &[],
     }
 }
@@ -241,6 +243,9 @@ mod tests {
         assert!(verifier(&page("On(Nobody.tap, effect: A.enter)")).unwrap_err().message.contains("aucun bloc ne s'appelle « Nobody »"));
         assert!(verifier(&page("On(Open.tap, effect: Open.enter)")).unwrap_err().message.contains("un « Button » offre rien"));
         assert!(verifier(&page("On(Open.tap)")).unwrap_err().message.contains("l'effet manque"));
+        // Une page offre une capacité : ouvrir son carrefour.
+        assert!(verifier("Page(name: Shop, children: [ Button(name: Map, text: \"x\") ], rules: [ On(Map.tap, effect: Shop.portals) ])").is_ok());
+        assert!(verifier("Page(name: Shop, children: [ Button(name: Map, text: \"x\") ], rules: [ On(Map.tap, effect: Shop.enter) ])").unwrap_err().message.contains("un « Page » offre portals"));
         assert!(verifier("Page(children: [ Button(name: Open, text: \"x\") ], pixels: [ Point(name: S, seed: 1, above: Open) ])").is_ok());
         assert!(verifier("Page(pixels: [ Point(name: S, seed: 1, above: Nobody) ])").unwrap_err().message.contains("le nom d'un bloc de la page"));
     }

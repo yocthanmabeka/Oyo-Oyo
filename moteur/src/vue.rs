@@ -6,6 +6,7 @@
 //!   zoom: Zoom(max: 1000000, shrink: false, levels: 8),
 //!   points: Points(after: 4, size: 6px, fragment: 40px, grid: 4, depth: 20, density: 2),
 //!   relief: Relief(height: 10px, tilt: 52deg),
+//!   portals: Portals(layout: grid, count: 12, size: 170px, brightness: 0.15),
 //! )
 //! ```
 //!
@@ -14,9 +15,33 @@
 
 use crate::holo::{Bloc, Erreur, Programme, Valeur};
 
+/// Comment les portails du carrefour se rangent, et dans quel sens on les fait défiler.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Disposition {
+    /// En grille, sur toute la fenêtre.
+    Grille,
+    /// Sur une ligne : on défile de gauche à droite.
+    Ligne,
+    /// Sur une colonne : on défile de haut en bas.
+    Colonne,
+    /// En diagonale.
+    Diagonale,
+}
+
 /// Les réglages de la vue d'une page. Sans rien écrire, on obtient ceux-ci.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Reglages {
+    /// `Zoom(active:)` : faux, le visiteur ne peut pas zoomer dans la page.
+    pub zoom_actif: bool,
+    /// `Portals(layout:)` : comment les portails du carrefour se rangent.
+    pub portails_disposition: Disposition,
+    /// `Portals(count:)` : combien de mondes le carrefour montre. Les sites écrits dans le
+    /// fichier passent d'abord ; le reste est rempli par des mondes calculés à partir d'une graine.
+    pub portails_nombre: u32,
+    /// `Portals(size:)` : la taille d'un portail, en pixels.
+    pub portails_taille: f64,
+    /// `Portals(brightness:)` : la lumière du fond du carrefour, de 0 (aucune) à 1.
+    pub portails_lumiere: f64,
     /// `Zoom(max:)` : combien de fois on peut grossir la page, au plus.
     pub zoom_max: f64,
     /// `Zoom(shrink:)` : vrai, dézoomer réduit la page jusqu'à un seul point ; faux, on ne
@@ -45,7 +70,13 @@ pub struct Reglages {
 
 impl Default for Reglages {
     fn default() -> Self {
-        Reglages { zoom_max: 1e12, reduire: false, niveaux_de_sites: 8, apres: 4.0, taille_point: 6.0, taille_morceler: 40.0, cote: 4, niveaux: 20, densite: 2.0, relief: 10.0, angle_max: 52f64.to_radians() }
+        Reglages {
+            zoom_actif: true,
+            portails_disposition: Disposition::Grille,
+            portails_nombre: 12,
+            portails_taille: 170.0,
+            portails_lumiere: 0.15,
+            zoom_max: 1e12, reduire: false, niveaux_de_sites: 8, apres: 4.0, taille_point: 6.0, taille_morceler: 40.0, cote: 4, niveaux: 20, densite: 2.0, relief: 10.0, angle_max: 52f64.to_radians() }
     }
 }
 
@@ -106,7 +137,12 @@ pub fn reglages(programme: &Programme) -> Result<Reglages, Erreur> {
         return Ok(r);
     }
     if let Some(zoom) = bloc_de(page, "zoom", "Zoom")? {
-        seulement(zoom, &["max", "shrink", "levels"])?;
+        seulement(zoom, &["active", "max", "shrink", "levels"])?;
+        r.zoom_actif = match zoom.argument("active").map(|a| &a.valeur) {
+            None => r.zoom_actif,
+            Some(Valeur::Bool(b)) => *b,
+            Some(_) => return refus(zoom, "active", "true ou false"),
+        };
         r.niveaux_de_sites = entier(zoom, "levels", 1, 16, u64::from(r.niveaux_de_sites))? as u32;
         r.zoom_max = nombre(zoom, "max", None, 1.0, 1e12, r.zoom_max)?;
         r.reduire = match zoom.argument("shrink").map(|a| &a.valeur) {
@@ -133,6 +169,20 @@ pub fn reglages(programme: &Programme) -> Result<Reglages, Erreur> {
         seulement(relief, &["height", "tilt"])?;
         r.relief = nombre(relief, "height", Some("px"), 0.0, 40.0, r.relief)?;
         r.angle_max = nombre(relief, "tilt", Some("deg"), 0.0, 80.0, r.angle_max.to_degrees())?.to_radians();
+    }
+    if let Some(portails) = bloc_de(page, "portals", "Portals")? {
+        seulement(portails, &["layout", "count", "size", "brightness"])?;
+        r.portails_disposition = match portails.argument("layout").map(|a| &a.valeur) {
+            None => r.portails_disposition,
+            Some(Valeur::Nom(nom)) if nom == "grid" => Disposition::Grille,
+            Some(Valeur::Nom(nom)) if nom == "row" => Disposition::Ligne,
+            Some(Valeur::Nom(nom)) if nom == "column" => Disposition::Colonne,
+            Some(Valeur::Nom(nom)) if nom == "diagonal" => Disposition::Diagonale,
+            Some(_) => return refus(portails, "layout", "l'un de ces mots : grid, row, column, diagonal"),
+        };
+        r.portails_nombre = entier(portails, "count", 1, 64, u64::from(r.portails_nombre))? as u32;
+        r.portails_taille = nombre(portails, "size", Some("px"), 80.0, 400.0, r.portails_taille)?;
+        r.portails_lumiere = nombre(portails, "brightness", None, 0.0, 1.0, r.portails_lumiere)?;
     }
     // Garde-fou : les sites ne s'emboîtent pas plus profond que `Zoom(levels:)`.
     sites_emboites(page, 1, r.niveaux_de_sites)?;
@@ -197,6 +247,11 @@ mod tests {
             ("zoom: 4", "un bloc « Zoom(...) »"),
             ("zoom: Points(size: 6px)", "un bloc « Zoom(...) »"),
             ("zoom: Zoom(levels: 0)", "entier entre 1 et 16"),
+            ("zoom: Zoom(active: yes)", "true ou false"),
+            ("portals: Portals(layout: circle)", "grid, row, column, diagonal"),
+            ("portals: Portals(count: 0)", "entier entre 1 et 64"),
+            ("portals: Portals(size: 20px)", "entre 80px et 400px"),
+            ("portals: Portals(brightness: 3)", "entre 0 et 1"),
             ("points: Points(after: 40)", "entre 1 et 16"),
             ("points: Points(size: 6)", "entre 2px et 32px"),
             ("points: Points(size: 1px)", "entre 2px et 32px"),
@@ -213,6 +268,16 @@ mod tests {
         }
         let r = lus(&page("zoom: Zoom(max: 50, shrink: true), points: Points(size: 8px, fragment: 64px, grid: 2, depth: 3), relief: Relief(height: 0px, tilt: 0deg)")).unwrap();
         assert_eq!((r.zoom_max, r.reduire, r.taille_point, r.taille_morceler, r.cote, r.niveaux, r.relief, r.angle_max), (50.0, true, 8.0, 64.0, 2, 3, 0.0, 0.0));
+    }
+
+    #[test]
+    fn le_carrefour_et_le_zoom_se_reglent() {
+        let r = lus("Page(zoom: Zoom(active: false), portals: Portals(layout: diagonal, count: 30, size: 120px, brightness: 0.4))").unwrap();
+        assert!(!r.zoom_actif);
+        assert_eq!((r.portails_disposition, r.portails_nombre, r.portails_taille, r.portails_lumiere), (Disposition::Diagonale, 30, 120.0, 0.4));
+        let defaut = Reglages::default();
+        assert!(defaut.zoom_actif);
+        assert_eq!((defaut.portails_disposition, defaut.portails_nombre), (Disposition::Grille, 12));
     }
 
     #[test]

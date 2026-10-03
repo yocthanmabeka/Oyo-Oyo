@@ -96,6 +96,21 @@ pub fn source_du_point(source: &str, nom: &str) -> Option<String> {
     Some(format!("Point({})", reglages.join(", ")))
 }
 
+/// Les mondes voisins d'un site, calculés à partir d'une graine : ils remplissent le carrefour
+/// autour des sites écrits dans le fichier. La graine vient du nom du site, pour que le même
+/// fichier montre toujours les mêmes mondes (ADR-008). Rend, pour chacun, sa graine et sa couleur.
+pub fn mondes_voisins(source: &str, chemin: &str, nombre: u32) -> Vec<(u64, [f32; 3])> {
+    let Ok(programme) = verifier_page(source) else { return Vec::new() };
+    let nom = chemin.rsplit('/').next().filter(|n| !n.is_empty()).or_else(|| regles::nom_de(&programme.racine)).unwrap_or("Home");
+    let graine = nom.bytes().fold(0u64, |g, octet| graine::melanger(g ^ u64::from(octet)));
+    (0..nombre)
+        .map(|i| {
+            let voisin = graine::graine_enfant(graine, i);
+            (voisin, univers::Monde::depuis_graine(voisin).enfants[0].couleur)
+        })
+        .collect()
+}
+
 /// Le monde où la page est posée quand on la regarde en personnage. Provisoire : tant que
 /// le langage ne sait pas écrire « un monde qui contient une page », la graine de ce monde
 /// se tire du nom de la page, pour que le même fichier redonne le même lieu (ADR-008).
@@ -142,7 +157,7 @@ mod tests {
         let guide = include_str!("../../docs/01-holocode/GUIDE.md");
         let exemples: Vec<&str> = guide.split("```holo
 ").skip(1).map(|suite| suite.split("```").next().unwrap()).collect();
-        assert!(exemples.len() >= 8, "le guide a perdu ses exemples : {}", exemples.len());
+        assert!(exemples.len() >= 9, "le guide a perdu ses exemples : {}", exemples.len());
         for exemple in exemples {
             // Une page passe toutes les vérifications et se fabrique ; un point seul s'ouvre en profondeur.
             let resultat = if exemple.trim_start().starts_with("Point(") { verifier(exemple).map(|_| ()) } else { vue_a_plat(exemple, "").map(|_| ()) };
@@ -151,6 +166,20 @@ mod tests {
 {exemple}");
             }
         }
+    }
+
+    #[test]
+    fn les_mondes_voisins_sont_toujours_les_memes() {
+        let voisins = mondes_voisins(BOUTIQUE, "", 9);
+        assert_eq!(voisins.len(), 9);
+        assert_eq!(voisins, mondes_voisins(BOUTIQUE, "", 9));
+        let graines: std::collections::HashSet<u64> = voisins.iter().map(|(g, _)| *g).collect();
+        assert_eq!(graines.len(), 9, "neuf mondes différents");
+        // Un autre site a d'autres voisins ; un fichier refusé n'en a pas.
+        assert_ne!(mondes_voisins(BOUTIQUE, "Workshop", 9), voisins);
+        assert!(mondes_voisins("Page(children: [ Div() ])", "", 9).is_empty());
+        // Chacun est un monde que la vue en profondeur sait ouvrir.
+        assert!(verifier(&format!("Point(name: World, seed: {}, fragments: 12)", voisins[0].0)).is_ok());
     }
 
     #[test]
