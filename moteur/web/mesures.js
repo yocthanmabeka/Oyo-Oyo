@@ -10,7 +10,22 @@ bouton.textContent = "Copier le rapport";
 bouton.style.cssText =
   "position:fixed;right:8px;top:8px;padding:8px 12px;font:13px system-ui;border:0;border-radius:6px;" +
   "background:#246;color:#fff;z-index:9";
-document.body.append(hud, bouton);
+// Les mesures servent au sprint, pas à l'utilisateur : elles restent cachées. Un petit
+// bouton en bas à droite les affiche, et l'adresse ?mesures=1 les affiche d'emblée.
+const bascule = document.createElement("button");
+bascule.textContent = "mesures";
+bascule.title = "Afficher ou cacher les mesures";
+bascule.style.cssText =
+  "position:fixed;right:8px;bottom:8px;padding:6px 10px;font:11px system-ui;border:0;border-radius:6px;" +
+  "background:rgba(255,255,255,.08);color:rgba(255,255,255,.55);z-index:9";
+let visibles = new URLSearchParams(location.search).get("mesures") === "1";
+function montrer() {
+  hud.style.display = visibles ? "block" : "none";
+  bouton.style.display = visibles ? "block" : "none";
+}
+bascule.addEventListener("click", () => { visibles = !visibles; montrer(); });
+document.body.append(hud, bouton, bascule);
+montrer();
 
 const debutPage = performance.timeOrigin;
 let batterieDebut = null;

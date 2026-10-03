@@ -24,9 +24,10 @@ Le moteur est écrit en Rust, compilé en WebAssembly, et dessine avec `wgpu` : 
 ## Comment on s'en sert
 
 - **Pincer** (ou la molette) : zoomer. Le point se morcelle, puis on s'approche du point visé, on aperçoit le monde qu'il contient, et on y entre.
-- **Glisser** avec un doigt : tourner le monde, pour choisir quel point viser (celui qui est au centre).
+- **Toucher** un point : il devient le point visé, signalé par un halo blanc qui respire ; c'est dans lui que l'on entre en zoomant. Tant qu'on n'a touché aucun point, la cible est celui qui est au centre.
+- **Glisser** avec un doigt : tourner le monde.
 - **Pincer dans l'autre sens** : dézoomer jusqu'à ressortir dans le monde parent.
-- En haut à gauche, les mesures ; en haut à droite, un bouton pour copier le rapport complet.
+- Les mesures sont cachées : le petit bouton « mesures », en bas à droite, les affiche avec le bouton « Copier le rapport » (ou `?mesures=1` dans l'adresse).
 
 ## Construire et lancer
 
@@ -89,7 +90,6 @@ Repris de la proposition de Gemini, à vérifier sur le téléphone :
 - **Le lecteur `.holo` ne lit que `Point`.** Il sait déjà lire toute la grammaire brouillon (blocs, listes, textes Markdown, unités, imports) et refuse le code libre dans un bloc, mais seul `Point` reçoit un sens. `Page`, `Texte`, `Bouton` et la vue à plat viendront ensuite.
 - **Les positions des points dépendent de sinus et cosinus.** Les entiers (graines, nombres de points, couleurs) sont identiques partout ; les positions pourraient différer d'un milliardième entre un PC et un téléphone. Ce sera invisible, mais ce n'est pas strictement « même fichier, même résultat » : à régler si l'on veut des mondes partagés au bit près.
 - **La transition d'entrée est un fondu**, pas une continuité parfaite : le monde intérieur aperçu avant d'entrer et le monde affiché après ne coïncident pas exactement.
-- **Le point visé est celui du centre.** Il n'y a pas encore de toucher pour choisir un point.
 - **Aucune loi ni phénomène** : ce sprint ne porte que sur la navigation et le poids.
 - **Densité de pixels plafonnée à 2** pour ménager la chauffe du téléphone.
 - `wgpu` est fixé à la version 24 ; une montée de version demandera quelques retouches.
