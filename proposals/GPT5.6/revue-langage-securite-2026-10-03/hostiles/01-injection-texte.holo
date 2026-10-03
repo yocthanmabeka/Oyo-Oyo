@@ -1,0 +1,8 @@
+Page(
+  title: "</title><script>alert('title')</script>",
+  children: [
+    H1("<img src=x onerror=alert('heading')>"),
+    P("</p><script>alert('paragraph')</script> & **still text**"),
+    Button(name: Safe, text: "</button><script>alert('button')</script>"),
+  ],
+)
