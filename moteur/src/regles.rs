@@ -90,22 +90,54 @@ pub fn verifier_regles(programme: &Programme) -> Result<(), Erreur> {
         }
         Ok(())
     })?;
+    verifier_reperes(&programme.racine)?;
     pour_chaque_bloc(&programme.racine, &mut |bloc| {
         if bloc.nom == "On" {
             verifier_regle(bloc, &noms)?;
         }
         if bloc.nom == "Point" {
             verifier_budget(bloc)?;
-            // Un point planté dans un pixel se repère par rapport à un bloc qui existe.
-            if let Some(argument) = bloc.argument("above") {
-                let connu = matches!(&argument.valeur, Valeur::Nom(repere) if noms.iter().any(|(nom, _)| nom == repere));
-                if !connu {
-                    return Err(Erreur { message: "« above » attend le nom d'un bloc de la page : above: Open".into(), pos: argument.pos });
-                }
-            }
         }
         Ok(())
     })
+}
+
+/// Un point planté dans un pixel se repère par rapport à un bloc du même site : la page, ou
+/// le monde, où il est planté. Un bloc rangé dans le monde d'un autre point n'est pas à
+/// l'écran au même moment : l'affichage ne le trouverait pas (revue Codex, B-06).
+fn verifier_reperes(site: &Bloc) -> Result<(), Erreur> {
+    fn visiter<'a>(valeur: &'a Valeur, noms: &mut Vec<&'a str>, mondes: &mut Vec<&'a Bloc>) {
+        match valeur {
+            Valeur::Liste(elements) => elements.iter().for_each(|e| visiter(e, noms, mondes)),
+            Valeur::Bloc(bloc) => {
+                if let Some(nom) = nom_de(bloc) {
+                    noms.push(nom);
+                }
+                for argument in &bloc.arguments {
+                    match &argument.valeur {
+                        // Le monde d'un point est un autre site : on n'y descend pas.
+                        Valeur::Bloc(monde) if bloc.nom == "Point" && argument.nom.as_deref() == Some("inside") => mondes.push(monde),
+                        autre => visiter(autre, noms, mondes),
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    let (mut noms, mut mondes) = (Vec::new(), Vec::new());
+    site.arguments.iter().for_each(|a| visiter(&a.valeur, &mut noms, &mut mondes));
+    if let Some(Valeur::Liste(plantes)) = site.argument("pixels").map(|a| &a.valeur) {
+        for plante in plantes {
+            let Valeur::Bloc(point) = plante else { continue };
+            if let Some(argument) = point.argument("above") {
+                let connu = matches!(&argument.valeur, Valeur::Nom(repere) if noms.contains(&repere.as_str()));
+                if !connu {
+                    return Err(Erreur { message: "« above » attend le nom d'un bloc de la page où le point est planté : above: Open".into(), pos: argument.pos });
+                }
+            }
+        }
+    }
+    mondes.into_iter().try_for_each(verifier_reperes)
 }
 
 /// `Open.tap` → (`Open`, `tap`).
@@ -248,6 +280,12 @@ mod tests {
         assert!(verifier("Page(name: Shop, children: [ Button(name: Map, text: \"x\") ], rules: [ On(Map.tap, effect: Shop.enter) ])").unwrap_err().message.contains("un « Page » offre portals"));
         assert!(verifier("Page(children: [ Button(name: Open, text: \"x\") ], pixels: [ Point(name: S, seed: 1, above: Open) ])").is_ok());
         assert!(verifier("Page(pixels: [ Point(name: S, seed: 1, above: Nobody) ])").unwrap_err().message.contains("le nom d'un bloc de la page"));
+        // Le repère doit être dans le même site : pas dans le monde d'un autre point.
+        let ailleurs = "Page(children: [ Point(name: C, seed: 1, inside: World(children: [ Button(name: Inner, text: \"x\") ])) ], pixels: [ Point(name: S, seed: 2, above: Inner) ])";
+        assert!(verifier(ailleurs).unwrap_err().message.contains("où le point est planté"));
+        // Dans un monde, le repère se cherche dans ce monde.
+        let dedans = "Page(children: [ Point(name: C, seed: 1, inside: World(children: [ Button(name: Inner, text: \"x\") ], pixels: [ Point(name: S, seed: 2, above: Inner) ])) ])";
+        assert!(verifier(dedans).is_ok());
     }
 
     #[test]

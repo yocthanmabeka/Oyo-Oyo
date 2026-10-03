@@ -184,6 +184,15 @@ pub fn reglages(programme: &Programme) -> Result<Reglages, Erreur> {
         r.portails_taille = nombre(portails, "size", Some("px"), 80.0, 400.0, r.portails_taille)?;
         r.portails_lumiere = nombre(portails, "brightness", None, 0.0, 1.0, r.portails_lumiere)?;
     }
+    // Garde-fou : le zoom ordinaire fait partie du zoom. On ne peut pas grossir la page vivante
+    // au-delà de `Zoom(max:)` (revue Codex du 2026-10-03, B-01).
+    if r.apres > r.zoom_max {
+        let ou = if page.argument("points").is_some() { "points" } else { "zoom" };
+        return Err(Erreur {
+            message: format!("« Points(after: {}) » dépasse « Zoom(max: {}) » : la page ne peut pas grossir plus que le zoom ne le permet", r.apres, r.zoom_max),
+            pos: page.argument(ou).map_or(page.pos, |a| a.pos),
+        });
+    }
     // Garde-fou : les sites ne s'emboîtent pas plus profond que `Zoom(levels:)`.
     sites_emboites(page, 1, r.niveaux_de_sites)?;
     Ok(r)
@@ -247,6 +256,8 @@ mod tests {
             ("zoom: 4", "un bloc « Zoom(...) »"),
             ("zoom: Points(size: 6px)", "un bloc « Zoom(...) »"),
             ("zoom: Zoom(levels: 0)", "entier entre 1 et 16"),
+            ("zoom: Zoom(max: 2)", "dépasse « Zoom(max: 2) »"),
+            ("zoom: Zoom(max: 1), points: Points(after: 16)", "dépasse « Zoom(max: 1) »"),
             ("zoom: Zoom(active: yes)", "true ou false"),
             ("portals: Portals(layout: circle)", "grid, row, column, diagonal"),
             ("portals: Portals(count: 0)", "entier entre 1 et 64"),
@@ -266,6 +277,7 @@ mod tests {
             let erreur = lus(&page(reglage)).unwrap_err();
             assert!(erreur.message.contains(message), "{reglage} → {erreur}");
         }
+        assert!(lus(&page("zoom: Zoom(max: 2), points: Points(after: 2)")).is_ok());
         let r = lus(&page("zoom: Zoom(max: 50, shrink: true), points: Points(size: 8px, fragment: 64px, grid: 2, depth: 3), relief: Relief(height: 0px, tilt: 0deg)")).unwrap();
         assert_eq!((r.zoom_max, r.reduire, r.taille_point, r.taille_morceler, r.cote, r.niveaux, r.relief, r.angle_max), (50.0, true, 8.0, 64.0, 2, 3, 0.0, 0.0));
     }

@@ -182,10 +182,10 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
             let fichier = match bloc.argument("inside").map(|a| &a.valeur) {
                 Some(Valeur::Texte(fichier)) if chemin_sur(fichier) && fichier.ends_with(".holo") => format!(" data-file=\"{}{}\"", echapper(base), echapper(fichier)),
                 // Le fichier d'un autre auteur, sur un autre serveur : son adresse complète.
-                Some(Valeur::Texte(adresse)) if adresse_web(adresse) && adresse.ends_with(".holo") => format!(" data-file=\"{}\"", echapper(adresse)),
+                Some(Valeur::Texte(adresse)) if adresse_de_passage(adresse) && adresse.ends_with(".holo") => format!(" data-file=\"{}\"", echapper(adresse)),
                 Some(Valeur::Texte(_)) => {
                     return Err(Erreur {
-                        message: "« inside » attend un monde, un fichier .holo rangé à côté (\"garden.holo\"), ou l'adresse complète d'un fichier .holo (\"https://…/garden.holo\")".into(),
+                        message: "« inside » attend un monde, un fichier .holo rangé à côté (\"garden.holo\"), ou l'adresse complète d'un fichier .holo en https (\"https://…/garden.holo\")".into(),
                         pos: bloc.pos,
                     })
                 }
@@ -287,6 +287,16 @@ fn adresse_web(adresse: &str) -> bool {
     (adresse.starts_with("https://") || adresse.starts_with("http://"))
         && adresse.len() > 8
         && adresse.chars().all(|c| c.is_ascii_graphic() && !matches!(c, '"' | '<' | '>' | '\\' | '`'))
+}
+
+/// L'adresse d'un passage vers un autre serveur : en https. Le http n'est accepté que vers
+/// sa propre machine (`localhost`, `127.0.0.1`), pour les essais : sinon, une page publique
+/// pourrait faire partir des requêtes vers le réseau privé du visiteur (revue Codex).
+fn adresse_de_passage(adresse: &str) -> bool {
+    let chez_soi = ["http://localhost", "http://127.0.0.1"].iter().any(|debut| {
+        adresse.strip_prefix(debut).is_some_and(|suite| suite.starts_with(':') || suite.starts_with('/'))
+    });
+    adresse_web(adresse) && (adresse.starts_with("https://") || chez_soi)
 }
 
 /// Une image se range à côté du fichier : ni adresse complète, ni remontée de dossier.
@@ -409,6 +419,12 @@ mod tests {
         assert!(ailleurs.contains("data-file=\"https://friend.example/home/garden.holo\""), "{ailleurs}");
         assert!(page("Page(children: [ Point(name: G, seed: 1, inside: \"https://friend.example/x.html\") ])").is_err());
         assert!(page("Page(children: [ Point(name: G, seed: 1, inside: \"javascript:x.holo\") ])").is_err());
+        // En http, seulement vers sa propre machine ; jamais vers le réseau privé de quelqu'un.
+        assert!(page("Page(children: [ Point(name: G, seed: 1, inside: \"http://127.0.0.1:8081/x.holo\") ])").is_ok());
+        assert!(page("Page(children: [ Point(name: G, seed: 1, inside: \"http://localhost/x.holo\") ])").is_ok());
+        for refuse in ["http://friend.example/x.holo", "http://192.168.1.1/x.holo", "http://localhost.evil.example/x.holo", "http://127.0.0.1.evil.example/x.holo"] {
+            assert!(page(&format!("Page(children: [ Point(name: G, seed: 1, inside: \"{refuse}\") ])")).is_err(), "{refuse}");
+        }
     }
 
     #[test]

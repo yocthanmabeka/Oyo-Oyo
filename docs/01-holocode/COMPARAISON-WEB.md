@@ -154,6 +154,8 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 
 ## 6. L'ordre que je propose pour combler les manques
 
+L'avis de Codex (revue du 2026-10-03) : mettre avant la disposition la sécurité des passages, puis l'accessibilité. La sécurité est faite (2026-10-04). Pour l'accessibilité, il a raison sur le fond : le rang 3 ci-dessous devrait sans doute passer en premier. À Yocthan de trancher l'ordre.
+
 | Rang | Quoi | Pourquoi d'abord |
 |---|---|---|
 | 1 | La disposition : `Row`, `Column`, `Grid` | Sans elle, pas de vrai site. Yocthan connaît ces mots (Flutter). |

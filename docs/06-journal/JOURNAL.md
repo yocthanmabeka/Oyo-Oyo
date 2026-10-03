@@ -6,6 +6,47 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — La seconde revue de Codex : ses défauts corrigés
+
+**Ce qui s'est passé**
+
+- Yocthan a envoyé à Codex et à Gemini les messages de relecture préparés par Claude. Codex a répondu par la pull request n° 39 : une revue critique, sept fichiers hostiles et un harnais de test. Yocthan a demandé de vérifier et de fusionner : fait, après lecture complète. Puis : « pour le reste, fais ce qu'il y a de mieux ».
+- La revue est sérieuse. Elle montre que le guide promettait plus que le moteur ne tenait. Claude a relu son propre code et confirme chaque défaut repris ci-dessous.
+
+**Corrigé**
+
+| Défaut trouvé par Codex | Correction |
+|---|---|
+| `Zoom(max:)` ne bornait pas le zoom ordinaire | Il borne le zoom entier ; `Points(after:)` plus grand que `Zoom(max:)` est refusé |
+| `Portals(count:)` ne bornait pas les sites écrits | Il borne tout le carrefour ; un rond « + N autres » dit ce qui n'est pas montré |
+| La vérification acceptait `A(to: "javascript:…")` | Elle refuse tout ce que l'affichage refuserait |
+| Une adresse en `#@…` contactait un autre serveur sans geste ; le carrefour lisait tous les fichiers distants | Un clic, un serveur, un fichier ; une adresse distante propose le passage |
+| Chez quelqu'un d'autre, rien ne le disait plus | Un bandeau du moteur, « Vous êtes chez … », avec « Revenir » |
+| `http` vers n'importe quelle adresse, y compris le réseau privé | `https` ; `http` seulement vers sa propre machine |
+| Mémoire bornée en nombre de fichiers, pas en taille ; aucun délai | 256 Ko par fichier, 8 secondes, lecture arrêtée au-delà |
+| `density: 3` pouvait demander des centaines de Mo | Huit millions de points au plus |
+| `above:` acceptait un repère hors de l'écran | Le repère doit être dans le même site |
+| Aucune limite avant l'analyse d'un fichier | 262 144 octets, 100 000 mots, 64 niveaux d'emboîtement |
+| L'image de la page restait en mémoire après la vue points | Elle est rendue à la sortie |
+
+- Les trois sondes de Codex qui constataient des défauts sont retournées : elles vérifient maintenant que ces défauts ne reviennent pas. Ce changement touche son dossier, avec l'accord de Yocthan.
+- Vérifié avec deux serveurs locaux et de vrais gestes : zéro requête vers l'autre serveur à l'ouverture de la page, à l'ouverture du carrefour, et à l'arrivée par une adresse en `#@…` ; une seule après le clic ; le bandeau s'affiche, « Revenir » ramène.
+- Tests du cœur : 66 sur 66 ; harnais de Codex : 7 sur 7.
+
+![Chez quelqu'un d'autre : le bandeau du moteur](images/2026-10-04-chez-quelqu-un-d-autre.png)
+
+**Non corrigé, et dit**
+
+- Le poids déclaré d'une image (`weight`) n'est pas comparé à son poids réel.
+- Pas d'en-tête `Content-Security-Policy` sur le serveur de démonstration.
+- Les noms : Codex en juge une dizaine mauvais et propose des remplacements. Rien n'est renommé : c'est à Yocthan de trancher. Claude lui a préparé les questions à poser à Codex.
+
+**Leçon**
+
+- Claude avait écrit dans le guide et dans `ADR-022` des protections qu'il n'avait pas vérifiées dans tous les chemins (l'adresse ouverte directement). Une promesse de sécurité s'écrit après l'avoir mise à l'épreuve, pas avant.
+
+---
+
 ## 2026-10-03 — Les deux limites revues ; HoloCode comparé au web, balise par balise
 
 **Ce que Yocthan a demandé**

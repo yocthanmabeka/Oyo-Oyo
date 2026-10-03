@@ -221,6 +221,9 @@ impl<'a> Lecteur<'a> {
                 return Err(self.erreur(format!("caractère inattendu « {ch} »")));
             };
             jetons.push(Jeton { mot, pos });
+            if jetons.len() > JETONS_MAX {
+                return Err(Erreur { message: format!("fichier trop long : plus de {JETONS_MAX} mots"), pos });
+            }
         }
     }
 
@@ -385,7 +388,16 @@ fn detacher(texte: &str) -> String {
 struct Analyseur {
     jetons: Vec<Jeton>,
     i: usize,
+    /// Combien de blocs et de listes sont ouverts les uns dans les autres, en ce moment.
+    imbrication: u32,
 }
+
+/// Un fichier `.holo` est un texte court. Ces trois limites s'appliquent avant toute analyse,
+/// pour qu'un fichier hostile ne puisse ni remplir la mémoire ni faire déborder la pile
+/// (revue Codex du 2026-10-03, B-09).
+pub const OCTETS_MAX: usize = 262_144;
+pub const JETONS_MAX: usize = 100_000;
+pub const IMBRICATION_MAX: u32 = 64;
 
 impl Analyseur {
     fn courant(&self) -> &Jeton {
@@ -498,6 +510,16 @@ impl Analyseur {
     }
 
     fn valeur(&mut self) -> Result<Valeur, Erreur> {
+        self.imbrication += 1;
+        if self.imbrication > IMBRICATION_MAX {
+            return Err(self.erreur(format!("trop de blocs et de listes les uns dans les autres : la limite est de {IMBRICATION_MAX}")));
+        }
+        let valeur = self.valeur_simple();
+        self.imbrication -= 1;
+        valeur
+    }
+
+    fn valeur_simple(&mut self) -> Result<Valeur, Erreur> {
         let suivant_est_parenthese = self.jetons.get(self.i + 1).is_some_and(|j| j.mot == Mot::Signe('('));
         let jeton = self.courant().clone();
         match jeton.mot {
@@ -555,8 +577,14 @@ fn decrire(mot: &Mot) -> String {
 
 /// Lit un fichier `.holo` entier.
 pub fn lire(source: &str) -> Result<Programme, Erreur> {
+    if source.len() > OCTETS_MAX {
+        return Err(Erreur {
+            message: format!("fichier trop gros : {} octets, la limite est de {OCTETS_MAX}", source.len()),
+            pos: Pos { ligne: 1, colonne: 1 },
+        });
+    }
     let mut lecteur = Lecteur { src: source.as_bytes(), texte: source, i: 0, ligne: 1, debut_ligne: 0 };
-    let mut programme = Analyseur { jetons: lecteur.jetons()?, i: 0 }.programme()?;
+    let mut programme = Analyseur { jetons: lecteur.jetons()?, i: 0, imbrication: 0 }.programme()?;
     programme.styles = lecteur.styles()?;
     Ok(programme)
 }
@@ -633,6 +661,19 @@ mod tests {
         assert_eq!(p.racine.argument("max").unwrap().valeur, Valeur::Entier(u64::MAX));
         assert!(lire("Point(seed: 18446744073709551616)").is_ok(), "au-delà de u64, c'est un nombre flottant, refusé plus loin comme graine");
         assert!(lire("Point(budget: 500 KB)").is_err(), "l'unité se colle au nombre : « 500 KB » n'est pas accepté");
+    }
+
+    #[test]
+    fn un_fichier_hostile_est_arrete_avant_l_analyse() {
+        // Trop gros.
+        let gros = format!("Page(title: \"{}\")", "x".repeat(OCTETS_MAX));
+        assert!(lire(&gros).unwrap_err().message.contains("fichier trop gros"));
+        // Trop de blocs les uns dans les autres : refusé, sans faire déborder la pile.
+        let profond = format!("Page(children: {}{})", "[".repeat(200), "]".repeat(200));
+        assert!(lire(&profond).unwrap_err().message.contains("les uns dans les autres"));
+        // Un fichier ordinaire, même bien rempli, passe.
+        let large = format!("Page(children: [{}])", "P(\"x\"), ".repeat(2000));
+        assert!(lire(&large).is_ok());
     }
 
     #[test]

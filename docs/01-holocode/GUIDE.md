@@ -229,9 +229,13 @@ Page(
 - Les fichiers où mènent les points d'une page sont lus d'avance (ils sont petits) : le passage est immédiat. Un fichier introuvable ou refusé par le moteur laisse le passage fermé.
 - **Dézoomer** alors que la page est déjà à sa taille normale fait ressortir du monde où l'on est : on revient au site, ou au fichier, d'où l'on venait.
 - La différence avec `A` : `A` fait changer de page, à l'ancienne ; un `Point` se traverse à pied.
-- **Vers le site de quelqu'un d'autre** : `inside` accepte aussi l'adresse complète d'un fichier, `inside: "https://ami.example/jardin.holo"`. Le portail affiche alors le nom du serveur, pour qu'on sache où l'on va. Ce fichier n'est lu qu'à l'ouverture du carrefour, pas d'avance. Le serveur d'en face doit autoriser la lecture (l'en-tête `access-control-allow-origin`).
+- **Vers le site de quelqu'un d'autre** : `inside` accepte aussi l'adresse complète d'un fichier, en `https` : `inside: "https://ami.example/jardin.holo"`. Le serveur d'en face doit autoriser la lecture (l'en-tête `access-control-allow-origin`). Quatre protections :
+  - le portail affiche le nom du serveur, sans aperçu : le fichier n'est lu que lorsque le visiteur clique sur ce portail. Un clic, un serveur, un fichier ;
+  - une adresse ouverte directement vers un autre serveur ne le contacte pas non plus : le moteur propose le passage, et le visiteur décide ;
+  - une fois chez quelqu'un d'autre, un bandeau « Vous êtes chez … » reste affiché, avec un bouton « Revenir ». Il appartient au moteur : le fichier ne peut ni le cacher ni le styler ;
+  - le `http` n'est accepté que vers sa propre machine (`localhost`), pour les essais.
 - Un navigateur interdit à une page d'afficher l'adresse d'un autre serveur comme si elle y était : l'adresse garde donc le fichier de départ, suivi de `#@` et de l'adresse réelle.
-- On peut passer d'un fichier à l'autre sans fin. La mémoire, elle, est bornée : le moteur ne garde que les 32 derniers fichiers lus.
+- On peut passer d'un fichier à l'autre sans fin. La mémoire, elle, est bornée : le moteur ne garde que les 32 derniers fichiers lus, un fichier de plus de 256 Ko n'est pas lu, et un serveur qui ne répond pas en 8 secondes est abandonné.
 
 L'exemple complet : [`exemples/maison/`](../../exemples/maison/salon.holo), un salon et un jardin.
 
@@ -336,6 +340,9 @@ Page(
 
 Ce sont des garde-fous : le visiteur ne dépasse pas ceux de l'auteur, et l'auteur ne dépasse pas ceux du langage.
 
+- `Zoom(max:)` borne le zoom entier : le zoom ordinaire de la page et la vue points ensemble. `Points(after:)` ne peut donc pas dépasser `Zoom(max:)` : le fichier serait refusé.
+- Quelle que soit `density`, la vue points ne dépasse jamais huit millions de points, pour tenir dans la mémoire d'un téléphone.
+
 ### Le carrefour : `Portals`
 
 Le carrefour montre les mondes voisins sous forme de portails. Il s'ouvre quand on entre dans un point qui contient un site, par le bouton « Carrefour », ou par une règle : `On(Map.tap, effect: Shop.portals)`, où `Shop` est le nom de la page.
@@ -372,6 +379,7 @@ Page(
 | `Portals(brightness:)` | La lumière du fond, pour y voir même sur un site sombre. | 0 à 1 |
 | `Zoom(active:)` | `false` : le visiteur ne peut pas zoomer dans la page. | `true`, `false` |
 
+- `count` borne tout le carrefour, y compris les sites écrits dans le fichier : s'il y en a davantage, un dernier rond dit combien ne sont pas montrés.
 - Les sites écrits dans le fichier passent d'abord, et montrent leur contenu. Le reste de la place est rempli par des mondes calculés à partir d'une graine : des boules de lumière, dans lesquelles on entre comme dans le Big Bang.
 - Là où le curseur se pose, le monde s'avance : il grandit et devient une feuille lisible.
 - Un monde calculé a lui aussi son adresse : `my-shop.holo#~` suivi de sa graine.
@@ -390,6 +398,10 @@ Point(
 ```
 
 On zoome : le point se morcelle en ses fragments. On zoome encore sur l'un d'eux : on y entre, et il se morcelle à son tour, sans fin. Chaque monde se calcule à partir de sa graine ; rien n'est stocké.
+
+### Les limites d'un fichier
+
+Un fichier `.holo` est un texte court. Le moteur refuse, avant toute analyse : un fichier de plus de 262 144 octets, de plus de 100 000 mots, ou dont les blocs et les listes s'emboîtent sur plus de 64 niveaux. Le repère d'un point planté (`above:`) doit être un bloc du même site que lui.
 
 ## 9. Les unités
 
