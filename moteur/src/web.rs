@@ -1,7 +1,7 @@
 //! Branchement sur le navigateur : la zone de dessin, les doigts (glisser, pincer), la
 //! molette, la boucle d'affichage et les mesures publiées dans `window.__holo`.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -172,20 +172,59 @@ fn brancher(canvas: &HtmlCanvasElement, etat: &Rc<RefCell<Etat>>) -> Result<(), 
     Ok(())
 }
 
+thread_local! {
+    /// La boucle d'affichage, gardée ici pour pouvoir la relancer après une pause.
+    static BOUCLE: RefCell<Option<Closure<dyn FnMut(f64)>>> = const { RefCell::new(None) };
+    static EN_PAUSE: Cell<bool> = const { Cell::new(false) };
+    static ETAT: RefCell<Option<Rc<RefCell<Etat>>>> = const { RefCell::new(None) };
+}
+
+/// Met le monde en pause, ou le relance. En pause, plus rien n'est calculé ni dessiné :
+/// le processeur, la carte graphique et la batterie se reposent.
+#[wasm_bindgen]
+pub fn pause(active: bool) -> Result<(), JsValue> {
+    let avant = EN_PAUSE.with(|p| p.replace(active));
+    if avant && !active {
+        // À la reprise, on repart du temps présent : pas de saut d'animation.
+        ETAT.with(|e| {
+            if let Some(etat) = e.borrow().as_ref() {
+                let mut etat = etat.borrow_mut();
+                etat.dernier_t = 0.0;
+                etat.dernier_rapport = 0.0;
+                etat.images = 0;
+            }
+        });
+        BOUCLE.with(|b| match b.borrow().as_ref() {
+            Some(c) => demander_image(c),
+            None => Ok(()),
+        })?;
+    }
+    Ok(())
+}
+
 fn boucle(etat: Rc<RefCell<Etat>>) -> Result<(), JsValue> {
-    let f: Rc<RefCell<Option<Closure<dyn FnMut(f64)>>>> = Rc::new(RefCell::new(None));
-    let g = f.clone();
-    *g.borrow_mut() = Some(Closure::new(move |t: f64| {
+    ETAT.with(|e| *e.borrow_mut() = Some(etat.clone()));
+    let fermeture = Closure::new(move |t: f64| {
+        if EN_PAUSE.with(|p| p.get()) {
+            return;
+        }
         if let Err(e) = image(&etat, t) {
             web_sys::console::error_1(&e);
             return;
         }
-        if let Err(e) = demander_image(f.borrow().as_ref().unwrap()) {
+        let suite = BOUCLE.with(|b| match b.borrow().as_ref() {
+            Some(c) => demander_image(c),
+            None => Ok(()),
+        });
+        if let Err(e) = suite {
             web_sys::console::error_1(&e);
         }
-    }));
-    let resultat = demander_image(g.borrow().as_ref().unwrap());
-    resultat
+    });
+    BOUCLE.with(|b| *b.borrow_mut() = Some(fermeture));
+    BOUCLE.with(|b| match b.borrow().as_ref() {
+        Some(c) => demander_image(c),
+        None => Ok(()),
+    })
 }
 
 fn demander_image(c: &Closure<dyn FnMut(f64)>) -> Result<(), JsValue> {
