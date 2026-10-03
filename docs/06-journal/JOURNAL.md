@@ -23,9 +23,11 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ![La même vue de biais : les lettres se soulèvent](images/2026-10-03-mosaique-6-de-biais.png)
 
-- **La vue points part maintenant du fichier `.holo` lui-même.** Yocthan a relevé que la barre d'adresse montrait `mosaique.html`. L'adresse est désormais celle du fichier, suivie de `?vue=points` : `http://localhost:8080/exemples/boutique-comparee/boutique.holo?vue=points`. Le moteur fabrique la page du fichier, la page est redessinée dans une image (un SVG qui la contient, possible parce que c'est le moteur qui l'a fabriquée), et chaque pixel devient un point. Ce n'est donc plus une image fixe prise d'avance : si l'on change le fichier, les points changent. La vue web a un bouton « Vue points », la vue points un bouton « Vue web ».
+- **Une seule adresse, une seule page.** Yocthan a relevé deux choses : la barre d'adresse montrait `mosaique.html` au lieu du fichier `.holo`, puis, après une première correction, que `boutique.holo?` et `mosaique.html` ne se comportaient pas de la même façon, avec un `?` en trop. Il avait raison : c'étaient deux portes séparées. Il n'y en a plus qu'une. On ouvre `http://localhost:8080/exemples/boutique-comparee/boutique.holo` : c'est le site normal, vivant. On zoome dessus (Ctrl + molette, ou pincer) : la même page devient des points, sans changer d'adresse ni recharger. On dézoome jusqu'au bout : on retrouve le site normal. C'est le zoom qui déclenche la vue, comme il le demandait ; un bouton « Vue points » reste pour les écrans tactiles.
+- Pour y arriver, le moteur fabrique la page, puis on la redessine dans une image (un SVG qui la contient, possible parce que c'est le moteur qui l'a fabriquée) dont chaque pixel devient un point. Ce n'est plus une image fixe prise d'avance : si l'on change le fichier, les points changent.
+- Vérifié avec de vrais gestes envoyés à Chrome par l'outil de capture (variable `HOLO_GESTES`) : cinq crans de Ctrl + molette sur le titre font apparaître les points ; deux crans en avant puis quatre en arrière ramènent au site normal.
 
-![La boutique.holo en vue points, au repos](images/2026-10-03-points-1-repos.png)
+![Après cinq crans de Ctrl + molette sur le titre de boutique.holo](images/2026-10-03-points-3-ctrl-molette.png)
 
 **Erreur en route**
 
@@ -35,8 +37,9 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 - Le relief vient de la lumière : ce qui est clair se soulève. Sur une page à fond blanc et texte noir, ce serait l'inverse de ce qu'on veut. Il faudra partir de la page elle-même, où le moteur sait ce qui est une lettre.
 - On tourne la page jusqu'à 52° environ, pas au-delà : on ne peut pas encore passer derrière ni se placer entre deux lettres.
-- Dans la vue points, la page est une image d'elle-même : ses boutons ne répondent pas, et l'on change de vue par un lien, pas encore par le seul zoom.
-- Les gestes ne sont pas essayés par Claude dans un vrai navigateur.
+- Dans la vue points, la page est une image d'elle-même : ses boutons ne répondent pas tant qu'on n'est pas revenu au site normal.
+- Ctrl + molette est le geste de zoom de Chrome : la page l'intercepte. Sur un écran tactile, le premier pincement n'est pas encore capté ; il faut le bouton « Vue points ».
+- Tourner la page à la souris et les gestes au doigt ne sont pas essayés par Claude.
 
 ---
 

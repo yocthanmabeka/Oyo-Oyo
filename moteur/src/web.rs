@@ -84,6 +84,31 @@ fn avec_la_mosaique(f: impl FnOnce(&mut Mosaique)) {
     });
 }
 
+/// Affiche une mosaïque alors que le moteur tourne déjà : la page devient des points.
+#[wasm_bindgen]
+pub fn poser_mosaique(couleurs: Vec<u8>, largeur: u32, hauteur: u32) -> Result<(), JsValue> {
+    ETAT.with(|e| match e.borrow().as_ref() {
+        Some(etat) => {
+            let mut etat = etat.borrow_mut();
+            let (vue_l, vue_h) = taille_vue(&etat.canvas);
+            let mosaique = Mosaique::new(largeur, hauteur, couleurs, 1, vue_l, vue_h);
+            etat.mosaique = Some(mosaique.ok_or_else(|| JsValue::from_str("image mal décrite : il faut largeur × hauteur × 4 octets"))?);
+            Ok(())
+        }
+        None => Err(JsValue::from_str("le moteur n'est pas encore démarré")),
+    })
+}
+
+/// Retire la mosaïque : le moteur affiche de nouveau son monde.
+#[wasm_bindgen]
+pub fn retirer_mosaique() {
+    ETAT.with(|e| {
+        if let Some(etat) = e.borrow().as_ref() {
+            etat.borrow_mut().mosaique = None;
+        }
+    });
+}
+
 /// Choisit ce que fait un glissement sur la mosaïque : tourner la page, ou la déplacer.
 #[wasm_bindgen]
 pub fn mosaique_tourner(actif: bool) {
@@ -305,7 +330,11 @@ fn brancher(canvas: &HtmlCanvasElement, etat: &Rc<RefCell<Etat>>) -> Result<(), 
         let (vue_l, vue_h) = taille_vue(&etat.canvas);
         let etat = &mut *etat;
         match etat.mosaique.as_mut() {
-            Some(m) => m.zoomer(2f64.powf(-ev.delta_y() * 0.003), f64::from(ev.client_x()), f64::from(ev.client_y()), vue_l, vue_h),
+            Some(m) => {
+                // Un pincement arrive comme une molette avec Ctrl, par petits pas : on les grossit.
+                let pas = if ev.ctrl_key() && ev.delta_y().abs() < 50.0 { ev.delta_y() * 6.0 } else { ev.delta_y() };
+                m.zoomer(2f64.powf(-pas * 0.003), f64::from(ev.client_x()), f64::from(ev.client_y()), vue_l, vue_h)
+            }
             None => etat.nav.zoomer(-(ev.delta_y() as f32) * 0.0018),
         }
     });

@@ -52,6 +52,12 @@ try {
   await demander("Emulation.setDeviceMetricsOverride", { width: Number(largeur), height: Number(hauteur), deviceScaleFactor: Number(densite), mobile: false });
   await demander("Page.navigate", { url: adresse });
   await pause(Number(attente));
+  // HOLO_GESTES : une liste de commandes du protocole de Chrome à jouer avant la capture, pour
+  // essayer un geste (molette, clic) comme le ferait une main. Exemple dans moteur/README.md.
+  for (const geste of JSON.parse(process.env.HOLO_GESTES ?? "[]")) {
+    await demander(geste.method, geste.params);
+    await pause(geste.attente ?? 400);
+  }
   const { result } = await demander("Page.captureScreenshot", { format: "png" });
   writeFileSync(sortie, Buffer.from(result.data, "base64"));
   console.log(`capture écrite : ${sortie}`);
