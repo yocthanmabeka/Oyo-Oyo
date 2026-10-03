@@ -1,0 +1,8 @@
+Page(
+  title: "Contradictory zoom guard",
+  zoom: Zoom(max: 1),
+  points: Points(after: 16),
+  children: [
+    H1("The live page can still grow before point view"),
+  ],
+)
