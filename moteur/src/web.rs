@@ -20,6 +20,8 @@ struct Etat {
     rendu: Rendu,
     canvas: HtmlCanvasElement,
     pointeurs: HashMap<i32, (f32, f32)>,
+    /// Où chaque doigt s'est posé : un doigt qui se relève sans avoir bougé est un toucher.
+    departs: HashMap<i32, (f32, f32)>,
     dernier_t: f64,
     premiere_image_ms: Option<f64>,
     images: u32,
@@ -51,6 +53,7 @@ pub async fn demarrer(canvas: HtmlCanvasElement, source: &str, zoom_initial: f32
         rendu,
         canvas: canvas.clone(),
         pointeurs: HashMap::new(),
+        departs: HashMap::new(),
         dernier_t: 0.0,
         premiere_image_ms: None,
         images: 0,
@@ -96,7 +99,10 @@ fn brancher(canvas: &HtmlCanvasElement, etat: &Rc<RefCell<Etat>>) -> Result<(), 
         "pointerdown",
         Box::new(move |ev: PointerEvent| {
             ev.prevent_default();
-            e.borrow_mut().pointeurs.insert(ev.pointer_id(), (ev.client_x() as f32, ev.client_y() as f32));
+            let mut etat = e.borrow_mut();
+            let pos = (ev.client_x() as f32, ev.client_y() as f32);
+            etat.pointeurs.insert(ev.pointer_id(), pos);
+            etat.departs.insert(ev.pointer_id(), pos);
         }),
     )?;
 
@@ -133,7 +139,23 @@ fn brancher(canvas: &HtmlCanvasElement, etat: &Rc<RefCell<Etat>>) -> Result<(), 
         ecouter(
             nom,
             Box::new(move |ev: PointerEvent| {
-                e.borrow_mut().pointeurs.remove(&ev.pointer_id());
+                let mut etat = e.borrow_mut();
+                let id = ev.pointer_id();
+                let depart = etat.departs.remove(&id);
+                let seul = etat.pointeurs.len() == 1;
+                etat.pointeurs.remove(&id);
+                // Un toucher : un seul doigt, relevé à moins de 10 pixels de là où il s'est posé.
+                if let Some((x0, y0)) = depart {
+                    let (x, y) = (ev.client_x() as f32, ev.client_y() as f32);
+                    if seul && nom == "pointerup" && (x - x0).hypot(y - y0) < 10.0 {
+                        let largeur = f64::from(etat.canvas.client_width()).max(1.0) as f32;
+                        let hauteur = f64::from(etat.canvas.client_height()).max(1.0) as f32;
+                        let aspect = etat.rendu.aspect();
+                        let vx = (x / largeur * 2.0 - 1.0) * aspect;
+                        let vy = -(y / hauteur * 2.0 - 1.0);
+                        etat.nav.viser_ecran(vx, vy, aspect);
+                    }
+                }
             }),
         )?;
     }

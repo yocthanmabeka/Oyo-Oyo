@@ -9,7 +9,8 @@
 - [x] Un point lumineux qui se morcelle, l'entrée dans un point, son monde né de sa graine, la sortie.
 - [x] 17 tests du cœur, exécutés aussi sur GitHub ; poids transféré 489 Ko.
 - [ ] **Mesures sur le téléphone de Yocthan** : images par seconde, pire image, première image, mémoire, batterie. Elles décident d'`ADR-005` et d'`ADR-010`.
-- [ ] Toucher un point pour le viser ; continuité de l'entrée.
+- [x] Toucher un point pour le viser.
+- [ ] Continuité de l'entrée.
 
 ## Ensuite, dans l'ordre proposé
 

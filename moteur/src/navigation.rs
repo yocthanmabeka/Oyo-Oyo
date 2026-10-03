@@ -35,6 +35,8 @@ pub struct Navigation {
     chemin: Vec<(u64, usize)>,
     courant: Monde,
     focal: usize,
+    /// Vrai quand l'utilisateur a touché un point : on ne change plus de cible à la rotation.
+    focal_choisi: bool,
     /// Monde du point visé, calculé d'avance pour l'apercevoir avant d'entrer.
     apercu: Option<Monde>,
     pub zoom: f32,
@@ -42,14 +44,66 @@ pub struct Navigation {
     pub tangage: f32,
     /// 1 juste après une entrée ou une sortie, puis décroît : adoucit le changement de monde.
     pub transition: f32,
+    /// Secondes écoulées, pour la pulsation du point visé.
+    temps: f32,
+}
+
+/// Un point enfant tel qu'il apparaît à l'écran.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PointEcran {
+    pub index: usize,
+    pub x: f32,
+    pub y: f32,
+    pub rayon: f32,
+    /// Facteur de perspective : plus grand quand le point est tourné vers nous.
+    pub k: f32,
 }
 
 impl Navigation {
     pub fn new(racine: PointDecl) -> Self {
         let courant = Monde::racine(&racine);
-        let mut nav = Navigation { racine, chemin: Vec::new(), courant, focal: 0, apercu: None, zoom: 0.0, lacet: 0.0, tangage: 0.0, transition: 0.0 };
+        let mut nav = Navigation {
+            racine,
+            chemin: Vec::new(),
+            courant,
+            focal: 0,
+            focal_choisi: false,
+            apercu: None,
+            zoom: 0.0,
+            lacet: 0.0,
+            tangage: 0.0,
+            transition: 0.0,
+            temps: 0.0,
+        };
         nav.choisir_focal();
         nav
+    }
+
+    pub fn focal(&self) -> usize {
+        self.focal
+    }
+
+    /// L'utilisateur touche l'écran en (x, y), dans le repère des sprites. Si un point est
+    /// sous le doigt, il devient la cible et le reste jusqu'à un autre toucher. Rend vrai
+    /// si un point a été touché.
+    pub fn viser_ecran(&mut self, x: f32, y: f32, aspect: f32) -> bool {
+        let touche = self
+            .points_ecran(aspect)
+            .into_iter()
+            .map(|p| ((p.x - x).powi(2) + (p.y - y).powi(2)).sqrt() - p.rayon.max(0.05) * 1.5)
+            .enumerate()
+            .filter(|(_, d)| *d <= 0.0)
+            .min_by(|a, b| a.1.total_cmp(&b.1))
+            .map(|(i, _)| i);
+        match touche {
+            Some(i) => {
+                self.focal = self.points_ecran(aspect)[i].index;
+                self.focal_choisi = true;
+                self.rafraichir_apercu();
+                true
+            }
+            None => false,
+        }
     }
 
     pub fn profondeur(&self) -> usize {
@@ -103,6 +157,7 @@ impl Navigation {
     /// Fait avancer les effets qui dépendent du temps (en secondes).
     pub fn avancer_temps(&mut self, dt: f32) {
         self.transition = (self.transition - dt * 2.5).max(0.0);
+        self.temps = (self.temps + dt) % 1000.0;
     }
 
     fn entrer(&mut self) {
@@ -112,6 +167,7 @@ impl Navigation {
         self.courant = nouveau;
         self.zoom = ZOOM_APRES_ENTREE;
         self.transition = 1.0;
+        self.focal_choisi = false;
         self.choisir_focal();
     }
 
@@ -122,13 +178,25 @@ impl Navigation {
             self.courant = Monde::racine(&self.racine);
         }
         self.focal = focal.min(self.courant.enfants.len() - 1);
+        self.focal_choisi = false;
         self.zoom = ZOOM_APRES_SORTIE;
         self.transition = 1.0;
     }
 
-    /// Le point visé est celui qui, après rotation, est le plus proche du centre de l'écran
-    /// parmi ceux tournés vers nous.
+    fn rafraichir_apercu(&mut self) {
+        let graine = self.courant.enfants[self.focal].graine;
+        if self.apercu.as_ref().is_none_or(|m| m.graine != graine) {
+            self.apercu = Some(Monde::depuis_graine(graine));
+        }
+    }
+
+    /// Sans toucher de l'utilisateur, le point visé est celui qui, après rotation, est le
+    /// plus proche du centre de l'écran parmi ceux tournés vers nous.
     fn choisir_focal(&mut self) {
+        if self.focal_choisi {
+            self.rafraichir_apercu();
+            return;
+        }
         let mut meilleur = (f32::MAX, 0usize);
         for (i, e) in self.courant.enfants.iter().enumerate() {
             let p = self.tourner_point(e.position);
@@ -138,14 +206,8 @@ impl Navigation {
                 meilleur = (d, i);
             }
         }
-        if meilleur.1 != self.focal || self.apercu.is_none() {
-            self.focal = meilleur.1;
-            self.apercu = None;
-        }
-        let graine = self.courant.enfants[self.focal].graine;
-        if self.apercu.as_ref().is_none_or(|m| m.graine != graine) {
-            self.apercu = Some(Monde::depuis_graine(graine));
-        }
+        self.focal = meilleur.1;
+        self.rafraichir_apercu();
     }
 
     fn tourner_point(&self, p: [f32; 3]) -> [f32; 3] {
@@ -174,42 +236,71 @@ impl Navigation {
         (m, s, recentrage)
     }
 
+    /// Décalage de l'écran : on recentre progressivement sur le point visé pendant la plongée.
+    fn centre_ecran(&self, m: f32, recentrage: f32) -> [f32; 2] {
+        let (c, _) = self.projeter(echelle(self.courant.enfants[self.focal].position, m));
+        [c[0] * recentrage, c[1] * recentrage]
+    }
+
+    /// Où est chaque point enfant à l'écran. Sert au dessin et au toucher.
+    pub fn points_ecran(&self, _aspect: f32) -> Vec<PointEcran> {
+        let (m, s, recentrage) = self.parametres();
+        let centre = self.centre_ecran(m, recentrage);
+        self.courant
+            .enfants
+            .iter()
+            .enumerate()
+            .map(|(index, e)| {
+                let (p, k) = self.projeter(echelle(e.position, m));
+                PointEcran {
+                    index,
+                    x: (p[0] - centre[0]) * s,
+                    y: (p[1] - centre[1]) * s,
+                    rayon: e.rayon * k * (0.35 + 0.65 * m) * s,
+                    k,
+                }
+            })
+            .collect()
+    }
+
     /// Tout ce qu'il faut dessiner, pour un écran de rapport largeur/hauteur `aspect`.
     pub fn sprites(&self, aspect: f32) -> Vec<Sprite> {
         let (m, s, recentrage) = self.parametres();
         let voile = 1.0 - 0.6 * self.transition;
         let lumiere = self.courant.lumiere;
         let mut sprites = Vec::with_capacity(self.courant.enfants.len() + 24);
-
-        let focal = &self.courant.enfants[self.focal];
-        let (centre_focal, _) = self.projeter(echelle(focal.position, m));
-        let centre = [centre_focal[0] * recentrage, centre_focal[1] * recentrage];
-        let ecran = |p: [f32; 2]| [(p[0] - centre[0]) * s, (p[1] - centre[1]) * s];
+        let centre = self.centre_ecran(m, recentrage);
 
         // Le point lui-même : entier au départ, il s'efface à mesure qu'il se morcelle.
         let c = self.courant.couleur;
         let eclat = lumiere * (1.0 - 0.8 * m) * (1.0 - 0.85 * recentrage) * voile;
-        let [x, y] = ecran([0.0, 0.0]);
-        sprites.push(Sprite { x, y, rayon: 0.42 * (1.0 - 0.75 * m) * s, couleur: [c[0], c[1], c[2], eclat] });
+        sprites.push(Sprite { x: -centre[0] * s, y: -centre[1] * s, rayon: 0.42 * (1.0 - 0.75 * m) * s, couleur: [c[0], c[1], c[2], eclat] });
 
-        for (i, e) in self.courant.enfants.iter().enumerate() {
-            let (p, k) = self.projeter(echelle(e.position, m));
-            let [x, y] = ecran(p);
-            let rayon = e.rayon * k * (0.35 + 0.65 * m) * s;
-            let attenuation = if i == self.focal { 1.0 } else { 1.0 - 0.5 * recentrage };
+        for p in self.points_ecran(aspect) {
+            let e = &self.courant.enfants[p.index];
+            let vise = p.index == self.focal;
+            let attenuation = if vise { 1.0 } else { 1.0 - 0.5 * recentrage };
             let alpha = (0.35 + 0.65 * m) * lumiere * voile * attenuation;
-            sprites.push(Sprite { x, y, rayon, couleur: [e.couleur[0], e.couleur[1], e.couleur[2], alpha] });
+
+            // Le point visé est signalé par un halo blanc qui respire, dès que les points
+            // sont écartés et jusqu'à ce que l'on soit dedans.
+            if vise && m > 0.3 {
+                let pulsation = 0.5 + 0.5 * (self.temps * 3.0).sin();
+                let force = (m - 0.3) / 0.7 * (1.0 - 0.6 * recentrage) * voile;
+                sprites.push(Sprite { x: p.x, y: p.y, rayon: p.rayon * (1.55 + 0.15 * pulsation), couleur: [1.0, 1.0, 1.0, 0.22 * force] });
+            }
+            sprites.push(Sprite { x: p.x, y: p.y, rayon: p.rayon, couleur: [e.couleur[0], e.couleur[1], e.couleur[2], alpha] });
 
             // Dans le point visé, on aperçoit déjà le monde qu'il contient.
-            if i == self.focal && s > 1.8 {
+            if vise && s > 1.8 {
                 if let Some(interieur) = &self.apercu {
                     let visibilite = ((s - 1.8) / 2.5).clamp(0.0, 1.0) * voile;
                     for g in &interieur.enfants {
                         let q = self.tourner_point(g.position);
                         sprites.push(Sprite {
-                            x: x + q[0] * rayon * 0.72,
-                            y: y + q[1] * rayon * 0.72,
-                            rayon: (0.1 + 0.03 * q[2]) * rayon,
+                            x: p.x + q[0] * p.rayon * 0.72,
+                            y: p.y + q[1] * p.rayon * 0.72,
+                            rayon: (0.1 + 0.03 * q[2]) * p.rayon,
                             couleur: [g.couleur[0], g.couleur[1], g.couleur[2], visibilite * (0.6 + 0.4 * q[2].max(0.0))],
                         });
                     }
@@ -284,6 +375,26 @@ mod tests {
         assert_eq!(parcours(&mut a), parcours(&mut b));
         assert_eq!(a.chemin(), b.chemin());
         assert!(a.profondeur() >= 2);
+    }
+
+    #[test]
+    fn toucher_un_point_le_rend_cible_et_la_rotation_ne_change_plus_la_cible() {
+        let mut nav = depart();
+        nav.zoomer(1.0); // les points sont écartés
+        let points = nav.points_ecran(0.5);
+        let autre = points.iter().find(|p| p.index != nav.focal() && p.k > 0.4).expect("un point tourné vers nous");
+        assert!(nav.viser_ecran(autre.x, autre.y, 0.5));
+        assert_eq!(nav.focal(), autre.index);
+        let cible = nav.focal();
+        nav.tourner(0.6, 0.2);
+        assert_eq!(nav.focal(), cible, "une cible touchée tient malgré la rotation");
+        assert!(!nav.viser_ecran(5.0, 5.0, 0.5), "toucher dans le vide ne change rien");
+        assert_eq!(nav.focal(), cible);
+        for _ in 0..40 {
+            nav.zoomer(0.1);
+        }
+        assert_eq!(nav.profondeur(), 2);
+        assert!(nav.chemin().ends_with(&format!(" › {cible}")), "on entre bien dans le point touché : {}", nav.chemin());
     }
 
     #[test]
