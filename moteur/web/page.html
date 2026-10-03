@@ -78,11 +78,18 @@
   .apercu.ouverture .contenu{transition:transform .45s ease-in}
   @media (prefers-reduced-motion:reduce){.apercu.ouverture,.apercu.ouverture .contenu,.portail .apercu{transition:none}}
 
+  /* Chez quelqu'un d'autre : un bandeau qui appartient au moteur, pas au site. Un fichier ne
+     peut ni le cacher ni le styler : ses styles ne visent que ses propres blocs. */
+  #origine{position:fixed;left:8px;top:8px;z-index:9;display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;
+    background:#111;color:#fff;border:1px solid #E9B44C;font:13px system-ui,sans-serif}
+  #origine[hidden]{display:none}
+  #origine button{padding:4px 8px;border:1px solid #888;border-radius:6px;background:none;color:#fff;font:inherit;cursor:pointer}
   #erreur{position:fixed;left:8px;bottom:8px;right:8px;z-index:10;color:#f88;font:13px monospace;white-space:pre-wrap}
 </style>
 </head><body><canvas id="zone"></canvas><div id="page"></div>
 <img id="image" alt=""><div id="etat"></div>
 <div id="carrefour" hidden></div>
+<div id="origine" hidden><span></span><button type="button">Revenir</button></div>
 <div id="vues" hidden>
   <button id="points" type="button" title="Ou : Ctrl + molette, ou pincer, directement sur la page">Vue points</button>
   <button id="mode" type="button" title="Les sites voisins, sous forme de portails">Carrefour</button>
@@ -110,6 +117,22 @@
   // Garde-fou : on ne garde en mémoire que les derniers fichiers lus. On peut passer d'un
   // fichier à l'autre sans fin ; la mémoire, elle, ne grandit pas sans fin.
   const FICHIERS_GARDES = 32;
+  // Un fichier .holo est un texte court. On arrête de lire au-delà de cette taille, et on
+  // n'attend pas un serveur qui ne répond pas (revue Codex du 2026-10-03, B-04). La mémoire
+  // des fichiers lus est donc bornée : 32 fichiers de 256 Ko au plus.
+  const OCTETS_MAX = 262144;
+  const DELAI_MAX = 8000;
+  // La vue points redessine la page dans une image : jamais plus de huit millions de points,
+  // quelle que soit la densité demandée, pour tenir dans la mémoire d'un téléphone (B-05).
+  const POINTS_MAX = 8e6;
+  let densiteDemandee = 2;
+  const chezSoi = (hote) => hote === "localhost" || hote === "127.0.0.1";
+  // En http, on ne va que vers sa propre machine, et seulement si l'on y est déjà : une page
+  // publique ne fait pas partir de requêtes vers le réseau privé du visiteur.
+  function passagePermis(fichier) {
+    const adresse = new URL(fichier, location.href);
+    return adresse.protocol === "https:" || adresse.origin === location.origin || (chezSoi(adresse.hostname) && chezSoi(location.hostname));
+  }
   const adresseEntiere = (fichier) => new URL(fichier, location.href).href;
   const dAilleurs = (fichier) => new URL(fichier, location.href).origin !== location.origin;
   let dernierePassage = 0;  // pour qu'un seul coup de molette ne fasse pas remonter deux mondes
@@ -164,16 +187,40 @@
         if (ancien !== chemin) fichiersLus.delete(ancien);
       }
       fichiersLus.set(fichier, (async () => {
+        const arret = new AbortController();
+        const delai = setTimeout(() => arret.abort(), DELAI_MAX);
         try {
-          const reponse = await fetch(fichier, { headers: { accept: "text/plain" } });
-          if (!reponse.ok) return null;
-          const texte = await reponse.text();
+          if (!passagePermis(fichier)) return null;
+          // Chez quelqu'un d'autre : sans cookies, et sans dire d'où l'on vient.
+          const discret = dAilleurs(fichier) ? { credentials: "omit", referrerPolicy: "no-referrer" } : {};
+          const reponse = await fetch(fichier, { headers: { accept: "text/plain" }, signal: arret.signal, ...discret });
+          if (!reponse.ok || Number(reponse.headers.get("content-length") ?? 0) > OCTETS_MAX) return null;
+          // Lecture par morceaux : on s'arrête dès que la limite est dépassée.
+          const lecteur = reponse.body.getReader();
+          const morceaux = [];
+          let recu = 0;
+          for (;;) {
+            const { done, value } = await lecteur.read();
+            if (done) break;
+            recu += value.length;
+            if (recu > OCTETS_MAX) {
+              arret.abort();
+              return null;
+            }
+            morceaux.push(value);
+          }
+          const texte = new TextDecoder().decode(await new Blob(morceaux).arrayBuffer());
           vue_a_plat(texte, dossierDe(fichier), ""); // refusé par le moteur : le passage reste fermé
           return texte;
         } catch {
           return null;
+        } finally {
+          clearTimeout(delai);
         }
-      })());
+      })().then((texte) => {
+        if (texte === null) fichiersLus.delete(fichier); // un échec n'est pas gardé : on pourra réessayer
+        return texte;
+      }));
     }
     return fichiersLus.get(fichier);
   }
@@ -181,7 +228,8 @@
   // Ce que le fichier affiché dit de sa vue (Zoom, Points, Portals).
   function lireLesReglages() {
     let actif, rangement;
-    [densite, reduire, zoomAvantPoints, actif, rangement, nombreDePortails, tailleDePortail, lumiereDuFond] = reglages_de_vue(source);
+    [densiteDemandee, reduire, zoomAvantPoints, actif, rangement, nombreDePortails, tailleDePortail, lumiereDuFond] = reglages_de_vue(source);
+    densite = densiteDemandee;
     reduire = reduire === 1;
     zoomActif = actif === 1;
     disposition = ["grille", "ligne", "colonne", "diagonale"][rangement];
@@ -247,6 +295,10 @@
       history.pushState(history.state, "", site ? `#${site}` : location.pathname + location.search);
     }
     dernierePassage = performance.now();
+    // Chez quelqu'un d'autre, on le dit tant qu'on y est (B-08).
+    const origine = document.getElementById("origine");
+    origine.hidden = !dAilleurs(chemin);
+    origine.firstElementChild.textContent = `Vous êtes chez ${new URL(chemin, location.href).host}`;
     // Les fichiers où mènent les points de cette page sont lus d'avance, discrètement.
     // Seulement ceux du même serveur : on ne contacte pas le serveur de quelqu'un d'autre tant
     // que le visiteur n'a pas ouvert le carrefour.
@@ -431,6 +483,7 @@
   function entrerEnPoints() {
     if (enPoints || !carrefour.hidden) return Promise.resolve();
     entreeEnCours ??= (async () => {
+      densite = Math.min(densiteDemandee, Math.sqrt(POINTS_MAX / (innerWidth * innerHeight)));
       const pixels = await imageDeLaPage();
       const couleurs = new Uint8Array(pixels.data.buffer);
       pixelsPlantes = [...page.querySelectorAll(".holo-pixel")].map((pixel) => {
@@ -440,9 +493,9 @@
       document.body.classList.add("en-points");
       if (!moteurLance) {
         moteurLance = true;
-        await demarrer_mosaique(zone(), couleurs, pixels.width, pixels.height, source);
+        await demarrer_mosaique(zone(), couleurs, pixels.width, pixels.height, source, zoomVif);
       } else {
-        poser_mosaique(couleurs, pixels.width, pixels.height, source);
+        poser_mosaique(couleurs, pixels.width, pixels.height, source, zoomVif);
         pause(false);
       }
       page.style.visibility = "hidden";
@@ -464,6 +517,9 @@
     boutonTourner.setAttribute("aria-pressed", "false");
     document.body.classList.remove("en-points");
     boutonPoints.textContent = "Vue points";
+    // L'image de la page et les repères ne servent plus : on rend la mémoire (B-10).
+    image.removeAttribute("src");
+    pixelsPlantes = [];
     page.style.visibility = "";
   }
 
@@ -498,7 +554,7 @@
   // ---------------------------------------------------------------- le carrefour
 
   // Un portail : un rond lumineux qui montre le site où il mène.
-  function portail({ chemin: versSite, nom, couleur, calcule = false, fichier = null, texte = null, retour = false }, taille, vers) {
+  function portail({ chemin: versSite, nom, couleur, calcule = false, fichier = null, texte = null, retour = false, aLire = false, inerte = false }, taille, vers) {
     const bouton = document.createElement("button");
     bouton.type = "button";
     bouton.className = vers ? "portail vers" : "portail";
@@ -506,7 +562,17 @@
     else if (fichier) bouton.dataset.fichier = fichier;
     else bouton.dataset.chemin = versSite;
     // Un fichier introuvable ou refusé par le moteur : le passage reste fermé.
-    if (fichier && texte === null) {
+    if (inerte) bouton.disabled = true;
+    if (fichier && aLire) {
+      // Pas encore lu : pas d'aperçu, mais le nom du serveur où l'on irait.
+      calcule = true;
+      nom = `${nom} · ${new URL(fichier, location.href).host}`;
+      if (!passagePermis(fichier)) {
+        couleur = "#555";
+        nom = `${nom} (fermé)`;
+        bouton.disabled = true;
+      }
+    } else if (fichier && texte === null) {
       calcule = true;
       couleur = "#555";
       nom = `${nom} (fermé)`;
@@ -551,8 +617,11 @@
     sortirDesPoints();
     const contenus = sitesContenus();
     // Les autres fichiers sont petits et déjà demandés : on les attend pour montrer leur aperçu.
+    // Ceux d'un autre serveur ne sont pas lus ici : un clic, un serveur, un fichier (B-07).
     for (const contenu of contenus) {
-      if (contenu.fichier) contenu.texte = await lire(contenu.fichier);
+      if (!contenu.fichier) continue;
+      if (dAilleurs(contenu.fichier)) contenu.aLire = true;
+      else contenu.texte = await lire(contenu.fichier);
     }
     const ici = { chemin: site, nom: site ? `Ici : ${dernier(site)}` : "Ici", couleur: "#ffffff" };
     const cible = contenus.find((s) => s.nom === vers);
@@ -560,8 +629,12 @@
     if (site) portails.push(portail({ chemin: parent(site), nom: `Retour : ${dernier(parent(site)) || "accueil"}`, couleur: "#9aa4b2" }, tailleDePortail, false));
     // Venu d'un autre fichier : un portail pour y retourner.
     else if (history.state?.depuis) portails.push(portail({ nom: "Retour", couleur: "#9aa4b2", calcule: true, retour: true }, tailleDePortail, false));
-    for (const contenu of contenus) {
-      if (contenu !== cible) portails.push(portail(contenu, tailleDePortail, false));
+    // Portals(count:) borne tout le carrefour, y compris les sites écrits par l'auteur (B-02).
+    const autres = contenus.filter((contenu) => contenu !== cible);
+    const place = Math.max(0, nombreDePortails - 1 - portails.length - (cible ? 1 : 0));
+    for (const contenu of autres.slice(0, place)) portails.push(portail(contenu, tailleDePortail, false));
+    if (autres.length > place) {
+      portails.push(portail({ nom: `+ ${autres.length - place} autres`, couleur: "#555", calcule: true, inerte: true }, tailleDePortail, false));
     }
     if (cible) portails.push(portail(ici, tailleDePortail, false));
     // Le reste de la place est rempli par des mondes calculés à partir d'une graine : on peut
@@ -584,6 +657,20 @@
     carrefour.querySelector(".vers").focus({ preventScroll: true });
   }
 
+  // Une adresse désigne le fichier d'un autre serveur. On ne le contacte pas sans un geste du
+  // visiteur : on lui montre où il irait, et c'est lui qui décide (B-07).
+  function proposerPassage(fichier) {
+    const grand = Math.round(Math.min(tailleDePortail * 1.9, Math.min(innerWidth, innerHeight) * 0.42));
+    const vers = portail({ fichier, nom: "Aller", couleur: "#E9B44C", aLire: true }, grand, true);
+    const rester = portail({ chemin: site, nom: "Rester ici", couleur: "#ffffff" }, tailleDePortail, false);
+    carrefour.className = "grille";
+    carrefour.style.setProperty("--lueur", `${Math.round(lumiereDuFond * 100)}%`);
+    carrefour.replaceChildren(vers, rester);
+    carrefour.hidden = false;
+    boutonMode.textContent = "Fermer";
+    boutonPoints.hidden = true;
+  }
+
   function fermerCarrefour() {
     carrefour.hidden = true;
     carrefour.replaceChildren();
@@ -603,6 +690,16 @@
       return;
     }
     const apercu = bouton.querySelector(".apercu");
+    if (bouton.dataset.fichier && apercu.classList.contains("calcule")) {
+      // Le fichier d'un autre serveur, lu seulement maintenant que le visiteur l'a choisi.
+      const dejaLa = decodeURIComponent(location.hash.slice(1)) === `@${adresseEntiere(bouton.dataset.fichier)}`;
+      if (!(await ouvrirFichier(bouton.dataset.fichier, "", { dansLHistorique: !dejaLa }))) {
+        bouton.disabled = true;
+        bouton.querySelector(".nom").textContent += " (fermé)";
+        bouton.style.setProperty("--couleur", "#555");
+      }
+      return;
+    }
     if (apercu.classList.contains("calcule")) {
       afficherSite(versSite);
       return;
@@ -641,15 +738,18 @@
     fichiersLus.set(chemin, Promise.resolve(source));
     lireLesReglages();
     const departDuSite = decodeURIComponent(location.hash.slice(1));
-    // Une adresse en #@… : on arrive directement dans le fichier d'un autre serveur.
-    if (!departDuSite.startsWith("@") || !(await ouvrirFichier(departDuSite.slice(1), "", { dansLHistorique: false }))) {
-      afficherSite(departDuSite.startsWith("@") ? "" : departDuSite, { dansLHistorique: false });
-    }
+    afficherSite(departDuSite.startsWith("@") ? "" : departDuSite, { dansLHistorique: false });
+    // Une adresse en #@… désigne le fichier d'un autre serveur : on propose le passage.
+    if (departDuSite.startsWith("@")) proposerPassage(departDuSite.slice(1));
+    // « Revenir » : par où l'on est venu, ou, si l'on est arrivé directement, au fichier de départ.
+    document.querySelector("#origine button").addEventListener("click", () => (history.state?.depuis ? history.back() : ouvrirFichier(location.pathname)));
     // Le bouton « retour » du navigateur, ou une adresse changée à la main.
     addEventListener("popstate", () => {
       const cheminDeSite = decodeURIComponent(location.hash.slice(1));
       // L'adresse désigne un autre fichier : on y passe, toujours sans recharger.
-      if (cheminDeSite.startsWith("@")) ouvrirFichier(cheminDeSite.slice(1), "", { dansLHistorique: false });
+      // Un fichier d'ailleurs déjà lu pendant cette visite : le visiteur l'avait choisi. Sinon, on propose.
+      if (cheminDeSite.startsWith("@") && fichiersLus.has(cheminDeSite.slice(1))) ouvrirFichier(cheminDeSite.slice(1), "", { dansLHistorique: false });
+      else if (cheminDeSite.startsWith("@")) proposerPassage(cheminDeSite.slice(1));
       else if (location.pathname !== chemin && location.pathname.endsWith(".holo")) ouvrirFichier(location.pathname, cheminDeSite, { dansLHistorique: false });
       else afficherSite(cheminDeSite, { dansLHistorique: false });
     });

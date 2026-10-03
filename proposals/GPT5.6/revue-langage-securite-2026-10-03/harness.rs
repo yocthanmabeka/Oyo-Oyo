@@ -18,22 +18,22 @@ mod tests {
         assert!(html.contains("&lt;script&gt;alert"), "le texte hostile n'est pas visible sous forme échappée");
     }
 
+    // Les trois sondes marquées « corrigé » décrivaient des défauts constatés par cette revue.
+    // Claude les a corrigés le 2026-10-04 et a retourné ici l'attente, avec l'accord de Yocthan :
+    // elles vérifient maintenant que le défaut ne revient pas.
+
     #[test]
-    fn la_verification_accepte_javascript_mais_le_rendu_le_refuse() {
-        verifier_page(JAVASCRIPT)
-            .expect("constat CI : verifier_page accepte actuellement le schéma javascript:");
+    fn corrige_la_verification_refuse_javascript_comme_le_rendu() {
+        verifier_page(JAVASCRIPT).expect_err("B-11 corrigé : verifier_page refuse le schéma javascript:");
         let erreur = vue_a_plat(JAVASCRIPT, "")
             .expect_err("le rendu doit refuser une adresse javascript:");
         assert!(erreur.message.contains("to"), "diagnostic inattendu : {erreur}");
     }
 
     #[test]
-    fn zoom_max_et_after_sont_acceptes_dans_un_ordre_incoherent() {
-        let programme = verifier_page(ZOOM).expect("la combinaison est actuellement acceptée");
-        let r = holo_moteur::vue::reglages(&programme).expect("les réglages sont actuellement acceptés");
-        assert_eq!(r.zoom_max, 1.0);
-        assert_eq!(r.apres, 16.0);
-        assert!(r.apres > r.zoom_max, "la sonde exige un seuil points supérieur au maximum annoncé");
+    fn corrige_zoom_max_et_after_incoherents_sont_refuses() {
+        let erreur = verifier_page(ZOOM).expect_err("B-01 corrigé : Points(after:) ne peut pas dépasser Zoom(max:)");
+        assert!(erreur.message.contains("Zoom(max: 1)"), "diagnostic inattendu : {erreur}");
     }
 
     #[test]
@@ -51,10 +51,9 @@ mod tests {
     }
 
     #[test]
-    fn above_peut_designer_un_bloc_hors_de_la_page_visible() {
-        let html = vue_a_plat(ABOVE, "").expect("le repère imbriqué est actuellement accepté");
-        assert!(html.contains("data-above=\"Inner\""));
-        assert!(html.contains("data-name=\"Inner\""));
+    fn corrige_above_hors_de_la_page_visible_est_refuse() {
+        let erreur = vue_a_plat(ABOVE, "").expect_err("B-06 corrigé : le repère doit être dans le même site");
+        assert!(erreur.message.contains("above"), "diagnostic inattendu : {erreur}");
     }
 
     #[test]

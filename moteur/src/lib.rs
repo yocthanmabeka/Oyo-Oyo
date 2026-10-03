@@ -47,6 +47,11 @@ pub fn verifier_page(source: &str) -> Result<Programme, Erreur> {
     styles::verifier_styles(&programme)?;
     regles::verifier_regles(&programme)?;
     vue::reglages(&programme)?;
+    // Ce que l'affichage refuserait (une adresse en `javascript:`, une image hors du dossier)
+    // est refusé dès la vérification : on fabrique la page à blanc (revue Codex, B-11).
+    if programme.racine.nom == "Page" {
+        plat::page_html(&programme, "")?;
+    }
     Ok(programme)
 }
 
@@ -189,6 +194,14 @@ mod tests {
         }
         // Le salon a une porte vers le jardin : toucher le point demande d'y entrer.
         assert_eq!(effets(include_str!("../../exemples/maison/salon.holo"), "Jardin.tap"), ["Jardin.enter"]);
+    }
+
+    #[test]
+    fn la_verification_refuse_ce_que_l_affichage_refuserait() {
+        assert!(verifier_page("Page(children: [ A(\"x\", to: \"javascript:alert(1)\") ])").unwrap_err().message.contains("« to »"));
+        assert!(verifier_page("Page(children: [ Image(source: \"../secret.png\") ])").is_err());
+        assert!(verifier_page("Page(children: [ Point(name: G, seed: 1, inside: \"http://192.168.1.1/x.holo\") ])").is_err());
+        assert!(verifier_page("Page(children: [ A(\"x\", to: \"garden.holo\") ])").is_ok());
     }
 
     #[test]

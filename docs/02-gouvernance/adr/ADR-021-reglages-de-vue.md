@@ -74,6 +74,8 @@ La borne « `fragment` au moins égal à `size` × `grid` » garantit qu'il n'y 
 
 **Le carrefour et l'interrupteur du zoom.** `Zoom(active:)` permet ou interdit le zoom. Un quatrième bloc, `Portals(layout:, count:, size:, brightness:)`, règle le carrefour : la disposition des portails (`grid`, `row`, `column`, `diagonal`, donc aussi le sens où on les fait défiler), leur nombre, leur taille, la lumière du fond. La page gagne une capacité, `portals`, pour ouvrir le carrefour par une règle. Demandé par Yocthan le 2026-10-03 : « chaque action doit être dans le code ».
 
+**Corrections après la revue de Codex (2026-10-04).** `Zoom(max:)` ne bornait que la vue points : le zoom ordinaire passait outre. Il borne maintenant le zoom entier, et un fichier où `Points(after:)` dépasse `Zoom(max:)` est refusé. `Portals(count:)` ne bornait que les mondes calculés : il borne tout le carrefour. `density` est plafonnée par un nombre total de points (huit millions). Codex propose aussi de renommer la plupart des mots de cette fiche (`maxScale`, `threshold`, `subdivideAt`, `divisions`, `PointView`, `Depth`…) : c'est à Yocthan de trancher, rien n'est renommé.
+
 ## Comparaison faite avant de choisir
 
 | Option | Pour | Contre |

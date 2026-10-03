@@ -49,6 +49,17 @@ Les deux limites de la première version ont été revues à la demande de Yocth
 - **« Seuls les fichiers rangés à côté » était une mauvaise limite** : sans elle levée, chacun reste enfermé dans son dossier, et il n'y a pas de web. `inside` accepte maintenant l'adresse complète d'un fichier `.holo`, en `http` ou `https`. Trois précautions : le portail affiche le nom du serveur ; un fichier d'un autre serveur n'est lu qu'à l'ouverture du carrefour, jamais d'avance (lire d'avance préviendrait ce serveur de chaque visite, sans que le visiteur ait rien demandé) ; et il passe par le même vérificateur que les autres, donc ne peut contenir aucun code.
 - **« Rien ne borne le nombre de passages » était une bonne limite à moitié** : ne pas borner les passages est juste ; ne pas borner la mémoire ne l'était pas. Voir ci-dessus.
 
+## Corrections après la revue de Codex (2026-10-04)
+
+Codex a montré que plusieurs promesses de cette fiche ne tenaient pas (`proposals/GPT5.6/revue-langage-securite-2026-10-03/`). Corrigé :
+
+- **Aucun contact sans geste.** Une adresse en `#@…` lisait le fichier distant dès l'ouverture, et le carrefour lisait tous les fichiers distants visibles. Désormais : un clic, un serveur, un fichier. Une adresse distante ouverte directement propose le passage au lieu de le faire.
+- **L'origine reste visible.** Un bandeau du moteur, « Vous êtes chez … », reste affiché tant qu'on est dans le fichier d'un autre serveur.
+- **En `https`.** Le `http` n'est accepté que vers sa propre machine, quand on y est déjà : une page publique ne peut pas faire partir de requêtes vers le réseau privé du visiteur.
+- **Des limites de lecture.** 256 Ko par fichier, 8 secondes d'attente, sans cookies et sans dire d'où l'on vient.
+
+Non corrigé, et dit : le poids déclaré (`weight`) n'est toujours pas comparé au poids réel ; il n'y a pas d'en-tête de sécurité `Content-Security-Policy` sur le serveur de démonstration.
+
 ## Critères de validation
 
 - `exemples/maison/` : du salon au jardin par un point, sans rechargement ; retour par un dézoom.

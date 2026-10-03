@@ -49,10 +49,10 @@ pub async fn demarrer(canvas: HtmlCanvasElement, source: &str, zoom_initial: f32
 /// Affiche une image comme une mosaïque de points, un point par pixel (voir `mosaique.rs`).
 /// `couleurs` contient quatre octets par pixel : rouge, vert, bleu, opacité.
 #[wasm_bindgen]
-pub async fn demarrer_mosaique(canvas: HtmlCanvasElement, couleurs: Vec<u8>, largeur: u32, hauteur: u32, source: Option<String>) -> Result<(), JsValue> {
+pub async fn demarrer_mosaique(canvas: HtmlCanvasElement, couleurs: Vec<u8>, largeur: u32, hauteur: u32, source: Option<String>, deja_grossi: Option<f64>) -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
     let (vue_l, vue_h) = taille_vue(&canvas);
-    let mosaique = Mosaique::new(largeur, hauteur, couleurs, 1, vue_l, vue_h, reglages_de(source)?).ok_or_else(|| JsValue::from_str("image mal décrite : il faut largeur × hauteur × 4 octets"))?;
+    let mosaique = Mosaique::new(largeur, hauteur, couleurs, 1, vue_l, vue_h, reglages_restants(source, deja_grossi)?).ok_or_else(|| JsValue::from_str("image mal décrite : il faut largeur × hauteur × 4 octets"))?;
     // Le monde n'est pas affiché tant que la mosaïque est là ; il faut pourtant un point.
     let decl = crate::univers::PointDecl { nom: "Mosaic".into(), graine: 1, lumiere: 0.0, morceler: 1, couleur: None, palette: Vec::new() };
     lancer(canvas, Navigation::new(decl), Some(mosaique)).await
@@ -85,6 +85,14 @@ fn reglages_de(source: Option<String>) -> Result<crate::vue::Reglages, JsValue> 
         Some(source) => crate::verifier_page(&source).and_then(|p| crate::vue::reglages(&p)).map_err(|e| JsValue::from_str(&e.to_string())),
         None => Ok(crate::vue::Reglages::default()),
     }
+}
+
+/// Les réglages de vue, une fois décompté le grossissement déjà fait par le zoom ordinaire :
+/// `Zoom(max:)` borne le zoom entier, pas seulement la vue points.
+fn reglages_restants(source: Option<String>, deja_grossi: Option<f64>) -> Result<crate::vue::Reglages, JsValue> {
+    let mut r = reglages_de(source)?;
+    r.zoom_max = (r.zoom_max / deja_grossi.unwrap_or(1.0).max(1.0)).max(1.0);
+    Ok(r)
 }
 
 /// Ce que la page d'entrée doit savoir des réglages d'un fichier, dans cet ordre : la densité
@@ -125,8 +133,8 @@ fn avec_la_mosaique(f: impl FnOnce(&mut Mosaique)) {
 
 /// Affiche une mosaïque alors que le moteur tourne déjà : la page devient des points.
 #[wasm_bindgen]
-pub fn poser_mosaique(couleurs: Vec<u8>, largeur: u32, hauteur: u32, source: Option<String>) -> Result<(), JsValue> {
-    let reglages = reglages_de(source)?;
+pub fn poser_mosaique(couleurs: Vec<u8>, largeur: u32, hauteur: u32, source: Option<String>, deja_grossi: Option<f64>) -> Result<(), JsValue> {
+    let reglages = reglages_restants(source, deja_grossi)?;
     ETAT.with(|e| match e.borrow().as_ref() {
         Some(etat) => {
             let mut etat = etat.borrow_mut();
