@@ -1,24 +1,29 @@
 {
   "verdict": "accepté",
   "decisions": [
-    "ADR-007",
-    "ADR-009",
-    "ADR-016",
-    "ADR-019",
     "ADR-020"
   ],
   "arbre": {
     "bloc": "Page",
-    "title": "Hello",
+    "title": "Download",
     "children": [
       {
         "bloc": "H1"
       },
       {
-        "bloc": "P"
+        "bloc": "Text"
+      },
+      {
+        "bloc": "H2"
       },
       {
         "bloc": "P"
+      },
+      {
+        "bloc": "H3"
+      },
+      {
+        "bloc": "Text"
       }
     ]
   },

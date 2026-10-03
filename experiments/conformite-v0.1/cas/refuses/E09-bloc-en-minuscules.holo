@@ -1,0 +1,7 @@
+// One spelling per block (ADR-020): a block starts with a capital letter.
+// The engine says which word to write instead.
+Page(
+  children: [
+    h1("Hello"),
+  ],
+)

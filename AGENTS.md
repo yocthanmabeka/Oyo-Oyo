@@ -15,7 +15,7 @@ Si tu n'as pas accès à GitHub (c'est le cas de Gemini), demande à Yocthan le 
 ## Ce que tu dois savoir en une minute
 
 - **L'idée de Yocthan** : le métavers n'est pas un jeu, c'est une mise à jour du web. Un même fichier `.holo` s'affiche à plat (une page ordinaire) et en profondeur (un lieu où l'on zoome et où l'on entre). Tout part d'un point lumineux qui se morcelle en points, chacun contenant un monde. Un monde naît de sa graine, rien n'est stocké. Cible : n'importe quel téléphone actuel, dans un navigateur, premier test sous 1 Go.
-- **Le langage HoloCode** : des blocs nommés par leur sens, imbriqués comme en Flutter, avec le texte en Markdown dans les blocs (`ADR-009`). Le vocabulaire est **en anglais**, et un mot que les programmeurs connaissent garde son sens (`ADR-016`) : `Page`, `Text`, `Button`, `Point`, `World`, `On`, `name`, `seed`, `children`, `rules`. Une phrase entre guillemets est un paragraphe (`ADR-019`). La forme : `Theme`, styles nommés `.card`, réglages par bloc (`ADR-017`). L'auteur n'écrit jamais de HTML, de CSS ni de JavaScript. Tout changement d'état passe par un arbitre ; pas de code libre dans un bloc (`ADR-015`). Description honnête du paradigme : des objets sans méthodes, des règles au niveau du monde, et des relations. Rien de nouveau dans les briques ; la valeur est dans ce qui est interdit.
+- **Le langage HoloCode** : des blocs nommés par leur sens, imbriqués comme en Flutter, avec le texte en Markdown dans les blocs (`ADR-009`). Le vocabulaire est **en anglais**, et un mot que les programmeurs connaissent garde son sens (`ADR-016`) : `Page`, `Text`, `P`, `H1`, `Button`, `Point`, `World`, `On`, `name`, `seed`, `children`, `rules`. `Text` est du texte sans rôle ; `P` et `H1` à `H3` sont un `Text` avec un rôle ; un bloc commence par une majuscule, un réglage par une minuscule (`ADR-020`). Une phrase entre guillemets est un paragraphe (`ADR-019`). À chaque ajout au langage : comparer les options, et vérifier qu'on ne répète pas un défaut de HTML, de CSS ou de JavaScript. La forme : `Theme`, styles nommés `.card`, réglages par bloc (`ADR-017`). L'auteur n'écrit jamais de HTML, de CSS ni de JavaScript. Tout changement d'état passe par un arbitre ; pas de code libre dans un bloc (`ADR-015`). Description honnête du paradigme : des objets sans méthodes, des règles au niveau du monde, et des relations. Rien de nouveau dans les briques ; la valeur est dans ce qui est interdit.
 - **Le moteur** : en Rust, compilé en WebAssembly pour les navigateurs d'aujourd'hui, en natif demain pour un navigateur propre au projet (`ADR-010`, en expérimentation). Première réalisation : [`moteur/`](moteur/README.md), le sprint Big Bang.
 - **Le `Point`** est le pixel de l'Holoverse : la plus petite unité visible, qui révèle un monde quand on zoome dessus (`ADR-016`).
 - **La règle de fusion** : on ne fusionne dans `main` que ce qui marche. Celui qui fusionne vérifie l'auteur et la branche, jamais seulement le numéro, et a lu la pull request en entier. Claude fusionne ses propres pull requests quand les tests sont verts ; une pull request d'une autre IA, ou qui change une décision, attend l'accord de Yocthan. Les tests s'exécutent automatiquement sur chaque pull request (`.github/workflows/tests.yml`) ; un README qui annonce un résultat ne vaut rien, seul le test exécuté compte.
@@ -42,7 +42,7 @@ Le canal entre les IA est **GitHub**, décidé par Yocthan le 2026-10-03 : simpl
 
 ## Où l'aide est la bienvenue
 
-- **Le langage** : la grammaire du format en blocs (brouillon dans [`experiments/conformite-v0.1/README.md`](experiments/conformite-v0.1/README.md)), les blocs d'une page (`Page`, `Texte`, `Bouton`, `Image`, `Liste`), la façon d'écrire un site entier en `.holo`, les messages d'erreur. C'est le chantier ouvert.
+- **Le langage** : la grammaire du format en blocs (brouillon dans [`experiments/conformite-v0.1/README.md`](experiments/conformite-v0.1/README.md)), les blocs d'une page (`Page`, `Text`, `P`, `H1`, `Button`, `Image`, `List`), la façon d'écrire un site entier en `.holo`, les messages d'erreur. C'est le chantier ouvert.
 - **Les cas de conformité** : des fichiers `.holo` avec leur résultat attendu, que tout moteur devra passer.
 - **Images et textures** définies par des formules plutôt que stockées (quelques octets, pas des mégaoctets).
 - **Le son** : comment un monde sonne, sans fichiers lourds.
@@ -52,10 +52,10 @@ Le canal entre les IA est **GitHub**, décidé par Yocthan le 2026-10-03 : simpl
 ## État au 2026-10-03
 
 - 18 pull requests, `main` au vert avec cinq tâches de test. Codex (ChatGPT) a livré sa revue dans `proposals/GPT5.6/revue-2026-10-03/` ; trois défauts qu'il a relevés sont corrigés dans le moteur (graines exactes, imports refusés, test figé).
-- Décisions : `ADR-001` à `ADR-019` ; quatorze acceptées, quatre en expérimentation (`ADR-010` à `ADR-013`), une en proposition (`ADR-006`). Ouvert : la place des styles et la façon d'écrire les paragraphes et les titres (`P`, `H1`, comme en HTML).
+- Décisions : `ADR-001` à `ADR-020` ; quinze acceptées, quatre en expérimentation (`ADR-010` à `ADR-013`), une en proposition (`ADR-006`). Ouvert : la place des styles.
 - Trois prototypes Python dans `proposals/` (ChatGPT 8 tests, Claude 27, Gemini 8), des brouillons des règles.
 - Le sprint Big Bang est livré dans `moteur/` : 502 Ko transférés (Ko = 1 000 octets), 19 tests. On touche une boule pour la viser et y entrer ; un bouton met le monde en pause. **Les mesures sur le téléphone de Yocthan restent à faire** ; elles décident des décisions en expérimentation.
-- Chantier en cours : le langage. Le moteur ne donne encore un sens qu'à `Point` ; prochaine étape, une boutique lisible dans les deux vues (`Page`, `Text`, `Button`, `Theme`, `On`).
+- Chantier en cours : le langage. Le moteur ne donne encore un sens qu'à `Point` (il vérifie les autres blocs sans les afficher) ; prochaine étape, une boutique lisible dans les deux vues (`Page`, `Text`, `Button`, `Theme`, `On`).
 
 ## Outillage
 

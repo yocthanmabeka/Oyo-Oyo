@@ -1,0 +1,13 @@
+// Text is text without a role: a label, a status line, a message in a terminal.
+// P and H1 to H3 are a Text with a role (ADR-020).
+Page(
+  title: "Download",
+  children: [
+    H1("Download"),
+    Text("Loading…"),
+    H2("Details"),
+    P("The file is being fetched."),
+    H3("Speed"),
+    Text("2 MB per second"),
+  ],
+)

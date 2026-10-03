@@ -318,7 +318,15 @@ impl Analyseur {
             autre => return Err(Erreur { message: format!("nom de bloc attendu, {} trouvé", decrire(&autre)), pos: jeton.pos }),
         };
         if !nom.chars().next().is_some_and(|c| c.is_ascii_uppercase()) || nom.contains('.') {
-            return Err(Erreur { message: format!("« {nom} » : un nom de bloc commence par une majuscule"), pos: jeton.pos });
+            // Une seule écriture par bloc : `h1` n'est pas accepté à côté de `H1` (ADR-020).
+            let mut lettres = nom.chars();
+            let message = match lettres.next() {
+                Some(c) if c.is_ascii_lowercase() && !nom.contains('.') => {
+                    format!("« {nom} » : un nom de bloc commence par une majuscule, écris « {}{} »", c.to_ascii_uppercase(), lettres.as_str())
+                }
+                _ => format!("« {nom} » : un nom de bloc commence par une majuscule"),
+            };
+            return Err(Erreur { message, pos: jeton.pos });
         }
         self.signe('(')?;
         let mut arguments = Vec::new();

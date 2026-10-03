@@ -1,6 +1,7 @@
 //! Du fichier `.holo` au monde : un `Point` déclaré devient un monde dont tout le
 //! contenu se calcule à partir de sa graine. Rien n'est stocké : un point pèse une graine.
 
+use crate::blocs::{ancien_mot, bloc_inconnu, BLOCS};
 use crate::graine::{graine_enfant, Generateur};
 use crate::holo::{Erreur, Pos, Programme, Valeur};
 
@@ -26,19 +27,13 @@ pub fn point_depuis(programme: &Programme) -> Result<PointDecl, Erreur> {
     let bloc = &programme.racine;
     match bloc.nom.as_str() {
         "Point" => {}
-        "Page" | "World" | "Text" | "Button" | "Image" | "List" | "On" | "Theme" | "Style" => {
+        connu if BLOCS.contains(&connu) => {
             return Err(Erreur {
                 message: format!("le bloc « {} » existe dans le format .holo mais ce sprint ne lit que « Point »", bloc.nom),
                 pos: bloc.pos,
             })
         }
-        autre => {
-            let message = match ancien_mot(autre) {
-                Some(nouveau) => format!("bloc inconnu « {autre} » : le vocabulaire est en anglais, écris « {nouveau} » (ADR-016)"),
-                None => format!("bloc inconnu « {autre} »"),
-            };
-            return Err(Erreur { message, pos: bloc.pos });
-        }
+        autre => return Err(Erreur { message: bloc_inconnu(autre), pos: bloc.pos }),
     }
     let mut decl = PointDecl { nom: String::new(), graine: 0, lumiere: 1.0, morceler: 12 };
     let mut vus: Vec<&str> = Vec::new();
@@ -83,29 +78,6 @@ pub fn point_depuis(programme: &Programme) -> Result<PointDecl, Erreur> {
         return Err(Erreur { message: "« Point » doit avoir un paramètre « seed »".into(), pos: bloc.pos });
     }
     Ok(decl)
-}
-
-/// Les mots français d'avant ADR-016, pour guider vers le mot anglais plutôt que de dire
-/// seulement « inconnu ».
-fn ancien_mot(mot: &str) -> Option<&'static str> {
-    Some(match mot {
-        "nom" => "name",
-        "graine" => "seed",
-        "lumiere" => "brightness",
-        "morceler" => "fragments",
-        "contenu" => "children",
-        "interieur" => "inside",
-        "phenomenes" => "rules",
-        "titre" => "title",
-        "texte" => "text",
-        "couleur" => "color",
-        "Texte" => "Text",
-        "Bouton" => "Button",
-        "Monde" => "World",
-        "Liste" => "List",
-        "Quand" => "On",
-        _ => return None,
-    })
 }
 
 fn attendu(param: &str, forme: &str, pos: Pos) -> Erreur {

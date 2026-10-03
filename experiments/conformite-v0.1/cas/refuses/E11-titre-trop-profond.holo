@@ -1,0 +1,9 @@
+// Titles go from H1 to H3 (ADR-020).
+Page(
+  children: [
+    H1("My shop"),
+    H2("Products"),
+    H3("Paintings"),
+    H4("Small paintings"),
+  ],
+)

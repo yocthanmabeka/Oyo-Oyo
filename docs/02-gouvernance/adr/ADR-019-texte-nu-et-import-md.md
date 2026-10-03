@@ -13,7 +13,7 @@ Yocthan : écrire un texte doit être aussi simple qu'écrire « Hello World ».
 
 ## Décision
 
-- **Le texte s'écrit sans artifice.** Écriture proposée : dans une liste `children`, une phrase entre guillemets est un paragraphe à elle seule ; elle vaut un `Text`.
+- **Le texte s'écrit sans artifice.** Écriture proposée : dans une liste `children`, une phrase entre guillemets est un paragraphe à elle seule ; elle vaut un `P` (précisé par `ADR-020` : `Text` est le texte sans rôle, `P` un paragraphe).
 
 ```holo
 Page(
@@ -26,7 +26,7 @@ Page(
 )
 ```
 
-  `Text(...)` ne sert que lorsqu'on veut lui ajouter quelque chose, un style par exemple. Le Markdown reste la façon de mettre en forme le texte (`ADR-009`).
+  `P(...)` ne sert que lorsqu'on veut lui ajouter quelque chose, un style par exemple. Le Markdown reste la façon de mettre en forme le texte (`ADR-009`).
 - **Un fichier `.md` s'importe seulement dans des cas précis**, un long texte qui rendrait le `.holo` illisible : `Text(import "article.md")`. Ce sera fait après le texte écrit sur place.
 
 ## Conséquences
