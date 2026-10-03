@@ -1,0 +1,10 @@
+// Le point de la boutique, seul : le même que dans exemples/boutique-comparee/boutique.holo,
+// sans la page autour.
+Point(
+  name: Workshop,
+  seed: 42,
+  brightness: 0.8,
+  fragments: 6,
+  color: "#E9B44C",
+  palette: ["#E9B44C", "#245C45"],
+)

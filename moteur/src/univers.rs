@@ -203,6 +203,9 @@ mod tests {
         let d = point(include_str!("../mondes/big-bang.holo")).unwrap();
         assert_eq!(d, PointDecl { nom: "Origin".into(), graine: 1, lumiere: 1.0, morceler: 12, couleur: None, palette: Vec::new() });
         assert_eq!(Monde::racine(&d).enfants.len(), 12);
+        // Le point de la boutique, seul : mêmes réglages que dans l'exemple de la boutique.
+        let atelier = point(include_str!("../mondes/atelier.holo")).unwrap();
+        assert_eq!((atelier.graine, atelier.morceler, atelier.palette.len()), (42, 6, 2));
     }
 
     #[test]
