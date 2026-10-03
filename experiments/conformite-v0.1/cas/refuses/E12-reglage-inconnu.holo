@@ -1,0 +1,7 @@
+// CSS ignores a misspelled property without a word. Here it is refused.
+Page(
+  children: [ P("Hello") ],
+)
+P {
+  colour: gray;
+}

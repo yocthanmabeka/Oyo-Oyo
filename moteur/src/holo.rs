@@ -35,6 +35,8 @@ pub struct Argument {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Bloc {
     pub nom: String,
+    /// Le nom de style posé sur le bloc : `card` dans `P.card(...)` (ADR-017).
+    pub style: Option<String>,
     pub arguments: Vec<Argument>,
     pub pos: Pos,
 }
@@ -51,6 +53,40 @@ pub struct Import {
 pub struct Programme {
     pub imports: Vec<Import>,
     pub racine: Bloc,
+    /// Les styles, écrits comme en CSS après le bloc racine (ADR-017).
+    pub styles: Vec<RegleStyle>,
+}
+
+/// Ce qu'un style vise : un type de bloc (`P`) ou un nom à point (`.card`). Rien d'autre.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Cible {
+    Type(String),
+    Nom(String),
+}
+
+impl fmt::Display for Cible {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Cible::Type(nom) => write!(f, "{nom}"),
+            Cible::Nom(nom) => write!(f, ".{nom}"),
+        }
+    }
+}
+
+/// `color: gray;` La valeur est gardée telle qu'elle est écrite ; `styles.rs` la vérifie.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Reglage {
+    pub nom: String,
+    pub valeur: String,
+    pub pos: Pos,
+}
+
+/// `.card { color: gray; }`
+#[derive(Debug, Clone, PartialEq)]
+pub struct RegleStyle {
+    pub cible: Cible,
+    pub reglages: Vec<Reglage>,
+    pub pos: Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -123,22 +159,29 @@ impl<'a> Lecteur<'a> {
         };
     }
 
-    fn jetons(mut self) -> Result<Vec<Jeton>, Erreur> {
-        let mut jetons = Vec::new();
-        loop {
-            // blancs et commentaires
-            while self.i < self.src.len() {
-                let c = self.src[self.i];
-                if c == b'/' && self.src.get(self.i + 1) == Some(&b'/') {
-                    while self.i < self.src.len() && self.src[self.i] != b'\n' {
-                        self.i += 1;
-                    }
-                } else if c.is_ascii_whitespace() {
-                    self.avancer();
-                } else {
-                    break;
+    /// Passe les blancs et les commentaires.
+    fn sauter_blancs(&mut self) {
+        while self.i < self.src.len() {
+            let c = self.src[self.i];
+            if c == b'/' && self.src.get(self.i + 1) == Some(&b'/') {
+                while self.i < self.src.len() && self.src[self.i] != b'\n' {
+                    self.i += 1;
                 }
+            } else if c.is_ascii_whitespace() {
+                self.avancer();
+            } else {
+                break;
             }
+        }
+    }
+
+    /// Découpe les imports et le bloc racine. S'arrête à la parenthèse qui referme le bloc
+    /// racine : ce qui suit est fait de styles, lus par `styles`.
+    fn jetons(&mut self) -> Result<Vec<Jeton>, Erreur> {
+        let mut jetons = Vec::new();
+        let mut profondeur = 0i32;
+        loop {
+            self.sauter_blancs();
             if self.i >= self.src.len() {
                 jetons.push(Jeton { mot: Mot::Fin, pos: self.pos() });
                 return Ok(jetons);
@@ -157,6 +200,16 @@ impl<'a> Lecteur<'a> {
                 self.texte()?
             } else if b"(),:[]".contains(&c) {
                 self.i += 1;
+                match c {
+                    b'(' | b'[' => profondeur += 1,
+                    b')' | b']' => profondeur -= 1,
+                    _ => {}
+                }
+                if c == b')' && profondeur == 0 {
+                    jetons.push(Jeton { mot: Mot::Signe(')'), pos });
+                    jetons.push(Jeton { mot: Mot::Fin, pos: self.pos() });
+                    return Ok(jetons);
+                }
                 Mot::Signe(c as char)
             } else if c == b'{' || c == b'}' || c == b'=' || c == b'>' || c == b';' {
                 return Err(self.erreur(format!(
@@ -200,6 +253,90 @@ impl<'a> Lecteur<'a> {
             });
         }
         Ok(Mot::Nombre(valeur, Some(unite.to_string())))
+    }
+
+    /// Lit les styles qui suivent le bloc racine. L'écriture est celle du CSS de base :
+    /// `P { color: gray; }` ou `.card { border-radius: 8px; }` (ADR-017).
+    fn styles(&mut self) -> Result<Vec<RegleStyle>, Erreur> {
+        let mut regles = Vec::new();
+        loop {
+            self.sauter_blancs();
+            if self.i >= self.src.len() {
+                return Ok(regles);
+            }
+            let pos = self.pos();
+            let nomme = self.src[self.i] == b'.';
+            if nomme {
+                self.i += 1;
+            }
+            let nom = self.mot_de_style(false);
+            if nom.is_empty() {
+                return Err(Erreur {
+                    message: "après le bloc racine viennent seulement des styles : un type de bloc (« P { … } ») ou un nom à point (« .card { … } »)".into(),
+                    pos,
+                });
+            }
+            let cible = if nomme { Cible::Nom(nom) } else { Cible::Type(nom) };
+            self.sauter_blancs();
+            match self.src.get(self.i) {
+                Some(b'{') => self.i += 1,
+                Some(b'(') => {
+                    return Err(Erreur {
+                        message: "un seul bloc racine par fichier ; après lui viennent seulement des styles, écrits comme en CSS : « P { color: gray; } »".into(),
+                        pos,
+                    })
+                }
+                _ => {
+                    return Err(self.erreur(format!(
+                        "après « {cible} », une accolade « {{ » est attendue : un style vise un type de bloc ou un nom à point, rien d'autre (ADR-017)"
+                    )))
+                }
+            }
+            let mut reglages = Vec::new();
+            loop {
+                self.sauter_blancs();
+                match self.src.get(self.i) {
+                    None => return Err(Erreur { message: format!("le style « {cible} » n'est jamais refermé : « }} » manquant"), pos }),
+                    Some(b'}') => {
+                        self.i += 1;
+                        break;
+                    }
+                    _ => {}
+                }
+                let pos_reglage = self.pos();
+                let nom = self.mot_de_style(true);
+                self.sauter_blancs();
+                if nom.is_empty() || self.src.get(self.i) != Some(&b':') {
+                    return Err(Erreur { message: "un réglage s'écrit « nom: valeur; », comme « color: gray; »".into(), pos: pos_reglage });
+                }
+                self.i += 1;
+                let debut = self.i;
+                while self.i < self.src.len() && !b";}\n{".contains(&self.src[self.i]) {
+                    self.avancer();
+                }
+                let valeur = self.texte[debut..self.i].trim().to_string();
+                match self.src.get(self.i) {
+                    Some(b';') => self.i += 1,
+                    Some(b'}') => {}
+                    // En CSS, un « ; » oublié avale la ligne suivante sans rien dire.
+                    _ => return Err(Erreur { message: format!("« ; » manquant à la fin du réglage « {nom} »"), pos: pos_reglage }),
+                }
+                if valeur.is_empty() {
+                    return Err(Erreur { message: format!("le réglage « {nom} » n'a pas de valeur"), pos: pos_reglage });
+                }
+                reglages.push(Reglage { nom, valeur, pos: pos_reglage });
+            }
+            regles.push(RegleStyle { cible, reglages, pos });
+        }
+    }
+
+    /// Un nom dans un style : lettres, chiffres et `_` ; le tiret en plus pour un réglage (`font-size`).
+    fn mot_de_style(&mut self, tiret: bool) -> String {
+        let debut = self.i;
+        while self.i < self.src.len() && (self.src[self.i].is_ascii_alphanumeric() || self.src[self.i] == b'_' || (tiret && self.src[self.i] == b'-')) {
+            self.i += 1;
+        }
+        self.texte[debut..self.i].to_string()
     }
 
     fn texte(&mut self) -> Result<Mot, Erreur> {
@@ -308,7 +445,7 @@ impl Analyseur {
         if self.courant().mot != Mot::Fin {
             return Err(self.erreur(format!("un seul bloc racine par fichier ; {} trouvé après lui", decrire(&self.courant().mot))));
         }
-        Ok(Programme { imports, racine })
+        Ok(Programme { imports, racine, styles: Vec::new() })
     }
 
     fn bloc(&mut self) -> Result<Bloc, Erreur> {
@@ -317,6 +454,14 @@ impl Analyseur {
             Mot::Nom(n) => n,
             autre => return Err(Erreur { message: format!("nom de bloc attendu, {} trouvé", decrire(&autre)), pos: jeton.pos }),
         };
+        // `P.card(...)` : le bloc `P`, avec le style nommé `card` (ADR-017).
+        let (nom, style) = match nom.split_once('.') {
+            Some((bloc, style)) if !bloc.is_empty() && !style.is_empty() => (bloc.to_string(), Some(style.to_string())),
+            _ => (nom, None),
+        };
+        if style.as_deref().is_some_and(|s| s.contains('.')) {
+            return Err(Erreur { message: format!("« {nom} » porte plusieurs noms de style : un bloc porte un seul nom de style (ADR-017)"), pos: jeton.pos });
+        }
         if !nom.chars().next().is_some_and(|c| c.is_ascii_uppercase()) || nom.contains('.') {
             // Une seule écriture par bloc : `h1` n'est pas accepté à côté de `H1` (ADR-020).
             let mut lettres = nom.chars();
@@ -349,7 +494,7 @@ impl Analyseur {
             }
         }
         self.signe(')')?;
-        Ok(Bloc { nom, arguments, pos: jeton.pos })
+        Ok(Bloc { nom, style, arguments, pos: jeton.pos })
     }
 
     fn valeur(&mut self) -> Result<Valeur, Erreur> {
@@ -410,8 +555,10 @@ fn decrire(mot: &Mot) -> String {
 
 /// Lit un fichier `.holo` entier.
 pub fn lire(source: &str) -> Result<Programme, Erreur> {
-    let lecteur = Lecteur { src: source.as_bytes(), texte: source, i: 0, ligne: 1, debut_ligne: 0 };
-    Analyseur { jetons: lecteur.jetons()?, i: 0 }.programme()
+    let mut lecteur = Lecteur { src: source.as_bytes(), texte: source, i: 0, ligne: 1, debut_ligne: 0 };
+    let mut programme = Analyseur { jetons: lecteur.jetons()?, i: 0 }.programme()?;
+    programme.styles = lecteur.styles()?;
+    Ok(programme)
 }
 
 #[cfg(test)]

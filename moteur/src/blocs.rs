@@ -4,7 +4,7 @@
 use crate::holo::{Bloc, Erreur, Programme, Valeur};
 
 /// `Text` est du texte sans rôle ; `P`, `H1`, `H2` et `H3` sont un `Text` avec un rôle (ADR-020).
-pub const BLOCS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "Button", "Image", "List", "Point", "World", "On", "Theme", "Style"];
+pub const BLOCS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "Button", "Image", "List", "Point", "World", "On"];
 
 /// Le titre le plus profond : on s'arrête à `H3` tant qu'un vrai besoin n'apparaît pas.
 pub const TITRE_MAX: u32 = 3;
@@ -63,6 +63,9 @@ pub fn bloc_inconnu(nom: &str) -> String {
     let chiffres = nom.strip_prefix('H').unwrap_or("");
     if !chiffres.is_empty() && chiffres.bytes().all(|c| c.is_ascii_digit()) {
         return format!("bloc inconnu « {nom} » : les titres vont de « H1 » à « H{TITRE_MAX} » (ADR-020)");
+    }
+    if nom == "Style" || nom == "Theme" {
+        return format!("« {nom} » n'est pas un bloc : un style s'écrit comme en CSS, après le bloc racine, « .card {{ color: gray; }} » ; le thème est le style de « Page » ou de « World » (ADR-017)");
     }
     match ancien_mot(nom) {
         Some(nouveau) => format!("bloc inconnu « {nom} » : le vocabulaire est en anglais, écris « {nouveau} » (ADR-016)"),
@@ -124,6 +127,7 @@ mod tests {
         assert_eq!(h4.pos.ligne, 7);
         assert!(h4.message.contains("de « H1 » à « H3 »"));
         assert!(verifier("Page(children: [ Texte(\"Bonjour\") ])").unwrap_err().message.contains("écris « Text »"));
+        assert!(verifier("Page(styles: [ Style(color: gray) ])").unwrap_err().message.contains("comme en CSS"));
     }
 
     #[test]

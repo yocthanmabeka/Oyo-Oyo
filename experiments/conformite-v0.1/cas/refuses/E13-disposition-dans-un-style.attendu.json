@@ -1,0 +1,9 @@
+{
+  "verdict": "refusé",
+  "etape": "vérification",
+  "categorie": "disposition",
+  "ligne": 7,
+  "decisions": [
+    "ADR-017"
+  ]
+}

@@ -3,6 +3,7 @@
 //! Le cœur est en Rust pur et se teste sur le PC (`cargo test`) :
 //! - `holo` lit un fichier `.holo` ;
 //! - `blocs` vérifie que chaque bloc existe et que les titres ne sautent pas de niveau ;
+//! - `styles` vérifie les styles, écrits comme en CSS ;
 //! - `univers` en fait un monde, entièrement calculé à partir d'une graine ;
 //! - `navigation` gère le morcellement, le zoom, l'entrée et la sortie.
 //!
@@ -13,6 +14,7 @@ pub mod blocs;
 pub mod graine;
 pub mod holo;
 pub mod navigation;
+pub mod styles;
 pub mod univers;
 
 #[cfg(target_arch = "wasm32")]
@@ -28,5 +30,6 @@ use univers::PointDecl;
 pub fn verifier(source: &str) -> Result<PointDecl, Erreur> {
     let programme = holo::lire(source)?;
     blocs::verifier_blocs(&programme)?;
+    styles::verifier_styles(&programme)?;
     univers::point_depuis(&programme)
 }

@@ -61,7 +61,7 @@ Le rapport contient : le moteur de rendu utilisé, les images par seconde, la pi
 
 | Mesure | Résultat | Cible du sprint |
 |---|---|---|
-| Tests du cœur (`cargo test`, Rust natif) | 23 sur 23 (17 au premier sprint, 18 avec le toucher, 19 avec les corrections de la revue Codex, 23 avec la vérification des blocs de texte) ; onze cas de la suite de conformité y sont lus directement | |
+| Tests du cœur (`cargo test`, Rust natif) | 28 sur 28 (17 au premier sprint, 18 avec le toucher, 19 avec les corrections de la revue Codex, 23 avec la vérification des blocs de texte, 28 avec les styles) ; dix-sept cas de la suite de conformité y sont lus directement | |
 | Poids du moteur WebAssembly, brut | 1 942 815 octets (1 943 Ko, 1 Ko = 1 000 octets, comme dans la suite de conformité) | |
 | Poids transféré (Brotli, qualité 11, mesuré localement) | **502 435 octets (502 Ko)**, plus 14 373 octets de JavaScript | moins de 2 Mo |
 | Commit de cette mesure | `8348169`, PC Windows, Rust 1.99 ; le flux GitHub affiche le poids brut à chaque changement | |
@@ -91,7 +91,7 @@ Repris de la proposition de Gemini, à vérifier sur le téléphone :
 
 ## Limites et choix à discuter
 
-- **Le lecteur `.holo` ne lit que `Point`.** Il sait déjà lire toute la grammaire brouillon (blocs, listes, textes Markdown, unités, imports) et refuse le code libre dans un bloc, mais seul `Point` reçoit un sens. Les autres blocs (`Page`, `Text`, `P`, `H1`, `Button`…) sont vérifiés (ils existent, les titres ne sautent pas de niveau, `ADR-020`) mais pas encore affichés ; la vue à plat viendra ensuite.
+- **Le lecteur `.holo` ne lit que `Point`.** Il sait déjà lire toute la grammaire brouillon (blocs, listes, textes Markdown, unités, imports) et refuse le code libre dans un bloc, mais seul `Point` reçoit un sens. Les autres blocs (`Page`, `Text`, `P`, `H1`, `Button`…) sont vérifiés (ils existent, les titres ne sautent pas de niveau, `ADR-020`), ainsi que les styles écrits comme en CSS (`ADR-017`), mais rien de cela n'est encore affiché ; la vue à plat viendra ensuite.
 - **Les positions des points dépendent de sinus et cosinus.** Les entiers (graines, nombres de points, couleurs) sont identiques partout ; les positions pourraient différer d'un milliardième entre un PC et un téléphone. Ce sera invisible, mais ce n'est pas strictement « même fichier, même résultat » : à régler si l'on veut des mondes partagés au bit près.
 - **La transition d'entrée est un fondu**, pas une continuité parfaite : le monde intérieur aperçu avant d'entrer et le monde affiché après ne coïncident pas exactement.
 - **Aucune loi ni phénomène** : ce sprint ne porte que sur la navigation et le poids.

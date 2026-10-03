@@ -29,7 +29,7 @@ Les premiers fichiers `.holo` mélangeaient le français et l'anglais (`Page`, `
 | `pont js` | `bridge js` | |
 | `o`, `Ko`, `Mo`, `Go` | `B`, `KB`, `MB`, `GB` | toujours décimales : 1 KB = 1 000 octets |
 
-`Page`, `Point`, `Image`, `Theme`, `Style`, `budget`, `import`, `module`, `auto` ne changent pas.
+`Page`, `Point`, `Image`, `budget`, `import`, `module`, `auto` ne changent pas. Les blocs `Theme` et `Style` ont été retirés depuis : les styles s'écrivent comme en CSS (`ADR-017`).
 
 Le moteur refuse les anciens mots français et indique le mot à écrire : « le paramètre « graine » s'écrit « seed » ».
 
