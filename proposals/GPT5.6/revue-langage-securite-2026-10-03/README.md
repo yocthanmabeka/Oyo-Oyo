@@ -200,17 +200,24 @@ Ce n'est pas un échec des tests du moteur ; aucun test Rust local n'a commencé
 - **Observé ou déduit :** rétention certaine par les références DOM ; quantité mémoire réellement conservée par Chrome non mesurée.
 - **Proposition :** libérer `image.src`, dimensions et tableaux à la sortie, ou conserver explicitement un cache borné mesuré si la réentrée rapide est voulue.
 
+### B-11 — `verifier_page()` accepte un lien `javascript:` — moyenne
+
+- **Fichiers et lignes :** `moteur/src/lib.rs:44-50` ; `moteur/src/plat.rs:163-175` et `269-290`.
+- **Ce que j'ai fait :** le harnais a soumis `A("Run code", to: "javascript:alert(1)")` à `verifier_page()` dans la CI de la PR. Le test qui attendait un refus a échoué : la fonction a renvoyé un `Programme`. La lecture du chemin montre que `adresse_sure()` n'est appelée que pendant `vue_a_plat()`.
+- **Observé ou déduit :** **observé en CI** : la couche annoncée comme vérification de la page accepte l'URL ; **observé dans le code et désormais testé** : le rendu à plat la refuse avant de produire le lien HTML. Aucune exécution JavaScript n'a été démontrée, mais un appelant qui traite `verifier_page()` comme une validation complète reçoit un faux positif.
+- **Proposition :** déplacer la validation des URL dans `verifier_page()` ou dans un validateur commun appelé par toutes les sorties ; conserver la vérification de rendu en défense redondante.
+
 ## B3. Injection : ce qui tient et ce qui manque
 
 ### Ce qui tient dans le code relu
 
 - textes et attributs passent par `echapper` (`plat.rs:269-302`) ;
 - le Markdown est appliqué après échappement (`plat.rs:304-319`) ;
-- les URL refusent guillemets, chevrons, barre oblique inverse et schémas autres que HTTP(S) (`plat.rs:269-290`) ;
+- au moment du rendu, les URL refusent guillemets, chevrons, barre oblique inverse et schémas autres que HTTP(S) (`plat.rs:269-290`) ; `verifier_page()` ne réalise pas encore ce contrôle ;
 - les valeurs de style sont validées par forme et liste blanche (`styles.rs:107-164`) ;
 - les usages d'`innerHTML` reçoivent la sortie générée par le moteur, pas le texte brut de l'auteur (`page.html:235` et `538-539`).
 
-Le fichier [`01-injection-texte.holo`](hostiles/01-injection-texte.holo) doit être accepté mais rendu sous forme de texte échappé. [`02-lien-javascript.holo`](hostiles/02-lien-javascript.holo) doit être refusé. Ce sont les deux résultats codés dans le harnais ; localement ils restent **non exécutés** faute de `cargo`.
+Le fichier [`01-injection-texte.holo`](hostiles/01-injection-texte.holo) est accepté mais rendu sous forme de texte échappé. Pour [`02-lien-javascript.holo`](hostiles/02-lien-javascript.holo), la CI a établi un comportement en deux temps : `verifier_page()` l'accepte, puis `vue_a_plat()` refuse l'URL. Le harnais code maintenant ces deux résultats séparément. Ils ont été **exécutés dans GitHub Actions** ; localement, ils restent non exécutés faute de `cargo`.
 
 ### Défense en profondeur absente
 
@@ -222,7 +229,7 @@ Le serveur de démonstration ne pose pas de `Content-Security-Policy` (`moteur/o
 
 ## Contenu trompeur
 
-Le vérificateur empêche du JavaScript libre, pas le mensonge. Un fichier distant peut reprendre le titre, les couleurs et les mots du site d'origine, afficher un faux avertissement ou conduire vers un lien web. L'aperçu affiche l'hôte, mais celui-ci n'est plus visible après le passage. Il faut une identité d'origine persistante appartenant au moteur, non au fichier.
+Le rendu empêche ici qu'une URL `javascript:` devienne un lien actif, mais `verifier_page()` ne l'empêche pas encore et aucune de ces deux couches n'empêche le mensonge. Un fichier distant peut reprendre le titre, les couleurs et les mots du site d'origine, afficher un faux avertissement ou conduire vers un lien web. L'aperçu affiche l'hôte, mais celui-ci n'est plus visible après le passage. Il faut une identité d'origine persistante appartenant au moteur, non au fichier.
 
 ## Suivi du visiteur
 
