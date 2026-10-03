@@ -23,6 +23,10 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ![La même vue de biais : les lettres se soulèvent](images/2026-10-03-mosaique-6-de-biais.png)
 
+- **La vue points part maintenant du fichier `.holo` lui-même.** Yocthan a relevé que la barre d'adresse montrait `mosaique.html`. L'adresse est désormais celle du fichier, suivie de `?vue=points` : `http://localhost:8080/exemples/boutique-comparee/boutique.holo?vue=points`. Le moteur fabrique la page du fichier, la page est redessinée dans une image (un SVG qui la contient, possible parce que c'est le moteur qui l'a fabriquée), et chaque pixel devient un point. Ce n'est donc plus une image fixe prise d'avance : si l'on change le fichier, les points changent. La vue web a un bouton « Vue points », la vue points un bouton « Vue web ».
+
+![La boutique.holo en vue points, au repos](images/2026-10-03-points-1-repos.png)
+
 **Erreur en route**
 
 - Le relief était compté en pixels de l'image : en zoomant très profond, il devenait immense et le moteur cherchait des points sur des milliards de cases. Un test est resté bloqué. Le relief est maintenant borné à 80 pixels d'écran.
@@ -31,7 +35,8 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 - Le relief vient de la lumière : ce qui est clair se soulève. Sur une page à fond blanc et texte noir, ce serait l'inverse de ce qu'on veut. Il faudra partir de la page elle-même, où le moteur sait ce qui est une lettre.
 - On tourne la page jusqu'à 52° environ, pas au-delà : on ne peut pas encore passer derrière ni se placer entre deux lettres.
-- Toujours une image fixe ; les gestes ne sont pas essayés par Claude dans un vrai navigateur.
+- Dans la vue points, la page est une image d'elle-même : ses boutons ne répondent pas, et l'on change de vue par un lien, pas encore par le seul zoom.
+- Les gestes ne sont pas essayés par Claude dans un vrai navigateur.
 
 ---
 

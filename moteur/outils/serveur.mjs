@@ -47,7 +47,8 @@ async function fichier(chemin) {
 
 createServer(async (req, res) => {
   try {
-    let url = decodeURIComponent(new URL(req.url, "http://x").pathname);
+    const demande = new URL(req.url, "http://x");
+    let url = decodeURIComponent(demande.pathname);
     if (url === "/") url = "/index.html";
     const dansExemples = url.startsWith("/exemples/");
     const dansMondes = url.startsWith("/mondes/");
@@ -61,7 +62,7 @@ createServer(async (req, res) => {
     let aServir = chemin;
     if (pourAffichage) {
       const source = (await readFile(chemin, "utf8")).replace(/\/\/.*$/gm, "");
-      aServir = join(racine, "web", /^\s*Point/.test(source) ? "index.html" : "page.html");
+      aServir = join(racine, "web", /^\s*Point/.test(source) ? "index.html" : demande.searchParams.get("vue") === "points" ? "points.html" : "page.html");
     }
     const { brut, br } = await fichier(aServir);
     const type = types[extname(aServir)] ?? "application/octet-stream";

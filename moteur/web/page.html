@@ -23,13 +23,14 @@
   .mode-personnage>main{position:fixed;left:50%;top:50%;width:420px;height:640px;box-sizing:border-box;overflow:auto;
     background:inherit;padding:inherit;border-radius:16px;box-shadow:0 0 40px rgba(233,180,76,.25);
     transform:translate(-50%,-50%);transform-origin:center;backface-visibility:hidden;will-change:transform}
-  #mode{position:fixed;top:8px;right:8px;z-index:5;padding:8px 12px;border:1px solid #888;border-radius:8px;
-    background:rgba(0,0,0,.6);color:#fff;font:14px system-ui,sans-serif;cursor:pointer}
-  #mode[hidden]{display:none}
+  #vues{position:fixed;top:8px;right:8px;z-index:5;display:flex;gap:8px}
+  #vues[hidden]{display:none}
+  #vues>*{padding:8px 12px;border:1px solid #888;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;
+    font:14px system-ui,sans-serif;cursor:pointer;text-decoration:none}
   #erreur{position:fixed;left:8px;bottom:8px;right:8px;z-index:6;color:#f88;font:13px monospace;white-space:pre-wrap}
 </style>
 </head><body><div id="page"></div>
-<button id="mode" type="button" hidden>Vue personnage</button>
+<div id="vues" hidden><a id="points" href="?vue=points">Vue points</a><button id="mode" type="button">Vue personnage</button></div>
 <script type="module">
   import init, { demarrer, changer_de_monde, pause, surface, vue_a_plat, effets, source_du_point, monde_d_accueil } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
@@ -138,7 +139,7 @@
         await appliquer(effet);
       }
     });
-    boutonMode.hidden = params.has("nu"); // ?nu : sans le bouton, pour en tirer une image
+    document.getElementById("vues").hidden = params.has("nu"); // ?nu : sans les boutons, pour en tirer une image
     boutonMode.addEventListener("click", () => changerDeVue(!personnage));
     // Pour les captures d'écran : ?vue=personnage, ?entrer=Workshop
     if (params.get("vue") === "personnage") await changerDeVue(true);
