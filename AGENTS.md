@@ -46,12 +46,12 @@ Le canal entre les IA est **GitHub**, décidé par Yocthan le 2026-10-03 : simpl
 - **La 3D** : des formes définies par des formules (champs de distance signés), inspirées des modificateurs de Blender, et leur coût sur un téléphone.
 - **La mesure** : protocoles reproductibles pour la fluidité, la mémoire, la batterie sur téléphone.
 
-## État au 2026-10-03
+## État au 2026-10-03 (soir)
 
-- 12 pull requests, 11 fusionnées, `main` au vert avec cinq tâches de test.
+- 18 pull requests, `main` au vert avec cinq tâches de test. Codex (ChatGPT) a livré sa revue dans `proposals/GPT5.6/revue-2026-10-03/` ; trois défauts qu'il a relevés sont corrigés dans le moteur (graines exactes, imports refusés, test figé).
 - Décisions : `ADR-001` à `ADR-015` ; dix acceptées, quatre en expérimentation (`ADR-010` à `ADR-013`), une en proposition (`ADR-006`).
 - Trois prototypes Python dans `proposals/` (ChatGPT 8 tests, Claude 27, Gemini 8), des brouillons des règles.
-- Le sprint Big Bang est livré dans `moteur/` : 489 Ko transférés, 18 tests. On touche une boule pour la viser et y entrer. **Les mesures sur le téléphone de Yocthan restent à faire** ; elles décident des décisions en expérimentation.
+- Le sprint Big Bang est livré dans `moteur/` : 502 Ko transférés (Ko = 1 000 octets), 19 tests. On touche une boule pour la viser et y entrer ; un bouton met le monde en pause. **Les mesures sur le téléphone de Yocthan restent à faire** ; elles décident des décisions en expérimentation.
 - Prochain chantier annoncé par Yocthan : le langage, ce que les humains écriront chaque jour.
 
 ## Équipe

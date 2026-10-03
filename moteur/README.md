@@ -17,7 +17,7 @@ Point(
 )
 ```
 
-Rien n'est stocké : chaque monde se calcule à partir de sa graine, et chaque point enfant reçoit une graine dérivée de celle de son parent. Descendre de mille niveaux coûte mille graines de 8 octets. Le même fichier donne le même univers sur toutes les machines.
+Le décor n'est pas stocké, il est régénérable : chaque monde se calcule à partir de sa graine, et chaque point enfant reçoit une graine dérivée de celle de son parent. Descendre de mille niveaux coûte mille fois 16 octets (la graine du monde quitté et l'index du point traversé) ; le monde actif et l'aperçu du point visé sont en mémoire, le reste non. Ce qu'un humain ajoutera un jour (une commande, un objet déposé) devra être enregistré : une graine ne recrée pas les achats. Le même fichier donne le même univers sur toutes les machines, à la version du générateur près : si l'algorithme change, les mondes changent ; le test `les_valeurs_sont_figees` sert de garde-fou.
 
 Le moteur est écrit en Rust, compilé en WebAssembly, et dessine avec `wgpu` : WebGPU quand le navigateur l'offre, WebGL 2 sinon. Le même code pourra plus tard tourner en natif, dans le navigateur propre au projet.
 
@@ -59,9 +59,10 @@ Le rapport contient : le moteur de rendu utilisé, les images par seconde, la pi
 
 | Mesure | Résultat | Cible du sprint |
 |---|---|---|
-| Tests du cœur (`cargo test`, Rust natif) | 17 sur 17 | |
-| Poids du moteur WebAssembly, réel | 1 893 Ko | |
-| Poids transféré (Brotli) | **489 Ko** (+ 14 Ko de JavaScript) | moins de 2 Mo |
+| Tests du cœur (`cargo test`, Rust natif) | 19 sur 19 (17 au premier sprint, 18 avec le toucher, 19 avec les corrections de la revue Codex) | |
+| Poids du moteur WebAssembly, brut | 1 942 815 octets (1 943 Ko, 1 Ko = 1 000 octets, comme dans la suite de conformité) | |
+| Poids transféré (Brotli, qualité 11, mesuré localement) | **502 435 octets (502 Ko)**, plus 14 373 octets de JavaScript | moins de 2 Mo |
+| Commit de cette mesure | `8348169`, PC Windows, Rust 1.99 ; le flux GitHub affiche le poids brut à chaque changement | |
 | Fichier de la page HTML | 1 Ko, le même pour tous les mondes | |
 | Fichier `.holo` du monde | 8 lignes | |
 | Repli WebGPU → WebGL 2 | Vérifié : sans carte graphique, le moteur bascule tout seul | |
@@ -94,6 +95,8 @@ Repris de la proposition de Gemini, à vérifier sur le téléphone :
 - **Aucune loi ni phénomène** : ce sprint ne porte que sur la navigation et le poids.
 - **Densité de pixels plafonnée à 2** pour ménager la chauffe du téléphone.
 - `wgpu` est fixé à la version 24 ; une montée de version demandera quelques retouches.
+- **Lexique** : un entier écrit sans point ni unité est gardé exact (jusqu'à 18 446 744 073 709 551 615) ; une unité se colle au nombre (`500Ko`, pas `500 Ko`) ; un `import` est refusé par ce sprint tant qu'il n'est pas appliqué, plutôt qu'ignoré en silence. Ces trois points viennent de la revue Codex du 2026-10-03.
+- La mémoire mesurée par la page (`usedJSHeapSize`) n'est que le tas JavaScript, pas la mémoire totale de l'onglet : seule une mesure dans les outils de Chrome sur le téléphone donnera le vrai chiffre.
 
 ## Fichiers
 

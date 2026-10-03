@@ -16,6 +16,9 @@ pub enum Valeur {
     Bloc(Bloc),
     Liste(Vec<Valeur>),
     Texte(String),
+    /// Un entier écrit sans point ni unité, gardé exact : une graine ne passe jamais par
+    /// un nombre flottant (revue Codex : 2^53 + 1 devenait 2^53).
+    Entier(u64),
     Nombre { valeur: f64, unite: Option<String> },
     Bool(bool),
     /// Un nom, éventuellement à points : `Atelier`, `Ouvrir.touche`, `auto`.
@@ -75,6 +78,7 @@ const UNITES: &[&str] = &["mm", "cm", "m", "km", "ms", "s", "min", "h", "o", "Ko
 #[derive(Debug, Clone, PartialEq)]
 enum Mot {
     Nom(String),
+    Entier(u64),
     Nombre(f64, Option<String>),
     Texte(String),
     Signe(char),
@@ -175,15 +179,20 @@ impl<'a> Lecteur<'a> {
         while self.i < self.src.len() && (self.src[self.i].is_ascii_digit() || self.src[self.i] == b'.') {
             self.i += 1;
         }
-        let valeur: f64 = self.texte[debut..self.i].parse().map_err(|_| self.erreur("nombre mal formé"))?;
+        let texte_nombre = &self.texte[debut..self.i];
         let debut_unite = self.i;
         while self.i < self.src.len() && self.src[self.i].is_ascii_alphabetic() {
             self.i += 1;
         }
         let unite = &self.texte[debut_unite..self.i];
         if unite.is_empty() {
+            if let Ok(entier) = texte_nombre.parse::<u64>() {
+                return Ok(Mot::Entier(entier));
+            }
+            let valeur: f64 = texte_nombre.parse().map_err(|_| self.erreur("nombre mal formé"))?;
             return Ok(Mot::Nombre(valeur, None));
         }
+        let valeur: f64 = texte_nombre.parse().map_err(|_| self.erreur("nombre mal formé"))?;
         if !UNITES.contains(&unite) {
             return Err(Erreur {
                 message: format!("unité inconnue « {unite} » ; unités possibles : {}", UNITES.join(", ")),
@@ -348,6 +357,10 @@ impl Analyseur {
                     _ => Valeur::Nom(n),
                 })
             }
+            Mot::Entier(entier) => {
+                self.avancer();
+                Ok(Valeur::Entier(entier))
+            }
             Mot::Nombre(valeur, unite) => {
                 self.avancer();
                 Ok(Valeur::Nombre { valeur, unite })
@@ -378,6 +391,7 @@ impl Analyseur {
 fn decrire(mot: &Mot) -> String {
     match mot {
         Mot::Nom(n) => format!("« {n} »"),
+        Mot::Entier(v) => format!("« {v} »"),
         Mot::Nombre(v, Some(u)) => format!("« {v}{u} »"),
         Mot::Nombre(v, None) => format!("« {v} »"),
         Mot::Texte(_) => "un texte".into(),
@@ -403,8 +417,9 @@ mod tests {
         let p = lire(BIG_BANG).unwrap();
         assert_eq!(p.racine.nom, "Point");
         assert_eq!(p.racine.argument("nom").unwrap().valeur, Valeur::Nom("Origine".into()));
-        assert_eq!(p.racine.argument("graine").unwrap().valeur, Valeur::Nombre { valeur: 1.0, unite: None });
-        assert_eq!(p.racine.argument("morceler").unwrap().valeur, Valeur::Nombre { valeur: 12.0, unite: None });
+        assert_eq!(p.racine.argument("graine").unwrap().valeur, Valeur::Entier(1));
+        assert_eq!(p.racine.argument("morceler").unwrap().valeur, Valeur::Entier(12));
+        assert_eq!(p.racine.argument("lumiere").unwrap().valeur, Valeur::Nombre { valeur: 1.0, unite: None });
     }
 
     #[test]
@@ -450,6 +465,16 @@ mod tests {
     fn refuse_une_unite_inconnue_et_un_texte_ouvert() {
         assert!(lire("Point(graine: 3parsecs)").unwrap_err().message.contains("unité inconnue"));
         assert_eq!(lire("Point(nom: \"oups)").unwrap_err().message, "texte jamais refermé");
+    }
+
+    #[test]
+    fn les_grands_entiers_restent_exacts() {
+        // Revue Codex : 9007199254740993 (2^53 + 1) devenait 9007199254740992 en passant par f64.
+        let p = lire("Point(graine: 9007199254740993, max: 18446744073709551615)").unwrap();
+        assert_eq!(p.racine.argument("graine").unwrap().valeur, Valeur::Entier(9_007_199_254_740_993));
+        assert_eq!(p.racine.argument("max").unwrap().valeur, Valeur::Entier(u64::MAX));
+        assert!(lire("Point(graine: 18446744073709551616)").is_ok(), "au-delà de u64, c'est un nombre flottant, refusé plus loin comme graine");
+        assert!(lire("Point(budget: 500 Ko)").is_err(), "l'unité se colle au nombre : « 500 Ko » n'est pas accepté");
     }
 
     #[test]

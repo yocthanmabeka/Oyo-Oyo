@@ -17,6 +17,12 @@ pub const MORCELER_MAX: u32 = 64;
 
 /// Donne un sens au bloc racine. Seul `Point` est pris en charge dans ce sprint.
 pub fn point_depuis(programme: &Programme) -> Result<PointDecl, Erreur> {
+    if let Some(import) = programme.imports.first() {
+        return Err(Erreur {
+            message: format!("« {} » n'est pas encore pris en charge par ce sprint : le fichier serait accepté sans que l'import soit appliqué (revue Codex)", import.sorte),
+            pos: import.pos,
+        });
+    }
     let bloc = &programme.racine;
     match bloc.nom.as_str() {
         "Point" => {}
@@ -48,15 +54,12 @@ pub fn point_depuis(programme: &Programme) -> Result<PointDecl, Erreur> {
                     pos: arg.pos,
                 })
             }
-            ("graine", Valeur::Nombre { valeur, unite: None }) if *valeur >= 0.0 && valeur.fract() == 0.0 && *valeur < 1.8e19 => {
-                decl.graine = *valeur as u64
-            }
-            ("graine", _) => return Err(attendu("graine", "un nombre entier positif, sans unité", arg.pos)),
+            ("graine", Valeur::Entier(graine)) => decl.graine = *graine,
+            ("graine", _) => return Err(attendu("graine", "un nombre entier positif, sans unité, jusqu'à 18446744073709551615", arg.pos)),
             ("lumiere", Valeur::Nombre { valeur, unite: None }) if (0.0..=1.0).contains(valeur) => decl.lumiere = *valeur as f32,
+            ("lumiere", Valeur::Entier(e)) if *e <= 1 => decl.lumiere = *e as f32,
             ("lumiere", _) => return Err(attendu("lumiere", "un nombre entre 0 et 1, sans unité", arg.pos)),
-            ("morceler", Valeur::Nombre { valeur, unite: None }) if *valeur >= 1.0 && *valeur <= f64::from(MORCELER_MAX) && valeur.fract() == 0.0 => {
-                decl.morceler = *valeur as u32
-            }
+            ("morceler", Valeur::Entier(n)) if (1..=u64::from(MORCELER_MAX)).contains(n) => decl.morceler = *n as u32,
             ("morceler", _) => return Err(attendu("morceler", &format!("un nombre entier entre 1 et {MORCELER_MAX}"), arg.pos)),
             (autre, _) => {
                 return Err(Erreur {
@@ -177,6 +180,11 @@ mod tests {
         assert!(point("Point(graine: 1)").unwrap_err().message.contains("« nom »"));
         assert!(point("Point(nom: A, graine: 1, morceler: 500)").unwrap_err().message.contains("entre 1 et 64"));
         assert!(point("Page(contenu: [])").unwrap_err().message.contains("ne lit que « Point »"));
+        assert!(point("import \"absent.holo\"
+Point(nom: A, graine: 1)").unwrap_err().message.contains("pas encore pris en charge"));
+        assert_eq!(point("Point(nom: A, graine: 9007199254740993)").unwrap().graine, 9_007_199_254_740_993);
+        assert!(point("Point(nom: A, graine: 1.5)").unwrap_err().message.contains("entier"));
+        assert!(point("Point(nom: A, graine: -1)").unwrap_err().message.contains("entier"));
     }
 
     #[test]

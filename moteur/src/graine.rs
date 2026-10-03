@@ -63,12 +63,17 @@ mod tests {
 
     #[test]
     fn les_valeurs_sont_figees() {
-        // Si ce test casse, tous les mondes déjà partagés changent : c'est voulu qu'il soit strict.
+        // Valeurs calculées une fois et figées. Si ce test casse, tous les mondes déjà
+        // partagés changent : c'est voulu qu'il soit strict. (Revue Codex : la première
+        // version de ce test était une tautologie.)
         assert_eq!(melanger(0), 0xE220_A839_7B1D_CDAF);
-        assert_eq!(graine_enfant(1, 0), 0x6B37_B0C9_4A0E_8C2E ^ graine_enfant(1, 0) ^ 0x6B37_B0C9_4A0E_8C2E);
-        let mut g = Generateur::new(1);
-        let u = g.unite();
+        assert_eq!(graine_enfant(1, 0), 0x0033_4C53_F388_50D4);
+        assert_eq!(graine_enfant(1, 1), 0x4A7C_B667_230D_5971);
+        assert_eq!(graine_enfant(42, 5), 0x127A_24A8_33D5_1395);
+        let mut g = Generateur::new(7);
+        assert_eq!(g.u64(), 0xA653_05FD_338E_C8FE);
+        assert_eq!(g.u64(), 0x8CA3_CBB6_CA63_129B);
+        let u = Generateur::new(1).unite();
         assert!((0.0..1.0).contains(&u));
-        assert_eq!(Generateur::new(7).entier(6, 14), Generateur::new(7).entier(6, 14));
     }
 }
