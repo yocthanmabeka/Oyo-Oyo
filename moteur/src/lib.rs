@@ -134,7 +134,7 @@ mod tests {
         let guide = include_str!("../../docs/01-holocode/GUIDE.md");
         let exemples: Vec<&str> = guide.split("```holo
 ").skip(1).map(|suite| suite.split("```").next().unwrap()).collect();
-        assert!(exemples.len() >= 7, "le guide a perdu ses exemples : {}", exemples.len());
+        assert!(exemples.len() >= 8, "le guide a perdu ses exemples : {}", exemples.len());
         for exemple in exemples {
             // Une page passe toutes les vérifications et se fabrique ; un point seul s'ouvre en profondeur.
             let resultat = if exemple.trim_start().starts_with("Point(") { verifier(exemple).map(|_| ()) } else { vue_a_plat(exemple, "").map(|_| ()) };

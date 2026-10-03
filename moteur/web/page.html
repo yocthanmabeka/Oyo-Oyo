@@ -18,8 +18,13 @@
   canvas.holo-profondeur{position:fixed;inset:0;width:100vw;height:100vh;display:none;touch-action:none;z-index:0}
   .avec-monde>canvas.holo-profondeur{display:block}
   .holo-Page>main{position:relative;z-index:1}
-  /* Le fond d'un monde est la vue en profondeur elle-même. */
-  .holo-World{background:none!important;z-index:2}
+  /* Le site contenu dans un point : une feuille posée dans le monde de ce point, comme la
+     page en vue personnage. On est dans un point, donc on le voit en personnage. */
+  .holo-World{position:fixed;inset:auto;left:50%;top:50%;width:420px;height:640px;box-sizing:border-box;overflow:auto;
+    padding:24px 16px;background:#111;color:#fff;border-radius:16px;box-shadow:0 0 40px rgba(255,255,255,.18);
+    pointer-events:auto;z-index:2;transform:translate(-50%,-50%);transform-origin:center;backface-visibility:hidden;
+    will-change:transform}
+  .holo-World .holo-panneau{position:static;max-height:none;overflow:visible;padding:0;background:none}
   /* Vue personnage : la page devient une feuille posée dans le monde. */
   .mode-personnage{height:100vh;overflow:hidden}
   .mode-personnage>main{position:fixed;left:50%;top:50%;width:420px;height:640px;box-sizing:border-box;overflow:auto;
@@ -54,7 +59,7 @@
 <script type="module">
   import init, {
     demarrer, changer_de_monde, pause, surface, vue_a_plat, effets, source_du_point, monde_d_accueil,
-    demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner, mosaique_pivoter, mosaique_de_face, reglages_de_vue, reveiller, images_dessinees,
+    demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner, mosaique_pivoter, mosaique_de_face, mosaique_sous, reglages_de_vue, reveiller, images_dessinees,
   } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
   window.__holoImages = images_dessinees; // combien d'images le moteur a dessinées : pour vérifier la sobriété
@@ -84,6 +89,8 @@
   let enPoints = false;     // la page est vue comme un ensemble de points
   let entreeEnCours = null; // l'entrée en vue points, tant qu'elle se prépare
   let aQuitteLeRepos = false; // a-t-on zoomé ou tourné depuis l'entrée en vue points ?
+  let feuille = null;       // ce qui est posé dans le monde affiché : la page, ou le site d'un point
+  let pixelsPlantes = [];   // les points plantés dans un pixel de la page, et où ils sont
 
   // La zone de dessin du moteur : une seule, pour les mondes comme pour les points.
   function zoneDeDessin() {
@@ -116,9 +123,12 @@
 
   // ---------------------------------------------------------------- vue personnage
 
-  // La page suit le monde, comme un objet qu'on y aurait posé.
+  // La feuille suit le monde, comme un objet qu'on y aurait posé.
+  let feuilleSuivie = false;
+
   function poserLaFeuille() {
-    if (!personnage || dansLePoint) return;
+    feuilleSuivie = false;
+    if (!feuille) return;
     const s = surface();
     if (s.length) {
       const [x, y, echelle, lacet, tangage, profondeur, distance] = s;
@@ -126,12 +136,26 @@
       const unite = echelle * demiHauteur; // pixels pour une unité du monde
       const f = (unite * HAUTEUR_FEUILLE_MONDE) / HAUTEUR_FEUILLE_PX;
       // Plongé dans un point né de la graine, on a quitté le lieu où se trouve la feuille.
-      page.style.visibility = profondeur > 0 ? "hidden" : "visible";
-      page.style.transform =
+      feuille.style.visibility = profondeur > 0 ? "hidden" : "visible";
+      feuille.style.transform =
         `translate(-50%,-50%) translate(${x * demiHauteur}px,${-y * demiHauteur}px) ` +
         `perspective(${distance * unite}px) rotateX(${tangage}rad) rotateY(${-lacet}rad) scale(${f})`;
     }
+    feuilleSuivie = true;
     requestAnimationFrame(poserLaFeuille);
+  }
+
+  // Pose un élément dans le monde affiché (ou plus rien, avec null).
+  function poser(element) {
+    if (feuille && feuille !== element) {
+      feuille.style.transform = "";
+      feuille.style.visibility = "visible";
+    }
+    feuille = element;
+    if (feuille && !feuilleSuivie) {
+      feuilleSuivie = true;
+      requestAnimationFrame(poserLaFeuille);
+    }
   }
 
   async function changerDeVue(versPersonnage) {
@@ -140,13 +164,12 @@
     boutonMode.textContent = personnage ? "Vue web" : "Vue personnage";
     boutonPoints.hidden = personnage;
     cadre.classList.toggle("mode-personnage", personnage);
-    page.style.transform = "";
-    page.style.visibility = "visible";
     if (dansLePoint) return;
     if (personnage) {
       await montrerMonde(monde_d_accueil(source), 1);
-      requestAnimationFrame(poserLaFeuille);
+      poser(page);
     } else {
+      poser(null);
       cacherMonde();
     }
     window.scrollTo(0, 0);
@@ -234,6 +257,42 @@
     requestAnimationFrame(suivreLesPoints);
   }
 
+  // Les points plantés dans un pixel de la page : chacun se place juste au-dessus du bloc
+  // que son « above » désigne, à l'extrémité droite de la page.
+  function placerLesPixels() {
+    for (const pixel of racine.querySelectorAll(".holo-pixel")) {
+      const repere = racine.querySelector(`[data-name="${CSS.escape(pixel.dataset.above)}"]`);
+      if (!repere) continue;
+      pixel.style.left = `${page.clientWidth - 1}px`;
+      pixel.style.top = `${repere.offsetTop - 6}px`;
+    }
+  }
+
+  // On zoome vers un endroit de l'écran, comme si on s'en approchait.
+  async function approcher(x, y) {
+    const canvas = cadre.querySelector("canvas");
+    for (let pas = 0; pas < 45 && mosaique_camera()[2] * densite < 280; pas++) {
+      canvas.dispatchEvent(new WheelEvent("wheel", { deltaY: -70, clientX: x, clientY: y, cancelable: true }));
+      reveillerLeSuivi();
+      await new Promise(requestAnimationFrame);
+    }
+  }
+
+  // En vue points, toucher un point planté par l'auteur l'active : on s'en approche, puis on
+  // entre dans le site qu'il contient.
+  async function toucherUnPoint(x, y) {
+    const sous = mosaique_sous(x, y);
+    if (!sous.length) return;
+    const tolerance = Math.max(1.5 * densite, 14 / mosaique_camera()[2]);
+    const plante = pixelsPlantes.find((p) => Math.abs(p.x - sous[0]) < tolerance && Math.abs(p.y - sous[1]) < tolerance);
+    if (!plante) return;
+    await approcher(x, y);
+    sortirDesPoints();
+    for (const effet of effets(source, `${plante.nom}.tap`).split(",").filter(Boolean)) {
+      await appliquer(effet);
+    }
+  }
+
   // La page devient un ensemble de points, un par pixel. Au départ rien ne change à l'écran :
   // un point fait exactement un pixel.
   function entrerEnPoints() {
@@ -241,6 +300,10 @@
     entreeEnCours ??= (async () => {
       const pixels = await imageDeLaPage();
       const couleurs = new Uint8Array(pixels.data.buffer);
+      pixelsPlantes = [...racine.querySelectorAll(".holo-pixel")].map((pixel) => {
+        const cadreDuPixel = pixel.getBoundingClientRect();
+        return { nom: pixel.dataset.name, x: (cadreDuPixel.left + cadreDuPixel.width / 2) * densite, y: (cadreDuPixel.top + cadreDuPixel.height / 2) * densite };
+      });
       cadre.classList.add("avec-monde");
       if (!moteurLance) {
         moteurLance = true;
@@ -301,10 +364,12 @@
       page.hidden = true;
       monde.hidden = false;
       document.getElementById("vues").hidden = true;
-      // Zoom 2 : le point est déjà morcelé, on voit ses enfants sans être entré dans l'un d'eux.
-      await montrerMonde(source_du_point(source, nom), 2);
+      // Zoom 1 : le point vient de se morceler, ses enfants entourent la feuille.
+      await montrerMonde(source_du_point(source, nom), 1);
+      poser(monde);
     } else if (capacite === "leave" && dansLePoint === nom) {
       dansLePoint = null;
+      poser(null);
       monde.hidden = true;
       page.hidden = false;
       document.getElementById("vues").hidden = params.has("nu");
@@ -322,6 +387,16 @@
     cadre = racine.querySelector(".holo-Page");
     page = cadre.querySelector("main");
     document.title = cadre.dataset.title || "HoloCode";
+    placerLesPixels();
+    addEventListener("resize", placerLesPixels);
+    // En vue points, un toucher sans glissement active le point planté qui se trouve dessous.
+    let appui = null;
+    addEventListener("pointerdown", (evenement) => { appui = [evenement.clientX, evenement.clientY]; }, true);
+    addEventListener("pointerup", (evenement) => {
+      const glissement = appui ? Math.hypot(evenement.clientX - appui[0], evenement.clientY - appui[1]) : Infinity;
+      appui = null;
+      if (enPoints && glissement < 6 && !evenement.target.closest("button")) toucherUnPoint(evenement.clientX, evenement.clientY);
+    }, true);
     racine.addEventListener("click", async (evenement) => {
       const bloc = evenement.target.closest("[data-name]");
       if (!bloc) return;
