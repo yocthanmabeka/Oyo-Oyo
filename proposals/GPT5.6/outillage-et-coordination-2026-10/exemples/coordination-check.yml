@@ -1,0 +1,33 @@
+name: Exemple - contrôle de coordination
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: coordination-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  description:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Vérifier les champs obligatoires sans clé externe
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        shell: bash
+        run: |
+          required=("Auteur GitHub" "Auteur IA" "Branche source" "Branche cible" "Preuves réellement exécutées")
+          for field in "${required[@]}"; do
+            if ! grep -Fq "$field" <<< "$BODY"; then
+              echo "Champ manquant: $field"
+              exit 1
+            fi
+          done
+
+# Exemple seulement. Ne pas copier dans .github/ sans revue :
+# il vérifie la présence des champs, pas leur vérité, et ne fusionne rien.
