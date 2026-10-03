@@ -162,7 +162,7 @@
     // grossit ensemble. La zone à faire défiler grandit d'autant.
     const grossi = zoomVif !== 1;
     Object.assign(cadre.style, { transformOrigin: "0 0", transform: grossi ? `scale(${zoomVif})` : "", width: grossi ? `${document.documentElement.clientWidth}px` : "" });
-    Object.assign(racine.style, { width: grossi ? `${cadre.offsetWidth * zoomVif}px` : "", height: grossi ? `${cadre.offsetHeight * zoomVif}px` : "", overflow: grossi ? "hidden" : "" });
+    Object.assign(racine.style, { width: grossi ? `${cadre.offsetWidth * zoomVif}px` : "", height: grossi ? `${cadre.offsetHeight * zoomVif}px` : "", overflow: grossi ? "hidden" : "", cursor: grossi ? "grab" : "" });
     // Ce qui était sous le doigt y reste.
     scrollTo(avantX * zoomVif - x, avantY * zoomVif - y);
   }
@@ -226,7 +226,10 @@
       // Revenu exactement à la vue de départ, de face : c'est le site normal, on y retourne.
       const auRepos = Math.abs(echelle / echelleAuRepos - 1) < 1e-9 && lacet === 0 && tangage === 0;
       if (auRepos && aQuitteLeRepos) {
+        // Si l'on s'est déplacé pendant la vue points, la page vivante reprend au même endroit.
+        const [decalageX, decalageY] = [(cx - image.naturalWidth / 2) / densite, (cy - image.naturalHeight / 2) / densite];
         sortirDesPoints();
+        scrollBy(decalageX, decalageY);
         return;
       }
       aQuitteLeRepos ||= !auRepos;
@@ -444,6 +447,27 @@
       appui = null;
       if (enPoints && glissement < 6 && !evenement.target.closest("button")) toucherUnPoint(evenement.clientX, evenement.clientY);
     }, true);
+    // Page grossie : glisser la déplace, dans tous les sens, comme en vue points. Le geste est
+    // donc le même du début à la fin du zoom. (Un double clic sélectionne toujours un mot.)
+    let prise = null;
+    racine.addEventListener("mousedown", (evenement) => {
+      if (zoomVif === 1 || enPoints || evenement.button !== 0 || evenement.detail > 1) return;
+      evenement.preventDefault(); // pas de sélection de texte en glissant
+      prise = { x: evenement.clientX, y: evenement.clientY, glisse: false };
+      racine.style.cursor = "grabbing";
+    });
+    addEventListener("mousemove", (evenement) => {
+      if (!prise) return;
+      if (Math.hypot(evenement.clientX - prise.x, evenement.clientY - prise.y) > 4) prise.glisse = true;
+      scrollBy(-evenement.movementX, -evenement.movementY);
+    });
+    addEventListener("mouseup", () => {
+      if (!prise) return;
+      // Après un glissement, le relâchement ne compte pas comme un clic sur un bouton.
+      if (prise.glisse) addEventListener("click", (clic) => clic.stopPropagation(), { capture: true, once: true });
+      prise = null;
+      racine.style.cursor = zoomVif === 1 ? "" : "grab";
+    });
     // Sur la page : un toucher est envoyé au moteur, qui répond par les effets demandés.
     racine.addEventListener("click", (evenement) => {
       const bloc = evenement.target.closest("[data-name]");
