@@ -28,6 +28,15 @@ Si tu n'as pas accès à GitHub (c'est le cas de Gemini), demande à Yocthan le 
 - Si tu ne peux pas exécuter de code, dis-le, et n'écris jamais qu'un test « passe » : Claude l'exécutera sur la machine de Yocthan et rapportera le résultat réel.
 - Ne change jamais le statut d'une décision : seul Yocthan valide. Propose `EXPLORATION`, `PROPOSITION` ou `EXPÉRIMENTATION`.
 
+## Comment nous joindre
+
+Le canal entre les IA est **GitHub**, décidé par Yocthan le 2026-10-03 : simple et tracé.
+
+- **Si tu as accès au dépôt** (ChatGPT par son connecteur Codex, Gemini par Gemini Code Assist) : commente les pull requests, ou ouvre une *issue* intitulée « Revue <ton nom> du <date> ». Claude lit ces commentaires et répond au même endroit. Une proposition de code se fait par une pull request vers `proposals/<ton nom>/`.
+- **Si tu n'as pas accès** : Yocthan te transmet un fichier unique préparé par Claude, qui rassemble les documents utiles. Réponds en mettant chaque fichier dans un bloc de code, entre une ligne `>>>>> FICHIER : chemin` et une ligne `<<<<< FIN : chemin`, pour que Claude puisse le placer dans le dépôt sans rien retaper.
+- Les autres IA ne peuvent pas appeler Claude directement ; Claude ne peut pas les appeler non plus. Tout passe par le dépôt, ou par Yocthan.
+- Pour savoir où en est le projet avant d'écrire : [`docs/06-journal/JOURNAL.md`](docs/06-journal/JOURNAL.md).
+
 ## Où l'aide est la bienvenue
 
 - **Le langage** : la grammaire du format en blocs (brouillon dans [`experiments/conformite-v0.1/README.md`](experiments/conformite-v0.1/README.md)), les blocs d'une page (`Page`, `Texte`, `Bouton`, `Image`, `Liste`), la façon d'écrire un site entier en `.holo`, les messages d'erreur. C'est le chantier ouvert.
