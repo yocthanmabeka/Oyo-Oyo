@@ -21,7 +21,8 @@ struct Uniformes {
     reserve: [f32; 2],
 }
 
-const INSTANCES_MAX: u64 = 4096;
+/// Assez pour une mosaïque : un écran de 4 K découpé en points de 6 pixels.
+const INSTANCES_MAX: u64 = 262_144;
 
 pub struct Rendu {
     surface: wgpu::Surface<'static>,

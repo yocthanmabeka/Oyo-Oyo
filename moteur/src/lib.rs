@@ -15,6 +15,7 @@
 pub mod blocs;
 pub mod graine;
 pub mod holo;
+pub mod mosaique;
 pub mod navigation;
 pub mod plat;
 pub mod regles;
@@ -92,7 +93,9 @@ pub fn monde_d_accueil(source: &str) -> Option<String> {
     let programme = verifier_page(source).ok()?;
     let nom = regles::nom_de(&programme.racine).unwrap_or("Home");
     let graine = nom.bytes().fold(0u64, |g, octet| graine::melanger(g ^ u64::from(octet)));
-    Some(format!("Point(name: {nom}, seed: {graine}, fragments: 12)"))
+    // Yocthan : pas de points décoratifs autour de la page. Le lieu est éteint ; ce sont les
+    // éléments de la page eux-mêmes qui deviendront des points (voir `mosaique.rs`).
+    Some(format!("Point(name: {nom}, seed: {graine}, brightness: 0, fragments: 12)"))
 }
 
 #[cfg(test)]

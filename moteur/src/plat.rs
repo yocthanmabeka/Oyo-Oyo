@@ -13,13 +13,13 @@ use crate::styles::est_couleur;
 /// toujours le dernier mot aux styles du fichier.
 const BASE: &str = "\
 :where(.holo-Page){min-height:100vh;box-sizing:border-box;margin:0}\
-:where(.holo-Page>main,.holo-panneau)>*{display:block;box-sizing:border-box;max-width:640px;margin:0 auto 16px auto}\
+:where(.holo-Page>main){max-width:640px;margin:0 auto}:where(.holo-Page>main,.holo-panneau)>*{display:block;box-sizing:border-box;margin:0 0 16px 0}\
 :where(.holo-Button){font:inherit;color:inherit;cursor:pointer;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 12px}\
 :where(.holo-Point){width:64px;height:64px;padding:0;border:0;border-radius:50%;cursor:pointer;\
 background:radial-gradient(circle,white 0%,var(--holo-color,white) 35%,transparent 70%);opacity:var(--holo-brightness,1)}\
 :where(.holo-World){position:fixed;inset:0;margin:0;pointer-events:none}\
 :where(.holo-World[hidden]){display:none}\
-:where(.holo-panneau){position:absolute;z-index:1;left:0;right:0;bottom:0;max-height:46vh;overflow:auto;padding:16px;\
+:where(.holo-panneau){position:absolute;z-index:1;left:0;right:0;bottom:0;max-height:46vh;overflow:auto;padding:16px max(16px,calc(50% - 320px));\
 box-sizing:border-box;background:rgba(0,0,0,0.6);pointer-events:auto}";
 
 /// Fabrique la page. `base` est le dossier du fichier `.holo`, pour retrouver ses images.

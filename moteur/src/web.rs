@@ -9,6 +9,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlCanvasElement, PointerEvent, WheelEvent};
 
+use crate::mosaique::Mosaique;
 use crate::navigation::Navigation;
 use crate::rendu::Rendu;
 
@@ -17,6 +18,8 @@ const DENSITE_MAX: f64 = 2.0;
 
 struct Etat {
     nav: Navigation,
+    /// Quand elle est là, c'est elle qu'on affiche et qu'on manipule, à la place du monde.
+    mosaique: Option<Mosaique>,
     rendu: Rendu,
     canvas: HtmlCanvasElement,
     pointeurs: HashMap<i32, (f32, f32)>,
@@ -36,11 +39,48 @@ struct Etat {
 pub async fn demarrer(canvas: HtmlCanvasElement, source: &str, zoom_initial: f32) -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
     let decl = crate::verifier(source).map_err(|e| JsValue::from_str(&format!("fichier .holo refusé : {e}")))?;
+    lancer(canvas, navigation(decl, zoom_initial), None).await
+}
+
+/// Affiche une image comme une mosaïque de points, un point par pixel (voir `mosaique.rs`).
+/// `couleurs` contient quatre octets par pixel : rouge, vert, bleu, opacité.
+#[wasm_bindgen]
+pub async fn demarrer_mosaique(canvas: HtmlCanvasElement, couleurs: Vec<u8>, largeur: u32, hauteur: u32) -> Result<(), JsValue> {
+    console_error_panic_hook::set_once();
+    let (vue_l, vue_h) = taille_vue(&canvas);
+    let mosaique = Mosaique::new(largeur, hauteur, couleurs, 1, vue_l, vue_h).ok_or_else(|| JsValue::from_str("image mal décrite : il faut largeur × hauteur × 4 octets"))?;
+    // Le monde n'est pas affiché tant que la mosaïque est là ; il faut pourtant un point.
+    let decl = crate::univers::PointDecl { nom: "Mosaic".into(), graine: 1, lumiere: 0.0, morceler: 1, couleur: None, palette: Vec::new() };
+    lancer(canvas, Navigation::new(decl), Some(mosaique)).await
+}
+
+/// Où est la mosaïque : centre (x, y, en pixels de l'image), pixels d'écran par pixel
+/// d'image, opacité des points (0 : on voit l'image, 1 : on voit les points), niveau de
+/// morcellement, nombre de points dessinés. Vide s'il n'y a pas de mosaïque.
+#[wasm_bindgen]
+pub fn mosaique_camera() -> Vec<f64> {
+    ETAT.with(|e| {
+        e.borrow()
+            .as_ref()
+            .and_then(|etat| {
+                let etat = etat.borrow();
+                etat.mosaique.as_ref().map(|m| vec![m.cx, m.cy, m.echelle, m.opacite_des_points(), f64::from(m.niveau()), etat.nb_points as f64])
+            })
+            .unwrap_or_default()
+    })
+}
+
+/// La taille de la zone de dessin, en pixels de la page.
+fn taille_vue(canvas: &HtmlCanvasElement) -> (f64, f64) {
+    (f64::from(canvas.client_width()).max(1.0), f64::from(canvas.client_height()).max(1.0))
+}
+
+async fn lancer(canvas: HtmlCanvasElement, nav: Navigation, mosaique: Option<Mosaique>) -> Result<(), JsValue> {
     ajuster_taille(&canvas);
     let (rendu, canvas) = Rendu::nouveau(canvas).await?;
-    let nav = navigation(decl, zoom_initial);
     let etat = Rc::new(RefCell::new(Etat {
         nav,
+        mosaique,
         rendu,
         canvas: canvas.clone(),
         pointeurs: HashMap::new(),
@@ -172,12 +212,25 @@ fn brancher(canvas: &HtmlCanvasElement, etat: &Rc<RefCell<Etat>>) -> Result<(), 
                 let autre = *etat.pointeurs.iter().find(|(k, _)| **k != id).map(|(_, v)| v).unwrap();
                 let d_avant = ((ancien.0 - autre.0).powi(2) + (ancien.1 - autre.1).powi(2)).sqrt().max(1.0);
                 let d_apres = ((nouveau.0 - autre.0).powi(2) + (nouveau.1 - autre.1).powi(2)).sqrt().max(1.0);
-                etat.nav.zoomer((d_apres / d_avant).log2() * 1.1);
+                let (vue_l, vue_h) = taille_vue(&etat.canvas);
+                let etat = &mut *etat;
+                match etat.mosaique.as_mut() {
+                    // Le milieu des deux doigts reste sur le même point de l'image.
+                    Some(m) => m.zoomer(f64::from(d_apres / d_avant), f64::from(nouveau.0 + autre.0) / 2.0, f64::from(nouveau.1 + autre.1) / 2.0, vue_l, vue_h),
+                    None => etat.nav.zoomer((d_apres / d_avant).log2() * 1.1),
+                }
             } else {
-                // Glisser : on tourne le monde.
-                let dx = (nouveau.0 - ancien.0) / hauteur;
-                let dy = (nouveau.1 - ancien.1) / hauteur;
-                etat.nav.tourner(-dx * 2.4, -dy * 2.4);
+                let etat = &mut *etat;
+                match etat.mosaique.as_mut() {
+                    // Glisser : on déplace l'image.
+                    Some(m) => m.deplacer(f64::from(nouveau.0 - ancien.0), f64::from(nouveau.1 - ancien.1)),
+                    // Glisser : on tourne le monde.
+                    None => {
+                        let dx = (nouveau.0 - ancien.0) / hauteur;
+                        let dy = (nouveau.1 - ancien.1) / hauteur;
+                        etat.nav.tourner(-dx * 2.4, -dy * 2.4);
+                    }
+                }
             }
             etat.pointeurs.insert(id, nouveau);
         }),
@@ -196,7 +249,7 @@ fn brancher(canvas: &HtmlCanvasElement, etat: &Rc<RefCell<Etat>>) -> Result<(), 
                 // Un toucher : un seul doigt, relevé à moins de 10 pixels de là où il s'est posé.
                 if let Some((x0, y0)) = depart {
                     let (x, y) = (ev.client_x() as f32, ev.client_y() as f32);
-                    if seul && nom == "pointerup" && (x - x0).hypot(y - y0) < 10.0 {
+                    if etat.mosaique.is_none() && seul && nom == "pointerup" && (x - x0).hypot(y - y0) < 10.0 {
                         let largeur = f64::from(etat.canvas.client_width()).max(1.0) as f32;
                         let hauteur = f64::from(etat.canvas.client_height()).max(1.0) as f32;
                         let aspect = etat.rendu.aspect();
@@ -212,7 +265,13 @@ fn brancher(canvas: &HtmlCanvasElement, etat: &Rc<RefCell<Etat>>) -> Result<(), 
     let e = etat.clone();
     let molette = Closure::<dyn FnMut(WheelEvent)>::new(move |ev: WheelEvent| {
         ev.prevent_default();
-        e.borrow_mut().nav.zoomer(-(ev.delta_y() as f32) * 0.0018);
+        let mut etat = e.borrow_mut();
+        let (vue_l, vue_h) = taille_vue(&etat.canvas);
+        let etat = &mut *etat;
+        match etat.mosaique.as_mut() {
+            Some(m) => m.zoomer(2f64.powf(-ev.delta_y() * 0.003), f64::from(ev.client_x()), f64::from(ev.client_y()), vue_l, vue_h),
+            None => etat.nav.zoomer(-(ev.delta_y() as f32) * 0.0018),
+        }
     });
     let options = web_sys::AddEventListenerOptions::new();
     options.set_passive(false);
@@ -293,7 +352,13 @@ fn image(etat: &Rc<RefCell<Etat>>, t: f64) -> Result<(), JsValue> {
     }
     e.nav.avancer_temps(dt);
     let aspect = e.rendu.aspect();
-    let sprites = e.nav.sprites(aspect);
+    let sprites = match &e.mosaique {
+        Some(m) => {
+            let (vue_l, vue_h) = taille_vue(&e.canvas);
+            m.sprites(vue_l, vue_h)
+        }
+        None => e.nav.sprites(aspect),
+    };
     e.nb_points = e.rendu.dessiner(&sprites, (t / 1000.0) as f32)?;
 
     if e.premiere_image_ms.is_none() {
