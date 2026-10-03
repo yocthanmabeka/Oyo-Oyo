@@ -195,6 +195,23 @@ mod tests {
     }
 
     #[test]
+    fn la_boutique_comparee_emploie_tout_le_vocabulaire() {
+        let source = include_str!("../../exemples/boutique-comparee/boutique.holo");
+        let programme = lire(source).unwrap();
+        crate::blocs::verifier_blocs(&programme).unwrap();
+        verifier_styles(&programme).unwrap();
+        for bloc in crate::blocs::BLOCS {
+            assert!(source.contains(&format!("{bloc}(")) || source.contains(&format!("{bloc}.")), "le bloc « {bloc} » manque dans l'exemple");
+        }
+        for (reglage, _) in REGLAGES {
+            assert!(source.contains(&format!("{reglage}:")), "le réglage « {reglage} » manque dans l'exemple");
+        }
+        for mot in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave"] {
+            assert!(source.contains(mot), "« {mot} » manque dans l'exemple");
+        }
+    }
+
+    #[test]
     fn refuse_ce_que_la_suite_refuse_a_la_bonne_ligne() {
         let cas = [
             (include_str!("../../experiments/conformite-v0.1/cas/refuses/E12-reglage-inconnu.holo"), 6, "réglage inconnu « colour »"),

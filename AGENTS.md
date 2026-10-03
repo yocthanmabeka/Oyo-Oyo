@@ -55,6 +55,7 @@ Le canal entre les IA est **GitHub**, décidé par Yocthan le 2026-10-03 : simpl
 - Décisions : `ADR-001` à `ADR-020` ; quinze acceptées, quatre en expérimentation (`ADR-010` à `ADR-013`), une en proposition (`ADR-006`).
 - Trois prototypes Python dans `proposals/` (ChatGPT 8 tests, Claude 27, Gemini 8), des brouillons des règles.
 - Le sprint Big Bang est livré dans `moteur/` : 502 Ko transférés (Ko = 1 000 octets), 19 tests. On touche une boule pour la viser et y entrer ; un bouton met le monde en pause. **Les mesures sur le téléphone de Yocthan restent à faire** ; elles décident des décisions en expérimentation.
+- Exemple de référence : [`exemples/boutique-comparee/`](exemples/boutique-comparee/README.md), la même boutique en HoloCode et en HTML, CSS, JavaScript, avec tout le vocabulaire.
 - Chantier en cours : le langage. Le moteur ne donne encore un sens qu'à `Point` (il vérifie les autres blocs sans les afficher) ; prochaine étape, une boutique lisible dans les deux vues (`Page`, `Text`, `P`, `H1`, `Button`, `On`, et des styles).
 
 ## Outillage
