@@ -2,7 +2,7 @@
 
 - Statut : `PROPOSITION`
 - Discussions sources : `HC-013`, revue de ChatGPT du 2026-09-21
-- Décisions concernées : `ADR-007`, `ADR-008`, `ADR-009`, `ADR-014`, `ADR-015`, `ADR-016` à `ADR-019`
+- Décisions concernées : `ADR-007`, `ADR-008`, `ADR-009`, `ADR-014`, `ADR-015`, `ADR-016` à `ADR-020`
 
 ## À quoi sert ce dossier
 
@@ -25,7 +25,7 @@ Un cas **accepté** (`cas/valides/`) :
 {
   "verdict": "accepté",
   "decisions": ["ADR-009"],
-  "arbre": { "bloc": "Page", "title": "Hello", "children": [ { "bloc": "Text" } ] },
+  "arbre": { "bloc": "Page", "title": "Hello", "children": [ { "bloc": "P" } ] },
   "scenario": [ { "signal": "Open.tap" } ],
   "journal": [ { "entite": "Workshop", "capacite": "enter", "parce_que": ["Open.tap"] } ],
   "proprietes": ["meme-fichier-meme-resultat"]
@@ -52,6 +52,8 @@ Un cas **refusé** (`cas/refuses/`) doit être rejeté avant toute exécution :
 | `capacite-inconnue` | Une capacité que l'entité n'offre pas |
 | `nom-en-double` | Deux blocs portent le même nom |
 | `vocabulaire` | Un mot français d'avant `ADR-016` ; le moteur indique le mot anglais à écrire |
+| `casse` | Un bloc écrit sans majuscule (`h1`) ; le moteur indique l'écriture attendue (`ADR-020`) |
+| `niveau-de-titre` | Un titre qui saute un niveau (`H3` après `H1`), ou un premier titre qui n'est pas `H1` (`ADR-020`) |
 
 ### Propriétés
 
@@ -82,11 +84,11 @@ Un commentaire commence par `//`. `TEXTE_LONG` est entouré de `"""` et contient
 
 Règles lexicales précisées après la revue Codex du 2026-10-03 : un entier sans point ni unité est gardé exact (64 bits non signés) et ne passe jamais par un nombre flottant ; une unité se colle au nombre (`500KB`, jamais `500 KB`) ; un nom est fait de lettres, chiffres, `_` et points, et un nom de bloc commence par une majuscule. Le contrôle de cette suite (`verifier_suite.py`) vérifie que les cas sont bien formés ; il ne constitue pas le passage d'un moteur, qui demandera un exécuteur comparant arbre, diagnostics et journal.
 
-**Vocabulaire en anglais** (`ADR-016`), avec une règle : un mot que les programmeurs connaissent déjà garde le sens qu'ils connaissent. Blocs utilisés : `Page`, `Text`, `Button` (signal `tap`), `Image`, `Point` (capacités `enter` et `leave`), `World`, `On`. Paramètres : `name`, `title`, `children`, `inside`, `rules`, `effect`, `seed`, `brightness`, `fragments`, `budget`, `weight`, `source`, `text`. Dans une liste `children`, une phrase entre guillemets est un paragraphe à elle seule (`ADR-019`) : elle vaut un `Text`.
+**Vocabulaire en anglais** (`ADR-016`), avec une règle : un mot que les programmeurs connaissent déjà garde le sens qu'ils connaissent. Blocs utilisés : `Page`, `Text` (du texte sans rôle), `P` et `H1` à `H3` (un `Text` avec un rôle, `ADR-020`), `Button` (signal `tap`), `Image`, `Point` (capacités `enter` et `leave`), `World`, `On`. Paramètres : `name`, `title`, `children`, `inside`, `rules`, `effect`, `seed`, `brightness`, `fragments`, `budget`, `weight`, `source`, `text`. Dans une liste `children`, une phrase entre guillemets est un paragraphe à elle seule (`ADR-019`) : elle vaut un `P`. Une seule écriture par mot : un bloc commence par une majuscule, un paramètre par une minuscule.
 
 ## Ce que la suite contient, et ce qui manque
 
-Quatre cas acceptés et huit cas refusés, centrés sur le premier sprint (le Big Bang), sur la règle des appels et sur le vocabulaire.
+Cinq cas acceptés et onze cas refusés, centrés sur le premier sprint (le Big Bang), sur la règle des appels, sur le vocabulaire et sur le texte.
 
 À ajouter ensuite, en reprenant les tests de la PR n° 2 : les archétypes composés, les relations spatiales, les lois, les durées (`for 3s`), les conflits entre phénomènes ; et depuis la PR n° 3 : l'entrée et la sortie sur plusieurs niveaux, avec une mémoire mesurée et non déclarée.
 

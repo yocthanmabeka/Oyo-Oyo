@@ -23,6 +23,7 @@ Ce registre empêche une proposition séduisante de devenir accidentellement une
 | [`ADR-017`](adr/ADR-017-forme-et-couleurs.md) | La forme : `Theme`, styles nommés à point (`.card`), réglages par bloc ; couleur d'un point par la graine, par `color` ou par `palette` | `ACCEPTÉ` (place des styles à décider) | `HC-013`, revue Codex | HoloCode, HoloEngine |
 | [`ADR-018`](adr/ADR-018-vue-en-profondeur.md) | En profondeur, seuls les points ont de la profondeur ; le reste se lit sur un panneau (option A ; l'option B sera montrée) | `ACCEPTÉ` | `HC-013` | HoloEngine |
 | [`ADR-019`](adr/ADR-019-texte-nu-et-import-md.md) | Le texte s'écrit sans artifice, comme « Hello World » ; un `.md` ne s'importe que pour un long texte | `ACCEPTÉ` (écriture exacte proposée) | `HC-013` | HoloCode |
+| [`ADR-020`](adr/ADR-020-text-p-et-titres.md) | `Text` est le texte de base ; `P` et `H1` à `H3` sont un `Text` avec un rôle ; les titres ne sautent pas de niveau ; une seule écriture par mot (bloc en majuscule, réglage en minuscules) | `ACCEPTÉ` | journal du 2026-10-03 | HoloCode, HoloCompiler, suite de conformité |
 
 `ADR-003` à `ADR-006` ont été proposées par ChatGPT. Le 2026-09-21, Yocthan a accepté `ADR-003` (reformulée par Claude), `ADR-004` (telle quelle) et `ADR-005` (complétée par les chiffres de sa vision), et a laissé `ADR-006` en proposition. ChatGPT est invité à réagir aux reformulations.
 

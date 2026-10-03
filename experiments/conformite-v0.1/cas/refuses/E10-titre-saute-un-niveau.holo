@@ -1,0 +1,9 @@
+// The number of a title is its place in the outline, never its size (ADR-020).
+// H3 cannot follow H1: the size is set by the style.
+Page(
+  children: [
+    H1("My shop"),
+    P("Welcome."),
+    H3("Opening hours"),
+  ],
+)

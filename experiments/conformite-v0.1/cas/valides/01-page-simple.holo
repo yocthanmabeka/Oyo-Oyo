@@ -1,12 +1,10 @@
 // An ordinary page: a title and two paragraphs.
-// A sentence between quotes is a paragraph: nothing else to write.
+// A sentence between quotes is a paragraph: it is worth a P.
 Page(
   title: "Hello",
   children: [
+    H1("Hello"),
     "Hello World",
-    Text("""
-      # Hello
-      This is an ordinary **page**.
-    """),
+    P("This is an ordinary **page**."),
   ],
 )
