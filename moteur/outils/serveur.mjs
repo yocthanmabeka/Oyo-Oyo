@@ -2,7 +2,7 @@
 //
 //     node outils/serveur.mjs            → http://localhost:8080
 //
-// Sert web/ à la racine et mondes/ sous /mondes/. Compresse en Brotli ce que le navigateur
+// Sert web/ à la racine, mondes/ sous /mondes/ et les exemples du dépôt sous /exemples/. Compresse en Brotli ce que le navigateur
 // accepte, pour que le poids transféré mesuré par la page soit celui d'un vrai hébergement.
 
 import { createServer } from "node:http";
@@ -13,6 +13,7 @@ import { brotliCompressSync, constants } from "node:zlib";
 import { networkInterfaces } from "node:os";
 
 const racine = fileURLToPath(new URL("..", import.meta.url));
+const exemples = fileURLToPath(new URL("../../exemples/", import.meta.url));
 const port = Number(process.env.PORT ?? 8080);
 const types = {
   ".html": "text/html; charset=utf-8",
@@ -20,6 +21,8 @@ const types = {
   ".wasm": "application/wasm",
   ".holo": "text/plain; charset=utf-8",
   ".json": "application/json",
+  ".css": "text/css; charset=utf-8",
+  ".svg": "image/svg+xml",
 };
 const cache = new Map();
 
@@ -38,8 +41,11 @@ createServer(async (req, res) => {
   try {
     let url = decodeURIComponent(new URL(req.url, "http://x").pathname);
     if (url === "/") url = "/index.html";
-    const chemin = url.startsWith("/mondes/") ? join(racine, normalize(url)) : join(racine, "web", normalize(url));
-    if (!chemin.startsWith(racine)) throw Object.assign(new Error("hors racine"), { code: "ENOENT" });
+    const dansExemples = url.startsWith("/exemples/");
+    const chemin = dansExemples
+      ? join(exemples, normalize(url.slice("/exemples/".length)))
+      : url.startsWith("/mondes/") ? join(racine, normalize(url)) : join(racine, "web", normalize(url));
+    if (!chemin.startsWith(dansExemples ? exemples : racine)) throw Object.assign(new Error("hors racine"), { code: "ENOENT" });
     const { brut, br } = await fichier(chemin);
     const type = types[extname(chemin)] ?? "application/octet-stream";
     const accepteBr = /\bbr\b/.test(req.headers["accept-encoding"] ?? "");

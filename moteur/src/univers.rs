@@ -12,6 +12,10 @@ pub struct PointDecl {
     pub graine: u64,
     pub lumiere: f32,
     pub morceler: u32,
+    /// La couleur imposée à ce point, sinon la graine décide (ADR-017).
+    pub couleur: Option<[f32; 3]>,
+    /// Les couleurs imposées à ses enfants, reprises en boucle.
+    pub palette: Vec<[f32; 3]>,
 }
 
 pub const MORCELER_MAX: u32 = 64;
@@ -35,11 +39,11 @@ pub fn point_depuis(programme: &Programme) -> Result<PointDecl, Erreur> {
         }
         autre => return Err(Erreur { message: bloc_inconnu(autre), pos: bloc.pos }),
     }
-    let mut decl = PointDecl { nom: String::new(), graine: 0, lumiere: 1.0, morceler: 12 };
+    let mut decl = PointDecl { nom: String::new(), graine: 0, lumiere: 1.0, morceler: 12, couleur: None, palette: Vec::new() };
     let mut vus: Vec<&str> = Vec::new();
     for arg in &bloc.arguments {
         let nom = arg.nom.as_deref().ok_or_else(|| Erreur {
-            message: "chaque paramètre de « Point » est nommé : name, seed, brightness, fragments".into(),
+            message: "chaque paramètre de « Point » est nommé : name, seed, brightness, fragments, color, palette".into(),
             pos: arg.pos,
         })?;
         if vus.contains(&nom) {
@@ -62,10 +66,22 @@ pub fn point_depuis(programme: &Programme) -> Result<PointDecl, Erreur> {
             ("brightness", _) => return Err(attendu("brightness", "un nombre entre 0 et 1, sans unité", arg.pos)),
             ("fragments", Valeur::Entier(n)) if (1..=u64::from(MORCELER_MAX)).contains(n) => decl.morceler = *n as u32,
             ("fragments", _) => return Err(attendu("fragments", &format!("un nombre entier entre 1 et {MORCELER_MAX}"), arg.pos)),
+            ("color", Valeur::Texte(c)) => decl.couleur = Some(couleur_hexa(c).ok_or_else(|| attendu("color", COULEUR_ATTENDUE, arg.pos))?),
+            ("color", _) => return Err(attendu("color", COULEUR_ATTENDUE, arg.pos)),
+            ("palette", Valeur::Liste(couleurs)) if !couleurs.is_empty() => {
+                for c in couleurs {
+                    let couleur = match c {
+                        Valeur::Texte(c) => couleur_hexa(c),
+                        _ => None,
+                    };
+                    decl.palette.push(couleur.ok_or_else(|| attendu("palette", "une liste de couleurs, comme [\"#E9B44C\", \"#245C45\"]", arg.pos))?);
+                }
+            }
+            ("palette", _) => return Err(attendu("palette", "une liste de couleurs, comme [\"#E9B44C\", \"#245C45\"]", arg.pos)),
             (autre, _) => {
                 let message = match ancien_mot(autre) {
                     Some(nouveau) => format!("le paramètre « {autre} » s'écrit « {nouveau} » : le vocabulaire est en anglais (ADR-016)"),
-                    None => format!("« Point » n'a pas de paramètre « {autre} » ; paramètres possibles : name, seed, brightness, fragments"),
+                    None => format!("« Point » n'a pas de paramètre « {autre} » ; paramètres possibles : name, seed, brightness, fragments, color, palette"),
                 };
                 return Err(Erreur { message, pos: arg.pos });
             }
@@ -78,6 +94,15 @@ pub fn point_depuis(programme: &Programme) -> Result<PointDecl, Erreur> {
         return Err(Erreur { message: "« Point » doit avoir un paramètre « seed »".into(), pos: bloc.pos });
     }
     Ok(decl)
+}
+
+const COULEUR_ATTENDUE: &str = "une couleur entre guillemets, écrite \"#E9B44C\"";
+
+/// `#E9B44C` → rouge, vert, bleu entre 0 et 1.
+fn couleur_hexa(texte: &str) -> Option<[f32; 3]> {
+    let hexa = texte.strip_prefix('#').filter(|h| h.len() == 6 && h.bytes().all(|c| c.is_ascii_hexdigit()))?;
+    let composante = |i: usize| u8::from_str_radix(&hexa[i..i + 2], 16).ok().map(|v| f32::from(v) / 255.0);
+    Some([composante(0)?, composante(2)?, composante(4)?])
 }
 
 fn attendu(param: &str, forme: &str, pos: Pos) -> Erreur {
@@ -106,7 +131,16 @@ pub struct Monde {
 impl Monde {
     /// Le monde racine, décrit par le fichier `.holo`.
     pub fn racine(decl: &PointDecl) -> Monde {
-        Monde::construire(decl.graine, decl.lumiere, Some(decl.morceler))
+        let mut monde = Monde::construire(decl.graine, decl.lumiere, Some(decl.morceler));
+        if let Some(couleur) = decl.couleur {
+            monde.couleur = couleur;
+        }
+        if !decl.palette.is_empty() {
+            for (i, enfant) in monde.enfants.iter_mut().enumerate() {
+                enfant.couleur = decl.palette[i % decl.palette.len()];
+            }
+        }
+        monde
     }
 
     /// Un monde quelconque, connu par sa seule graine. Le nombre de points qu'il contient
@@ -167,8 +201,11 @@ mod tests {
     #[test]
     fn le_big_bang_est_accepte() {
         let d = point(include_str!("../mondes/big-bang.holo")).unwrap();
-        assert_eq!(d, PointDecl { nom: "Origin".into(), graine: 1, lumiere: 1.0, morceler: 12 });
+        assert_eq!(d, PointDecl { nom: "Origin".into(), graine: 1, lumiere: 1.0, morceler: 12, couleur: None, palette: Vec::new() });
         assert_eq!(Monde::racine(&d).enfants.len(), 12);
+        // Le point de la boutique, seul : mêmes réglages que dans l'exemple de la boutique.
+        let atelier = point(include_str!("../mondes/atelier.holo")).unwrap();
+        assert_eq!((atelier.graine, atelier.morceler, atelier.palette.len()), (42, 6, 2));
     }
 
     #[test]
@@ -193,6 +230,19 @@ mod tests {
         assert_eq!(point("Point(name: A, seed: 9007199254740993)").unwrap().graine, 9_007_199_254_740_993);
         assert!(point("Point(name: A, seed: 1.5)").unwrap_err().message.contains("entier"));
         assert!(point("Point(name: A, seed: -1)").unwrap_err().message.contains("entier"));
+    }
+
+    #[test]
+    fn la_couleur_et_la_palette_s_imposent_a_la_graine() {
+        let d = point("Point(name: A, seed: 42, fragments: 6, color: \"#FF0000\", palette: [\"#E9B44C\", \"#245C45\"])").unwrap();
+        let monde = Monde::racine(&d);
+        assert_eq!(monde.couleur, [1.0, 0.0, 0.0]);
+        assert_eq!(monde.enfants[0].couleur, monde.enfants[2].couleur);
+        assert_ne!(monde.enfants[0].couleur, monde.enfants[1].couleur);
+        // Les graines des enfants ne changent pas : seule la couleur est imposée.
+        assert_eq!(monde.enfants[0].graine, Monde::depuis_graine(42).enfants[0].graine);
+        assert!(point("Point(name: A, seed: 1, color: \"gold\")").unwrap_err().message.contains("#E9B44C"));
+        assert!(point("Point(name: A, seed: 1, palette: [])").unwrap_err().message.contains("une liste de couleurs"));
     }
 
     #[test]

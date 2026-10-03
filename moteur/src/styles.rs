@@ -148,7 +148,7 @@ fn verifier_reglage(reglage: &Reglage) -> Result<(), Erreur> {
     refus(format!("« {nom}: {valeur} » : ce réglage attend {attendu}"))
 }
 
-fn est_couleur(valeur: &str) -> bool {
+pub(crate) fn est_couleur(valeur: &str) -> bool {
     match valeur.strip_prefix('#') {
         Some(hexa) => [3, 6, 8].contains(&hexa.len()) && hexa.bytes().all(|c| c.is_ascii_hexdigit()),
         None => COULEURS.contains(&valeur),

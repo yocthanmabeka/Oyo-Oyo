@@ -326,7 +326,7 @@ mod tests {
     use super::*;
 
     fn depart() -> Navigation {
-        Navigation::new(PointDecl { nom: "Origin".into(), graine: 1, lumiere: 1.0, morceler: 12 })
+        Navigation::new(PointDecl { nom: "Origin".into(), graine: 1, lumiere: 1.0, morceler: 12, couleur: None, palette: Vec::new() })
     }
 
     #[test]
