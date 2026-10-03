@@ -24,7 +24,28 @@ function montrer() {
   bouton.style.display = visibles ? "block" : "none";
 }
 bascule.addEventListener("click", () => { visibles = !visibles; montrer(); });
-document.body.append(hud, bouton, bascule);
+
+// Pause : le moteur ne calcule ni ne dessine plus rien tant qu'on ne reprend pas.
+const pauseBouton = document.createElement("button");
+pauseBouton.textContent = "pause";
+pauseBouton.title = "Mettre le monde en pause, ou le reprendre";
+pauseBouton.style.cssText = bascule.style.cssText;
+pauseBouton.style.right = "84px";
+let enPause = false;
+pauseBouton.addEventListener("click", () => {
+  if (!window.__holoPause) return;
+  enPause = !enPause;
+  window.__holoPause(enPause);
+  pauseBouton.textContent = enPause ? "reprendre" : "pause";
+  pauseBouton.style.background = enPause ? "rgba(255,180,60,.35)" : "rgba(255,255,255,.08)";
+  afficher();
+});
+document.addEventListener("visibilitychange", () => {
+  // Onglet caché : on se met en pause de nous-mêmes ; on reprend quand il revient, sauf pause manuelle.
+  if (!window.__holoPause || enPause) return;
+  window.__holoPause(document.hidden);
+});
+document.body.append(hud, bouton, bascule, pauseBouton);
 montrer();
 
 const debutPage = performance.timeOrigin;
@@ -76,7 +97,7 @@ function afficher() {
   const r = rapport();
   const ko = (n) => (n == null ? "?" : (n / 1024).toFixed(0) + " Ko");
   hud.textContent = [
-    `${r.backend}  ${r.images_par_seconde ?? "?"} i/s  pire ${r.pire_image_ms ?? "?"} ms`,
+    enPause ? "EN PAUSE : rien n'est calculé ni dessiné" : `${r.backend}  ${r.images_par_seconde ?? "?"} i/s  pire ${r.pire_image_ms ?? "?"} ms`,
     `moteur ${r.moteur_wasm_octets ? ko(r.moteur_wasm_octets.transfere) + " transféré, " + ko(r.moteur_wasm_octets.decompresse) + " réel" : "…"}`,
     `première image ${r.premiere_image_ms ?? "?"} ms   mémoire JS ${r.memoire_js_mo ?? "n/d"} Mo`,
     `${r.chemin ?? ""}  profondeur ${r.profondeur ?? "?"}  zoom ${r.zoom ?? "?"}`,

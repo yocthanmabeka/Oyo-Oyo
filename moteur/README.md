@@ -27,6 +27,7 @@ Le moteur est écrit en Rust, compilé en WebAssembly, et dessine avec `wgpu` : 
 - **Toucher** un point : il devient le point visé, signalé par un halo blanc qui respire ; c'est dans lui que l'on entre en zoomant. Tant qu'on n'a touché aucun point, la cible est celui qui est au centre.
 - **Glisser** avec un doigt : tourner le monde.
 - **Pincer dans l'autre sens** : dézoomer jusqu'à ressortir dans le monde parent.
+- **Pause** : le bouton « pause », en bas à droite, arrête tout calcul et tout dessin ; « reprendre » relance. Le monde se met aussi en pause tout seul quand l'onglet est caché.
 - Les mesures sont cachées : le petit bouton « mesures », en bas à droite, les affiche avec le bouton « Copier le rapport » (ou `?mesures=1` dans l'adresse).
 
 ## Construire et lancer

@@ -6,7 +6,8 @@
 <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}canvas{display:block;width:100vw;height:100vh;touch-action:none}</style>
 </head><body><canvas id="monde"></canvas>
 <script type="module">
-  import init, { demarrer } from "./pkg/holo_moteur.js";
+  import init, { demarrer, pause } from "./pkg/holo_moteur.js";
+  window.__holoPause = pause;
   const params = new URLSearchParams(location.search);
   const monde = params.get("monde") ?? "big-bang";
   try {
