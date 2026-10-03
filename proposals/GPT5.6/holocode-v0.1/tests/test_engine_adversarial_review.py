@@ -9,8 +9,10 @@ from pathlib import Path
 class EngineAdversarialReviewTests(unittest.TestCase):
     def test_hostile_holo_files_against_rust_engine(self) -> None:
         cargo = shutil.which("cargo")
-        if cargo is None:
-            self.skipTest("cargo absent: the dedicated Rust CI job remains authoritative")
+        self.assertIsNotNone(
+            cargo,
+            "cargo absent : les sept sondes adversariales Rust ne doivent pas être ignorées silencieusement",
+        )
 
         review = Path(__file__).resolve().parents[2] / "revue-langage-securite-2026-10-03"
         result = subprocess.run(
