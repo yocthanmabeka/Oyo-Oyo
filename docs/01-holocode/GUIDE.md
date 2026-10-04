@@ -583,7 +583,7 @@ Page(
 
     Every(100ms, effect: apple_y.add(3)),
 
-    When(Basket, meets: Apple, within: 9, effect: [score.add(1), apple_x.random(100), apple_y.set(0)]),
+    When(Basket, meets: Apple, effect: [score.add(1), apple_x.random(100), apple_y.set(0)]),
     When(apple_y, over: 99, effect: [lives.sub(1), apple_x.random(100), apple_y.set(0)]),
   ],
 )
@@ -617,7 +617,33 @@ Seules les touches que le fichier écoute sont prises. Les autres gardent leur r
 **Une règle qui guette : `When`.** Elle se déclenche au moment où ce qu'elle guette **devient** vrai, pas tant qu'il le reste. Elle guette :
 
 - une valeur : `When(apple_y, over: 99, effect: …)`, avec les comparaisons de `If` (`is`, `not`, `over`, `under`) ;
-- une rencontre : `When(Basket, meets: Apple, within: 9, effect: …)`. Les deux blocs ont un nom, et un `x` et un `y` dans un `Board`. `within` est la distance de rencontre, sur l'échelle du plateau (de 0 à 100) ; 10 sans rien écrire.
+- une rencontre : `When(Basket, meets: Apple, effect: …)`. Les deux blocs ont un nom, et un `x` et un `y` dans un `Board`. Ils se rencontrent au moment où le bord de l'un touche le bord de l'autre : un rond et un carré se touchent comme à l'œil. Avec `within: 20`, on juge autrement : sur l'écart entre leurs places, de 1 à 100, sans regarder leur taille.
+
+**Des règles sous condition.** Une règle de temps tourne tant que la page est ouverte. Pour qu'elle ne vaille que pendant la partie, on la range sous une condition, avec le même `If` que pour montrer des blocs, et `rules` à la place de `children` :
+
+```holo
+Page(
+  title: "A stopwatch",
+  state: State(running: 0, seconds: 0),
+  children: [
+    Text("{seconds} seconds"),
+    Button(name: Start, text: "Start"),
+    Button(name: Stop, text: "Stop"),
+  ],
+  rules: [
+    On(Start.tap, effect: [seconds.set(0), running.set(1)]),
+    On(Stop.tap, effect: running.set(0)),
+    If(running, is: 1, rules: [
+      Every(1s, effect: seconds.add(1)),
+      When(seconds, is: 10, effect: running.set(0)),
+    ]),
+  ],
+)
+```
+
+- Les règles rangées dans `If(…, rules: [ … ])` ne valent que si la condition est vraie.
+- On y range des règles de temps (`Every`) et des règles qui guettent (`When`). Une règle `On` répond à un geste : pour elle, on cache le bouton.
+- Dans le jeu de la pomme, tout ce qui fait tomber, rattraper et perdre est rangé sous `If(lives, over: 0, rules: [ … ])` : avant « Play » et après la fin, rien ne bouge et aucun son ne part.
 
 Cette écriture est à l'essai (`ADR-028`).
 

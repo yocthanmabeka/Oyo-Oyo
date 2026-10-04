@@ -50,22 +50,25 @@ Page(
 
   rules: [
     // Commencer. Une règle peut faire plusieurs demandes : on les met entre crochets.
-    On(Play.tap, effect: [score.set(0), lives.set(3), apple_y.set(0)]),
+    On(Play.tap, effect: [score.set(0), lives.set(3), apple_x.set(50), apple_y.set(0), basket.set(50)]),
 
     // Le clavier : « Key » est le clavier du visiteur. Signaux : left, right, up, down, space.
     On(Key.left, effect: basket.sub(8)),
     On(Key.right, effect: basket.add(8)),
 
-    // La pomme tombe : dix fois par seconde, elle descend un peu.
-    Every(100ms, effect: apple_y.add(3)),
+    // Des règles sous condition : elles ne valent que pendant la partie (tant qu'il reste une
+    // vie). Avant « Play » et après la fin, la pomme ne tombe pas et aucun son ne part.
+    If(lives, over: 0, rules: [
+      // La pomme tombe : dix fois par seconde, elle descend un peu.
+      Every(100ms, effect: apple_y.add(3)),
 
-    // Une règle qui guette une rencontre : au moment où le panier et la pomme se touchent, un
-    // point de plus, et une nouvelle pomme part d'en haut, à une place tirée au hasard.
-    When(Basket, meets: Apple, within: 9, effect: [score.add(1), apple_x.random(100), apple_y.set(0), Pop.play]),
+      // Une rencontre : au moment où le bord de la pomme touche le bord du panier, un point
+      // de plus, et une nouvelle pomme part d'en haut, à une place tirée au hasard.
+      When(Basket, meets: Apple, effect: [score.add(1), apple_x.random(100), apple_y.set(0), Pop.play]),
 
-    // Une règle qui guette une valeur : au moment où la pomme arrive tout en bas, une vie de
-    // moins, et une nouvelle pomme.
-    When(apple_y, over: 99, effect: [lives.sub(1), apple_x.random(100), apple_y.set(0), Lost.play]),
+      // Au moment où la pomme arrive tout en bas, une vie de moins, et une nouvelle pomme.
+      When(apple_y, over: 99, effect: [lives.sub(1), apple_x.random(100), apple_y.set(0), Lost.play]),
+    ]),
   ],
 )
 

@@ -34,6 +34,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 29 : comparer deux valeurs", to: "29-comparer-deux-valeurs.holo"),
+      A("Leçon 31 : des règles sous condition →", to: "31-regles-sous-condition.holo"),
     ]),
   ],
 

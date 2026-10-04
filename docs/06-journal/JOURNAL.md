@@ -6,6 +6,46 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — La rencontre se fait au contact ; des règles sous condition ; deux prompts pour Gemini et Codex
+
+**Ce que Yocthan a vu**
+
+- Dans le jeu de la pomme : « Le rond, quand il s'approche du carré, au lieu de le toucher, il pénètre vraiment en profondeur, et après ça déclenche. Il fallait que dès que sa circonférence touche l'un des côtés, ça réagisse. C'est comme ça qu'on construit du bon. »
+- Pour les modèles 3D et le jeu à plusieurs : il veut l'avis de Gemini et de ChatGPT avant de choisir, et demande un prompt.
+
+**La cause**
+
+- La rencontre était jugée sur l'écart entre les places des deux objets, sans regarder leur taille ni leur forme. Tant que tout était des points lumineux, cela ne se voyait pas ; avec un rond et un carré, c'est flagrant.
+
+**Corrigé**
+
+- Sans `within`, deux objets se rencontrent au moment où le bord de l'un touche le bord de l'autre. L'arbitre connaît la taille et la forme de chacun et la hauteur du plateau ; la page lui donne la largeur du plateau, qui dépend de l'écran.
+- Un test le fixe au pixel près : la pomme (44) est prise quand son bas atteint le dessus du panier (64), pas avant, pas après.
+- `within` reste, pour juger sur l'écart entre les places.
+
+**Un second défaut, trouvé en vérifiant à l'écran**
+
+- Le jeu jouait tout seul avant « Play » et après la fin : la pomme, cachée, tombait, était « rattrapée » (un point, un son demandé), puis repartait d'une place au hasard. « Play » ne remettait pas cette place : la première pomme tombait loin du panier.
+- Corrigé sans mot nouveau : `If(lives, over: 0, rules: [ … ])`. Le même `If` que pour montrer des blocs, avec `rules` à la place de `children` : les règles rangées dedans ne valent que si la condition est vraie. On y range `Every` et `When`. « Play » remet aussi la pomme et le panier au milieu.
+- La leçon 31, `exemples/lecons/31-regles-sous-condition.holo` : un chronomètre qui ne compte que lancé.
+- Mesuré dans Chrome, image par image : avant « Play », rien ne bouge et le score reste à 0 ; à l'image qui précède la prise, le bas de la pomme est 6 pixels au-dessus du panier. Elle n'entre plus dedans. (La pomme descend par pas d'environ 9 pixels : la prise se fait au pas où elle touche.)
+- 90 tests du moteur.
+
+**Ce que cela coûte**
+
+- La même partie ne se joue plus tout à fait pareil sur un écran large et sur un téléphone. Pour un jeu à plusieurs, il faudra un plateau de taille fixe, ou des unités de monde : question posée à Gemini et à Codex.
+
+**Les prompts**
+
+- `docs/05-discussions/prompts/2026-10-04-gemini-3d-et-plusieurs.md` (sans accès au dépôt, tout est dedans) et `2026-10-04-codex-3d-et-plusieurs.md` (avec le dépôt ; il lui demande aussi de relire les noms ajoutés depuis sa contre-revue).
+
+**Erreur de Claude**
+
+- Claude avait joué la partie par un test qui ne regarde que les nombres : le score montait, donc « ça marchait ». Il n'avait pas regardé à l'écran le moment du contact.
+- Le jeu qui joue tout seul était noté dans `ADR-026` comme une limite sans gravité. Avec le son et les rencontres, c'était un défaut, et Claude ne l'avait pas relu.
+
+---
+
 ## 2026-10-04 — Les formes, le meilleur score ; deux propositions pour ce qui reste
 
 **Ce que Yocthan a dit**

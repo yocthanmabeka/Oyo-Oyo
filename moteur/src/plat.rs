@@ -262,6 +262,9 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
         }
         // Une condition : ce qu'elle contient ne se montre que si elle est vraie (ADR-025).
         "If" => {
+            if bloc.argument("rules").is_some() {
+                return Err(Erreur { message: "un « If » qui range des règles se place dans « rules », pas dans « children »".into(), pos: bloc.pos });
+            }
             let (valeur, comparaisons) = crate::etat::condition(bloc)?;
             let cle = crate::etat::cle(valeur, &comparaisons);
             sortie.push_str(&format!("<div class=\"{classes}\"{nom} data-if=\"{}\"{MARQUE}{cle}{MARQUE}>", echapper(&cle)));

@@ -38,5 +38,6 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 28 | [Un son](28-son.holo) | `Sound`, `play` |
 | 29 | [Comparer deux valeurs : le meilleur score](29-comparer-deux-valeurs.holo) | `over: record`, `record.set(score)` |
 | 30 | [Des formes](30-formes.holo) | `Shape`, `form`, `size` |
+| 31 | [Des règles sous condition](31-regles-sous-condition.holo) | `If(…, rules: [ … ])` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.

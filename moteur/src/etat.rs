@@ -73,7 +73,7 @@ pub fn condition(bloc: &Bloc) -> Result<(&str, Vec<(&str, Terme<'_>)>), Erreur> 
     let mut comparaisons = Vec::new();
     for argument in &bloc.arguments[1..] {
         match (argument.nom.as_deref(), &argument.valeur) {
-            (Some("children" | "name"), _) if !regle => {}
+            (Some("children" | "rules" | "name"), _) if !regle => {}
             (Some("effect"), _) if regle => {}
             // Pour un texte : « is: "" » (vide) et « not: "" » (rempli). Vide vaut 0.
             (Some(mot @ ("is" | "not")), Valeur::Texte(texte)) if texte.is_empty() => comparaisons.push((if mot == "is" { "is" } else { "not" }, Terme::Nombre(0))),
@@ -95,8 +95,10 @@ pub fn condition(bloc: &Bloc) -> Result<(&str, Vec<(&str, Terme<'_>)>), Erreur> 
     if comparaisons.is_empty() {
         return Err(erreur(ecriture));
     }
-    if !regle && !matches!(bloc.argument("children").map(|a| &a.valeur), Some(Valeur::Liste(_))) {
-        return Err(erreur("« If » attend ce qu'il montre : If(count, is: 0, children: [ … ])"));
+    // Un `If` montre des blocs (children), ou met des règles sous condition (rules) : l'un ou l'autre.
+    let liste = |param: &str| matches!(bloc.argument(param).map(|a| &a.valeur), Some(Valeur::Liste(_)));
+    if !regle && (liste("children") == liste("rules")) {
+        return Err(erreur("« If » attend ce qu'il montre, If(count, is: 0, children: [ … ]), ou les règles qu'il met sous condition, If(lives, over: 0, rules: [ … ])"));
     }
     Ok((valeur, comparaisons))
 }
@@ -396,7 +398,7 @@ pub fn recevoir(programme: &Programme, etat: &Etat, textes: &Textes, json: &str)
         match donnee {
             Donnee::Nombre(nombre) => {
                 let plafond = plafond(programme, &cle);
-                if let Some((_, place)) = etat.iter_mut().find(|(connu, _)| *connu == cle && connu != TIRAGES) {
+                if let Some((_, place)) = etat.iter_mut().find(|(connu, _)| *connu == cle && connu != TIRAGES && connu != LARGEUR) {
                     *place = nombre.min(plafond);
                 }
             }
@@ -432,6 +434,44 @@ fn noter_les_capacites(regle: &Bloc) {
         _ => Vec::new(),
     };
     CAPACITES.with(|c| c.borrow_mut().extend(noms.into_iter().cloned()));
+}
+
+/// Parcourt tous les blocs en disant, pour chacun, s'il est en vigueur pour cet état. Des règles
+/// rangées dans `If(lives, over: 0, rules: [ … ])` ne valent que tant que la condition est vraie.
+fn avec_leur_vigueur<'a>(programme: &'a Programme, etat: &Etat, f: &mut dyn FnMut(&'a Bloc, bool)) {
+    fn visiter<'a>(valeur: &'a Valeur, en_vigueur: bool, montrees: &Etat, f: &mut dyn FnMut(&'a Bloc, bool)) {
+        match valeur {
+            Valeur::Liste(elements) => elements.iter().for_each(|e| visiter(e, en_vigueur, montrees, f)),
+            Valeur::Bloc(bloc) => {
+                f(bloc, en_vigueur);
+                let sous_condition = bloc.nom == "If" && bloc.argument("rules").is_some();
+                let dedans = en_vigueur
+                    && (!sous_condition
+                        || condition(bloc).is_ok_and(|(valeur, comparaisons)| montrees.iter().find(|(connu, _)| connu == valeur).is_some_and(|(_, n)| vraie(&comparaisons, *n, montrees))));
+                for argument in &bloc.arguments {
+                    let ici = if sous_condition && argument.nom.as_deref() == Some("rules") { dedans } else { en_vigueur };
+                    visiter(&argument.valeur, ici, montrees, f);
+                }
+            }
+            _ => {}
+        }
+    }
+    let montrees = a_montrer(programme, etat);
+    f(&programme.racine, true);
+    for argument in &programme.racine.arguments {
+        visiter(&argument.valeur, true, &montrees, f);
+    }
+}
+
+/// Cette règle est-elle en vigueur, pour cet état ?
+fn en_vigueur(programme: &Programme, regle: &Bloc, etat: &Etat) -> bool {
+    let mut reponse = true;
+    avec_leur_vigueur(programme, etat, &mut |bloc, vigueur| {
+        if std::ptr::eq(bloc, regle) {
+            reponse = vigueur;
+        }
+    });
+    reponse
 }
 
 /// Les demandes d'une règle : une seule (`effect: cart.add(1)`), ou plusieurs entre crochets
@@ -921,7 +961,8 @@ pub fn arbitrer(programme: &Programme, etat: &Etat, signal: &str) -> Etat {
     let mut tirages = etat.iter().find(|(nom, _)| nom == TIRAGES).map_or(0, |(_, n)| *n);
     let depart = tirages;
     let mut horloge = 0usize;
-    let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
+    // Les règles rangées sous une condition ne répondent que si elle est vraie au moment du signal.
+    avec_leur_vigueur(programme, &avant_le_signal, &mut |bloc, vigueur| {
         // Une règle répond à un signal : celui d'un bloc (`On(Add.tap, …)`), ou celui de sa
         // propre horloge (`Every(1s, …)` : « every:0 » pour la première règle de temps du
         // fichier, « every:1 » pour la deuxième).
@@ -933,7 +974,7 @@ pub fn arbitrer(programme: &Programme, etat: &Etat, signal: &str) -> Etat {
             }
             _ => false,
         };
-        if concernee {
+        if concernee && vigueur {
             for effet in demandes_de(bloc) {
                 appliquer(programme, &mut etat, effet, graine, &mut tirages);
             }
@@ -943,7 +984,6 @@ pub fn arbitrer(programme: &Programme, etat: &Etat, signal: &str) -> Etat {
                 noter_les_capacites(bloc);
             }
         }
-        Ok(())
     });
     guetter(programme, avant_le_signal, &mut etat, graine, &mut tirages);
     noter_les_tirages(&mut etat, depart, tirages);
@@ -1002,7 +1042,8 @@ fn guetter(programme: &Programme, avant_le_changement: Etat, etat: &mut Etat, gr
         let photo = etat.clone();
         let mut declenchee = false;
         let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
-            if bloc.nom == "When" && !guette(programme, bloc, &avant) && guette(programme, bloc, &photo) {
+            let vu = |etat: &Etat| en_vigueur(programme, bloc, etat) && guette(programme, bloc, etat);
+            if bloc.nom == "When" && !vu(&avant) && vu(&photo) {
                 for effet in demandes_de(bloc) {
                     appliquer(programme, etat, effet, graine, tirages);
                     declenchee = true;
@@ -1076,13 +1117,92 @@ fn place_de(programme: &Programme, etat: &Etat, nom: &str) -> Option<(u64, u64)>
     Some((lire("x")?, lire("y")?))
 }
 
+/// Sous ce nom, l'état porte la largeur du plateau à l'écran, en pixels. La page la mesure et
+/// la donne à l'arbitre : sans elle, il ne peut pas savoir si deux objets se touchent, puisque
+/// un plateau prend la largeur de l'écran. Ce n'est pas une valeur de l'auteur.
+const LARGEUR: &str = "<";
+/// La largeur d'un plateau quand la page ne l'a pas dite : celle d'une page sur un grand écran.
+const LARGEUR_COURANTE: f64 = 640.0;
+
+/// Un objet posé sur un plateau, tel qu'il est à l'écran : son centre et son encombrement, en pixels.
+struct Corps {
+    cx: f64,
+    cy: f64,
+    demi: f64,
+    rond: bool,
+}
+
+/// Où est un bloc, et quelle place il prend, sur son plateau.
+fn corps(programme: &Programme, etat: &Etat, nom: &str) -> Option<Corps> {
+    let bloc = crate::regles::bloc_nomme(programme, nom)?;
+    let (x, y) = place_de(programme, etat, nom)?;
+    let pixels = |bloc: &Bloc, param: &str| match bloc.argument(param).map(|a| &a.valeur) {
+        Some(Valeur::Nombre { valeur, unite: Some(unite) }) if unite == "px" => Some(*valeur),
+        _ => None,
+    };
+    // La taille du bloc, et la part de cette taille qu'on voit vraiment.
+    let (taille, demi, rond) = match (bloc.nom.as_str(), bloc.argument("form").map(|a| &a.valeur)) {
+        ("Shape", Some(Valeur::Nom(forme))) => {
+            let taille = pixels(bloc, "size").unwrap_or(48.0);
+            match forme.as_str() {
+                "square" => (taille, taille / 2.0, false),
+                "circle" => (taille, taille / 2.0, true),
+                // Un triangle et un losange ne remplissent pas leur carré : un rond un peu plus petit.
+                _ => (taille, taille * 0.4, true),
+            }
+        }
+        // Un point est une lumière qui s'éteint vers le bord : son cœur fait un tiers de sa taille.
+        ("Point", _) => (64.0, 64.0 * 0.35, true),
+        _ => (48.0, 24.0, false),
+    };
+    // La hauteur du plateau où il est posé.
+    let mut hauteur = 320.0;
+    let _ = pour_chaque_bloc(&programme.racine, &mut |plateau| {
+        if plateau.nom == "Board" {
+            if let Some(Valeur::Liste(enfants)) = plateau.argument("children").map(|a| &a.valeur) {
+                if enfants.iter().any(|e| matches!(e, Valeur::Bloc(b) if crate::regles::nom_de(b) == Some(nom))) {
+                    hauteur = pixels(plateau, "height").unwrap_or(320.0);
+                }
+            }
+        }
+        Ok(())
+    });
+    let largeur = etat.iter().find(|(connu, _)| connu == LARGEUR).map_or(LARGEUR_COURANTE, |(_, l)| (*l as f64).max(taille));
+    // À 0 le bloc touche un bord, à 100 l'autre : son centre parcourt le plateau moins sa taille.
+    Some(Corps { cx: x as f64 / 100.0 * (largeur - taille) + taille / 2.0, cy: y as f64 / 100.0 * (hauteur - taille) + taille / 2.0, demi, rond })
+}
+
+/// Deux objets se touchent-ils ? Le bord de l'un atteint le bord de l'autre.
+fn se_touchent(a: &Corps, b: &Corps) -> bool {
+    let (dx, dy) = ((a.cx - b.cx).abs(), (a.cy - b.cy).abs());
+    match (a.rond, b.rond) {
+        (true, true) => dx.hypot(dy) <= a.demi + b.demi,
+        (false, false) => dx <= a.demi + b.demi && dy <= a.demi + b.demi,
+        // Un rond et un carré : le point du carré le plus proche du centre du rond.
+        _ => {
+            let (rond, carre) = if a.rond { (a, b) } else { (b, a) };
+            (dx - carre.demi).max(0.0).hypot((dy - carre.demi).max(0.0)) <= rond.demi
+        }
+    }
+}
+
 /// Ce qu'une règle `When` guette est-il vrai, pour cet état ? Une valeur (`When(lives, is: 0)`),
 /// ou la rencontre de deux blocs (`When(Basket, meets: Apple)`).
 fn guette(programme: &Programme, regle: &Bloc, etat: &Etat) -> bool {
     if regle.argument("meets").is_some() {
-        return rencontre(regle).is_ok_and(|(a, b, distance)| match (place_de(programme, etat, a), place_de(programme, etat, b)) {
-            (Some((ax, ay)), Some((bx, by))) => ax.abs_diff(bx) <= distance && ay.abs_diff(by) <= distance,
-            _ => false,
+        return rencontre(regle).is_ok_and(|(a, b, distance)| {
+            // Avec « within », on juge sur l'écart entre les places, de 0 à 100. Sans lui, sur le
+            // contact : le bord de l'un touche le bord de l'autre.
+            if regle.argument("within").is_some() {
+                return match (place_de(programme, etat, a), place_de(programme, etat, b)) {
+                    (Some((ax, ay)), Some((bx, by))) => ax.abs_diff(bx) <= distance && ay.abs_diff(by) <= distance,
+                    _ => false,
+                };
+            }
+            match (corps(programme, etat, a), corps(programme, etat, b)) {
+                (Some(a), Some(b)) => se_touchent(&a, &b),
+                _ => false,
+            }
         });
     }
     condition(regle).is_ok_and(|(valeur, comparaisons)| {
@@ -1123,6 +1243,12 @@ pub fn relire(programme: &Programme, ecrit: &str) -> Etat {
             // Le compte des tirages au hasard suit l'état, pour que la suite continue.
             if let (true, Ok(n)) = (nom == TIRAGES, valeur.parse::<u64>()) {
                 etat.push((TIRAGES.to_string(), n));
+                continue;
+            }
+            // La largeur du plateau, mesurée par la page : bornée, pour qu'on ne puisse pas
+            // tricher en annonçant un plateau minuscule ou immense.
+            if let (true, Ok(largeur)) = (nom == LARGEUR, valeur.parse::<u64>()) {
+                etat.push((LARGEUR.to_string(), largeur.clamp(120, 2000)));
                 continue;
             }
             if let (Some((_, place)), Ok(valeur)) = (etat.iter_mut().find(|(connu, _)| connu == nom), valeur.parse::<u64>()) {
@@ -1295,6 +1421,18 @@ mod tests {
 
     const PANIER_DE_POMMES: &str = include_str!("../../exemples/jeu/panier.holo");
 
+    /// La règle de rencontre du jeu de la pomme.
+    fn programme_regle(programme: &Programme) -> &Bloc {
+        let mut regle = None;
+        let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
+            if bloc.nom == "When" && bloc.argument("meets").is_some() {
+                regle = Some(bloc);
+            }
+            Ok(())
+        });
+        regle.unwrap()
+    }
+
     #[test]
     fn le_clavier_ce_qui_tombe_et_les_rencontres() {
         let programme = page(PANIER_DE_POMMES).unwrap();
@@ -1347,6 +1485,37 @@ mod tests {
             let erreur = page(source).unwrap_err();
             assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
         }
+        // Les règles du jeu sont rangées sous une condition : tant que la partie n'a pas commencé
+        // (aucune vie), la pomme ne tombe pas, et rien n'est rattrapé ni perdu en cachette.
+        capacites_demandees();
+        let avant_de_jouer = (0..60).fold(depart.clone(), |e, _| arbitrer(&programme, &e, "every:0"));
+        assert_eq!(avant_de_jouer, depart, "le jeu a joué tout seul avant « Play »");
+        assert!(capacites_demandees().is_empty(), "un son a été demandé avant « Play »");
+        // Le contact, pas la pénétration : la pomme (un rond de 44) est prise au moment où son
+        // bord touche le dessus du panier (un carré de 64), pas quand elle est déjà dedans.
+        let programme = page(PANIER_DE_POMMES).unwrap();
+        let avec = |y: u64| { let mut e = joue.clone(); e.iter_mut().find(|(n, _)| n == "apple_y").unwrap().1 = y; e };
+        // Plateau de 360 : le dessus du panier est à 284 ; le bas de la pomme est à y/100 × 316 + 44.
+        assert!(!guette(&programme, programme_regle(&programme), &avec(75)), "à 75, le bas de la pomme est à 281 : elle ne touche pas encore");
+        assert!(guette(&programme, programme_regle(&programme), &avec(76)), "à 76, le bas de la pomme est à 284 : elle touche");
+        // Sur le côté : le panier décalé d'un peu plus que la moitié des deux largeurs ne touche plus.
+        let mut a_cote = avec(96);
+        a_cote.iter_mut().find(|(n, _)| n == "basket").unwrap().1 = 59;
+        assert!(guette(&programme, programme_regle(&programme), &a_cote));
+        a_cote.iter_mut().find(|(n, _)| n == "basket").unwrap().1 = 60;
+        assert!(!guette(&programme, programme_regle(&programme), &a_cote));
+        // Sur un téléphone, le plateau est plus étroit : le même écart de places est plus petit à l'écran.
+        a_cote.push(("<".to_string(), 320));
+        assert!(guette(&programme, programme_regle(&programme), &a_cote));
+        // Comme dans le navigateur : l'état voyage en texte, avec la largeur du plateau mesurée
+        // par la page. La pomme tombe, et elle est prise.
+        let mut texte = crate::arbitrer(PANIER_DE_POMMES, &crate::etat_initial(PANIER_DE_POMMES), "Play.tap");
+        let mut battements = 0;
+        while !texte.contains("score=1") && battements < 60 {
+            texte = crate::arbitrer(PANIER_DE_POMMES, &format!("{texte};<=638"), "every:0");
+            battements += 1;
+        }
+        assert!(texte.contains("score=1") && texte.contains("lives=3"), "après {battements} battements : {texte}");
         // Faire glisser le panier : sa valeur suit le doigt, sans sortir du plateau ; un bloc qui
         // ne se laisse pas glisser ne bouge pas ; et une rencontre faite en glissant compte.
         let programme = page(PANIER_DE_POMMES).unwrap();
