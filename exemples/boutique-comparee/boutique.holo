@@ -23,8 +23,11 @@ Page(
   ),
 
   // Quand on zoome (Ctrl + molette, ou pincer), chaque pixel de la page devient un point.
+  // Sans « points: », une page ne devient jamais des points : c'est un site ordinaire, quel que
+  // soit le zoom. L'écrire active les points.
   points: Points(
     after: 4,         // jusqu'à un zoom × 4, la page reste un site ordinaire : on lit, on copie
+                      // (jamais moins de 2 : on peut toujours doubler la taille du texte)
     size: 6px,        // un pixel devient un point lumineux quand il atteint cette taille
     fragment: 40px,   // un point se morcelle quand il atteint cette taille…
     grid: 4,          // …en une grille de 4 × 4…

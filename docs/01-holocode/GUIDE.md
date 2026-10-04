@@ -384,7 +384,16 @@ Cette écriture est à l'essai (`ADR-023`).
 
 ## 7. Comment la page se regarde : `Zoom`, `Points`, `Relief`
 
-Quand le visiteur zoome sur la page (Ctrl + molette, ou pincer), elle grossit d'abord comme n'importe quel site : le texte reste du texte, on le lit, on le sélectionne, on le copie. Au-delà du grossissement fixé par `Points(after:)`, chaque pixel devient un point lumineux, qui se morcelle ensuite. Dès que la page est grossie, glisser la déplace, dans tous les sens ; c'est le même geste avant et après le passage aux points. Quand il tourne la page, elle prend du relief. Ces trois blocs règlent cela. Ils sont facultatifs : sans eux, la page prend les valeurs ci-dessous.
+Quand le visiteur zoome sur la page (Ctrl + molette, ou pincer), elle grossit d'abord comme n'importe quel site : le texte reste du texte, on le lit, on le sélectionne, on le copie. Au-delà du grossissement fixé par `Points(after:)`, chaque pixel devient un point lumineux, qui se morcelle ensuite. Dès que la page est grossie, glisser la déplace, dans tous les sens ; c'est le même geste avant et après le passage aux points. Quand il tourne la page, elle prend du relief. Ces trois blocs règlent cela.
+
+**Ce qui met la page en 3D s'active.** Sans rien écrire, une page est un site ordinaire : on peut la grossir pour mieux lire, et rien d'autre ne se passe.
+
+| Pour avoir | L'auteur écrit |
+|---|---|
+| les pixels qui deviennent des points au zoom | `points: Points()` (ou un site planté dans un pixel, avec `pixels:`) |
+| la page qui tourne, et son relief | `relief: Relief(tilt: 360deg)`, en plus de `points:` |
+
+`relief:` sans `points:` est refusé : le relief est celui des points. Dans `Points()` et `Relief()`, chaque réglage est facultatif : sans lui, il prend la valeur ci-dessous.
 
 ```holo
 Page(
@@ -423,7 +432,7 @@ Page(
 | `Zoom(shrink:)` | `true` : dézoomer réduit la page jusqu'à un seul point. `false` : la page reste entière. | `true`, `false` |
 | `Zoom(levels:)` | Combien de sites peuvent s'emboîter, au plus. | 1 à 16 |
 | `Zoom(speed:)` | La vitesse du zoom à la molette. `1` : la vitesse ordinaire ; `2` : deux fois plus vite. Au doigt, la page suit toujours l'écartement des doigts. | 0.25 à 4 |
-| `Points(after:)` | Jusqu'à ce grossissement, la page reste un site ordinaire. | 1 à 16 |
+| `Points(after:)` | Jusqu'à ce grossissement, la page reste un site ordinaire. Jamais moins de 2 : tout visiteur peut au moins doubler la taille du texte. | 2 à 16 |
 | `Points(size:)` | La taille où un pixel devient un point. | 2px à 32px |
 | `Points(fragment:)` | La taille où un point se morcelle. | 8px à 400px, au moins `size` × `grid` |
 | `Points(grid:)` | Un point se morcelle en `grid` × `grid`. | 2 à 8 |
@@ -548,6 +557,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Un point, un monde | `Point`, `World`, `seed`, `brightness`, `color`, `palette` | fait |
 | Le morcellement d'un point | `fragments` | fait |
 | Le pixel d'une page | `pixels:` et `above:` | fait, écriture provisoire |
+| Activer les points au zoom | `points: Points()` | fait |
 | Le pixel qui devient un point | `Points(after:, size:)` | fait |
 | Le morcellement des points d'une page | `Points(fragment:, grid:, depth:)` | fait |
 | Le relief | `Relief(height:)` | fait |

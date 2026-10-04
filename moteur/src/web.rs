@@ -100,7 +100,8 @@ fn reglages_restants(source: Option<String>, deja_grossi: Option<f64>) -> Result
 /// reste un site ordinaire ; si le zoom est permis (1) ou non (0) ; la disposition des portails
 /// (0 grille, 1 ligne, 2 colonne, 3 diagonale), leur nombre, leur taille, la lumière du fond ;
 /// la vitesse du zoom à la molette ; la durée d'ouverture d'un portail, en millisecondes ;
-/// jusqu'où la page tourne, en degrés (0 : elle ne tourne pas).
+/// jusqu'où la page tourne, en degrés (0 : elle ne tourne pas) ; si les pixels deviennent des
+/// points au zoom (1) ou si la page reste un site ordinaire (0).
 #[wasm_bindgen]
 pub fn reglages_de_vue(source: &str) -> Result<Vec<f64>, JsValue> {
     let r = reglages_de(Some(source.to_string()))?;
@@ -110,7 +111,7 @@ pub fn reglages_de_vue(source: &str) -> Result<Vec<f64>, JsValue> {
         crate::vue::Disposition::Colonne => 2.0,
         crate::vue::Disposition::Diagonale => 3.0,
     };
-    Ok(vec![r.densite, f64::from(u8::from(r.reduire)), r.apres, f64::from(u8::from(r.zoom_actif)), disposition, f64::from(r.portails_nombre), r.portails_taille, r.portails_lumiere, r.zoom_vitesse, r.portails_duree, r.angle_max.to_degrees()])
+    Ok(vec![r.densite, f64::from(u8::from(r.reduire)), r.apres, f64::from(u8::from(r.zoom_actif)), disposition, f64::from(r.portails_nombre), r.portails_taille, r.portails_lumiere, r.zoom_vitesse, r.portails_duree, r.angle_max.to_degrees(), f64::from(u8::from(r.points_actifs))])
 }
 
 /// Les mondes voisins d'un site, calculés à partir d'une graine, pour remplir le carrefour.
