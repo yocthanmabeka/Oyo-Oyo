@@ -111,7 +111,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `display`, `position`, `float` | refusés dans un style : la disposition vient des blocs | exprès |
 | La disposition elle-même : `flex`, `grid`, colonnes | `Row`, `Column`, `Grid`, avec `gap`, `align`, `columns` | fait, à l'essai |
 | `:hover`, `:focus`, `:active` (l'apparence selon l'état) | | manque |
-| `transition`, `animation`, `@keyframes` | | manque |
+| `transition`, `animation`, `@keyframes` | `enter: Enter(…)`, `loop: Loop(…)`, `Scenes` : d'où il part ou où il va, quand, combien de temps, quel caractère ; lettre à lettre et enfant après enfant sans JavaScript | fait, à l'essai |
 | `@media` (s'adapter à l'écran) | le moteur le fait seul : une ligne passe à la ligne, une grille perd des colonnes | en partie |
 | Variables (`--couleur`) | | manque |
 | Dégradés, ombres, images de fond | | manque |
@@ -172,6 +172,6 @@ L'avis de Codex (revue du 2026-10-03) : mettre avant la disposition la sécurit�
 | 5 | Le survol et l'approche : un signal `near` | Le même signal à plat et en profondeur |
 | 6 | Le son et la vidéo : `Audio`, `Video` | Les médias ; le son doit se placer dans l'espace |
 | 7 | Les tableaux : `Table` | Utile, mais moins urgent |
-| 8 | Les transitions et les durées | Les unités `ms` et `s` attendent leur emploi |
+| 8 | Les transitions et les durées | Fait à l'essai : `Enter`, `Loop`, `Scenes` (`ADR-034`) |
 | 9 | Les imports : réutiliser un morceau, un fichier de styles | Pour les sites de plus d'une page |
 | 10 | Le deuxième étage : calcul libre en module enfermé | Le plus gros chantier ; il ouvre les applications et les jeux |

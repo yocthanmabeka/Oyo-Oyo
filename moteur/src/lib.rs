@@ -18,6 +18,7 @@ pub mod etat;
 pub mod graine;
 pub mod holo;
 pub mod mosaique;
+pub mod mouvement;
 pub mod navigation;
 pub mod plat;
 pub mod regles;

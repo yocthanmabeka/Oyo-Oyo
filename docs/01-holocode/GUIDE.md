@@ -886,6 +886,37 @@ Le meilleur score tient alors en une règle : au moment où le score dépasse le
 
 Cette écriture est à l'essai (`ADR-032`). Les leçons sont `29-comparer-deux-valeurs.holo` et `30-formes.holo`.
 
+## 6 decies. Le mouvement : `Enter`, `Loop`, `Scenes`
+
+```holo
+Page(
+  title: "Motion",
+  children: [
+    H1("Hello", enter: Enter(y: 40px, opacity: 0, letters: 0.05s, ease: spring)),
+    Shape(form: circle, color: "#E9B44C", size: 60px,
+      enter: Enter(scale: 0, at: 0.6s, ease: back),
+      loop: Loop(scale: 1.2, for: 0.8s)),
+    Scenes(height: 200px, repeat: forever, children: [
+      Scene(for: 2s, children: [ H2("One", enter: Enter(x: -200px, opacity: 0)) ]),
+      Scene(for: 2s, children: [ H2("Two", enter: Enter(scale: 3, opacity: 0, blur: 10px)) ]),
+    ]),
+  ],
+)
+```
+
+- **`enter: Enter(…)`**, sur n'importe quel bloc qui se voit : il arrive. On écrit **d'où il part** ; il arrive à sa place.
+- **`loop: Loop(…)`** : il vit sans fin. On écrit **où il va** ; il y va et revient. `back: false` : il recommence sans revenir (pour tourner).
+- Ce qui bouge : `opacity` (0 à 1), `x`, `y` (en px), `scale`, `rotate` (en deg), `flip` et `tilt` (tourner en profondeur, en deg), `blur` (en px), `hue` (la couleur, en deg), `round` (0 à 50 : un carré devient rond).
+- Quand et comment : `at:` (le moment où il part), `for:` (combien de temps), `ease:` (le caractère : `linear`, `smooth`, `out`, `in`, `back`, `spring`, `bounce`).
+- **`letters: 0.05s`** sur un texte : lettre après lettre. **`each: 0.1s`** sur un bloc qui a des enfants : l'un après l'autre.
+- **`Scenes(height:, repeat: forever, children: [ Scene(for: 3s, children: [ … ]) ])`** : des scènes qui passent l'une après l'autre, au même endroit. Dans une scène, `at:` compte depuis son début.
+- Rien ne bouge si l'on n'écrit rien. Le visiteur qui demande moins de mouvement voit la page arrêtée (pour des scènes : la dernière).
+- Tout devient du CSS fabriqué par le moteur : la page bouge sans attendre le moteur, et ne pèse rien de plus.
+
+Limites : pas de chemin à suivre (une courbe dessinée), pas de mouvement qui répond à la souris, pas de particules par centaines ; la couleur change par `hue`, pas vers une couleur choisie.
+
+Cette écriture est à l'essai (`ADR-034`). Les leçons sont `32-entrer.holo`, `33-boucle.holo`, `34-scenes.holo`. Le film complet : `exemples/motion/holocode/showreel.holo`, et son jumeau en HTML, CSS et JavaScript.
+
 ## 7. Comment la page se regarde : `Zoom`, `Points`, `Relief`
 
 Quand le visiteur zoome sur la page (Ctrl + molette, ou pincer), elle grossit d'abord comme n'importe quel site : le texte reste du texte, on le lit, on le sélectionne, on le copie. Au-delà du grossissement fixé par `Points(after:)`, chaque pixel devient un point lumineux, qui se morcelle ensuite. Dès que la page est grossie, glisser la déplace, dans tous les sens ; c'est le même geste avant et après le passage aux points. Quand il tourne la page, elle prend du relief. Ces trois blocs règlent cela.
@@ -1035,6 +1066,9 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Image` | `source`, `weight`, `alt`, `name` | Dans `children` |
 | `Sound` | `name`, `source`, `weight` | Dans `children` |
 | `Shape` | `form`, `color`, `size`, `name` | Dans `children` |
+| `Scenes` | `children`, `height`, `repeat`, `name` | Dans `children` |
+| `Scene` | `for`, `children`, `name` | Dans `Scenes` |
+| `Enter`, `Loop` | `opacity`, `x`, `y`, `scale`, `rotate`, `flip`, `tilt`, `blur`, `hue`, `round`, `at`, `for`, `ease`, `letters`, `each` ; `back` pour `Loop` | Dans `enter:` et `loop:`, sur tout bloc qui se voit |
 | `Hr` | aucun | Dans `children` |
 | `Quote` | le texte entre guillemets, `by` | Dans `children` |
 | `Code` | le texte entre guillemets | Dans `children` |
