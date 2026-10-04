@@ -1,10 +1,10 @@
 # ADR-023 — Les valeurs d'une page : `State`, `{cart}`, et les demandes `add`, `sub`, `set`
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ pour l'instant ; l'écriture exacte reste à revoir avec les noms
 - Date : 2026-10-04
 - Responsable : Yocthan Mabeka
 - Discussions sources : journal du 2026-10-04
-- Validation : Yocthan, le 2026-10-04 : « Fais le panier. Comme ça, on va voir ce que ça donne. Et après, on va en juger. » L'écriture est une proposition de Claude ; rien n'est accepté tant que Yocthan n'a pas jugé.
+- Validation : Yocthan, le 2026-10-04, après essai : « Oui, j'ai kiffé. Les paniers, les états, tout ça. Valide-le pour l'instant. » Avant cela : Yocthan, le 2026-10-04 : « Fais le panier. Comme ça, on va voir ce que ça donne. Et après, on va en juger. » L'écriture est une proposition de Claude ; rien n'est accepté tant que Yocthan n'a pas jugé.
 - Projets affectés : HoloCode, HoloEngine
 
 ## Contexte

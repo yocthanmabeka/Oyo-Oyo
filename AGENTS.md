@@ -52,11 +52,11 @@ Le canal entre les IA est **GitHub**, décidé par Yocthan le 2026-10-03 : simpl
 ## État au 2026-10-04
 
 - 18 pull requests, `main` au vert avec cinq tâches de test. Codex (ChatGPT) a livré sa revue dans `proposals/GPT5.6/revue-2026-10-03/` ; trois défauts qu'il a relevés sont corrigés dans le moteur (graines exactes, imports refusés, test figé).
-- Décisions : `ADR-001` à `ADR-024` ; dix-huit acceptées, cinq en expérimentation (`ADR-011` à `ADR-013`, `ADR-023`, `ADR-024`), une en proposition (`ADR-006`).
-- **La disposition, à l'essai** (`ADR-024`) : `Row`, `Column`, `Grid`, avec `gap`, `align`, `columns`.
+- Décisions : `ADR-001` à `ADR-024` ; vingt acceptées (dont `ADR-023` et `ADR-024`, validées « pour l'instant » par Yocthan le 2026-10-04, écriture à revoir avec les noms), trois en expérimentation (`ADR-011` à `ADR-013`), une en proposition (`ADR-006`).
+- **La disposition** (`ADR-024`, validée pour l'instant) : `Row`, `Column`, `Grid`, avec `gap`, `align`, `columns`.
 - **La page arrive déjà fabriquée** : `moteur/src/bin/holo.rs` est le moteur en ligne de commande (`holo check`, `holo html`) ; le serveur de démonstration s'en sert pour envoyer le HTML de la page, lisible sans lancer le moteur dans le navigateur.
 - **Tous les noms**, face à ceux de HTML, CSS et JavaScript : `docs/01-holocode/NOMS.md`. Les noms contestés y sont marqués ; ils attendent Codex, puis Yocthan.
-- **Le panier, à l'essai** (`ADR-023`) : `state: State(cart: 0)`, `{cart}` dans un texte, les demandes `cart.add(1)`, `cart.sub(1)`, `cart.set(0)` ; l'arbitre est dans `moteur/src/etat.rs`. Yocthan doit l'essayer et juger. Des nombres entiers seulement.
+- **Le panier** (`ADR-023`) : `state: State(cart: 0)`, `{cart}` dans un texte, les demandes `cart.add(1)`, `cart.sub(1)`, `cart.set(0)` ; l'arbitre est dans `moteur/src/etat.rs`. Essayé et validé pour l'instant par Yocthan. Des nombres entiers seulement.
 - **Cohérence site et métavers** (demande de Yocthan) : ce qui met la page en 3D s'active dans le fichier. Sans `Relief(tilt:)`, une page ne tourne pas ; sans `points:` (ou `pixels:`), elle ne devient pas des points au zoom. `Points(after:)` ne descend pas sous 2.
 - Le panier a des prix et un total, à l'essai : `prices: Prices(sunrise: 120)`, et le moteur calcule `{count}` et `{total}` (`ADR-023`). Les deux autres écritures comparées sont dans `proposals/Claude/panier-articles-2026-10/`.
 - Mode de secours WebGL 2 mesuré sur le Flip 3 le 2026-10-04 (`?webgl`) : 60,2 et 59,8 images par seconde, comme en WebGPU. Reste à mesurer : un téléphone d'entrée de gamme.

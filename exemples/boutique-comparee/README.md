@@ -64,3 +64,25 @@ Depuis le 2026-10-03, `boutique.holo` écrit aussi comment sa page se regarde (`
 Depuis le 2026-10-04, la boutique a un panier (`ADR-023`, à l'essai). En HoloCode : une ligne pour déclarer (`state: State(cart: 0)`), `{cart}` dans le texte, et une règle par bouton (`On(Add.tap, effect: cart.add(1))`). En JavaScript : une variable, une fonction `showCart()` à rappeler après chaque changement, et un garde-fou écrit à la main pour ne pas descendre sous zéro. Oublier un seul appel à `showCart()`, et l'écran ne dit plus la vérité.
 
 Le même jour, la disposition (`ADR-024`, à l'essai) : `Grid(columns: 3)` et `Row(gap: 8px)` en HoloCode ; en CSS, `display: grid` avec une formule `minmax` pour le téléphone, et `display: flex` sans oublier `flex-wrap`.
+
+## Mesure du 2026-10-04 : est-ce plus rapide que le web ?
+
+Yocthan a demandé de comparer, « histoire de voir si le langage est plus rapide que la majorité des langages ou pas ». Première mesure, sur le PC, dans Chrome sans rien en cache, trois essais chacun, serveur local avec compression Brotli. Les deux pages font la même chose à plat (texte, grille, panier, atelier) ; seule la version HoloCode a les points, la rotation et le carrefour.
+
+| | `boutique.holo` | `web/` (HTML, CSS, JavaScript) |
+|---|---|---|
+| Premier affichage | 368 à 556 ms | 288 à 384 ms |
+| Octets transférés | 579 253 | 6 115 |
+| Fichiers demandés | 7 | 6 |
+| Mémoire JavaScript | 1,8 Mo (sans compter la mémoire du moteur) | 0,8 Mo |
+| Éléments dans la page | 81 | 67 |
+| Lignes utiles écrites par l'auteur | 124, dans 1 fichier | 236, dans 3 fichiers |
+
+Ce que cela dit, sans détour :
+
+- **HoloCode n'est pas plus rapide.** Le premier affichage est à peu près le même, parce que le serveur envoie la page déjà fabriquée ; sans cela, il serait plus lent.
+- **HoloCode est près de cent fois plus lourd à la première visite** : le moteur pèse environ 570 Ko. Il est téléchargé une seule fois, puis gardé par le navigateur ; un second site `.holo` ne le retélécharge pas. Un navigateur qui saurait lire le `.holo` n'aurait rien à télécharger d'autre que les 9 Ko du fichier.
+- **L'auteur écrit deux fois moins de lignes**, dans un seul fichier, et sans JavaScript.
+- **La comparaison n'est pas complète** : la version web n'a ni points, ni rotation, ni carrefour. Pour les avoir, il faudrait une bibliothèque 3D (Three.js pèse autour de 170 Ko compressé, à vérifier) et beaucoup de code.
+
+Ce qui n'est pas mesuré : un site écrit avec React, Vue ou Svelte (il faudrait les installer, ce qui demande l'accord de Yocthan) ; le téléphone ; une page bien plus grande ; la vitesse des interactions.

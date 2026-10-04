@@ -1,10 +1,10 @@
 # ADR-024 — La disposition : `Row`, `Column`, `Grid`
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ pour l'instant ; l'écriture exacte reste à revoir avec les noms
 - Date : 2026-10-04
 - Responsable : Yocthan Mabeka
 - Discussions sources : journal du 2026-10-04 ; revue de Codex du 2026-10-03 ; réponse de Gemini du 2026-10-04
-- Validation : Yocthan, le 2026-10-04 : « Il faut vraiment qu'on voie le Row et les colonnes. » L'écriture est une proposition de Claude ; à juger après essai.
+- Validation : Yocthan, le 2026-10-04, après essai : « Oui, j'ai kiffé. Les paniers, les états, tout ça. Valide-le pour l'instant. » La disposition faisait partie de ce qui était à juger, et il a tout validé ensemble. Avant cela : Yocthan, le 2026-10-04 : « Il faut vraiment qu'on voie le Row et les colonnes. » L'écriture est une proposition de Claude ; à juger après essai.
 - Projets affectés : HoloCode, HoloEngine
 
 ## Contexte
