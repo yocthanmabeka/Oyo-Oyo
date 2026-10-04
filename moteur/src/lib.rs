@@ -123,6 +123,12 @@ pub fn saisir(source: &str, etat: &str, nom: &str, ecrit: &str) -> String {
     }
 }
 
+/// Le visiteur fait glisser un bloc d'un plateau : l'arbitre rend le nouvel état.
+pub fn glisser(source: &str, etat: &str, nom: &str, x: u32, y: u32) -> String {
+    let Ok(programme) = verifier_page(source) else { return String::new() };
+    ecrire_tout(&programme, &etat::glisser(&programme, &etat::relire(&programme, etat), nom, u64::from(x), u64::from(y)), &etat::relire_textes(&programme, etat))
+}
+
 /// Ce que la page garde d'une visite à l'autre (`keep:`), tiré de cet état : `cart=2;buyer='Ada`.
 pub fn a_garder(source: &str, etat: &str) -> String {
     let Ok(programme) = verifier_page(source) else { return String::new() };

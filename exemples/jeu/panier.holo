@@ -1,8 +1,9 @@
 // Un deuxième jeu, toujours sans une ligne de code : une pomme tombe, on la rattrape avec un
-// panier qu'on déplace au clavier (flèches gauche et droite) ou avec deux boutons.
+// panier. On déplace le panier au clavier (flèches gauche et droite), ou en le faisant
+// glisser, au doigt ou à la souris.
 //
-// Ce fichier montre le clavier (Key), ce qui bouge tout seul (Every), les règles qui guettent
-// (When) et la rencontre de deux objets (Meet).
+// Ce fichier montre le clavier (Key), ce qui bouge tout seul (Every), ce qu'on fait glisser
+// (drag) et les règles qui guettent (When).
 
 Page(
   name: Orchard,
@@ -20,7 +21,7 @@ Page(
     H1("Catch the apple"),
 
     If(lives, is: 0, children: [
-      "An apple falls. Move the basket under it: arrow keys, or the two buttons.",
+      "An apple falls. Move the basket under it: arrow keys, or drag the basket.",
       If(score, over: 0, children: [
         P.result("Three apples lost. Your score: **{score}**"),
       ]),
@@ -34,46 +35,32 @@ Page(
       ]),
 
       // Sur un plateau, une valeur qui sert de place reste entre 0 et 100 : le panier ne sort
-      // jamais, même si l'on insiste sur la flèche.
+      // jamais. « drag: true » : on peut le faire glisser, et sa valeur suit le doigt.
       Board(height: 360px, children: [
         Point(name: Apple, seed: 3, color: "#E4572E", x: apple_x, y: apple_y),
-        Point(name: Basket, seed: 9, color: "#E9B44C", x: basket, y: 96),
-      ]),
-
-      // Pour le téléphone : deux boutons font ce que font les flèches.
-      Row(align: between, children: [
-        Button.move(name: Left, text: "◀"),
-        Button.move(name: Right, text: "▶"),
+        Point(name: Basket, seed: 9, color: "#E9B44C", x: basket, y: 96, drag: true),
       ]),
     ]),
   ],
 
   rules: [
-    // Commencer.
-    On(Play.tap, effect: score.set(0)),
-    On(Play.tap, effect: lives.set(3)),
-    On(Play.tap, effect: apple_y.set(0)),
+    // Commencer. Une règle peut faire plusieurs demandes : on les met entre crochets.
+    On(Play.tap, effect: [score.set(0), lives.set(3), apple_y.set(0)]),
 
     // Le clavier : « Key » est le clavier du visiteur. Signaux : left, right, up, down, space.
     On(Key.left, effect: basket.sub(8)),
     On(Key.right, effect: basket.add(8)),
-    On(Left.tap, effect: basket.sub(8)),
-    On(Right.tap, effect: basket.add(8)),
 
     // La pomme tombe : dix fois par seconde, elle descend un peu.
     Every(100ms, effect: apple_y.add(3)),
 
-    // Une rencontre : quand le panier et la pomme se touchent, un point de plus, et une
-    // nouvelle pomme part d'en haut, à une place tirée au hasard.
-    Meet(Basket, Apple, within: 9, effect: score.add(1)),
-    Meet(Basket, Apple, within: 9, effect: apple_x.random(100)),
-    Meet(Basket, Apple, within: 9, effect: apple_y.set(0)),
+    // Une règle qui guette une rencontre : au moment où le panier et la pomme se touchent, un
+    // point de plus, et une nouvelle pomme part d'en haut, à une place tirée au hasard.
+    When(Basket, meets: Apple, within: 9, effect: [score.add(1), apple_x.random(100), apple_y.set(0)]),
 
-    // Une règle qui guette : au moment où la pomme arrive tout en bas sans avoir été
-    // rattrapée, une vie de moins, et une nouvelle pomme.
-    When(apple_y, over: 99, effect: lives.sub(1)),
-    When(apple_y, over: 99, effect: apple_x.random(100)),
-    When(apple_y, over: 99, effect: apple_y.set(0)),
+    // Une règle qui guette une valeur : au moment où la pomme arrive tout en bas, une vie de
+    // moins, et une nouvelle pomme.
+    When(apple_y, over: 99, effect: [lives.sub(1), apple_x.random(100), apple_y.set(0)]),
   ],
 )
 
@@ -81,5 +68,4 @@ Page { background: #0d1a12; color: white; font-family: Georgia, serif; padding: 
 H1 { color: #E9B44C; font-size: 30px; text-align: center; }
 Board { background: #14261b; border: 1px solid #E9B44C; border-radius: 16px; }
 .play { background: #E9B44C; color: #0d1a12; font-size: 18px; font-weight: bold; padding: 10px 28px; border-radius: 999px; }
-.move { font-size: 22px; padding: 10px 28px; border-radius: 12px; }
 .result { font-size: 18px; text-align: center; }

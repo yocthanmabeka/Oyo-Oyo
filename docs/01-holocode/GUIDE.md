@@ -525,12 +525,9 @@ Page(
 
   rules: [
     On(Play.tap, effect: time.set(30)),
-    On(Star.tap, effect: score.add(1)),
-    On(Star.tap, effect: star_x.random(100)),
-    On(Star.tap, effect: star_y.random(100)),
+    On(Star.tap, effect: [score.add(1), star_x.random(100), star_y.random(100)]),
     Every(1s, effect: time.sub(1)),
-    Every(1s, effect: star_x.random(100)),
-    Every(1s, effect: star_y.random(100)),
+    Every(2s, effect: [star_x.random(100), star_y.random(100)]),
   ],
 )
 ```
@@ -559,7 +556,7 @@ Page(
 
 Cette écriture est à l'essai (`ADR-026`).
 
-## 6 quater bis. Un jeu qui bouge : le clavier, `When`, `Meet`
+## 6 quater bis. Un jeu qui bouge : le clavier, le glissement, `When`
 
 Le second jeu est dans `exemples/jeu/panier.holo` : une pomme tombe, on la rattrape avec un panier.
 
@@ -574,29 +571,31 @@ Page(
     Text("Score: {score}. Lives: {lives}"),
     Board(height: 360px, children: [
       Point(name: Apple, seed: 3, x: apple_x, y: apple_y),
-      Point(name: Basket, seed: 9, x: basket, y: 96),
+      Point(name: Basket, seed: 9, x: basket, y: 96, drag: true),
     ]),
-    Button(name: Left, text: "Left"),
-    Button(name: Right, text: "Right"),
   ],
 
   rules: [
     On(Key.left, effect: basket.sub(8)),
     On(Key.right, effect: basket.add(8)),
-    On(Left.tap, effect: basket.sub(8)),
-    On(Right.tap, effect: basket.add(8)),
 
     Every(100ms, effect: apple_y.add(3)),
 
-    Meet(Basket, Apple, within: 9, effect: score.add(1)),
-    Meet(Basket, Apple, within: 9, effect: apple_x.random(100)),
-    Meet(Basket, Apple, within: 9, effect: apple_y.set(0)),
-
-    When(apple_y, over: 99, effect: lives.sub(1)),
-    When(apple_y, over: 99, effect: apple_y.set(0)),
+    When(Basket, meets: Apple, within: 9, effect: [score.add(1), apple_x.random(100), apple_y.set(0)]),
+    When(apple_y, over: 99, effect: [lives.sub(1), apple_x.random(100), apple_y.set(0)]),
   ],
 )
 ```
+
+**Trois sortes de règles, pas plus.**
+
+| Règle | Elle répond à | Exemple |
+|---|---|---|
+| `On` | un geste du visiteur | `On(Play.tap, …)`, `On(Key.left, …)` |
+| `Every` | le temps | `Every(100ms, …)` |
+| `When` | un moment : quelque chose devient vrai | `When(apple_y, over: 99, …)`, `When(Basket, meets: Apple, …)` |
+
+**Plusieurs demandes dans une règle.** On les met entre crochets : `effect: [score.add(1), apple_y.set(0)]`. Elles sont faites dans l'ordre. Une seule demande s'écrit sans crochets.
 
 **Le clavier : `Key`.** `On(Key.left, effect: basket.sub(8))`. `Key` est le clavier du visiteur.
 
@@ -605,18 +604,18 @@ Page(
 | `Key.left`, `Key.right`, `Key.up`, `Key.down` | les quatre flèches |
 | `Key.space` | la barre d'espace |
 
-- Seules les touches que le fichier écoute sont prises. Les autres gardent leur rôle.
-- Sur un téléphone il n'y a pas de clavier : on ajoute des boutons qui font la même demande.
+Seules les touches que le fichier écoute sont prises. Les autres gardent leur rôle.
+
+**Faire glisser : `drag: true`.** Sur un bloc posé dans un `Board`, le visiteur peut le faire glisser, au doigt ou à la souris. Ses places, quand ce sont des valeurs de la page, suivent le doigt. Ici `basket` suit ; `y: 96` est un nombre fixe, donc le panier ne monte pas. Aucune règle à écrire.
 
 **Ce qui bouge tout seul.** `Every(100ms, effect: apple_y.add(3))` : dix fois par seconde, la pomme descend un peu.
 
 **Une valeur qui sert de place reste sur le plateau** : de 0 à 100. Le panier ne sort jamais.
 
-**Une règle qui guette : `When`.** `When(apple_y, over: 99, effect: lives.sub(1))` : au moment où la pomme arrive en bas, une vie de moins. Elle se déclenche quand la condition **devient** vraie, pas tant qu'elle le reste. Les comparaisons sont celles de `If` : `is`, `not`, `over`, `under`.
+**Une règle qui guette : `When`.** Elle se déclenche au moment où ce qu'elle guette **devient** vrai, pas tant qu'il le reste. Elle guette :
 
-**Une rencontre : `Meet`.** `Meet(Basket, Apple, within: 9, effect: score.add(1))` : au moment où les deux blocs se touchent. `within` est la distance de rencontre, sur l'échelle du plateau (de 0 à 100) ; 10 sans rien écrire. Les deux blocs ont un nom, et un `x` et un `y` dans un `Board`.
-
-Plusieurs règles qui guettent la même chose se déclenchent ensemble, dans l'ordre où elles sont écrites.
+- une valeur : `When(apple_y, over: 99, effect: …)`, avec les comparaisons de `If` (`is`, `not`, `over`, `under`) ;
+- une rencontre : `When(Basket, meets: Apple, within: 9, effect: …)`. Les deux blocs ont un nom, et un `x` et un `y` dans un `Board`. `within` est la distance de rencontre, sur l'échelle du plateau (de 0 à 100) ; 10 sans rien écrire.
 
 Cette écriture est à l'essai (`ADR-028`).
 
@@ -852,13 +851,12 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `World` | `children`, `pixels`, `rules` | Dans `inside:` d'un `Point` |
 | `Row`, `Column` | `children`, `gap`, `align`, `name` | Dans `children` |
 | `Grid` | `children`, `gap`, `columns`, `name` | Dans `children` |
-| `Board` | `children`, `height`, `name` ; ses enfants prennent `x` et `y` | Dans `children` |
+| `Board` | `children`, `height`, `name` ; ses enfants prennent `x`, `y` et `drag` | Dans `children` |
 | `Input` | `value`, `label`, `max`, `name` | Dans `children` |
 | `Checkbox` | `value`, `label`, `name` | Dans `children` |
 | `On` | le signal, puis `effect:` | Dans `rules` |
 | `Every` | le rythme, puis `effect:` | Dans `rules` |
-| `When` | le nom d'une valeur, puis `is`, `not`, `over`, `under`, et `effect:` | Dans `rules` |
-| `Meet` | les noms de deux blocs posés sur un plateau, puis `within` et `effect:` | Dans `rules` |
+| `When` | le nom d'une valeur, puis `is`, `not`, `over`, `under` ; ou le nom d'un bloc, puis `meets` et `within` ; et `effect:` | Dans `rules` |
 | `State` | les valeurs et leur départ : `cart: 0` | Dans `state:` d'une `Page` |
 | `Prices` | le prix de chaque article : `sunrise: 120` | Dans `prices:` d'une `Page` |
 | `Zoom`, `Points`, `Relief`, `Portals` | voir la partie 7 | Dans `zoom:`, `points:`, `relief:`, `portals:` d'une `Page` |
@@ -892,7 +890,9 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Répéter une règle dans le temps | `Every(1s, effect:)` | fait |
 | Le clavier | `On(Key.left, effect:)` | fait, à l'essai |
 | Agir au moment où une valeur atteint quelque chose | `When(lives, is: 0, effect:)` | fait, à l'essai |
-| La rencontre de deux objets | `Meet(Basket, Apple, within:, effect:)` | fait, à l'essai |
+| La rencontre de deux objets | `When(Basket, meets: Apple, within:, effect:)` | fait, à l'essai |
+| Faire glisser un objet | `drag: true` sur un bloc d'un `Board` | fait, à l'essai |
+| Plusieurs demandes dans une règle | `effect: [a.add(1), b.set(0)]` | fait, à l'essai |
 | Le hasard | la demande `random` | fait |
 | Placer librement | `Board`, et `x:`, `y:` sur ses enfants | fait |
 | Une valeur qui est un texte | `State(buyer: "")`, `{buyer}`, `If(buyer, not: "")` | fait, à l'essai |

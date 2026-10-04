@@ -97,34 +97,24 @@ pub fn verifier_regles(programme: &Programme) -> Result<(), Erreur> {
             verifier_regle(bloc, &noms, &etat)?;
         }
         // Une règle qui guette une valeur, ou la rencontre de deux blocs (ADR-028).
-        if bloc.nom == "When" || bloc.nom == "Meet" {
-            if bloc.nom == "When" {
-                crate::etat::condition(bloc)?;
-            } else {
+        if bloc.nom == "When" {
+            if bloc.argument("meets").is_some() {
                 let (a, b, _) = crate::etat::rencontre(bloc)?;
                 for nom in [a, b] {
                     let pose = bloc_nomme(programme, nom).is_some_and(|pose| pose.argument("x").is_some() && pose.argument("y").is_some());
                     if !pose {
-                        return Err(Erreur { message: format!("« Meet » : « {nom} » n'est pas posé sur un plateau ; il lui faut un nom, et « x » et « y » dans un « Board »"), pos: bloc.pos });
+                        return Err(Erreur { message: format!("une rencontre : « {nom} » n'est pas posé sur un plateau ; il lui faut un nom, et « x » et « y » dans un « Board »"), pos: bloc.pos });
                     }
                 }
+            } else {
+                crate::etat::condition(bloc)?;
             }
-            match bloc.argument("effect").map(|a| &a.valeur) {
-                Some(Valeur::Bloc(demande)) if crate::etat::est_demande(demande) => {
-                    crate::etat::demande(demande, &etat)?;
-                }
-                _ => return Err(Erreur { message: format!("« {} » attend une demande : {}(…, effect: score.add(1))", bloc.nom, bloc.nom), pos: bloc.pos }),
-            }
+            verifier_effets(bloc, &noms, &etat, false)?;
         }
-        // Une règle de temps : un rythme, et une demande faite à l'arbitre (ADR-026).
+        // Une règle de temps : un rythme, et une ou plusieurs demandes faites à l'arbitre (ADR-026).
         if bloc.nom == "Every" {
             crate::etat::rythme(bloc)?;
-            match bloc.argument("effect").map(|a| &a.valeur) {
-                Some(Valeur::Bloc(demande)) if crate::etat::est_demande(demande) => {
-                    crate::etat::demande(demande, &etat)?;
-                }
-                _ => return Err(Erreur { message: "« Every » attend une demande : Every(1s, effect: time.sub(1))".into(), pos: bloc.pos }),
-            }
+            verifier_effets(bloc, &noms, &etat, false)?;
         }
         if bloc.nom == "Point" {
             verifier_budget(bloc)?;
@@ -196,17 +186,47 @@ fn verifier_regle(regle: &Bloc, noms: &[(&str, &str)], etat: &crate::etat::Etat)
             return Err(Erreur { message: format!("signal inconnu « {mot} » : un « {type_source} » émet {}", lister(signaux(type_source))), pos: regle.pos });
         }
     }
-    // L'effet est une demande faite à l'arbitre : `cart.add(1)` (ADR-023).
-    if let Some(Valeur::Bloc(demande)) = regle.argument("effect").map(|a| &a.valeur) {
-        return crate::etat::demande(demande, etat).map(|_| ());
+    verifier_effets(regle, noms, etat, true)
+}
+
+/// Les effets d'une règle : un seul, ou plusieurs entre crochets.
+fn effets_de(regle: &Bloc) -> Vec<&Valeur> {
+    match regle.argument("effect").map(|a| &a.valeur) {
+        Some(Valeur::Liste(elements)) => elements.iter().collect(),
+        Some(effet) => vec![effet],
+        None => Vec::new(),
     }
-    let (cible, capacite) = nom_et_mot(regle, regle.argument("effect").map(|a| &a.valeur), "l'effet")?;
-    if etat.iter().any(|(valeur, _)| valeur == cible) {
-        return Err(Erreur { message: format!("« {cible}.{capacite} » s'écrit avec sa quantité, entre parenthèses : {cible}.{capacite}(1)"), pos: regle.pos });
+}
+
+/// Vérifie les effets d'une règle. Un effet est une demande faite à l'arbitre (`cart.add(1)`,
+/// ADR-023) ou, pour une règle `On`, une capacité demandée à un bloc (`Workshop.enter`).
+fn verifier_effets(regle: &Bloc, noms: &[(&str, &str)], etat: &crate::etat::Etat, capacites_permises: bool) -> Result<(), Erreur> {
+    let type_de = |nom: &str| noms.iter().find(|(connu, _)| *connu == nom).map(|(_, bloc)| *bloc);
+    let attend_une_demande = || Erreur { message: format!("« {} » attend une demande : {}(…, effect: score.add(1))", regle.nom, regle.nom), pos: regle.pos };
+    let effets = effets_de(regle);
+    if effets.is_empty() {
+        return if capacites_permises { nom_et_mot(regle, None, "l'effet").map(|_| ()) } else { Err(attend_une_demande()) };
     }
-    let type_cible = type_de(cible).ok_or_else(|| inconnu(cible))?;
-    if !capacites(type_cible).contains(&capacite) {
-        return Err(Erreur { message: format!("capacité inconnue « {capacite} » : un « {type_cible} » offre {}", lister(capacites(type_cible))), pos: regle.pos });
+    for effet in effets {
+        match effet {
+            Valeur::Bloc(demande) if crate::etat::est_demande(demande) => {
+                crate::etat::demande(demande, etat)?;
+            }
+            Valeur::Nom(_) if capacites_permises => {
+                let (cible, capacite) = nom_et_mot(regle, Some(effet), "l'effet")?;
+                if etat.iter().any(|(valeur, _)| valeur == cible) {
+                    return Err(Erreur { message: format!("« {cible}.{capacite} » s'écrit avec sa quantité, entre parenthèses : {cible}.{capacite}(1)"), pos: regle.pos });
+                }
+                let type_cible = type_de(cible).ok_or_else(|| Erreur { message: format!("aucun bloc ne s'appelle « {cible} »"), pos: regle.pos })?;
+                if !capacites(type_cible).contains(&capacite) {
+                    return Err(Erreur { message: format!("capacité inconnue « {capacite} » : un « {type_cible} » offre {}", lister(capacites(type_cible))), pos: regle.pos });
+                }
+            }
+            _ if capacites_permises => {
+                nom_et_mot(regle, Some(effet), "l'effet")?;
+            }
+            _ => return Err(attend_une_demande()),
+        }
     }
     Ok(())
 }
@@ -260,9 +280,11 @@ pub fn effets(programme: &Programme, signal: &str) -> Vec<String> {
     let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
         if bloc.nom == "On" {
             let declencheur = bloc.arguments.iter().find(|a| a.nom.is_none()).map(|a| &a.valeur);
-            if let (Some(Valeur::Nom(s)), Some(Valeur::Nom(effet))) = (declencheur, bloc.argument("effect").map(|a| &a.valeur)) {
-                if s == signal {
-                    effets.push(effet.clone());
+            if matches!(declencheur, Some(Valeur::Nom(s)) if s == signal) {
+                for effet in effets_de(bloc) {
+                    if let Valeur::Nom(effet) = effet {
+                        effets.push(effet.clone());
+                    }
                 }
             }
         }

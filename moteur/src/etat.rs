@@ -151,6 +151,7 @@ fn plafond(programme: &Programme, nom: &str) -> u64 {
 /// valeur : seulement une valeur que la page déclare et qu'un champ présente, et jamais
 /// au-delà de son plafond. Un texte qui n'est pas un nombre ne change rien.
 pub fn saisir(programme: &Programme, etat: &Etat, nom: &str, ecrit: &str) -> Etat {
+    let avant = etat.clone();
     let mut etat = etat.clone();
     let presentee = {
         let mut trouvee = false;
@@ -165,7 +166,7 @@ pub fn saisir(programme: &Programme, etat: &Etat, nom: &str, ecrit: &str) -> Eta
     if let (true, Some(nombre), Some((_, place))) = (presentee, nombre, etat.iter_mut().find(|(connu, _)| connu == nom)) {
         *place = nombre.min(plafond(programme, nom));
     }
-    etat
+    suites(programme, avant, etat)
 }
 
 /// Reprend les valeurs gardées lors d'une visite précédente. Ce qui est relu vient du
@@ -182,6 +183,19 @@ pub fn reprendre(programme: &Programme, garde: &str) -> Etat {
         }
     }
     etat
+}
+
+/// Les demandes d'une règle : une seule (`effect: cart.add(1)`), ou plusieurs entre crochets
+/// (`effect: [score.set(0), lives.set(3)]`), faites dans l'ordre où elles sont écrites.
+pub fn demandes_de(regle: &Bloc) -> Vec<&Bloc> {
+    match regle.argument("effect").map(|a| &a.valeur) {
+        Some(Valeur::Bloc(demande)) if est_demande(demande) => vec![demande],
+        Some(Valeur::Liste(elements)) => elements.iter().filter_map(|e| match e {
+            Valeur::Bloc(demande) if est_demande(demande) => Some(demande),
+            _ => None,
+        }).collect(),
+        _ => Vec::new(),
+    }
 }
 
 /// Ce qu'on peut demander pour une valeur.
@@ -219,11 +233,8 @@ pub fn horloges(programme: &Programme) -> Vec<(u64, String)> {
     let mut horloges = Vec::new();
     let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
         if bloc.nom == "Every" {
-            let valeur = match bloc.argument("effect").map(|a| &a.valeur) {
-                Some(Valeur::Bloc(effet)) => effet.nom.split('.').next().unwrap_or("").to_string(),
-                _ => String::new(),
-            };
-            horloges.push((rythme(bloc).unwrap_or(RYTHME_MAX), valeur));
+            let valeurs: Vec<&str> = demandes_de(bloc).iter().filter_map(|d| d.nom.split('.').next()).collect();
+            horloges.push((rythme(bloc).unwrap_or(RYTHME_MAX), valeurs.join(",")));
         }
         Ok(())
     });
@@ -237,11 +248,13 @@ pub fn touchees(programme: &Programme, signal: &str) -> Vec<String> {
     let mut valeurs = Vec::new();
     let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
         let declencheur = bloc.arguments.iter().find(|a| a.nom.is_none()).map(|a| &a.valeur);
-        if let ("On", Some(Valeur::Nom(s)), Some(Valeur::Bloc(effet))) = (bloc.nom.as_str(), declencheur, bloc.argument("effect").map(|a| &a.valeur)) {
+        if let ("On", Some(Valeur::Nom(s))) = (bloc.nom.as_str(), declencheur) {
             if s == signal {
-                if let Some((valeur, _)) = effet.nom.split_once('.') {
-                    if !valeurs.iter().any(|v| v == valeur) {
-                        valeurs.push(valeur.to_string());
+                for effet in demandes_de(bloc) {
+                    if let Some((valeur, _)) = effet.nom.split_once('.') {
+                        if !valeurs.iter().any(|v| v == valeur) {
+                            valeurs.push(valeur.to_string());
+                        }
                     }
                 }
             }
@@ -578,7 +591,7 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
             }
         }
         // Une règle qui guette regarde un nombre : une valeur déclarée ou calculée.
-        if bloc.nom == "When" {
+        if bloc.nom == "When" && bloc.argument("meets").is_none() {
             let (valeur, _) = condition(bloc)?;
             if !a_montrer(programme, &etat).iter().any(|(connu, _)| connu == valeur) {
                 return Err(Erreur { message: format!("« When({valeur}, …) » : aucun nombre ne s'appelle « {valeur} » ; déclare-le sur la page, state: State({valeur}: 0)"), pos: bloc.pos });
@@ -654,24 +667,73 @@ pub fn arbitrer(programme: &Programme, etat: &Etat, signal: &str) -> Etat {
             }
             _ => false,
         };
-        if let (true, Some(Valeur::Bloc(effet))) = (concernee, bloc.argument("effect").map(|a| &a.valeur)) {
-            appliquer(programme, &mut etat, effet, graine, &mut tirages);
+        if concernee {
+            for effet in demandes_de(bloc) {
+                appliquer(programme, &mut etat, effet, graine, &mut tirages);
+            }
         }
         Ok(())
     });
-    // Les règles qui guettent (`When`, `Meet`) : chacune se déclenche au moment où ce qu'elle
-    // guette devient vrai, pas tant qu'il le reste. Toutes celles qui se déclenchent en même
-    // temps jugent sur la même photo de l'état, puis leurs effets s'appliquent dans l'ordre.
-    // Un effet peut en déclencher d'autres : on recommence, huit fois au plus, pour qu'un
-    // fichier mal écrit ne tourne pas sans fin.
-    let mut avant = avant_le_signal;
+    guetter(programme, avant_le_signal, &mut etat, graine, &mut tirages);
+    noter_les_tirages(&mut etat, depart, tirages);
+    etat
+}
+
+/// Ce qui suit un changement fait sans signal (une saisie, un glissement) : les règles qui
+/// guettent ont leur mot à dire, comme après un geste.
+fn suites(programme: &Programme, avant: Etat, mut etat: Etat) -> Etat {
+    let graine = graine_du_hasard(programme);
+    let depart = etat.iter().find(|(nom, _)| nom == TIRAGES).map_or(0, |(_, n)| *n);
+    let mut tirages = depart;
+    guetter(programme, avant, &mut etat, graine, &mut tirages);
+    noter_les_tirages(&mut etat, depart, tirages);
+    etat
+}
+
+fn noter_les_tirages(etat: &mut Etat, depart: u64, tirages: u64) {
+    if tirages != depart {
+        match etat.iter_mut().find(|(nom, _)| nom == TIRAGES) {
+            Some((_, n)) => *n = tirages,
+            None => etat.push((TIRAGES.to_string(), tirages)),
+        }
+    }
+}
+
+/// Le visiteur fait glisser un bloc posé sur un plateau (`drag: true`). Ses places, si ce sont
+/// des valeurs de la page, suivent le doigt. C'est encore l'arbitre qui change les valeurs :
+/// seulement pour un bloc qui se laisse glisser, et sans sortir du plateau.
+pub fn glisser(programme: &Programme, etat: &Etat, nom: &str, x: u64, y: u64) -> Etat {
+    let avant = etat.clone();
+    let mut etat = etat.clone();
+    let glissable = crate::regles::bloc_nomme(programme, nom).filter(|bloc| matches!(bloc.argument("drag").map(|a| &a.valeur), Some(Valeur::Bool(true))));
+    if let Some(bloc) = glissable {
+        for (axe, place) in [("x", x), ("y", y)] {
+            if let Some(Valeur::Nom(valeur)) = bloc.argument(axe).map(|a| &a.valeur) {
+                if let Some((_, v)) = etat.iter_mut().find(|(connu, _)| connu == valeur) {
+                    *v = place.min(100);
+                }
+            }
+        }
+    }
+    suites(programme, avant, etat)
+}
+
+/// Les règles qui guettent (`When`) : chacune se déclenche au moment où ce qu'elle guette
+/// devient vrai, pas tant qu'il le reste.
+fn guetter(programme: &Programme, avant_le_changement: Etat, etat: &mut Etat, graine: u64, tirages: &mut u64) {
+    let etat_de_depart = avant_le_changement;
+    {
+    // Toutes celles qui se déclenchent en même temps jugent sur la même photo de l'état, puis
+    // leurs effets s'appliquent dans l'ordre. Un effet peut en déclencher d'autres : on
+    // recommence, huit fois au plus, pour qu'un fichier mal écrit ne tourne pas sans fin.
+    let mut avant = etat_de_depart;
     for _ in 0..8 {
         let photo = etat.clone();
         let mut declenchee = false;
         let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
-            if (bloc.nom == "When" || bloc.nom == "Meet") && !guette(programme, bloc, &avant) && guette(programme, bloc, &photo) {
-                if let Some(Valeur::Bloc(effet)) = bloc.argument("effect").map(|a| &a.valeur) {
-                    appliquer(programme, &mut etat, effet, graine, &mut tirages);
+            if bloc.nom == "When" && !guette(programme, bloc, &avant) && guette(programme, bloc, &photo) {
+                for effet in demandes_de(bloc) {
+                    appliquer(programme, etat, effet, graine, tirages);
                     declenchee = true;
                 }
             }
@@ -682,13 +744,7 @@ pub fn arbitrer(programme: &Programme, etat: &Etat, signal: &str) -> Etat {
         }
         avant = photo;
     }
-    if tirages != depart {
-        match etat.iter_mut().find(|(nom, _)| nom == TIRAGES) {
-            Some((_, n)) => *n = tirages,
-            None => etat.push((TIRAGES.to_string(), tirages)),
-        }
     }
-    etat
 }
 
 /// Fait ce qu'une demande demande : `cart.add(1)`. Une valeur ne descend pas sous 0 et ne
@@ -716,23 +772,20 @@ fn appliquer(programme: &Programme, etat: &mut Etat, effet: &Bloc, graine: u64, 
 /// ne le dit pas. Les places vont de 0 à 100.
 pub const RENCONTRE: u64 = 10;
 
-/// Les deux blocs d'une règle `Meet(Basket, Apple, …)`, et la distance de rencontre.
+/// Les deux blocs d'une rencontre, `When(Basket, meets: Apple, within: 9, …)`, et la distance.
 pub fn rencontre(regle: &Bloc) -> Result<(&str, &str, u64), Erreur> {
-    let erreur = |message: &str| Erreur { message: message.into(), pos: regle.pos };
-    let noms: Vec<&str> = regle.arguments.iter().filter(|a| a.nom.is_none()).filter_map(|a| match &a.valeur {
-        Valeur::Nom(nom) => Some(nom.as_str()),
-        _ => None,
-    }).collect();
-    let [a, b] = noms.as_slice() else {
-        return Err(erreur("une rencontre s'écrit « Meet(Basket, Apple, effect: score.add(1)) » : les noms de deux blocs posés sur un plateau"));
+    let ecriture = "une rencontre s'écrit « When(Basket, meets: Apple, effect: score.add(1)) » : les noms de deux blocs posés sur un plateau";
+    let (Some(Argument { nom: None, valeur: Valeur::Nom(a), .. }), Some(Valeur::Nom(b))) = (regle.arguments.first(), regle.argument("meets").map(|a| &a.valeur)) else {
+        return Err(Erreur { message: ecriture.into(), pos: regle.pos });
     };
     let mut distance = RENCONTRE;
-    for argument in &regle.arguments {
+    for argument in &regle.arguments[1..] {
         match (argument.nom.as_deref(), &argument.valeur) {
-            (None | Some("effect"), _) => {}
+            (Some("meets" | "effect"), _) => {}
             (Some("within"), Valeur::Entier(n)) if (1..=100).contains(n) => distance = *n,
-            (Some("within"), _) => return Err(Erreur { message: "« Meet(within: …) » attend un nombre entier de 1 à 100 : la distance de rencontre, sur un plateau qui va de 0 à 100".into(), pos: argument.pos }),
-            (Some(mot), _) => return Err(Erreur { message: format!("« Meet » n'a pas de paramètre « {mot} » ; paramètres possibles : within, effect"), pos: argument.pos }),
+            (Some("within"), _) => return Err(Erreur { message: "« When(…, within: …) » attend un nombre entier de 1 à 100 : la distance de rencontre, sur un plateau qui va de 0 à 100".into(), pos: argument.pos }),
+            (Some(mot), _) => return Err(Erreur { message: format!("une rencontre n'a pas de paramètre « {mot} » ; paramètres possibles : meets, within, effect"), pos: argument.pos }),
+            (None, _) => return Err(Erreur { message: ecriture.into(), pos: argument.pos }),
         }
     }
     Ok((a, b, distance))
@@ -750,18 +803,19 @@ fn place_de(programme: &Programme, etat: &Etat, nom: &str) -> Option<(u64, u64)>
     Some((lire("x")?, lire("y")?))
 }
 
-/// Ce qu'une règle guette est-il vrai, pour cet état ?
+/// Ce qu'une règle `When` guette est-il vrai, pour cet état ? Une valeur (`When(lives, is: 0)`),
+/// ou la rencontre de deux blocs (`When(Basket, meets: Apple)`).
 fn guette(programme: &Programme, regle: &Bloc, etat: &Etat) -> bool {
-    match regle.nom.as_str() {
-        "When" => condition(regle).is_ok_and(|(valeur, comparaisons)| {
-            let montrees = a_montrer(programme, etat);
-            montrees.iter().find(|(connu, _)| connu == valeur).is_some_and(|(_, nombre)| vraie(&comparaisons, *nombre))
-        }),
-        _ => rencontre(regle).is_ok_and(|(a, b, distance)| match (place_de(programme, etat, a), place_de(programme, etat, b)) {
+    if regle.argument("meets").is_some() {
+        return rencontre(regle).is_ok_and(|(a, b, distance)| match (place_de(programme, etat, a), place_de(programme, etat, b)) {
             (Some((ax, ay)), Some((bx, by))) => ax.abs_diff(bx) <= distance && ay.abs_diff(by) <= distance,
             _ => false,
-        }),
+        });
     }
+    condition(regle).is_ok_and(|(valeur, comparaisons)| {
+        let montrees = a_montrer(programme, etat);
+        montrees.iter().find(|(connu, _)| connu == valeur).is_some_and(|(_, nombre)| vraie(&comparaisons, *nombre))
+    })
 }
 
 /// Les touches du clavier que les règles du fichier écoutent : `On(Key.left, …)`.
@@ -939,7 +993,7 @@ mod tests {
     fn le_jeu_se_joue_par_des_regles_le_temps_et_le_hasard() {
         let programme = page(JEU).unwrap();
         // Trois règles de temps, trois horloges : le temps chaque seconde, l'étoile toutes les deux.
-        assert_eq!(horloges(&programme), [(1000, "time".to_string()), (2000, "star_x".to_string()), (2000, "star_y".to_string())]);
+        assert_eq!(horloges(&programme), [(1000, "time".to_string()), (2000, "star_x,star_y".to_string())]);
         let depart = initial(&programme).unwrap();
         assert_eq!(ecrire(&depart), "time=0;score=0;star_x=50;star_y=50");
         // Tant que la partie n'a pas commencé, le temps reste à zéro : il ne descend pas dessous.
@@ -951,7 +1005,7 @@ mod tests {
         // Une seconde passe : seul le temps change. L'étoile a sa propre horloge.
         let une_seconde = arbitrer(&programme, &lancee, "every:0");
         assert_eq!((une_seconde[0].1, une_seconde[2].1, une_seconde[3].1), (29, 50, 50));
-        let bougee = arbitrer(&programme, &arbitrer(&programme, &une_seconde, "every:1"), "every:2");
+        let bougee = arbitrer(&programme, &une_seconde, "every:1");
         assert!(bougee[2].1 <= 100 && bougee[3].1 <= 100);
         assert_ne!((bougee[2].1, bougee[3].1), (50, 50), "l'étoile n'a pas bougé");
         // Toucher l'étoile : un point, elle part ailleurs, et son horloge repart : elle reste là
@@ -1011,14 +1065,28 @@ mod tests {
             ("Page(state: State(a: 0), rules: [ When(a, is: 1) ])", "attend une demande"),
             ("Page(state: State(a: 0), rules: [ When(a, is: 1, children: []) ])", "n'a pas de paramètre « children »"),
             ("Page(state: State(a: \"\", b: 0), rules: [ When(a, is: \"\", effect: b.set(1)) ])", "aucun nombre ne s'appelle « a »"),
-            ("Page(state: State(a: 0), children: [ Board(children: [ Point(name: A, seed: 1, x: 1, y: 1) ]) ], rules: [ Meet(A, effect: a.add(1)) ])", "une rencontre s'écrit"),
-            ("Page(state: State(a: 0), children: [ Board(children: [ Point(name: A, seed: 1, x: 1, y: 1) ]), P(name: B, \"x\") ], rules: [ Meet(A, B, effect: a.add(1)) ])", "« B » n'est pas posé sur un plateau"),
-            ("Page(state: State(a: 0), children: [ Board(children: [ Point(name: A, seed: 1, x: 1, y: 1), Point(name: B, seed: 2, x: 2, y: 2) ]) ], rules: [ Meet(A, B, within: 500, effect: a.add(1)) ])", "de 1 à 100"),
+            ("Page(state: State(a: 0), children: [ Board(children: [ Point(name: A, seed: 1, x: 1, y: 1) ]) ], rules: [ When(A, meets: 3, effect: a.add(1)) ])", "une rencontre s'écrit"),
+            ("Page(state: State(a: 0), children: [ Board(children: [ Point(name: A, seed: 1, x: 1, y: 1) ]), P(name: B, \"x\") ], rules: [ When(A, meets: B, effect: a.add(1)) ])", "« B » n'est pas posé sur un plateau"),
+            ("Page(state: State(a: 0), children: [ Board(children: [ Point(name: A, seed: 1, x: 1, y: 1), Point(name: B, seed: 2, x: 2, y: 2) ]) ], rules: [ When(A, meets: B, within: 500, effect: a.add(1)) ])", "de 1 à 100"),
             ("Page(state: State(a: 0), children: [ Button(name: B, text: \"x\") ], rules: [ On(Key.enter, effect: a.add(1)) ])", "le clavier donne"),
         ] {
             let erreur = page(source).unwrap_err();
             assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
         }
+        // Faire glisser le panier : sa valeur suit le doigt, sans sortir du plateau ; un bloc qui
+        // ne se laisse pas glisser ne bouge pas ; et une rencontre faite en glissant compte.
+        let programme = page(PANIER_DE_POMMES).unwrap();
+        let glisse = glisser(&programme, &joue, "Basket", 250, 10);
+        assert_eq!((valeur(&glisse, "basket"), valeur(&glisse, "apple_y")), (100, 0));
+        assert_eq!(glisser(&programme, &joue, "Apple", 10, 90), joue);
+        let mut pres = joue.clone();
+        pres.iter_mut().find(|(nom, _)| nom == "apple_y").unwrap().1 = 90;
+        pres.iter_mut().find(|(nom, _)| nom == "basket").unwrap().1 = 10;
+        let rattrapee = glisser(&programme, &pres, "Basket", 50, 0);
+        assert_eq!((valeur(&rattrapee, "score"), valeur(&rattrapee, "apple_y")), (1, 0));
+        // Une règle peut faire plusieurs demandes, dans l'ordre ; une seule s'écrit sans crochets.
+        let plusieurs = page("Page(state: State(a: 0, b: 0), children: [ Button(name: B, text: \"x\") ], rules: [ On(B.tap, effect: [a.add(2), b.set(7), a.add(1)]) ])").unwrap();
+        assert_eq!(ecrire(&arbitrer(&plusieurs, &initial(&plusieurs).unwrap(), "B.tap")), "a=3;b=7");
         // Un fichier où deux règles se relancent l'une l'autre ne tourne pas sans fin.
         let boucle = page("Page(state: State(a: 0, b: 0), children: [ Button(name: B, text: \"x\") ], rules: [ On(B.tap, effect: a.set(1)), When(a, is: 1, effect: a.set(0)), When(a, is: 0, effect: a.set(1)) ])").unwrap();
         let _ = arbitrer(&boucle, &initial(&boucle).unwrap(), "B.tap");

@@ -44,14 +44,12 @@ Page(
 
   rules: [
     // Commencer : trente secondes, et le score à zéro.
-    On(Play.tap, effect: score.set(0)),
-    On(Play.tap, effect: time.set(30)),
+    // Une règle peut faire plusieurs demandes : on les met entre crochets.
+    On(Play.tap, effect: [score.set(0), time.set(30)]),
 
     // Toucher l'étoile : un point de plus, et elle part ailleurs.
     // random(100) : un nombre au hasard, de 0 à 100.
-    On(Star.tap, effect: score.add(1)),
-    On(Star.tap, effect: star_x.random(100)),
-    On(Star.tap, effect: star_y.random(100)),
+    On(Star.tap, effect: [score.add(1), star_x.random(100), star_y.random(100)]),
 
     // Le temps : chaque seconde, il en reste une de moins. Arrivé à zéro, il ne descend plus :
     // la partie est finie.
@@ -61,8 +59,7 @@ Page(
     // horloge ; quand un geste change une valeur, l'horloge de cette valeur repart de zéro.
     // Donc : après « Play », la première seconde est une vraie seconde ; et une étoile qu'on
     // vient de toucher reste deux vraies secondes à sa nouvelle place.
-    Every(2s, effect: star_x.random(100)),
-    Every(2s, effect: star_y.random(100)),
+    Every(2s, effect: [star_x.random(100), star_y.random(100)]),
   ],
 )
 

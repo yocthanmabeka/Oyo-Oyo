@@ -121,7 +121,7 @@
 </div>
 <script type="module">
   import init, {
-    pause, vue_a_plat, effets, etat_initial, arbitrer, conditions, horloges, touchees, touches, saisir, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
+    pause, vue_a_plat, effets, etat_initial, arbitrer, conditions, horloges, touchees, touches, saisir, glisser, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
     mosaique_pivoter, mosaique_de_face, mosaique_sous, reglages_de_vue, reveiller, images_dessinees,
   } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
@@ -334,8 +334,8 @@
     touchesEcoutees = touches(source).split(";").filter(Boolean);
     battements.forEach((horloge) => clearInterval(horloge.minuterie));
     battements = horloges(source).split(";").filter(Boolean).map((morceau) => {
-      const [ms, valeur] = morceau.split(":");
-      return { ms: Number(ms), valeur, minuterie: 0 };
+      const [ms, valeurs] = morceau.split(":");
+      return { ms: Number(ms), valeurs: valeurs.split(","), minuterie: 0 };
     });
     battements.forEach(lancer);
   }
@@ -344,7 +344,7 @@
   function relancerLesHorloges(signal) {
     if (!battements.length || signal.startsWith("every:")) return;
     const changees = touchees(source, signal).split(";");
-    battements.forEach((horloge, rang) => { if (changees.includes(horloge.valeur)) lancer(horloge, rang); });
+    battements.forEach((horloge, rang) => { if (horloge.valeurs.some((valeur) => changees.includes(valeur))) lancer(horloge, rang); });
   }
   // Ce que la page garde d'une visite à l'autre reste dans le navigateur du visiteur.
   function garder() {
@@ -1040,6 +1040,38 @@
       if (!bloc) return;
       emettre(`${bloc.dataset.name}.tap`);
     });
+    // Faire glisser un bloc d'un plateau (drag: true), au doigt ou à la souris. La page dit à
+    // l'arbitre où est le doigt, de 0 à 100 ; c'est lui qui change les valeurs.
+    let glissement = null;
+    racine.addEventListener("pointerdown", (evenement) => {
+      const pose = evenement.target.closest(".holo-place[data-drag]");
+      if (!pose) return;
+      glissement = { pose, plateau: pose.parentElement };
+      pose.classList.add("holo-glisse");
+      pose.setPointerCapture(evenement.pointerId);
+      evenement.preventDefault();
+    });
+    racine.addEventListener("pointermove", (evenement) => {
+      if (!glissement) return;
+      const { pose, plateau } = glissement;
+      const [cadre, taille] = [plateau.getBoundingClientRect(), pose.getBoundingClientRect()];
+      // Le centre du bloc suit le doigt ; 0 et 100 sont les deux bords où le bloc touche le plateau.
+      const vers = (doigt, debut, longueur, largeur) => Math.round(Math.min(100, Math.max(0, ((doigt - debut - largeur / 2) / Math.max(1, longueur - largeur)) * 100)));
+      const [x, y] = [vers(evenement.clientX, cadre.left, cadre.width, taille.width), vers(evenement.clientY, cadre.top, cadre.height, taille.height)];
+      const avant = etats.get(chemin) ?? "";
+      const apres = glisser(source, avant, pose.dataset.drag, x, y);
+      if (apres !== avant) {
+        etats.set(chemin, apres);
+        montrerLesValeurs();
+        garder();
+      }
+    });
+    for (const fin of ["pointerup", "pointercancel"]) {
+      racine.addEventListener(fin, () => {
+        glissement?.pose.classList.remove("holo-glisse");
+        glissement = null;
+      });
+    }
     // Le clavier : une touche que le fichier écoute devient un signal, comme un toucher. Les
     // autres touches gardent leur rôle (défiler, écrire), et rien n'est pris à un champ où l'on écrit.
     const nomDeTouche = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down", " ": "space" };

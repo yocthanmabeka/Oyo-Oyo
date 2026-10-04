@@ -308,6 +308,12 @@ pub fn saisir(source: &str, etat: &str, nom: &str, ecrit: &str) -> String {
     crate::saisir(source, etat, nom, ecrit)
 }
 
+/// Le visiteur fait glisser un bloc d'un plateau.
+#[wasm_bindgen]
+pub fn glisser(source: &str, etat: &str, nom: &str, x: u32, y: u32) -> String {
+    crate::glisser(source, etat, nom, x, y)
+}
+
 /// Ce que la page garde d'une visite à l'autre.
 #[wasm_bindgen]
 pub fn a_garder(source: &str, etat: &str) -> String {

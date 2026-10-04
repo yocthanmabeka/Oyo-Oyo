@@ -36,6 +36,7 @@ grid-template-columns:repeat(auto-fill,minmax(min(100%,max(120px,calc((100% - (v
 :where(.holo-Board){position:relative;overflow:hidden;border-radius:12px}\
 :where(.holo-place){position:absolute;left:calc(var(--x)*1%);top:calc(var(--y)*1%);transform:translate(calc(var(--x)*-1%),calc(var(--y)*-1%));\
 transition:left .12s linear,top .12s linear,transform .12s linear}\
+:where(.holo-place[data-drag]){touch-action:none;cursor:grab}.holo-place.holo-glisse{transition:none;cursor:grabbing}\
 @media (prefers-reduced-motion:reduce){.holo-place{transition:none}}\
 :where(.holo-Hr){border:0;border-top:1px solid currentColor;opacity:0.4;height:0}\
 :where(.holo-Quote){border-left:3px solid currentColor;padding:0 0 0 12px;font-style:italic}\
@@ -303,7 +304,18 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
                         Valeur::Bloc(pose) if pose.argument("x").is_some() || pose.argument("y").is_some() => {
                             let (attribut_x, x) = place(pose, "x")?;
                             let (attribut_y, y) = place(pose, "y")?;
-                            sortie.push_str(&format!("<div class=\"holo-place\"{attribut_x}{attribut_y} style=\"--x:{x};--y:{y}\">"));
+                            // `drag: true` : le visiteur peut faire glisser ce bloc, et ses valeurs suivent.
+                            let glisse = match (pose.argument("drag").map(|a| &a.valeur), nom_de(pose)) {
+                                (None | Some(Valeur::Bool(false)), _) => String::new(),
+                                (Some(Valeur::Bool(true)), Some(nom)) if !attribut_x.is_empty() || !attribut_y.is_empty() => format!(" data-drag=\"{}\"", echapper(nom)),
+                                _ => {
+                                    return Err(Erreur {
+                                        message: "« drag: true » demande un bloc qui a un nom, et dont « x » ou « y » est une valeur de la page : Point(name: Basket, x: basket, y: 96, drag: true)".into(),
+                                        pos: pose.pos,
+                                    })
+                                }
+                            };
+                            sortie.push_str(&format!("<div class=\"holo-place\"{attribut_x}{attribut_y}{glisse} style=\"--x:{x};--y:{y}\">"));
                             rendre(element, sortie, mondes, base, bloc)?;
                             sortie.push_str("</div>");
                         }
