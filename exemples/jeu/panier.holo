@@ -41,8 +41,9 @@ Page(
       // Sur un plateau, une valeur qui sert de place reste entre 0 et 100 : le panier ne sort
       // jamais. « drag: true » : on peut le faire glisser, et sa valeur suit le doigt.
       Board(height: 360px, children: [
-        Point(name: Apple, seed: 3, color: "#E4572E", x: apple_x, y: apple_y),
-        Point(name: Basket, seed: 9, color: "#E9B44C", x: basket, y: 96, drag: true),
+        // Deux formes : la pomme est un rond, le panier un carré.
+        Shape(name: Apple, form: circle, color: "#E4572E", size: 44px, x: apple_x, y: apple_y),
+        Shape(name: Basket, form: square, color: "#E9B44C", size: 64px, x: basket, y: 96, drag: true),
       ]),
     ]),
   ],

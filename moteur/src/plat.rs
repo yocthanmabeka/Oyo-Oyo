@@ -39,6 +39,11 @@ transition:left .12s linear,top .12s linear,transform .12s linear}\
 :where(.holo-place[data-drag]){touch-action:none;cursor:grab}.holo-place.holo-glisse{transition:none;cursor:grabbing}\
 @media (prefers-reduced-motion:reduce){.holo-place{transition:none}}\
 :where(.holo-Sound){display:none}\
+:where(.holo-Shape){display:block;width:var(--holo-size,48px);height:var(--holo-size,48px);padding:0;border:0;background:var(--holo-color,currentColor)}\
+:where(button.holo-Shape){cursor:pointer}\
+:where(.holo-forme-circle){border-radius:50%}\
+:where(.holo-forme-triangle){clip-path:polygon(50% 0,100% 100%,0 100%)}\
+:where(.holo-forme-diamond){clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}\
 :where(.holo-Hr){border:0;border-top:1px solid currentColor;opacity:0.4;height:0}\
 :where(.holo-Quote){border-left:3px solid currentColor;padding:0 0 0 12px;font-style:italic}\
 :where(.holo-Quote>p){margin:0 0 4px 0}:where(.holo-Quote>footer){font-style:normal;font-size:0.9em;opacity:0.7}\
@@ -325,6 +330,32 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
                 }
             }
             sortie.push_str("</div>");
+        }
+        // Une forme simple, d'une seule couleur : un rond, un carré, un triangle, un losange.
+        "Shape" => {
+            let (mut forme, mut allure) = (None, String::new());
+            for argument in &bloc.arguments {
+                match (argument.nom.as_deref(), &argument.valeur) {
+                    (Some("name" | "x" | "y" | "drag"), _) => {}
+                    (Some("form"), Valeur::Nom(mot)) if ["circle", "square", "triangle", "diamond"].contains(&mot.as_str()) => forme = Some(mot.as_str()),
+                    (Some("form"), _) => return Err(Erreur { message: "« Shape(form: …) » attend l'un de ces mots : circle, square, triangle, diamond".into(), pos: argument.pos }),
+                    (Some("color"), Valeur::Texte(couleur)) if est_couleur(couleur) => allure.push_str(&format!("--holo-color:{couleur};")),
+                    (Some("color"), _) => return Err(Erreur { message: "« Shape(color: …) » attend une couleur entre guillemets, comme \"#E9B44C\"".into(), pos: argument.pos }),
+                    (Some("size"), Valeur::Nombre { valeur, unite: Some(unite) }) if unite == "px" && (8.0..=400.0).contains(valeur) => allure.push_str(&format!("--holo-size:{valeur}px;")),
+                    (Some("size"), _) => return Err(Erreur { message: "« Shape(size: …) » attend une taille entre 8px et 400px".into(), pos: argument.pos }),
+                    (Some(autre), _) => return Err(Erreur { message: format!("« Shape » n'a pas de paramètre « {autre} » ; paramètres possibles : form, color, size, name"), pos: argument.pos }),
+                    (None, _) => return Err(Erreur { message: "chaque paramètre de « Shape » est nommé : Shape(form: circle, color: \"#E9B44C\", size: 48px)".into(), pos: argument.pos }),
+                }
+            }
+            let Some(forme) = forme else {
+                return Err(Erreur { message: "« Shape » attend « form » : Shape(form: circle)".into(), pos: bloc.pos });
+            };
+            // Une forme qui a un nom peut être touchée : c'est un vrai bouton, qu'on atteint au
+            // clavier et qu'un lecteur d'écran nomme. Sans nom, c'est un dessin.
+            match nom_de(bloc) {
+                Some(n) => sortie.push_str(&format!("<button type=\"button\" class=\"{classes} holo-forme-{forme}\"{nom} aria-label=\"{}\" style=\"{allure}\"></button>", echapper(n))),
+                None => sortie.push_str(&format!("<div class=\"{classes} holo-forme-{forme}\" style=\"{allure}\"></div>")),
+            }
         }
         // Un son, qu'une règle fait entendre : Ding.play. Il ne se voit pas.
         "Sound" => {
@@ -651,6 +682,25 @@ mod tests {
         assert!(page("Page(children: [ Quote(\"x\", by: 3) ])").unwrap_err().message.contains("qui l'a dit"));
         // Le caractère qui sert de marque aux conditions ne passe pas par un texte.
         assert!(!page("Page(children: [ \"a\u{1}b\" ])").unwrap().contains('\u{1}'));
+    }
+
+    #[test]
+    fn une_forme_est_un_dessin_ou_un_bouton() {
+        let html = page("Page(children: [ Shape(form: circle, color: \"#E9B44C\", size: 40px), Shape(name: Cible, form: triangle) ])").unwrap();
+        assert!(html.contains("<div class=\"holo-Shape holo-forme-circle\" style=\"--holo-color:#E9B44C;--holo-size:40px;\"></div>"), "{html}");
+        assert!(html.contains("<button type=\"button\" class=\"holo-Shape holo-forme-triangle\" data-name=\"Cible\" aria-label=\"Cible\" style=\"\"></button>"), "{html}");
+        // Une forme nommée se touche, comme un bouton, et se place sur un plateau.
+        page("Page(state: State(n: 0, sx: 5), children: [ Board(children: [ Shape(name: S, form: square, x: sx, y: 50, drag: true) ]) ], rules: [ On(S.tap, effect: n.add(1)) ])").unwrap();
+        for (source, message) in [
+            ("Page(children: [ Shape(color: \"red\") ])", "attend « form »"),
+            ("Page(children: [ Shape(form: hexagon) ])", "circle, square, triangle, diamond"),
+            ("Page(children: [ Shape(form: circle, color: \"url(x)\") ])", "attend une couleur"),
+            ("Page(children: [ Shape(form: circle, size: 5000px) ])", "entre 8px et 400px"),
+            ("Page(children: [ Shape(form: circle, border: 2) ])", "n'a pas de paramètre « border »"),
+        ] {
+            let erreur = page(source).unwrap_err();
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
     }
 
     #[test]

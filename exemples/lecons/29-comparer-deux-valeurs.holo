@@ -1,0 +1,51 @@
+// Leçon 29 — Comparer deux valeurs : le meilleur score
+//
+// Ce qu'on apprend :
+//   Une comparaison peut porter sur une autre valeur, pas seulement sur un nombre :
+//   If(score, over: record, ...), When(score, over: record, ...).
+//   Une demande aussi : record.set(score) donne à « record » la valeur de « score ».
+//   Ensemble : au moment où le score dépasse le record, le record devient ce score.
+//   Avec « keep: [record] », le record reste d'une visite à l'autre.
+//
+// À essayer :
+//   Monte le score au-dessus du record, remets le score à zéro, recharge la page : le record est gardé.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 29 : comparer deux valeurs",
+
+  state: State(score: 0, record: 3),
+  keep: [record],
+
+  children: [
+    H1("Le meilleur score"),
+    Text("Score : {score}. Record : {record}."),
+    If(score, under: record, children: [
+      "Encore un effort.",
+    ]),
+    If(score, is: record, children: [
+      "Tu es au niveau du record.",
+    ]),
+    Row(gap: 8px, children: [
+      Button(name: Plus, text: "+ 1"),
+      Button(name: Zero, text: "Recommencer"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 28 : un son", to: "28-son.holo"),
+      A("Leçon 30 : des formes →", to: "30-formes.holo"),
+    ]),
+  ],
+
+  rules: [
+    On(Plus.tap, effect: score.add(1)),
+    On(Zero.tap, effect: score.set(0)),
+    When(score, over: record, effect: record.set(score)),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

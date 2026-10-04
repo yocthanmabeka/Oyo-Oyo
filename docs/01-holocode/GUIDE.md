@@ -813,6 +813,51 @@ Limites : ni boucle, ni volume, ni arrêt.
 
 Cette écriture est à l'essai (`ADR-031`). La leçon est `exemples/lecons/28-son.holo`.
 
+## 6 nonies. Des formes, et comparer deux valeurs
+
+```holo
+Page(
+  title: "Best score",
+
+  state: State(score: 0, best: 0),
+  keep: [best],
+
+  children: [
+    Text("Score: {score}. Best: {best}."),
+    Board(height: 200px, children: [
+      Shape(name: Target, form: diamond, color: "#FF4D6D", size: 56px, x: 80, y: 30),
+    ]),
+    Button(name: Again, text: "Start again"),
+  ],
+
+  rules: [
+    On(Target.tap, effect: score.add(1)),
+    On(Again.tap, effect: score.set(0)),
+    When(score, over: best, effect: best.set(score)),
+  ],
+)
+```
+
+**Une forme : `Shape`.**
+
+| Réglage | Sens | Valeurs |
+|---|---|---|
+| `form` | La forme. | `circle`, `square`, `triangle`, `diamond` |
+| `color` | Sa couleur, entre guillemets. | `"#E9B44C"` |
+| `size` | Sa taille. | 8px à 400px ; 48px sans rien écrire |
+
+- Une forme qui a un nom se touche, comme un bouton : `On(Target.tap, …)`.
+- Elle se place sur un plateau comme un point : `x`, `y`, `drag`.
+
+**Comparer à une autre valeur, fixer d'après une autre valeur.** Là où l'on écrit un nombre, on peut écrire le nom d'une valeur :
+
+- `If(score, over: best, …)` et `When(score, over: best, …)` comparent deux valeurs ;
+- `best.set(score)` donne à `best` la valeur de `score` ; `total.add(bonus)` ajoute `bonus`.
+
+Le meilleur score tient alors en une règle : au moment où le score dépasse le meilleur, le meilleur devient ce score. Avec `keep: [best]`, il reste d'une visite à l'autre.
+
+Cette écriture est à l'essai (`ADR-032`). Les leçons sont `29-comparer-deux-valeurs.holo` et `30-formes.holo`.
+
 ## 7. Comment la page se regarde : `Zoom`, `Points`, `Relief`
 
 Quand le visiteur zoome sur la page (Ctrl + molette, ou pincer), elle grossit d'abord comme n'importe quel site : le texte reste du texte, on le lit, on le sélectionne, on le copie. Au-delà du grossissement fixé par `Points(after:)`, chaque pixel devient un point lumineux, qui se morcelle ensuite. Dès que la page est grossie, glisser la déplace, dans tous les sens ; c'est le même geste avant et après le passage aux points. Quand il tourne la page, elle prend du relief. Ces trois blocs règlent cela.
@@ -961,6 +1006,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `A` | le texte entre guillemets, `to` | Dans `children` |
 | `Image` | `source`, `weight`, `alt`, `name` | Dans `children` |
 | `Sound` | `name`, `source`, `weight` | Dans `children` |
+| `Shape` | `form`, `color`, `size`, `name` | Dans `children` |
 | `Hr` | aucun | Dans `children` |
 | `Quote` | le texte entre guillemets, `by` | Dans `children` |
 | `Code` | le texte entre guillemets | Dans `children` |
@@ -1038,7 +1084,9 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | La durée d'ouverture d'un portail | `Portals(duration:)` | fait |
 | Le poids permis | `budget`, `weight` | fait |
 | Le toucher | le signal `tap` | fait |
-| Le son | `Sound(name:, source:)`, et la capacité `play` | fait, à l'essai |
+| Le son | `Sound(name:, source:)`, et la capacité `play` | fait |
+| Une forme simple | `Shape(form:, color:, size:)` | fait, à l'essai |
+| Comparer deux valeurs, fixer d'après une autre | `over: best`, `best.set(score)` | fait, à l'essai |
 | La vidéo | aucun | à faire |
 | Le survol, l'approche | aucun | à faire |
 | Réagir au zoom par une règle (« quand on zoome, alors… ») | aucun | à faire |
@@ -1055,7 +1103,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 - `module`, `bridge js`, `bridge css` : le moteur les lit mais ne les applique pas. Les listes, et l'envoi de données à un serveur.
 - Pour la disposition : pas de largeur par élément, pas d'élément qui prend la place restante.
 - La liste de choix, l'envoi d'un formulaire ; les données venues d'ailleurs.
-- Pour les valeurs : des nombres entiers et des textes. Pas de liste, pas d'autre calcul que le nombre et le total d'un panier, pas de comparaison entre deux valeurs.
+- Pour les valeurs : des nombres entiers et des textes. Pas de liste, pas d'autre calcul que le nombre et le total d'un panier.
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
 - Les garde-fous de zoom pour un `Point` seul : ils sont encore fixés dans le moteur.

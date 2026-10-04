@@ -9,7 +9,7 @@ use crate::holo::{Bloc, Erreur, Programme, Valeur};
 /// Ce qu'un bloc sait émettre (signaux) et ce qu'on peut lui demander (capacités).
 fn signaux(bloc: &str) -> &'static [&'static str] {
     match bloc {
-        "Button" | "Point" => &["tap"],
+        "Button" | "Point" | "Shape" => &["tap"],
         _ => &[],
     }
 }

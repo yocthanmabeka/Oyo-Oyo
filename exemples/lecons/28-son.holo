@@ -26,6 +26,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 27 : des données venues du serveur", to: "27-donnees.holo"),
+      A("Leçon 29 : comparer deux valeurs →", to: "29-comparer-deux-valeurs.holo"),
     ]),
   ],
 
