@@ -33,7 +33,7 @@ grid-template-columns:repeat(auto-fill,minmax(min(100%,max(120px,calc((100% - (v
 :where(.holo-Input input[type=text]){width:min(100%,280px);box-sizing:border-box}\
 :where(.holo-Checkbox){display:flex;align-items:center;gap:8px;cursor:pointer}\
 :where(.holo-Checkbox input){width:18px;height:18px;margin:0;accent-color:currentColor}\
-:where(.holo-Board){position:relative;overflow:hidden;border-radius:12px}\
+:where(.holo-Board){position:relative;overflow:hidden;border-radius:12px;container-type:inline-size;margin-inline:auto}\
 :where(.holo-place){position:absolute;left:calc(var(--x)*1%);top:calc(var(--y)*1%);transform:translate(calc(var(--x)*-1%),calc(var(--y)*-1%));\
 transition:left .12s linear,top .12s linear,transform .12s linear}\
 :where(.holo-place[data-drag]){touch-action:none;cursor:grab}.holo-place.holo-glisse{transition:none;cursor:grabbing}\
@@ -42,6 +42,8 @@ transition:left .12s linear,top .12s linear,transform .12s linear}\
 :where(.holo-Shape){display:block;width:var(--holo-size,48px);height:var(--holo-size,48px);padding:0;border:0;background:var(--holo-color,currentColor)}\
 :where(button.holo-Shape){cursor:pointer}\
 :where(.holo-forme-circle){border-radius:50%}\
+:where(.holo-Board .holo-Shape){width:calc(var(--holo-n,48)*100cqw/640);height:calc(var(--holo-n,48)*100cqw/640)}\
+:where(.holo-Board .holo-Point){width:10cqw;height:10cqw}\
 :where(.holo-forme-triangle){clip-path:polygon(50% 0,100% 100%,0 100%)}\
 :where(.holo-forme-diamond){clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}\
 :where(.holo-Hr){border:0;border-top:1px solid currentColor;opacity:0.4;height:0}\
@@ -306,7 +308,13 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
                     (None, _) => return Err(Erreur { message: "« Board » range des blocs : Board(children: [ … ])".into(), pos: argument.pos }),
                 }
             }
-            sortie.push_str(&format!("<div class=\"{classes}\"{nom} style=\"height:{hauteur}px\">"));
+            // Un plateau garde ses proportions : 640 de large, `height` de haut. Il s'agrandit ou
+            // rétrécit avec l'écran, et ce qu'il contient avec lui : une partie est la même sur
+            // un téléphone et sur un grand écran. Il ne dépasse pas les quatre cinquièmes de la
+            // hauteur de l'écran.
+            let largeur = crate::etat::LARGEUR_DU_PLATEAU;
+            let plus_large = 80.0 * largeur / hauteur;
+            sortie.push_str(&format!("<div class=\"{classes}\"{nom} style=\"aspect-ratio:{largeur}/{hauteur};width:min(100%,{plus_large:.1}vh)\">"));
             if let Some(Valeur::Liste(elements)) = bloc.argument("children").map(|a| &a.valeur) {
                 for element in elements {
                     match element {
@@ -344,7 +352,7 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
                     (Some("form"), _) => return Err(Erreur { message: "« Shape(form: …) » attend l'un de ces mots : circle, square, triangle, diamond".into(), pos: argument.pos }),
                     (Some("color"), Valeur::Texte(couleur)) if est_couleur(couleur) => allure.push_str(&format!("--holo-color:{couleur};")),
                     (Some("color"), _) => return Err(Erreur { message: "« Shape(color: …) » attend une couleur entre guillemets, comme \"#E9B44C\"".into(), pos: argument.pos }),
-                    (Some("size"), Valeur::Nombre { valeur, unite: Some(unite) }) if unite == "px" && (8.0..=400.0).contains(valeur) => allure.push_str(&format!("--holo-size:{valeur}px;")),
+                    (Some("size"), Valeur::Nombre { valeur, unite: Some(unite) }) if unite == "px" && (8.0..=400.0).contains(valeur) => allure.push_str(&format!("--holo-size:{valeur}px;--holo-n:{valeur};")),
                     (Some("size"), _) => return Err(Erreur { message: "« Shape(size: …) » attend une taille entre 8px et 400px".into(), pos: argument.pos }),
                     (Some(autre), _) => return Err(Erreur { message: format!("« Shape » n'a pas de paramètre « {autre} » ; paramètres possibles : form, color, size, name"), pos: argument.pos }),
                     (None, _) => return Err(Erreur { message: "chaque paramètre de « Shape » est nommé : Shape(form: circle, color: \"#E9B44C\", size: 48px)".into(), pos: argument.pos }),
@@ -690,7 +698,7 @@ mod tests {
     #[test]
     fn une_forme_est_un_dessin_ou_un_bouton() {
         let html = page("Page(children: [ Shape(form: circle, color: \"#E9B44C\", size: 40px), Shape(name: Cible, form: triangle) ])").unwrap();
-        assert!(html.contains("<div class=\"holo-Shape holo-forme-circle\" style=\"--holo-color:#E9B44C;--holo-size:40px;\"></div>"), "{html}");
+        assert!(html.contains("<div class=\"holo-Shape holo-forme-circle\" style=\"--holo-color:#E9B44C;--holo-size:40px;--holo-n:40;\"></div>"), "{html}");
         assert!(html.contains("<button type=\"button\" class=\"holo-Shape holo-forme-triangle\" data-name=\"Cible\" aria-label=\"Cible\" style=\"\"></button>"), "{html}");
         // Une forme nommée se touche, comme un bouton, et se place sur un plateau.
         page("Page(state: State(n: 0, sx: 5), children: [ Board(children: [ Shape(name: S, form: square, x: sx, y: 50, drag: true) ]) ], rules: [ On(S.tap, effect: n.add(1)) ])").unwrap();
@@ -713,7 +721,7 @@ mod tests {
         )
         .unwrap();
         // L'étoile suit deux valeurs ; au départ elle est à leur place, sans dépasser le plateau.
-        assert!(html.contains("<div class=\"holo-Board\" style=\"height:200px\"><div class=\"holo-place\" data-x=\"sx\" data-y=\"sy\" style=\"--x:70;--y:100\"><button type=\"button\" class=\"holo-Point\" data-name=\"Star\""), "{html}");
+        assert!(html.contains("<div class=\"holo-Board\" style=\"aspect-ratio:640/200;width:min(100%,256.0vh)\"><div class=\"holo-place\" data-x=\"sx\" data-y=\"sy\" style=\"--x:70;--y:100\"><button type=\"button\" class=\"holo-Point\" data-name=\"Star\""), "{html}");
         // Un bloc posé à une place fixe, et un bloc sans place.
         assert!(html.contains("<div class=\"holo-place\" style=\"--x:10;--y:90\"><button type=\"button\" class=\"holo-Button\" data-name=\"B\">b</button></div><p class=\"holo-P\">libre</p></div>"), "{html}");
         for (source, message) in [

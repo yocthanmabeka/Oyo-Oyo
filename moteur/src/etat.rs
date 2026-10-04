@@ -398,7 +398,7 @@ pub fn recevoir(programme: &Programme, etat: &Etat, textes: &Textes, json: &str)
         match donnee {
             Donnee::Nombre(nombre) => {
                 let plafond = plafond(programme, &cle);
-                if let Some((_, place)) = etat.iter_mut().find(|(connu, _)| *connu == cle && connu != TIRAGES && connu != LARGEUR) {
+                if let Some((_, place)) = etat.iter_mut().find(|(connu, _)| *connu == cle && connu != TIRAGES) {
                     *place = nombre.min(plafond);
                 }
             }
@@ -1073,7 +1073,7 @@ fn appliquer(programme: &Programme, etat: &mut Etat, effet: &Bloc, graine: u64, 
             // Le hasard n'en est pas un : c'est le énième tirage d'une suite fixée par la graine
             // du fichier. Rejouer les mêmes gestes redonne les mêmes nombres.
             "random" => {
-                *tirages += 1;
+                *tirages = tirages.wrapping_add(1);
                 crate::graine::melanger(graine ^ crate::graine::melanger(*tirages)) % (quantite + 1)
             }
             _ => quantite,
@@ -1117,14 +1117,11 @@ fn place_de(programme: &Programme, etat: &Etat, nom: &str) -> Option<(u64, u64)>
     Some((lire("x")?, lire("y")?))
 }
 
-/// Sous ce nom, l'état porte la largeur du plateau à l'écran, en pixels. La page la mesure et
-/// la donne à l'arbitre : sans elle, il ne peut pas savoir si deux objets se touchent, puisque
-/// un plateau prend la largeur de l'écran. Ce n'est pas une valeur de l'auteur.
-const LARGEUR: &str = "<";
-/// La largeur d'un plateau quand la page ne l'a pas dite : celle d'une page sur un grand écran.
-const LARGEUR_COURANTE: f64 = 640.0;
+/// La largeur d'un plateau, dans ses propres unités ; sa hauteur est `Board(height:)`. Le plateau
+/// garde ses proportions à l'écran : les rencontres sont les mêmes sur tous les écrans.
+pub const LARGEUR_DU_PLATEAU: f64 = 640.0;
 
-/// Un objet posé sur un plateau, tel qu'il est à l'écran : son centre et son encombrement, en pixels.
+/// Un objet posé sur un plateau : son centre et son encombrement, dans les unités du plateau.
 struct Corps {
     cx: f64,
     cy: f64,
@@ -1167,7 +1164,7 @@ fn corps(programme: &Programme, etat: &Etat, nom: &str) -> Option<Corps> {
         }
         Ok(())
     });
-    let largeur = etat.iter().find(|(connu, _)| connu == LARGEUR).map_or(LARGEUR_COURANTE, |(_, l)| (*l as f64).max(taille));
+    let largeur = LARGEUR_DU_PLATEAU;
     // À 0 le bloc touche un bord, à 100 l'autre : son centre parcourt le plateau moins sa taille.
     Some(Corps { cx: x as f64 / 100.0 * (largeur - taille) + taille / 2.0, cy: y as f64 / 100.0 * (hauteur - taille) + taille / 2.0, demi, rond })
 }
@@ -1243,12 +1240,6 @@ pub fn relire(programme: &Programme, ecrit: &str) -> Etat {
             // Le compte des tirages au hasard suit l'état, pour que la suite continue.
             if let (true, Ok(n)) = (nom == TIRAGES, valeur.parse::<u64>()) {
                 etat.push((TIRAGES.to_string(), n));
-                continue;
-            }
-            // La largeur du plateau, mesurée par la page : bornée, pour qu'on ne puisse pas
-            // tricher en annonçant un plateau minuscule ou immense.
-            if let (true, Ok(largeur)) = (nom == LARGEUR, valeur.parse::<u64>()) {
-                etat.push((LARGEUR.to_string(), largeur.clamp(120, 2000)));
                 continue;
             }
             if let (Some((_, place)), Ok(valeur)) = (etat.iter_mut().find(|(connu, _)| connu == nom), valeur.parse::<u64>()) {
@@ -1504,15 +1495,14 @@ mod tests {
         assert!(guette(&programme, programme_regle(&programme), &a_cote));
         a_cote.iter_mut().find(|(n, _)| n == "basket").unwrap().1 = 60;
         assert!(!guette(&programme, programme_regle(&programme), &a_cote));
-        // Sur un téléphone, le plateau est plus étroit : le même écart de places est plus petit à l'écran.
-        a_cote.push(("<".to_string(), 320));
-        assert!(guette(&programme, programme_regle(&programme), &a_cote));
-        // Comme dans le navigateur : l'état voyage en texte, avec la largeur du plateau mesurée
-        // par la page. La pomme tombe, et elle est prise.
+        // Le plateau garde ses proportions : une page qui annoncerait la largeur de son écran
+        // (comme avant) ne change rien à la rencontre.
+        assert_eq!(ecrire(&relire(&programme, &format!("{};<=320", ecrire(&a_cote)))), ecrire(&a_cote));
+        // Comme dans le navigateur : l'état voyage en texte. La pomme tombe, et elle est prise.
         let mut texte = crate::arbitrer(PANIER_DE_POMMES, &crate::etat_initial(PANIER_DE_POMMES), "Play.tap");
         let mut battements = 0;
         while !texte.contains("score=1") && battements < 60 {
-            texte = crate::arbitrer(PANIER_DE_POMMES, &format!("{texte};<=638"), "every:0");
+            texte = crate::arbitrer(PANIER_DE_POMMES, &texte, "every:0");
             battements += 1;
         }
         assert!(texte.contains("score=1") && texte.contains("lives=3"), "après {battements} battements : {texte}");

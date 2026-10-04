@@ -69,6 +69,14 @@ Corrigé : **sans `within`, deux objets se rencontrent au moment où le bord de 
 
 Conséquence à connaître : la même partie ne se joue plus tout à fait pareil sur un écran large et sur un téléphone, puisque les mêmes places sont plus rapprochées sur un petit plateau. C'est fidèle à ce que voit le joueur ; mais le rejeu exact d'une partie suppose désormais de connaître la largeur du plateau.
 
+## Correction du 2026-10-04 : un plateau aux proportions fixes
+
+Gemini, consulté sur le jeu à plusieurs (`docs/05-discussions/reponses/2026-10-04-gemini-3d-et-plusieurs.md`), a relevé le défaut de la correction précédente : si la rencontre dépend de la largeur de l'écran, deux joueurs sur deux écrans voient deux parties différentes. Claude est d'accord.
+
+Corrigé : **un plateau garde ses proportions**, 640 de large et `height` de haut. Il s'agrandit ou rétrécit avec l'écran, et ses formes et ses points avec lui. L'arbitre calcule les rencontres dans les unités du plateau ; la page ne lui donne plus la largeur de l'écran. Les textes et les boutons posés sur un plateau gardent, eux, leur taille de lecture.
+
+La conséquence de la correction précédente disparaît : une partie se rejoue à l'identique, sur n'importe quel écran.
+
 ## Correction du 2026-10-04 : des règles sous condition
 
 En vérifiant le contact à l'écran, Claude a vu que le jeu jouait tout seul avant « Play » et après la fin : les règles de temps tournent tant que la page est ouverte, donc la pomme, cachée, continuait de tomber, d'être « rattrapée », et de faire partir un son. C'était noté comme une limite sans gravité dans `ADR-026` ; avec les rencontres et le son, c'est devenu un défaut.

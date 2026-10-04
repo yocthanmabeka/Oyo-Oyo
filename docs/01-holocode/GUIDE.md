@@ -547,7 +547,7 @@ Page(
 
 | Réglage | Sens | Valeurs |
 |---|---|---|
-| `Board(height:)` | La hauteur du plateau. | 80px à 800px ; 320px sans rien écrire |
+| `Board(height:)` | La hauteur du plateau, pour 640 de large. | 80px à 800px ; 320px sans rien écrire |
 | `x:` sur un bloc du plateau | Sa place de gauche à droite. | un nombre de 0 à 100, ou le nom d'une valeur |
 | `y:` sur un bloc du plateau | Sa place de haut en bas. | un nombre de 0 à 100, ou le nom d'une valeur |
 
@@ -608,6 +608,8 @@ Page(
 
 Seules les touches que le fichier écoute sont prises. Les autres gardent leur rôle.
 
+Un plateau garde ses proportions : 640 de large, `height` de haut. Sur un téléphone il rétrécit, et tout ce qu'il contient avec lui ; sur un grand écran il ne dépasse pas la largeur de la page, ni les quatre cinquièmes de la hauteur de l'écran. Une partie se joue donc pareil partout : la pomme touche le panier au même moment sur un téléphone et sur un ordinateur.
+
 **Faire glisser : `drag: true`.** Sur un bloc posé dans un `Board`, le visiteur peut le faire glisser, au doigt ou à la souris. Ses places, quand ce sont des valeurs de la page, suivent le doigt. Ici `basket` suit ; `y: 96` est un nombre fixe, donc le panier ne monte pas. Aucune règle à écrire.
 
 **Ce qui bouge tout seul.** `Every(100ms, effect: apple_y.add(3))` : dix fois par seconde, la pomme descend un peu.
@@ -617,7 +619,7 @@ Seules les touches que le fichier écoute sont prises. Les autres gardent leur r
 **Une règle qui guette : `When`.** Elle se déclenche au moment où ce qu'elle guette **devient** vrai, pas tant qu'il le reste. Elle guette :
 
 - une valeur : `When(apple_y, over: 99, effect: …)`, avec les comparaisons de `If` (`is`, `not`, `over`, `under`) ;
-- une rencontre : `When(Basket, meets: Apple, effect: …)`. Les deux blocs ont un nom, et un `x` et un `y` dans un `Board`. Ils se rencontrent au moment où le bord de l'un touche le bord de l'autre : un rond et un carré se touchent comme à l'œil. Avec `within: 20`, on juge autrement : sur l'écart entre leurs places, de 1 à 100, sans regarder leur taille.
+- une rencontre : `When(Basket, meets: Apple, effect: …)`. Les deux blocs ont un nom, et un `x` et un `y` dans un `Board`. Ils se rencontrent au moment où le bord de l'un touche le bord de l'autre : un rond et un carré se touchent comme à l'œil. Avec `within: 20`, on juge autrement : sur l'écart entre leurs places, de 1 à 100, sans regarder leur taille. L'écart est mesuré sur chaque axe : `x` à 20 près **et** `y` à 20 près (un carré autour de l'objet, pas un cercle).
 
 **Des règles sous condition.** Une règle de temps tourne tant que la page est ouverte. Pour qu'elle ne vaille que pendant la partie, on la range sous une condition, avec le même `If` que pour montrer des blocs, et `rules` à la place de `children` :
 
