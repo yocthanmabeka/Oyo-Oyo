@@ -147,6 +147,11 @@
   const adresseEntiere = (fichier) => new URL(fichier, location.href).href;
   const dAilleurs = (fichier) => new URL(fichier, location.href).origin !== location.origin;
   let dernierePassage = 0;  // pour qu'un seul coup de molette ne fasse pas remonter deux mondes
+  // Le choix du visiteur, réglé dans son téléphone ou son ordinateur (« réduire les
+  // animations »). Sans ce choix, tout est au niveau normal. Avec lui : pas de transition,
+  // et la page ne devient pas des points toute seule quand on zoome ; le bouton « Vue points »
+  // reste là pour qui veut y aller.
+  const calme = matchMedia("(prefers-reduced-motion: reduce)");
   const racine = document.getElementById("page");
   const carrefour = document.getElementById("carrefour");
   const boutonMode = document.getElementById("mode");
@@ -489,6 +494,7 @@
 
   // On zoome vers un endroit de l'écran, comme si on s'en approchait.
   async function approcher(x, y) {
+    if (calme.matches) return; // animations réduites : on n'avance pas vers le point, on ouvre directement
     for (let pas = 0; pas < 45 && mosaique_camera()[2] * densite * zoomVif < 280; pas++) {
       zone().dispatchEvent(new WheelEvent("wheel", { deltaY: -70, clientX: x, clientY: y, cancelable: true }));
       reveillerLeSuivi();
@@ -582,6 +588,7 @@
       return;
     }
     if (voulu > zoomAvantPoints && zoomVif < zoomAvantPoints) grossir(zoomAvantPoints, clientX, clientY);
+    if (calme.matches) return; // animations réduites : la page reste une page, on a grossi autant que permis
     await entrerEnPoints();
     zone().dispatchEvent(new WheelEvent("wheel", { deltaY, clientX, clientY, cancelable: true }));
   }
@@ -781,7 +788,7 @@
     apercu.getBoundingClientRect(); // le départ est pris en compte avant de lancer le mouvement
     Object.assign(apercu.style, { left: "0px", top: "0px", width: "100vw", height: "100vh", borderRadius: "0" });
     Object.assign(apercu.querySelector(".contenu").style, { transform: "scale(1)", height: `${innerHeight}px` });
-    const immobile = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const immobile = calme.matches;
     await new Promise((suite) => setTimeout(suite, immobile ? 0 : dureeDuPortail + 20));
     if (bouton.dataset.fichier) await ouvrirFichier(bouton.dataset.fichier);
     else afficherSite(versSite);

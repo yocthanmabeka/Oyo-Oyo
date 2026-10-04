@@ -82,3 +82,17 @@ button {
   height: 40px;
   margin: -20px;
 }
+
+/* ---------------------------------------------------------------- la disposition
+   En HoloCode : Row(gap: 8px), Column(align: center), Grid(columns: 3). Ici, il faut connaître
+   flexbox et grid, et penser soi-même au téléphone : sans flex-wrap et sans la formule de
+   minmax, la page déborde sur un petit écran. */
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; justify-content: flex-start; }
+.row > * { margin: 0; }
+.column { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.column > * { margin: 0; }
+.grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, max(120px, calc((100% - 2 * 12px) / 3))), 1fr));
+}

@@ -206,7 +206,7 @@ mod tests {
         for (reglage, _) in REGLAGES {
             assert!(source.contains(&format!("{reglage}:")), "le réglage « {reglage} » manque dans l'exemple");
         }
-        for mot in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave", "state:", "{cart}", ".add(", ".sub(", ".set("] {
+        for mot in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave", "state:", "{cart}", ".add(", ".sub(", ".set(", "gap:", "align:", "columns:"] {
             assert!(source.contains(mot), "« {mot} » manque dans l'exemple");
         }
     }

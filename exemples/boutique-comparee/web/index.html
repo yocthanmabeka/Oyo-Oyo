@@ -27,15 +27,24 @@
       <li>Market day</li>
     </ul>
 
+    <!-- La grille : des div, et tout le travail est dans la feuille de style. -->
+    <div class="grid">
+      <div class="column card"><p>Sunrise over the river</p><span class="note">120 euros</span></div>
+      <div class="column card"><p>The blue door</p><span class="note">90 euros</span></div>
+      <div class="column card"><p>Market day</p><span class="note">150 euros</span></div>
+    </div>
+
     <h3>Today</h3>
     <span class="note">Open until 6 pm</span>
 
     <!-- Le panier : HTML n'a pas de valeur qui change. Un span vide, que le script remplira. -->
     <h3>Your cart</h3>
     <span class="note"><span class="cart-count">0</span> paintings in your cart</span>
-    <button id="add" type="button">Add a painting</button>
-    <button id="remove" type="button">Remove one</button>
-    <button id="empty" type="button">Empty the cart</button>
+    <div class="row">
+      <button id="add" type="button">Add a painting</button>
+      <button id="remove" type="button">Remove one</button>
+      <button id="empty" type="button">Empty the cart</button>
+    </div>
 
     <button id="open" class="card" type="button">Enter the workshop</button>
 

@@ -105,6 +105,46 @@ Page(
 - `List(ordered: true, …)` numérote la liste. Un élément de liste peut être une phrase ou un bloc, par exemple un lien.
 - Il n'y a ni `UL`, ni `OL`, ni `LI` : un seul bloc `List` suffit, et ses éléments n'ont pas besoin de balise.
 
+## 4 bis. La disposition : `Row`, `Column`, `Grid`
+
+Sans rien écrire, les blocs se rangent l'un sous l'autre. Trois blocs les rangent autrement.
+
+```holo
+Page(
+  title: "My shop",
+  children: [
+    Row(gap: 8px, align: between, children: [
+      H1("My shop"),
+      Button(name: Menu, text: "Menu"),
+    ]),
+
+    Grid(columns: 3, gap: 12px, children: [
+      Column(gap: 4px, align: center, children: [ P("Sunrise over the river"), Text("120 euros") ]),
+      Column(gap: 4px, align: center, children: [ P("The blue door"), Text("90 euros") ]),
+      Column(gap: 4px, align: center, children: [ P("Market day"), Text("150 euros") ]),
+    ]),
+  ],
+)
+```
+
+| Bloc | Ce qu'il fait |
+|---|---|
+| `Row` | Range côte à côte. Ce qui ne tient pas dans la largeur passe à la ligne : la page ne déborde jamais sur le côté. |
+| `Column` | Range l'un sous l'autre. |
+| `Grid` | Range en colonnes de même largeur. Sur un écran étroit, il y a moins de colonnes, sans rien écrire. |
+
+| Réglage | Sens | Valeurs |
+|---|---|---|
+| `gap` | L'écart entre les éléments. | 0px à 64px ; 16px sans rien écrire |
+| `align` (`Row`, `Column`) | Où se placent les éléments, dans le sens de la largeur. | `start`, `center`, `end` ; pour `Row` aussi `between` (écartés d'un bord à l'autre) |
+| `columns` (`Grid`) | Le nombre de colonnes, au plus. | 1 à 12 ; 2 sans rien écrire |
+
+- Ces blocs se rangent les uns dans les autres.
+- Ils prennent un style nommé comme les autres : `Column.card(...)`.
+- Un bouton ou un point rangé dans une ligne garde son nom et ses règles.
+
+Cette écriture est à l'essai (`ADR-024`).
+
 ## 5. Les styles
 
 Les styles s'écrivent comme en CSS, **après** le bloc racine.
@@ -394,6 +434,8 @@ Page(
 
 Ce sont des garde-fous : le visiteur ne dépasse pas ceux de l'auteur, et l'auteur ne dépasse pas ceux du langage.
 
+Le visiteur a aussi son mot à dire. S'il a choisi « réduire les animations » dans les réglages de son téléphone ou de son ordinateur, la page ne devient pas des points toute seule quand il zoome, et les portails s'ouvrent sans transition. Le bouton « Vue points » reste là pour qui veut y aller. Sans ce choix, tout est au niveau normal.
+
 - `Zoom(max:)` borne le zoom entier : le zoom ordinaire de la page et la vue points ensemble. `Points(after:)` ne peut donc pas dépasser `Zoom(max:)` : le fichier serait refusé.
 - Quelle que soit `density`, la vue points ne dépasse jamais huit millions de points, pour tenir dans la mémoire d'un téléphone.
 
@@ -482,11 +524,15 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Button` | `name`, `text` | Dans `children` |
 | `Point` | `name`, `seed`, `brightness`, `fragments`, `color`, `palette`, `budget`, `inside` ; `above` quand il est planté dans un pixel | Dans `children` ou `pixels`, ou à la racine |
 | `World` | `children`, `pixels`, `rules` | Dans `inside:` d'un `Point` |
+| `Row`, `Column` | `children`, `gap`, `align`, `name` | Dans `children` |
+| `Grid` | `children`, `gap`, `columns`, `name` | Dans `children` |
 | `On` | le signal, puis `effect:` | Dans `rules` |
 | `State` | les valeurs et leur départ : `cart: 0` | Dans `state:` d'une `Page` |
 | `Zoom`, `Points`, `Relief`, `Portals` | voir la partie 7 | Dans `zoom:`, `points:`, `relief:`, `portals:` d'une `Page` |
 
 ## 10 bis. Chaque notion et son mot
+
+La liste de tous les mots, face à ceux de HTML, CSS et JavaScript : [`NOMS.md`](NOMS.md).
 
 Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l'on en est.
 
@@ -522,7 +568,8 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | La vidéo | aucun | à faire |
 | Le survol, l'approche | aucun | à faire |
 | Réagir au zoom par une règle (« quand on zoome, alors… ») | aucun | à faire |
-| La disposition côte à côte | aucun | à faire |
+| Ranger côte à côte, l'un sous l'autre, en grille | `Row`, `Column`, `Grid` | fait, à l'essai |
+| L'écart et le placement | `gap:`, `align:`, `columns:` | fait, à l'essai |
 | Réutiliser un morceau de fichier (les imports) | `import` est lu, pas appliqué | à faire |
 | Les formulaires, les valeurs qui changent | aucun | à faire |
 | Le personnage | aucun | à faire |
@@ -532,7 +579,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 ## 11. Ce qui n'existe pas encore
 
 - Les imports (`import`, `module`, `bridge js`, `bridge css`) : le moteur les lit mais ne les applique pas.
-- La disposition (côte à côte, en grille) : tout est l'un sous l'autre.
+- Pour la disposition : pas de largeur par élément, pas d'élément qui prend la place restante.
 - Les formulaires, les données venues d'ailleurs.
 - Pour les valeurs : seulement des nombres entiers. Pas de texte, pas de condition (« si le panier est vide »), pas de total, rien n'est gardé après un rechargement.
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).

@@ -15,11 +15,13 @@ import { extname, join, normalize, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { brotliCompressSync, constants } from "node:zlib";
 import { networkInterfaces } from "node:os";
+import { existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 
 const racine = fileURLToPath(new URL("..", import.meta.url));
 // HOLO_DEPOT : le dossier du dépôt dont on affiche les fichiers .holo (exemples/ et moteur/mondes/),
 // quand ce n'est pas celui où le moteur a été construit. Sert à afficher ce qu'on écrit dans VS Code.
-const depot = process.env.HOLO_DEPOT ?? fileURLToPath(new URL("../..", import.meta.url));
+const depot = process.env.HOLO_DEPOT || fileURLToPath(new URL("../..", import.meta.url));
 const exemples = join(depot, "exemples") + sep;
 const mondes = join(depot, "moteur", "mondes") + sep;
 const port = Number(process.env.PORT ?? 8080);
@@ -33,6 +35,23 @@ const types = {
   ".svg": "image/svg+xml",
 };
 const cache = new Map();
+
+// Le moteur en Rust, compilé pour ce PC (cargo build --release --bin holo). S'il est là, le
+// serveur lui fait fabriquer la page avant de l'envoyer : un robot de recherche, ou un
+// navigateur qui ne lance pas le moteur, lit quand même le site. S'il n'y est pas, la page
+// est fabriquée dans le navigateur, comme avant.
+const rendeur = ["release", "debug"].flatMap((profil) => ["holo.exe", "holo"].map((nom) => join(racine, "target", profil, nom))).find(existsSync);
+
+function pageToutePrete(gabarit, cheminHolo, dossier) {
+  if (!rendeur) return gabarit;
+  try {
+    const html = execFileSync(rendeur, ["html", cheminHolo, dossier], { encoding: "utf8", timeout: 5000, maxBuffer: 4e6 }).trim();
+    const titre = /data-title="([^"]*)"/.exec(html)?.[1] || "HoloCode";
+    return gabarit.replace('<div id="page"></div>', () => `<div id="page">${html}</div>`).replace("<title>HoloCode</title>", () => `<title>${titre}</title>`);
+  } catch {
+    return gabarit; // fichier refusé : la page d'entrée affichera l'erreur du moteur
+  }
+}
 
 async function fichier(chemin) {
   const info = await stat(chemin);
@@ -63,7 +82,11 @@ createServer(async (req, res) => {
       const source = (await readFile(chemin, "utf8")).replace(/\/\/.*$/gm, "");
       aServir = join(racine, "web", /^\s*Point/.test(source) ? "index.html" : "page.html");
     }
-    const { brut, br } = await fichier(aServir);
+    let { brut, br } = await fichier(aServir);
+    if (pourAffichage && aServir.endsWith("page.html")) {
+      brut = Buffer.from(pageToutePrete(brut.toString("utf8"), chemin, url.slice(0, url.lastIndexOf("/") + 1)));
+      br = brotliCompressSync(brut, { params: { [constants.BROTLI_PARAM_QUALITY]: 5 } });
+    }
     const type = types[extname(aServir)] ?? "application/octet-stream";
     const accepteBr = /\bbr\b/.test(req.headers["accept-encoding"] ?? "");
     res.writeHead(200, {
@@ -81,6 +104,7 @@ createServer(async (req, res) => {
 }).listen(port, "0.0.0.0", () => {
   const ips = Object.values(networkInterfaces()).flat().filter((i) => i.family === "IPv4" && !i.internal).map((i) => i.address);
   console.log(`Fichiers .holo : ${depot}`);
+  console.log(rendeur ? `Pages fabriquées d'avance par : ${rendeur}` : "Pages fabriquées dans le navigateur (pour les fabriquer d'avance : cargo build --release --bin holo)");
   console.log(`Sur ce PC      : http://localhost:${port}`);
   for (const ip of ips) console.log(`Sur le téléphone (même Wi-Fi) : http://${ip}:${port}`);
   console.log("WebGPU exige une page sécurisée : sur le téléphone, voir « Tester sur le téléphone » dans moteur/README.md.");
