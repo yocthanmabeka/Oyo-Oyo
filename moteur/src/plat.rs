@@ -28,6 +28,10 @@ box-sizing:border-box;background:rgba(0,0,0,0.6);pointer-events:auto}\
 grid-template-columns:repeat(auto-fill,minmax(min(100%,max(120px,calc((100% - (var(--holo-columns,2) - 1)*var(--holo-gap,16px))/var(--holo-columns,2)))),1fr))}\
 :where(.holo-Row,.holo-Column,.holo-Grid)>*{margin:0;box-sizing:border-box;min-width:0}\
 :where(.holo-Row,.holo-Column,.holo-Grid)>.holo-If>*{margin:0}:where(.holo-If[hidden]){display:none}\
+:where(.holo-Input){display:flex;flex-direction:column;gap:4px;align-items:flex-start}\
+:where(.holo-Input input){font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 10px;width:120px}\
+:where(.holo-Checkbox){display:flex;align-items:center;gap:8px;cursor:pointer}\
+:where(.holo-Checkbox input){width:18px;height:18px;margin:0;accent-color:currentColor}\
 :where(.holo-Board){position:relative;overflow:hidden;border-radius:12px}\
 :where(.holo-place){position:absolute;left:calc(var(--x)*1%);top:calc(var(--y)*1%);transform:translate(calc(var(--x)*-1%),calc(var(--y)*-1%));\
 transition:left .2s ease,top .2s ease,transform .2s ease}\
@@ -87,6 +91,14 @@ pub fn site_html(programme: &Programme, page: &Bloc, base: &str, titre: &str) ->
         for (rang, morceau) in html.split(MARQUE).enumerate() {
             if rang % 2 == 0 {
                 sortie.push_str(morceau);
+            } else if let Some(nom) = morceau.strip_prefix('#') {
+                // Un champ : la valeur de départ, telle quelle.
+                sortie.push_str(&montrees.iter().find(|(connu, _)| connu == nom).map_or(0, |(_, v)| *v).to_string());
+            } else if let Some(nom) = morceau.strip_prefix('?') {
+                // Une case : cochée au départ si la valeur n'est pas zéro.
+                if montrees.iter().any(|(connu, v)| connu == nom && *v > 0) {
+                    sortie.push_str(" checked");
+                }
             } else if let Some(nom) = morceau.strip_prefix('@') {
                 // La place d'un bloc sur un plateau : la valeur de départ, de 0 à 100.
                 let valeur = montrees.iter().find(|(connu, _)| connu == nom).map_or(0, |(_, v)| *v);
@@ -224,6 +236,29 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
             sortie.push_str(&format!("<div class=\"{classes}\"{nom} data-if=\"{}\"{MARQUE}{cle}{MARQUE}>", echapper(&cle)));
             enfants(bloc, sortie, mondes, base)?;
             sortie.push_str("</div>");
+        }
+        // Un champ où le visiteur écrit un nombre, et une case qu'il coche. Chacun présente une
+        // valeur de la page ; l'étiquette est obligatoire (ADR-027). `etat.rs` les a vérifiés.
+        "Input" | "Checkbox" => {
+            let (Some(Valeur::Nom(valeur)), Some(Valeur::Texte(etiquette))) = (bloc.argument("value").map(|a| &a.valeur), bloc.argument("label").map(|a| &a.valeur)) else {
+                return Err(Erreur { message: format!("« {} » attend « value » et « label »", bloc.nom), pos: bloc.pos });
+            };
+            let valeur = echapper(valeur);
+            if bloc.nom == "Input" {
+                let max = match bloc.argument("max").map(|a| &a.valeur) {
+                    Some(Valeur::Entier(max)) => format!(" max=\"{max}\""),
+                    _ => String::new(),
+                };
+                sortie.push_str(&format!(
+                    "<label class=\"{classes}\"{nom}><span>{}</span><input type=\"number\" inputmode=\"numeric\" min=\"0\"{max} value=\"{MARQUE}#{valeur}{MARQUE}\" data-bind=\"{valeur}\"></label>",
+                    markdown(etiquette)
+                ));
+            } else {
+                sortie.push_str(&format!(
+                    "<label class=\"{classes}\"{nom}><input type=\"checkbox\" data-bind=\"{valeur}\"{MARQUE}?{valeur}{MARQUE}><span>{}</span></label>",
+                    markdown(etiquette)
+                ));
+            }
         }
         // Un plateau : ce qu'il contient se place où l'on veut, par x et y, de 0 à 100 (ADR-026).
         "Board" => {

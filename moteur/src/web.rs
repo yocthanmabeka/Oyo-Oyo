@@ -284,10 +284,34 @@ pub fn etat_initial(source: &str) -> String {
     crate::etat_initial(source)
 }
 
-/// Les rythmes des règles de temps d'une page, en millisecondes (`1000;2500`).
+/// Les horloges d'une page : `1000:time;2000:star_x`.
 #[wasm_bindgen]
-pub fn rythmes(source: &str) -> String {
-    crate::rythmes(source)
+pub fn horloges(source: &str) -> String {
+    crate::horloges(source)
+}
+
+/// Les valeurs qu'un signal fait changer : leurs horloges repartent de zéro.
+#[wasm_bindgen]
+pub fn touchees(source: &str, signal: &str) -> String {
+    crate::touchees(source, signal)
+}
+
+/// Le visiteur a écrit dans un champ ou coché une case.
+#[wasm_bindgen]
+pub fn saisir(source: &str, etat: &str, nom: &str, ecrit: &str) -> String {
+    crate::saisir(source, etat, nom, ecrit)
+}
+
+/// Ce que la page garde d'une visite à l'autre.
+#[wasm_bindgen]
+pub fn a_garder(source: &str, etat: &str) -> String {
+    crate::a_garder(source, etat)
+}
+
+/// L'état de départ, avec ce que la page avait gardé.
+#[wasm_bindgen]
+pub fn reprendre(source: &str, garde: &str) -> String {
+    crate::reprendre(source, garde)
 }
 
 /// Les conditions d'une page et leur réponse pour cet état (`count|is=0:1;…`).

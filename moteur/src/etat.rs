@@ -90,6 +90,79 @@ pub fn vraie(comparaisons: &[(&str, u64)], valeur: u64) -> bool {
     })
 }
 
+/// Les valeurs que la page garde d'une visite à l'autre : `keep: [cart, best]`.
+pub fn gardees(programme: &Programme) -> Result<Vec<String>, Erreur> {
+    let Some(argument) = programme.racine.argument("keep") else { return Ok(Vec::new()) };
+    let erreur = |message: String| Erreur { message, pos: argument.pos };
+    let Valeur::Liste(noms) = &argument.valeur else {
+        return Err(erreur("« keep » attend la liste des valeurs à garder : keep: [cart]".into()));
+    };
+    let declarees = initial(programme)?;
+    let mut gardees = Vec::new();
+    for nom in noms {
+        match nom {
+            Valeur::Nom(nom) if declarees.iter().any(|(connu, _)| connu == nom) => gardees.push(nom.clone()),
+            Valeur::Nom(nom) => return Err(erreur(format!("« keep » : aucune valeur ne s'appelle « {nom} » ; on ne garde que des valeurs déclarées dans « State »"))),
+            _ => return Err(erreur("« keep » attend des noms de valeurs : keep: [cart]".into())),
+        }
+    }
+    Ok(gardees)
+}
+
+/// Jusqu'où une valeur peut monter par la saisie : 1 pour une case à cocher, le `max` d'un champ
+/// s'il en a un, sinon la borne du langage.
+fn plafond(programme: &Programme, nom: &str) -> u64 {
+    let mut plafond = VALEUR_MAX;
+    let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
+        if matches!(bloc.argument("value").map(|a| &a.valeur), Some(Valeur::Nom(valeur)) if valeur == nom) {
+            match (bloc.nom.as_str(), bloc.argument("max").map(|a| &a.valeur)) {
+                ("Checkbox", _) => plafond = plafond.min(1),
+                ("Input", Some(Valeur::Entier(max))) => plafond = plafond.min(*max),
+                _ => {}
+            }
+        }
+        Ok(())
+    });
+    plafond
+}
+
+/// Le visiteur a écrit dans un champ, ou coché une case. C'est encore l'arbitre qui change la
+/// valeur : seulement une valeur que la page déclare et qu'un champ présente, et jamais
+/// au-delà de son plafond. Un texte qui n'est pas un nombre ne change rien.
+pub fn saisir(programme: &Programme, etat: &Etat, nom: &str, ecrit: &str) -> Etat {
+    let mut etat = etat.clone();
+    let presentee = {
+        let mut trouvee = false;
+        let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
+            trouvee |= (bloc.nom == "Input" || bloc.nom == "Checkbox") && matches!(bloc.argument("value").map(|a| &a.valeur), Some(Valeur::Nom(valeur)) if valeur == nom);
+            Ok(())
+        });
+        trouvee
+    };
+    let ecrit = ecrit.trim();
+    let nombre = if ecrit.is_empty() { Some(0) } else { ecrit.parse::<u64>().ok() };
+    if let (true, Some(nombre), Some((_, place))) = (presentee, nombre, etat.iter_mut().find(|(connu, _)| connu == nom)) {
+        *place = nombre.min(plafond(programme, nom));
+    }
+    etat
+}
+
+/// Reprend les valeurs gardées lors d'une visite précédente. Ce qui est relu vient du
+/// navigateur du visiteur, donc on s'en méfie : seules les valeurs que la page dit garder sont
+/// reprises, et dans leurs bornes. Tout le reste part de son départ.
+pub fn reprendre(programme: &Programme, garde: &str) -> Etat {
+    let mut etat = initial(programme).unwrap_or_default();
+    let gardees = gardees(programme).unwrap_or_default();
+    for morceau in garde.split(';') {
+        if let Some((nom, valeur)) = morceau.split_once('=') {
+            if let (true, Some((_, place)), Ok(valeur)) = (gardees.iter().any(|g| g == nom), etat.iter_mut().find(|(connu, _)| connu == nom), valeur.parse::<u64>()) {
+                *place = valeur.min(VALEUR_MAX);
+            }
+        }
+    }
+    etat
+}
+
 /// Ce qu'on peut demander pour une valeur.
 pub const DEMANDES: &[&str] = &["add", "sub", "set", "random"];
 
@@ -118,20 +191,43 @@ pub fn rythme(regle: &Bloc) -> Result<u64, Erreur> {
     Ok(millisecondes.round() as u64)
 }
 
-/// Les rythmes des règles de temps du fichier, sans doublon : la page tient une horloge par rythme.
-pub fn rythmes(programme: &Programme) -> Vec<u64> {
-    let mut rythmes = Vec::new();
+/// Les horloges du fichier : une par règle `Every`, dans l'ordre où elles sont écrites, avec
+/// son rythme et la valeur qu'elle fait changer. Chaque règle a son horloge, pour qu'on puisse
+/// en relancer une sans toucher aux autres.
+pub fn horloges(programme: &Programme) -> Vec<(u64, String)> {
+    let mut horloges = Vec::new();
     let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
         if bloc.nom == "Every" {
-            if let Ok(ms) = rythme(bloc) {
-                if !rythmes.contains(&ms) {
-                    rythmes.push(ms);
+            let valeur = match bloc.argument("effect").map(|a| &a.valeur) {
+                Some(Valeur::Bloc(effet)) => effet.nom.split('.').next().unwrap_or("").to_string(),
+                _ => String::new(),
+            };
+            horloges.push((rythme(bloc).unwrap_or(RYTHME_MAX), valeur));
+        }
+        Ok(())
+    });
+    horloges
+}
+
+/// Les valeurs qu'un signal fait changer, d'après les règles `On`. Quand un geste change une
+/// valeur, l'horloge qui s'occupe de cette valeur repart de zéro : « Play » remet le temps à
+/// trente secondes, et la première seconde dure une vraie seconde.
+pub fn touchees(programme: &Programme, signal: &str) -> Vec<String> {
+    let mut valeurs = Vec::new();
+    let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
+        let declencheur = bloc.arguments.iter().find(|a| a.nom.is_none()).map(|a| &a.valeur);
+        if let ("On", Some(Valeur::Nom(s)), Some(Valeur::Bloc(effet))) = (bloc.nom.as_str(), declencheur, bloc.argument("effect").map(|a| &a.valeur)) {
+            if s == signal {
+                if let Some((valeur, _)) = effet.nom.split_once('.') {
+                    if !valeurs.iter().any(|v| v == valeur) {
+                        valeurs.push(valeur.to_string());
+                    }
                 }
             }
         }
         Ok(())
     });
-    rythmes
+    valeurs
 }
 
 /// La graine du hasard d'un fichier : tirée du nom de sa page. Le même fichier, avec les mêmes
@@ -306,6 +402,7 @@ pub fn noms_dans(texte: &str) -> Vec<&str> {
 pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
     let etat = initial(programme)?;
     prix(programme)?;
+    gardees(programme)?;
     // Ce qu'un texte peut montrer : les valeurs déclarées, et celles que le moteur calcule.
     let montrables = a_montrer(programme, &etat);
     let declare = bloc_d_etat(programme)?;
@@ -322,6 +419,30 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
         }
         if bloc.argument("state").is_some() && !std::ptr::eq(bloc, &programme.racine) {
             return Err(Erreur { message: "les valeurs se déclarent sur la page, pas dans un monde : elles valent pour tout le fichier".into(), pos: bloc.pos });
+        }
+        // Un champ ou une case présente une valeur déclarée par la page, et dit ce qu'il attend.
+        if bloc.nom == "Input" || bloc.nom == "Checkbox" {
+            let permis: &[&str] = if bloc.nom == "Input" { &["name", "value", "label", "max"] } else { &["name", "value", "label"] };
+            let exemple = if bloc.nom == "Input" { "Input(value: quantity, label: \"How many?\")" } else { "Checkbox(value: gift, label: \"Gift wrap\")" };
+            for argument in &bloc.arguments {
+                match (argument.nom.as_deref(), &argument.valeur) {
+                    (Some("name"), _) | (Some("label"), Valeur::Texte(_)) => {}
+                    (Some("value"), Valeur::Nom(valeur)) if etat.iter().any(|(connu, _)| connu == valeur) => {}
+                    (Some("value"), Valeur::Nom(valeur)) => {
+                        return Err(Erreur { message: format!("« {}(value: {valeur}) » : aucune valeur ne s'appelle « {valeur} » ; déclare-la sur la page, state: State({valeur}: 0)", bloc.nom), pos: argument.pos })
+                    }
+                    (Some("max"), Valeur::Entier(max)) if bloc.nom == "Input" && *max <= VALEUR_MAX => {}
+                    (Some(mot), _) if permis.contains(&mot) => return Err(Erreur { message: format!("« {}({mot}: …) » est mal écrit : {exemple}", bloc.nom), pos: argument.pos }),
+                    (Some(mot), _) => return Err(Erreur { message: format!("« {} » n'a pas de paramètre « {mot} » ; paramètres possibles : {}", bloc.nom, permis.join(", ")), pos: argument.pos }),
+                    (None, _) => return Err(Erreur { message: format!("chaque paramètre de « {} » est nommé : {exemple}", bloc.nom), pos: argument.pos }),
+                }
+            }
+            // Un champ sans étiquette est un champ qu'un lecteur d'écran ne sait pas nommer.
+            for requis in ["value", "label"] {
+                if bloc.argument(requis).is_none() {
+                    return Err(Erreur { message: format!("« {} » attend « {requis} » : {exemple}", bloc.nom), pos: bloc.pos });
+                }
+            }
         }
         // Une condition regarde une valeur que la page déclare, ou que le moteur calcule.
         if bloc.nom == "If" {
@@ -370,12 +491,17 @@ pub fn arbitrer(programme: &Programme, etat: &Etat, signal: &str) -> Etat {
     let graine = graine_du_hasard(programme);
     let mut tirages = etat.iter().find(|(nom, _)| nom == TIRAGES).map_or(0, |(_, n)| *n);
     let depart = tirages;
+    let mut horloge = 0usize;
     let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
-        // Une règle répond à un signal : celui d'un bloc (`On(Add.tap, …)`), ou celui de
-        // l'horloge (`Every(1s, …)`, signal « every:1000 »).
+        // Une règle répond à un signal : celui d'un bloc (`On(Add.tap, …)`), ou celui de sa
+        // propre horloge (`Every(1s, …)` : « every:0 » pour la première règle de temps du
+        // fichier, « every:1 » pour la deuxième).
         let concernee = match bloc.nom.as_str() {
             "On" => matches!(bloc.arguments.iter().find(|a| a.nom.is_none()).map(|a| &a.valeur), Some(Valeur::Nom(s)) if s == signal),
-            "Every" => rythme(bloc).is_ok_and(|ms| signal == format!("every:{ms}")),
+            "Every" => {
+                horloge += 1;
+                signal == format!("every:{}", horloge - 1)
+            }
             _ => false,
         };
         if let (true, Some(Valeur::Bloc(effet))) = (concernee, bloc.argument("effect").map(|a| &a.valeur)) {
@@ -562,26 +688,79 @@ mod tests {
     #[test]
     fn le_jeu_se_joue_par_des_regles_le_temps_et_le_hasard() {
         let programme = page(JEU).unwrap();
-        assert_eq!(rythmes(&programme), [1000]);
+        // Trois règles de temps, trois horloges : le temps chaque seconde, l'étoile toutes les deux.
+        assert_eq!(horloges(&programme), [(1000, "time".to_string()), (2000, "star_x".to_string()), (2000, "star_y".to_string())]);
         let depart = initial(&programme).unwrap();
         assert_eq!(ecrire(&depart), "time=0;score=0;star_x=50;star_y=50");
         // Tant que la partie n'a pas commencé, le temps reste à zéro : il ne descend pas dessous.
-        let attente = arbitrer(&programme, &depart, "every:1000");
-        assert_eq!(attente[0], ("time".to_string(), 0));
-        // « Play » : trente secondes. Puis une seconde passe, l'étoile a bougé.
+        assert_eq!(arbitrer(&programme, &depart, "every:0")[0], ("time".to_string(), 0));
+        // « Play » : trente secondes. Ce geste change le temps : son horloge repartira de zéro.
         let lancee = arbitrer(&programme, &depart, "Play.tap");
         assert_eq!((lancee[0].1, lancee[1].1), (30, 0));
-        let une_seconde = arbitrer(&programme, &lancee, "every:1000");
-        assert_eq!(une_seconde[0].1, 29);
-        assert!(une_seconde[2].1 <= 100 && une_seconde[3].1 <= 100);
-        assert_ne!((une_seconde[2].1, une_seconde[3].1), (50, 50), "l'étoile n'a pas bougé");
-        // Toucher l'étoile : un point, et elle part ailleurs.
-        let touchee = arbitrer(&programme, &une_seconde, "Star.tap");
+        assert_eq!(touchees(&programme, "Play.tap"), ["score", "time"]);
+        // Une seconde passe : seul le temps change. L'étoile a sa propre horloge.
+        let une_seconde = arbitrer(&programme, &lancee, "every:0");
+        assert_eq!((une_seconde[0].1, une_seconde[2].1, une_seconde[3].1), (29, 50, 50));
+        let bougee = arbitrer(&programme, &arbitrer(&programme, &une_seconde, "every:1"), "every:2");
+        assert!(bougee[2].1 <= 100 && bougee[3].1 <= 100);
+        assert_ne!((bougee[2].1, bougee[3].1), (50, 50), "l'étoile n'a pas bougé");
+        // Toucher l'étoile : un point, elle part ailleurs, et son horloge repart : elle reste là
+        // deux vraies secondes.
+        let touchee = arbitrer(&programme, &bougee, "Star.tap");
         assert_eq!(touchee[1].1, 1);
-        assert_ne!((touchee[2].1, touchee[3].1), (une_seconde[2].1, une_seconde[3].1));
+        assert_ne!((touchee[2].1, touchee[3].1), (bougee[2].1, bougee[3].1));
+        assert_eq!(touchees(&programme, "Star.tap"), ["score", "star_x", "star_y"]);
         // Trente secondes plus tard, la partie est finie, et le score est gardé.
-        let fin = (0..40).fold(touchee, |etat, _| arbitrer(&programme, &etat, "every:1000"));
+        let fin = (0..40).fold(touchee, |etat, _| arbitrer(&programme, &etat, "every:0"));
         assert_eq!((fin[0].1, fin[1].1), (0, 1));
+    }
+
+    #[test]
+    fn un_champ_une_case_et_des_valeurs_gardees() {
+        let source = "Page(
+  state: State(tip: 0, gift: 0, visits: 0),
+  keep: [tip, gift],
+  children: [
+    Input(value: tip, label: \"Tip, in euros\", max: 50),
+    Checkbox(value: gift, label: \"Gift **wrap**\"),
+    Button(name: B, text: \"x\"),
+  ],
+  rules: [ On(B.tap, effect: visits.add(1)) ],
+)";
+        let programme = page(source).unwrap();
+        let html = crate::vue_a_plat(source, "").unwrap();
+        assert!(html.contains("<label class=\"holo-Input\"><span>Tip, in euros</span><input type=\"number\" inputmode=\"numeric\" min=\"0\" max=\"50\" value=\"0\" data-bind=\"tip\"></label>"), "{html}");
+        assert!(html.contains("<label class=\"holo-Checkbox\"><input type=\"checkbox\" data-bind=\"gift\"><span>Gift <strong>wrap</strong></span></label>"), "{html}");
+        // La saisie passe par l'arbitre : bornée, et sourde à ce qui n'est pas un nombre.
+        let depart = initial(&programme).unwrap();
+        assert_eq!(ecrire(&saisir(&programme, &depart, "tip", " 12 ")), "tip=12;gift=0;visits=0");
+        assert_eq!(ecrire(&saisir(&programme, &depart, "tip", "9999")), "tip=50;gift=0;visits=0");
+        assert_eq!(ecrire(&saisir(&programme, &depart, "tip", "douze")), "tip=0;gift=0;visits=0");
+        assert_eq!(ecrire(&saisir(&programme, &saisir(&programme, &depart, "tip", "7"), "tip", "")), "tip=0;gift=0;visits=0");
+        assert_eq!(ecrire(&saisir(&programme, &depart, "gift", "5")), "tip=0;gift=1;visits=0");
+        // Une valeur qu'aucun champ ne présente ne se saisit pas, même si on le demande.
+        assert_eq!(ecrire(&saisir(&programme, &depart, "visits", "40")), "tip=0;gift=0;visits=0");
+        // Garder : seules les valeurs nommées par « keep » sont écrites, et seules elles sont reprises.
+        assert_eq!(crate::a_garder(source, "tip=12;gift=1;visits=9"), "tip=12;gift=1");
+        assert_eq!(crate::reprendre(source, "tip=12;gift=1;visits=9;intrus=3"), "tip=12;gift=1;visits=0");
+        assert_eq!(crate::reprendre(source, "n'importe quoi"), "tip=0;gift=0;visits=0");
+        // Une case déjà cochée et un champ déjà rempli le sont dès le premier affichage.
+        let rempli = crate::vue_a_plat(&source.replace("State(tip: 0, gift: 0", "State(tip: 8, gift: 1"), "").unwrap();
+        assert!(rempli.contains("value=\"8\" data-bind=\"tip\"") && rempli.contains("<input type=\"checkbox\" data-bind=\"gift\" checked>"), "{rempli}");
+        for (source, message) in [
+            ("Page(state: State(a: 0), keep: [b])", "aucune valeur ne s'appelle « b »"),
+            ("Page(state: State(a: 0), keep: a)", "attend la liste"),
+            ("Page(state: State(a: 0), children: [ Input(value: a) ])", "attend « label »"),
+            ("Page(state: State(a: 0), children: [ Input(label: \"x\") ])", "attend « value »"),
+            ("Page(state: State(a: 0), children: [ Input(value: b, label: \"x\") ])", "aucune valeur ne s'appelle « b »"),
+            ("Page(state: State(a: 0), children: [ Input(value: a, label: \"x\", min: 2) ])", "n'a pas de paramètre « min »"),
+            ("Page(state: State(a: 0), children: [ Checkbox(value: a, label: \"x\", max: 2) ])", "n'a pas de paramètre « max »"),
+            ("Page(state: State(a: 0), children: [ Input(value: a, label: 3) ])", "est mal écrit"),
+            ("Page(state: State(a: 0), prices: Prices(a: 1), children: [ Input(value: total, label: \"x\") ])", "aucune valeur ne s'appelle « total »"),
+        ] {
+            let erreur = page(source).unwrap_err();
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
     }
 
     #[test]

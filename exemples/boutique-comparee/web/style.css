@@ -105,3 +105,8 @@ blockquote p { margin: 0 0 4px 0; }
 blockquote footer { font-style: normal; font-size: 0.9em; opacity: 0.7; }
 pre { font-family: ui-monospace, Consolas, monospace; background: rgba(127, 127, 127, 0.18); padding: 8px 12px; border-radius: 6px; }
 [hidden] { display: none !important; }
+
+/* La case et le champ. */
+.check { display: flex; align-items: center; gap: 8px; margin: 0 0 16px 0; cursor: pointer; }
+.field { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; margin: 0 0 16px 0; }
+.field input { font: inherit; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 6px; padding: 6px 10px; width: 120px; }

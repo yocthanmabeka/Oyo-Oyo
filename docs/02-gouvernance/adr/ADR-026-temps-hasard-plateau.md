@@ -1,10 +1,10 @@
 # ADR-026 — Le temps (`Every`), le hasard (`random`), le plateau (`Board`) : un premier jeu
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ pour l'instant ; l'écriture exacte reste à revoir avec les noms
 - Date : 2026-10-04
 - Responsable : Yocthan Mabeka
 - Discussions sources : journal du 2026-10-04 ; `docs/01-holocode/COMPARATIF-CONCURRENTS.md` (planning, étape 2)
-- Validation : Yocthan, le 2026-10-04 : « Il faudra qu'on pense à rajouter des mots dans le langage pour pouvoir construire un vrai jeu à 100 % sur HoloCode », puis, sur le planning : « Oui, commence », et « après on passe au point 2 ». L'écriture est une proposition de Claude ; à juger après essai.
+- Validation : Yocthan, le 2026-10-04, après avoir joué : « Techniquement, c'est pas mal. Je valide les jeux. » Avant cela : Yocthan, le 2026-10-04 : « Il faudra qu'on pense à rajouter des mots dans le langage pour pouvoir construire un vrai jeu à 100 % sur HoloCode », puis, sur le planning : « Oui, commence », et « après on passe au point 2 ». L'écriture est une proposition de Claude ; à juger après essai.
 - Projets affectés : HoloCode, HoloEngine
 
 ## Contexte
@@ -49,6 +49,15 @@ Page(
 4. **Le hasard est rejouable.** Ce n'est pas un vrai hasard : c'est le énième nombre d'une suite fixée par le nom de la page. Les mêmes gestes aux mêmes moments redonnent la même partie (`ADR-008`).
 5. **L'horloge se tait quand on ne regarde pas** : fenêtre cachée, vue points, carrefour ouvert.
 6. Arrêter et relancer se fait sans mot nouveau : le temps ne descend pas sous zéro, et les conditions (`ADR-025`) montrent le jeu ou l'écran de fin selon qu'il reste du temps.
+
+## Correction du 2026-10-04, après le premier essai de Yocthan
+
+Yocthan a joué et n'a pas pu gagner : « on commence avec un petit handicap », et « l'étoile est ultra rapide sur PC ». Deux défauts :
+
+- **Une horloge par rythme.** Toutes les règles à une seconde partageaient la même horloge, qui battait sans s'occuper des gestes. En appuyant sur « Play » juste avant un battement, la première seconde durait un dixième de seconde.
+- **L'étoile bougeait chaque seconde**, y compris juste après avoir été touchée.
+
+Corrigé : **chaque règle `Every` a sa propre horloge**, et **quand un geste change une valeur, l'horloge de cette valeur repart de zéro**. Après « Play », la première seconde est une vraie seconde ; une étoile qu'on vient de toucher reste deux vraies secondes à sa nouvelle place. Dans le jeu, l'étoile bouge maintenant toutes les deux secondes.
 
 ## Comparaison faite avant de choisir
 

@@ -540,6 +540,7 @@ Page(
 - Le rythme s'écrit en `s` ou en `ms`, de `100ms` à `3600s`.
 - L'effet est une demande, comme pour `On`.
 - L'horloge se tait quand la fenêtre est cachée, en vue points et devant le carrefour.
+- Chaque règle `Every` a sa propre horloge. Quand un geste change une valeur, l'horloge de cette valeur repart de zéro : après `On(Play.tap, effect: time.set(30))`, la première seconde dure une vraie seconde.
 
 **Le hasard : `random`.** `star_x.random(100)` donne à `star_x` un nombre de 0 à 100, bornes comprises. Ce hasard est rejouable : les mêmes gestes, aux mêmes moments, redonnent la même partie.
 
@@ -557,6 +558,52 @@ Page(
 **Commencer et finir sans mot de plus.** Le temps ne descend pas sous zéro. Les conditions font le reste : `If(time, is: 0)` montre le bouton « Play » et le score, `If(time, over: 0)` montre le plateau.
 
 Cette écriture est à l'essai (`ADR-026`).
+
+## 6 quinquies. Saisir, et garder : `Input`, `Checkbox`, `keep`
+
+```holo
+Page(
+  title: "My shop",
+
+  state: State(cart: 0, gift: 0, tip: 0),
+  keep: [cart, gift, tip],
+
+  children: [
+    Button(name: Add, text: "Add a painting"),
+    Text("{cart} paintings in your cart"),
+
+    Checkbox(value: gift, label: "Gift wrap"),
+    If(gift, is: 1, children: [
+      "We will wrap your paintings.",
+    ]),
+
+    Input(value: tip, label: "A tip, in euros", max: 50),
+    If(tip, over: 0, children: [
+      Text("Thank you for the {tip} euros."),
+    ]),
+  ],
+
+  rules: [
+    On(Add.tap, effect: cart.add(1)),
+  ],
+)
+```
+
+| Bloc | Ce que c'est | Réglages |
+|---|---|---|
+| `Checkbox` | Une case à cocher. Cochée, la valeur vaut 1 ; sinon 0. | `value`, `label` |
+| `Input` | Un champ où l'on écrit un nombre entier. | `value`, `label`, `max` |
+
+- `value` est le nom d'une valeur de `State`. Le champ la montre, et la change quand le visiteur écrit. Il n'y a pas de règle à écrire.
+- `label` est obligatoire : il dit ce qu'on attend.
+- `max` borne ce qu'on peut écrire : au-delà, la valeur s'arrête à `max`.
+- Ce qui n'est pas un nombre ne change rien.
+
+**Garder d'une visite à l'autre.** `keep: [cart, gift, tip]`, sur la page, nomme les valeurs que le navigateur du visiteur garde. Il recharge la page, ou revient demain : elles sont encore là. Les valeurs qui ne sont pas dans `keep` repartent de leur départ.
+
+Limites : seulement des nombres (pas encore de champ de texte) ; ce qui est gardé reste sur cet appareil.
+
+Cette écriture est à l'essai (`ADR-027`).
 
 ## 7. Comment la page se regarde : `Zoom`, `Points`, `Relief`
 
@@ -701,7 +748,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 
 | Bloc | Réglages | Où |
 |---|---|---|
-| `Page` | `name`, `title`, `children`, `pixels`, `rules`, `state`, `prices`, `zoom`, `points`, `relief`, `portals` | À la racine |
+| `Page` | `name`, `title`, `children`, `pixels`, `rules`, `state`, `prices`, `keep`, `zoom`, `points`, `relief`, `portals` | À la racine |
 | `H1`, `H2`, `H3`, `P`, `Text` | le texte entre guillemets ; `name` | Dans `children` |
 | `A` | le texte entre guillemets, `to` | Dans `children` |
 | `Image` | `source`, `weight`, `alt`, `name` | Dans `children` |
@@ -716,6 +763,8 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Row`, `Column` | `children`, `gap`, `align`, `name` | Dans `children` |
 | `Grid` | `children`, `gap`, `columns`, `name` | Dans `children` |
 | `Board` | `children`, `height`, `name` ; ses enfants prennent `x` et `y` | Dans `children` |
+| `Input` | `value`, `label`, `max`, `name` | Dans `children` |
+| `Checkbox` | `value`, `label`, `name` | Dans `children` |
 | `On` | le signal, puis `effect:` | Dans `rules` |
 | `Every` | le rythme, puis `effect:` | Dans `rules` |
 | `State` | les valeurs et leur départ : `cart: 0` | Dans `state:` d'une `Page` |
@@ -748,9 +797,11 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Une valeur que la page retient | `state: State(cart: 0)` | fait, à l'essai |
 | Afficher une valeur | `{cart}` dans un texte | fait, à l'essai |
 | Changer une valeur | les demandes `add`, `sub`, `set` | fait |
-| Répéter une règle dans le temps | `Every(1s, effect:)` | fait, à l'essai |
-| Le hasard | la demande `random` | fait, à l'essai |
-| Placer librement | `Board`, et `x:`, `y:` sur ses enfants | fait, à l'essai |
+| Répéter une règle dans le temps | `Every(1s, effect:)` | fait |
+| Le hasard | la demande `random` | fait |
+| Placer librement | `Board`, et `x:`, `y:` sur ses enfants | fait |
+| Écrire un nombre, cocher une case | `Input(value:, label:, max:)`, `Checkbox(value:, label:)` | fait, à l'essai |
+| Garder une valeur d'une visite à l'autre | `keep: [cart]` | fait, à l'essai |
 | Montrer ou cacher selon une valeur | `If(cart, is:, not:, over:, under:)` | fait, à l'essai |
 | Un trait, une citation, du texte tel quel | `Hr()`, `Quote(by:)`, `Code`, les accents graves | fait, à l'essai |
 | Le retour à la ligne | un texte entre trois guillemets | fait, à l'essai |
@@ -781,8 +832,8 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 
 - Les imports (`import`, `module`, `bridge js`, `bridge css`) : le moteur les lit mais ne les applique pas.
 - Pour la disposition : pas de largeur par élément, pas d'élément qui prend la place restante.
-- Les formulaires, les données venues d'ailleurs.
-- Pour les valeurs : seulement des nombres entiers. Pas de texte, pas de liste, pas d'autre calcul que le nombre et le total d'un panier, rien n'est gardé après un rechargement.
+- Le champ de texte, la liste de choix, l'envoi d'un formulaire ; les données venues d'ailleurs.
+- Pour les valeurs : seulement des nombres entiers. Pas de texte, pas de liste, pas d'autre calcul que le nombre et le total d'un panier, pas de comparaison entre deux valeurs.
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
 - Les garde-fous de zoom pour un `Point` seul : ils sont encore fixés dans le moteur.

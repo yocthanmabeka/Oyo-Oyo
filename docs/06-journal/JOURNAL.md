@@ -6,6 +6,40 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Le jeu corrigé et validé ; étape 3 : la case, le champ, les valeurs gardées
+
+**Ce que Yocthan a dit, après avoir joué**
+
+- « Techniquement, c'est pas mal. Je valide les jeux. » Mais il n'a pas pu gagner une partie : « on commence avec un petit handicap », et « l'étoile est ultra rapide sur PC ». Sur téléphone, toucher est un seul geste ; à la souris, il en faut deux.
+- « Tu corriges, ensuite tu fais l'étape 3. »
+
+**Le jeu, corrigé** (`ADR-026`, qui passe à « accepté pour l'instant » sur sa décision)
+
+- Claude avait d'abord joué une partie entière automatiquement dans Chrome : 42 touchers, l'étoile jamais hors du plateau, écran de fin, rejouer. C'est là qu'il a vu la première seconde trop courte. Mais un test automatique vise sans effort : il n'a pas vu que le jeu était trop dur pour une main.
+- Chaque règle `Every` a maintenant sa propre horloge, et quand un geste change une valeur, l'horloge de cette valeur repart de zéro. Mesuré dans Chrome : après « Play », 30 à 0,8 s, 29 à 1,2 s.
+- L'étoile bouge toutes les deux secondes, et reste deux vraies secondes là où elle arrive après un toucher.
+
+**Étape 3, première moitié** (`ADR-027`, à l'essai)
+
+- **`Checkbox(value: gift, label: "…")`** : une case ; cochée, la valeur vaut 1.
+- **`Input(value: tip, label: "…", max: 50)`** : un champ où l'on écrit un nombre. L'étiquette est obligatoire. C'est l'arbitre qui change la valeur, et il la borne.
+- **`keep: [noms]`** : les valeurs que le navigateur du visiteur garde. On recharge, le panier est encore là.
+- La boutique : une case « Gift wrap » et un pourboire, qui apparaissent dès que le panier n'est plus vide. Sa jumelle web fait de même, avec `localStorage` écrit et relu à la main.
+
+![La case cochée et le champ, borné à 50](images/2026-10-04-case-et-champ.png)
+
+- 82 tests du moteur. Vérifié dans Chrome : 999 écrit dans le champ devient 50 ; après rechargement, la case, le pourboire et le panier sont encore là.
+
+**Ce qui reste de l'étape 3**
+
+- Le champ de texte (un nom, une recherche). Il demande des valeurs qui soient du texte : c'est le prochain morceau.
+
+**Limite vue**
+
+- La page arrive du serveur avec les valeurs de départ, puis prend les valeurs gardées : on peut voir « 0 » un instant.
+
+---
+
 ## 2026-10-04 — Étape 2 du planning : le temps, le hasard, le plateau, et un premier jeu
 
 **Fait** (`ADR-026`, à l'essai)
