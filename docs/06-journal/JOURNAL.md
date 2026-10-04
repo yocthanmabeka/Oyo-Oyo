@@ -6,6 +6,38 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Big Bang : le point nous absorbe, au lieu de disparaître
+
+**Ce que Yocthan a vu**
+
+- Il a demandé d'ouvrir tous les sites pour les essayer. Dans le Big Bang : « Le point devrait s'agrandir et nous faire immerger à l'intérieur. Ici, en grossissant, au lieu de nous absorber, il disparaît. C'est un gros problème. »
+
+**La cause**
+
+- On entrait dans le point visé à un zoom fixe, alors qu'il n'occupait encore qu'un quart de l'écran. L'image était alors remplacée d'un coup par le nouveau monde, dessiné comme un petit point entier. Le point n'avait pas le temps de nous entourer : il sautait.
+
+![Avant : juste avant l'entrée, le point visé n'occupe qu'un quart de l'écran](images/2026-10-04-big-bang-avant-correction.png)
+
+**Corrigé**
+
+- On entre quand le point visé déborde de l'écran de tous les côtés.
+- Le monde qu'il contient se voit dedans et grandit avec lui ; ses points sont placés exactement là où le nouveau monde les dessine une fois entré. Un test le vérifie : aucun point n'apparaît d'un coup.
+- La couleur du point, qui remplissait l'écran, se dissipe autour de nous en moins d'une demi-seconde.
+- En ressortant, on retrouve le point quitté à la taille qu'avait son monde, refermé.
+
+![Juste avant d'entrer : le point remplit l'écran, son monde grandit dedans](images/2026-10-04-big-bang-absorbe.png)
+
+![Juste après : les mêmes points, aux mêmes places](images/2026-10-04-big-bang-dedans.png)
+
+- 76 tests du moteur.
+
+**Ce qui change par ailleurs**
+
+- Il faut zoomer plus longtemps pour entrer dans un point (environ une fois et demie plus).
+- Le téléphone n'était plus détecté par le câble : les sites n'ont été ouverts que sur l'ordinateur.
+
+---
+
 ## 2026-10-04 — Le mode de secours mesuré sur le Flip 3
 
 **Fait**

@@ -19,12 +19,17 @@ pub struct Sprite {
     pub couleur: [f32; 4],
 }
 
-/// Zoom à partir duquel on entre dans le point visé.
-pub const ZOOM_ENTREE: f32 = 3.6;
-/// Zoom juste après l'entrée : le nouveau point est entier, prêt à se morceler.
-pub const ZOOM_APRES_ENTREE: f32 = 0.55;
-/// Zoom juste après la sortie : on voit de nouveau le point que l'on vient de quitter, gros.
-pub const ZOOM_APRES_SORTIE: f32 = 3.0;
+/// La taille que le point visé doit atteindre à l'écran pour qu'on y entre : il déborde alors
+/// de tous les côtés, il nous a absorbés. (La demi-hauteur de l'écran vaut 1.)
+pub const RAYON_ENTREE: f32 = 3.0;
+/// Zoom juste après l'entrée : les points du nouveau monde sont écartés, exactement là où on
+/// les voyait grandir à l'intérieur du point. Rien ne saute.
+pub const ZOOM_APRES_ENTREE: f32 = 1.0;
+/// La taille d'un point entier, pas encore morcelé. En ressortant d'un monde, on retrouve le
+/// point quitté à cette taille : celle qu'avait son monde, refermé, juste avant.
+const RAYON_DU_POINT: f32 = 0.42;
+/// De combien l'agrandissement double par unité de zoom.
+const CROISSANCE: f32 = 1.35;
 
 const DISTANCE_CAMERA: f32 = 3.2;
 const FOCALE: f32 = 1.7;
@@ -44,6 +49,9 @@ pub struct Navigation {
     pub tangage: f32,
     /// 1 juste après une entrée ou une sortie, puis décroît : adoucit le changement de monde.
     pub transition: f32,
+    /// La couleur du point dans lequel on vient d'entrer : elle remplissait l'écran, elle se
+    /// dissipe autour de nous pendant la transition.
+    enveloppe: Option<[f32; 3]>,
     /// Secondes écoulées, pour la pulsation du point visé.
     temps: f32,
 }
@@ -73,6 +81,7 @@ impl Navigation {
             lacet: 0.0,
             tangage: 0.0,
             transition: 0.0,
+            enveloppe: None,
             temps: 0.0,
         };
         nav.choisir_focal();
@@ -143,8 +152,10 @@ impl Navigation {
         if self.zoom < 1.2 {
             self.choisir_focal();
         }
-        if self.zoom >= ZOOM_ENTREE {
-            self.entrer();
+        // On entre quand le point visé a grandi jusqu'à déborder de l'écran : il nous absorbe.
+        let rayon = self.rayon_du_point_vise();
+        if rayon >= RAYON_ENTREE {
+            self.entrer(rayon);
         } else if self.zoom < 0.0 {
             if self.chemin.is_empty() {
                 self.zoom = 0.0;
@@ -160,12 +171,22 @@ impl Navigation {
         self.temps = (self.temps + dt) % 1000.0;
     }
 
-    fn entrer(&mut self) {
+    /// La taille, à l'écran, du point visé.
+    fn rayon_du_point_vise(&self) -> f32 {
+        let (m, s, _) = self.parametres();
+        let e = &self.courant.enfants[self.focal];
+        let (_, k) = self.projeter(echelle(e.position, m));
+        e.rayon * k * (0.35 + 0.65 * m) * s
+    }
+
+    fn entrer(&mut self, rayon: f32) {
         let enfant = &self.courant.enfants[self.focal];
+        self.enveloppe = Some(enfant.couleur);
         let nouveau = self.apercu.take().filter(|m| m.graine == enfant.graine).unwrap_or_else(|| Monde::depuis_graine(enfant.graine));
         self.chemin.push((self.courant.graine, self.focal));
         self.courant = nouveau;
-        self.zoom = ZOOM_APRES_ENTREE;
+        // Si le dernier geste a dépassé le seuil, on garde l'élan : la vue continue d'où elle était.
+        self.zoom = ZOOM_APRES_ENTREE + (rayon / RAYON_ENTREE).log2() / CROISSANCE;
         self.transition = 1.0;
         self.focal_choisi = false;
         self.choisir_focal();
@@ -179,7 +200,11 @@ impl Navigation {
         }
         self.focal = focal.min(self.courant.enfants.len() - 1);
         self.focal_choisi = false;
-        self.zoom = ZOOM_APRES_SORTIE;
+        self.enveloppe = None;
+        // On retrouve le point quitté à la taille qu'avait son monde, refermé en un seul point.
+        let e = &self.courant.enfants[self.focal];
+        let (_, k) = self.projeter(e.position);
+        self.zoom = 1.0 + (RAYON_DU_POINT / (e.rayon * k)).max(1.0).log2() / CROISSANCE;
         self.transition = 1.0;
     }
 
@@ -231,7 +256,7 @@ impl Navigation {
     /// recentrage sur le point visé, tous dérivés du zoom.
     fn parametres(&self) -> (f32, f32, f32) {
         let m = doux((self.zoom / 1.0).clamp(0.0, 1.0));
-        let s = 2f32.powf((self.zoom - 1.0).max(0.0) * 1.35);
+        let s = 2f32.powf((self.zoom - 1.0).max(0.0) * CROISSANCE);
         let recentrage = doux(((self.zoom - 1.0) / 0.8).clamp(0.0, 1.0));
         (m, s, recentrage)
     }
@@ -276,42 +301,53 @@ impl Navigation {
     /// Tout ce qu'il faut dessiner, pour un écran de rapport largeur/hauteur `aspect`.
     pub fn sprites(&self, aspect: f32) -> Vec<Sprite> {
         let (m, s, recentrage) = self.parametres();
-        let voile = 1.0 - 0.6 * self.transition;
         let lumiere = self.courant.lumiere;
         let mut sprites = Vec::with_capacity(self.courant.enfants.len() + 24);
         let centre = self.centre_ecran(m, recentrage);
 
+        // On vient d'entrer : la couleur du point, qui remplissait l'écran, se dissipe autour de nous.
+        if let (Some(c), true) = (self.enveloppe, self.transition > 0.0) {
+            sprites.push(Sprite { x: 0.0, y: 0.0, rayon: RAYON_ENTREE * (1.0 + 0.8 * (1.0 - self.transition)), couleur: [c[0], c[1], c[2], self.transition] });
+        }
+
         // Le point lui-même : entier au départ, il s'efface à mesure qu'il se morcelle.
         let c = self.courant.couleur;
-        let eclat = lumiere * (1.0 - 0.8 * m) * (1.0 - 0.85 * recentrage) * voile;
-        sprites.push(Sprite { x: -centre[0] * s, y: -centre[1] * s, rayon: 0.42 * (1.0 - 0.75 * m) * s, couleur: [c[0], c[1], c[2], eclat] });
+        let eclat = lumiere * (1.0 - 0.8 * m) * (1.0 - 0.85 * recentrage);
+        sprites.push(Sprite { x: -centre[0] * s, y: -centre[1] * s, rayon: RAYON_DU_POINT * (1.0 - 0.75 * m) * s, couleur: [c[0], c[1], c[2], eclat] });
 
         for p in self.points_ecran(aspect) {
             let e = &self.courant.enfants[p.index];
             let vise = p.index == self.focal;
             let attenuation = if vise { 1.0 } else { 1.0 - 0.5 * recentrage };
-            let alpha = (0.35 + 0.65 * m) * lumiere * voile * attenuation;
+            let alpha = (0.35 + 0.65 * m) * lumiere * attenuation;
 
             // Le point visé est signalé par un halo blanc qui respire, dès que les points
             // sont écartés et jusqu'à ce que l'on soit dedans.
             if vise && m > 0.3 {
                 let pulsation = 0.5 + 0.5 * (self.temps * 3.0).sin();
-                let force = (m - 0.3) / 0.7 * (1.0 - 0.6 * recentrage) * voile;
+                // Le halo s'efface à mesure que le point nous entoure.
+                let force = (m - 0.3) / 0.7 * (1.0 - 0.6 * recentrage) * (1.0 - (p.rayon / RAYON_ENTREE).clamp(0.0, 1.0));
                 sprites.push(Sprite { x: p.x, y: p.y, rayon: p.rayon * (1.55 + 0.15 * pulsation), couleur: [1.0, 1.0, 1.0, 0.22 * force] });
             }
             sprites.push(Sprite { x: p.x, y: p.y, rayon: p.rayon, couleur: [e.couleur[0], e.couleur[1], e.couleur[2], alpha] });
 
-            // Dans le point visé, on aperçoit déjà le monde qu'il contient.
+            // Dans le point visé, on voit déjà le monde qu'il contient, et il grandit avec lui.
+            // Ses points sont placés comme ils le seront une fois dedans : quand le point visé
+            // atteint `RAYON_ENTREE`, ils sont exactement là où le nouveau monde les dessine.
+            // On ne change pas d'image en entrant : on est absorbé.
             if vise && s > 1.8 {
                 if let Some(interieur) = &self.apercu {
-                    let visibilite = ((s - 1.8) / 2.5).clamp(0.0, 1.0) * voile;
+                    let visibilite = ((s - 1.8) / 2.5).clamp(0.0, 1.0);
+                    let taille = p.rayon / RAYON_ENTREE;
+                    let ci = interieur.couleur;
+                    sprites.push(Sprite { x: p.x, y: p.y, rayon: RAYON_DU_POINT * 0.25 * taille, couleur: [ci[0], ci[1], ci[2], interieur.lumiere * 0.2 * visibilite] });
                     for g in &interieur.enfants {
-                        let q = self.tourner_point(g.position);
+                        let (q, k) = self.projeter(g.position);
                         sprites.push(Sprite {
-                            x: p.x + q[0] * p.rayon * 0.72,
-                            y: p.y + q[1] * p.rayon * 0.72,
-                            rayon: (0.1 + 0.03 * q[2]) * p.rayon,
-                            couleur: [g.couleur[0], g.couleur[1], g.couleur[2], visibilite * (0.6 + 0.4 * q[2].max(0.0))],
+                            x: p.x + q[0] * taille,
+                            y: p.y + q[1] * taille,
+                            rayon: g.rayon * k * taille,
+                            couleur: [g.couleur[0], g.couleur[1], g.couleur[2], interieur.lumiere * visibilite],
                         });
                     }
                 }
@@ -363,25 +399,28 @@ mod tests {
             nav.zoomer(0.25);
         }
         assert!(nav.surface()[2] > depart[2], "elle grandit quand on s'approche");
-        for _ in 0..8 {
+        for _ in 0..24 {
             nav.zoomer(0.25);
         }
-        assert_eq!(nav.surface()[5], 1.0, "entré dans un point, on a quitté le lieu de la surface");
+        assert!(nav.surface()[5] >= 1.0, "entré dans un point, on a quitté le lieu de la surface");
     }
 
     #[test]
     fn le_zoom_fait_entrer_puis_ressortir() {
         let mut nav = depart();
-        for _ in 0..40 {
+        for _ in 0..200 {
+            if nav.profondeur() == 2 {
+                break;
+            }
             nav.zoomer(0.1);
         }
         assert_eq!(nav.profondeur(), 2, "zoom {}", nav.zoom);
         assert!(nav.chemin().starts_with("Origin › "));
-        assert!((nav.zoom - ZOOM_APRES_ENTREE).abs() < 1e-5 || nav.zoom > ZOOM_APRES_ENTREE);
+        assert!(nav.zoom >= ZOOM_APRES_ENTREE && nav.zoom < ZOOM_APRES_ENTREE + 0.2, "zoom {}", nav.zoom);
         let graine_interieure = nav.graine_courante();
         assert_ne!(graine_interieure, 1);
 
-        for _ in 0..60 {
+        for _ in 0..200 {
             nav.zoomer(-0.1);
         }
         assert_eq!(nav.profondeur(), 1);
@@ -390,10 +429,59 @@ mod tests {
     }
 
     #[test]
+    fn on_est_absorbe_par_le_point_sans_que_rien_ne_saute() {
+        // Yocthan, le 2026-10-04 : « le point devrait s'agrandir et nous faire immerger à
+        // l'intérieur ; ici, en grossissant, il disparaît. »
+        let mut nav = depart();
+        let mut avant = Vec::new();
+        let mut rayon_avant = 0.0;
+        for _ in 0..20000 {
+            if nav.profondeur() == 2 {
+                break;
+            }
+            avant = nav.sprites(2.0);
+            rayon_avant = nav.rayon_du_point_vise();
+            nav.zoomer(0.002);
+        }
+        assert_eq!(nav.profondeur(), 2);
+        // Juste avant d'entrer, le point visé couvre l'écran, même large : il nous entoure.
+        assert!(rayon_avant > RAYON_ENTREE * 0.99 && rayon_avant > (2.0f32 * 2.0 + 1.0).sqrt(), "rayon {rayon_avant}");
+        // Juste après, chaque point du nouveau monde est là où on le voyait déjà, à la même taille.
+        for p in nav.points_ecran(2.0) {
+            let deja_la = avant.iter().any(|s| (s.x - p.x).abs() < 0.01 && (s.y - p.y).abs() < 0.01 && (s.rayon / p.rayon - 1.0).abs() < 0.02);
+            assert!(deja_la, "le point {} apparaît d'un coup en ({}, {})", p.index, p.x, p.y);
+        }
+        // Et la couleur du point, qui remplissait l'écran, est encore là : elle se dissipe ensuite.
+        let apres = nav.sprites(2.0);
+        assert!(apres.iter().any(|s| s.rayon >= RAYON_ENTREE && s.couleur[3] > 0.9), "l'enveloppe manque");
+        nav.avancer_temps(1.0);
+        assert!(nav.sprites(2.0).iter().all(|s| s.rayon < RAYON_ENTREE), "l'enveloppe ne s'est pas dissipée");
+    }
+
+    #[test]
+    fn en_ressortant_on_retrouve_le_point_quitte_a_la_taille_de_son_monde() {
+        let mut nav = depart();
+        for _ in 0..2000 {
+            if nav.profondeur() == 2 {
+                break;
+            }
+            nav.zoomer(0.05);
+        }
+        for _ in 0..2000 {
+            if nav.profondeur() == 1 {
+                break;
+            }
+            nav.zoomer(-0.05);
+        }
+        assert_eq!(nav.profondeur(), 1);
+        assert!((nav.rayon_du_point_vise() - RAYON_DU_POINT).abs() < 0.01, "rayon {}", nav.rayon_du_point_vise());
+    }
+
+    #[test]
     fn deux_parcours_identiques_donnent_les_memes_images() {
         let parcours = |nav: &mut Navigation| {
             let mut images = Vec::new();
-            for i in 0..60 {
+            for i in 0..120 {
                 nav.tourner(0.03, if i % 7 == 0 { 0.01 } else { 0.0 });
                 nav.zoomer(0.08);
                 nav.avancer_temps(1.0 / 60.0);
@@ -420,7 +508,10 @@ mod tests {
         assert_eq!(nav.focal(), cible, "une cible touchée tient malgré la rotation");
         assert!(!nav.viser_ecran(5.0, 5.0, 0.5), "toucher dans le vide ne change rien");
         assert_eq!(nav.focal(), cible);
-        for _ in 0..40 {
+        for _ in 0..200 {
+            if nav.profondeur() == 2 {
+                break;
+            }
             nav.zoomer(0.1);
         }
         assert_eq!(nav.profondeur(), 2);
@@ -430,13 +521,13 @@ mod tests {
     #[test]
     fn la_pile_ne_garde_que_deux_nombres_par_niveau() {
         let mut nav = depart();
-        for _ in 0..400 {
+        for _ in 0..800 {
             nav.zoomer(0.1);
         }
         assert!(nav.profondeur() >= 9, "profondeur {}", nav.profondeur());
         assert_eq!(std::mem::size_of::<(u64, usize)>() * nav.chemin.len(), 16 * nav.chemin.len());
         // Ressortir jusqu'à la racine redonne exactement le monde de départ.
-        for _ in 0..2000 {
+        for _ in 0..4000 {
             nav.zoomer(-0.1);
         }
         nav.avancer_temps(10.0);
