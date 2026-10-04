@@ -354,7 +354,12 @@
 
   // Écrit les valeurs de la page là où ses textes les montrent : « {cart} ».
   function montrerLesValeurs(ou = racine, ecrit = etats.get(chemin) ?? "", texteDuFichier = source) {
-    const valeurs = new Map(ecrit.split(";").filter(Boolean).map((morceau) => morceau.split("=")));
+    // Un texte voyage codé, précédé d'une apostrophe : buyer='Zo%C3%A9. Un nombre, tel quel.
+    const lisible = (valeur) => (valeur.startsWith("'") ? decodeURIComponent(valeur.slice(1)) : valeur);
+    const valeurs = new Map(ecrit.split(";").filter(Boolean).map((morceau) => {
+      const coupe = morceau.indexOf("=");
+      return [morceau.slice(0, coupe), lisible(morceau.slice(coupe + 1))];
+    }));
     for (const place of ou.querySelectorAll("[data-state]")) {
       if (valeurs.has(place.dataset.state)) place.textContent = valeurs.get(place.dataset.state);
     }

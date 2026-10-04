@@ -45,7 +45,8 @@ Page(
 
   // Les valeurs de la page : ce qu'elle retient. Ici, combien de chaque tableau est dans le
   // panier. Tout part de zéro.
-  state: State(sunrise: 0, blue_door: 0, market_day: 0, gift: 0, tip: 0),
+  // Une valeur est un nombre entier, ou un texte entre guillemets (buyer : le prénom de l'acheteur).
+  state: State(sunrise: 0, blue_door: 0, market_day: 0, gift: 0, tip: 0, buyer: ""),
 
   // Les prix. Chacun porte le nom d'une valeur : c'est le prix de cet article. Dès qu'une page
   // donne des prix, le moteur calcule deux valeurs de plus, qu'on affiche comme les autres :
@@ -54,7 +55,7 @@ Page(
 
   // Ce que la page garde d'une visite à l'autre, dans le navigateur du visiteur : on recharge
   // la page, le panier est encore là. Les autres valeurs repartent de leur départ.
-  keep: [sunrise, blue_door, market_day, gift, tip],
+  keep: [sunrise, blue_door, market_day, gift, tip, buyer],
 
   // Le carrefour : les portails vers les mondes voisins. Il s'ouvre quand on entre dans un
   // point, ou par le bouton « Carrefour ». Les sites écrits dans ce fichier passent d'abord ;
@@ -151,6 +152,14 @@ Page(
       Input(value: tip, label: "A tip for the painter, in euros", max: 50),
       If(tip, over: 0, children: [
         Text.note("Thank you for the {tip} euros."),
+      ]),
+
+      // Le même bloc présente un texte : le champ devient un champ de texte, et « max » borne
+      // sa longueur. Un texte se montre comme un nombre, entre accolades. On peut demander
+      // s'il est vide (is: "") ou rempli (not: "").
+      Input(value: buyer, label: "Your first name", max: 20),
+      If(buyer, not: "", children: [
+        Text.note("This order is for {buyer}."),
       ]),
     ]),
 

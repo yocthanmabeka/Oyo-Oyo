@@ -119,12 +119,13 @@ const prices = { sunrise: 120, blue_door: 90, market_day: 150 };
 const cart = { sunrise: 0, blue_door: 0, market_day: 0 };
 let gift = false;
 let tip = 0;
+let buyer = "";
 
 // En HoloCode : keep: [sunrise, blue_door, market_day, gift, tip]. Ici, il faut écrire soi-même
 // dans le navigateur, relire, et se méfier de ce qu'on relit.
 function save() {
   try {
-    localStorage.setItem("shop", JSON.stringify({ cart, gift, tip }));
+    localStorage.setItem("shop", JSON.stringify({ cart, gift, tip, buyer }));
   } catch { /* stockage refusé */ }
 }
 try {
@@ -134,6 +135,7 @@ try {
   }
   gift = saved.gift === true;
   if (Number.isInteger(saved.tip)) tip = Math.min(50, Math.max(0, saved.tip));
+  if (typeof saved.buyer === "string") buyer = saved.buyer.slice(0, 20);
 } catch { /* ce qui était gardé est illisible : on repart de zéro */ }
 
 function showCart() {
@@ -157,6 +159,9 @@ function showCart() {
   document.getElementById("gift-note").hidden = !gift;
   document.getElementById("tip-note").hidden = tip === 0;
   document.getElementById("tip-shown").textContent = tip;
+  document.getElementById("buyer-note").hidden = buyer === "";
+  // textContent, jamais innerHTML : sinon ce que le visiteur écrit deviendrait du code.
+  document.getElementById("buyer-shown").textContent = buyer;
   save();
 }
 
@@ -171,6 +176,11 @@ document.getElementById("tip").addEventListener("input", (event) => {
   showCart();
 });
 document.getElementById("tip").value = tip;
+document.getElementById("buyer").addEventListener("input", (event) => {
+  buyer = event.target.value.slice(0, 20);
+  showCart();
+});
+document.getElementById("buyer").value = buyer;
 
 for (const button of document.querySelectorAll("[data-add]")) {
   button.addEventListener("click", () => {

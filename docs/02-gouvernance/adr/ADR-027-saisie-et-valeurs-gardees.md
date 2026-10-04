@@ -39,6 +39,18 @@ Page(
 6. **`keep: [cart, gift, tip]`**, sur la page : ces valeurs sont gardées dans le navigateur du visiteur. Il recharge la page, ou revient demain : elles sont encore là. Les autres repartent de leur départ.
 7. Ce qui est relu du navigateur est tenu pour suspect : seules les valeurs nommées par `keep` sont reprises, et dans leurs bornes.
 
+## Ajout du même jour : les valeurs de texte
+
+Yocthan : « Tu termines l'étape 3. » Il manquait le champ de texte, et il lui fallait des valeurs qui soient du texte.
+
+- `State(buyer: "")` déclare un texte. `{buyer}` le montre.
+- `Input(value: buyer, label: "…", max: 20)` : le même bloc ; comme la valeur est un texte, le champ est un champ de texte, et `max` borne sa longueur (80 sans rien écrire, 200 au plus).
+- Un texte ne se compare qu'au vide : `If(buyer, is: "")`, `If(buyer, not: "")`.
+- Un texte ne change que par un champ. Il se garde par `keep`, comme un nombre.
+- Ce que le visiteur écrit est nettoyé (pas de caractère invisible), borné, et montré lettre pour lettre : il ne devient jamais du code. Vérifié avec « Zoé <b>&; Arc ».
+
+Choix faits : un seul bloc `Input` pour le nombre et le texte, plutôt que deux mots (en HTML, `input type=` a vingt-deux variantes) ; pas de comparaison de textes entre eux, qui appellerait vite « contient », « commence par », et des expressions.
+
 ## Comparaison faite avant de choisir
 
 | Question | Options | Choix, et pourquoi |
@@ -60,7 +72,7 @@ Défauts du web évités : en JavaScript, `localStorage` s'écrit et se relit à
 
 ### Négatives et risques
 
-- **Seulement des nombres.** Pas de champ de texte (un nom, une recherche) : il faut d'abord des valeurs qui soient du texte. C'est la moitié de l'étape 3 qui reste à faire.
+- Un texte ne se compare qu'au vide, et rien ne peut le changer hors d'un champ : pas encore de recherche ni de filtre.
 - Pas de liste de choix, pas de bouton radio, pas d'envoi à un serveur.
 - La page arrive du serveur avec les valeurs de départ, puis prend les valeurs gardées : on peut voir « 0 » un instant avant « 3 ».
 - Ce qui est gardé reste sur cet appareil, dans ce navigateur. Effacer les données du navigateur l'efface.
@@ -68,7 +80,6 @@ Défauts du web évités : en JavaScript, `localStorage` s'écrit et se relit à
 
 ## Ce qui reste à faire
 
-- Les valeurs de texte, puis le champ de texte.
 - La liste de choix.
 - Dire au visiteur ce que la page garde, et lui laisser l'effacer.
 
