@@ -547,7 +547,7 @@ Page(
 
 | Réglage | Sens | Valeurs |
 |---|---|---|
-| `Board(height:)` | La hauteur du plateau. | 80px à 800px ; 320px sans rien écrire |
+| `Board(height:)` | La hauteur du plateau, pour 640 de large. | 80px à 800px ; 320px sans rien écrire |
 | `x:` sur un bloc du plateau | Sa place de gauche à droite. | un nombre de 0 à 100, ou le nom d'une valeur |
 | `y:` sur un bloc du plateau | Sa place de haut en bas. | un nombre de 0 à 100, ou le nom d'une valeur |
 
@@ -607,6 +607,8 @@ Page(
 | `Key.space` | la barre d'espace |
 
 Seules les touches que le fichier écoute sont prises. Les autres gardent leur rôle.
+
+Un plateau garde ses proportions : 640 de large, `height` de haut. Sur un téléphone il rétrécit, et tout ce qu'il contient avec lui ; sur un grand écran il ne dépasse pas la largeur de la page, ni les quatre cinquièmes de la hauteur de l'écran. Une partie se joue donc pareil partout : la pomme touche le panier au même moment sur un téléphone et sur un ordinateur.
 
 **Faire glisser : `drag: true`.** Sur un bloc posé dans un `Board`, le visiteur peut le faire glisser, au doigt ou à la souris. Ses places, quand ce sont des valeurs de la page, suivent le doigt. Ici `basket` suit ; `y: 96` est un nombre fixe, donc le panier ne monte pas. Aucune règle à écrire.
 
