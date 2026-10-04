@@ -70,7 +70,28 @@ Le rapport contient : le moteur de rendu utilisé, les images par seconde, la pi
 | Repli WebGPU → WebGL 2 | Vérifié : sans carte graphique, le moteur bascule tout seul | |
 | Parcours complet en captures d'écran | point entier → morcellement → plongée avec aperçu du monde intérieur → entrée (« Origine › 7 ») | |
 
-Les images par seconde et la mémoire mesurées sur le PC sans carte graphique (rendu logiciel) n'ont aucun sens et ne sont pas reportées. **Les mesures qui comptent sont celles du téléphone, et elles ne sont pas encore faites.**
+Les images par seconde et la mémoire mesurées sur le PC sans carte graphique (rendu logiciel) n'ont aucun sens et ne sont pas reportées. **Les mesures qui comptent sont celles du téléphone : les voici.**
+
+## Ce qui est mesuré sur le téléphone
+
+Samsung Galaxy Z Flip 5 (SM-F731N), Chrome 153, le 2026-10-04, commit `d89c1e6`. Le téléphone est relié au PC par câble ; il ouvre `http://localhost:8080`, ce que Chrome tient pour une page sûre, donc WebGPU est offert. Écran vu par Chrome : 360 × 777, densité 3 ; zone de dessin : 720 × 1698 (la densité est plafonnée à 2).
+
+| Mesure | Résultat |
+|---|---|
+| Mode graphique | WebGPU |
+| Big Bang au repos | 59,7 images par seconde ; image la plus lente : 16,8 ms |
+| Big Bang, zoom continu pendant 6 s, à travers 7 mondes emboîtés | 59,8 images par seconde ; image la plus lente : 16,9 ms |
+| Première image, premier chargement | 3 521 ms |
+| Première image, moteur déjà en cache | 336 ms |
+| Boutique, page normale | prête en 122 ms ; le moteur ne dessine rien (0 image), aucune zone de dessin |
+| Boutique, entrée en vue points | 264 ms ; 1 118 880 points au repos (720 × 1554) |
+| Boutique, vue points, zoom continu pendant 6 s jusqu'à 4 morcellements | 59,7 images par seconde ; image la plus lente : 50,1 ms ; jamais plus de 6 344 points à l'écran |
+| Tas JavaScript | 10 Mo |
+| Mémoire du processus de l'onglet, vue points ouverte (`dumpsys meminfo`) | 88 Mo en part propre (PSS), 179 Mo résidents (RSS) |
+
+Ce que ces mesures ne disent pas : la consommation de batterie, l'échauffement dans la durée, le comportement sans WebGPU (WebGL 2), et celui d'un téléphone plus modeste. Une seule série a été faite.
+
+Pour refaire les mesures : `adb reverse tcp:8080 tcp:8080`, `adb forward tcp:9222 localabstract:chrome_devtools_remote`, ouvrir la page dans Chrome sur le téléphone (écran allumé et déverrouillé), puis `node outils/mesurer-telephone.mjs big-bang.holo @outils/mesures/big-bang.js` ou `node outils/mesurer-telephone.mjs boutique.holo @outils/mesures/vue-points.js`.
 
 ## Captures (Chrome sans fenêtre, rendu WebGL 2 logiciel)
 
