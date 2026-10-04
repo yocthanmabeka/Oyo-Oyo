@@ -61,6 +61,8 @@
   #carrefour.diagonale{flex-wrap:nowrap;align-items:flex-start}
   #carrefour.diagonale .portail{margin-top:calc(var(--rang) * var(--taille) * .55)}
   #carrefour .portail{flex:none}
+  /* Le passage direct vers un site : le point s'ouvre sur place, au-dessus de la page. */
+  #passage{position:fixed;inset:0;z-index:9;pointer-events:none}
   .portail{display:flex;flex-direction:column;align-items:center;gap:10px;padding:0;border:0;background:none;color:inherit;
     font:15px system-ui,sans-serif;cursor:pointer}
   .portail .apercu{display:block;position:relative;width:var(--taille);height:var(--taille);border-radius:50%;overflow:hidden;
@@ -809,10 +811,43 @@
 
   // ---------------------------------------------------------------- les règles du fichier
 
+  // Entrer dans un point : on y va directement, comme on suit un lien. Le point s'ouvre là où
+  // il est sur la page, grandit jusqu'à remplir la fenêtre, et devient le site. Le carrefour,
+  // lui, ne s'ouvre que si on le demande (son bouton, ou la capacité « portals »).
+  let entreeDirecte = false;
+  async function entrerDans(nom) {
+    const contenu = sitesContenus().find((s) => s.nom === nom);
+    if (!contenu || entreeDirecte) return;
+    // Le fichier d'un autre serveur : on ne le lit pas sans que le visiteur ait vu où il va.
+    // Là, le carrefour garde son rôle : il affiche le nom du serveur, et attend un clic.
+    if (contenu.fichier && dAilleurs(contenu.fichier)) return ouvrirCarrefour(nom);
+    if (contenu.fichier) {
+      contenu.texte = await lire(contenu.fichier);
+      if (contenu.texte === null) return ouvrirCarrefour(nom); // introuvable ou refusé : le carrefour le montre fermé
+    }
+    sortirDesPoints();
+    entreeDirecte = true;
+    const point = page.querySelector(`[data-name="${CSS.escape(nom)}"]`).getBoundingClientRect();
+    const taille = Math.max(point.width, 24);
+    const bouton = portail(contenu, taille, true);
+    bouton.querySelector(".nom").remove();
+    const passage = document.createElement("div");
+    passage.id = "passage";
+    Object.assign(bouton.style, { position: "fixed", left: `${point.left + point.width / 2 - taille / 2}px`, top: `${point.top + point.height / 2 - taille / 2}px` });
+    passage.append(bouton);
+    document.body.append(passage);
+    try {
+      await franchir(bouton);
+    } finally {
+      passage.remove();
+      entreeDirecte = false;
+    }
+  }
+
   function appliquer(effet) {
     const [nom, capacite] = effet.split(".");
     if (capacite === "enter" && sitesContenus().some((s) => s.nom === nom)) {
-      ouvrirCarrefour(nom);
+      entrerDans(nom);
     } else if (capacite === "portals") {
       // La page demande son carrefour : On(Map.tap, effect: Shop.portals).
       ouvrirCarrefour();

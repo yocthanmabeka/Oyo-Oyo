@@ -265,7 +265,7 @@ Page(
 )
 ```
 
-- On y passe **sans changer de page** : le carrefour s'ouvre, le portail montre l'autre fichier, on le franchit par une animation. L'adresse de la barre devient celle de l'autre fichier, et le bouton « retour » ramène.
+- On y passe **sans changer de page** : le point s'ouvre sur place, grandit jusqu'à remplir la fenêtre, et devient l'autre fichier. L'adresse de la barre devient celle de l'autre fichier, et le bouton « retour » ramène.
 - Les fichiers où mènent les points d'une page sont lus d'avance (ils sont petits) : le passage est immédiat. Un fichier introuvable ou refusé par le moteur laisse le passage fermé.
 - **Dézoomer** alors que la page est déjà à sa taille normale fait ressortir du monde où l'on est : on revient au site, ou au fichier, d'où l'on venait.
 - La différence avec `A` : `A` fait changer de page, à l'ancienne ; un `Point` se traverse à pied.
@@ -322,7 +322,8 @@ Page(
 - `above: Open` place le point juste au-dessus du bloc nommé `Open`, à l'extrémité droite de la page. C'est, pour l'instant, la seule façon de dire où il est.
 - `color` lui donne une couleur qui le distingue de la page.
 - `World.secret(...)` donne au site du dedans son propre style.
-- Entrer dans un point qui contient un site ouvre le **carrefour** : des portails ronds, chacun montrant le site où il mène. Celui vers lequel on va est au milieu, en grand ; autour, les autres sites contenus dans la page, le site où l'on est, et celui d'où l'on vient. Le bouton « Carrefour », en haut à droite, l'ouvre à tout moment.
+- Entrer dans un point qui contient un site y mène **directement**, comme un lien : le point s'ouvre là où il est, grandit jusqu'à remplir la fenêtre, et devient le site.
+- Le **carrefour** ne s'ouvre que si on le demande : par le bouton « Carrefour », en haut à droite, ou par une règle (`portals`). Il montre des portails ronds, chacun avec le site où il mène : les sites contenus dans la page, celui où l'on est, celui d'où l'on vient. Seule exception : un point qui mène au fichier d'un autre serveur passe par le carrefour, pour qu'on voie le nom du serveur avant d'y aller.
 - Un clic sur un portail l'ouvre : il grandit jusqu'à remplir la fenêtre et devient le site, sans recharger la page. C'est alors un site comme un autre, avec ses propres pixels où l'on peut zoomer. Le `World` d'un point accepte lui aussi `pixels:`, donc un site peut en contenir un autre, qui en contient un autre, sans fin.
 - Chaque site a son adresse : celle du fichier, puis `#` et le chemin des points traversés, comme `mon-site.holo#Secret/Tresor`. Le bouton « retour » du navigateur remonte d'un site.
 - `On(Out.tap, effect: Secret.leave)` fait ressortir du site `Secret`.
@@ -486,7 +487,7 @@ Le visiteur a aussi son mot à dire. S'il a choisi « réduire les animations »
 
 ### Le carrefour : `Portals`
 
-Le carrefour montre les mondes voisins sous forme de portails. Il s'ouvre quand on entre dans un point qui contient un site, par le bouton « Carrefour », ou par une règle : `On(Map.tap, effect: Shop.portals)`, où `Shop` est le nom de la page.
+Le carrefour montre les mondes voisins sous forme de portails. Il s'ouvre par le bouton « Carrefour », ou par une règle : `On(Map.tap, effect: Shop.portals)`, où `Shop` est le nom de la page.
 
 ```holo
 Page(
