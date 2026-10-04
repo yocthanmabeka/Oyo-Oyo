@@ -1,0 +1,39 @@
+// Leçon 33 — Un mouvement en boucle
+//
+// Ce qu'on apprend :
+//   loop: Loop(...) fait vivre un bloc sans fin. On écrit où il va ; il y va, et revient.
+//     scale: 1.3     il grossit et revient     (un battement)
+//     y: -20px       il monte et redescend     (il flotte)
+//     rotate: 360deg et back: false : il tourne sans revenir en arrière
+//     round: 50      un carré devient rond     (un morphing)
+//     hue: 180deg    sa couleur change
+//   for: la durée d'un aller ; ease: son caractère.
+//   Un bloc peut avoir enter: et loop: à la fois : il entre, puis il vit.
+//
+// À essayer :
+//   Mets « for: 0.3s » au cœur : il bat plus vite.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 33 : un mouvement en boucle",
+  children: [
+    H1("Ça vit"),
+    Row(gap: 32px, align: center, children: [
+      Shape(form: circle, color: "#F472B6", size: 50px, loop: Loop(scale: 1.3, for: 0.6s)),
+      Shape(form: square, color: "#4ECDC4", size: 50px, loop: Loop(y: -20px, for: 0.8s)),
+      Shape(form: diamond, color: "#A78BFA", size: 50px, loop: Loop(rotate: 360deg, back: false, for: 2s, ease: linear)),
+      Shape(form: square, color: "#E9B44C", size: 50px, enter: Enter(scale: 0), loop: Loop(round: 50, hue: 180deg, for: 1.2s)),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 32 : faire entrer un bloc", to: "32-entrer.holo"),
+      A("Leçon 34 : des scènes →", to: "34-scenes.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

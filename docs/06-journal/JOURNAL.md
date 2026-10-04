@@ -6,6 +6,36 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Le mouvement en HoloCode, et le duel du motion design
+
+**Ce que Yocthan a demandé**
+
+- Faire du motion design en HoloCode et en HTML, CSS, JavaScript, séparément, « tous les curseurs à 100 % », comme un CV pour être embauché ; puis : « fais une amélioration, sinon HoloCode sera battu ».
+
+**Fait** (`ADR-034`, à l'essai)
+
+- Le mouvement dans le langage : `enter: Enter(…)` (on écrit d'où le bloc part), `loop: Loop(…)` (où il va), `Scenes` et `Scene(for:)`. Dix choses bougent (`opacity`, `x`, `y`, `scale`, `rotate`, `flip`, `tilt`, `blur`, `hue`, `round`), sept caractères nommés (`linear` à `bounce`, dont le ressort), `letters:` et `each:`. Le moteur en fait du CSS : la page bouge sans le moteur.
+- Les leçons 32, 33, 34. Guide, noms, comparaison avec le web.
+- Deux films en sept scènes : `exemples/motion/holocode/showreel.holo` et `exemples/motion/web/showreel.html`, et leur comparaison dans `exemples/motion/README.md`.
+- 93 tests du moteur.
+
+**Le verdict**
+
+- En puissance, le web gagne : 520 particules physiques, morphing en n'importe quelle forme, cube en 3D, réaction à la souris.
+- En écriture, HoloCode gagne : environ 100 lignes sans programmer (206 avec les 36 éclats écrits un par un), contre 311 dont 200 de JavaScript. Téléchargé : 10 Ko contre 7 Ko.
+
+**Erreurs en route**
+
+- Dans le film web, les particules filaient hors de l'écran (trop rapides), et des cercles fantômes restaient sur le ciel (le voile sombre ne s'efface jamais tout à fait). Corrigé : vitesses réduites, et on estompe ce qui est dessiné au lieu de peindre du noir par-dessus.
+- Un son a un réglage `loop` à lui : le mouvement le prenait pour un `Loop`. Les sons sont laissés hors du mouvement.
+
+![Le Big Bang en HoloCode](images/2026-10-04-motion-holocode-big-bang.png)
+![Le morphing en HoloCode](images/2026-10-04-motion-holocode-morph.png)
+![Le Big Bang en HTML, CSS, JavaScript](images/2026-10-04-motion-web-big-bang.png)
+![Le cube en HTML, CSS, JavaScript](images/2026-10-04-motion-web-cube.png)
+
+---
+
 ## 2026-10-04 — Trois avis sur 100 : Claude 50 %, Gemini 65 %, Codex 75 %
 
 - Les réponses de Codex et de Gemini à la même question, et la lecture de Claude : `docs/05-discussions/reponses/2026-10-04-avis-sur-100.md`.

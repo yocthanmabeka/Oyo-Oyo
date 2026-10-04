@@ -37,6 +37,7 @@ Ce registre empêche une proposition séduisante de devenir accidentellement une
 | [`ADR-031`](adr/ADR-031-son.md) | Le son : `Sound(name:, source:)` et la capacité `play`, dans les trois sortes de règles ; une règle de temps ou qui guette ne peut demander que cela hors des demandes | `ACCEPTÉ` pour l'instant (écriture à revoir avec les noms) | journal du 2026-10-04 | HoloCode, HoloEngine |
 | [`ADR-032`](adr/ADR-032-formes-et-comparaison-de-valeurs.md) | Les formes simples (`Shape`) ; un nom de valeur à la place d'un nombre dans une comparaison ou une demande (`over: best`, `best.set(score)`) : le meilleur score | `EXPÉRIMENTATION` | journal du 2026-10-04 | HoloCode, HoloEngine |
 | [`ADR-033`](adr/ADR-033-site-leger.md) | Le site léger : la page arrive seule ; le moteur n'est téléchargé qu'au premier geste qui en a besoin, ou tout de suite pour une page vivante | `EXPÉRIMENTATION` | journal du 2026-10-04 | HoloEngine |
+| [`ADR-034`](adr/ADR-034-mouvement.md) | Le mouvement : `enter: Enter(…)` (d'où il part), `loop: Loop(…)` (où il va), `Scenes` et `Scene(for:)` ; sept courbes nommées, lettre à lettre, enfant après enfant ; fabriqué en CSS | `EXPÉRIMENTATION` | journal du 2026-10-04 | HoloCode, HoloEngine |
 
 `ADR-003` à `ADR-006` ont été proposées par ChatGPT. Le 2026-09-21, Yocthan a accepté `ADR-003` (reformulée par Claude), `ADR-004` (telle quelle) et `ADR-005` (complétée par les chiffres de sa vision), et a laissé `ADR-006` en proposition. ChatGPT est invité à réagir aux reformulations.
 

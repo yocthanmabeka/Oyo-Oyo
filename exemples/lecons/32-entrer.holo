@@ -1,0 +1,36 @@
+// Leçon 32 — Faire entrer un bloc
+//
+// Ce qu'on apprend :
+//   enter: Enter(...) fait arriver un bloc. On écrit d'où il part ; il arrive à sa place.
+//     y: 40px       il part 40 pixels plus bas
+//     opacity: 0    il part invisible
+//     scale: 0      il part tout petit
+//     rotate, blur  il part tourné, flou
+//   at: le moment où il part ; for: combien de temps il met ; ease: son caractère
+//   (linear, smooth, out, in, back, spring, bounce).
+//   letters: 0.05s fait arriver un texte lettre après lettre.
+//   Rien ne bouge si l'on n'écrit rien : le mouvement s'active, il n'est pas offert d'office.
+//
+// À essayer :
+//   Recharge la page. Change « ease: spring » en « ease: bounce », puis recharge.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 32 : faire entrer un bloc",
+  children: [
+    H1("Bonjour", enter: Enter(y: 40px, opacity: 0, letters: 0.08s, ease: spring)),
+    P("Ce texte arrive après le titre.", enter: Enter(opacity: 0, blur: 8px, at: 0.8s)),
+    Shape(form: circle, color: "#E9B44C", size: 60px, enter: Enter(scale: 0, at: 1.2s, ease: back)),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 31 : des règles sous condition", to: "31-regles-sous-condition.holo"),
+      A("Leçon 33 : une boucle →", to: "33-boucle.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

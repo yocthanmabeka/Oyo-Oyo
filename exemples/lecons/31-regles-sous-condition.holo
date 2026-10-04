@@ -31,6 +31,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 30 : des formes", to: "30-formes.holo"),
+      A("Leçon 32 : faire entrer un bloc →", to: "32-entrer.holo"),
     ]),
   ],
 

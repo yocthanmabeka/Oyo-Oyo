@@ -26,6 +26,11 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `Button` | `button` | repris, avec une majuscule |
 | `Image` | `img` | changé : le mot entier |
 | `Shape` | `div` avec du CSS, ou `svg` | changé : quatre formes nommées |
+| `Enter` | `@keyframes` + `animation` (de… vers…), ou `element.animate()` | changé : on écrit seulement d'où le bloc part |
+| `Loop` | `animation: … infinite alternate` | changé : on écrit seulement où il va |
+| `Scenes`, `Scene` | une suite de `animation-delay` calculés à la main, ou un chef d'orchestre en JavaScript | changé : les scènes s'enchaînent seules |
+| `at:`, `for:`, `ease:` | `animation-delay`, `animation-duration`, `animation-timing-function` | changés : courts ; sept caractères nommés au lieu de courbes chiffrées |
+| `letters:`, `each:` | du JavaScript qui coupe le texte en `span`, et un délai par `span` | nouveaux |
 | `If(…, rules:)` | `if (…) { … }` autour d'un `setInterval` ; `clearInterval` à ne pas oublier | changé : les règles rangées dedans ne valent que si la condition est vraie |
 | `Sound` | `audio`, `new Audio().play()` | changé : un bruit qu'une règle déclenche, pas un lecteur |
 | `List` | `ul`, `ol`, `li` | changé : un bloc au lieu de trois balises |
@@ -172,7 +177,6 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `meta description`, l'image de partage | Ce que lisent les moteurs de recherche. |
 | `link rel="stylesheet"`, `template`, `slot` | Les imports. |
 | `:hover`, `:focus`, `:active` | L'apparence selon l'état. |
-| `transition`, `animation`, `@keyframes` | Les animations. |
 | Variables CSS, dégradés, ombres, `@font-face` | Le reste de l'apparence. |
 | `if`, `for`, `map` | Afficher sous condition, répéter sur une liste. |
 | `fetch`, `localStorage`, `setTimeout` | Les données venues d'ailleurs, gardées, et le temps. |

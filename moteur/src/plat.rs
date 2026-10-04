@@ -68,6 +68,18 @@ pub fn page_html(programme: &Programme, base: &str) -> Result<String, Erreur> {
 /// ses propres points, dans lesquels on peut entrer à leur tour. `titre` sert au monde, qui
 /// n'en a pas.
 pub fn site_html(programme: &Programme, page: &Bloc, base: &str, titre: &str) -> Result<String, Erreur> {
+    // Les mouvements de la page deviennent du CSS, ajouté à son style (ADR-034).
+    crate::mouvement::commencer();
+    let html = site_html_brut(programme, page, base, titre);
+    let mouvements = crate::mouvement::terminer();
+    let html = html?;
+    if mouvements.is_empty() && !html.contains("holo-Scene") {
+        return Ok(html);
+    }
+    Ok(html.replacen("</style>", &format!("{}{mouvements}</style>", crate::mouvement::BASE), 1))
+}
+
+fn site_html_brut(programme: &Programme, page: &Bloc, base: &str, titre: &str) -> Result<String, Erreur> {
     if page.nom != "Page" && page.nom != "World" {
         return Err(Erreur { message: format!("la vue à plat affiche une « Page » ; ce fichier commence par « {} »", page.nom), pos: page.pos });
     }
@@ -219,9 +231,73 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
         Valeur::Bloc(bloc) => bloc,
         _ => return Err(Erreur { message: "« children » contient des blocs ou des phrases entre guillemets".into(), pos: parent.pos }),
     };
+    // Un bloc qui bouge (enter:, loop:) : on le fabrique sans ses mouvements, puis on
+    // l'enveloppe dans eux (ADR-034).
+    if let Some((mouvements, reste)) = crate::mouvement::du_bloc(bloc)? {
+        let mut dedans = String::new();
+        let enfants = match reste.argument("children").map(|a| &a.valeur) {
+            Some(Valeur::Liste(liste)) => liste.len(),
+            _ => 0,
+        };
+        rendre(&Valeur::Bloc(reste), &mut dedans, mondes, base, parent)?;
+        crate::mouvement::envelopper(&mouvements, dedans, enfants, sortie);
+        return Ok(());
+    }
     let classes = classes(bloc);
     let nom = nom_de(bloc).map(|n| format!(" data-name=\"{}\"", echapper(n))).unwrap_or_default();
     match bloc.nom.as_str() {
+        // Des scènes qui s'enchaînent, l'une après l'autre, au même endroit (ADR-034).
+        "Scenes" => {
+            let mut hauteur = 480.0;
+            let mut toujours = false;
+            for argument in &bloc.arguments {
+                match (argument.nom.as_deref(), &argument.valeur) {
+                    (Some("name" | "children"), _) => {}
+                    (Some("height"), Valeur::Nombre { valeur, unite: Some(unite) }) if unite == "px" && (80.0..=2000.0).contains(valeur) => hauteur = *valeur,
+                    (Some("height"), _) => return Err(Erreur { message: "« Scenes(height: …) » attend une hauteur entre 80px et 2000px".into(), pos: argument.pos }),
+                    (Some("repeat"), Valeur::Nom(mot)) if mot == "forever" => toujours = true,
+                    (Some("repeat"), _) => return Err(Erreur { message: "« Scenes(repeat: …) » attend « forever » : les scènes recommencent sans fin".into(), pos: argument.pos }),
+                    (Some(autre), _) => return Err(Erreur { message: format!("« Scenes » n'a pas de paramètre « {autre} » ; paramètres possibles : children, height, repeat, name"), pos: argument.pos }),
+                    (None, _) => return Err(Erreur { message: "« Scenes » range des scènes : Scenes(children: [ Scene(for: 3s, children: [ … ]) ])".into(), pos: argument.pos }),
+                }
+            }
+            let mut scenes = Vec::new();
+            if let Some(Valeur::Liste(elements)) = bloc.argument("children").map(|a| &a.valeur) {
+                for element in elements {
+                    let scene = match element {
+                        Valeur::Bloc(scene) if scene.nom == "Scene" => scene,
+                        _ => return Err(Erreur { message: "« Scenes » ne range que des « Scene(for: …, children: [ … ]) »".into(), pos: bloc.pos }),
+                    };
+                    let mut duree = None;
+                    for argument in &scene.arguments {
+                        match (argument.nom.as_deref(), &argument.valeur) {
+                            (Some("name" | "children"), _) => {}
+                            (Some("for"), valeur) => {
+                                duree = Some(crate::mouvement::duree_de_scene(valeur).ok_or_else(|| Erreur { message: "« Scene(for: …) » attend une durée de 200ms à 600s, comme for: 4s".into(), pos: argument.pos })?)
+                            }
+                            (Some(autre), _) => return Err(Erreur { message: format!("« Scene » n'a pas de paramètre « {autre} » ; paramètres possibles : for, children, name"), pos: argument.pos }),
+                            (None, _) => return Err(Erreur { message: "« Scene » range des blocs : Scene(for: 3s, children: [ … ])".into(), pos: argument.pos }),
+                        }
+                    }
+                    let duree = duree.ok_or_else(|| Erreur { message: "« Scene » dit combien de temps elle dure : Scene(for: 3s, children: [ … ])".into(), pos: scene.pos })?;
+                    scenes.push((scene, duree));
+                }
+            }
+            let tour = toujours.then(|| scenes.iter().map(|(_, d)| d).sum::<f64>());
+            sortie.push_str(&format!("<div class=\"{classes}\"{nom} style=\"height:{hauteur}px\">"));
+            let mut debut = 0.0;
+            let derniere = scenes.len().saturating_sub(1);
+            for (rang, (scene, duree)) in scenes.into_iter().enumerate() {
+                let nom_de_scene = crate::mouvement::nouvelle_scene(debut, duree, tour, rang == derniere);
+                let nom = nom_de(scene).map(|n| format!(" data-name=\"{}\"", echapper(n))).unwrap_or_default();
+                sortie.push_str(&format!("<div class=\"{} {nom_de_scene}\"{nom}>", self::classes(scene)));
+                crate::mouvement::dans_la_scene(debut, tour, || enfants(scene, sortie, mondes, base))?;
+                sortie.push_str("</div>");
+                debut += duree;
+            }
+            sortie.push_str("</div>");
+        }
+        "Scene" => return Err(Erreur { message: "« Scene » se range dans des scènes : Scenes(children: [ Scene(for: 3s, children: [ … ]) ])".into(), pos: bloc.pos }),
         "H1" | "H2" | "H3" | "P" | "Text" => {
             let balise = match bloc.nom.as_str() {
                 "P" => "p".to_string(),
@@ -871,6 +947,46 @@ mod tests {
         // Un jeu a des horloges et le clavier : le moteur doit arriver tout de suite.
         for jeu in [include_str!("../../exemples/jeu/attraper.holo"), include_str!("../../exemples/jeu/panier.holo")] {
             assert!(crate::vue_a_plat(jeu, "").unwrap().contains("data-vivant>"));
+        }
+    }
+
+
+    #[test]
+    fn le_mouvement_devient_du_css_et_ne_bouge_que_si_on_l_ecrit() {
+        // Sans mouvement écrit, rien de plus dans la page.
+        let calme = crate::vue_a_plat("Page(children: [ H1(\"Hi\") ])", "").unwrap();
+        assert!(!calme.contains("holo-anime") && !calme.contains("@keyframes"));
+        // Une entrée : le bloc est enveloppé, ses images clés vont de la pose écrite au repos.
+        let html = crate::vue_a_plat("Page(children: [ H1(\"Hi\", enter: Enter(y: 40px, opacity: 0, at: 1s, for: 0.5s, ease: linear)) ])", "").unwrap();
+        assert!(html.contains("<div class=\"holo-anime hm1\"><h1 class=\"holo-H1\">Hi</h1></div>"), "{html}");
+        assert!(html.contains("@keyframes hm1{from{opacity:0;translate:0px 40px;}to{opacity:1;translate:0px 0px;}}"), "{html}");
+        assert!(html.contains(".hm1{animation:hm1 0.5s linear 1s both}"), "{html}");
+        // Lettre à lettre : chaque lettre a son rang, et son délai.
+        let html = crate::vue_a_plat("Page(children: [ P(\"Oh\", enter: Enter(scale: 0, letters: 0.1s)) ])", "").unwrap();
+        assert!(html.contains("<span class=\"holo-lettre\" style=\"--i:1\">h</span>"), "{html}");
+        assert!(html.contains("animation-delay:calc(0s + var(--i) * 0.1s)"), "{html}");
+        // Des scènes qui recommencent : la deuxième apparaît à la moitié du tour.
+        let html = crate::vue_a_plat("Page(children: [ Scenes(repeat: forever, children: [ Scene(for: 2s, children: [ \"a\" ]), Scene(for: 2s, children: [ P(\"b\", enter: Enter(opacity: 0, at: 1s, for: 1s)) ]) ]) ])", "").unwrap();
+        assert!(html.contains("@keyframes hs2{0%{opacity:0;visibility:hidden}50.000%{opacity:0;visibility:visible}"), "{html}");
+        // L'entrée de la deuxième scène part à 3 s sur un tour de 4 s : 75 %.
+        assert!(html.contains("75.000%{opacity:0;animation-timing-function:"), "{html}");
+        assert!(html.contains("prefers-reduced-motion:reduce"), "{html}");
+        // Ce qui est refusé, avec une phrase qui dit quoi faire.
+        for (source, message) in [
+            ("Page(children: [ H1(\"a\", enter: Enter()) ])", "dit ce qui bouge"),
+            ("Page(children: [ H1(\"a\", enter: Enter(y: 40)) ])", "un nombre en px"),
+            ("Page(children: [ H1(\"a\", enter: Enter(opacity: 3)) ])", "de 0 à 1"),
+            ("Page(children: [ H1(\"a\", enter: Enter(y: 4px, ease: wobble)) ])", "l'une de ces courbes"),
+            ("Page(children: [ H1(\"a\", enter: Enter(y: 4px, back: false)) ])", "n'a pas de paramètre « back »"),
+            ("Page(children: [ H1(\"a\", enter: Loop(y: 4px)) ])", "attend Enter"),
+            ("Page(children: [ Shape(form: circle, enter: Enter(y: 4px, letters: 0.1s)) ])", "coupe un texte en lettres"),
+            ("Page(children: [ H1(\"a\", enter: Enter(y: 4px, each: 0.1s)) ])", "a des « children »"),
+            ("Page(children: [ Scenes(children: [ P(\"a\") ]) ])", "ne range que des"),
+            ("Page(children: [ Scenes(children: [ Scene(children: []) ]) ])", "combien de temps elle dure"),
+            ("Page(children: [ Scene(for: 1s, children: []) ])", "se range dans des scènes"),
+        ] {
+            let erreur = crate::vue_a_plat(source, "").unwrap_err();
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
         }
     }
 
