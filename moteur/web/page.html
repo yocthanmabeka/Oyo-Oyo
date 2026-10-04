@@ -29,15 +29,24 @@
   .en-points #image{display:block}
   #etat,#commandes{display:none}
   /* La rotation activée par l'auteur (Relief(tilt:)) : « Tourner » est offert dès la page de face. */
-  .tourne #commandes{display:flex;position:fixed;right:8px;bottom:8px;z-index:8;gap:8px}
+  .tourne #commandes{display:flex;flex-direction:column;gap:8px}
   body:not(.en-points) #face,.en-monde #commandes{display:none}
   .en-points #etat{display:block;position:fixed;left:8px;bottom:8px;z-index:5;padding:4px 8px;border-radius:6px;
     background:rgba(0,0,0,.6);color:#bbb;font:12px system-ui,sans-serif;pointer-events:none}
 
   .en-points #mode{display:none}
-  #vues{position:fixed;top:8px;right:8px;z-index:8;display:flex;gap:8px}
-  #vues[hidden]{display:none}
-  #vues button,#commandes button{padding:8px 12px;border:1px solid #888;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;
+  /* Les outils du moteur tiennent dans un seul bouton rond, en bas à droite, posé par-dessus
+     le site comme une bulle. On appuie : les outils apparaissent au-dessus de lui, et il
+     devient une croix pour les refermer. Le site garde tout l'écran pour lui. */
+  #menu{position:fixed;right:12px;bottom:12px;z-index:8;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+  #menu[hidden],#outils[hidden]{display:none}
+  #outils{display:flex;flex-direction:column;gap:8px;padding:8px;border-radius:14px;background:rgba(0,0,0,.72);border:1px solid #666}
+  #bascule{width:48px;height:48px;padding:0;border-radius:50%;border:1px solid #888;background:rgba(0,0,0,.72);color:#fff;
+    font:22px/1 system-ui,sans-serif;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.5)}
+  #bascule[aria-expanded="true"]{border-color:#E9B44C;color:#E9B44C}
+  #bascule:focus-visible{outline:2px solid #fff;outline-offset:2px}
+  #vues{display:flex;flex-direction:column;gap:8px}
+  #vues button,#commandes button{text-align:left;padding:8px 12px;border:1px solid #888;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;
     font:14px system-ui,sans-serif;cursor:pointer}
   #commandes button[aria-pressed="true"]{border-color:#E9B44C;color:#E9B44C}
 
@@ -97,13 +106,18 @@
 <img id="image" alt=""><div id="etat"></div>
 <div id="carrefour" hidden></div>
 <div id="origine" hidden><span></span><button type="button">Revenir</button></div>
-<div id="vues" hidden>
-  <button id="points" type="button" title="Ou : Ctrl + molette, ou pincer, directement sur la page">Vue points</button>
-  <button id="mode" type="button" title="Les sites voisins, sous forme de portails">Carrefour</button>
-</div>
-<div id="commandes">
-  <button id="tourner" type="button" aria-pressed="false" title="Glisser fait tourner la page (ou : bouton droit, ou Maj)">Tourner</button>
-  <button id="face" type="button" title="Remettre la page de face">De face</button>
+<div id="menu" hidden>
+  <div id="outils" hidden>
+    <div id="vues">
+      <button id="points" type="button" title="Ou : Ctrl + molette, ou pincer, directement sur la page">Vue points</button>
+      <button id="mode" type="button" title="Les sites voisins, sous forme de portails">Carrefour</button>
+    </div>
+    <div id="commandes">
+      <button id="tourner" type="button" aria-pressed="false" title="Glisser fait tourner la page (ou : bouton droit, ou Maj)">Tourner</button>
+      <button id="face" type="button" title="Remettre la page de face">De face</button>
+    </div>
+  </div>
+  <button id="bascule" type="button" aria-expanded="false" aria-controls="outils" aria-label="Ouvrir les outils" title="Les outils du moteur">☰</button>
 </div>
 <script type="module">
   import init, {
@@ -959,7 +973,21 @@
     });
     addEventListener("keydown", (evenement) => { if (evenement.key === "Escape" && !carrefour.hidden) fermerCarrefour(); });
 
-    document.getElementById("vues").hidden = params.has("nu"); // ?nu : sans les boutons, pour en tirer une image
+    document.getElementById("menu").hidden = params.has("nu"); // ?nu : sans les boutons, pour en tirer une image
+    // Le bouton unique : il ouvre les outils, puis devient la croix qui les referme.
+    const bascule = document.getElementById("bascule");
+    const outils = document.getElementById("outils");
+    const ouvrirLesOutils = (ouvert) => {
+      outils.hidden = !ouvert;
+      bascule.setAttribute("aria-expanded", String(ouvert));
+      bascule.setAttribute("aria-label", ouvert ? "Fermer les outils" : "Ouvrir les outils");
+      bascule.textContent = ouvert ? "✕" : "☰";
+    };
+    bascule.addEventListener("click", () => ouvrirLesOutils(outils.hidden));
+    addEventListener("keydown", (evenement) => { if (evenement.key === "Escape") ouvrirLesOutils(false); });
+    // Changer de vue ou ouvrir le carrefour referme le menu : l'écran revient au site.
+    // « Tourner » le laisse ouvert, pour garder « De face » sous la main.
+    for (const bouton of [boutonPoints, boutonMode]) bouton.addEventListener("click", () => ouvrirLesOutils(false));
     boutonMode.addEventListener("click", () => {
       if (enMonde) history.back(); // on quitte le monde calculé pour revenir au site
       else if (carrefour.hidden) ouvrirCarrefour();
