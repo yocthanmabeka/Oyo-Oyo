@@ -43,6 +43,7 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `Quote` | `blockquote`, `q`, `cite` | changé : un mot au lieu de trois |
 | `Code` | `pre`, `code` | repris |
 | `State` | `let`, `useState`, les signaux | changé : une déclaration, pas une variable libre |
+| `Data` | `fetch`, puis `JSON.parse`, puis la mise à jour de la page | changé : une déclaration ; l'arbitre range ce qui arrive |
 | `Prices` | un objet JavaScript `{ sunrise: 120 }` | changé : une table déclarée |
 | `Zoom` ⚠ | `meta viewport`, la propriété `zoom` | changé |
 | `Points` ⚠ | aucun | nouveau |
@@ -62,7 +63,9 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `ordered:` | `ol` | changé : un réglage au lieu d'une balise |
 | `rules:` | les balises `script` | changé |
 | `effect:` | le corps d'une fonction | changé : une demande, pas du code |
-| `state:`, `prices:` | aucun | nouveaux |
+| `state:`, `prices:`, `data:` | aucun | nouveaux |
+| `from:` | l'adresse donnée à `fetch` | changé : un fichier rangé à côté, rien d'autre |
+| `every:` | `setInterval` | changé |
 | `alt:` | `alt` | repris |
 | `value:` | `value`, `v-model`, `bind:value` | repris ; lié dans les deux sens |
 | `label:` | `label` | repris, devenu un réglage obligatoire |

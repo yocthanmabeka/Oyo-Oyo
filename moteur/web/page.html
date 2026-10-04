@@ -121,7 +121,7 @@
 </div>
 <script type="module">
   import init, {
-    pause, vue_a_plat, effets, etat_initial, arbitrer, conditions, horloges, touchees, touches, imports, saisir, glisser, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
+    pause, vue_a_plat, effets, etat_initial, arbitrer, conditions, horloges, touchees, touches, imports, donnees, recevoir, saisir, glisser, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
     mosaique_pivoter, mosaique_de_face, mosaique_sous, reglages_de_vue, reveiller, images_dessinees,
   } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
@@ -344,7 +344,42 @@
       emettre(`every:${rang}`);
     }, horloge.ms);
   }
+  // Les données venues du serveur (data: Data(from: "stock.json", every: 30s)). La page va
+  // chercher le fichier, rangé à côté d'elle, et le donne à l'arbitre, qui range ce qu'il veut
+  // bien prendre. Elle ne parle qu'au serveur d'où elle vient.
+  let rafraichissement = 0;
+  async function chargerLesDonnees(fichier, pour) {
+    try {
+      const discret = dAilleurs(pour) ? { credentials: "omit", referrerPolicy: "no-referrer" } : {};
+      const reponse = await fetch(dossierDe(pour) + fichier, { cache: "no-store", headers: { accept: "application/json" }, ...discret });
+      if (!reponse.ok || pour !== chemin) return; // on a changé de fichier entre-temps
+      const json = (await reponse.text()).slice(0, 65536);
+      const avant = etats.get(chemin) ?? "";
+      const apres = recevoir(source, avant, json);
+      if (apres && apres !== avant && pour === chemin) {
+        etats.set(chemin, apres);
+        montrerLesValeurs();
+        placerLesPixels();
+        garder();
+      }
+    } catch { /* serveur muet : la page garde ses valeurs */ }
+  }
+  function reglerLesDonnees() {
+    clearInterval(rafraichissement);
+    const [fichier, rythme] = donnees(source).split("|");
+    if (!fichier) return;
+    const pour = chemin;
+    chargerLesDonnees(fichier, pour);
+    if (Number(rythme) > 0) {
+      rafraichissement = setInterval(() => {
+        if (pour !== chemin) clearInterval(rafraichissement);
+        else if (!document.hidden) chargerLesDonnees(fichier, pour);
+      }, Number(rythme));
+    }
+  }
+
   function reglerLesHorloges() {
+    reglerLesDonnees();
     touchesEcoutees = touches(source).split(";").filter(Boolean);
     battements.forEach((horloge) => clearInterval(horloge.minuterie));
     battements = horloges(source).split(";").filter(Boolean).map((morceau) => {

@@ -130,7 +130,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | Garder une valeur, l'afficher (un panier) | `State(cart: 0)`, `{cart}`, `cart.add(1)` | fait, à l'essai : des nombres entiers ; avec `Prices`, le moteur calcule `{count}` et `{total}` |
 | Afficher sous condition | `If(cart, is: 0, children: [...])` | fait, à l'essai |
 | Répéter sur une liste | | manque : il faut d'abord des valeurs qui soient des listes |
-| Chercher des données (`fetch`) | | manque |
+| Chercher des données (`fetch`) | `data: Data(from: "stock.json", every: 30s)` : des valeurs, du même serveur | fait, à l'essai ; pas de liste, pas d'envoi |
 | Durées, minuteries | `Every(1s, effect: …)` ; `Portals(duration:)` | fait, à l'essai |
 | Le hasard (`Math.random`) | la demande `random`, rejouable | fait, à l'essai |
 | Animations écrites par l'auteur | | manque |

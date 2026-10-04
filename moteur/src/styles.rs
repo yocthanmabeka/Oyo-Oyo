@@ -210,14 +210,16 @@ mod tests {
         crate::verifier_page(&format!("{accueil}{}commun.holo{}{commun}", crate::holo::FICHIER_SUIVANT, crate::holo::SEPARE_LE_NOM)).unwrap();
         let contact = include_str!("../../exemples/site/contact.holo");
         crate::verifier_page(&format!("{contact}{}commun.holo{}{commun}", crate::holo::FICHIER_SUIVANT, crate::holo::SEPARE_LE_NOM)).unwrap();
-        let source = &format!("{source}\n{jeu}\n{second}\n{accueil}\n{commun}");
+        let donnees = include_str!("../../exemples/lecons/27-donnees.holo");
+        crate::verifier_page(donnees).unwrap();
+        let source = &format!("{source}\n{jeu}\n{second}\n{accueil}\n{commun}\n{donnees}");
         for bloc in crate::blocs::BLOCS {
             assert!(source.contains(&format!("{bloc}(")) || source.contains(&format!("{bloc}.")), "le bloc « {bloc} » manque dans l'exemple");
         }
         for (reglage, _) in REGLAGES {
             assert!(source.contains(&format!("{reglage}:")), "le réglage « {reglage} » manque dans l'exemple");
         }
-        for mot in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave", "state:", "prices:", "{count}", "{total}", ".add(", ".sub(", ".set(", "gap:", "align:", "columns:", "alt:", "is:", "over:", "by:", ".random(", "x:", "y:", "keep:", "value:", "label:", "max:", "within:", "Key.left", "meets:", "drag:"] {
+        for mot in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave", "state:", "prices:", "{count}", "{total}", ".add(", ".sub(", ".set(", "gap:", "align:", "columns:", "alt:", "is:", "over:", "by:", ".random(", "x:", "y:", "keep:", "value:", "label:", "max:", "within:", "Key.left", "meets:", "drag:", "data:", "from:"] {
             assert!(source.contains(mot), "« {mot} » manque dans l'exemple");
         }
     }

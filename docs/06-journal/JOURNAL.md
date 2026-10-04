@@ -6,6 +6,28 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Étape 5, fin : les données venues du serveur
+
+**Ce que Yocthan a dit**
+
+- « On y va. »
+
+**Fait** (`ADR-030`, à l'essai)
+
+- `data: Data(from: "stock.json", every: 30s)` : la page va chercher un fichier de données rangé à côté d'elle, à l'ouverture puis à un rythme. Le fichier est un objet JSON à plat ; chaque nom remplit la valeur de `State` du même nom.
+- C'est l'arbitre qui range : une valeur déclarée, de la bonne sorte, dans ses bornes. Le reste est laissé de côté ; un fichier mal formé ne change rien. Le lecteur du fichier est écrit dans le moteur, sans bibliothèque.
+- La page ne parle qu'au serveur d'où elle vient.
+- La leçon 27, `exemples/lecons/27-donnees.holo`.
+- 87 tests du moteur. Vérifié dans Chrome : le fichier `.json` changé sur le disque, la page est passée de « Ouvert aujourd'hui jusqu'à 18 h » à « Fermé pour la soirée » en deux secondes, sans rechargement.
+
+**Ce que l'étape 5 ne donne pas**
+
+- Les listes : on ne reçoit pas « tous les articles du catalogue ».
+- L'envoi : la page n'envoie rien au serveur.
+- Ces deux manques pèsent sur la cible « 70 % de SolidJS » : Claude l'estimerait plutôt à 60 % après cette étape.
+
+---
+
 ## 2026-10-04 — Les leçons : un fichier par notion
 
 **Ce que Yocthan a dit**

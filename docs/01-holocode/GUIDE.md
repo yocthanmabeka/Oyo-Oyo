@@ -743,6 +743,49 @@ Limites : un morceau n'a ni valeurs ni règles, et n'importe pas d'autres fichie
 
 Cette écriture est à l'essai (`ADR-029`).
 
+## 6 septies. Des données venues du serveur : `Data`
+
+Une page peut aller chercher des valeurs dans un fichier rangé à côté d'elle. La leçon est `exemples/lecons/27-donnees.holo`.
+
+```holo
+Page(
+  title: "My shop",
+
+  state: State(stock: 0, message: ""),
+  data: Data(from: "stock.json", every: 30s),
+
+  children: [
+    Text("{message}"),
+    If(stock, over: 0, children: [
+      Text("{stock} paintings left."),
+    ]),
+    If(stock, is: 0, children: [
+      "Sold out.",
+    ]),
+  ],
+)
+```
+
+Le fichier `stock.json` :
+
+```text
+{ "stock": 4, "message": "Open until 6 pm" }
+```
+
+| Réglage | Sens | Valeurs |
+|---|---|---|
+| `Data(from:)` | Le fichier de données, rangé à côté de la page. | un fichier `.json` |
+| `Data(every:)` | À quel rythme la page le redemande. Sans lui : une seule fois, à l'ouverture. | 1s à 3600s |
+
+- Chaque nom du fichier remplit la valeur de `State` du même nom : un nombre entier dans un nombre, un texte dans un texte.
+- Ce qui ne correspond à rien est laissé de côté. Un fichier mal écrit ne change rien, et la page garde ses valeurs.
+- La page ne parle qu'au serveur d'où elle vient.
+- Rien n'est demandé quand la fenêtre est cachée.
+
+Limites : pas de liste (on ne reçoit pas « tous les articles ») ; la page n'envoie rien au serveur.
+
+Cette écriture est à l'essai (`ADR-030`).
+
 ## 7. Comment la page se regarde : `Zoom`, `Points`, `Relief`
 
 Quand le visiteur zoome sur la page (Ctrl + molette, ou pincer), elle grossit d'abord comme n'importe quel site : le texte reste du texte, on le lit, on le sélectionne, on le copie. Au-delà du grossissement fixé par `Points(after:)`, chaque pixel devient un point lumineux, qui se morcelle ensuite. Dès que la page est grossie, glisser la déplace, dans tous les sens ; c'est le même geste avant et après le passage aux points. Quand il tourne la page, elle prend du relief. Ces trois blocs règlent cela.
@@ -886,7 +929,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 
 | Bloc | Réglages | Où |
 |---|---|---|
-| `Page` | `name`, `title`, `children`, `pixels`, `rules`, `state`, `prices`, `keep`, `zoom`, `points`, `relief`, `portals` | À la racine |
+| `Page` | `name`, `title`, `children`, `pixels`, `rules`, `state`, `prices`, `keep`, `data`, `zoom`, `points`, `relief`, `portals` | À la racine |
 | `H1`, `H2`, `H3`, `P`, `Text` | le texte entre guillemets ; `name` | Dans `children` |
 | `A` | le texte entre guillemets, `to` | Dans `children` |
 | `Image` | `source`, `weight`, `alt`, `name` | Dans `children` |
@@ -909,6 +952,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Every` | le rythme, puis `effect:` | Dans `rules` |
 | `When` | le nom d'une valeur, puis `is`, `not`, `over`, `under` ; ou le nom d'un bloc, puis `meets` et `within` ; et `effect:` | Dans `rules` |
 | `State` | les valeurs et leur départ : `cart: 0` | Dans `state:` d'une `Page` |
+| `Data` | `from`, `every` | Dans `data:` d'une `Page` |
 | `Prices` | le prix de chaque article : `sunrise: 120` | Dans `prices:` d'une `Page` |
 | `Zoom`, `Points`, `Relief`, `Portals` | voir la partie 7 | Dans `zoom:`, `points:`, `relief:`, `portals:` d'une `Page` |
 
@@ -938,6 +982,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Une valeur que la page retient | `state: State(cart: 0)` | fait, à l'essai |
 | Afficher une valeur | `{cart}` dans un texte | fait, à l'essai |
 | Changer une valeur | les demandes `add`, `sub`, `set` | fait |
+| Recevoir des valeurs d'un serveur | `data: Data(from: "stock.json", every: 30s)` | fait, à l'essai |
 | Réutiliser un morceau de page et un thème | `import "commun.holo"`, `Part(name:)`, `Use(Menu)` | fait, à l'essai |
 | Répéter une règle dans le temps | `Every(1s, effect:)` | fait |
 | Le clavier | `On(Key.left, effect:)` | fait, à l'essai |
@@ -979,7 +1024,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 
 ## 11. Ce qui n'existe pas encore
 
-- `module`, `bridge js`, `bridge css` : le moteur les lit mais ne les applique pas. Les données venues d'un serveur.
+- `module`, `bridge js`, `bridge css` : le moteur les lit mais ne les applique pas. Les listes, et l'envoi de données à un serveur.
 - Pour la disposition : pas de largeur par élément, pas d'élément qui prend la place restante.
 - La liste de choix, l'envoi d'un formulaire ; les données venues d'ailleurs.
 - Pour les valeurs : des nombres entiers et des textes. Pas de liste, pas d'autre calcul que le nombre et le total d'un panier, pas de comparaison entre deux valeurs.
