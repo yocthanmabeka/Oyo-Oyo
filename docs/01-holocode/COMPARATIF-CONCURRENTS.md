@@ -44,7 +44,7 @@
 | Critère | HoloCode face à Three.js | Pourquoi |
 |---|---|---|
 | Fluidité sur téléphone, pour ce que nous dessinons | 100 % | Mesuré : 60 images par seconde sur deux téléphones, en WebGPU et en WebGL 2. Three.js y arriverait aussi. |
-| Poids | 30 % | 570 Ko contre environ 170 Ko (chiffre à vérifier). |
+| Poids | 30 % | 570 Ko contre environ 170 Ko (chiffre à vérifier). Depuis `ADR-033`, une page qu'on ne fait que lire ne télécharge pas le moteur : 8 Ko pour la boutique. |
 | Facilité | 300 % | Avec Three.js, il faut programmer la caméra, la boucle, les gestes. Ici, on écrit `Point(seed: 42)`. |
 | Ce qu'on peut montrer | 5 % | Nous dessinons des points lumineux. Three.js a les formes, les lumières, les textures, les modèles 3D, les ombres, les animations. |
 | Le même fichier est aussi un site lisible | hors comparaison | Three.js ne le fait pas : la 3D est une image dans la page. C'est notre seule vraie avance. |
