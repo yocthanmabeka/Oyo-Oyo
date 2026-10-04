@@ -109,28 +109,42 @@ workshopPoint.addEventListener("keydown", (event) => {
 });
 
 // ---------------------------------------------------------------- le panier
-// En HoloCode : state: State(cart: 0), « {cart} » dans un texte, et On(Add.tap, effect: cart.add(1)).
-// Ici, une variable que tout le script peut modifier, et un affichage à remettre à jour à la
-// main après chaque changement. L'oublier une seule fois, et l'écran ment.
+// En HoloCode : state: State(sunrise: 0, …), prices: Prices(sunrise: 120, …), « {count} » et
+// « {total} » dans un texte, et une règle par bouton. Le moteur compte et additionne.
+// Ici : des variables que tout le script peut modifier, le compte et le total à recalculer à la
+// main, et l'affichage à remettre à jour après chaque changement. Oublier un seul appel à
+// showCart(), et l'écran ment.
 
-let cart = 0;
+const prices = { sunrise: 120, blue_door: 90, market_day: 150 };
+const cart = { sunrise: 0, blue_door: 0, market_day: 0 };
 
 function showCart() {
-  for (const place of document.querySelectorAll(".cart-count")) {
-    place.textContent = cart;
+  let count = 0;
+  let total = 0;
+  for (const [name, quantity] of Object.entries(cart)) {
+    count += quantity;
+    total += quantity * prices[name];
+    document.querySelector(`[data-quantity="${name}"]`).textContent = quantity;
   }
+  for (const place of document.querySelectorAll(".cart-count")) place.textContent = count;
+  for (const place of document.querySelectorAll(".cart-total")) place.textContent = total;
 }
 
-document.getElementById("add").addEventListener("click", () => {
-  cart += 1;
-  showCart();
-});
-document.getElementById("remove").addEventListener("click", () => {
-  cart = Math.max(0, cart - 1); // sans ce garde-fou, le panier devient négatif
-  showCart();
-});
+for (const button of document.querySelectorAll("[data-add]")) {
+  button.addEventListener("click", () => {
+    cart[button.dataset.add] += 1;
+    showCart();
+  });
+}
+for (const button of document.querySelectorAll("[data-less]")) {
+  button.addEventListener("click", () => {
+    const name = button.dataset.less;
+    cart[name] = Math.max(0, cart[name] - 1); // sans ce garde-fou, la quantité devient négative
+    showCart();
+  });
+}
 document.getElementById("empty").addEventListener("click", () => {
-  cart = 0;
+  for (const name of Object.keys(cart)) cart[name] = 0;
   showCart();
 });
 

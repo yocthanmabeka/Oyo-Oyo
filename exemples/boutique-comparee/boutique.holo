@@ -43,9 +43,14 @@ Page(
     tilt: 360deg,     // jusqu'où l'on peut tourner la page ; 360deg : on en fait le tour
   ),
 
-  // Les valeurs de la page : ce qu'elle retient. Ici, le nombre de tableaux dans le panier,
-  // qui part de zéro.
-  state: State(cart: 0),
+  // Les valeurs de la page : ce qu'elle retient. Ici, combien de chaque tableau est dans le
+  // panier. Tout part de zéro.
+  state: State(sunrise: 0, blue_door: 0, market_day: 0),
+
+  // Les prix. Chacun porte le nom d'une valeur : c'est le prix de cet article. Dès qu'une page
+  // donne des prix, le moteur calcule deux valeurs de plus, qu'on affiche comme les autres :
+  // {count}, le nombre d'articles, et {total}, ce qu'ils coûtent. Aucun calcul à écrire.
+  prices: Prices(sunrise: 120, blue_door: 90, market_day: 150),
 
   // Le carrefour : les portails vers les mondes voisins. Il s'ouvre quand on entre dans un
   // point, ou par le bouton « Carrefour ». Les sites écrits dans ce fichier passent d'abord ;
@@ -79,9 +84,21 @@ Page(
     // Une grille : trois colonnes sur un grand écran, moins sur un téléphone, sans rien écrire
     // de plus. Dans chaque case, une colonne : les éléments l'un sous l'autre.
     Grid(columns: 3, gap: 12px, children: [
-      Column.card(gap: 4px, align: center, children: [ P("Sunrise over the river"), Text.note("120 euros") ]),
-      Column.card(gap: 4px, align: center, children: [ P("The blue door"), Text.note("90 euros") ]),
-      Column.card(gap: 4px, align: center, children: [ P("Market day"), Text.note("150 euros") ]),
+      Column.card(gap: 4px, align: center, children: [
+        P("Sunrise over the river"),
+        Text.note("120 euros · {sunrise} in your cart"),
+        Row(gap: 8px, align: center, children: [ Button(name: LessSunrise, text: "-"), Button(name: AddSunrise, text: "+") ]),
+      ]),
+      Column.card(gap: 4px, align: center, children: [
+        P("The blue door"),
+        Text.note("90 euros · {blue_door} in your cart"),
+        Row(gap: 8px, align: center, children: [ Button(name: LessBlueDoor, text: "-"), Button(name: AddBlueDoor, text: "+") ]),
+      ]),
+      Column.card(gap: 4px, align: center, children: [
+        P("Market day"),
+        Text.note("150 euros · {market_day} in your cart"),
+        Row(gap: 8px, align: center, children: [ Button(name: LessMarketDay, text: "-"), Button(name: AddMarketDay, text: "+") ]),
+      ]),
     ]),
 
     // Un lien classique : on quitte la page pour une autre adresse.
@@ -91,14 +108,13 @@ Page(
     // Du texte sans rôle : une étiquette, une ligne d'état.
     Text.note("Open until 6 pm"),
 
-    // Le panier. « {cart} » affiche la valeur ; le texte se met à jour tout seul.
+    // Le panier. « {count} » et « {total} » sont calculés par le moteur ; le texte se met à
+    // jour tout seul.
     H3("Your cart"),
-    Text.note("{cart} paintings in your cart"),
-    // Une ligne : les boutons côte à côte. S'ils ne tiennent pas, ils passent à la ligne.
+    // Une ligne : côte à côte. Ce qui ne tient pas passe à la ligne.
     // align : start (au début), center (au milieu), end (à la fin), between (écartés).
-    Row(gap: 8px, align: start, children: [
-      Button(name: Add, text: "Add a painting"),
-      Button(name: Remove, text: "Remove one"),
+    Row(gap: 8px, align: between, children: [
+      Text.note("{count} paintings · {total} euros"),
       Button(name: Empty, text: "Empty the cart"),
     ]),
 
@@ -120,7 +136,7 @@ Page(
           H1("The workshop"),
           P("Here the paintings are made."),
           // Le panier vous suit dans le monde : c'est la même valeur.
-          Text("{cart} paintings in your cart"),
+          Text("{count} paintings in your cart · {total} euros"),
           Image(source: "easel.svg", weight: 1KB),
           Button(name: Back, text: "Back to the shop"),
 
@@ -142,9 +158,16 @@ Page(
 
     // Changer une valeur est une demande faite au moteur : add (ajouter), sub (retirer),
     // set (fixer). Le moteur décide : le panier ne descend jamais sous zéro.
-    On(Add.tap, effect: cart.add(1)),
-    On(Remove.tap, effect: cart.sub(1)),
-    On(Empty.tap, effect: cart.set(0)),
+    On(AddSunrise.tap, effect: sunrise.add(1)),
+    On(LessSunrise.tap, effect: sunrise.sub(1)),
+    On(AddBlueDoor.tap, effect: blue_door.add(1)),
+    On(LessBlueDoor.tap, effect: blue_door.sub(1)),
+    On(AddMarketDay.tap, effect: market_day.add(1)),
+    On(LessMarketDay.tap, effect: market_day.sub(1)),
+    // Vider le panier : un signal, trois règles.
+    On(Empty.tap, effect: sunrise.set(0)),
+    On(Empty.tap, effect: blue_door.set(0)),
+    On(Empty.tap, effect: market_day.set(0)),
   ],
 )
 

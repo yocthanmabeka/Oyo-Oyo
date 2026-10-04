@@ -36,6 +36,19 @@ Page(
 5. **Tout est vérifié avant l'affichage** : un `{nom}` qui ne correspond à aucune valeur, une demande inconnue, une valeur déclarée deux fois ou dans un monde font refuser le fichier, avec la ligne.
 6. **La valeur suit le visiteur** tant qu'il ne recharge pas la page : il entre dans un monde, passe dans un autre fichier, revient, le panier est le même. Rechargée, la page repart du départ.
 
+## Ajout du 2026-10-04 : des prix, un nombre d'articles, un total
+
+Gemini a relevé qu'un vrai panier n'est pas un nombre : il lui faut des articles, des prix, un total. Claude a comparé trois écritures (`proposals/Claude/panier-articles-2026-10/`) et recommandé la plus petite ; Yocthan a suivi (« tu as le champ libre »). À l'essai :
+
+- `prices: Prices(sunrise: 120, blue_door: 90)` donne le prix de chaque article. Chaque prix porte le nom d'une valeur de `State`, qui est sa quantité.
+- Le moteur calcule alors deux valeurs, `{count}` et `{total}`. L'auteur n'écrit aucun calcul, donc aucun code libre.
+- Avec `prices:`, les noms `count` et `total` sont réservés ; sans `prices:`, ils restent libres.
+- Un prix est un nombre entier : pas de nombres à virgule, donc pas de centimes faux (`0.1 + 0.2` en JavaScript).
+
+Écartés pour l'instant : un bloc `Cart` tout fait (un mot du langage pour un seul usage) ; une liste générale avec `sum(price)` (trop de notions, et un pas vers les formules).
+
+Limites : les articles sont écrits d'avance dans le fichier ; pas de centimes ; le panier est un affichage, pas une commande.
+
 ## Comparaison faite avant de choisir
 
 | Question | Options | Choix, et pourquoi |
@@ -80,6 +93,6 @@ Défauts de JavaScript évités :
 
 ## Conditions de réexamen
 
-- Quand Yocthan aura essayé le panier et jugé l'écriture : `State`, `state`, `{cart}`, `add`, `sub`, `set`.
+- Quand Yocthan aura essayé le panier et jugé l'écriture : `State`, `state`, `{cart}`, `add`, `sub`, `set`, `Prices`, `prices`, `{count}`, `{total}`.
 - Quand Codex et Gemini auront donné leur avis.
 - Au premier besoin d'une valeur qui ne soit pas un nombre.

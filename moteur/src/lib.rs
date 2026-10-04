@@ -76,16 +76,17 @@ pub fn effets(source: &str, signal: &str) -> Vec<String> {
     verifier_page(source).map(|programme| regles::effets(&programme, signal)).unwrap_or_default()
 }
 
-/// Les valeurs d'une page à leur départ, écrites `cart=0;likes=3`.
+/// Les valeurs d'une page à leur départ, écrites `cart=0;likes=3`, suivies de celles que le
+/// moteur calcule quand la page donne des prix (`count`, `total`).
 pub fn etat_initial(source: &str) -> String {
-    verifier_page(source).ok().and_then(|programme| etat::initial(&programme).ok()).map(|e| etat::ecrire(&e)).unwrap_or_default()
+    verifier_page(source).ok().and_then(|programme| etat::initial(&programme).ok().map(|e| etat::ecrire(&etat::a_montrer(&programme, &e)))).unwrap_or_default()
 }
 
 /// L'arbitre : ce que deviennent les valeurs d'une page quand un signal est émis. L'état
 /// reçu est relu avec méfiance : rien n'y passe que la page ne déclare.
 pub fn arbitrer(source: &str, etat: &str, signal: &str) -> String {
     match verifier_page(source) {
-        Ok(programme) => etat::ecrire(&etat::arbitrer(&programme, &etat::relire(&programme, etat), signal)),
+        Ok(programme) => etat::ecrire(&etat::a_montrer(&programme, &etat::arbitrer(&programme, &etat::relire(&programme, etat), signal))),
         Err(_) => String::new(),
     }
 }

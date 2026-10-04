@@ -20,6 +20,10 @@ use crate::regles::pour_chaque_bloc;
 pub const VALEURS_MAX: usize = 32;
 pub const VALEUR_MAX: u64 = 1_000_000_000;
 
+/// Les deux valeurs que le moteur calcule quand la page donne des prix (`prices:`) : le nombre
+/// d'articles, et ce qu'ils coûtent ensemble. L'auteur n'écrit aucun calcul.
+pub const CALCULEES: &[&str] = &["count", "total"];
+
 /// Ce qu'on peut demander pour une valeur.
 pub const DEMANDES: &[&str] = &["add", "sub", "set"];
 
@@ -42,8 +46,73 @@ fn bloc_d_etat(programme: &Programme) -> Result<Option<&Bloc>, Erreur> {
     }
 }
 
+/// Les prix donnés par la page : `prices: Prices(sunrise: 120)`. Chaque prix porte le nom
+/// d'une valeur déclarée, qui est la quantité de cet article.
+pub fn prix(programme: &Programme) -> Result<Etat, Erreur> {
+    let Some(argument) = programme.racine.argument("prices") else { return Ok(Vec::new()) };
+    let bloc = match &argument.valeur {
+        Valeur::Bloc(bloc) if bloc.nom == "Prices" && programme.racine.nom == "Page" => bloc,
+        _ => return Err(Erreur { message: "« prices » attend un bloc « Prices(...) », sur la page : prices: Prices(sunrise: 120)".into(), pos: argument.pos }),
+    };
+    let quantites = initial_sans_prix(programme)?;
+    let mut prix = Etat::new();
+    for argument in &bloc.arguments {
+        let (Some(nom), Valeur::Entier(montant)) = (&argument.nom, &argument.valeur) else {
+            return Err(Erreur { message: "un prix se donne par le nom de l'article et un nombre entier : Prices(sunrise: 120)".into(), pos: argument.pos });
+        };
+        if !quantites.iter().any(|(connu, _)| connu == nom) {
+            return Err(Erreur { message: format!("le prix « {nom} » ne correspond à aucune valeur : déclare sa quantité, state: State({nom}: 0)"), pos: argument.pos });
+        }
+        if prix.iter().any(|(connu, _)| connu == nom) {
+            return Err(Erreur { message: format!("le prix « {nom} » est donné deux fois"), pos: argument.pos });
+        }
+        if *montant > VALEUR_MAX {
+            return Err(Erreur { message: format!("« {nom} » : un prix va de 0 à {VALEUR_MAX}"), pos: argument.pos });
+        }
+        prix.push((nom.clone(), *montant));
+    }
+    Ok(prix)
+}
+
+/// Ce que le moteur calcule à partir des quantités et des prix : `count` (le nombre
+/// d'articles) et `total` (ce qu'ils coûtent). Rien si la page ne donne pas de prix.
+pub fn calculees(programme: &Programme, etat: &Etat) -> Etat {
+    let prix = prix(programme).unwrap_or_default();
+    if programme.racine.argument("prices").is_none() {
+        return Vec::new();
+    }
+    let (mut nombre, mut total) = (0u128, 0u128);
+    for (nom, montant) in &prix {
+        let quantite = etat.iter().find(|(connu, _)| connu == nom).map_or(0, |(_, q)| u128::from(*q));
+        nombre += quantite;
+        total += quantite * u128::from(*montant);
+    }
+    // Un total ne déborde jamais : au pire, il s'arrête au plus grand nombre que l'on sait écrire.
+    let borner = |v: u128| u64::try_from(v).unwrap_or(u64::MAX);
+    vec![("count".to_string(), borner(nombre)), ("total".to_string(), borner(total))]
+}
+
+/// Tout ce qu'un texte peut montrer : les valeurs de la page, puis celles que le moteur calcule.
+pub fn a_montrer(programme: &Programme, etat: &Etat) -> Etat {
+    let mut tout = etat.clone();
+    tout.extend(calculees(programme, etat));
+    tout
+}
+
 /// Les valeurs déclarées par la page, avec leur départ.
 pub fn initial(programme: &Programme) -> Result<Etat, Erreur> {
+    let etat = initial_sans_prix(programme)?;
+    // Avec des prix, « count » et « total » sont calculés par le moteur : on ne les déclare pas.
+    if programme.racine.argument("prices").is_some() {
+        if let Some((nom, _)) = etat.iter().find(|(nom, _)| CALCULEES.contains(&nom.as_str())) {
+            let pos = programme.racine.argument("state").map_or(programme.racine.pos, |a| a.pos);
+            return Err(Erreur { message: format!("« {nom} » est calculé par le moteur quand la page donne des prix : ne le déclare pas dans « State »"), pos });
+        }
+    }
+    Ok(etat)
+}
+
+fn initial_sans_prix(programme: &Programme) -> Result<Etat, Erreur> {
     let Some(bloc) = bloc_d_etat(programme)? else { return Ok(Vec::new()) };
     let mut etat = Etat::new();
     for argument in &bloc.arguments {
@@ -120,16 +189,26 @@ pub fn noms_dans(texte: &str) -> Vec<&str> {
 /// Les demandes des règles sont vérifiées avec les règles (`regles.rs`).
 pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
     let etat = initial(programme)?;
+    prix(programme)?;
+    // Ce qu'un texte peut montrer : les valeurs déclarées, et celles que le moteur calcule.
+    let montrables = a_montrer(programme, &etat);
     let declare = bloc_d_etat(programme)?;
+    let prix_declares = match programme.racine.argument("prices").map(|a| &a.valeur) {
+        Some(Valeur::Bloc(bloc)) => Some(bloc),
+        _ => None,
+    };
     pour_chaque_bloc(&programme.racine, &mut |bloc| {
         if bloc.nom == "State" && !declare.is_some_and(|d| std::ptr::eq(d, bloc)) {
             return Err(Erreur { message: "« State » se déclare une seule fois, sur la page : state: State(cart: 0)".into(), pos: bloc.pos });
+        }
+        if (bloc.nom == "Prices" && !prix_declares.is_some_and(|d| std::ptr::eq(d, bloc))) || (bloc.argument("prices").is_some() && !std::ptr::eq(bloc, &programme.racine)) {
+            return Err(Erreur { message: "« Prices » se donne une seule fois, sur la page : prices: Prices(sunrise: 120)".into(), pos: bloc.pos });
         }
         if bloc.argument("state").is_some() && !std::ptr::eq(bloc, &programme.racine) {
             return Err(Erreur { message: "les valeurs se déclarent sur la page, pas dans un monde : elles valent pour tout le fichier".into(), pos: bloc.pos });
         }
         let verifier_texte = |texte: &str, pos| {
-            noms_dans(texte).into_iter().find(|nom| !etat.iter().any(|(connu, _)| connu == nom)).map_or(Ok(()), |nom| {
+            noms_dans(texte).into_iter().find(|nom| !montrables.iter().any(|(connu, _)| connu == nom)).map_or(Ok(()), |nom| {
                 Err(Erreur { message: format!("« {{{nom}}} » : aucune valeur ne s'appelle « {nom} » ; déclare-la sur la page, state: State({nom}: 0)"), pos })
             })
         };
@@ -259,6 +338,53 @@ mod tests {
         // Des accolades qui n'entourent pas un nom restent du texte.
         let html = crate::vue_a_plat("Page(children: [ \"{ } and {Not A Name} and {}\" ])", "").unwrap();
         assert!(html.contains("{ } and {Not A Name} and {}"), "{html}");
+    }
+
+    const BOUTIQUE: &str = "Page(
+  state: State(sunrise: 0, blue_door: 2, likes: 5),
+  prices: Prices(sunrise: 120, blue_door: 90),
+  children: [
+    Text(\"{count} paintings, {total} euros\"),
+    Button(name: Add, text: \"Add\"),
+  ],
+  rules: [ On(Add.tap, effect: sunrise.add(1)) ],
+)";
+
+    #[test]
+    fn avec_des_prix_le_moteur_compte_et_additionne() {
+        let programme = page(BOUTIQUE).unwrap();
+        let depart = initial(&programme).unwrap();
+        // « likes » n'a pas de prix : ce n'est pas un article, il ne compte pas.
+        assert_eq!(ecrire(&a_montrer(&programme, &depart)), "sunrise=0;blue_door=2;likes=5;count=2;total=180");
+        let apres = arbitrer(&programme, &depart, "Add.tap");
+        assert_eq!(ecrire(&a_montrer(&programme, &apres)), "sunrise=1;blue_door=2;likes=5;count=3;total=300");
+        assert!(crate::vue_a_plat(BOUTIQUE, "").unwrap().contains("<span data-state=\"count\">2</span> paintings, <span data-state=\"total\">180</span> euros"));
+        // Ce que la page renvoie contient les valeurs calculées ; elles ne sont pas reprises telles
+        // quelles : le moteur les recalcule toujours.
+        assert_eq!(crate::arbitrer(BOUTIQUE, "sunrise=1;blue_door=2;likes=5;count=999;total=1", "Add.tap"), "sunrise=2;blue_door=2;likes=5;count=4;total=420");
+        // Sans prix, pas de valeurs calculées : « count » est un nom libre.
+        assert_eq!(crate::etat_initial("Page(state: State(count: 7))"), "count=7");
+        // Un total ne déborde pas.
+        let enorme = page("Page(state: State(a: 1000000000), prices: Prices(a: 1000000000))").unwrap();
+        assert_eq!(ecrire(&calculees(&enorme, &initial(&enorme).unwrap())), "count=1000000000;total=1000000000000000000");
+    }
+
+    #[test]
+    fn les_prix_mal_ecrits_sont_refuses() {
+        for (source, message) in [
+            ("Page(state: State(a: 0), prices: Prices(b: 10))", "ne correspond à aucune valeur"),
+            ("Page(prices: Prices(a: 10))", "ne correspond à aucune valeur"),
+            ("Page(state: State(a: 0), prices: Prices(a: 10, a: 20))", "donné deux fois"),
+            ("Page(state: State(a: 0), prices: Prices(a: \"dix\"))", "un nombre entier"),
+            ("Page(state: State(a: 0), prices: 10)", "un bloc « Prices(...) »"),
+            ("Page(state: State(a: 0, total: 0), prices: Prices(a: 10))", "« total » est calculé par le moteur"),
+            ("Page(state: State(a: 0), children: [ Prices(a: 10) ])", "une seule fois, sur la page"),
+            ("Page(state: State(a: 0), children: [ \"{total}\" ])", "aucune valeur ne s'appelle « total »"),
+            ("Page(state: State(a: 0), prices: Prices(a: 10), children: [ Button(name: B, text: \"x\") ], rules: [ On(B.tap, effect: total.set(0)) ])", "aucune valeur ne s'appelle « total »"),
+        ] {
+            let erreur = page(source).unwrap_err();
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
     }
 
     #[test]

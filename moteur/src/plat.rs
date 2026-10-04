@@ -60,7 +60,8 @@ pub fn site_html(programme: &Programme, page: &Bloc, base: &str, titre: &str) ->
         _ => classes(page),
     };
     // Les valeurs de la page, à leur départ, là où un texte les montre : « {cart} » (ADR-023).
-    for (nom, valeur) in crate::etat::initial(programme).unwrap_or_default() {
+    let depart = crate::etat::initial(programme).unwrap_or_default();
+    for (nom, valeur) in crate::etat::a_montrer(programme, &depart) {
         let (vide, pleine) = (format!("<span data-state=\"{nom}\"></span>"), format!("<span data-state=\"{nom}\">{valeur}</span>"));
         corps = corps.replace(&vide, &pleine);
         mondes = mondes.replace(&vide, &pleine);
