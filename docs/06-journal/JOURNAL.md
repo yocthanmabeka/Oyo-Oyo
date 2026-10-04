@@ -6,6 +6,27 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Étape 6, premier morceau : le son
+
+**Fait** (`ADR-031`, à l'essai)
+
+- `Sound(name: Ding, source: "ding.wav")` : un son, qui ne se voit pas. `Ding.play` le fait entendre, dans l'effet d'une règle, seul ou dans une liste. Les trois sortes de règles peuvent jouer un son.
+- Une règle de temps ou une règle qui guette ne peut demander que cela hors des demandes : `Workshop.enter` y est refusé (on n'emmène pas le visiteur ailleurs sans geste).
+- Les deux jeux ont leurs sons : un quand on attrape, un quand une pomme est perdue. Les trois petits fichiers de son ont été fabriqués par un script (deux notes qui s'éteignent, sept à onze kilo-octets).
+- La leçon 28, `exemples/lecons/28-son.holo`.
+- 88 tests du moteur. Vérifié dans Chrome avec un vrai clic : un appui, un son ; dans le jeu de la pomme, « Pop » à la pomme rattrapée, « Lost » à la pomme perdue.
+
+**Erreur en route**
+
+- Les premiers essais automatiques ne comptaient aucun son joué. Le moteur n'y était pour rien : un navigateur ne joue un son qu'après un vrai geste, et un clic déclenché par un script n'en est pas un. Refait avec un clic de souris simulé par le navigateur lui-même.
+
+**Ce qui reste de l'étape 6, et l'étape 7**
+
+- Les formes, les images dans la vue en profondeur, les modèles 3D : c'est le gros de l'étape 6. Le moteur de dessin ne sait aujourd'hui dessiner que des points ; il faut l'étendre. Claude ne l'a pas commencé.
+- L'étape 7 (partie gardée, jeu à plusieurs avec un arbitre sur un serveur) n'est pas commencée.
+
+---
+
 ## 2026-10-04 — Étape 5, fin : les données venues du serveur
 
 **Ce que Yocthan a dit**

@@ -20,6 +20,10 @@ Page(
   children: [
     H1("Catch the apple"),
 
+    // Deux sons. Ils ne se voient pas ; une règle les fait entendre : Pop.play.
+    Sound(name: Pop, source: "pop.wav"),
+    Sound(name: Lost, source: "perdu.wav"),
+
     If(lives, is: 0, children: [
       "An apple falls. Move the basket under it: arrow keys, or drag the basket.",
       If(score, over: 0, children: [
@@ -56,11 +60,11 @@ Page(
 
     // Une règle qui guette une rencontre : au moment où le panier et la pomme se touchent, un
     // point de plus, et une nouvelle pomme part d'en haut, à une place tirée au hasard.
-    When(Basket, meets: Apple, within: 9, effect: [score.add(1), apple_x.random(100), apple_y.set(0)]),
+    When(Basket, meets: Apple, within: 9, effect: [score.add(1), apple_x.random(100), apple_y.set(0), Pop.play]),
 
     // Une règle qui guette une valeur : au moment où la pomme arrive tout en bas, une vie de
     // moins, et une nouvelle pomme.
-    When(apple_y, over: 99, effect: [lives.sub(1), apple_x.random(100), apple_y.set(0)]),
+    When(apple_y, over: 99, effect: [lives.sub(1), apple_x.random(100), apple_y.set(0), Lost.play]),
   ],
 )
 

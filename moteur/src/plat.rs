@@ -38,6 +38,7 @@ grid-template-columns:repeat(auto-fill,minmax(min(100%,max(120px,calc((100% - (v
 transition:left .12s linear,top .12s linear,transform .12s linear}\
 :where(.holo-place[data-drag]){touch-action:none;cursor:grab}.holo-place.holo-glisse{transition:none;cursor:grabbing}\
 @media (prefers-reduced-motion:reduce){.holo-place{transition:none}}\
+:where(.holo-Sound){display:none}\
 :where(.holo-Hr){border:0;border-top:1px solid currentColor;opacity:0.4;height:0}\
 :where(.holo-Quote){border-left:3px solid currentColor;padding:0 0 0 12px;font-style:italic}\
 :where(.holo-Quote>p){margin:0 0 4px 0}:where(.holo-Quote>footer){font-style:normal;font-size:0.9em;opacity:0.7}\
@@ -324,6 +325,25 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
                 }
             }
             sortie.push_str("</div>");
+        }
+        // Un son, qu'une règle fait entendre : Ding.play. Il ne se voit pas.
+        "Sound" => {
+            let mut source = None;
+            for argument in &bloc.arguments {
+                match (argument.nom.as_deref(), &argument.valeur) {
+                    (Some("name" | "weight"), _) => {}
+                    (Some("source"), Valeur::Texte(s)) if chemin_sur(s) && [".wav", ".mp3", ".ogg"].iter().any(|fin| s.ends_with(fin)) => source = Some(s),
+                    (Some("source"), _) => {
+                        return Err(Erreur { message: "« Sound(source: …) » attend un fichier de son rangé à côté du .holo : \"ding.wav\" (.wav, .mp3 ou .ogg)".into(), pos: argument.pos })
+                    }
+                    (Some(autre), _) => return Err(Erreur { message: format!("« Sound » n'a pas de paramètre « {autre} » ; paramètres possibles : name, source, weight"), pos: argument.pos }),
+                    (None, _) => return Err(Erreur { message: "chaque paramètre de « Sound » est nommé : Sound(name: Ding, source: \"ding.wav\")".into(), pos: argument.pos }),
+                }
+            }
+            let (Some(source), false) = (source, nom.is_empty()) else {
+                return Err(Erreur { message: "un son a un nom, pour qu'une règle puisse le jouer, et un fichier : Sound(name: Ding, source: \"ding.wav\")".into(), pos: bloc.pos });
+            };
+            sortie.push_str(&format!("<audio class=\"{classes}\"{nom} preload=\"auto\" src=\"{}{}\"></audio>", echapper(base), echapper(source)));
         }
         // Un trait de séparation.
         "Hr" => {

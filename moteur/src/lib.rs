@@ -79,13 +79,18 @@ pub fn effets(source: &str, signal: &str) -> Vec<String> {
 /// L'état entier, tel qu'il voyage entre le moteur et la page : les nombres, ce que le moteur
 /// calcule, puis les textes. `cart=2;count=2;total=240;buyer='Ada`.
 fn ecrire_tout(programme: &Programme, nombres: &etat::Etat, textes: &etat::Textes) -> String {
-    [etat::ecrire(&etat::a_montrer(programme, nombres)), etat::ecrire_textes(textes)].into_iter().filter(|morceau| !morceau.is_empty()).collect::<Vec<_>>().join(";")
+    // Les sons demandés par une règle de temps ou une règle qui guette suivent l'état, sous le
+    // nom « ! » : ce n'est pas une valeur, la page le lit et le retire.
+    let capacites = etat::capacites_demandees();
+    let sons = if capacites.is_empty() { String::new() } else { format!("!={}", capacites.join(",")) };
+    [etat::ecrire(&etat::a_montrer(programme, nombres)), etat::ecrire_textes(textes), sons].into_iter().filter(|morceau| !morceau.is_empty()).collect::<Vec<_>>().join(";")
 }
 
 /// Les valeurs d'une page à leur départ, écrites `cart=0;likes=3`, suivies de celles que le
 /// moteur calcule quand la page donne des prix (`count`, `total`), puis des textes.
 pub fn etat_initial(source: &str) -> String {
     let Ok(programme) = verifier_page(source) else { return String::new() };
+    etat::capacites_demandees();
     ecrire_tout(&programme, &etat::initial(&programme).unwrap_or_default(), &etat::textes_initiaux(&programme))
 }
 
@@ -93,6 +98,7 @@ pub fn etat_initial(source: &str) -> String {
 /// reçu est relu avec méfiance : rien n'y passe que la page ne déclare.
 pub fn arbitrer(source: &str, etat: &str, signal: &str) -> String {
     let Ok(programme) = verifier_page(source) else { return String::new() };
+    etat::capacites_demandees();
     ecrire_tout(&programme, &etat::arbitrer(&programme, &etat::relire(&programme, etat), signal), &etat::relire_textes(&programme, etat))
 }
 

@@ -318,7 +318,7 @@ L'exemple complet : [`exemples/maison/`](../../exemples/maison/salon.holo), un s
 
 - `On(Open.tap, effect: Workshop.enter)` : quand le bouton `Open` est touché, on entre dans le point `Workshop`.
 - Signaux : `tap` (un `Button` ou un `Point` touché).
-- Capacités : `enter` et `leave` (pour un `Point`), `portals` (pour la `Page` : ouvrir son carrefour).
+- Capacités : `enter` et `leave` (pour un `Point`), `portals` (pour la `Page` : ouvrir son carrefour), `play` (pour un `Sound`).
 - Toucher un point y fait entrer, sans règle à écrire.
 
 ### Planter un site dans un pixel de la page
@@ -786,6 +786,33 @@ Limites : pas de liste (on ne reçoit pas « tous les articles ») ; la page n'e
 
 Cette écriture est à l'essai (`ADR-030`).
 
+## 6 octies. Un son : `Sound`
+
+```holo
+Page(
+  title: "A sound",
+  state: State(count: 0),
+  children: [
+    Sound(name: Ding, source: "ding.wav"),
+    Text("{count} rings"),
+    Button(name: Ring, text: "Ring"),
+  ],
+  rules: [
+    On(Ring.tap, effect: [count.add(1), Ding.play]),
+    When(count, is: 5, effect: Ding.play),
+  ],
+)
+```
+
+- `Sound(name: Ding, source: "ding.wav")` : un son. Le fichier est rangé à côté (`.wav`, `.mp3`, `.ogg`). Il ne se voit pas.
+- `Ding.play` le fait entendre. Cela s'écrit dans l'effet d'une règle, seul ou dans une liste.
+- Les trois sortes de règles peuvent jouer un son : `On`, `Every`, `When`.
+- Un navigateur ne joue un son qu'après un premier geste du visiteur.
+
+Limites : ni boucle, ni volume, ni arrêt.
+
+Cette écriture est à l'essai (`ADR-031`). La leçon est `exemples/lecons/28-son.holo`.
+
 ## 7. Comment la page se regarde : `Zoom`, `Points`, `Relief`
 
 Quand le visiteur zoome sur la page (Ctrl + molette, ou pincer), elle grossit d'abord comme n'importe quel site : le texte reste du texte, on le lit, on le sélectionne, on le copie. Au-delà du grossissement fixé par `Points(after:)`, chaque pixel devient un point lumineux, qui se morcelle ensuite. Dès que la page est grossie, glisser la déplace, dans tous les sens ; c'est le même geste avant et après le passage aux points. Quand il tourne la page, elle prend du relief. Ces trois blocs règlent cela.
@@ -933,6 +960,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `H1`, `H2`, `H3`, `P`, `Text` | le texte entre guillemets ; `name` | Dans `children` |
 | `A` | le texte entre guillemets, `to` | Dans `children` |
 | `Image` | `source`, `weight`, `alt`, `name` | Dans `children` |
+| `Sound` | `name`, `source`, `weight` | Dans `children` |
 | `Hr` | aucun | Dans `children` |
 | `Quote` | le texte entre guillemets, `by` | Dans `children` |
 | `Code` | le texte entre guillemets | Dans `children` |
@@ -1010,7 +1038,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | La durée d'ouverture d'un portail | `Portals(duration:)` | fait |
 | Le poids permis | `budget`, `weight` | fait |
 | Le toucher | le signal `tap` | fait |
-| Le son | aucun | à faire |
+| Le son | `Sound(name:, source:)`, et la capacité `play` | fait, à l'essai |
 | La vidéo | aucun | à faire |
 | Le survol, l'approche | aucun | à faire |
 | Réagir au zoom par une règle (« quand on zoome, alors… ») | aucun | à faire |

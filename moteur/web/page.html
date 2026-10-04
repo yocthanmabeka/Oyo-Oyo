@@ -355,7 +355,7 @@
       if (!reponse.ok || pour !== chemin) return; // on a changé de fichier entre-temps
       const json = (await reponse.text()).slice(0, 65536);
       const avant = etats.get(chemin) ?? "";
-      const apres = recevoir(source, avant, json);
+      const apres = ranger(recevoir(source, avant, json));
       if (apres && apres !== avant && pour === chemin) {
         etats.set(chemin, apres);
         montrerLesValeurs();
@@ -403,6 +403,17 @@
     } catch { /* stockage refusé ou plein : la page marche sans */ }
   }
 
+  // Un résultat de l'arbitre peut porter, sous le nom « ! », des capacités demandées par une
+  // règle de temps ou une règle qui guette (un son à faire entendre). On les applique, et on
+  // rend l'état sans elles.
+  function ranger(resultat) {
+    const morceaux = resultat.split(";");
+    const demandes = morceaux.find((morceau) => morceau.startsWith("!="));
+    if (!demandes) return resultat;
+    for (const effet of demandes.slice(2).split(",")) appliquer(effet);
+    return morceaux.filter((morceau) => morceau !== demandes).join(";");
+  }
+
   // Écrit les valeurs de la page là où ses textes les montrent : « {cart} ».
   function montrerLesValeurs(ou = racine, ecrit = etats.get(chemin) ?? "", texteDuFichier = source) {
     // Un texte voyage codé, précédé d'une apostrophe : buyer='Zo%C3%A9. Un nombre, tel quel.
@@ -443,7 +454,7 @@
   // les autres effets demandés par les règles sont appliqués.
   function emettre(signal) {
     const avant = etats.get(chemin) ?? "";
-    const apres = arbitrer(source, avant, signal);
+    const apres = ranger(arbitrer(source, avant, signal));
     if (apres !== avant) {
       etats.set(chemin, apres);
       montrerLesValeurs();
@@ -1013,6 +1024,14 @@
     if (capacite === "enter" && sitesContenus().some((s) => s.nom === nom)) {
       // Le signal vient-il du point lui-même, ou d'un bouton qui y mène ?
       entrerDans(nom, signal === `${nom}.tap`);
+    } else if (capacite === "play") {
+      // Faire entendre un son. Un navigateur ne joue un son qu'après un premier geste du
+      // visiteur : avant, il refuse, et la page continue sans lui.
+      const son = racine.querySelector(`audio[data-name="${CSS.escape(nom)}"]`);
+      if (son) {
+        son.currentTime = 0;
+        son.play().catch(() => {});
+      }
     } else if (capacite === "portals") {
       // La page demande son carrefour : On(Map.tap, effect: Shop.portals).
       ouvrirCarrefour();
@@ -1108,7 +1127,7 @@
       const vers = (doigt, debut, longueur, largeur) => Math.round(Math.min(100, Math.max(0, ((doigt - debut - largeur / 2) / Math.max(1, longueur - largeur)) * 100)));
       const [x, y] = [vers(evenement.clientX, cadre.left, cadre.width, taille.width), vers(evenement.clientY, cadre.top, cadre.height, taille.height)];
       const avant = etats.get(chemin) ?? "";
-      const apres = glisser(source, avant, pose.dataset.drag, x, y);
+      const apres = ranger(glisser(source, avant, pose.dataset.drag, x, y));
       if (apres !== avant) {
         etats.set(chemin, apres);
         montrerLesValeurs();
@@ -1136,7 +1155,7 @@
       const champ = evenement.target.closest("[data-bind]");
       if (!champ) return;
       const ecrit = champ.type === "checkbox" ? (champ.checked ? "1" : "0") : champ.value;
-      etats.set(chemin, saisir(source, etats.get(chemin) ?? "", champ.dataset.bind, ecrit));
+      etats.set(chemin, ranger(saisir(source, etats.get(chemin) ?? "", champ.dataset.bind, ecrit)));
       montrerLesValeurs();
       placerLesPixels();
       garder();

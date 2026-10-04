@@ -375,6 +375,30 @@ pub fn recevoir(programme: &Programme, etat: &Etat, textes: &Textes, json: &str)
     (suites(programme, avant, etat), textes)
 }
 
+thread_local! {
+    /// Les capacités demandées par les règles de temps et les règles qui guettent pendant un
+    /// appel à l'arbitre (`Ding.play`). La page les lit après l'appel, pour faire entendre le son.
+    static CAPACITES: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Vide la liste des capacités demandées, et la rend.
+pub fn capacites_demandees() -> Vec<String> {
+    CAPACITES.with(|c| std::mem::take(&mut *c.borrow_mut()))
+}
+
+/// Note les capacités qu'une règle demande, à côté de ses demandes : `effect: [score.add(1), Ding.play]`.
+fn noter_les_capacites(regle: &Bloc) {
+    let noms: Vec<&String> = match regle.argument("effect").map(|a| &a.valeur) {
+        Some(Valeur::Nom(nom)) => vec![nom],
+        Some(Valeur::Liste(elements)) => elements.iter().filter_map(|e| match e {
+            Valeur::Nom(nom) => Some(nom),
+            _ => None,
+        }).collect(),
+        _ => Vec::new(),
+    };
+    CAPACITES.with(|c| c.borrow_mut().extend(noms.into_iter().cloned()));
+}
+
 /// Les demandes d'une règle : une seule (`effect: cart.add(1)`), ou plusieurs entre crochets
 /// (`effect: [score.set(0), lives.set(3)]`), faites dans l'ordre où elles sont écrites.
 pub fn demandes_de(regle: &Bloc) -> Vec<&Bloc> {
@@ -862,6 +886,11 @@ pub fn arbitrer(programme: &Programme, etat: &Etat, signal: &str) -> Etat {
             for effet in demandes_de(bloc) {
                 appliquer(programme, &mut etat, effet, graine, &mut tirages);
             }
+            // Les capacités d'une règle « On » sont appliquées par la page (elle connaît le
+            // geste) ; celles d'une règle de temps sont notées ici.
+            if bloc.nom == "Every" {
+                noter_les_capacites(bloc);
+            }
         }
         Ok(())
     });
@@ -927,6 +956,7 @@ fn guetter(programme: &Programme, avant_le_changement: Etat, etat: &mut Etat, gr
                     appliquer(programme, etat, effet, graine, tirages);
                     declenchee = true;
                 }
+                noter_les_capacites(bloc);
             }
             Ok(())
         });
@@ -1326,6 +1356,43 @@ mod tests {
     }
 
     #[test]
+    fn un_son_se_joue_par_une_regle() {
+        let source = "Page(
+  state: State(n: 0),
+  children: [ Sound(name: Ding, source: \"ding.wav\"), Button(name: B, text: \"x\"), Point(name: P, seed: 1, inside: World(children: [])) ],
+  rules: [
+    On(B.tap, effect: [n.add(1), Ding.play]),
+    When(n, is: 2, effect: [n.set(0), Ding.play]),
+    Every(1s, effect: Ding.play),
+  ],
+)";
+        page(source).unwrap();
+        let html = crate::vue_a_plat(source, "/x/").unwrap();
+        assert!(html.contains("<audio class=\"holo-Sound\" data-name=\"Ding\" preload=\"auto\" src=\"/x/ding.wav\"></audio>"), "{html}");
+        // Le son demandé par un geste est donné à la page avec les autres effets du geste.
+        assert_eq!(crate::effets(source, "B.tap"), ["Ding.play"]);
+        // Celui d'une règle qui guette, ou d'une règle de temps, suit l'état, sous le nom « ! ».
+        let un = crate::arbitrer(source, &crate::etat_initial(source), "B.tap");
+        assert_eq!(un, "n=1");
+        assert_eq!(crate::arbitrer(source, &un, "B.tap"), "n=0;!=Ding.play");
+        assert_eq!(crate::arbitrer(source, &un, "every:0"), "n=1;!=Ding.play");
+        // Ce « ! » n'est pas une valeur : relu, il est laissé de côté.
+        assert_eq!(crate::arbitrer(source, "n=1;!=Ding.play", "Nobody.tap"), "n=1");
+        for (source, message) in [
+            ("Page(children: [ Sound(name: D, source: \"https://x.example/a.wav\") ])", "un fichier de son rangé à côté"),
+            ("Page(children: [ Sound(name: D, source: \"a.exe\") ])", "un fichier de son rangé à côté"),
+            ("Page(children: [ Sound(source: \"a.wav\") ])", "un son a un nom"),
+            ("Page(children: [ Sound(name: D, source: \"a.wav\", loop: true) ])", "n'a pas de paramètre « loop »"),
+            ("Page(children: [ Sound(name: D, source: \"a.wav\"), Button(name: B, text: \"x\") ], rules: [ On(B.tap, effect: D.stop) ])", "capacité inconnue « stop »"),
+            ("Page(state: State(n: 0), children: [ Point(name: P, seed: 1, inside: World(children: [])) ], rules: [ Every(1s, effect: P.enter) ])", "demande un geste du visiteur"),
+            ("Page(state: State(n: 0), children: [ Point(name: P, seed: 1, inside: World(children: [])) ], rules: [ When(n, is: 1, effect: [n.set(0), P.enter]) ])", "demande un geste du visiteur"),
+        ] {
+            let erreur = page(source).unwrap_err();
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
+    }
+
+    #[test]
     fn une_valeur_peut_etre_un_texte() {
         let source = "Page(
   state: State(buyer: \"\", city: \"Paris\", cart: 0),
@@ -1450,7 +1517,7 @@ mod tests {
             ("Page(state: State(a: 0), rules: [ Every(10ms, effect: a.add(1)) ])", "de 100ms à 3600s"),
             ("Page(state: State(a: 0), rules: [ Every(2h, effect: a.add(1)) ])", "une durée en s ou en ms"),
             ("Page(state: State(a: 0), rules: [ Every(1s) ])", "attend une demande"),
-            ("Page(state: State(a: 0), children: [ Point(name: P, seed: 1, inside: World(children: [])) ], rules: [ Every(1s, effect: P.enter) ])", "attend une demande"),
+            ("Page(state: State(a: 0), children: [ Point(name: P, seed: 1, inside: World(children: [])) ], rules: [ Every(1s, effect: P.enter) ])", "demande un geste du visiteur"),
             ("Page(state: State(a: 0), rules: [ Every(1s, effect: b.add(1)) ])", "aucune valeur ne s'appelle « b »"),
             ("Page(children: [ Board(children: [ Point(name: S, seed: 1, x: nowhere, y: 10) ]) ])", "aucune valeur ne s'appelle « nowhere »"),
         ] {
