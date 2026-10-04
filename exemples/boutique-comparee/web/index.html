@@ -20,7 +20,7 @@
     <p class="card">Free delivery from <strong>30 euros</strong>.</p>
 
     <h2>The paintings</h2>
-    <img src="../painting.svg" alt="">
+    <img src="../painting.svg" alt="A painting: a yellow sun over green hills">
     <ul>
       <li>Sunrise over the river</li>
       <li>The blue door</li>
@@ -42,10 +42,23 @@
 
     <!-- Le panier : HTML n'a pas de valeur qui change. Un span vide, que le script remplira. -->
     <h3>Your cart</h3>
-    <div class="row between">
+    <!-- Les conditions : HTML n'en a pas. Tout est là, et le script cachera ce qu'il faut. -->
+    <span id="cart-empty" class="note">Your cart is empty.</span>
+    <div id="cart-full" class="row between" hidden>
       <span class="note"><span class="cart-count">0</span> paintings · <span class="cart-total">0</span> euros</span>
       <button id="empty" type="button">Empty the cart</button>
     </div>
+    <span id="delivery-soon" class="note" hidden>Add more paintings: delivery is free from 300 euros.</span>
+    <div id="delivery-free" hidden>
+      <span class="note">Delivery is free. Your code:</span>
+      <pre><code>FREE-DELIVERY</code></pre>
+    </div>
+
+    <hr>
+    <blockquote>
+      <p>The blue door has been in my kitchen for a year. I still stop to look at it.</p>
+      <footer>— A customer</footer>
+    </blockquote>
 
     <button id="open" class="card" type="button">Enter the workshop</button>
 
@@ -58,7 +71,7 @@
     <h1>The workshop</h1>
     <p>Here the paintings are made.</p>
     <div><span class="cart-count">0</span> paintings in your cart · <span class="cart-total">0</span> euros</div>
-    <img src="../easel.svg" alt="">
+    <img src="../easel.svg" alt="An easel holding a blank canvas">
     <button id="back" type="button">Back to the shop</button>
 
     <!-- Les points nés du morcellement : le script les crée ici. -->

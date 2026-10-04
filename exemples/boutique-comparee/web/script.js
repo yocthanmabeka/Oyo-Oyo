@@ -128,6 +128,12 @@ function showCart() {
   }
   for (const place of document.querySelectorAll(".cart-count")) place.textContent = count;
   for (const place of document.querySelectorAll(".cart-total")) place.textContent = total;
+  // En HoloCode : If(count, is: 0, …), If(total, over: 0, under: 300, …). Ici, montrer et cacher
+  // à la main, sans en oublier un seul.
+  document.getElementById("cart-empty").hidden = count !== 0;
+  document.getElementById("cart-full").hidden = count === 0;
+  document.getElementById("delivery-soon").hidden = !(total > 0 && total < 300);
+  document.getElementById("delivery-free").hidden = total <= 299;
 }
 
 for (const button of document.querySelectorAll("[data-add]")) {

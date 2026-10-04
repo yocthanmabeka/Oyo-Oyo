@@ -97,3 +97,11 @@ button {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, max(120px, calc((100% - 2 * 12px) / 3))), 1fr));
 }
 .row.between { justify-content: space-between; }
+
+/* Le trait, la citation, le texte tel quel. */
+hr { border: 0; border-top: 1px solid currentColor; opacity: 0.4; }
+blockquote { margin: 0 0 16px 0; border-left: 3px solid currentColor; padding: 0 0 0 12px; font-style: italic; }
+blockquote p { margin: 0 0 4px 0; }
+blockquote footer { font-style: normal; font-size: 0.9em; opacity: 0.7; }
+pre { font-family: ui-monospace, Consolas, monospace; background: rgba(127, 127, 127, 0.18); padding: 8px 12px; border-radius: 6px; }
+[hidden] { display: none !important; }

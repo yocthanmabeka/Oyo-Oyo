@@ -13,7 +13,7 @@
 //! c'est l'arbitre, ici, qui le fait. Il n'y a pas de code à écrire, et la liste des demandes
 //! est courte : `add`, `sub`, `set`.
 
-use crate::holo::{Bloc, Erreur, Programme, Valeur};
+use crate::holo::{Argument, Bloc, Erreur, Programme, Valeur};
 use crate::regles::pour_chaque_bloc;
 
 /// Garde-fous du langage : le nombre de valeurs d'une page, et jusqu'où va chacune.
@@ -23,6 +23,47 @@ pub const VALEUR_MAX: u64 = 1_000_000_000;
 /// Les deux valeurs que le moteur calcule quand la page donne des prix (`prices:`) : le nombre
 /// d'articles, et ce qu'ils coûtent ensemble. L'auteur n'écrit aucun calcul.
 pub const CALCULEES: &[&str] = &["count", "total"];
+
+/// Les comparaisons d'une condition : `If(count, is: 0)`. Des mots, pas des signes.
+pub const COMPARAISONS: &[&str] = &["is", "not", "over", "under"];
+
+/// Une condition lue dans un bloc `If` : la valeur regardée, et ce à quoi on la compare.
+/// Plusieurs comparaisons valent ensemble : `If(count, over: 0, under: 10)`.
+pub fn condition(bloc: &Bloc) -> Result<(&str, Vec<(&str, u64)>), Erreur> {
+    let erreur = |message: &str| Erreur { message: message.into(), pos: bloc.pos };
+    let ecriture = "une condition s'écrit « If(count, is: 0, children: [ … ]) » ; comparaisons : is (égal), not (différent), over (plus grand), under (plus petit)";
+    let valeur = match bloc.arguments.first() {
+        Some(Argument { nom: None, valeur: Valeur::Nom(valeur), .. }) => valeur.as_str(),
+        _ => return Err(erreur(ecriture)),
+    };
+    let mut comparaisons = Vec::new();
+    for argument in &bloc.arguments[1..] {
+        match (argument.nom.as_deref(), &argument.valeur) {
+            (Some("children" | "name"), _) => {}
+            (Some(mot), Valeur::Entier(nombre)) if COMPARAISONS.contains(&mot) => comparaisons.push((COMPARAISONS[COMPARAISONS.iter().position(|c| *c == mot).unwrap_or(0)], *nombre)),
+            (Some(mot), _) if COMPARAISONS.contains(&mot) => return Err(Erreur { message: format!("« If({valeur}, {mot}: …) » attend un nombre entier"), pos: argument.pos }),
+            (Some(mot), _) => return Err(Erreur { message: format!("« If » n'a pas de paramètre « {mot} » ; paramètres possibles : is, not, over, under, children"), pos: argument.pos }),
+            (None, _) => return Err(erreur(ecriture)),
+        }
+    }
+    if comparaisons.is_empty() {
+        return Err(erreur(ecriture));
+    }
+    if !matches!(bloc.argument("children").map(|a| &a.valeur), Some(Valeur::Liste(_))) {
+        return Err(erreur("« If » attend ce qu'il montre : If(count, is: 0, children: [ … ])"));
+    }
+    Ok((valeur, comparaisons))
+}
+
+/// La condition est-elle vraie pour cette valeur ?
+pub fn vraie(comparaisons: &[(&str, u64)], valeur: u64) -> bool {
+    comparaisons.iter().all(|(mot, nombre)| match *mot {
+        "is" => valeur == *nombre,
+        "not" => valeur != *nombre,
+        "over" => valeur > *nombre,
+        _ => valeur < *nombre,
+    })
+}
 
 /// Ce qu'on peut demander pour une valeur.
 pub const DEMANDES: &[&str] = &["add", "sub", "set"];
@@ -207,6 +248,13 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
         if bloc.argument("state").is_some() && !std::ptr::eq(bloc, &programme.racine) {
             return Err(Erreur { message: "les valeurs se déclarent sur la page, pas dans un monde : elles valent pour tout le fichier".into(), pos: bloc.pos });
         }
+        // Une condition regarde une valeur que la page déclare, ou que le moteur calcule.
+        if bloc.nom == "If" {
+            let (valeur, _) = condition(bloc)?;
+            if !montrables.iter().any(|(connu, _)| connu == valeur) {
+                return Err(Erreur { message: format!("« If({valeur}, …) » : aucune valeur ne s'appelle « {valeur} » ; déclare-la sur la page, state: State({valeur}: 0)"), pos: bloc.pos });
+            }
+        }
         let verifier_texte = |texte: &str, pos| {
             noms_dans(texte).into_iter().find(|nom| !montrables.iter().any(|(connu, _)| connu == nom)).map_or(Ok(()), |nom| {
                 Err(Erreur { message: format!("« {{{nom}}} » : aucune valeur ne s'appelle « {nom} » ; déclare-la sur la page, state: State({nom}: 0)"), pos })
@@ -367,6 +415,38 @@ mod tests {
         // Un total ne déborde pas.
         let enorme = page("Page(state: State(a: 1000000000), prices: Prices(a: 1000000000))").unwrap();
         assert_eq!(ecrire(&calculees(&enorme, &initial(&enorme).unwrap())), "count=1000000000;total=1000000000000000000");
+    }
+
+    #[test]
+    fn une_condition_montre_ou_cache_selon_une_valeur() {
+        let source = "Page(
+  state: State(cart: 0),
+  children: [
+    If(cart, is: 0, children: [ \"Your cart is empty.\" ]),
+    If(cart, over: 0, under: 3, children: [ Button(name: Pay, text: \"Pay\") ]),
+    If(cart, not: 0, children: [ \"{cart} in your cart\" ]),
+  ],
+)";
+        let html = crate::vue_a_plat(source, "").unwrap();
+        // Au départ, le panier est vide : la première condition est vraie, les deux autres non.
+        assert!(html.contains("<div class=\"holo-If\" data-if=\"cart\" data-is=\"0\"><p class=\"holo-P\">Your cart is empty.</p></div>"), "{html}");
+        assert!(html.contains("<div class=\"holo-If\" data-if=\"cart\" data-over=\"0\" data-under=\"3\" hidden><button"), "{html}");
+        assert!(html.contains("data-not=\"0\" hidden>"), "{html}");
+        assert!(vraie(&[("over", 0), ("under", 3)], 2) && !vraie(&[("over", 0), ("under", 3)], 3) && !vraie(&[("over", 0), ("under", 3)], 0));
+        assert!(vraie(&[("is", 5)], 5) && vraie(&[("not", 5)], 4) && !vraie(&[("not", 5)], 5));
+        // Avec des prix, une condition peut regarder ce que le moteur calcule.
+        page("Page(state: State(a: 0), prices: Prices(a: 10), children: [ If(total, over: 100, children: [ \"Free delivery\" ]) ])").unwrap();
+        for (source, message) in [
+            ("Page(children: [ If(cart, is: 0, children: []) ])", "aucune valeur ne s'appelle « cart »"),
+            ("Page(state: State(cart: 0), children: [ If(cart, children: []) ])", "une condition s'écrit"),
+            ("Page(state: State(cart: 0), children: [ If(cart, is: \"zero\", children: []) ])", "attend un nombre entier"),
+            ("Page(state: State(cart: 0), children: [ If(cart, above: 0, children: []) ])", "n'a pas de paramètre « above »"),
+            ("Page(state: State(cart: 0), children: [ If(cart, is: 0) ])", "attend ce qu'il montre"),
+            ("Page(state: State(cart: 0), children: [ If(is: 0, children: []) ])", "une condition s'écrit"),
+        ] {
+            let erreur = page(source).unwrap_err();
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
     }
 
     #[test]

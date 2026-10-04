@@ -32,11 +32,11 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `p` | `P`, ou une phrase nue | fait |
 | `strong`, `b` | `**gras**` dans un texte | fait |
 | `em`, `i` | `*italique*` dans un texte | fait |
-| `br` (retour à la ligne) | | manque |
-| `hr` (trait de séparation) | | manque |
+| `br` (retour à la ligne) | un texte entre trois guillemets garde ses retours à la ligne | fait, à l'essai |
+| `hr` (trait de séparation) | `Hr()` | fait, à l'essai |
 | `u`, `s`, `mark`, `small`, `sub`, `sup` | | manque |
-| `blockquote`, `q`, `cite` (citations) | | manque |
-| `pre`, `code`, `kbd` (code, texte tel quel) | | manque |
+| `blockquote`, `q`, `cite` (citations) | `Quote("…", by: "…")` | fait, à l'essai |
+| `pre`, `code`, `kbd` (code, texte tel quel) | `Code("…")`, et les accents graves dans une phrase | fait, à l'essai |
 | `abbr`, `time`, `address` | | manque |
 
 ### Les listes et les liens
@@ -55,7 +55,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | HTML | HoloCode | État |
 |---|---|---|
 | `img` | `Image(source:, weight:)` | fait |
-| `img alt` (le texte pour qui ne voit pas l'image) | | manque |
+| `img alt` (le texte pour qui ne voit pas l'image) | `Image(alt:)`, facultatif | fait, à l'essai |
 | `picture`, `source`, `srcset` (plusieurs tailles) | | manque |
 | `figure`, `figcaption` (image et légende) | | manque |
 | `video` | | manque |
@@ -124,7 +124,8 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | L'historique, le bouton « retour » | automatique : chaque site a son adresse | fait |
 | Survol, approche, défilement, clavier | | manque |
 | Garder une valeur, l'afficher (un panier) | `State(cart: 0)`, `{cart}`, `cart.add(1)` | fait, à l'essai : des nombres entiers ; avec `Prices`, le moteur calcule `{count}` et `{total}` |
-| Afficher sous condition, répéter sur une liste | | manque |
+| Afficher sous condition | `If(cart, is: 0, children: [...])` | fait, à l'essai |
+| Répéter sur une liste | | manque : il faut d'abord des valeurs qui soient des listes |
 | Chercher des données (`fetch`) | | manque |
 | Durées, minuteries, animations | les unités `ms`, `s` existent, sans emploi | manque |
 | Garder des données dans le navigateur | | manque |

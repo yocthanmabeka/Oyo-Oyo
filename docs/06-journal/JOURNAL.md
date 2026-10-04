@@ -6,6 +6,39 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Étape 1 du planning : les conditions, et le texte qui manquait
+
+**Ce que Yocthan a dit**
+
+- Sur les cibles et le planning en sept étapes : « Oui, commence. »
+
+**Fait** (`ADR-025`, à l'essai)
+
+- **Les conditions** : `If(count, is: 0, children: [...])`. Quatre comparaisons, en mots : `is`, `not`, `over`, `under`. Plusieurs valent ensemble. Pas de « sinon » : on écrit une seconde condition.
+- **Le texte** : `Hr()` (un trait), `Quote("…", by: "…")` (une citation), `Code("…")` (du texte tel quel), les accents graves dans une phrase, le retour à la ligne gardé dans un texte entre trois guillemets, `Image(alt:)`.
+- La boutique : « Your cart is empty » disparaît au premier ajout ; un message annonce la livraison offerte, et un code apparaît à partir de 300 euros. Sa jumelle web fait de même, en montrant et cachant à la main.
+
+![Le panier à 420 euros : le code de livraison est apparu](images/2026-10-04-conditions.png)
+
+- 78 tests du moteur. Vérifié dans Chrome : les quatre conditions de la boutique changent bien au fil des ajouts.
+
+**Ce qui n'est pas fait, alors que c'était annoncé**
+
+- **Les listes répétées.** Répéter un bloc pour chaque article demande des valeurs qui soient des listes ; nous n'avons que des nombres. Claude l'avait mis dans l'étape 1 sans voir cette dépendance. Reporté.
+- `alt` reste facultatif : l'obliger casserait la suite de conformité partagée avec les prototypes des autres IA.
+
+**Limites**
+
+- Les conditions sont évaluées deux fois : en Rust au premier affichage, en JavaScript ensuite. Deux copies d'une même règle peuvent diverger.
+- On ne compare qu'à un nombre écrit dans le fichier. Pas de « ou ».
+
+**Erreurs en route**
+
+- Une ligne rangée dans une condition s'affichait en colonne : la règle de style de la condition passait après celle de la ligne. Vu sur la capture, corrigé.
+- Le texte tel quel avait deux fonds superposés. Vu sur la capture, corrigé.
+
+---
+
 ## 2026-10-04 — Les cibles par famille et un planning en sept étapes
 
 **Ce que Yocthan a demandé**

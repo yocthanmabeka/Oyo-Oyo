@@ -105,6 +105,39 @@ Page(
 - `List(ordered: true, …)` numérote la liste. Un élément de liste peut être une phrase ou un bloc, par exemple un lien.
 - Il n'y a ni `UL`, ni `OL`, ni `LI` : un seul bloc `List` suffit, et ses éléments n'ont pas besoin de balise.
 
+## 4 a. Trait, citation, texte tel quel, retour à la ligne
+
+```holo
+Page(
+  title: "My shop",
+  children: [
+    H1("My shop"),
+    Image(source: "painting.svg", weight: 1KB, alt: "A yellow sun over green hills"),
+
+    Hr(),
+
+    Quote("I still stop to look at it.", by: "A customer"),
+
+    "Use the code `WELCOME` at checkout.",
+    Code("WELCOME"),
+
+    P("""
+      Open Monday to Friday.
+      Closed on Sunday.
+    """),
+  ],
+)
+```
+
+| Écriture | Ce que ça donne |
+|---|---|
+| `Hr()` | Un trait de séparation. |
+| `Quote("…", by: "…")` | Une citation. `by` dit qui l'a dit ; on peut l'omettre. |
+| `Code("…")` | Du texte montré tel quel, lettre pour lettre : rien n'y est interprété. |
+| des accents graves dans une phrase | Le même effet, pour un mot dans une phrase. |
+| un texte entre trois guillemets | Il peut tenir sur plusieurs lignes, et chaque retour à la ligne est gardé. |
+| `Image(alt: "…")` | Ce que montre l'image, pour qui ne la voit pas. Sans `alt`, l'image est tenue pour un décor. |
+
 ## 4 bis. La disposition : `Row`, `Column`, `Grid`
 
 Sans rien écrire, les blocs se rangent l'un sous l'autre. Trois blocs les rangent autrement.
@@ -421,6 +454,52 @@ Limites : les articles sont écrits d'avance dans le fichier ; pas de centimes ;
 
 Cette écriture est à l'essai (`ADR-023`).
 
+## 6 ter. Montrer selon une valeur : `If`
+
+Une condition montre ce qu'elle contient seulement quand elle est vraie.
+
+```holo
+Page(
+  title: "My shop",
+  state: State(cart: 0),
+  children: [
+    Button(name: Add, text: "Add a painting"),
+
+    If(cart, is: 0, children: [
+      "Your cart is empty.",
+    ]),
+
+    If(cart, over: 0, children: [
+      Text("{cart} paintings in your cart"),
+      Button(name: Empty, text: "Empty the cart"),
+    ]),
+
+    If(cart, over: 2, under: 10, children: [
+      "Delivery is free.",
+    ]),
+  ],
+  rules: [
+    On(Add.tap, effect: cart.add(1)),
+    On(Empty.tap, effect: cart.set(0)),
+  ],
+)
+```
+
+| Comparaison | Sens |
+|---|---|
+| `is: 0` | égal à 0 |
+| `not: 0` | différent de 0 |
+| `over: 0` | plus grand que 0 |
+| `under: 10` | plus petit que 10 |
+
+- Le premier mot est le nom d'une valeur : une valeur de `State`, ou `count` et `total` quand la page donne des prix.
+- Plusieurs comparaisons valent ensemble : `over: 2, under: 10` veut dire « de 3 à 9 ».
+- Quand la valeur change, la page suit toute seule.
+- Il n'y a pas de « sinon » : on écrit une seconde condition, comme ci-dessus.
+- Une condition se place dans `children`, y compris dans une ligne, une colonne ou une grille.
+
+Cette écriture est à l'essai (`ADR-025`).
+
 ## 7. Comment la page se regarde : `Zoom`, `Points`, `Relief`
 
 Quand le visiteur zoome sur la page (Ctrl + molette, ou pincer), elle grossit d'abord comme n'importe quel site : le texte reste du texte, on le lit, on le sélectionne, on le copie. Au-delà du grossissement fixé par `Points(after:)`, chaque pixel devient un point lumineux, qui se morcelle ensuite. Dès que la page est grossie, glisser la déplace, dans tous les sens ; c'est le même geste avant et après le passage aux points. Quand il tourne la page, elle prend du relief. Ces trois blocs règlent cela.
@@ -567,7 +646,11 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Page` | `name`, `title`, `children`, `pixels`, `rules`, `state`, `prices`, `zoom`, `points`, `relief`, `portals` | À la racine |
 | `H1`, `H2`, `H3`, `P`, `Text` | le texte entre guillemets ; `name` | Dans `children` |
 | `A` | le texte entre guillemets, `to` | Dans `children` |
-| `Image` | `source`, `weight`, `name` | Dans `children` |
+| `Image` | `source`, `weight`, `alt`, `name` | Dans `children` |
+| `Hr` | aucun | Dans `children` |
+| `Quote` | le texte entre guillemets, `by` | Dans `children` |
+| `Code` | le texte entre guillemets | Dans `children` |
+| `If` | le nom d'une valeur, puis `is`, `not`, `over`, `under`, et `children` | Dans `children` |
 | `List` | `children`, `ordered`, `name` | Dans `children` |
 | `Button` | `name`, `text` | Dans `children` |
 | `Point` | `name`, `seed`, `brightness`, `fragments`, `color`, `palette`, `budget`, `inside` ; `above` quand il est planté dans un pixel | Dans `children` ou `pixels`, ou à la racine |
@@ -604,7 +687,11 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Activer la rotation de la page, en faire le tour | `Relief(tilt:)` | fait |
 | Une valeur que la page retient | `state: State(cart: 0)` | fait, à l'essai |
 | Afficher une valeur | `{cart}` dans un texte | fait, à l'essai |
-| Changer une valeur | les demandes `add`, `sub`, `set` | fait, à l'essai |
+| Changer une valeur | les demandes `add`, `sub`, `set` | fait |
+| Montrer ou cacher selon une valeur | `If(cart, is:, not:, over:, under:)` | fait, à l'essai |
+| Un trait, une citation, du texte tel quel | `Hr()`, `Quote(by:)`, `Code`, les accents graves | fait, à l'essai |
+| Le retour à la ligne | un texte entre trois guillemets | fait, à l'essai |
+| Le texte qui remplace une image | `Image(alt:)` | fait, à l'essai |
 | Des prix, un nombre d'articles, un total | `prices: Prices(...)`, `{count}`, `{total}` | fait, à l'essai |
 | Activer ou désactiver le zoom | `Zoom(active:)` | fait |
 | Les limites du zoom | `Zoom(max:, shrink:)` | fait |
@@ -632,7 +719,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 - Les imports (`import`, `module`, `bridge js`, `bridge css`) : le moteur les lit mais ne les applique pas.
 - Pour la disposition : pas de largeur par élément, pas d'élément qui prend la place restante.
 - Les formulaires, les données venues d'ailleurs.
-- Pour les valeurs : seulement des nombres entiers. Pas de texte, pas de condition (« si le panier est vide »), pas d'autre calcul que le nombre et le total d'un panier, rien n'est gardé après un rechargement.
+- Pour les valeurs : seulement des nombres entiers. Pas de texte, pas de liste, pas d'autre calcul que le nombre et le total d'un panier, rien n'est gardé après un rechargement.
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
 - Les garde-fous de zoom pour un `Point` seul : ils sont encore fixés dans le moteur.
