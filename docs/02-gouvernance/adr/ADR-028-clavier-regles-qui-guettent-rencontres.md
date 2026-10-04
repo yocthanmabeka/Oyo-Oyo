@@ -45,6 +45,20 @@ Page(
 6. Plusieurs règles qui guettent la même chose se déclenchent ensemble : elles jugent sur la même photo de l'état, puis leurs effets s'appliquent dans l'ordre où elles sont écrites.
 7. Un effet peut déclencher une autre règle qui guette ; l'arbitre s'arrête après huit tours, pour qu'un fichier mal écrit ne tourne pas sans fin.
 
+## Correction du même jour : moins de mots, des règles plus courtes, et le glissement
+
+Yocthan, après la première version : « Plus c'est verbeux, plus on s'éloigne de l'objectif du langage, qui est de faire des trucs de manière simple. Quand c'est utile, c'est normal que ça soit verbeux ; quand c'est pas utile, il faut chercher une manière de faire correctement la chose. » Il a aussi demandé le glissement, qui manquait à l'étape 4.
+
+Trois changements :
+
+1. **Une règle peut faire plusieurs demandes**, entre crochets : `effect: [score.add(1), apple_y.set(0)]`. Une seule s'écrit sans crochets. Le jeu de la pomme passe de treize règles à six ; « vider le panier » de la boutique, de trois règles à une.
+2. **`Meet` disparaît** : une rencontre est une chose qu'on guette, donc elle s'écrit avec `When`. `When(Basket, meets: Apple, within: 9, effect: …)`. Il reste trois sortes de règles : `On` (un geste), `Every` (le temps), `When` (un moment).
+3. **Le glissement : `drag: true`** sur un bloc d'un plateau. Ses places, si ce sont des valeurs de la page, suivent le doigt ou la souris. C'est encore l'arbitre qui change les valeurs, et les règles qui guettent sont consultées : rattraper la pomme en glissant compte.
+
+Options écartées : réunir les trois règles sous le seul mot `On` (les trois mots se lisent chacun comme le début d'une phrase, et un seul mot à trois formes ne serait pas plus simple) ; un signal `drag` et une règle à écrire (du bruit, comme pour un champ : voir `ADR-027`).
+
+Dans ce qui suit, lire `When(A, meets: B, …)` là où il est écrit `Meet(A, B, …)`.
+
 ## Comparaison faite avant de choisir
 
 | Question | Options | Choix, et pourquoi |
@@ -67,17 +81,15 @@ Défauts de JavaScript évités : `keydown` écouté sur toute la page, qui vole
 
 ### Négatives et risques
 
-- **Le langage grossit** : quatre sortes de règles (`On`, `Every`, `When`, `Meet`). C'est le risque annoncé dans le planning.
-- Une règle ne fait qu'une demande : rattraper la pomme demande trois lignes `Meet`.
+- Le langage grossit quand même : trois sortes de règles (`On`, `Every`, `When`), et `When` a deux formes.
 - Le mouvement va par petits sauts (dix par seconde), adoucis à l'affichage. Pas de vitesse ni de trajectoire.
 - La rencontre est jugée sur des places, pas sur des formes : un grand et un petit objet se rencontrent à la même distance.
-- Le clavier ne vaut que pour la page ; pas de manette, pas de glissement du doigt.
+- Le clavier ne vaut que pour la page ; pas de manette.
 - La rencontre est testée après chaque battement : un objet très rapide peut traverser sans être vu.
 
 ## Ce qui reste à faire
 
-- Une règle qui fait plusieurs demandes.
-- Le glissement du doigt ; des objets créés en nombre (dix pommes) : il faut des listes.
+- Des objets créés en nombre (dix pommes) : il faut des listes.
 - Les formes, les images et le son dans les mondes : étape 6.
 
 ## Critères de validation
@@ -87,5 +99,5 @@ Défauts de JavaScript évités : `keydown` écouté sur toute la page, qui vole
 
 ## Conditions de réexamen
 
-- Quand Yocthan aura joué et jugé : `Key`, `When`, `Meet`, `within`.
+- Quand Yocthan aura joué et jugé : `Key`, `When`, `meets`, `within`, `drag`, et les crochets.
 - Si un troisième jeu demande encore une nouvelle sorte de règle : il faudra alors chercher une forme plus générale.

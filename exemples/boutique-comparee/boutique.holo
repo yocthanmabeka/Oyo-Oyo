@@ -213,10 +213,8 @@ Page(
     On(LessBlueDoor.tap, effect: blue_door.sub(1)),
     On(AddMarketDay.tap, effect: market_day.add(1)),
     On(LessMarketDay.tap, effect: market_day.sub(1)),
-    // Vider le panier : un signal, trois règles.
-    On(Empty.tap, effect: sunrise.set(0)),
-    On(Empty.tap, effect: blue_door.set(0)),
-    On(Empty.tap, effect: market_day.set(0)),
+    // Vider le panier : une règle, trois demandes, entre crochets.
+    On(Empty.tap, effect: [sunrise.set(0), blue_door.set(0), market_day.set(0)]),
   ],
 )
 

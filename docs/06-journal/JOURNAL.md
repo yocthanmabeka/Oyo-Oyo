@@ -6,6 +6,27 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Des règles plus courtes, une sorte de règle en moins, et le glissement
+
+**Ce que Yocthan a dit**
+
+- « À chaque fois qu'il y a un truc à exécuter, tu vas l'exécuter sur Chrome. Tu as ma permission. » Trop de messages à répéter sinon.
+- Finir l'étape 4 avec le glissement.
+- Sur les quatre sortes de règles : « Il faudra que tu puisses voir comment les diminuer. Plus c'est verbeux, plus on s'éloigne de l'objectif du langage, qui est de faire des trucs de manière simple. Quand c'est utile, c'est normal que ça soit verbeux ; quand c'est pas utile, il faut chercher une manière de faire correctement la chose. »
+
+**Fait**
+
+- **Plusieurs demandes dans une règle**, entre crochets : `On(Play.tap, effect: [score.set(0), lives.set(3), apple_y.set(0)])`. Le jeu de la pomme passe de treize règles à six ; celui de l'étoile, de neuf à cinq ; « vider le panier », de trois à une.
+- **Une sorte de règle en moins.** `Meet` disparaît : une rencontre s'écrit `When(Basket, meets: Apple, within: 9, effect: …)`. Il reste `On` (un geste), `Every` (le temps), `When` (un moment).
+- **Le glissement** : `drag: true` sur un bloc d'un plateau. Sa valeur suit le doigt ou la souris ; rattraper la pomme en glissant compte. Les deux boutons du jeu ne servent plus : retirés.
+- Les fichiers `.holo` à essayer sont désormais ouverts dans Chrome sans attendre qu'il le demande.
+
+**Erreur de Claude**
+
+- La première version de l'étape 4 ajoutait un mot par besoin (`When`, puis `Meet`) et une ligne par demande. Claude l'avait signalé comme un risque sans le corriger ; c'est Yocthan qui a tranché.
+
+---
+
 ## 2026-10-04 — Étape 4 : le clavier, les règles qui guettent, les rencontres, et un deuxième jeu
 
 **Fait** (`ADR-028`, à l'essai)

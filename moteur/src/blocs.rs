@@ -4,7 +4,7 @@
 use crate::holo::{Bloc, Erreur, Programme, Valeur};
 
 /// `Text` est du texte sans rôle ; `P`, `H1`, `H2` et `H3` sont un `Text` avec un rôle (ADR-020).
-pub const BLOCS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Meet"];
+pub const BLOCS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When"];
 
 /// Le titre le plus profond : on s'arrête à `H3` tant qu'un vrai besoin n'apparaît pas.
 pub const TITRE_MAX: u32 = 3;
@@ -51,7 +51,8 @@ fn parcourir(bloc: &Bloc, dernier_titre: &mut u32) -> Result<(), Erreur> {
     let plan = if bloc.nom == "Page" || bloc.nom == "World" { &mut plan_propre } else { dernier_titre };
     for argument in &bloc.arguments {
         // L'effet d'une règle peut être une demande, `cart.add(1)` : `regles.rs` la vérifie.
-        let demande = matches!(bloc.nom.as_str(), "On" | "Every" | "When" | "Meet") && argument.nom.as_deref() == Some("effect") && matches!(&argument.valeur, Valeur::Bloc(b) if crate::etat::est_demande(b));
+        // (une seule, ou plusieurs entre crochets : dans les deux cas, on ne descend pas dedans)
+        let demande = matches!(bloc.nom.as_str(), "On" | "Every" | "When") && argument.nom.as_deref() == Some("effect");
         if !demande {
             visiter(&argument.valeur, plan)?;
         }
