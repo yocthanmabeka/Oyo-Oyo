@@ -1,0 +1,17 @@
+// La seconde page du site : le même menu, le même thème, sans les récrire.
+import "commun.holo"
+
+Page(
+  name: Contact,
+  title: "Contact — The little studio",
+  children: [
+    Use(Menu),
+
+    H1("Contact"),
+    "Write to us, we answer within two days.",
+    Code("hello@littlestudio.example"),
+  ],
+)
+
+// Cette page écrit son propre style de titre : il l'emporte sur celui du morceau.
+H1 { color: #245C45; font-size: 30px; }

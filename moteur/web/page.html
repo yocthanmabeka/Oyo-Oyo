@@ -121,7 +121,7 @@
 </div>
 <script type="module">
   import init, {
-    pause, vue_a_plat, effets, etat_initial, arbitrer, conditions, horloges, touchees, touches, saisir, glisser, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
+    pause, vue_a_plat, effets, etat_initial, arbitrer, conditions, horloges, touchees, touches, imports, saisir, glisser, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
     mosaique_pivoter, mosaique_de_face, mosaique_sous, reglages_de_vue, reveiller, images_dessinees,
   } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
@@ -216,6 +216,20 @@
 
   // Lit un fichier .holo et le fait vérifier par le moteur. Un fichier est petit : on peut
   // lire d'avance ceux où mènent les points de la page, pour que le passage soit immédiat.
+  // Un fichier peut en importer d'autres, rangés à côté de lui (import "commun.holo"). La page
+  // va les chercher et les joint à son texte : le moteur, lui, ne lit jamais rien tout seul.
+  async function avecSesImports(texte, fichier) {
+    let tout = texte;
+    const discret = dAilleurs(fichier) ? { credentials: "omit", referrerPolicy: "no-referrer" } : {};
+    for (const nom of imports(texte).split(";").filter(Boolean)) {
+      try {
+        const reponse = await fetch(dossierDe(fichier) + nom, { headers: { accept: "text/plain" }, ...discret });
+        if (reponse.ok) tout += `\u001e${nom}\u001f${(await reponse.text()).slice(0, OCTETS_MAX)}`;
+      } catch { /* introuvable : le moteur le dira, avec la ligne de l'import */ }
+    }
+    return tout;
+  }
+
   function lire(fichier) {
     if (fichiersLus.has(fichier)) {
       // Relu à l'instant : il repasse en tête des fichiers gardés.
@@ -251,7 +265,7 @@
             }
             morceaux.push(value);
           }
-          const texte = new TextDecoder().decode(await new Blob(morceaux).arrayBuffer());
+          const texte = await avecSesImports(new TextDecoder().decode(await new Blob(morceaux).arrayBuffer()), fichier);
           vue_a_plat(texte, dossierDe(fichier), ""); // refusé par le moteur : le passage reste fermé
           return texte;
         } catch {
@@ -976,7 +990,7 @@
 
   try {
     await init();
-    source = await (await fetch(chemin, { headers: { accept: "text/plain" } })).text();
+    source = await avecSesImports(await (await fetch(chemin, { headers: { accept: "text/plain" } })).text(), chemin);
     fichiersLus.set(chemin, Promise.resolve(source));
     lireLesReglages();
     const departDuSite = decodeURIComponent(location.hash.slice(1));

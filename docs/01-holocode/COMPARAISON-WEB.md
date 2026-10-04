@@ -95,10 +95,10 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | HTML | HoloCode | État |
 |---|---|---|
 | `style` | les styles, après la page | fait |
-| `link rel="stylesheet"` | un fichier de styles à part | manque |
+| `link rel="stylesheet"` | les styles d'un morceau importé : `import "commun.holo"` | fait, à l'essai |
 | `script` | refusé dans un bloc (`ADR-015`) | exprès |
 | `noscript` | sans objet : rien ne dépend d'un script | exprès |
-| `template`, `slot` (morceaux réutilisables) | `import` est lu, pas appliqué | manque |
+| `template`, `slot` (morceaux réutilisables) | `Part(name: Menu, …)` et `Use(Menu)` ; sans paramètres | fait, à l'essai |
 
 ## 2. CSS
 

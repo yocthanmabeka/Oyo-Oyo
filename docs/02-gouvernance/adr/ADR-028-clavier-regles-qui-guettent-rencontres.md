@@ -1,10 +1,10 @@
 # ADR-028 — Le clavier (`Key`), les règles qui guettent (`When`), les rencontres (`Meet`)
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ pour l'instant ; l'écriture exacte reste à revoir avec les noms
 - Date : 2026-10-04
 - Responsable : Yocthan Mabeka
 - Discussions sources : journal du 2026-10-04 ; `docs/01-holocode/COMPARATIF-CONCURRENTS.md` (planning, étape 4)
-- Validation : Yocthan, le 2026-10-04 : « Tu termines l'étape 3 et après on passe à l'étape 4. Si tu peux déjà le commencer et le finir aussi. » L'écriture est une proposition de Claude ; à juger après essai.
+- Validation : Yocthan, le 2026-10-04, après avoir joué au jeu de la pomme, au clavier et au glissement : « Mon avis sur le jeu de la pomme, c'est bon. » Avant cela : Yocthan, le 2026-10-04 : « Tu termines l'étape 3 et après on passe à l'étape 4. Si tu peux déjà le commencer et le finir aussi. » L'écriture est une proposition de Claude ; à juger après essai.
 - Projets affectés : HoloCode, HoloEngine
 
 ## Contexte

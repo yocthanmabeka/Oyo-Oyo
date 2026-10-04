@@ -694,6 +694,53 @@ Limites : pas de liste de choix, pas d'envoi à un serveur ; ce qui est gardé r
 
 Cette écriture est à l'essai (`ADR-027`).
 
+## 6 sexies. Un site de plusieurs pages : `import`, `Part`, `Use`
+
+Le menu et le thème d'un site s'écrivent une seule fois, dans un fichier à part. L'exemple est dans `exemples/site/`.
+
+Le fichier commun, `commun.holo`, est un **morceau** :
+
+```holo
+Part(
+  name: Menu,
+  children: [
+    Row(gap: 16px, children: [
+      A("Home", to: "accueil.holo"),
+      A("Contact", to: "contact.holo"),
+    ]),
+    Hr(),
+  ],
+)
+
+Page { background: #f6f1e7; color: #2b2118; font-family: Georgia, serif; }
+H1 { color: #8a3b12; }
+```
+
+Une page l'importe, puis le pose :
+
+```text
+import "commun.holo"
+
+Page(
+  title: "The little studio",
+  children: [
+    Use(Menu),
+    H1("Welcome"),
+    "We paint, we frame, we deliver.",
+  ],
+)
+```
+
+- `import "commun.holo"` s'écrit tout en haut. Le fichier est rangé à côté de la page.
+- `Part(name: Menu, children: [...])` : un morceau a un nom et un contenu. Ce n'est pas une page.
+- `Use(Menu)` pose les blocs du morceau à cet endroit.
+- Les styles du morceau viennent avec lui. Si la page écrit le même style, c'est le sien qui reste.
+- Un bouton écrit dans un morceau garde son nom : une règle de la page peut l'écouter.
+
+Limites : un morceau n'a ni valeurs ni règles, et n'importe pas d'autres fichiers ; seize imports au plus.
+
+Cette écriture est à l'essai (`ADR-029`).
+
 ## 7. Comment la page se regarde : `Zoom`, `Points`, `Relief`
 
 Quand le visiteur zoome sur la page (Ctrl + molette, ou pincer), elle grossit d'abord comme n'importe quel site : le texte reste du texte, on le lit, on le sélectionne, on le copie. Au-delà du grossissement fixé par `Points(after:)`, chaque pixel devient un point lumineux, qui se morcelle ensuite. Dès que la page est grossie, glisser la déplace, dans tous les sens ; c'est le même geste avant et après le passage aux points. Quand il tourne la page, elle prend du relief. Ces trois blocs règlent cela.
@@ -854,6 +901,8 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Board` | `children`, `height`, `name` ; ses enfants prennent `x`, `y` et `drag` | Dans `children` |
 | `Input` | `value`, `label`, `max`, `name` | Dans `children` |
 | `Checkbox` | `value`, `label`, `name` | Dans `children` |
+| `Part` | `name`, `children` | À la racine d'un fichier importé |
+| `Use` | le nom d'un morceau importé | Dans `children` |
 | `On` | le signal, puis `effect:` | Dans `rules` |
 | `Every` | le rythme, puis `effect:` | Dans `rules` |
 | `When` | le nom d'une valeur, puis `is`, `not`, `over`, `under` ; ou le nom d'un bloc, puis `meets` et `within` ; et `effect:` | Dans `rules` |
@@ -887,6 +936,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Une valeur que la page retient | `state: State(cart: 0)` | fait, à l'essai |
 | Afficher une valeur | `{cart}` dans un texte | fait, à l'essai |
 | Changer une valeur | les demandes `add`, `sub`, `set` | fait |
+| Réutiliser un morceau de page et un thème | `import "commun.holo"`, `Part(name:)`, `Use(Menu)` | fait, à l'essai |
 | Répéter une règle dans le temps | `Every(1s, effect:)` | fait |
 | Le clavier | `On(Key.left, effect:)` | fait, à l'essai |
 | Agir au moment où une valeur atteint quelque chose | `When(lives, is: 0, effect:)` | fait, à l'essai |
@@ -927,7 +977,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 
 ## 11. Ce qui n'existe pas encore
 
-- Les imports (`import`, `module`, `bridge js`, `bridge css`) : le moteur les lit mais ne les applique pas.
+- `module`, `bridge js`, `bridge css` : le moteur les lit mais ne les applique pas. Les données venues d'un serveur.
 - Pour la disposition : pas de largeur par élément, pas d'élément qui prend la place restante.
 - La liste de choix, l'envoi d'un formulaire ; les données venues d'ailleurs.
 - Pour les valeurs : des nombres entiers et des textes. Pas de liste, pas d'autre calcul que le nombre et le total d'un panier, pas de comparaison entre deux valeurs.

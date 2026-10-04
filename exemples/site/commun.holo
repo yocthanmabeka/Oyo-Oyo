@@ -1,0 +1,22 @@
+// Ce que les pages du site ont en commun : le menu, et le thème.
+// Ce fichier n'est pas une page : c'est un morceau (Part), que les pages importent.
+
+Part(
+  name: Menu,
+  children: [
+    Row(gap: 16px, align: between, children: [
+      Text.brand("The little studio"),
+      Row(gap: 16px, children: [
+        A("Home", to: "accueil.holo"),
+        A("Contact", to: "contact.holo"),
+      ]),
+    ]),
+    Hr(),
+  ],
+)
+
+// Les styles d'un morceau viennent avec lui. Une page qui écrit le même style garde le sien.
+Page { background: #f6f1e7; color: #2b2118; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #8a3b12; font-size: 30px; }
+A { color: #8a3b12; }
+.brand { font-weight: bold; font-size: 18px; }

@@ -37,6 +37,7 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `When` | un `if` testé à chaque image ; un test de collision écrit à la main | changé : une règle, déclenchée une fois, au moment où c'est vrai |
 | `Every` | `setInterval` | changé : une règle, qui s'arrête seule quand on ne regarde pas |
 | `Board` | `position: relative` et `absolute` | changé : un bloc, des places de 0 à 100 |
+| `Part`, `Use` | `template`, les composants de React ou de Vue | changés : un morceau nommé, posé par son nom, sans paramètres |
 | `If` | `if` en JavaScript, `v-if`, `{#if}` | repris, devenu un bloc |
 | `Hr` | `hr` | repris, avec une majuscule |
 | `Quote` | `blockquote`, `q`, `cite` | changé : un mot au lieu de trois |

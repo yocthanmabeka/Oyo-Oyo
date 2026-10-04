@@ -102,6 +102,12 @@ pub fn horloges(source: &str) -> String {
     verifier_page(source).map(|programme| etat::horloges(&programme).iter().map(|(ms, valeur)| format!("{ms}:{valeur}")).collect::<Vec<_>>().join(";")).unwrap_or_default()
 }
 
+/// Les fichiers qu'une page importe (`commun.holo;pied.holo`), pour qu'on aille les chercher et
+/// qu'on les joigne à son texte avant de le donner au moteur.
+pub fn imports(source: &str) -> String {
+    holo::imports_de(source).map(|noms| noms.join(";")).unwrap_or_default()
+}
+
 /// Les touches du clavier que la page écoute (`left;right`).
 pub fn touches(source: &str) -> String {
     verifier_page(source).map(|programme| etat::touches(&programme).join(";")).unwrap_or_default()

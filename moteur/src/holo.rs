@@ -579,7 +579,127 @@ fn decrire(mot: &Mot) -> String {
 }
 
 /// Lit un fichier `.holo` entier.
+/// Ce qui sépare, dans le texte donné au moteur, un fichier de ceux qu'il importe : le fichier,
+/// puis pour chaque import ce signe, son nom, `SEPARE_LE_NOM`, et son texte. C'est la page
+/// d'entrée (ou le moteur en ligne de commande) qui va chercher les fichiers et les joint :
+/// le moteur, lui, ne lit jamais rien tout seul.
+pub const FICHIER_SUIVANT: char = '\u{1e}';
+pub const SEPARE_LE_NOM: char = '\u{1f}';
+
+/// Le nombre de fichiers qu'une page peut importer, au plus.
+pub const IMPORTS_MAX: usize = 16;
+
+/// Un nom de fichier importé : rangé à côté, sans adresse complète ni remontée de dossier.
+fn import_sur(nom: &str) -> bool {
+    nom.ends_with(".holo") && !nom.starts_with('/') && !nom.contains("..") && nom.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '/'))
+}
+
+/// Les fichiers qu'un fichier importe (`import "commun.holo"`), pour que celui qui appelle le
+/// moteur aille les chercher.
+pub fn imports_de(source: &str) -> Result<Vec<String>, Erreur> {
+    let principal = source.split(FICHIER_SUIVANT).next().unwrap_or("");
+    let programme = lire_seul(principal)?;
+    let mut noms = Vec::new();
+    for import in programme.imports.iter().filter(|i| i.sorte == "import") {
+        if !import_sur(&import.cible) {
+            return Err(Erreur { message: format!("« import \"{}\" » : on importe un fichier .holo rangé à côté, comme \"commun.holo\"", import.cible), pos: import.pos });
+        }
+        if !noms.contains(&import.cible) {
+            noms.push(import.cible.clone());
+        }
+    }
+    if noms.len() > IMPORTS_MAX {
+        return Err(Erreur { message: format!("trop d'imports : une page en fait au plus {IMPORTS_MAX}"), pos: programme.racine.pos });
+    }
+    Ok(noms)
+}
+
+/// Lit un fichier et ceux qu'il importe, joints à sa suite. Un fichier importé est un morceau :
+/// `Part(name: Menu, children: [...])`, avec ses styles. Dans la page, `Use(Menu)` pose les
+/// blocs du morceau à cet endroit. Les styles du morceau viennent avec lui ; si la page écrit
+/// le même style, c'est le sien qui reste.
 pub fn lire(source: &str) -> Result<Programme, Erreur> {
+    let mut fichiers = source.split(FICHIER_SUIVANT);
+    let mut programme = lire_seul(fichiers.next().unwrap_or(""))?;
+    let fournis: Vec<(&str, &str)> = fichiers.filter_map(|f| f.split_once(SEPARE_LE_NOM)).collect();
+    let mut morceaux: Vec<(String, Vec<Valeur>)> = Vec::new();
+    let mut styles_importes = Vec::new();
+    for nom in imports_de(source)? {
+        let pos = programme.imports.iter().find(|i| i.cible == nom).map_or(programme.racine.pos, |i| i.pos);
+        let Some((_, texte)) = fournis.iter().find(|(fourni, _)| *fourni == nom) else {
+            return Err(Erreur { message: format!("le fichier importé « {nom} » n'a pas été trouvé à côté de celui-ci"), pos });
+        };
+        let morceau = lire_seul(texte).map_err(|e| Erreur { message: format!("dans « {nom} », ligne {} : {}", e.pos.ligne, e.message), pos })?;
+        let refus = |message: String| Erreur { message: format!("« {nom} » : {message}"), pos };
+        if morceau.racine.nom != "Part" {
+            return Err(refus(format!("un fichier importé est un morceau, il commence par « Part(name: Menu, children: [ … ]) » ; celui-ci commence par « {} »", morceau.racine.nom)));
+        }
+        if !morceau.imports.is_empty() {
+            return Err(refus("un morceau n'importe pas lui-même d'autres fichiers".into()));
+        }
+        let (Some(Valeur::Nom(nom_du_morceau)), Some(Valeur::Liste(enfants))) = (morceau.racine.argument("name").map(|a| &a.valeur), morceau.racine.argument("children").map(|a| &a.valeur)) else {
+            return Err(refus("un morceau a un nom et un contenu : Part(name: Menu, children: [ … ])".into()));
+        };
+        if morceau.racine.arguments.len() != 2 {
+            return Err(refus("un morceau n'a que deux réglages : name et children".into()));
+        }
+        if morceaux.iter().any(|(connu, _)| connu == nom_du_morceau) {
+            return Err(refus(format!("deux morceaux importés s'appellent « {nom_du_morceau} »")));
+        }
+        morceaux.push((nom_du_morceau.clone(), enfants.clone()));
+        styles_importes.extend(morceau.styles);
+    }
+    poser_les_morceaux(&mut programme.racine, &morceaux)?;
+    // Les styles des morceaux d'abord, ceux de la page ensuite : à cible égale, la page garde le sien.
+    styles_importes.retain(|importe: &RegleStyle| !programme.styles.iter().any(|propre| propre.cible == importe.cible));
+    let mut styles: Vec<RegleStyle> = Vec::new();
+    for regle in styles_importes {
+        if !styles.iter().any(|deja| deja.cible == regle.cible) {
+            styles.push(regle);
+        }
+    }
+    styles.append(&mut programme.styles);
+    programme.styles = styles;
+    programme.imports.retain(|i| i.sorte != "import");
+    Ok(programme)
+}
+
+/// Remplace chaque `Use(Menu)` par les blocs du morceau importé de ce nom.
+fn poser_les_morceaux(bloc: &mut Bloc, morceaux: &[(String, Vec<Valeur>)]) -> Result<(), Erreur> {
+    fn dans(valeur: &mut Valeur, morceaux: &[(String, Vec<Valeur>)]) -> Result<(), Erreur> {
+        match valeur {
+            Valeur::Bloc(bloc) => poser_les_morceaux(bloc, morceaux),
+            Valeur::Liste(elements) => {
+                let mut poses = Vec::with_capacity(elements.len());
+                for mut element in std::mem::take(elements) {
+                    match &element {
+                        Valeur::Bloc(appel) if appel.nom == "Use" => {
+                            let nom = match appel.arguments.as_slice() {
+                                [Argument { nom: None, valeur: Valeur::Nom(nom), .. }] => nom,
+                                _ => return Err(Erreur { message: "un morceau se pose par son nom : Use(Menu)".into(), pos: appel.pos }),
+                            };
+                            let Some((_, enfants)) = morceaux.iter().find(|(connu, _)| connu == nom) else {
+                                return Err(Erreur { message: format!("« Use({nom}) » : aucun morceau importé ne s'appelle « {nom} » ; importe son fichier en haut de la page, import \"commun.holo\""), pos: appel.pos });
+                            };
+                            poses.extend(enfants.iter().cloned());
+                        }
+                        _ => {
+                            dans(&mut element, morceaux)?;
+                            poses.push(element);
+                        }
+                    }
+                }
+                *elements = poses;
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+    bloc.arguments.iter_mut().try_for_each(|a| dans(&mut a.valeur, morceaux))
+}
+
+/// Lit un seul fichier, sans ses imports.
+fn lire_seul(source: &str) -> Result<Programme, Erreur> {
     if source.len() > OCTETS_MAX {
         return Err(Erreur {
             message: format!("fichier trop gros : {} octets, la limite est de {OCTETS_MAX}", source.len()),
@@ -610,7 +730,7 @@ mod tests {
 
     #[test]
     fn lit_des_blocs_imbriques_du_texte_et_des_unites() {
-        let p = lire(r#"
+        let p = lire_seul(r#"
             import "buttons.holo"
             Page(
               title: "Ma boutique",
@@ -677,6 +797,37 @@ mod tests {
         // Un fichier ordinaire, même bien rempli, passe.
         let large = format!("Page(children: [{}])", "P(\"x\"), ".repeat(2000));
         assert!(lire(&large).is_ok());
+    }
+
+    #[test]
+    fn un_fichier_importe_est_un_morceau_qu_on_pose() {
+        let commun = "Part(name: Menu, children: [ P(\"menu\"), Hr() ])\nP { color: gray; }\nH1 { color: red; }";
+        let page = "import \"commun.holo\"\nPage(children: [ Use(Menu), H1(\"a\"), List(children: [ Use(Menu) ]) ])\nH1 { color: blue; }";
+        let joint = |page: &str, nom: &str, texte: &str| format!("{page}{FICHIER_SUIVANT}{nom}{SEPARE_LE_NOM}{texte}");
+        assert_eq!(imports_de(page).unwrap(), ["commun.holo"]);
+        let programme = lire(&joint(page, "commun.holo", commun)).unwrap();
+        // Les blocs du morceau sont posés là où il est appelé, partout où il l'est.
+        let Some(Valeur::Liste(enfants)) = programme.racine.argument("children").map(|a| &a.valeur) else { panic!() };
+        let noms: Vec<&str> = enfants.iter().map(|e| match e { Valeur::Bloc(b) => b.nom.as_str(), _ => "?" }).collect();
+        assert_eq!(noms, ["P", "Hr", "H1", "List"]);
+        // Les styles du morceau viennent avec lui ; à cible égale, la page garde le sien.
+        let styles: Vec<String> = programme.styles.iter().map(|r| format!("{} {}", r.cible, r.reglages[0].valeur)).collect();
+        assert_eq!(styles, ["P gray", "H1 blue"]);
+        assert!(programme.imports.is_empty());
+        for (source, message) in [
+            (page.to_string(), "n'a pas été trouvé"),
+            (joint(page, "commun.holo", "Page(children: [])"), "un fichier importé est un morceau"),
+            (joint(page, "commun.holo", "Part(name: Other, children: [])"), "aucun morceau importé ne s'appelle « Menu »"),
+            (joint(page, "commun.holo", "Part(name: Menu)"), "un morceau a un nom et un contenu"),
+            (joint(page, "commun.holo", "Part(name: Menu, children: [ H9( ])"), "dans « commun.holo », ligne 1"),
+            (joint(page, "commun.holo", "import \"x.holo\"\nPart(name: Menu, children: [])"), "n'importe pas lui-même"),
+            ("Page(children: [ Use(Menu) ])".to_string(), "aucun morceau importé ne s'appelle « Menu »"),
+            ("import \"../secret.holo\"\nPage(children: [])".to_string(), "rangé à côté"),
+            ("import \"https://x.example/a.holo\"\nPage(children: [])".to_string(), "rangé à côté"),
+        ] {
+            let erreur = lire(&source).unwrap_err();
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
     }
 
     #[test]

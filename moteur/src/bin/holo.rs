@@ -22,13 +22,23 @@ fn main() -> ExitCode {
         eprintln!("usage : holo check fichier.holo | holo html fichier.holo [dossier]");
         return ExitCode::from(2);
     }
-    let source = match std::fs::read_to_string(fichier) {
+    let mut source = match std::fs::read_to_string(fichier) {
         Ok(source) => source,
         Err(erreur) => {
             eprintln!("{fichier} : {erreur}");
             return ExitCode::from(2);
         }
     };
+    // Les fichiers importés sont lus à côté, et joints au texte : le moteur ne lit rien seul.
+    let ici = std::path::Path::new(fichier).parent().unwrap_or(std::path::Path::new("."));
+    for nom in holo_moteur::imports(&source).split(';').filter(|nom| !nom.is_empty()).map(str::to_string).collect::<Vec<_>>() {
+        if let Ok(texte) = std::fs::read_to_string(ici.join(&nom)) {
+            source.push(holo_moteur::holo::FICHIER_SUIVANT);
+            source.push_str(&nom);
+            source.push(holo_moteur::holo::SEPARE_LE_NOM);
+            source.push_str(&texte);
+        }
+    }
     let resultat = match commande {
         "check" => holo_moteur::verifier_page(&source).map(|_| "ok".to_string()),
         _ => holo_moteur::vue_a_plat(&source, dossier),

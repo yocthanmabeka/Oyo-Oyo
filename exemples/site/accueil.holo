@@ -1,0 +1,15 @@
+// Un site de deux pages. Le menu et le thème sont écrits une seule fois, dans commun.holo.
+import "commun.holo"
+
+Page(
+  name: Home,
+  title: "The little studio",
+  children: [
+    // Le morceau « Menu », importé, se pose ici.
+    Use(Menu),
+
+    H1("Welcome"),
+    "We paint, we frame, we deliver.",
+    "The menu above and the colours come from another file: change them once, every page follows.",
+  ],
+)
