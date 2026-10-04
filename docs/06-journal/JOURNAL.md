@@ -6,6 +6,28 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Les formes, le meilleur score ; deux propositions pour ce qui reste
+
+**Ce que Yocthan a dit**
+
+- Le son : « J'ai kiffé. » Puis : « Fais ce qui reste à faire. »
+
+**Fait** (`ADR-032`, à l'essai ; `ADR-031`, le son, passe à « accepté pour l'instant »)
+
+- **Les formes** : `Shape(form: circle, color: "#E9B44C", size: 48px)`. Quatre formes : rond, carré, triangle, losange. Une forme nommée se touche, se place sur un plateau, se fait glisser, et peut être guettée par une rencontre. Dans le jeu de la pomme, la pomme est un rond et le panier un carré.
+
+![La leçon 30 : quatre formes, et deux formes sur un plateau](images/2026-10-04-formes.png)
+
+- **Comparer deux valeurs, fixer d'après une autre** : là où l'on écrit un nombre, on peut écrire le nom d'une valeur. `When(score, over: best, effect: best.set(score))`. Le jeu de l'étoile garde le meilleur score d'une visite à l'autre.
+- Deux leçons : la 29 (comparer deux valeurs) et la 30 (les formes).
+- 90 tests du moteur. Vérifié dans Chrome : le record suit le score dès qu'il est dépassé, et reste après rechargement.
+
+**Ce que Claude n'a pas construit, et pourquoi**
+
+- **Les modèles 3D** et **le jeu à plusieurs**. Ce sont les deux derniers morceaux des étapes 6 et 7, et les deux choix d'architecture les plus lourds depuis le choix de Rust : un second moteur de dessin ou non ; un serveur qui tourne en permanence, avec la question de qui il laisse faire quoi. Yocthan a donné le champ libre pour construire ce qui a été recommandé et expliqué ; ces deux-là ne l'ont pas encore été. Claude les a posés dans `proposals/Claude/modeles-3d-et-jeu-a-plusieurs-2026-10/`, avec trois options chacun et une recommandation.
+
+---
+
 ## 2026-10-04 — Étape 6, premier morceau : le son
 
 **Fait** (`ADR-031`, à l'essai)

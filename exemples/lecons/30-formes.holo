@@ -1,0 +1,48 @@
+// Leçon 30 — Des formes
+//
+// Ce qu'on apprend :
+//   Shape(form: circle, color: "#E9B44C", size: 48px) : une forme simple, d'une seule couleur.
+//   « form » : circle (rond), square (carré), triangle, diamond (losange).
+//   Une forme qui a un nom se touche, comme un bouton : On(Cible.tap, ...).
+//   Elle se place sur un plateau comme un point : x, y, et drag pour la faire glisser.
+//
+// À essayer :
+//   Touche le losange rouge. Fais glisser le carré. Change « form: diamond » en « triangle ».
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 30 : des formes",
+
+  state: State(touches: 0, cx: 30, cy: 60),
+
+  children: [
+    H1("Des formes"),
+    Row(gap: 16px, children: [
+      Shape(form: circle, color: "#E9B44C", size: 48px),
+      Shape(form: square, color: "#8fd3ff", size: 48px),
+      Shape(form: triangle, color: "#3FA34D", size: 48px),
+      Shape(form: diamond, color: "#FF4D6D", size: 48px),
+    ]),
+
+    Text("Tu as touché le losange {touches} fois."),
+    Board(height: 220px, children: [
+      Shape(name: Cible, form: diamond, color: "#FF4D6D", size: 56px, x: 80, y: 30),
+      Shape(name: Carre, form: square, color: "#8fd3ff", size: 56px, x: cx, y: cy, drag: true),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 29 : comparer deux valeurs", to: "29-comparer-deux-valeurs.holo"),
+    ]),
+  ],
+
+  rules: [
+    On(Cible.tap, effect: touches.add(1)),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+Board { background: #1a1a2e; border: 1px solid #E9B44C; border-radius: 16px; }

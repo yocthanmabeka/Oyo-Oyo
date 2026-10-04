@@ -29,7 +29,35 @@ pub const COMPARAISONS: &[&str] = &["is", "not", "over", "under"];
 
 /// Une condition lue dans un bloc `If` : la valeur regardée, et ce à quoi on la compare.
 /// Plusieurs comparaisons valent ensemble : `If(count, over: 0, under: 10)`.
-pub fn condition(bloc: &Bloc) -> Result<(&str, Vec<(&str, u64)>), Erreur> {
+/// Ce à quoi une valeur est comparée, ou ce qu'une demande ajoute : un nombre écrit dans le
+/// fichier, ou le nom d'une autre valeur, lue au moment où l'on en a besoin.
+/// `If(score, over: 10)`, `When(score, over: best, effect: best.set(score))`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Terme<'a> {
+    Nombre(u64),
+    Valeur(&'a str),
+}
+
+impl Terme<'_> {
+    /// Ce que vaut ce terme, pour cet état. Une valeur inconnue vaut 0.
+    pub fn vaut(&self, etat: &Etat) -> u64 {
+        match self {
+            Terme::Nombre(nombre) => *nombre,
+            Terme::Valeur(nom) => etat.iter().find(|(connu, _)| connu == nom).map_or(0, |(_, v)| *v),
+        }
+    }
+}
+
+impl std::fmt::Display for Terme<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Terme::Nombre(nombre) => write!(f, "{nombre}"),
+            Terme::Valeur(nom) => write!(f, "{nom}"),
+        }
+    }
+}
+
+pub fn condition(bloc: &Bloc) -> Result<(&str, Vec<(&str, Terme<'_>)>), Erreur> {
     // `If` montre ses enfants ; `When` est une règle, elle a un effet.
     let regle = bloc.nom == "When";
     let erreur = |message: &str| Erreur { message: message.into(), pos: bloc.pos };
@@ -48,9 +76,13 @@ pub fn condition(bloc: &Bloc) -> Result<(&str, Vec<(&str, u64)>), Erreur> {
             (Some("children" | "name"), _) if !regle => {}
             (Some("effect"), _) if regle => {}
             // Pour un texte : « is: "" » (vide) et « not: "" » (rempli). Vide vaut 0.
-            (Some(mot @ ("is" | "not")), Valeur::Texte(texte)) if texte.is_empty() => comparaisons.push((if mot == "is" { "is" } else { "not" }, 0)),
-            (Some(mot), Valeur::Entier(nombre)) if COMPARAISONS.contains(&mot) => comparaisons.push((COMPARAISONS[COMPARAISONS.iter().position(|c| *c == mot).unwrap_or(0)], *nombre)),
-            (Some(mot), _) if COMPARAISONS.contains(&mot) => return Err(Erreur { message: format!("« If({valeur}, {mot}: …) » attend un nombre entier"), pos: argument.pos }),
+            (Some(mot @ ("is" | "not")), Valeur::Texte(texte)) if texte.is_empty() => comparaisons.push((if mot == "is" { "is" } else { "not" }, Terme::Nombre(0))),
+            (Some(mot), Valeur::Entier(nombre)) if COMPARAISONS.contains(&mot) => comparaisons.push((COMPARAISONS[COMPARAISONS.iter().position(|c| *c == mot).unwrap_or(0)], Terme::Nombre(*nombre))),
+            // Comparer à une autre valeur : If(score, over: best).
+            (Some(mot), Valeur::Nom(autre)) if COMPARAISONS.contains(&mot) && est_nom_de_valeur(autre) => {
+                comparaisons.push((COMPARAISONS[COMPARAISONS.iter().position(|c| *c == mot).unwrap_or(0)], Terme::Valeur(autre.as_str())))
+            }
+            (Some(mot), _) if COMPARAISONS.contains(&mot) => return Err(Erreur { message: format!("« If({valeur}, {mot}: …) » attend un nombre entier, ou le nom d'une autre valeur"), pos: argument.pos }),
             (Some(mot), _) => {
                 return Err(Erreur {
                     message: format!("« {} » n'a pas de paramètre « {mot} » ; paramètres possibles : is, not, over, under, {}", bloc.nom, if regle { "effect" } else { "children" }),
@@ -71,7 +103,7 @@ pub fn condition(bloc: &Bloc) -> Result<(&str, Vec<(&str, u64)>), Erreur> {
 
 /// Le nom sous lequel une condition est connue de la page : `count|is=0`, `total|over=0|under=300`.
 /// Deux conditions écrites pareil portent le même nom, et ont toujours la même réponse.
-pub fn cle(valeur: &str, comparaisons: &[(&str, u64)]) -> String {
+pub fn cle(valeur: &str, comparaisons: &[(&str, Terme<'_>)]) -> String {
     comparaisons.iter().fold(valeur.to_string(), |cle, (mot, nombre)| format!("{cle}|{mot}={nombre}"))
 }
 
@@ -85,7 +117,7 @@ pub fn conditions(programme: &Programme, montrees: &Etat) -> Vec<(String, bool)>
                 let cle = cle(valeur, &comparaisons);
                 if !reponses.iter().any(|(connue, _)| *connue == cle) {
                     let nombre = montrees.iter().find(|(connu, _)| connu == valeur).map_or(0, |(_, v)| *v);
-                    reponses.push((cle, vraie(&comparaisons, nombre)));
+                    reponses.push((cle, vraie(&comparaisons, nombre, montrees)));
                 }
             }
         }
@@ -95,12 +127,15 @@ pub fn conditions(programme: &Programme, montrees: &Etat) -> Vec<(String, bool)>
 }
 
 /// La condition est-elle vraie pour cette valeur ?
-pub fn vraie(comparaisons: &[(&str, u64)], valeur: u64) -> bool {
-    comparaisons.iter().all(|(mot, nombre)| match *mot {
-        "is" => valeur == *nombre,
-        "not" => valeur != *nombre,
-        "over" => valeur > *nombre,
-        _ => valeur < *nombre,
+pub fn vraie(comparaisons: &[(&str, Terme<'_>)], valeur: u64, etat: &Etat) -> bool {
+    comparaisons.iter().all(|(mot, terme)| {
+        let nombre = terme.vaut(etat);
+        match *mot {
+            "is" => valeur == nombre,
+            "not" => valeur != nombre,
+            "over" => valeur > nombre,
+            _ => valeur < nombre,
+        }
     })
 }
 
@@ -704,6 +739,9 @@ pub struct Demande<'a> {
     pub valeur: &'a str,
     pub verbe: &'a str,
     pub quantite: u64,
+    /// Quand la quantité est une autre valeur : `best.set(score)`. Elle est lue au moment où
+    /// la demande est faite.
+    pub depuis: Option<&'a str>,
 }
 
 /// Un bloc est-il une demande ? Une demande commence par une minuscule : `cart.add(1)`.
@@ -724,10 +762,13 @@ pub fn demande<'a>(bloc: &'a Bloc, etat: &Etat) -> Result<Demande<'a>, Erreur> {
         return Err(erreur(format!("demande inconnue « {verbe} » : pour une valeur, on peut demander {}", DEMANDES.join(", "))));
     }
     match bloc.arguments.as_slice() {
+        // La quantité peut être une autre valeur de la page : best.set(score).
+        [Argument { nom: None, valeur: Valeur::Nom(autre), .. }] if etat.iter().any(|(connu, _)| connu == autre) => Ok(Demande { valeur, verbe, quantite: 0, depuis: Some(autre.as_str()) }),
+        [Argument { nom: None, valeur: Valeur::Nom(autre), .. }] => Err(erreur(format!("« {valeur}.{verbe}({autre}) » : aucun nombre ne s'appelle « {autre} » ; déclare-le sur la page, state: State({autre}: 0)"))),
         [argument] if argument.nom.is_none() => match argument.valeur {
             // « random(0) » ne tirerait jamais que 0 : c'est sûrement une erreur.
             Valeur::Entier(0) if verbe == "random" => Err(erreur(format!("« {valeur}.random » attend le plus grand nombre possible, au moins 1 : {valeur}.random(100) tire de 0 à 100"))),
-            Valeur::Entier(quantite) if quantite <= VALEUR_MAX => Ok(Demande { valeur, verbe, quantite }),
+            Valeur::Entier(quantite) if quantite <= VALEUR_MAX => Ok(Demande { valeur, verbe, quantite, depuis: None }),
             _ => Err(erreur(format!("« {valeur}.{verbe} » attend un nombre entier de 0 à {VALEUR_MAX} : {valeur}.{verbe}(1)"))),
         },
         _ => Err(erreur(format!("« {valeur}.{verbe} » attend un seul nombre : {valeur}.{verbe}(1)"))),
@@ -826,6 +867,16 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
             }
             if !est_texte(valeur) && au_vide {
                 return Err(Erreur { message: format!("« {valeur} » est un nombre : on le compare à un nombre, If({valeur}, is: 0)"), pos: bloc.pos });
+            }
+        }
+        // Une comparaison à une autre valeur : cette valeur doit être un nombre de la page.
+        if bloc.nom == "If" || bloc.nom == "When" {
+            for argument in &bloc.arguments {
+                if let (Some(mot), Valeur::Nom(autre)) = (argument.nom.as_deref(), &argument.valeur) {
+                    if COMPARAISONS.contains(&mot) && !a_montrer(programme, &etat).iter().any(|(connu, _)| connu == autre) {
+                        return Err(Erreur { message: format!("« {mot}: {autre} » : aucun nombre ne s'appelle « {autre} » ; déclare-le sur la page, state: State({autre}: 0)"), pos: argument.pos });
+                    }
+                }
             }
         }
         // Sur un plateau, la place d'un bloc est une valeur de la page : Point(x: star_x, y: star_y).
@@ -972,18 +1023,19 @@ fn guetter(programme: &Programme, avant_le_changement: Etat, etat: &mut Etat, gr
 /// dépasse pas son plafond.
 fn appliquer(programme: &Programme, etat: &mut Etat, effet: &Bloc, graine: u64, tirages: &mut u64) {
     let Ok(d) = demande(effet, etat) else { return };
+    let quantite = d.depuis.map_or(d.quantite, |autre| etat.iter().find(|(connu, _)| connu == autre).map_or(0, |(_, v)| *v));
     let plafond = plafond(programme, d.valeur);
     if let Some((_, valeur)) = etat.iter_mut().find(|(nom, _)| nom == d.valeur) {
         *valeur = match d.verbe {
-            "add" => valeur.saturating_add(d.quantite),
-            "sub" => valeur.saturating_sub(d.quantite),
+            "add" => valeur.saturating_add(quantite),
+            "sub" => valeur.saturating_sub(quantite),
             // Le hasard n'en est pas un : c'est le énième tirage d'une suite fixée par la graine
             // du fichier. Rejouer les mêmes gestes redonne les mêmes nombres.
             "random" => {
                 *tirages += 1;
-                crate::graine::melanger(graine ^ crate::graine::melanger(*tirages)) % (d.quantite + 1)
+                crate::graine::melanger(graine ^ crate::graine::melanger(*tirages)) % (quantite + 1)
             }
-            _ => d.quantite,
+            _ => quantite,
         }
         .min(plafond);
     }
@@ -1035,7 +1087,7 @@ fn guette(programme: &Programme, regle: &Bloc, etat: &Etat) -> bool {
     }
     condition(regle).is_ok_and(|(valeur, comparaisons)| {
         let montrees = a_montrer(programme, etat);
-        montrees.iter().find(|(connu, _)| connu == valeur).is_some_and(|(_, nombre)| vraie(&comparaisons, *nombre))
+        montrees.iter().find(|(connu, _)| connu == valeur).is_some_and(|(_, nombre)| vraie(&comparaisons, *nombre, &montrees))
     })
 }
 
@@ -1191,8 +1243,9 @@ mod tests {
         assert_eq!(crate::conditions(source, "cart=0"), "cart|is=0:1;cart|over=0|under=3:0;cart|not=0:0");
         assert_eq!(crate::conditions(source, "cart=2"), "cart|is=0:0;cart|over=0|under=3:1;cart|not=0:1");
         assert_eq!(crate::conditions(source, "cart=3"), "cart|is=0:0;cart|over=0|under=3:0;cart|not=0:1");
-        assert!(vraie(&[("over", 0), ("under", 3)], 2) && !vraie(&[("over", 0), ("under", 3)], 3) && !vraie(&[("over", 0), ("under", 3)], 0));
-        assert!(vraie(&[("is", 5)], 5) && vraie(&[("not", 5)], 4) && !vraie(&[("not", 5)], 5));
+        let (entre, rien) = ([("over", Terme::Nombre(0)), ("under", Terme::Nombre(3))], Etat::new());
+        assert!(vraie(&entre, 2, &rien) && !vraie(&entre, 3, &rien) && !vraie(&entre, 0, &rien));
+        assert!(vraie(&[("is", Terme::Nombre(5))], 5, &rien) && vraie(&[("not", Terme::Nombre(5))], 4, &rien) && !vraie(&[("not", Terme::Nombre(5))], 5, &rien));
         // Avec des prix, une condition peut regarder ce que le moteur calcule.
         page("Page(state: State(a: 0), prices: Prices(a: 10), children: [ If(total, over: 100, children: [ \"Free delivery\" ]) ])").unwrap();
         for (source, message) in [
@@ -1216,7 +1269,7 @@ mod tests {
         // Trois règles de temps, trois horloges : le temps chaque seconde, l'étoile toutes les deux.
         assert_eq!(horloges(&programme), [(1000, "time".to_string()), (2000, "star_x,star_y".to_string())]);
         let depart = initial(&programme).unwrap();
-        assert_eq!(ecrire(&depart), "time=0;score=0;star_x=50;star_y=50");
+        assert_eq!(ecrire(&depart), "time=0;score=0;star_x=50;star_y=50;best=0");
         // Tant que la partie n'a pas commencé, le temps reste à zéro : il ne descend pas dessous.
         assert_eq!(arbitrer(&programme, &depart, "every:0")[0], ("time".to_string(), 0));
         // « Play » : trente secondes. Ce geste change le temps : son horloge repartira de zéro.
@@ -1386,6 +1439,32 @@ mod tests {
             ("Page(children: [ Sound(name: D, source: \"a.wav\"), Button(name: B, text: \"x\") ], rules: [ On(B.tap, effect: D.stop) ])", "capacité inconnue « stop »"),
             ("Page(state: State(n: 0), children: [ Point(name: P, seed: 1, inside: World(children: [])) ], rules: [ Every(1s, effect: P.enter) ])", "demande un geste du visiteur"),
             ("Page(state: State(n: 0), children: [ Point(name: P, seed: 1, inside: World(children: [])) ], rules: [ When(n, is: 1, effect: [n.set(0), P.enter]) ])", "demande un geste du visiteur"),
+        ] {
+            let erreur = page(source).unwrap_err();
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
+    }
+
+    #[test]
+    fn on_compare_et_on_fixe_d_apres_une_autre_valeur() {
+        // Le meilleur score : au moment où le score dépasse le meilleur, le meilleur le rattrape.
+        let source = "Page(
+  state: State(score: 0, best: 2),
+  children: [ Button(name: B, text: \"x\"), If(score, over: best, children: [ \"jamais vu : la règle rattrape\" ]), If(score, is: best, children: [ \"record égalé\" ]) ],
+  rules: [ On(B.tap, effect: score.add(1)), When(score, over: best, effect: best.set(score)) ],
+)";
+        let suite: Vec<String> = (0..4).scan(crate::etat_initial(source), |etat, _| { *etat = crate::arbitrer(source, etat, "B.tap"); Some(etat.clone()) }).collect();
+        assert_eq!(suite, ["score=1;best=2", "score=2;best=2", "score=3;best=3", "score=4;best=4"]);
+        assert_eq!(crate::conditions(source, "score=2;best=2"), "score|over=best:0;score|is=best:1");
+        assert_eq!(crate::conditions(source, "score=1;best=2"), "score|over=best:0;score|is=best:0");
+        // Ajouter une autre valeur : a.add(b).
+        let somme = "Page(state: State(a: 1, b: 5), children: [ Button(name: B, text: \"x\") ], rules: [ On(B.tap, effect: a.add(b)) ])";
+        assert_eq!(crate::arbitrer(somme, &crate::etat_initial(somme), "B.tap"), "a=6;b=5");
+        for (source, message) in [
+            ("Page(state: State(a: 0), children: [ If(a, over: b, children: []) ])", "aucun nombre ne s'appelle « b »"),
+            ("Page(state: State(a: 0, t: \"\"), children: [ If(a, over: t, children: []) ])", "aucun nombre ne s'appelle « t »"),
+            ("Page(state: State(a: 0), children: [ Button(name: B, text: \"x\") ], rules: [ On(B.tap, effect: a.set(b)) ])", "aucun nombre ne s'appelle « b »"),
+            ("Page(state: State(a: 0), rules: [ When(a, over: b, effect: a.set(0)) ])", "aucun nombre ne s'appelle « b »"),
         ] {
             let erreur = page(source).unwrap_err();
             assert!(erreur.message.contains(message), "{source}\n→ {erreur}");

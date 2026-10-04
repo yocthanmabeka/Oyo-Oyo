@@ -36,5 +36,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 26 | [Un point seul : le Big Bang](26-point-seul.holo) | `Point` à la racine, `fragments`, `brightness` |
 | 27 | [Des données venues du serveur](27-donnees.holo) | `data`, `Data`, `from`, `every` |
 | 28 | [Un son](28-son.holo) | `Sound`, `play` |
+| 29 | [Comparer deux valeurs : le meilleur score](29-comparer-deux-valeurs.holo) | `over: record`, `record.set(score)` |
+| 30 | [Des formes](30-formes.holo) | `Shape`, `form`, `size` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.

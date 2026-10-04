@@ -13,7 +13,11 @@ Page(
     score: 0,      // combien de fois l'étoile a été touchée
     star_x: 50,    // où est l'étoile sur le plateau, de 0 (à gauche) à 100 (à droite)
     star_y: 50,    // de 0 (en haut) à 100 (en bas)
+    best: 0,       // le meilleur score, gardé d'une visite à l'autre
   ),
+
+  // Le meilleur score reste dans le navigateur : on recharge, il est encore là.
+  keep: [best],
 
   children: [
     H1("Catch the star"),
@@ -24,6 +28,9 @@ Page(
       "Touch the star as many times as you can in 30 seconds. It moves every two seconds.",
       If(score, over: 0, children: [
         P.result("Time is up. Your score: **{score}**"),
+      ]),
+      If(best, over: 0, children: [
+        Text("Best score: {best}"),
       ]),
       Button.play(name: Play, text: "Play"),
     ]),
@@ -51,6 +58,10 @@ Page(
     // Toucher l'étoile : un point de plus, et elle part ailleurs.
     // random(100) : un nombre au hasard, de 0 à 100.
     On(Star.tap, effect: [score.add(1), star_x.random(100), star_y.random(100), Pop.play]),
+
+    // Une comparaison peut porter sur une autre valeur, et une demande aussi : au moment où
+    // le score dépasse le meilleur score, le meilleur score devient ce score.
+    When(score, over: best, effect: best.set(score)),
 
     // Le temps : chaque seconde, il en reste une de moins. Arrivé à zéro, il ne descend plus :
     // la partie est finie.

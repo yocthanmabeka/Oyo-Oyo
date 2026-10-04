@@ -1,10 +1,10 @@
 # ADR-031 — Le son : `Sound` et la capacité `play`
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ pour l'instant ; l'écriture exacte reste à revoir avec les noms
 - Date : 2026-10-04
 - Responsable : Yocthan Mabeka
 - Discussions sources : journal du 2026-10-04 ; `docs/01-holocode/COMPARATIF-CONCURRENTS.md` (planning, étape 6)
-- Validation : Yocthan, le 2026-10-04 : « Oui, fais le 5, le 6 et le 7. » L'écriture est une proposition de Claude ; à juger après essai.
+- Validation : Yocthan, le 2026-10-04, après avoir écouté : « Oui, j'ai vu le son. En tout cas, j'ai kiffé. » Avant cela : Yocthan, le 2026-10-04 : « Oui, fais le 5, le 6 et le 7. » L'écriture est une proposition de Claude ; à juger après essai.
 - Projets affectés : HoloCode, HoloEngine
 
 ## Contexte
