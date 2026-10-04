@@ -1,0 +1,81 @@
+{
+  "base": "http://localhost:8082",
+  "chrome": {
+    "protocolVersion": "1.3",
+    "product": "Chrome/154.0.8037.95",
+    "revision": "@05d469856e75794131cc2e5d9b2f6b6f10a70388",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+    "jsVersion": "15.4.80.19"
+  },
+  "viewport": "360x777",
+  "wasm": {
+    "octets": 2142776,
+    "sha256": "47ff41a2c30629e961cab20a43296974ddd9a1d0513c4ef763a5c75ca4f18c79"
+  },
+  "erreurs": [],
+  "resultats": [
+    {
+      "page": "panier.holo",
+      "avant": {
+        "score": [
+          "0",
+          "0"
+        ],
+        "apple": "0",
+        "basket": "50",
+        "board": 0,
+        "playVisible": true
+      },
+      "repos": {
+        "score": [
+          "0",
+          "0"
+        ],
+        "apple": "0",
+        "basket": "50",
+        "board": 0,
+        "playVisible": true
+      },
+      "lance": {
+        "score": [
+          "0",
+          "0"
+        ],
+        "apple": "9",
+        "basket": "50",
+        "board": 326,
+        "playVisible": false
+      },
+      "gauche": {
+        "score": [
+          "0",
+          "0"
+        ],
+        "apple": "9",
+        "basket": "42",
+        "board": 326,
+        "playVisible": false
+      },
+      "prise": {
+        "score": [
+          "1",
+          "1"
+        ],
+        "apple": "27",
+        "basket": "42",
+        "board": 326,
+        "playVisible": false
+      }
+    },
+    {
+      "page": "01-page.holo",
+      "title": "Leçon 1 : une page",
+      "h1": "Ma première page",
+      "paragraphes": [
+        "Une phrase entre guillemets est un paragraphe.",
+        "En voici un second."
+      ],
+      "hr": true
+    }
+  ]
+}

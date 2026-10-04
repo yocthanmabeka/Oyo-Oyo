@@ -1,0 +1,11 @@
+[package]
+name = "sondes-architecture-codex"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+holo-moteur = { path = "../../../moteur" }
+
+[lib]
+path = "sondes.rs"
