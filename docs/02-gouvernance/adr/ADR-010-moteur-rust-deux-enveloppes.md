@@ -1,11 +1,12 @@
 # ADR-010 — Un moteur écrit en Rust, sous les navigateurs actuels puis dans un navigateur propre
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ
 - Date : 2026-09-21
 - Responsable : Yocthan Mabeka
 - Discussions sources : HC-013, HC-007
 - Projets affectés : HoloRuntime, HoloEngine, HoloCode-Core
 - Validation : décidé par Yocthan le 2026-09-21. La fusion de la pull request qui introduit cette fiche vaut confirmation.
+- Statut révisé le 2026-10-04 : **ACCEPTÉ par Yocthan**, après la mesure sur son Galaxy Z Flip 5 (59,8 images par seconde en zoomant à travers sept mondes, 88 Mo pour l'onglet, 502 Ko transférés ; détail dans `moteur/README.md`). Il demande qu'on le vérifie aussi sur un téléphone plus modeste : voir les conditions de réexamen.
 - Statut révisé le 2026-09-21, sur la remarque de ChatGPT et avec l'accord de Yocthan : la direction est retenue et le travail commence dans ce sens, mais elle reste une hypothèse tant qu'elle n'a pas été mesurée sur un vrai téléphone.
 
 ## Contexte
@@ -59,3 +60,4 @@ Le langage du moteur ne compresse pas les mondes : leur petitesse vient du forma
 
 - Si le moteur Rust ne tient pas sous 2 Mo compressé malgré les réglages.
 - À la sortie de Zig 1.0.
+- Si la mesure sur un téléphone d'entrée de gamme (4 Go de mémoire ou moins, processeur d'entrée de gamme, ou sans WebGPU) montre que le moteur ne tient pas la fluidité.
