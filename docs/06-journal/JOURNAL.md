@@ -6,6 +6,36 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — La mesure sur téléphone, enfin
+
+**Fait**
+
+- Yocthan a branché son Galaxy Z Flip 5 par câble et activé le débogage USB. Claude a relié le téléphone au serveur du PC (`adb reverse`), puis lu les mesures du moteur directement dans le Chrome du téléphone (`adb forward` et le protocole de débogage de Chrome). L'outil est rangé dans `moteur/outils/mesurer-telephone.mjs`.
+- Résultats, WebGPU actif :
+
+| Mesure | Résultat |
+|---|---|
+| Big Bang, zoom continu à travers 7 mondes | 59,8 images par seconde, image la plus lente 16,9 ms |
+| Première image, moteur en cache | 336 ms (3,5 s au tout premier chargement) |
+| Boutique, page normale | prête en 122 ms, le moteur ne dessine rien |
+| Boutique, entrée en vue points | 264 ms pour 1 118 880 points |
+| Boutique, zoom en vue points, 4 morcellements | 59,7 images par seconde, jamais plus de 6 344 points à l'écran |
+| Mémoire de l'onglet | 88 Mo en part propre, 10 Mo de tas JavaScript |
+
+- C'est la mesure qu'attendaient `ADR-005` (tourner sur le matériel existant) et `ADR-010` (le moteur en Rust) depuis le premier jour. Elle est favorable. Leur statut reste à Yocthan.
+
+**Ce que la mesure ne dit pas**
+
+- Une seule série, sur un téléphone haut de gamme. Ni la batterie, ni l'échauffement dans la durée, ni le mode sans WebGPU, ni un téléphone modeste.
+- Une image a pris 50 ms pendant le zoom en vue points : un accroc, à surveiller.
+
+**Erreurs en route**
+
+- L'ancienne adresse Wi-Fi donnée à Yocthan (`10.105.109.17`) n'était plus la bonne, et un VPN tournait sur le PC : par le câble, on évite les deux.
+- Une première mesure a été prise pendant que l'écran du téléphone était en veille : une image en trois minutes. Jetée et refaite, écran allumé. Claude a activé puis remis le réglage « rester allumé sur USB ».
+
+---
+
 ## 2026-10-04 — La seconde revue de Codex : ses défauts corrigés
 
 **Ce qui s'est passé**
