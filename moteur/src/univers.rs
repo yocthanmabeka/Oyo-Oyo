@@ -226,7 +226,7 @@ mod tests {
         assert!(point("Point(name: A, graine: 1)").unwrap_err().message.contains("s'écrit « seed »"));
         assert!(point("Texte(\"Bonjour\")").unwrap_err().message.contains("écris « Text »"));
         assert!(point("Page(contenu: [])").unwrap_err().message.contains("ne lit que « Point »"));
-        assert!(point("import \"absent.holo\"\nPoint(name: A, seed: 1)").unwrap_err().message.contains("pas encore pris en charge"));
+        assert!(point("import \"absent.holo\"\nPoint(name: A, seed: 1)").unwrap_err().message.contains("pas été trouvé"));
         assert_eq!(point("Point(name: A, seed: 9007199254740993)").unwrap().graine, 9_007_199_254_740_993);
         assert!(point("Point(name: A, seed: 1.5)").unwrap_err().message.contains("entier"));
         assert!(point("Point(name: A, seed: -1)").unwrap_err().message.contains("entier"));

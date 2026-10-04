@@ -205,7 +205,12 @@ mod tests {
         crate::verifier_page(jeu).unwrap();
         let second = include_str!("../../exemples/jeu/panier.holo");
         crate::verifier_page(second).unwrap();
-        let source = &format!("{source}\n{jeu}\n{second}");
+        // Un site de deux pages, avec un morceau importé.
+        let (accueil, commun) = (include_str!("../../exemples/site/accueil.holo"), include_str!("../../exemples/site/commun.holo"));
+        crate::verifier_page(&format!("{accueil}{}commun.holo{}{commun}", crate::holo::FICHIER_SUIVANT, crate::holo::SEPARE_LE_NOM)).unwrap();
+        let contact = include_str!("../../exemples/site/contact.holo");
+        crate::verifier_page(&format!("{contact}{}commun.holo{}{commun}", crate::holo::FICHIER_SUIVANT, crate::holo::SEPARE_LE_NOM)).unwrap();
+        let source = &format!("{source}\n{jeu}\n{second}\n{accueil}\n{commun}");
         for bloc in crate::blocs::BLOCS {
             assert!(source.contains(&format!("{bloc}(")) || source.contains(&format!("{bloc}.")), "le bloc « {bloc} » manque dans l'exemple");
         }

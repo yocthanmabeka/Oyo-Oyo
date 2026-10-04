@@ -102,6 +102,12 @@ pub fn horloges(source: &str) -> String {
     verifier_page(source).map(|programme| etat::horloges(&programme).iter().map(|(ms, valeur)| format!("{ms}:{valeur}")).collect::<Vec<_>>().join(";")).unwrap_or_default()
 }
 
+/// Les fichiers qu'une page importe (`commun.holo;pied.holo`), pour qu'on aille les chercher et
+/// qu'on les joigne à son texte avant de le donner au moteur.
+pub fn imports(source: &str) -> String {
+    holo::imports_de(source).map(|noms| noms.join(";")).unwrap_or_default()
+}
+
 /// Les touches du clavier que la page écoute (`left;right`).
 pub fn touches(source: &str) -> String {
     verifier_page(source).map(|programme| etat::touches(&programme).join(";")).unwrap_or_default()
@@ -253,8 +259,16 @@ mod tests {
 ").skip(1).map(|suite| suite.split("```").next().unwrap()).collect();
         assert!(exemples.len() >= 11, "le guide a perdu ses exemples : {}", exemples.len());
         for exemple in exemples {
-            // Une page passe toutes les vérifications et se fabrique ; un point seul s'ouvre en profondeur.
-            let resultat = if exemple.trim_start().starts_with("Point(") { verifier(exemple).map(|_| ()) } else { vue_a_plat(exemple, "").map(|_| ()) };
+            // Une page passe toutes les vérifications et se fabrique ; un point seul s'ouvre en
+            // profondeur ; un morceau (un fichier fait pour être importé) est vérifié sans être affiché.
+            let debut = exemple.trim_start();
+            let resultat = if debut.starts_with("Point(") {
+                verifier(exemple).map(|_| ())
+            } else if debut.starts_with("Part(") {
+                verifier_page(exemple).map(|_| ())
+            } else {
+                vue_a_plat(exemple, "").map(|_| ())
+            };
             if let Err(erreur) = resultat {
                 panic!("un exemple du guide est refusé : {erreur}
 {exemple}");

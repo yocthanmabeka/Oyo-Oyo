@@ -6,6 +6,40 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Étape 5, première moitié : les imports, et un site de deux pages
+
+**Ce que Yocthan a dit**
+
+- Le jeu de la pomme : « c'est bon ». Il n'avait pas vu que le second onglet ouvert était le jeu de l'étoile, déjà joué.
+- Codex : attendre qu'il ait fini sa réflexion sur les noms (son quota revient vers 13 h 40), puis trancher l'ensemble.
+- Ensuite, l'étape 5.
+
+**Trouvé dans le dossier de Yocthan**
+
+- La contre-revue de Codex sur les noms, `proposals/GPT5.6/autocritique-noms-2026-10-04/README.md`, ajoutée mais pas encore poussée. Claude ne l'a pas touchée. Codex y retire presque toutes ses propositions et en garde trois (`divisions`, `levels` dans `Points`, `anchor`).
+- Une espace en trop dans `exemples/jeu/attraper.holo` bloquait la mise à jour du dossier : retirée, copie gardée.
+
+**Fait** (`ADR-029`, à l'essai ; `ADR-028` passe à « accepté pour l'instant »)
+
+- **Les imports.** Un fichier importé est un morceau : `Part(name: Menu, children: [...])`, avec ses styles. La page écrit `import "commun.holo"` en haut, puis `Use(Menu)` là où elle veut le morceau. Les styles du morceau viennent avec lui ; si la page écrit le même style, le sien reste.
+- **Un site de deux pages**, `exemples/site/` : le menu et le thème sont écrits une fois, dans `commun.holo`.
+
+![La page de contact : le menu vient de commun.holo, la couleur du titre est la sienne](images/2026-10-04-site-deux-pages.png)
+
+- Le moteur ne lit toujours aucun fichier lui-même : la page d'entrée et le moteur en ligne de commande vont chercher les imports et les joignent au texte.
+- 85 tests du moteur. Vérifié : `holo check`, la page fabriquée d'avance par le serveur, et Chrome.
+
+**Ce qui n'est pas fait de l'étape 5**
+
+- Les données venues d'un serveur.
+
+**Limites**
+
+- Un morceau n'a ni paramètres, ni valeurs, ni règles.
+- Une erreur dans un morceau est signalée à la ligne de l'`import`.
+
+---
+
 ## 2026-10-04 — Des règles plus courtes, une sorte de règle en moins, et le glissement
 
 **Ce que Yocthan a dit**

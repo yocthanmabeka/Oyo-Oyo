@@ -290,6 +290,12 @@ pub fn horloges(source: &str) -> String {
     crate::horloges(source)
 }
 
+/// Les fichiers qu'une page importe.
+#[wasm_bindgen]
+pub fn imports(source: &str) -> String {
+    crate::imports(source)
+}
+
 /// Les touches du clavier que la page écoute.
 #[wasm_bindgen]
 pub fn touches(source: &str) -> String {
