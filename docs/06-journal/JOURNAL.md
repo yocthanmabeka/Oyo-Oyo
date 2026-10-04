@@ -6,6 +6,28 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Un seul bouton pour les outils du moteur ; un prompt pour Codex sur les animations
+
+**Ce que Yocthan a dit, après avoir essayé les sept fichiers**
+
+- Les animations du salon et du jardin sont presque celles qu'il cherchait. « Après révision, je me suis rendu compte que c'est moi qui avais tort. C'est pas vraiment mal, mais il y a quand même des changements à faire. » Il veut faire évaluer les animations par ChatGPT (Codex) et avoir sa proposition.
+- Il y a trop de boutons, partout. Il en veut un seul, en bas à droite, « comme une superposition sur Android », « comme les menus dans les jeux » : on appuie, les autres apparaissent, et une croix referme.
+
+**Fait**
+
+- Les outils du moteur (Vue points, Carrefour, Tourner, De face) sont rangés derrière un seul bouton rond, en bas à droite. On appuie : ils apparaissent au-dessus ; le bouton devient une croix. Échap referme aussi. Changer de vue ou ouvrir le carrefour referme le menu ; « Tourner » le laisse ouvert, pour garder « De face » sous la main. Seuls les outils utiles à la page sont listés : sur le salon, il n'y a que « Carrefour ».
+
+![Le menu ouvert sur la boutique](images/2026-10-04-menu-unique.png)
+
+- Le prompt pour Codex : `docs/05-discussions/prompts/2026-10-04-codex-animations.md`.
+
+**Ce qui n'est pas fait**
+
+- La porte du Big Bang (`index.html`) garde ses deux boutons, « pause » et « mesures ».
+- Le bouton rond recouvre le coin du site : un site qui a quelque chose à cet endroit sera gêné. À voir avec l'avis de Codex.
+
+---
+
 ## 2026-10-04 — Un bouton est un lien : un passage ordinaire, pas un point qui s'ouvre
 
 **Ce que Yocthan a dit**
