@@ -155,6 +155,14 @@
   // reste là pour qui veut y aller.
   const calme = matchMedia("(prefers-reduced-motion: reduce)");
   const racine = document.getElementById("page");
+  // La page arrive déjà fabriquée par le serveur : on peut toucher un bouton avant que le
+  // moteur soit prêt. Ces touchers sont notés, et rejoués dès qu'il l'est : aucun n'est perdu.
+  const touchersEnAttente = [];
+  const noterLeToucher = (evenement) => {
+    const bloc = evenement.target.closest("[data-name]");
+    if (bloc) touchersEnAttente.push(bloc.dataset.name);
+  };
+  racine.addEventListener("click", noterLeToucher);
   const carrefour = document.getElementById("carrefour");
   const boutonMode = document.getElementById("mode");
   const boutonPoints = document.getElementById("points");
@@ -881,6 +889,9 @@
       if (!bloc) return;
       emettre(`${bloc.dataset.name}.tap`);
     });
+    // Le moteur est prêt : on rejoue ce qui a été touché en l'attendant.
+    racine.removeEventListener("click", noterLeToucher);
+    for (const nom of touchersEnAttente.splice(0)) emettre(`${nom}.tap`);
     carrefour.addEventListener("click", (evenement) => {
       const bouton = evenement.target.closest(".portail");
       if (bouton) franchir(bouton);

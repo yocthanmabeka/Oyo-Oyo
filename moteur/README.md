@@ -102,6 +102,20 @@ Samsung Galaxy Z Flip 3 (SM-F711N, Snapdragon 888, 8 Go, Android 15), Chrome 153
 | Tas JavaScript | 17 Mo |
 | Mémoire du processus de l'onglet, vue points ouverte (`dumpsys meminfo`) | 99 Mo en part propre (PSS), 241 Mo résidents (RSS) |
 
+Le même Flip 3, le même jour, en **mode de secours WebGL 2** (adresse en `?webgl`), commit `64a157a` :
+
+| Mesure | Résultat |
+|---|---|
+| Mode graphique | WebGL 2 |
+| Big Bang, zoom continu pendant 6 s, à travers 6 mondes emboîtés | 60,2 images par seconde ; image la plus lente : 16,8 ms |
+| Première image, premier chargement de cette version | 3 398 ms |
+| Boutique, entrée en vue points | 318 ms ; 1 071 360 points au repos |
+| Boutique, vue points, zoom continu pendant 6 s jusqu'à 4 morcellements | 59,8 images par seconde ; image la plus lente : 33,3 ms ; jamais plus de 5 980 points à l'écran |
+| Tas JavaScript | 10 Mo |
+| Mémoire du processus de l'onglet (`dumpsys meminfo`) | 86 Mo en part propre (PSS), 217 Mo résidents (RSS) |
+
+Sur ce téléphone, le mode de secours est aussi fluide que WebGPU. Cela dit que le chemin WebGL 2 marche et n'est pas plus lent ; cela ne dit rien d'une carte graphique modeste.
+
 Ce téléphone ne fait pas moins bien que le Flip 5. Ce n'est toujours pas un téléphone modeste : c'était un haut de gamme en 2021.
 
 Ce que ces mesures ne disent pas : la consommation de batterie, l'échauffement dans la durée, le comportement sans WebGPU (WebGL 2), et celui d'un téléphone plus modeste. Une seule série a été faite.
