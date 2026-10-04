@@ -277,6 +277,40 @@ mod tests {
     }
 
     #[test]
+    fn chaque_lecon_est_acceptee_par_le_moteur() {
+        // Une leçon par notion, dans exemples/lecons/ : chacune doit marcher telle qu'elle est écrite.
+        let dossier = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../exemples/lecons");
+        let mut lecons = 0;
+        for entree in std::fs::read_dir(&dossier).unwrap() {
+            let chemin = entree.unwrap().path();
+            if chemin.extension().and_then(|e| e.to_str()) != Some("holo") {
+                continue;
+            }
+            let mut source = std::fs::read_to_string(&chemin).unwrap();
+            // Comme le fait la page d'entrée : les fichiers importés sont joints au texte.
+            for nom in imports(&source).split(';').filter(|n| !n.is_empty()).map(str::to_string).collect::<Vec<_>>() {
+                source.push(holo::FICHIER_SUIVANT);
+                source.push_str(&nom);
+                source.push(holo::SEPARE_LE_NOM);
+                source.push_str(&std::fs::read_to_string(dossier.join(&nom)).unwrap());
+            }
+            let debut = source.lines().find(|l| !l.trim().is_empty() && !l.trim_start().starts_with("//") && !l.starts_with("import")).unwrap_or("");
+            let resultat = if debut.starts_with("Point(") {
+                verifier(&source).map(|_| ())
+            } else if debut.starts_with("Part(") {
+                verifier_page(&source).map(|_| ())
+            } else {
+                vue_a_plat(&source, "").map(|_| ())
+            };
+            if let Err(erreur) = resultat {
+                panic!("la leçon {} est refusée : {erreur}", chemin.display());
+            }
+            lecons += 1;
+        }
+        assert!(lecons >= 27, "des leçons ont disparu : {lecons}");
+    }
+
+    #[test]
     fn les_mondes_voisins_sont_toujours_les_memes() {
         let voisins = mondes_voisins(BOUTIQUE, "", 9);
         assert_eq!(voisins.len(), 9);

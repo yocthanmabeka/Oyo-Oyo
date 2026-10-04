@@ -1,0 +1,35 @@
+// Leçon 19 — Le hasard
+//
+// Ce qu'on apprend :
+//   La demande random : de.random(5) donne à « de » un nombre de 0 à 5, bornes comprises.
+//   Ce hasard est rejouable : il sort d'une suite fixée par le nom de la page.
+//   Les mêmes gestes redonnent les mêmes nombres : recharge la page et relance, tu verras la même suite.
+//
+// À essayer :
+//   Lance plusieurs fois, note les nombres, recharge, relance : c'est la même suite.
+//   Change « name: De » en un autre nom : la suite change.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  name: De,
+  title: "Leçon 19 : le hasard",
+  state: State(de: 0, lancers: 0),
+  children: [
+    H1("Le hasard"),
+    Text("Le dé montre {de}. Lancers : {lancers}."),
+    Button(name: Lancer, text: "Lancer"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 18 : le temps", to: "18-temps.holo"),
+      A("Leçon 20 : un plateau, où l'on place les choses →", to: "20-plateau.holo"),
+    ]),
+  ],
+  rules: [
+    On(Lancer.tap, effect: [de.random(5), lancers.add(1)]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

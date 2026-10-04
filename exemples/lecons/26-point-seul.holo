@@ -1,0 +1,14 @@
+// Leçon 26 — Un point seul : le Big Bang
+//
+// Ce qu'on apprend :
+//   Un fichier peut ne contenir qu'un point, sans page autour.
+//   C'est le Big Bang : un point lumineux qui se morcelle en mondes quand on zoome.
+//   « seed » est la graine : tout ce qu'on voit est calculé à partir de ce seul nombre.
+//   « fragments » : en combien de points il se morcelle. « brightness » : sa lumière, de 0 à 1.
+//
+// À essayer :
+//   Zoome (molette, ou pincer) : le point se morcelle. Vise un point et continue : il t'entoure,
+//   et tu es dans son monde. Dézoome pour ressortir.
+//   Change la graine : c'est un autre univers.
+
+Point(name: Origine, seed: 1, brightness: 1, fragments: 12)

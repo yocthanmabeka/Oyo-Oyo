@@ -1,0 +1,40 @@
+// Leçon 14 — Des prix, un nombre d'articles, un total
+//
+// Ce qu'on apprend :
+//   « prices: Prices(pomme: 2, poire: 3) » donne le prix de chaque article.
+//   Chaque prix porte le nom d'une valeur de State : cette valeur est la quantité.
+//   Le moteur calcule alors {count}, le nombre d'articles, et {total}, ce qu'ils coûtent.
+//   On n'écrit aucun calcul.
+//
+// À essayer :
+//   Ajoute des fruits. Change le prix de la poire, recharge, et regarde le total.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 14 : des prix, un nombre d'articles, un total",
+  state: State(pomme: 0, poire: 0),
+  prices: Prices(pomme: 2, poire: 3),
+  children: [
+    H1("Un panier"),
+    Text("{pomme} pommes à 2 euros, {poire} poires à 3 euros."),
+    Text("En tout : {count} fruits, {total} euros."),
+    Row(gap: 8px, children: [
+      Button(name: Pomme, text: "Une pomme"),
+      Button(name: Poire, text: "Une poire"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 13 : ce que la page retient", to: "13-valeurs.holo"),
+      A("Leçon 15 : montrer selon une valeur →", to: "15-conditions.holo"),
+    ]),
+  ],
+  rules: [
+    On(Pomme.tap, effect: pomme.add(1)),
+    On(Poire.tap, effect: poire.add(1)),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

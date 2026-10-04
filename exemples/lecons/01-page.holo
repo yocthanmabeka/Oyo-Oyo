@@ -1,0 +1,28 @@
+// Leçon 1 — Une page
+//
+// Ce qu'on apprend :
+//   Un fichier .holo décrit une page. Tout est dans un seul bloc : Page(...).
+//   « title » est le titre de l'onglet. « children » est la liste de ce que la page contient.
+//   H1 est le grand titre. Une phrase entre guillemets est un paragraphe.
+//
+// À essayer :
+//   Change une phrase, enregistre (Ctrl + S), recharge la page dans Chrome (F5).
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 1 : une page",
+  children: [
+    H1("Ma première page"),
+    "Une phrase entre guillemets est un paragraphe.",
+    "En voici un second.",
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("Leçon 2 : le texte →", to: "02-texte.holo"),
+    ]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

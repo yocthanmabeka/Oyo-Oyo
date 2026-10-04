@@ -1,0 +1,36 @@
+// Leçon 12 — Le carrefour et ses portails
+//
+// Ce qu'on apprend :
+//   Le carrefour montre les mondes voisins sous forme de portails ronds.
+//   Il s'ouvre par le bouton rond en bas à droite, ou par une règle : On(Carte.tap, effect: Lieu.portals).
+//   « Lieu » est le nom de la page. « portals » est ce qu'on lui demande.
+//   Portals(...) règle le carrefour : « layout » (grid, row, column, diagonal), « count », « size ».
+//
+// À essayer :
+//   Appuie sur le bouton. Change « layout: row » en « grid ».
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  name: Lieu,
+  title: "Leçon 12 : le carrefour et ses portails",
+  portals: Portals(layout: row, count: 6, size: 140px),
+  children: [
+    H1("Le carrefour"),
+    Button(name: Carte, text: "Voir les mondes voisins"),
+    Point(name: Salle, seed: 5, inside: World(children: [ H1("La salle") ])),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 11 : un site planté dans un pixel", to: "11-pixels.holo"),
+      A("Leçon 13 : ce que la page retient →", to: "13-valeurs.holo"),
+    ]),
+  ],
+  rules: [
+    On(Carte.tap, effect: Lieu.portals),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+World { background: black; color: white; }

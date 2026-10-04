@@ -1,0 +1,32 @@
+// Leçon 8 — Passer dans un autre fichier
+//
+// Ce qu'on apprend :
+//   Le monde d'un point peut être un autre fichier : inside: "01-page.holo".
+//   On y passe sans recharger la page. L'adresse change, et le bouton « retour » ramène.
+//   Le lien A, lui, change de page à l'ancienne.
+//
+// À essayer :
+//   Appuie sur le bouton, puis reviens avec le bouton « retour » du navigateur.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 8 : passer dans un autre fichier",
+  children: [
+    H1("Passer dans un autre fichier"),
+    Button(name: Aller, text: "Aller à la leçon 1 sans changer de page"),
+    Point(name: Ailleurs, seed: 12, color: "#3FA34D", inside: "01-page.holo"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 7 : un point, et le monde qu'il contient", to: "07-point-et-monde.holo"),
+      A("Leçon 9 : le zoom, et les pixels qui deviennent des points →", to: "09-zoom-et-points.holo"),
+    ]),
+  ],
+  rules: [
+    On(Aller.tap, effect: Ailleurs.enter),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

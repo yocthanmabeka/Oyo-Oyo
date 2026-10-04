@@ -6,6 +6,8 @@ Ce guide montre comment écrire un fichier `.holo` aujourd'hui, avec ce que le m
 - Ce que HoloCode couvre et ne couvre pas du web classique, balise par balise : [`COMPARAISON-WEB.md`](COMPARAISON-WEB.md).
 - Les décisions derrière chaque règle : [`docs/02-gouvernance/DECISIONS.md`](../02-gouvernance/DECISIONS.md).
 
+> Pour apprendre pas à pas : [les leçons](../../exemples/lecons/README.md), une notion par fichier. Ce guide est la référence complète.
+
 ## 1. Voir ce qu'on écrit
 
 1. Lancer le serveur local, une fois, dans un terminal : `node moteur/outils/serveur.mjs`

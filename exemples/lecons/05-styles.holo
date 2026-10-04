@@ -1,0 +1,33 @@
+// Leçon 5 — Les styles
+//
+// Ce qu'on apprend :
+//   Les styles s'écrivent après la page, comme en CSS : une cible, puis des réglages entre accolades.
+//   Une cible est un type de bloc (P touche tous les paragraphes), ou un nom à point (.carte).
+//   On marque un bloc en écrivant P.carte(...).
+//   Un style ne dit que l'apparence : couleur, taille, bordure. Pas la disposition.
+//   Toute faute est refusée : un réglage inconnu, un point-virgule oublié.
+//
+// À essayer :
+//   Change la couleur de .carte. Écris « colour » au lieu de « color » : le moteur refuse, avec la ligne.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 5 : les styles",
+  children: [
+    H1("Les styles"),
+    P("Un paragraphe ordinaire : il prend le style de P."),
+    P.carte("Un paragraphe marqué : il prend aussi le style .carte."),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 4 : un trait, une citation, du texte tel quel", to: "04-trait-citation-code.holo"),
+      A("Leçon 6 : ranger : Row, Column, Grid →", to: "06-disposition.holo"),
+    ]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+P { font-size: 17px; }
+.carte { background: #1a1a2e; border: 1px solid #E9B44C; border-radius: 12px; padding: 8px 16px; }

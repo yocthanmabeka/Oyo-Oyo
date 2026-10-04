@@ -1,0 +1,38 @@
+// Leçon 17 — Garder une valeur d'une visite à l'autre
+//
+// Ce qu'on apprend :
+//   « keep: [visites] », sur la page, nomme les valeurs que le navigateur garde.
+//   On recharge la page, ou on revient demain : elles sont encore là.
+//   Les valeurs qui ne sont pas dans « keep » repartent de leur départ.
+//
+// À essayer :
+//   Appuie trois fois sur chaque bouton, puis recharge la page (F5) : un seul des deux comptes est gardé.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 17 : garder une valeur d'une visite à l'autre",
+  state: State(visites: 0, essais: 0),
+  keep: [visites],
+  children: [
+    H1("Garder"),
+    Text("Gardé : {visites}. Pas gardé : {essais}."),
+    Row(gap: 8px, children: [
+      Button(name: Garde, text: "+ 1 gardé"),
+      Button(name: Perdu, text: "+ 1 pas gardé"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 16 : écrire dans un champ, cocher une case", to: "16-saisie.holo"),
+      A("Leçon 18 : le temps →", to: "18-temps.holo"),
+    ]),
+  ],
+  rules: [
+    On(Garde.tap, effect: visites.add(1)),
+    On(Perdu.tap, effect: essais.add(1)),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

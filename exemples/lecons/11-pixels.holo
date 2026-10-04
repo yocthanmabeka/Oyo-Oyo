@@ -1,0 +1,37 @@
+// Leçon 11 — Un site planté dans un pixel
+//
+// Ce qu'on apprend :
+//   « pixels: [...] » plante un point dans un seul pixel de la page.
+//   « above: Repere » le place juste au-dessus du bloc nommé Repere, à droite.
+//   On ne le voit qu'en s'approchant : zoome, puis touche-le. Il contient un autre site.
+//   Planter un site dans un pixel active le passage en points, sans écrire « points: ».
+//
+// À essayer :
+//   Zoome vers le coin en haut à droite du bouton jusqu'à voir un point rose, et touche-le.
+//   Au clavier : la touche Tab l'atteint aussi.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 11 : un site planté dans un pixel",
+  pixels: [
+    Point(name: Secret, above: Repere, seed: 7, color: "#FF4D6D", inside: World(children: [
+      H1("Le site caché"),
+      "Tu étais dans un pixel.",
+    ])),
+  ],
+  children: [
+    H1("Un site dans un pixel"),
+    Button(name: Repere, text: "Le pixel est juste au-dessus de ce bouton, à droite"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 10 : tourner la page", to: "10-relief-et-rotation.holo"),
+      A("Leçon 12 : le carrefour et ses portails →", to: "12-carrefour.holo"),
+    ]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+World { background: black; color: white; }

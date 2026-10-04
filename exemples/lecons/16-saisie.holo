@@ -1,0 +1,40 @@
+// Leçon 16 — Écrire dans un champ, cocher une case
+//
+// Ce qu'on apprend :
+//   Input : un champ. Checkbox : une case à cocher.
+//   « value » est le nom d'une valeur de State : le champ la montre, et la change quand on écrit.
+//   Aucune règle à écrire. « label » est obligatoire : il dit ce qu'on attend.
+//   Si la valeur est un nombre, le champ attend un nombre ; « max » borne ce nombre.
+//   Si la valeur est un texte (prenom: ""), le champ est un champ de texte ; « max » borne sa longueur.
+//   Un texte ne se compare qu'au vide : is: "" (vide), not: "" (rempli).
+//
+// À essayer :
+//   Écris ton prénom. Écris 999 dans l'âge : la valeur s'arrête à 120.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 16 : écrire dans un champ, cocher une case",
+  state: State(prenom: "", age: 0, lettre: 0),
+  children: [
+    H1("Saisir"),
+    Input(value: prenom, label: "Ton prénom", max: 20),
+    Input(value: age, label: "Ton âge", max: 120),
+    Checkbox(value: lettre, label: "Je veux recevoir la lettre"),
+    If(prenom, not: "", children: [
+      Text("Bonjour {prenom}, {age} ans."),
+    ]),
+    If(lettre, is: 1, children: [
+      "La lettre te sera envoyée.",
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 15 : montrer selon une valeur", to: "15-conditions.holo"),
+      A("Leçon 17 : garder une valeur d'une visite à l'autre →", to: "17-garder.holo"),
+    ]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

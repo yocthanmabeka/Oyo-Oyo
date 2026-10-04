@@ -1,0 +1,33 @@
+// Leçon 24 — Faire glisser
+//
+// Ce qu'on apprend :
+//   « drag: true » sur un bloc d'un plateau : on peut le faire glisser, au doigt ou à la souris.
+//   Ses places, quand ce sont des valeurs de la page, suivent le doigt.
+//   Aucune règle à écrire. Si « y » est un nombre fixe, le bloc ne glisse que de gauche à droite.
+//
+// À essayer :
+//   Fais glisser le point. Remplace « y: py » par « y: 50 » : il ne monte plus.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 24 : faire glisser",
+  state: State(px: 50, py: 50),
+  children: [
+    H1("Faire glisser"),
+    Text("Le point est en {px}, {py}."),
+    Board(height: 260px, children: [
+      Point(name: Moi, seed: 9, color: "#E9B44C", x: px, y: py, drag: true),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 23 : la rencontre de deux objets", to: "23-rencontre.holo"),
+      A("Leçon 25 : un morceau commun à plusieurs pages →", to: "25-imports.holo"),
+    ]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+Board { background: #1a1a2e; border: 1px solid #E9B44C; border-radius: 16px; }

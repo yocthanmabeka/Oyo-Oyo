@@ -1,0 +1,49 @@
+// Leçon 7 — Un point, et le monde qu'il contient
+//
+// Ce qu'on apprend :
+//   Point : le pixel de l'Holoverse. De loin, une lumière ; quand on y entre, un monde.
+//   « seed » est sa graine : le même nombre redonne toujours le même point.
+//   « inside: World(...) » est le monde qu'il contient, écrit comme une page.
+//   Un bouton ne contient aucun code. Une règle relie son signal (tap) à ce qu'on demande :
+//   On(Entrer.tap, effect: Atelier.enter) se lit « quand on appuie sur Entrer, entrer dans Atelier ».
+//
+// À essayer :
+//   Appuie sur le bouton : un passage ordinaire. Appuie sur le point lumineux : il s'ouvre et grandit.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 7 : un point, et le monde qu'il contient",
+  children: [
+    H1("Un point, et son monde"),
+    Button(name: Entrer, text: "Entrer dans l'atelier"),
+    Point(
+      name: Atelier,
+      seed: 42,
+      color: "#E9B44C",
+      inside: World(
+        children: [
+          H1("L'atelier"),
+          "On est à l'intérieur du point.",
+          Button(name: Sortir, text: "Revenir"),
+        ],
+        rules: [
+          On(Sortir.tap, effect: Atelier.leave),
+        ],
+      ),
+    ),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 6 : ranger : Row, Column, Grid", to: "06-disposition.holo"),
+      A("Leçon 8 : passer dans un autre fichier →", to: "08-passage.holo"),
+    ]),
+  ],
+  rules: [
+    On(Entrer.tap, effect: Atelier.enter),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+World { background: black; color: white; }

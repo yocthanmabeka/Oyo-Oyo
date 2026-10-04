@@ -1,0 +1,39 @@
+// Leçon 22 — Une règle qui guette
+//
+// Ce qu'on apprend :
+//   When(compte, is: 5, effect: ...) : une règle qui guette une valeur.
+//   Elle se déclenche au moment où la condition devient vraie, pas tant qu'elle le reste.
+//   Les comparaisons sont celles de If : is, not, over, under.
+//   Trois sortes de règles : On (un geste), Every (le temps), When (un moment).
+//
+// À essayer :
+//   Appuie cinq fois : au cinquième appui, la règle se déclenche, une seule fois.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 22 : une règle qui guette",
+  state: State(compte: 0, fetes: 0),
+  children: [
+    H1("Une règle qui guette"),
+    Text("Compte : {compte}. La règle s'est déclenchée {fetes} fois."),
+    Row(gap: 8px, children: [
+      Button(name: Plus, text: "+ 1"),
+      Button(name: Zero, text: "Remettre à zéro"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 21 : le clavier", to: "21-clavier.holo"),
+      A("Leçon 23 : la rencontre de deux objets →", to: "23-rencontre.holo"),
+    ]),
+  ],
+  rules: [
+    On(Plus.tap, effect: compte.add(1)),
+    On(Zero.tap, effect: compte.set(0)),
+    When(compte, is: 5, effect: fetes.add(1)),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

@@ -1,0 +1,39 @@
+// Leçon 21 — Le clavier
+//
+// Ce qu'on apprend :
+//   Key est le clavier du visiteur. Ses signaux : left, right, up, down (les flèches) et space.
+//   On(Key.left, effect: x.sub(5)) : une touche est un signal comme un autre.
+//   Seules les touches que le fichier écoute sont prises ; les autres gardent leur rôle.
+//
+// À essayer :
+//   Déplace le point avec les quatre flèches.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 21 : le clavier",
+  state: State(x: 50, y: 50),
+  children: [
+    H1("Le clavier"),
+    "Déplace le point avec les flèches.",
+    Board(height: 260px, children: [
+      Point(name: Moi, seed: 9, color: "#E9B44C", x: x, y: y),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 20 : un plateau, où l'on place les choses", to: "20-plateau.holo"),
+      A("Leçon 22 : une règle qui guette →", to: "22-guetter.holo"),
+    ]),
+  ],
+  rules: [
+    On(Key.left, effect: x.sub(5)),
+    On(Key.right, effect: x.add(5)),
+    On(Key.up, effect: y.sub(5)),
+    On(Key.down, effect: y.add(5)),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+Board { background: #1a1a2e; border: 1px solid #E9B44C; border-radius: 16px; }
