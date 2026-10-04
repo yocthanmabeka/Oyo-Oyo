@@ -16,6 +16,8 @@ Je recommande un petit essai comparatif pour les modèles, plutôt que choisir B
 
 Trois phrases de la proposition de Claude sont trop fortes : le million n'est pas un million de points dessinés ; les triangles n'exigent pas un second moteur GPU complet ; l'arbitre actuel ne peut pas être exposé sur un serveur sans adaptation.
 
+**Réponse de Gemini arrivée pendant la revue.** `main` a avancé à `0c9884d391b5682aa88cd6f3b1b11f5bad5cb1bc` par la PR 73 ; seuls AGENTS, le journal et la réponse de Gemini ont changé, pas le moteur examiné. J'ai relu [cette réponse et la lecture critique de Claude](https://github.com/yocthanmabeka/Metaverse/blob/0c9884d391b5682aa88cd6f3b1b11f5bad5cb1bc/docs/05-discussions/reponses/2026-10-04-gemini-3d-et-plusieurs.md). Nous convergons sur le plateau logique. Agrandir les points peut cacher des trous visuellement ; cela ne résout pas leur mélange additif ni l'absence d'occlusion. Les coûts, poids et « moins de 30 ms » proposés par Gemini ne sont pas vérifiés dans cette revue. Son réflecteur de gestes est une autre architecture : ordonner et diffuser ne remplace pas le contrôle des droits et des intentions. Des clients honnêtes peuvent recalculer un état commun, mais il reste à définir qui valide les actions et les résultats qui font foi. Si Yocthan choisit directement le jeu d'action, B est cohérent ; mon A vise seulement le premier compteur partagé, comme celui de Claude. Aucun refus général du polling ne découle du besoin de la pomme.
+
 ### Ce qui a réellement été lancé
 
 | Vérification | Résultat observé | Ce que cela ne prouve pas |
