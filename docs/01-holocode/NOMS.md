@@ -34,6 +34,8 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `On` | `addEventListener`, `onclick` | changé : une règle, pas du code |
 | `Input` | `input type="number"`, `input type="text"` | repris, avec une majuscule ; l'étiquette est obligatoire ; le genre du champ vient de la valeur |
 | `Checkbox` | `input type="checkbox"` | changé : un mot à lui |
+| `When` | un `if` testé à chaque image | changé : une règle, déclenchée une fois, au moment où c'est vrai |
+| `Meet` | un test de collision écrit à la main | nouveau |
 | `Every` | `setInterval` | changé : une règle, qui s'arrête seule quand on ne regarde pas |
 | `Board` | `position: relative` et `absolute` | changé : un bloc, des places de 0 à 100 |
 | `If` | `if` en JavaScript, `v-if`, `{#if}` | repris, devenu un bloc |
@@ -65,6 +67,7 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `value:` | `value`, `v-model`, `bind:value` | repris ; lié dans les deux sens |
 | `label:` | `label` | repris, devenu un réglage obligatoire |
 | `max:` (d'un champ) | `max` | repris ; vraiment appliqué |
+| `within:` | aucun | nouveau |
 | `keep:` | `localStorage` | changé : une liste de noms, rien à programmer |
 | `x:`, `y:` | `left`, `top` | changés : de 0 à 100, jamais hors du plateau |
 | `by:` | `cite` | changé |
@@ -101,6 +104,7 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | HoloCode | HTML, CSS ou JavaScript | Ce qu'on a fait |
 |---|---|---|
 | `tap` | `click`, `touchend` | changé : un mot pour la souris et le doigt |
+| `Key.left`, `Key.right`, `Key.up`, `Key.down`, `Key.space` | `keydown`, `ArrowLeft`… | changés : un signal comme les autres |
 | `enter`, `leave` | un routeur ; `history.pushState` | changés |
 | `portals` | aucun | nouveau |
 | `{cart}` | `${cart}` en JavaScript, `{cart}` en Svelte, `{{ cart }}` en Vue | repris |

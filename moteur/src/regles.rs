@@ -96,6 +96,26 @@ pub fn verifier_regles(programme: &Programme) -> Result<(), Erreur> {
         if bloc.nom == "On" {
             verifier_regle(bloc, &noms, &etat)?;
         }
+        // Une règle qui guette une valeur, ou la rencontre de deux blocs (ADR-028).
+        if bloc.nom == "When" || bloc.nom == "Meet" {
+            if bloc.nom == "When" {
+                crate::etat::condition(bloc)?;
+            } else {
+                let (a, b, _) = crate::etat::rencontre(bloc)?;
+                for nom in [a, b] {
+                    let pose = bloc_nomme(programme, nom).is_some_and(|pose| pose.argument("x").is_some() && pose.argument("y").is_some());
+                    if !pose {
+                        return Err(Erreur { message: format!("« Meet » : « {nom} » n'est pas posé sur un plateau ; il lui faut un nom, et « x » et « y » dans un « Board »"), pos: bloc.pos });
+                    }
+                }
+            }
+            match bloc.argument("effect").map(|a| &a.valeur) {
+                Some(Valeur::Bloc(demande)) if crate::etat::est_demande(demande) => {
+                    crate::etat::demande(demande, &etat)?;
+                }
+                _ => return Err(Erreur { message: format!("« {} » attend une demande : {}(…, effect: score.add(1))", bloc.nom, bloc.nom), pos: bloc.pos }),
+            }
+        }
         // Une règle de temps : un rythme, et une demande faite à l'arbitre (ADR-026).
         if bloc.nom == "Every" {
             crate::etat::rythme(bloc)?;
@@ -165,9 +185,16 @@ fn verifier_regle(regle: &Bloc, noms: &[(&str, &str)], etat: &crate::etat::Etat)
     let (source, mot) = nom_et_mot(regle, signal, "le signal")?;
     let type_de = |nom: &str| noms.iter().find(|(connu, _)| *connu == nom).map(|(_, bloc)| *bloc);
     let inconnu = |nom: &str| Erreur { message: format!("aucun bloc ne s'appelle « {nom} »"), pos: regle.pos };
-    let type_source = type_de(source).ok_or_else(|| inconnu(source))?;
-    if !signaux(type_source).contains(&mot) {
-        return Err(Erreur { message: format!("signal inconnu « {mot} » : un « {type_source} » émet {}", lister(signaux(type_source))), pos: regle.pos });
+    // « Key » est le clavier du visiteur : On(Key.left, effect: basket.sub(8)).
+    if source == "Key" && type_de(source).is_none() {
+        if !crate::etat::TOUCHES.contains(&mot) {
+            return Err(Erreur { message: format!("touche inconnue « {mot} » : le clavier donne {}", crate::etat::TOUCHES.join(", ")), pos: regle.pos });
+        }
+    } else {
+        let type_source = type_de(source).ok_or_else(|| inconnu(source))?;
+        if !signaux(type_source).contains(&mot) {
+            return Err(Erreur { message: format!("signal inconnu « {mot} » : un « {type_source} » émet {}", lister(signaux(type_source))), pos: regle.pos });
+        }
     }
     // L'effet est une demande faite à l'arbitre : `cart.add(1)` (ADR-023).
     if let Some(Valeur::Bloc(demande)) = regle.argument("effect").map(|a| &a.valeur) {

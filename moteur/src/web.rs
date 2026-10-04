@@ -290,6 +290,12 @@ pub fn horloges(source: &str) -> String {
     crate::horloges(source)
 }
 
+/// Les touches du clavier que la page écoute.
+#[wasm_bindgen]
+pub fn touches(source: &str) -> String {
+    crate::touches(source)
+}
+
 /// Les valeurs qu'un signal fait changer : leurs horloges repartent de zéro.
 #[wasm_bindgen]
 pub fn touchees(source: &str, signal: &str) -> String {

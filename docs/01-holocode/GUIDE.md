@@ -559,6 +559,67 @@ Page(
 
 Cette écriture est à l'essai (`ADR-026`).
 
+## 6 quater bis. Un jeu qui bouge : le clavier, `When`, `Meet`
+
+Le second jeu est dans `exemples/jeu/panier.holo` : une pomme tombe, on la rattrape avec un panier.
+
+```holo
+Page(
+  name: Orchard,
+  title: "Catch the apple",
+
+  state: State(lives: 3, score: 0, basket: 50, apple_x: 50, apple_y: 0),
+
+  children: [
+    Text("Score: {score}. Lives: {lives}"),
+    Board(height: 360px, children: [
+      Point(name: Apple, seed: 3, x: apple_x, y: apple_y),
+      Point(name: Basket, seed: 9, x: basket, y: 96),
+    ]),
+    Button(name: Left, text: "Left"),
+    Button(name: Right, text: "Right"),
+  ],
+
+  rules: [
+    On(Key.left, effect: basket.sub(8)),
+    On(Key.right, effect: basket.add(8)),
+    On(Left.tap, effect: basket.sub(8)),
+    On(Right.tap, effect: basket.add(8)),
+
+    Every(100ms, effect: apple_y.add(3)),
+
+    Meet(Basket, Apple, within: 9, effect: score.add(1)),
+    Meet(Basket, Apple, within: 9, effect: apple_x.random(100)),
+    Meet(Basket, Apple, within: 9, effect: apple_y.set(0)),
+
+    When(apple_y, over: 99, effect: lives.sub(1)),
+    When(apple_y, over: 99, effect: apple_y.set(0)),
+  ],
+)
+```
+
+**Le clavier : `Key`.** `On(Key.left, effect: basket.sub(8))`. `Key` est le clavier du visiteur.
+
+| Signal | Touche |
+|---|---|
+| `Key.left`, `Key.right`, `Key.up`, `Key.down` | les quatre flèches |
+| `Key.space` | la barre d'espace |
+
+- Seules les touches que le fichier écoute sont prises. Les autres gardent leur rôle.
+- Sur un téléphone il n'y a pas de clavier : on ajoute des boutons qui font la même demande.
+
+**Ce qui bouge tout seul.** `Every(100ms, effect: apple_y.add(3))` : dix fois par seconde, la pomme descend un peu.
+
+**Une valeur qui sert de place reste sur le plateau** : de 0 à 100. Le panier ne sort jamais.
+
+**Une règle qui guette : `When`.** `When(apple_y, over: 99, effect: lives.sub(1))` : au moment où la pomme arrive en bas, une vie de moins. Elle se déclenche quand la condition **devient** vraie, pas tant qu'elle le reste. Les comparaisons sont celles de `If` : `is`, `not`, `over`, `under`.
+
+**Une rencontre : `Meet`.** `Meet(Basket, Apple, within: 9, effect: score.add(1))` : au moment où les deux blocs se touchent. `within` est la distance de rencontre, sur l'échelle du plateau (de 0 à 100) ; 10 sans rien écrire. Les deux blocs ont un nom, et un `x` et un `y` dans un `Board`.
+
+Plusieurs règles qui guettent la même chose se déclenchent ensemble, dans l'ordre où elles sont écrites.
+
+Cette écriture est à l'essai (`ADR-028`).
+
 ## 6 quinquies. Saisir, et garder : `Input`, `Checkbox`, `keep`
 
 ```holo
@@ -796,6 +857,8 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Checkbox` | `value`, `label`, `name` | Dans `children` |
 | `On` | le signal, puis `effect:` | Dans `rules` |
 | `Every` | le rythme, puis `effect:` | Dans `rules` |
+| `When` | le nom d'une valeur, puis `is`, `not`, `over`, `under`, et `effect:` | Dans `rules` |
+| `Meet` | les noms de deux blocs posés sur un plateau, puis `within` et `effect:` | Dans `rules` |
 | `State` | les valeurs et leur départ : `cart: 0` | Dans `state:` d'une `Page` |
 | `Prices` | le prix de chaque article : `sunrise: 120` | Dans `prices:` d'une `Page` |
 | `Zoom`, `Points`, `Relief`, `Portals` | voir la partie 7 | Dans `zoom:`, `points:`, `relief:`, `portals:` d'une `Page` |
@@ -827,6 +890,9 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Afficher une valeur | `{cart}` dans un texte | fait, à l'essai |
 | Changer une valeur | les demandes `add`, `sub`, `set` | fait |
 | Répéter une règle dans le temps | `Every(1s, effect:)` | fait |
+| Le clavier | `On(Key.left, effect:)` | fait, à l'essai |
+| Agir au moment où une valeur atteint quelque chose | `When(lives, is: 0, effect:)` | fait, à l'essai |
+| La rencontre de deux objets | `Meet(Basket, Apple, within:, effect:)` | fait, à l'essai |
 | Le hasard | la demande `random` | fait |
 | Placer librement | `Board`, et `x:`, `y:` sur ses enfants | fait |
 | Une valeur qui est un texte | `State(buyer: "")`, `{buyer}`, `If(buyer, not: "")` | fait, à l'essai |

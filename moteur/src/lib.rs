@@ -102,6 +102,11 @@ pub fn horloges(source: &str) -> String {
     verifier_page(source).map(|programme| etat::horloges(&programme).iter().map(|(ms, valeur)| format!("{ms}:{valeur}")).collect::<Vec<_>>().join(";")).unwrap_or_default()
 }
 
+/// Les touches du clavier que la page écoute (`left;right`).
+pub fn touches(source: &str) -> String {
+    verifier_page(source).map(|programme| etat::touches(&programme).join(";")).unwrap_or_default()
+}
+
 /// Les valeurs qu'un signal fait changer (`time;score`) : leurs horloges repartent de zéro.
 pub fn touchees(source: &str, signal: &str) -> String {
     verifier_page(source).map(|programme| etat::touchees(&programme, signal).join(";")).unwrap_or_default()

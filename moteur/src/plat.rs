@@ -35,7 +35,7 @@ grid-template-columns:repeat(auto-fill,minmax(min(100%,max(120px,calc((100% - (v
 :where(.holo-Checkbox input){width:18px;height:18px;margin:0;accent-color:currentColor}\
 :where(.holo-Board){position:relative;overflow:hidden;border-radius:12px}\
 :where(.holo-place){position:absolute;left:calc(var(--x)*1%);top:calc(var(--y)*1%);transform:translate(calc(var(--x)*-1%),calc(var(--y)*-1%));\
-transition:left .2s ease,top .2s ease,transform .2s ease}\
+transition:left .12s linear,top .12s linear,transform .12s linear}\
 @media (prefers-reduced-motion:reduce){.holo-place{transition:none}}\
 :where(.holo-Hr){border:0;border-top:1px solid currentColor;opacity:0.4;height:0}\
 :where(.holo-Quote){border-left:3px solid currentColor;padding:0 0 0 12px;font-style:italic}\
