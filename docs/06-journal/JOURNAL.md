@@ -6,6 +6,15 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Trois avis sur 100 : Claude 50 %, Gemini 65 %, Codex 75 %
+
+- Les réponses de Codex et de Gemini à la même question, et la lecture de Claude : `docs/05-discussions/reponses/2026-10-04-avis-sur-100.md`.
+- Tous trois : pas encore les objectifs. Ce qui manque, d'un même avis : un téléphone modeste mesuré dans la durée ; des débutants qui créent seuls ; des objets pleins ; l'envoi d'un formulaire et les listes ; plus tard, le jeu à plusieurs.
+- Gemini, sans accès au dépôt, demande des choses qui existent déjà (`Row`, `Column`, le panier à plusieurs articles).
+- Codex relève la première image 3D (environ 3,5 s au premier chargement). Le site léger risque de l'allonger : à mesurer.
+
+---
+
 ## 2026-10-04 — Le site léger : 8 Ko au lieu de 579
 
 **Ce que Yocthan a demandé**
