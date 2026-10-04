@@ -99,7 +99,8 @@ fn reglages_restants(source: Option<String>, deja_grossi: Option<f64>) -> Result
 /// des points ; si dézoomer réduit la page (1) ou non (0) ; jusqu'à quel grossissement la page
 /// reste un site ordinaire ; si le zoom est permis (1) ou non (0) ; la disposition des portails
 /// (0 grille, 1 ligne, 2 colonne, 3 diagonale), leur nombre, leur taille, la lumière du fond ;
-/// la vitesse du zoom à la molette ; la durée d'ouverture d'un portail, en millisecondes.
+/// la vitesse du zoom à la molette ; la durée d'ouverture d'un portail, en millisecondes ;
+/// jusqu'où la page tourne, en degrés (0 : elle ne tourne pas).
 #[wasm_bindgen]
 pub fn reglages_de_vue(source: &str) -> Result<Vec<f64>, JsValue> {
     let r = reglages_de(Some(source.to_string()))?;
@@ -109,7 +110,7 @@ pub fn reglages_de_vue(source: &str) -> Result<Vec<f64>, JsValue> {
         crate::vue::Disposition::Colonne => 2.0,
         crate::vue::Disposition::Diagonale => 3.0,
     };
-    Ok(vec![r.densite, f64::from(u8::from(r.reduire)), r.apres, f64::from(u8::from(r.zoom_actif)), disposition, f64::from(r.portails_nombre), r.portails_taille, r.portails_lumiere, r.zoom_vitesse, r.portails_duree])
+    Ok(vec![r.densite, f64::from(u8::from(r.reduire)), r.apres, f64::from(u8::from(r.zoom_actif)), disposition, f64::from(r.portails_nombre), r.portails_taille, r.portails_lumiere, r.zoom_vitesse, r.portails_duree, r.angle_max.to_degrees()])
 }
 
 /// Les mondes voisins d'un site, calculés à partir d'une graine, pour remplir le carrefour.
@@ -274,6 +275,18 @@ pub fn vue_a_plat(source: &str, base: &str, chemin: Option<String>) -> Result<St
 #[wasm_bindgen]
 pub fn effets(source: &str, signal: &str) -> String {
     crate::effets(source, signal).join(",")
+}
+
+/// Les valeurs d'une page à leur départ (`cart=0;likes=3`).
+#[wasm_bindgen]
+pub fn etat_initial(source: &str) -> String {
+    crate::etat_initial(source)
+}
+
+/// L'arbitre : les valeurs d'une page après ce signal (`Add.tap`).
+#[wasm_bindgen]
+pub fn arbitrer(source: &str, etat: &str, signal: &str) -> String {
+    crate::arbitrer(source, etat, signal)
 }
 
 /// Le fichier `.holo` d'un seul point de la page, pour ouvrir sa vue en profondeur.

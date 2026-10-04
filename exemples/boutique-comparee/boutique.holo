@@ -32,11 +32,17 @@ Page(
     density: 2,       // points par pixel d'écran, dans chaque sens
   ),
 
+  // Tourner la page. Sans « tilt », une page ne tourne pas : c'est un site ordinaire, toujours
+  // lisible. L'écrire active la rotation, et le bouton « Tourner » apparaît.
   // Quand on tourne la page, ce qui est lumineux se soulève au-dessus du fond.
   relief: Relief(
     height: 10px,     // la hauteur du relief
     tilt: 360deg,     // jusqu'où l'on peut tourner la page ; 360deg : on en fait le tour
   ),
+
+  // Les valeurs de la page : ce qu'elle retient. Ici, le nombre de tableaux dans le panier,
+  // qui part de zéro.
+  state: State(cart: 0),
 
   // Le carrefour : les portails vers les mondes voisins. Il s'ouvre quand on entre dans un
   // point, ou par le bouton « Carrefour ». Les sites écrits dans ce fichier passent d'abord ;
@@ -74,6 +80,13 @@ Page(
     // Du texte sans rôle : une étiquette, une ligne d'état.
     Text.note("Open until 6 pm"),
 
+    // Le panier. « {cart} » affiche la valeur ; le texte se met à jour tout seul.
+    H3("Your cart"),
+    Text.note("{cart} paintings in your cart"),
+    Button(name: Add, text: "Add a painting"),
+    Button(name: Remove, text: "Remove one"),
+    Button(name: Empty, text: "Empty the cart"),
+
     Button.card(name: Open, text: "Enter the workshop"),
 
     // Un point : le pixel de l'Holoverse. Vu de loin, une lumière ;
@@ -91,6 +104,8 @@ Page(
         children: [
           H1("The workshop"),
           P("Here the paintings are made."),
+          // Le panier vous suit dans le monde : c'est la même valeur.
+          Text("{cart} paintings in your cart"),
           Image(source: "easel.svg", weight: 1KB),
           Button(name: Back, text: "Back to the shop"),
 
@@ -109,6 +124,12 @@ Page(
   // le signal (tap) à la capacité demandée (enter).
   rules: [
     On(Open.tap, effect: Workshop.enter),
+
+    // Changer une valeur est une demande faite au moteur : add (ajouter), sub (retirer),
+    // set (fixer). Le moteur décide : le panier ne descend jamais sous zéro.
+    On(Add.tap, effect: cart.add(1)),
+    On(Remove.tap, effect: cart.sub(1)),
+    On(Empty.tap, effect: cart.set(0)),
   ],
 )
 

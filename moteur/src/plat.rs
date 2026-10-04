@@ -54,6 +54,12 @@ pub fn site_html(programme: &Programme, page: &Bloc, base: &str, titre: &str) ->
         ("World", None) => "holo-Page holo-monde-ouvert".to_string(),
         _ => classes(page),
     };
+    // Les valeurs de la page, à leur départ, là où un texte les montre : « {cart} » (ADR-023).
+    for (nom, valeur) in crate::etat::initial(programme).unwrap_or_default() {
+        let (vide, pleine) = (format!("<span data-state=\"{nom}\"></span>"), format!("<span data-state=\"{nom}\">{valeur}</span>"));
+        corps = corps.replace(&vide, &pleine);
+        mondes = mondes.replace(&vide, &pleine);
+    }
     Ok(format!(
         "<style>{BASE}{}</style><div class=\"{classes}\" data-title=\"{titre}\"><main>{corps}</main>{mondes}</div>",
         css(programme)
@@ -325,7 +331,13 @@ fn markdown(texte: &str) -> String {
             .map(|(i, m)| if i % 2 == 1 { format!("<{balise}>{m}</{balise}>") } else { m.to_string() })
             .collect()
     }
-    alterner(&alterner(&echapper(texte), "**", "strong"), "*", "em")
+    let mut html = alterner(&alterner(&echapper(texte), "**", "strong"), "*", "em");
+    // `{cart}` : l'endroit où s'affiche une valeur de la page. `site_html` y écrit son départ,
+    // la page d'entrée la tient à jour.
+    for nom in crate::etat::noms_dans(texte) {
+        html = html.replace(&format!("{{{nom}}}"), &format!("<span data-state=\"{nom}\"></span>"));
+    }
+    html
 }
 
 #[cfg(test)]

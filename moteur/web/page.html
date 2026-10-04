@@ -28,9 +28,12 @@
   .en-points{overflow:hidden}
   .en-points #image{display:block}
   #etat,#commandes{display:none}
+  /* La rotation activée par l'auteur (Relief(tilt:)) : « Tourner » est offert dès la page de face. */
+  .tourne #commandes{display:flex;position:fixed;right:8px;bottom:8px;z-index:8;gap:8px}
+  body:not(.en-points) #face,.en-monde #commandes{display:none}
   .en-points #etat{display:block;position:fixed;left:8px;bottom:8px;z-index:5;padding:4px 8px;border-radius:6px;
     background:rgba(0,0,0,.6);color:#bbb;font:12px system-ui,sans-serif;pointer-events:none}
-  .en-points #commandes{display:flex;position:fixed;right:8px;bottom:8px;z-index:5;gap:8px}
+
   .en-points #mode{display:none}
   #vues{position:fixed;top:8px;right:8px;z-index:8;display:flex;gap:8px}
   #vues[hidden]{display:none}
@@ -102,7 +105,7 @@
 </div>
 <script type="module">
   import init, {
-    pause, vue_a_plat, effets, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
+    pause, vue_a_plat, effets, etat_initial, arbitrer, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
     mosaique_pivoter, mosaique_de_face, mosaique_sous, reglages_de_vue, reveiller, images_dessinees,
   } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
@@ -130,6 +133,10 @@
   let densiteDemandee = 2;
   let vitesseDuZoom = 1;     // Zoom(speed:)
   let dureeDuPortail = 450;  // Portals(duration:), en millisecondes
+  let angleDeRotation = 0;   // Relief(tilt:), en degrés ; 0 : la page ne tourne pas
+  // Les valeurs de chaque fichier ouvert (State) : « cart=2 ». Elles suivent le visiteur tant
+  // qu'il ne recharge pas la page : il peut entrer dans un monde, passer ailleurs, revenir.
+  const etats = new Map();
   const chezSoi = (hote) => hote === "localhost" || hote === "127.0.0.1";
   // En http, on ne va que vers sa propre machine, et seulement si l'on y est déjà : une page
   // publique ne fait pas partir de requêtes vers le réseau privé du visiteur.
@@ -232,7 +239,9 @@
   // Ce que le fichier affiché dit de sa vue (Zoom, Points, Portals).
   function lireLesReglages() {
     let actif, rangement;
-    [densiteDemandee, reduire, zoomAvantPoints, actif, rangement, nombreDePortails, tailleDePortail, lumiereDuFond, vitesseDuZoom, dureeDuPortail] = reglages_de_vue(source);
+    [densiteDemandee, reduire, zoomAvantPoints, actif, rangement, nombreDePortails, tailleDePortail, lumiereDuFond, vitesseDuZoom, dureeDuPortail, angleDeRotation] = reglages_de_vue(source);
+    document.body.classList.toggle("tourne", angleDeRotation > 0 && actif === 1);
+    if (!etats.has(chemin)) etats.set(chemin, etat_initial(source));
     document.documentElement.style.setProperty("--duree", `${dureeDuPortail}ms`);
     densite = densiteDemandee;
     reduire = reduire === 1;
@@ -271,6 +280,24 @@
   // ---------------------------------------------------------------- le site affiché
 
   // Affiche un site du fichier, sans recharger la page : pas de noir entre deux sites.
+  // Écrit les valeurs de la page là où ses textes les montrent : « {cart} ».
+  function montrerLesValeurs(ou = racine, ecrit = etats.get(chemin) ?? "") {
+    const valeurs = new Map(ecrit.split(";").filter(Boolean).map((morceau) => morceau.split("=")));
+    for (const place of ou.querySelectorAll("[data-state]")) {
+      if (valeurs.has(place.dataset.state)) place.textContent = valeurs.get(place.dataset.state);
+    }
+  }
+
+  // Un signal est émis (Add.tap) : l'arbitre du moteur dit ce que deviennent les valeurs, puis
+  // les autres effets demandés par les règles sont appliqués.
+  function emettre(signal) {
+    etats.set(chemin, arbitrer(source, etats.get(chemin) ?? "", signal));
+    montrerLesValeurs();
+    for (const effet of effets(source, signal).split(",").filter(Boolean)) {
+      appliquer(effet);
+    }
+  }
+
   function afficherSite(cheminDeSite, { dansLHistorique = true } = {}) {
     sortirDesPoints();
     fermerCarrefour();
@@ -286,6 +313,7 @@
     }
     site = cheminDeSite;
     racine.innerHTML = vue_a_plat(source, base, site);
+    montrerLesValeurs();
     cadre = racine.querySelector(".holo-Page");
     page = cadre.querySelector("main");
     document.title = cadre.dataset.title || "HoloCode";
@@ -478,9 +506,7 @@
     if (!plante) return;
     await approcher(x, y);
     sortirDesPoints();
-    for (const effet of effets(source, `${plante.nom}.tap`).split(",").filter(Boolean)) {
-      appliquer(effet);
-    }
+    emettre(`${plante.nom}.tap`);
   }
 
   // La page devient un ensemble de points, un par pixel. Au départ rien ne change à l'écran :
@@ -643,8 +669,11 @@
     contenu.style.transform = `scale(${taille / innerWidth})`;
     // L'aperçu est enfermé : les styles d'un autre fichier ne débordent ni sur la page ni sur
     // les autres aperçus.
-    contenu.attachShadow({ mode: "open" }).innerHTML =
+    const interieur = contenu.attachShadow({ mode: "open" });
+    interieur.innerHTML =
       "<style>.holo-Page{min-height:100%!important}</style>" + (fichier ? vue_a_plat(texte, dossierDe(fichier), "") : vue_a_plat(source, base, versSite));
+    // L'aperçu montre les valeurs où elles en sont : celles de ce fichier, ou de l'autre s'il a déjà été visité.
+    montrerLesValeurs(interieur, etats.get(fichier || chemin) ?? "");
     apercu.append(contenu);
     const etiquette = document.createElement("span");
     etiquette.className = "nom";
@@ -838,9 +867,7 @@
     racine.addEventListener("click", (evenement) => {
       const bloc = evenement.target.closest("[data-name]");
       if (!bloc) return;
-      for (const effet of effets(source, `${bloc.dataset.name}.tap`).split(",").filter(Boolean)) {
-        appliquer(effet);
-      }
+      emettre(`${bloc.dataset.name}.tap`);
     });
     carrefour.addEventListener("click", (evenement) => {
       const bouton = evenement.target.closest(".portail");
@@ -856,8 +883,12 @@
       else fermerCarrefour();
     });
     boutonPoints.addEventListener("click", () => (enPoints ? sortirDesPoints() : entrerEnPoints()));
-    boutonTourner.addEventListener("click", () => {
+    boutonTourner.addEventListener("click", async () => {
       const actif = boutonTourner.getAttribute("aria-pressed") !== "true";
+      // De face, sur le site ordinaire : la page devient d'abord ses points, sans que rien ne
+      // change à l'écran, puis elle tourne sous le doigt.
+      if (!enPoints) await entrerEnPoints();
+      if (!enPoints) return;
       boutonTourner.setAttribute("aria-pressed", String(actif));
       mosaique_tourner(actif);
     });

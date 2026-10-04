@@ -466,15 +466,18 @@ impl Analyseur {
             Mot::Nom(n) => n,
             autre => return Err(Erreur { message: format!("nom de bloc attendu, {} trouvé", decrire(&autre)), pos: jeton.pos }),
         };
+        // `cart.add(1)` : une demande faite à l'arbitre (ADR-023). Elle commence par une
+        // minuscule et porte un point ; elle garde son nom entier. `blocs.rs` vérifie sa place.
+        let est_demande = nom.contains('.') && nom.starts_with(|c: char| c.is_ascii_lowercase());
         // `P.card(...)` : le bloc `P`, avec le style nommé `card` (ADR-017).
         let (nom, style) = match nom.split_once('.') {
-            Some((bloc, style)) if !bloc.is_empty() && !style.is_empty() => (bloc.to_string(), Some(style.to_string())),
+            Some((bloc, style)) if !est_demande && !bloc.is_empty() && !style.is_empty() => (bloc.to_string(), Some(style.to_string())),
             _ => (nom, None),
         };
         if style.as_deref().is_some_and(|s| s.contains('.')) {
             return Err(Erreur { message: format!("« {nom} » porte plusieurs noms de style : un bloc porte un seul nom de style (ADR-017)"), pos: jeton.pos });
         }
-        if !nom.chars().next().is_some_and(|c| c.is_ascii_uppercase()) || nom.contains('.') {
+        if !est_demande && (!nom.chars().next().is_some_and(|c| c.is_ascii_uppercase()) || nom.contains('.')) {
             // Une seule écriture par bloc : `h1` n'est pas accepté à côté de `H1` (ADR-020).
             let mut lettres = nom.chars();
             let message = match lettres.next() {

@@ -23,7 +23,7 @@
     },
     {
       "comment": "Un signal ou une capacité : Open.tap, Workshop.enter",
-      "match": "\\b([A-Z][A-Za-z0-9_]*)\\.(tap|enter|leave)\\b",
+      "match": "\\b([A-Za-z][A-Za-z0-9_]*)\\.(tap|enter|leave|portals|add|sub|set)\\b",
       "captures": { "1": { "name": "variable.other.constant.holo" }, "2": { "name": "support.function.holo" } }
     },
     { "comment": "Un paramètre ou un réglage : name:, font-size:", "name": "variable.parameter.holo", "match": "\\b[a-z_][a-z0-9_-]*(?=\\s*:)" },

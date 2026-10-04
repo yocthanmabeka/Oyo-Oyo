@@ -5,7 +5,7 @@
 //! Page(
 //!   zoom: Zoom(max: 1000000, shrink: false, levels: 8, speed: 1),
 //!   points: Points(after: 4, size: 6px, fragment: 40px, grid: 4, depth: 20, density: 2),
-//!   relief: Relief(height: 10px, tilt: 360deg),
+//!   relief: Relief(height: 10px, tilt: 360deg),   // sans « tilt », la page ne tourne pas
 //!   portals: Portals(layout: grid, count: 12, size: 170px, brightness: 0.15, duration: 450ms),
 //! )
 //! ```
@@ -68,8 +68,9 @@ pub struct Reglages {
     pub densite: f64,
     /// `Relief(height:)` : de combien se soulève ce qui est lumineux, quand la page est de biais.
     pub relief: f64,
-    /// `Relief(tilt:)` : jusqu'où l'on peut tourner la page, en radians. Un demi-tour ou plus :
-    /// la rotation est libre, on fait le tour de la page.
+    /// `Relief(tilt:)` : jusqu'où l'on peut tourner la page, en radians. Zéro, le départ : la
+    /// page ne tourne pas, c'est un site ordinaire ; l'auteur active la rotation en l'écrivant.
+    /// Un demi-tour ou plus : la rotation est libre, on fait le tour de la page.
     pub angle_max: f64,
 }
 
@@ -83,7 +84,7 @@ impl Default for Reglages {
             portails_lumiere: 0.15,
             zoom_vitesse: 1.0,
             portails_duree: 450.0,
-            zoom_max: 1e12, reduire: false, niveaux_de_sites: 8, apres: 4.0, taille_point: 6.0, taille_morceler: 40.0, cote: 4, niveaux: 20, densite: 2.0, relief: 10.0, angle_max: 360f64.to_radians() }
+            zoom_max: 1e12, reduire: false, niveaux_de_sites: 8, apres: 4.0, taille_point: 6.0, taille_morceler: 40.0, cote: 4, niveaux: 20, densite: 2.0, relief: 10.0, angle_max: 0.0 }
     }
 }
 
