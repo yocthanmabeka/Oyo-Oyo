@@ -6,6 +6,19 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Les conditions décidées à un seul endroit
+
+**Ce que Yocthan a dit**
+
+- Sur la limite signalée (les conditions calculées à deux endroits) : « Tu réunis, tu fais ce qu'il y a à faire, et après on passe au point 2. »
+
+**Fait**
+
+- Une condition n'est plus décidée qu'à un endroit : dans le moteur (`etat::conditions`), au premier affichage comme après chaque changement. La page d'entrée ne compare plus rien : elle demande au moteur et cache ce qu'il dit faux.
+- Au passage : l'aperçu d'un autre fichier, dans un portail, montre ses propres valeurs et ses propres conditions, et non celles du fichier où l'on est.
+
+---
+
 ## 2026-10-04 — Étape 1 du planning : les conditions, et le texte qui manquait
 
 **Ce que Yocthan a dit**

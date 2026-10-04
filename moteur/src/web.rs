@@ -284,6 +284,12 @@ pub fn etat_initial(source: &str) -> String {
     crate::etat_initial(source)
 }
 
+/// Les conditions d'une page et leur réponse pour cet état (`count|is=0:1;…`).
+#[wasm_bindgen]
+pub fn conditions(source: &str, etat: &str) -> String {
+    crate::conditions(source, etat)
+}
+
 /// L'arbitre : les valeurs d'une page après ce signal (`Add.tap`).
 #[wasm_bindgen]
 pub fn arbitrer(source: &str, etat: &str, signal: &str) -> String {

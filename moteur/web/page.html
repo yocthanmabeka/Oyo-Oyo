@@ -121,7 +121,7 @@
 </div>
 <script type="module">
   import init, {
-    pause, vue_a_plat, effets, etat_initial, arbitrer, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
+    pause, vue_a_plat, effets, etat_initial, arbitrer, conditions, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
     mosaique_pivoter, mosaique_de_face, mosaique_sous, reglages_de_vue, reveiller, images_dessinees,
   } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
@@ -313,18 +313,21 @@
 
   // Affiche un site du fichier, sans recharger la page : pas de noir entre deux sites.
   // Écrit les valeurs de la page là où ses textes les montrent : « {cart} ».
-  function montrerLesValeurs(ou = racine, ecrit = etats.get(chemin) ?? "") {
+  function montrerLesValeurs(ou = racine, ecrit = etats.get(chemin) ?? "", texteDuFichier = source) {
     const valeurs = new Map(ecrit.split(";").filter(Boolean).map((morceau) => morceau.split("=")));
     for (const place of ou.querySelectorAll("[data-state]")) {
       if (valeurs.has(place.dataset.state)) place.textContent = valeurs.get(place.dataset.state);
     }
-    // Les conditions : If(count, is: 0). Ce qui est faux est caché.
-    for (const bloc of ou.querySelectorAll("[data-if]")) {
-      if (!valeurs.has(bloc.dataset.if)) continue;
-      const valeur = BigInt(valeurs.get(bloc.dataset.if));
-      const { is, not, over, under } = bloc.dataset;
-      bloc.hidden = !((is === undefined || valeur === BigInt(is)) && (not === undefined || valeur !== BigInt(not)) &&
-        (over === undefined || valeur > BigInt(over)) && (under === undefined || valeur < BigInt(under)));
+    // Les conditions : If(count, is: 0). C'est le moteur qui répond ; la page ne compare rien
+    // elle-même, elle cache ce que le moteur dit faux.
+    const blocs = ou.querySelectorAll("[data-if]");
+    if (!blocs.length) return;
+    const reponses = new Map(conditions(texteDuFichier, ecrit).split(";").filter(Boolean).map((morceau) => {
+      const coupe = morceau.lastIndexOf(":");
+      return [morceau.slice(0, coupe), morceau.slice(coupe + 1) === "1"];
+    }));
+    for (const bloc of blocs) {
+      if (reponses.has(bloc.dataset.if)) bloc.hidden = !reponses.get(bloc.dataset.if);
     }
   }
 
@@ -718,7 +721,7 @@
     interieur.innerHTML =
       "<style>.holo-Page{min-height:100%!important}</style>" + (fichier ? vue_a_plat(texte, dossierDe(fichier), "") : vue_a_plat(source, base, versSite));
     // L'aperçu montre les valeurs où elles en sont : celles de ce fichier, ou de l'autre s'il a déjà été visité.
-    montrerLesValeurs(interieur, etats.get(fichier || chemin) ?? "");
+    montrerLesValeurs(interieur, etats.get(fichier || chemin) ?? (fichier ? etat_initial(texte) : ""), fichier ? texte : source);
     apercu.append(contenu);
     const etiquette = document.createElement("span");
     etiquette.className = "nom";

@@ -75,19 +75,15 @@ pub fn site_html(programme: &Programme, page: &Bloc, base: &str, titre: &str) ->
     let depart = crate::etat::initial(programme).unwrap_or_default();
     let montrees = crate::etat::a_montrer(programme, &depart);
     // Les conditions, à leur départ : ce qui est faux est caché dès le premier affichage (ADR-025).
+    // La réponse vient de `etat::conditions`, comme après chaque changement : une condition
+    // n'est décidée qu'à un seul endroit.
+    let reponses = crate::etat::conditions(programme, &montrees);
     let conditions = |html: String| -> String {
         let mut sortie = String::with_capacity(html.len());
         for (rang, morceau) in html.split(MARQUE).enumerate() {
             if rang % 2 == 0 {
                 sortie.push_str(morceau);
-                continue;
-            }
-            // nom|mot=nombre|mot=nombre
-            let mut parties = morceau.split('|');
-            let nom = parties.next().unwrap_or("");
-            let comparaisons: Vec<(&str, u64)> = parties.filter_map(|p| p.split_once('=')).filter_map(|(mot, n)| Some((mot, n.parse().ok()?))).collect();
-            let valeur = montrees.iter().find(|(connu, _)| connu == nom).map_or(0, |(_, v)| *v);
-            if !crate::etat::vraie(&comparaisons, valeur) {
+            } else if !reponses.iter().any(|(cle, vraie)| cle == morceau && *vraie) {
                 sortie.push_str(" hidden");
             }
         }
@@ -216,9 +212,8 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
         // Une condition : ce qu'elle contient ne se montre que si elle est vraie (ADR-025).
         "If" => {
             let (valeur, comparaisons) = crate::etat::condition(bloc)?;
-            let attributs: String = comparaisons.iter().map(|(mot, nombre)| format!(" data-{mot}=\"{nombre}\"")).collect();
-            let marque: String = comparaisons.iter().map(|(mot, nombre)| format!("|{mot}={nombre}")).collect();
-            sortie.push_str(&format!("<div class=\"{classes}\"{nom} data-if=\"{}\"{attributs}{MARQUE}{}{marque}{MARQUE}>", echapper(valeur), echapper(valeur)));
+            let cle = crate::etat::cle(valeur, &comparaisons);
+            sortie.push_str(&format!("<div class=\"{classes}\"{nom} data-if=\"{}\"{MARQUE}{cle}{MARQUE}>", echapper(&cle)));
             enfants(bloc, sortie, mondes, base)?;
             sortie.push_str("</div>");
         }

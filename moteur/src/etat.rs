@@ -55,6 +55,31 @@ pub fn condition(bloc: &Bloc) -> Result<(&str, Vec<(&str, u64)>), Erreur> {
     Ok((valeur, comparaisons))
 }
 
+/// Le nom sous lequel une condition est connue de la page : `count|is=0`, `total|over=0|under=300`.
+/// Deux conditions écrites pareil portent le même nom, et ont toujours la même réponse.
+pub fn cle(valeur: &str, comparaisons: &[(&str, u64)]) -> String {
+    comparaisons.iter().fold(valeur.to_string(), |cle, (mot, nombre)| format!("{cle}|{mot}={nombre}"))
+}
+
+/// Toutes les conditions du fichier, avec leur réponse pour ces valeurs. C'est le seul endroit
+/// où une condition est décidée : au premier affichage comme après chaque changement.
+pub fn conditions(programme: &Programme, montrees: &Etat) -> Vec<(String, bool)> {
+    let mut reponses: Vec<(String, bool)> = Vec::new();
+    let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
+        if bloc.nom == "If" {
+            if let Ok((valeur, comparaisons)) = condition(bloc) {
+                let cle = cle(valeur, &comparaisons);
+                if !reponses.iter().any(|(connue, _)| *connue == cle) {
+                    let nombre = montrees.iter().find(|(connu, _)| connu == valeur).map_or(0, |(_, v)| *v);
+                    reponses.push((cle, vraie(&comparaisons, nombre)));
+                }
+            }
+        }
+        Ok(())
+    });
+    reponses
+}
+
 /// La condition est-elle vraie pour cette valeur ?
 pub fn vraie(comparaisons: &[(&str, u64)], valeur: u64) -> bool {
     comparaisons.iter().all(|(mot, nombre)| match *mot {
@@ -429,9 +454,13 @@ mod tests {
 )";
         let html = crate::vue_a_plat(source, "").unwrap();
         // Au départ, le panier est vide : la première condition est vraie, les deux autres non.
-        assert!(html.contains("<div class=\"holo-If\" data-if=\"cart\" data-is=\"0\"><p class=\"holo-P\">Your cart is empty.</p></div>"), "{html}");
-        assert!(html.contains("<div class=\"holo-If\" data-if=\"cart\" data-over=\"0\" data-under=\"3\" hidden><button"), "{html}");
-        assert!(html.contains("data-not=\"0\" hidden>"), "{html}");
+        assert!(html.contains("<div class=\"holo-If\" data-if=\"cart|is=0\"><p class=\"holo-P\">Your cart is empty.</p></div>"), "{html}");
+        assert!(html.contains("<div class=\"holo-If\" data-if=\"cart|over=0|under=3\" hidden><button"), "{html}");
+        assert!(html.contains("data-if=\"cart|not=0\" hidden>"), "{html}");
+        // Après un changement, c'est encore le moteur qui répond, par le même calcul.
+        assert_eq!(crate::conditions(source, "cart=0"), "cart|is=0:1;cart|over=0|under=3:0;cart|not=0:0");
+        assert_eq!(crate::conditions(source, "cart=2"), "cart|is=0:0;cart|over=0|under=3:1;cart|not=0:1");
+        assert_eq!(crate::conditions(source, "cart=3"), "cart|is=0:0;cart|over=0|under=3:0;cart|not=0:1");
         assert!(vraie(&[("over", 0), ("under", 3)], 2) && !vraie(&[("over", 0), ("under", 3)], 3) && !vraie(&[("over", 0), ("under", 3)], 0));
         assert!(vraie(&[("is", 5)], 5) && vraie(&[("not", 5)], 4) && !vraie(&[("not", 5)], 5));
         // Avec des prix, une condition peut regarder ce que le moteur calcule.

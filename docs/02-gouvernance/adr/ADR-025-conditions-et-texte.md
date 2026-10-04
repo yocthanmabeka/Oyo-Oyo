@@ -76,8 +76,9 @@ Défaut du web **non** évité : `alt` peut encore être oublié, comme en HTML.
 
 - On ne compare qu'à un nombre écrit dans le fichier, pas à une autre valeur.
 - Pas de « ou ».
-- Les conditions sont évaluées par la page d'entrée (du JavaScript écrit par nous), pas par le moteur en Rust : les valeurs viennent bien de l'arbitre, mais la comparaison est faite deux fois, en Rust pour le premier affichage et en JavaScript ensuite. Deux copies d'une même règle peuvent diverger.
 - **Les listes répétées, annoncées dans l'étape 1, ne sont pas faites.** Répéter un bloc pour chaque article demande des valeurs qui soient des listes ; nous n'avons que des nombres. C'est reporté à l'étape où les valeurs s'enrichissent.
+
+**Corrigé le même jour.** Les conditions étaient d'abord calculées à deux endroits : en Rust au premier affichage, en JavaScript ensuite. Elles le sont maintenant à un seul, dans le moteur (`etat::conditions`) ; la page d'entrée ne compare plus rien, elle cache ce que le moteur dit faux.
 
 ## Ce qui reste à faire
 
