@@ -117,6 +117,24 @@ workshopPoint.addEventListener("keydown", (event) => {
 
 const prices = { sunrise: 120, blue_door: 90, market_day: 150 };
 const cart = { sunrise: 0, blue_door: 0, market_day: 0 };
+let gift = false;
+let tip = 0;
+
+// En HoloCode : keep: [sunrise, blue_door, market_day, gift, tip]. Ici, il faut écrire soi-même
+// dans le navigateur, relire, et se méfier de ce qu'on relit.
+function save() {
+  try {
+    localStorage.setItem("shop", JSON.stringify({ cart, gift, tip }));
+  } catch { /* stockage refusé */ }
+}
+try {
+  const saved = JSON.parse(localStorage.getItem("shop") ?? "{}");
+  for (const name of Object.keys(cart)) {
+    if (Number.isInteger(saved.cart?.[name]) && saved.cart[name] >= 0) cart[name] = saved.cart[name];
+  }
+  gift = saved.gift === true;
+  if (Number.isInteger(saved.tip)) tip = Math.min(50, Math.max(0, saved.tip));
+} catch { /* ce qui était gardé est illisible : on repart de zéro */ }
 
 function showCart() {
   let count = 0;
@@ -134,7 +152,25 @@ function showCart() {
   document.getElementById("cart-full").hidden = count === 0;
   document.getElementById("delivery-soon").hidden = !(total > 0 && total < 300);
   document.getElementById("delivery-free").hidden = total <= 299;
+  document.getElementById("options").hidden = count === 0;
+  document.getElementById("gift").checked = gift;
+  document.getElementById("gift-note").hidden = !gift;
+  document.getElementById("tip-note").hidden = tip === 0;
+  document.getElementById("tip-shown").textContent = tip;
+  save();
 }
+
+// En HoloCode : Checkbox(value: gift, …) et Input(value: tip, …, max: 50), sans règle à écrire.
+document.getElementById("gift").addEventListener("change", (event) => {
+  gift = event.target.checked;
+  showCart();
+});
+document.getElementById("tip").addEventListener("input", (event) => {
+  const written = Number.parseInt(event.target.value, 10);
+  tip = Number.isNaN(written) ? 0 : Math.min(50, Math.max(0, written)); // max="50" ne suffit pas : on peut coller 999
+  showCart();
+});
+document.getElementById("tip").value = tip;
 
 for (const button of document.querySelectorAll("[data-add]")) {
   button.addEventListener("click", () => {

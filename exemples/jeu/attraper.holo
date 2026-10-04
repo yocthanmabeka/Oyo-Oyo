@@ -1,5 +1,5 @@
 // Un jeu entier, sans une ligne de code : toucher l'étoile le plus de fois possible en trente
-// secondes. Elle change de place chaque seconde, et chaque fois qu'on la touche.
+// secondes. Elle change de place toutes les deux secondes, et chaque fois qu'on la touche.
 //
 // Ce fichier montre le temps (Every), le hasard (random) et le plateau (Board).
 
@@ -20,7 +20,7 @@ Page(
 
     // Avant la partie, et après.
     If(time, is: 0, children: [
-      "Touch the star as many times as you can in 30 seconds. It moves every second.",
+      "Touch the star as many times as you can in 30 seconds. It moves every two seconds.",
       If(score, over: 0, children: [
         P.result("Time is up. Your score: **{score}**"),
       ]),
@@ -53,11 +53,16 @@ Page(
     On(Star.tap, effect: star_x.random(100)),
     On(Star.tap, effect: star_y.random(100)),
 
-    // Le temps : chaque seconde, il en reste une de moins, et l'étoile change de place.
-    // Arrivé à zéro, le temps ne descend plus : la partie est finie.
+    // Le temps : chaque seconde, il en reste une de moins. Arrivé à zéro, il ne descend plus :
+    // la partie est finie.
     Every(1s, effect: time.sub(1)),
-    Every(1s, effect: star_x.random(100)),
-    Every(1s, effect: star_y.random(100)),
+
+    // Toutes les deux secondes, l'étoile change de place. Chaque règle de temps a sa propre
+    // horloge ; quand un geste change une valeur, l'horloge de cette valeur repart de zéro.
+    // Donc : après « Play », la première seconde est une vraie seconde ; et une étoile qu'on
+    // vient de toucher reste deux vraies secondes à sa nouvelle place.
+    Every(2s, effect: star_x.random(100)),
+    Every(2s, effect: star_y.random(100)),
   ],
 )
 

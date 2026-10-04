@@ -91,9 +91,39 @@ pub fn arbitrer(source: &str, etat: &str, signal: &str) -> String {
     }
 }
 
-/// Les rythmes des règles de temps d'une page (`Every`), en millisecondes : `1000;2500`.
-pub fn rythmes(source: &str) -> String {
-    verifier_page(source).map(|programme| etat::rythmes(&programme).iter().map(u64::to_string).collect::<Vec<_>>().join(";")).unwrap_or_default()
+/// Les horloges d'une page, une par règle `Every` : son rythme en millisecondes et la valeur
+/// qu'elle fait changer. `1000:time;2000:star_x`.
+pub fn horloges(source: &str) -> String {
+    verifier_page(source).map(|programme| etat::horloges(&programme).iter().map(|(ms, valeur)| format!("{ms}:{valeur}")).collect::<Vec<_>>().join(";")).unwrap_or_default()
+}
+
+/// Les valeurs qu'un signal fait changer (`time;score`) : leurs horloges repartent de zéro.
+pub fn touchees(source: &str, signal: &str) -> String {
+    verifier_page(source).map(|programme| etat::touchees(&programme, signal).join(";")).unwrap_or_default()
+}
+
+/// Le visiteur a écrit dans un champ ou coché une case : l'arbitre rend le nouvel état.
+pub fn saisir(source: &str, etat: &str, nom: &str, ecrit: &str) -> String {
+    match verifier_page(source) {
+        Ok(programme) => etat::ecrire(&etat::a_montrer(&programme, &etat::saisir(&programme, &etat::relire(&programme, etat), nom, ecrit))),
+        Err(_) => String::new(),
+    }
+}
+
+/// Ce que la page garde d'une visite à l'autre (`keep:`), tiré de cet état : `cart=2;gift=1`.
+pub fn a_garder(source: &str, etat: &str) -> String {
+    let Ok(programme) = verifier_page(source) else { return String::new() };
+    let gardees = etat::gardees(&programme).unwrap_or_default();
+    let garde: etat::Etat = etat::relire(&programme, etat).into_iter().filter(|(nom, _)| gardees.contains(nom)).collect();
+    etat::ecrire(&garde)
+}
+
+/// L'état de départ d'une page, avec ce qu'elle avait gardé d'une visite précédente.
+pub fn reprendre(source: &str, garde: &str) -> String {
+    match verifier_page(source) {
+        Ok(programme) => etat::ecrire(&etat::a_montrer(&programme, &etat::reprendre(&programme, garde))),
+        Err(_) => String::new(),
+    }
 }
 
 /// Les conditions d'une page (`If`), avec leur réponse pour cet état : `count|is=0:1;total|over=299:0`.

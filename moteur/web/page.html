@@ -121,7 +121,7 @@
 </div>
 <script type="module">
   import init, {
-    pause, vue_a_plat, effets, etat_initial, arbitrer, conditions, rythmes, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
+    pause, vue_a_plat, effets, etat_initial, arbitrer, conditions, horloges, touchees, saisir, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
     mosaique_pivoter, mosaique_de_face, mosaique_sous, reglages_de_vue, reveiller, images_dessinees,
   } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
@@ -273,7 +273,12 @@
     [densiteDemandee, reduire, zoomAvantPoints, actif, rangement, nombreDePortails, tailleDePortail, lumiereDuFond, vitesseDuZoom, dureeDuPortail, angleDeRotation, pointsActifs] = reglages_de_vue(source);
     pointsActifs = pointsActifs === 1;
     document.body.classList.toggle("tourne", angleDeRotation > 0 && actif === 1);
-    if (!etats.has(chemin)) etats.set(chemin, etat_initial(source));
+    // L'état de départ, avec ce que la page a gardé d'une visite précédente (keep: […]).
+    if (!etats.has(chemin)) {
+      let garde = "";
+      try { garde = localStorage.getItem(`holo:${chemin}`) ?? ""; } catch { /* stockage refusé : on part du départ */ }
+      etats.set(chemin, reprendre(source, garde));
+    }
     reglerLesHorloges();
     document.documentElement.style.setProperty("--duree", `${dureeDuPortail}ms`);
     densite = densiteDemandee;
@@ -316,13 +321,35 @@
   // Le temps : une horloge par rythme écrit dans le fichier (Every(1s, …)). À chaque battement,
   // le signal est donné à l'arbitre, comme un toucher. L'horloge se tait quand la fenêtre est
   // cachée, en vue points et devant le carrefour : rien ne tourne pour rien.
-  let horloges = [];
-  function reglerLesHorloges() {
-    horloges.forEach(clearInterval);
-    horloges = rythmes(source).split(";").filter(Boolean).map((ms) => setInterval(() => {
+  let battements = []; // une horloge par règle Every : { ms, valeur, minuterie }
+  function lancer(horloge, rang) {
+    clearInterval(horloge.minuterie);
+    horloge.minuterie = setInterval(() => {
       if (document.hidden || enPoints || enMonde || !carrefour.hidden || entreeEnCours) return;
-      emettre(`every:${ms}`);
-    }, Number(ms)));
+      emettre(`every:${rang}`);
+    }, horloge.ms);
+  }
+  function reglerLesHorloges() {
+    battements.forEach((horloge) => clearInterval(horloge.minuterie));
+    battements = horloges(source).split(";").filter(Boolean).map((morceau) => {
+      const [ms, valeur] = morceau.split(":");
+      return { ms: Number(ms), valeur, minuterie: 0 };
+    });
+    battements.forEach(lancer);
+  }
+  // Un geste vient de changer des valeurs : l'horloge de chacune repart de zéro. « Play » remet
+  // le temps à trente : la première seconde dure une vraie seconde.
+  function relancerLesHorloges(signal) {
+    if (!battements.length || signal.startsWith("every:")) return;
+    const changees = touchees(source, signal).split(";");
+    battements.forEach((horloge, rang) => { if (changees.includes(horloge.valeur)) lancer(horloge, rang); });
+  }
+  // Ce que la page garde d'une visite à l'autre reste dans le navigateur du visiteur.
+  function garder() {
+    try {
+      const garde = a_garder(source, etats.get(chemin) ?? "");
+      if (garde) localStorage.setItem(`holo:${chemin}`, garde);
+    } catch { /* stockage refusé ou plein : la page marche sans */ }
   }
 
   // Écrit les valeurs de la page là où ses textes les montrent : « {cart} ».
@@ -330,6 +357,12 @@
     const valeurs = new Map(ecrit.split(";").filter(Boolean).map((morceau) => morceau.split("=")));
     for (const place of ou.querySelectorAll("[data-state]")) {
       if (valeurs.has(place.dataset.state)) place.textContent = valeurs.get(place.dataset.state);
+    }
+    // Un champ et une case montrent leur valeur ; on ne récrit pas le champ où l'on est en train d'écrire.
+    for (const champ of ou.querySelectorAll("[data-bind]")) {
+      if (!valeurs.has(champ.dataset.bind)) continue;
+      if (champ.type === "checkbox") champ.checked = valeurs.get(champ.dataset.bind) !== "0";
+      else if (champ !== document.activeElement) champ.value = valeurs.get(champ.dataset.bind);
     }
     // Sur un plateau, un bloc suit les valeurs qui disent sa place : Point(x: star_x, y: star_y).
     for (const axe of ["x", "y"]) {
@@ -359,7 +392,9 @@
       etats.set(chemin, apres);
       montrerLesValeurs();
       placerLesPixels(); // ce qui apparaît ou disparaît déplace le reste de la page
+      garder();
     }
+    relancerLesHorloges(signal);
     for (const effet of effets(source, signal).split(",").filter(Boolean)) {
       appliquer(effet, signal);
     }
@@ -998,6 +1033,18 @@
       if (!bloc) return;
       emettre(`${bloc.dataset.name}.tap`);
     });
+    // Écrire dans un champ, cocher une case : c'est l'arbitre du moteur qui change la valeur.
+    racine.addEventListener("input", (evenement) => {
+      const champ = evenement.target.closest("[data-bind]");
+      if (!champ) return;
+      const ecrit = champ.type === "checkbox" ? (champ.checked ? "1" : "0") : champ.value;
+      etats.set(chemin, saisir(source, etats.get(chemin) ?? "", champ.dataset.bind, ecrit));
+      montrerLesValeurs();
+      placerLesPixels();
+      garder();
+    });
+    // En quittant un champ, il montre la valeur que l'arbitre a retenue (bornée).
+    racine.addEventListener("change", () => montrerLesValeurs());
     // Le moteur est prêt : on rejoue ce qui a été touché en l'attendant.
     racine.removeEventListener("click", noterLeToucher);
     for (const nom of touchersEnAttente.splice(0)) emettre(`${nom}.tap`);

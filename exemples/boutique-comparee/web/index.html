@@ -54,6 +54,14 @@
       <pre><code>FREE-DELIVERY</code></pre>
     </div>
 
+    <!-- Une case et un champ. Le script les lira, les bornera, et les gardera. -->
+    <div id="options" hidden>
+      <label class="check"><input id="gift" type="checkbox"> Gift wrap</label>
+      <span id="gift-note" class="note" hidden>We will wrap your paintings.</span>
+      <label class="field"><span>A tip for the painter, in euros</span><input id="tip" type="number" inputmode="numeric" min="0" max="50" value="0"></label>
+      <span id="tip-note" class="note" hidden>Thank you for the <span id="tip-shown">0</span> euros.</span>
+    </div>
+
     <hr>
     <blockquote>
       <p>The blue door has been in my kitchen for a year. I still stop to look at it.</p>

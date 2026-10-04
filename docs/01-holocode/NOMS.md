@@ -32,6 +32,8 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `Point` | aucun (`canvas`, WebGL, à écrire soi-même) | nouveau |
 | `World` | aucun | nouveau |
 | `On` | `addEventListener`, `onclick` | changé : une règle, pas du code |
+| `Input` | `input type="number"` | repris, avec une majuscule ; l'étiquette est obligatoire |
+| `Checkbox` | `input type="checkbox"` | changé : un mot à lui |
 | `Every` | `setInterval` | changé : une règle, qui s'arrête seule quand on ne regarde pas |
 | `Board` | `position: relative` et `absolute` | changé : un bloc, des places de 0 à 100 |
 | `If` | `if` en JavaScript, `v-if`, `{#if}` | repris, devenu un bloc |
@@ -60,6 +62,10 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `effect:` | le corps d'une fonction | changé : une demande, pas du code |
 | `state:`, `prices:` | aucun | nouveaux |
 | `alt:` | `alt` | repris |
+| `value:` | `value`, `v-model`, `bind:value` | repris ; lié dans les deux sens |
+| `label:` | `label` | repris, devenu un réglage obligatoire |
+| `max:` (d'un champ) | `max` | repris ; vraiment appliqué |
+| `keep:` | `localStorage` | changé : une liste de noms, rien à programmer |
 | `x:`, `y:` | `left`, `top` | changés : de 0 à 100, jamais hors du plateau |
 | `by:` | `cite` | changé |
 | `is:`, `not:`, `over:`, `under:` | `===`, `!==`, `>`, `<` | changés : des mots, pas des signes |

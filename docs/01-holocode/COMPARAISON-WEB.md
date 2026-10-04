@@ -76,8 +76,10 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 |---|---|---|
 | `button` | `Button(name:, text:)` | fait |
 | `form` | | manque |
-| `input` (texte, nombre, date, case, bouton radio, fichier…) | | manque |
-| `textarea`, `select`, `option`, `label` | | manque |
+| `input` : nombre, case à cocher | `Input(value:, label:, max:)`, `Checkbox(value:, label:)` | fait, à l'essai |
+| `input` : texte, date, bouton radio, fichier… | | manque |
+| `label` | le réglage `label:`, obligatoire | fait, à l'essai |
+| `textarea`, `select`, `option` | | manque |
 | `fieldset`, `legend`, `datalist`, `output`, `progress`, `meter` | | manque |
 
 ### Ce qui s'ouvre et se ferme
@@ -130,7 +132,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | Durées, minuteries | `Every(1s, effect: …)` ; `Portals(duration:)` | fait, à l'essai |
 | Le hasard (`Math.random`) | la demande `random`, rejouable | fait, à l'essai |
 | Animations écrites par l'auteur | | manque |
-| Garder des données dans le navigateur | | manque |
+| Garder des données dans le navigateur | `keep: [cart]` | fait, à l'essai |
 | Calculer librement | prévu : fonctions pures, modules WebAssembly (`ADR-013`) | manque |
 | Modifier la page à la main (le DOM) | refusé (`ADR-015`) | exprès |
 

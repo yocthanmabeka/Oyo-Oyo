@@ -45,12 +45,16 @@ Page(
 
   // Les valeurs de la page : ce qu'elle retient. Ici, combien de chaque tableau est dans le
   // panier. Tout part de zéro.
-  state: State(sunrise: 0, blue_door: 0, market_day: 0),
+  state: State(sunrise: 0, blue_door: 0, market_day: 0, gift: 0, tip: 0),
 
   // Les prix. Chacun porte le nom d'une valeur : c'est le prix de cet article. Dès qu'une page
   // donne des prix, le moteur calcule deux valeurs de plus, qu'on affiche comme les autres :
   // {count}, le nombre d'articles, et {total}, ce qu'ils coûtent. Aucun calcul à écrire.
   prices: Prices(sunrise: 120, blue_door: 90, market_day: 150),
+
+  // Ce que la page garde d'une visite à l'autre, dans le navigateur du visiteur : on recharge
+  // la page, le panier est encore là. Les autres valeurs repartent de leur départ.
+  keep: [sunrise, blue_door, market_day, gift, tip],
 
   // Le carrefour : les portails vers les mondes voisins. Il s'ouvre quand on entre dans un
   // point, ou par le bouton « Carrefour ». Les sites écrits dans ce fichier passent d'abord ;
@@ -133,6 +137,21 @@ Page(
       // Du texte montré tel quel, lettre pour lettre.
       Text.note("Delivery is free. Your code:"),
       Code("FREE-DELIVERY"),
+    ]),
+
+    If(count, over: 0, children: [
+      // Une case à cocher : cochée, la valeur vaut 1 ; sinon 0.
+      Checkbox(value: gift, label: "Gift wrap"),
+      If(gift, is: 1, children: [
+        Text.note("We will wrap your paintings."),
+      ]),
+
+      // Un champ où l'on écrit un nombre. « label » est obligatoire : c'est lui qui dit ce
+      // qu'on attend, à l'œil comme à un lecteur d'écran. « max » borne ce qu'on peut écrire.
+      Input(value: tip, label: "A tip for the painter, in euros", max: 50),
+      If(tip, over: 0, children: [
+        Text.note("Thank you for the {tip} euros."),
+      ]),
     ]),
 
     // Un trait de séparation, puis une citation.
