@@ -64,7 +64,7 @@ Non corrigé, et dit : le poids déclaré (`weight`) n'est toujours pas comparé
 
 Yocthan, en essayant la boutique : en appuyant sur « Enter the workshop », il arrivait sur le carrefour au lieu d'arriver dans l'atelier. « Quelqu'un qui est déjà habitué au web ne va pas trouver ça normal. » Le carrefour sert quand le visiteur veut choisir parmi d'autres mondes ; il ne doit pas s'interposer.
 
-- Entrer dans un point (`enter`, ou toucher le point) mène maintenant directement au site : le point s'ouvre sur place, grandit jusqu'à remplir la fenêtre, et devient le site.
+- Entrer dans un point mène maintenant directement au site. Par un bouton (`enter` demandé par une règle), c'est un passage ordinaire, comme sur le web : un fondu bref. En touchant le point lui-même, il s'ouvre sur place, grandit jusqu'à remplir la fenêtre, et devient le site. Yocthan, après un premier essai où le bouton déclenchait l'ouverture du point : « Il y a certains endroits où ça doit fonctionner comme le web normal, et d'autres où ça doit fonctionner comme le métavers. Là, tu chamboules tout. »
 - Le carrefour ne s'ouvre que sur demande : son bouton, ou la capacité `portals`.
 - Exception gardée : vers le fichier d'un autre serveur, le carrefour reste le passage obligé, parce qu'il affiche le nom du serveur et attend un clic (« aucun contact sans geste », ci-dessus).
 
