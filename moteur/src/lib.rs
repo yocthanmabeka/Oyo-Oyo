@@ -5,6 +5,7 @@
 //! - `blocs` vérifie que chaque bloc existe et que les titres ne sautent pas de niveau ;
 //! - `styles` vérifie les styles, écrits comme en CSS ;
 //! - `regles` vérifie les noms, les règles et les budgets, et dit ce qu'un signal demande ;
+//! - `etat` tient les valeurs d'une page et arbitre les demandes qui les changent ;
 //! - `plat` fabrique la page web ordinaire d'un fichier (la vue à plat) ;
 //! - `univers` en fait un monde, entièrement calculé à partir d'une graine ;
 //! - `navigation` gère le morcellement, le zoom, l'entrée et la sortie.
@@ -13,6 +14,7 @@
 //! compilée que pour WebAssembly.
 
 pub mod blocs;
+pub mod etat;
 pub mod graine;
 pub mod holo;
 pub mod mosaique;
@@ -45,6 +47,7 @@ pub fn verifier_page(source: &str) -> Result<Programme, Erreur> {
     let programme = holo::lire(source)?;
     blocs::verifier_blocs(&programme)?;
     styles::verifier_styles(&programme)?;
+    etat::verifier_etat(&programme)?;
     regles::verifier_regles(&programme)?;
     vue::reglages(&programme)?;
     // Ce que l'affichage refuserait (une adresse en `javascript:`, une image hors du dossier)
@@ -71,6 +74,20 @@ pub fn vue_a_plat_de(source: &str, base: &str, chemin: &str) -> Result<String, E
 /// Les effets que les règles du fichier demandent pour un signal, comme `Open.tap`.
 pub fn effets(source: &str, signal: &str) -> Vec<String> {
     verifier_page(source).map(|programme| regles::effets(&programme, signal)).unwrap_or_default()
+}
+
+/// Les valeurs d'une page à leur départ, écrites `cart=0;likes=3`.
+pub fn etat_initial(source: &str) -> String {
+    verifier_page(source).ok().and_then(|programme| etat::initial(&programme).ok()).map(|e| etat::ecrire(&e)).unwrap_or_default()
+}
+
+/// L'arbitre : ce que deviennent les valeurs d'une page quand un signal est émis. L'état
+/// reçu est relu avec méfiance : rien n'y passe que la page ne déclare.
+pub fn arbitrer(source: &str, etat: &str, signal: &str) -> String {
+    match verifier_page(source) {
+        Ok(programme) => etat::ecrire(&etat::arbitrer(&programme, &etat::relire(&programme, etat), signal)),
+        Err(_) => String::new(),
+    }
 }
 
 /// Le fichier `.holo` d'un seul point de la page, pour ouvrir sa vue en profondeur.

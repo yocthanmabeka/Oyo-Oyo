@@ -290,6 +290,58 @@ Page(
 
 Cette écriture est provisoire : elle sert à voir l'effet, et sera revue.
 
+## 6 bis. Ce que la page retient : `State`
+
+Une page peut retenir des valeurs : un panier, un compteur, des « j'aime ».
+
+```holo
+Page(
+  title: "My shop",
+
+  state: State(cart: 0),
+
+  children: [
+    H1("My shop"),
+    Text("{cart} paintings in your cart"),
+    Button(name: Add, text: "Add a painting"),
+    Button(name: Remove, text: "Remove one"),
+    Button(name: Empty, text: "Empty the cart"),
+  ],
+
+  rules: [
+    On(Add.tap, effect: cart.add(1)),
+    On(Remove.tap, effect: cart.sub(1)),
+    On(Empty.tap, effect: cart.set(0)),
+  ],
+)
+```
+
+- `state: State(cart: 0)` déclare une valeur, `cart`, qui part de 0. On peut en déclarer plusieurs : `State(cart: 0, likes: 3)`.
+- `{cart}` dans un texte affiche la valeur. Quand elle change, le texte suit tout seul.
+- Un bouton ne change rien lui-même. Une règle fait une **demande** au moteur, et c'est lui qui change la valeur.
+
+| Demande | Sens |
+|---|---|
+| `cart.add(1)` | Ajouter 1. |
+| `cart.sub(1)` | Retirer 1. La valeur ne descend jamais sous 0. |
+| `cart.set(0)` | Fixer à 0. |
+
+Les limites :
+
+- Une valeur est un nombre entier, de 0 à 1 000 000 000. Une page en déclare au plus 32.
+- Son nom s'écrit en minuscules : `cart`, `items_seen`.
+- Les valeurs se déclarent sur la `Page`. Elles valent pour tout le fichier : un texte écrit dans le monde d'un point peut montrer `{cart}`, et une règle de ce monde peut le changer.
+- La valeur suit le visiteur d'un monde à l'autre et d'un fichier à l'autre. Si la page est rechargée, elle repart du départ.
+
+Ce que le moteur refuse :
+
+- `{car}` quand aucune valeur ne s'appelle `car` ;
+- une demande inconnue, comme `cart.double(1)` ;
+- une demande sans sa quantité, comme `cart.add` ;
+- une demande écrite ailleurs que dans `effect:`.
+
+Cette écriture est à l'essai (`ADR-023`).
+
 ## 7. Comment la page se regarde : `Zoom`, `Points`, `Relief`
 
 Quand le visiteur zoome sur la page (Ctrl + molette, ou pincer), elle grossit d'abord comme n'importe quel site : le texte reste du texte, on le lit, on le sélectionne, on le copie. Au-delà du grossissement fixé par `Points(after:)`, chaque pixel devient un point lumineux, qui se morcelle ensuite. Dès que la page est grossie, glisser la déplace, dans tous les sens ; c'est le même geste avant et après le passage aux points. Quand il tourne la page, elle prend du relief. Ces trois blocs règlent cela. Ils sont facultatifs : sans eux, la page prend les valeurs ci-dessous.
@@ -338,7 +390,7 @@ Page(
 | `Points(depth:)` | Combien de fois de suite. | 0 à 20 |
 | `Points(density:)` | Points par pixel d'écran, dans chaque sens. | 1 à 3 |
 | `Relief(height:)` | La hauteur du relief. | 0px à 40px |
-| `Relief(tilt:)` | Jusqu'où l'on peut tourner la page, de chaque côté. `360deg` (ou rien) : on en fait le tour, et on la voit par derrière, à l'envers comme une feuille. `52deg` : elle s'arrête à cet angle. `0deg` : elle ne tourne pas. | 0deg à 360deg |
+| `Relief(tilt:)` | Jusqu'où l'on peut tourner la page, de chaque côté. Sans `tilt`, la page ne tourne pas : c'est un site ordinaire. L'écrire **active** la rotation, et le bouton « Tourner » apparaît, dès la page de face. `360deg` : on en fait le tour, et on la voit par derrière, à l'envers comme une feuille. `52deg` : elle s'arrête à cet angle. | 0deg à 360deg |
 
 Ce sont des garde-fous : le visiteur ne dépasse pas ceux de l'auteur, et l'auteur ne dépasse pas ceux du langage.
 
@@ -422,7 +474,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 
 | Bloc | Réglages | Où |
 |---|---|---|
-| `Page` | `name`, `title`, `children`, `pixels`, `rules`, `zoom`, `points`, `relief`, `portals` | À la racine |
+| `Page` | `name`, `title`, `children`, `pixels`, `rules`, `state`, `zoom`, `points`, `relief`, `portals` | À la racine |
 | `H1`, `H2`, `H3`, `P`, `Text` | le texte entre guillemets ; `name` | Dans `children` |
 | `A` | le texte entre guillemets, `to` | Dans `children` |
 | `Image` | `source`, `weight`, `name` | Dans `children` |
@@ -431,6 +483,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Point` | `name`, `seed`, `brightness`, `fragments`, `color`, `palette`, `budget`, `inside` ; `above` quand il est planté dans un pixel | Dans `children` ou `pixels`, ou à la racine |
 | `World` | `children`, `pixels`, `rules` | Dans `inside:` d'un `Point` |
 | `On` | le signal, puis `effect:` | Dans `rules` |
+| `State` | les valeurs et leur départ : `cart: 0` | Dans `state:` d'une `Page` |
 | `Zoom`, `Points`, `Relief`, `Portals` | voir la partie 7 | Dans `zoom:`, `points:`, `relief:`, `portals:` d'une `Page` |
 
 ## 10 bis. Chaque notion et son mot
@@ -452,7 +505,10 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Le pixel qui devient un point | `Points(after:, size:)` | fait |
 | Le morcellement des points d'une page | `Points(fragment:, grid:, depth:)` | fait |
 | Le relief | `Relief(height:)` | fait |
-| Tourner la page, en faire le tour | `Relief(tilt:)` | fait |
+| Activer la rotation de la page, en faire le tour | `Relief(tilt:)` | fait |
+| Une valeur que la page retient | `state: State(cart: 0)` | fait, à l'essai |
+| Afficher une valeur | `{cart}` dans un texte | fait, à l'essai |
+| Changer une valeur | les demandes `add`, `sub`, `set` | fait, à l'essai |
 | Activer ou désactiver le zoom | `Zoom(active:)` | fait |
 | Les limites du zoom | `Zoom(max:, shrink:)` | fait |
 | La vitesse du zoom | `Zoom(speed:)` | fait |
@@ -477,7 +533,8 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 
 - Les imports (`import`, `module`, `bridge js`, `bridge css`) : le moteur les lit mais ne les applique pas.
 - La disposition (côte à côte, en grille) : tout est l'un sous l'autre.
-- Les formulaires, les valeurs qui changent (un panier), les données venues d'ailleurs.
+- Les formulaires, les données venues d'ailleurs.
+- Pour les valeurs : seulement des nombres entiers. Pas de texte, pas de condition (« si le panier est vide »), pas de total, rien n'est gardé après un rechargement.
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
 - Les garde-fous de zoom pour un `Point` seul : ils sont encore fixés dans le moteur.

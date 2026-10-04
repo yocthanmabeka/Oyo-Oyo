@@ -4,7 +4,7 @@
 use crate::holo::{Bloc, Erreur, Programme, Valeur};
 
 /// `Text` est du texte sans rôle ; `P`, `H1`, `H2` et `H3` sont un `Text` avec un rôle (ADR-020).
-pub const BLOCS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals"];
+pub const BLOCS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State"];
 
 /// Le titre le plus profond : on s'arrête à `H3` tant qu'un vrai besoin n'apparaît pas.
 pub const TITRE_MAX: u32 = 3;
@@ -15,6 +15,17 @@ pub fn verifier_blocs(programme: &Programme) -> Result<(), Erreur> {
 }
 
 fn parcourir(bloc: &Bloc, dernier_titre: &mut u32) -> Result<(), Erreur> {
+    if crate::etat::est_demande(bloc) {
+        // `p.card(...)` : un bloc écrit en minuscules, plutôt qu'une demande.
+        let (avant, apres) = bloc.nom.split_once('.').unwrap_or((&bloc.nom, ""));
+        let majuscule: String = avant.chars().take(1).map(|c| c.to_ascii_uppercase()).chain(avant.chars().skip(1)).collect();
+        let message = if BLOCS.contains(&majuscule.as_str()) {
+            format!("« {} » : un nom de bloc commence par une majuscule, écris « {majuscule}.{apres} »", bloc.nom)
+        } else {
+            format!("« {}(...) » est une demande : elle s'écrit dans l'effet d'une règle, On(Add.tap, effect: {}(1))", bloc.nom, bloc.nom)
+        };
+        return Err(Erreur { message, pos: bloc.pos });
+    }
     if !BLOCS.contains(&bloc.nom.as_str()) {
         return Err(Erreur { message: bloc_inconnu(&bloc.nom), pos: bloc.pos });
     }
@@ -39,7 +50,11 @@ fn parcourir(bloc: &Bloc, dernier_titre: &mut u32) -> Result<(), Erreur> {
     let mut plan_propre = 0;
     let plan = if bloc.nom == "Page" || bloc.nom == "World" { &mut plan_propre } else { dernier_titre };
     for argument in &bloc.arguments {
-        visiter(&argument.valeur, plan)?;
+        // L'effet d'une règle peut être une demande, `cart.add(1)` : `regles.rs` la vérifie.
+        let demande = bloc.nom == "On" && argument.nom.as_deref() == Some("effect") && matches!(&argument.valeur, Valeur::Bloc(b) if crate::etat::est_demande(b));
+        if !demande {
+            visiter(&argument.valeur, plan)?;
+        }
     }
     Ok(())
 }

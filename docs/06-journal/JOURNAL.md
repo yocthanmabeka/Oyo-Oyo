@@ -6,6 +6,47 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Le panier, première action avec état ; la rotation s'active
+
+**Ce que Yocthan a dit**
+
+- « De face, la rotation ne marchait pas. » Il veut qu'elle marche de face, mais qu'elle soit activée, pour la cohérence : « Si d'autres peuvent donner tout le temps en 3D, ça va vraiment déranger la vision et la lisibilité du site. »
+- « Fais le panier. On va voir ce que ça donne. Et après, on va en juger. »
+- Les noms attendront le retour de Codex, dont les quotas sont épuisés. Le téléphone : essayé, c'est bon.
+- Il donne maintenant le prompt à Gemini, et veut le texte dans un fichier.
+
+**Fait**
+
+- **Le panier** (`ADR-023`, à l'essai). `state: State(cart: 0)` déclare une valeur ; `{cart}` dans un texte l'affiche ; `cart.add(1)`, `cart.sub(1)`, `cart.set(0)` sont des demandes écrites dans l'effet d'une règle. L'arbitre est dans le moteur (`moteur/src/etat.rs`) : le bouton ne change rien lui-même. La boutique a son panier, et sa jumelle en HTML et JavaScript aussi, pour comparer. Le panier suit le visiteur dans l'atelier.
+
+![Le panier de la boutique, après trois ajouts et un retrait](images/2026-10-04-le-panier.png)
+
+- **La rotation s'active.** Sans `Relief(tilt:)`, une page ne tourne plus : c'est un site ordinaire. Avec, le bouton « Tourner » est offert dès la page de face ; la page devient ses points sans que rien ne change à l'écran, puis tourne sous le doigt.
+
+![La boutique tournée directement depuis la page de face](images/2026-10-04-tourner-depuis-la-page.png)
+
+- Le prompt pour Gemini est dans `docs/05-discussions/prompts/2026-10-04-gemini.md`. Il se suffit à lui-même, Gemini n'ayant pas accès au dépôt.
+- 71 tests du moteur. Vérifié dans Chrome : 0, 1, 2, 3, puis 2 après un retrait ; un retrait à zéro reste à zéro.
+
+**Ce que Claude a compris, et qui reste à confirmer**
+
+- « La rotation ne marche pas de face » a été lu ainsi : sur le site ordinaire, rien ne permettait de tourner ; il fallait d'abord passer en vue points. Si Yocthan voulait dire autre chose, c'est à reprendre.
+- Le défaut de `tilt` a changé deux fois dans la journée : 52deg, puis 360deg, puis 0deg (éteint). Le dernier suit sa demande de cohérence.
+- Le passage en points au zoom reste offert d'office. Doit-il lui aussi s'activer ? Question posée.
+
+**Limites du panier**
+
+- Des nombres entiers seulement ; pas de condition, pas de total ; rien n'est gardé après un rechargement.
+- `cart.add(1)` ouvre une parenthèse avec une minuscule : une exception à la règle des majuscules, limitée à l'effet d'une règle.
+- Pas encore de cas dans la suite de conformité.
+
+**Erreurs en route**
+
+- La première capture du panier était blanche : le serveur d'essai compressait encore le moteur quand la capture est partie. Refaite avec une attente plus longue.
+- Le serveur d'essai lancé avec `HOLO_DEPOT` vide ne trouvait aucun fichier : une variable vide n'est pas une variable absente.
+
+---
+
 ## 2026-10-04 — Faire le tour de la page ; deux réglages de plus ; le Flip 3 mesuré
 
 **Ce que Yocthan a demandé**

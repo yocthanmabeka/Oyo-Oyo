@@ -30,6 +30,13 @@
     <h3>Today</h3>
     <span class="note">Open until 6 pm</span>
 
+    <!-- Le panier : HTML n'a pas de valeur qui change. Un span vide, que le script remplira. -->
+    <h3>Your cart</h3>
+    <span class="note"><span class="cart-count">0</span> paintings in your cart</span>
+    <button id="add" type="button">Add a painting</button>
+    <button id="remove" type="button">Remove one</button>
+    <button id="empty" type="button">Empty the cart</button>
+
     <button id="open" class="card" type="button">Enter the workshop</button>
 
     <!-- Le point : HTML n'a pas ce mot. On prend un div, et le script fera le reste. -->
@@ -40,6 +47,7 @@
   <section id="workshop" class="world" hidden>
     <h1>The workshop</h1>
     <p>Here the paintings are made.</p>
+    <div><span class="cart-count">0</span> paintings in your cart</div>
     <img src="../easel.svg" alt="">
     <button id="back" type="button">Back to the shop</button>
 

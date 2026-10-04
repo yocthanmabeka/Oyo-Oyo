@@ -66,7 +66,7 @@ Page(
 | `Points(depth:)` | 0 à 20 | 20 |
 | `Points(density:)` | 1 à 3 | 2 |
 | `Relief(height:)` | 0px à 40px | 10px |
-| `Relief(tilt:)` | 0deg à 360deg | 360deg : on fait le tour de la page |
+| `Relief(tilt:)` | 0deg à 360deg | 0deg : la page ne tourne pas tant que l'auteur ne l'écrit pas |
 
 La borne « `fragment` au moins égal à `size` × `grid` » garantit qu'il n'y a jamais plus de points à dessiner que l'écran ne peut en montrer (`ADR-005`).
 
@@ -75,6 +75,8 @@ La borne « `fragment` au moins égal à `size` × `grid` » garantit qu'il n'y 
 **Ajouts du même jour.** `Zoom(levels:)` limite le nombre de sites emboîtés les uns dans les autres ; un fichier qui en emboîte davantage est refusé. `Points(after:)` fixe le grossissement jusqu'où la page reste un site ordinaire, qu'on lit et qu'on copie : Yocthan veut que la « métaversification » ne commence qu'à partir d'une certaine profondeur de zoom, pour qu'un visiteur qui zoome seulement pour mieux lire garde l'expérience qu'il connaît.
 
 **Ajouts du 2026-10-04, demandés par Yocthan.** « La rotation n'est pas à 360 degrés, elle est bloquée à un certain angle » : `Relief(tilt:)` va maintenant jusqu'à `360deg`, et c'est la valeur par défaut (avant : 80deg au plus, 52deg par défaut). À partir de `180deg`, la rotation est libre : on fait le tour de la page et on la voit par derrière, à l'envers, comme une feuille. En dessous, l'auteur garde sa limite. Deux réglages s'ajoutent, parce qu'ils existaient dans le moteur sans mot pour les écrire : `Zoom(speed:)`, la vitesse du zoom à la molette, et `Portals(duration:)`, le temps que met un portail à s'ouvrir, première utilisation de l'unité `ms`. Options écartées : un bloc à part pour la rotation (`Rotation(max:)`), qui aurait fait deux mots pour une seule chose, et un mot `free` à la place d'un angle, qui aurait fait deux écritures. Défaut évité : en CSS, `transition-duration` accepte `s` et `ms`, et un nombre sans unité est ignoré en silence ; ici une seule unité, et l'oubli est refusé.
+
+**La rotation s'active (2026-10-04, plus tard le même jour).** Yocthan : « Il y a certaines propriétés ou fonctions qui doivent être activées, pour qu'il y ait de la cohérence entre les sites et le métavers. Si d'autres peuvent donner tout le temps en 3D, ça va déranger la lisibilité du site. » Sans `tilt`, une page ne tourne donc plus (avant : 360deg d'office). Écrire `Relief(tilt: 360deg)` active la rotation ; le bouton « Tourner » apparaît alors dès la page de face, sans passer d'abord par la vue points. Option écartée : un interrupteur à part (`Relief(active: true)`), qui aurait fait deux façons de dire « ne tourne pas » (`active: false` et `tilt: 0deg`). Question laissée à Yocthan : le passage en points au zoom (`Points(after:)`) reste offert d'office ; doit-il lui aussi s'activer ?
 
 **Le carrefour et l'interrupteur du zoom.** `Zoom(active:)` permet ou interdit le zoom. Un quatrième bloc, `Portals(layout:, count:, size:, brightness:)`, règle le carrefour : la disposition des portails (`grid`, `row`, `column`, `diagonal`, donc aussi le sens où on les fait défiler), leur nombre, leur taille, la lumière du fond. La page gagne une capacité, `portals`, pour ouvrir le carrefour par une règle. Demandé par Yocthan le 2026-10-03 : « chaque action doit être dans le code ».
 

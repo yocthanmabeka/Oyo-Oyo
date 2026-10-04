@@ -358,7 +358,8 @@ mod tests {
     const SEUIL_POINT: f64 = 6.0;
 
     fn mosaique(largeur: u32, hauteur: u32, couleurs: Vec<u8>) -> Option<Mosaique> {
-        Mosaique::new(largeur, hauteur, couleurs, 1, VUE.0, VUE.1, Reglages::default())
+        // Les essais tournent la page : la rotation est activée, comme par « Relief(tilt: 360deg) ».
+        Mosaique::new(largeur, hauteur, couleurs, 1, VUE.0, VUE.1, Reglages { angle_max: std::f64::consts::TAU, ..Reglages::default() })
     }
 
     /// Une image de 80 × 60 pixels, toute dorée sauf un pixel noir en haut à gauche.
@@ -475,7 +476,11 @@ mod tests {
 
     #[test]
     fn on_fait_le_tour_de_la_page_sauf_si_l_auteur_fixe_une_limite() {
-        // Sans limite écrite, la rotation est libre : un demi-tour, et l'on voit la page par derrière.
+        // Sans rien écrire, la page ne tourne pas : un site reste un site.
+        let mut m = Mosaique::new(80, 60, [233u8, 180, 76, 255].repeat(80 * 60), 1, VUE.0, VUE.1, Reglages::default()).unwrap();
+        m.pivoter(1.0, 1.0);
+        assert_eq!((m.lacet, m.tangage), (0.0, 0.0));
+        // « Relief(tilt: 360deg) » : la rotation est libre ; un demi-tour, et l'on voit la page par derrière.
         let mut m = image();
         m.pivoter(std::f64::consts::PI * 0.75, 0.0);
         assert!((m.lacet - std::f64::consts::PI * 0.75).abs() < 1e-12, "on a dépassé le quart de tour");

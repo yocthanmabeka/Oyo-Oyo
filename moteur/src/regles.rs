@@ -91,9 +91,10 @@ pub fn verifier_regles(programme: &Programme) -> Result<(), Erreur> {
         Ok(())
     })?;
     verifier_reperes(&programme.racine)?;
+    let etat = crate::etat::initial(programme)?;
     pour_chaque_bloc(&programme.racine, &mut |bloc| {
         if bloc.nom == "On" {
-            verifier_regle(bloc, &noms)?;
+            verifier_regle(bloc, &noms, &etat)?;
         }
         if bloc.nom == "Point" {
             verifier_budget(bloc)?;
@@ -149,15 +150,22 @@ fn nom_et_mot<'a>(bloc: &'a Bloc, valeur: Option<&'a Valeur>, quoi: &str) -> Res
     .ok_or_else(|| Erreur { message: format!("une règle s'écrit « On(Open.tap, effect: Workshop.enter) » : {quoi} manque ou est mal écrit"), pos: bloc.pos })
 }
 
-fn verifier_regle(regle: &Bloc, noms: &[(&str, &str)]) -> Result<(), Erreur> {
+fn verifier_regle(regle: &Bloc, noms: &[(&str, &str)], etat: &crate::etat::Etat) -> Result<(), Erreur> {
     let signal = regle.arguments.iter().find(|a| a.nom.is_none()).map(|a| &a.valeur);
     let (source, mot) = nom_et_mot(regle, signal, "le signal")?;
-    let (cible, capacite) = nom_et_mot(regle, regle.argument("effect").map(|a| &a.valeur), "l'effet")?;
     let type_de = |nom: &str| noms.iter().find(|(connu, _)| *connu == nom).map(|(_, bloc)| *bloc);
     let inconnu = |nom: &str| Erreur { message: format!("aucun bloc ne s'appelle « {nom} »"), pos: regle.pos };
     let type_source = type_de(source).ok_or_else(|| inconnu(source))?;
     if !signaux(type_source).contains(&mot) {
         return Err(Erreur { message: format!("signal inconnu « {mot} » : un « {type_source} » émet {}", lister(signaux(type_source))), pos: regle.pos });
+    }
+    // L'effet est une demande faite à l'arbitre : `cart.add(1)` (ADR-023).
+    if let Some(Valeur::Bloc(demande)) = regle.argument("effect").map(|a| &a.valeur) {
+        return crate::etat::demande(demande, etat).map(|_| ());
+    }
+    let (cible, capacite) = nom_et_mot(regle, regle.argument("effect").map(|a| &a.valeur), "l'effet")?;
+    if etat.iter().any(|(valeur, _)| valeur == cible) {
+        return Err(Erreur { message: format!("« {cible}.{capacite} » s'écrit avec sa quantité, entre parenthèses : {cible}.{capacite}(1)"), pos: regle.pos });
     }
     let type_cible = type_de(cible).ok_or_else(|| inconnu(cible))?;
     if !capacites(type_cible).contains(&capacite) {
