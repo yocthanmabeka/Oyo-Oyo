@@ -592,7 +592,7 @@ Page(
 | Bloc | Ce que c'est | Réglages |
 |---|---|---|
 | `Checkbox` | Une case à cocher. Cochée, la valeur vaut 1 ; sinon 0. | `value`, `label` |
-| `Input` | Un champ où l'on écrit un nombre entier. | `value`, `label`, `max` |
+| `Input` | Un champ où l'on écrit : un nombre entier, ou un texte, selon la valeur qu'il présente. | `value`, `label`, `max` |
 
 - `value` est le nom d'une valeur de `State`. Le champ la montre, et la change quand le visiteur écrit. Il n'y a pas de règle à écrire.
 - `label` est obligatoire : il dit ce qu'on attend.
@@ -601,7 +601,36 @@ Page(
 
 **Garder d'une visite à l'autre.** `keep: [cart, gift, tip]`, sur la page, nomme les valeurs que le navigateur du visiteur garde. Il recharge la page, ou revient demain : elles sont encore là. Les valeurs qui ne sont pas dans `keep` repartent de leur départ.
 
-Limites : seulement des nombres (pas encore de champ de texte) ; ce qui est gardé reste sur cet appareil.
+**Une valeur peut être un texte.** On la déclare avec des guillemets, et le même bloc `Input` devient un champ de texte.
+
+```holo
+Page(
+  title: "My shop",
+
+  state: State(buyer: ""),
+  keep: [buyer],
+
+  children: [
+    Input(value: buyer, label: "Your first name", max: 20),
+
+    If(buyer, is: "", children: [
+      "Tell us your first name.",
+    ]),
+    If(buyer, not: "", children: [
+      Text("Welcome, {buyer}."),
+    ]),
+  ],
+)
+```
+
+- `State(buyer: "")` : un texte, vide au départ. On peut aussi lui donner un départ : `city: "Paris"`.
+- `{buyer}` le montre, comme un nombre.
+- `Input(value: buyer, …)` : comme la valeur est un texte, le champ est un champ de texte. `max` borne alors sa longueur (80 caractères sans rien écrire, 200 au plus).
+- Un texte ne se compare qu'au vide : `is: ""` (il est vide) et `not: ""` (il est rempli).
+- Un texte ne change que par un champ : il n'y a pas de demande pour lui.
+- Ce que le visiteur écrit ne devient jamais du code : la page le montre lettre pour lettre.
+
+Limites : pas de liste de choix, pas d'envoi à un serveur ; ce qui est gardé reste sur cet appareil.
 
 Cette écriture est à l'essai (`ADR-027`).
 
@@ -800,6 +829,8 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Répéter une règle dans le temps | `Every(1s, effect:)` | fait |
 | Le hasard | la demande `random` | fait |
 | Placer librement | `Board`, et `x:`, `y:` sur ses enfants | fait |
+| Une valeur qui est un texte | `State(buyer: "")`, `{buyer}`, `If(buyer, not: "")` | fait, à l'essai |
+| Écrire un texte | `Input(value: buyer, label:, max:)` | fait, à l'essai |
 | Écrire un nombre, cocher une case | `Input(value:, label:, max:)`, `Checkbox(value:, label:)` | fait, à l'essai |
 | Garder une valeur d'une visite à l'autre | `keep: [cart]` | fait, à l'essai |
 | Montrer ou cacher selon une valeur | `If(cart, is:, not:, over:, under:)` | fait, à l'essai |
@@ -832,8 +863,8 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 
 - Les imports (`import`, `module`, `bridge js`, `bridge css`) : le moteur les lit mais ne les applique pas.
 - Pour la disposition : pas de largeur par élément, pas d'élément qui prend la place restante.
-- Le champ de texte, la liste de choix, l'envoi d'un formulaire ; les données venues d'ailleurs.
-- Pour les valeurs : seulement des nombres entiers. Pas de texte, pas de liste, pas d'autre calcul que le nombre et le total d'un panier, pas de comparaison entre deux valeurs.
+- La liste de choix, l'envoi d'un formulaire ; les données venues d'ailleurs.
+- Pour les valeurs : des nombres entiers et des textes. Pas de liste, pas d'autre calcul que le nombre et le total d'un panier, pas de comparaison entre deux valeurs.
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
 - Les garde-fous de zoom pour un `Point` seul : ils sont encore fixés dans le moteur.

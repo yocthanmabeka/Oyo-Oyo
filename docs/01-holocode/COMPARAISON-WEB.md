@@ -77,7 +77,8 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `button` | `Button(name:, text:)` | fait |
 | `form` | | manque |
 | `input` : nombre, case à cocher | `Input(value:, label:, max:)`, `Checkbox(value:, label:)` | fait, à l'essai |
-| `input` : texte, date, bouton radio, fichier… | | manque |
+| `input` : texte | `Input(value: buyer, …)` quand la valeur est un texte | fait, à l'essai |
+| `input` : date, bouton radio, fichier… | | manque |
 | `label` | le réglage `label:`, obligatoire | fait, à l'essai |
 | `textarea`, `select`, `option` | | manque |
 | `fieldset`, `legend`, `datalist`, `output`, `progress`, `meter` | | manque |

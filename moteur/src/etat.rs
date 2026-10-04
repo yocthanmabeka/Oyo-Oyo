@@ -40,6 +40,8 @@ pub fn condition(bloc: &Bloc) -> Result<(&str, Vec<(&str, u64)>), Erreur> {
     for argument in &bloc.arguments[1..] {
         match (argument.nom.as_deref(), &argument.valeur) {
             (Some("children" | "name"), _) => {}
+            // Pour un texte : « is: "" » (vide) et « not: "" » (rempli). Vide vaut 0.
+            (Some(mot @ ("is" | "not")), Valeur::Texte(texte)) if texte.is_empty() => comparaisons.push((if mot == "is" { "is" } else { "not" }, 0)),
             (Some(mot), Valeur::Entier(nombre)) if COMPARAISONS.contains(&mot) => comparaisons.push((COMPARAISONS[COMPARAISONS.iter().position(|c| *c == mot).unwrap_or(0)], *nombre)),
             (Some(mot), _) if COMPARAISONS.contains(&mot) => return Err(Erreur { message: format!("« If({valeur}, {mot}: …) » attend un nombre entier"), pos: argument.pos }),
             (Some(mot), _) => return Err(Erreur { message: format!("« If » n'a pas de paramètre « {mot} » ; paramètres possibles : is, not, over, under, children"), pos: argument.pos }),
@@ -98,10 +100,11 @@ pub fn gardees(programme: &Programme) -> Result<Vec<String>, Erreur> {
         return Err(erreur("« keep » attend la liste des valeurs à garder : keep: [cart]".into()));
     };
     let declarees = initial(programme)?;
+    let textes = textes_initiaux(programme);
     let mut gardees = Vec::new();
     for nom in noms {
         match nom {
-            Valeur::Nom(nom) if declarees.iter().any(|(connu, _)| connu == nom) => gardees.push(nom.clone()),
+            Valeur::Nom(nom) if declarees.iter().any(|(connu, _)| connu == nom) || textes.iter().any(|(connu, _)| connu == nom) => gardees.push(nom.clone()),
             Valeur::Nom(nom) => return Err(erreur(format!("« keep » : aucune valeur ne s'appelle « {nom} » ; on ne garde que des valeurs déclarées dans « State »"))),
             _ => return Err(erreur("« keep » attend des noms de valeurs : keep: [cart]".into())),
         }
@@ -240,6 +243,100 @@ fn graine_du_hasard(programme: &Programme) -> u64 {
 /// Les valeurs d'une page, dans l'ordre où elles sont déclarées.
 pub type Etat = Vec<(String, u64)>;
 
+/// Les valeurs de texte d'une page : `State(buyer: "")`. Elles ne changent que par un champ
+/// (`Input`) ; on les montre (`{buyer}`), et l'on peut demander si elles sont vides.
+pub type Textes = Vec<(String, String)>;
+
+/// La longueur d'un texte, au plus. Un champ peut l'abaisser par `max:`.
+pub const TEXTE_MAX: usize = 200;
+/// La longueur d'un texte saisi quand le champ ne dit rien.
+pub const TEXTE_COURANT: usize = 80;
+
+/// Les textes déclarés par la page, à leur départ.
+pub fn textes_initiaux(programme: &Programme) -> Textes {
+    let Ok(Some(bloc)) = bloc_d_etat(programme) else { return Vec::new() };
+    bloc.arguments
+        .iter()
+        .filter_map(|a| match (&a.nom, &a.valeur) {
+            (Some(nom), Valeur::Texte(texte)) => Some((nom.clone(), texte.clone())),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Un texte, écrit pour voyager dans l'état sans se mêler à ses séparateurs : tout ce qui
+/// n'est pas une lettre ou un chiffre ordinaire devient « %XX ».
+pub fn coder(texte: &str) -> String {
+    texte.bytes().map(|octet| if octet.is_ascii_alphanumeric() { char::from(octet).to_string() } else { format!("%{octet:02X}") }).collect()
+}
+
+/// L'inverse. Rend `None` si ce n'est pas un texte codé par `coder`.
+pub fn decoder(code: &str) -> Option<String> {
+    let mut octets = Vec::with_capacity(code.len());
+    let mut reste = code.as_bytes();
+    while let Some((premier, suite)) = reste.split_first() {
+        if *premier == b'%' {
+            let hexa = std::str::from_utf8(suite.get(..2)?).ok()?;
+            octets.push(u8::from_str_radix(hexa, 16).ok()?);
+            reste = &suite[2..];
+        } else {
+            octets.push(*premier);
+            reste = suite;
+        }
+    }
+    String::from_utf8(octets).ok()
+}
+
+/// `buyer='Ada;city='` : les textes, à la suite des nombres. L'apostrophe dit « c'est un texte ».
+pub fn ecrire_textes(textes: &Textes) -> String {
+    textes.iter().map(|(nom, texte)| format!("{nom}='{}", coder(texte))).collect::<Vec<_>>().join(";")
+}
+
+/// Relit les textes d'un état. Seuls ceux que la page déclare sont repris, et bornés.
+pub fn relire_textes(programme: &Programme, ecrit: &str) -> Textes {
+    let mut textes = textes_initiaux(programme);
+    for morceau in ecrit.split(';') {
+        if let Some((nom, code)) = morceau.split_once("='") {
+            if let (Some((_, place)), Some(texte)) = (textes.iter_mut().find(|(connu, _)| connu == nom), decoder(code)) {
+                *place = propre(&texte, TEXTE_MAX);
+            }
+        }
+    }
+    textes
+}
+
+/// Un texte saisi, nettoyé : sans caractère invisible, et pas plus long que permis.
+fn propre(texte: &str, longueur: usize) -> String {
+    texte.chars().filter(|c| !c.is_control()).take(longueur).collect()
+}
+
+/// Le visiteur a écrit dans un champ de texte. Comme pour un nombre : seulement une valeur
+/// qu'un champ présente, et pas plus longue que ce champ ne le permet.
+pub fn saisir_texte(programme: &Programme, textes: &Textes, nom: &str, ecrit: &str) -> Textes {
+    let mut textes = textes.clone();
+    let mut longueur = None;
+    let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
+        if bloc.nom == "Input" && matches!(bloc.argument("value").map(|a| &a.valeur), Some(Valeur::Nom(valeur)) if valeur == nom) {
+            longueur = Some(match bloc.argument("max").map(|a| &a.valeur) {
+                Some(Valeur::Entier(max)) => (*max as usize).min(TEXTE_MAX),
+                _ => TEXTE_COURANT,
+            });
+        }
+        Ok(())
+    });
+    if let (Some(longueur), Some((_, place))) = (longueur, textes.iter_mut().find(|(connu, _)| connu == nom)) {
+        *place = propre(ecrit, longueur);
+    }
+    textes
+}
+
+/// Pour les conditions, un texte vaut 0 quand il est vide, 1 sinon : `If(buyer, not: "")`.
+pub fn avec_textes(montrees: &Etat, textes: &Textes) -> Etat {
+    let mut tout = montrees.clone();
+    tout.extend(textes.iter().map(|(nom, texte)| (nom.clone(), u64::from(!texte.is_empty()))));
+    tout
+}
+
 /// `cart`, `items_seen` : une minuscule, puis des minuscules, des chiffres ou `_`.
 fn est_nom_de_valeur(nom: &str) -> bool {
     nom.starts_with(|c: char| c.is_ascii_lowercase()) && nom.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
@@ -326,21 +423,31 @@ fn initial_sans_prix(programme: &Programme) -> Result<Etat, Erreur> {
     let Some(bloc) = bloc_d_etat(programme)? else { return Ok(Vec::new()) };
     let mut etat = Etat::new();
     for argument in &bloc.arguments {
-        let (Some(nom), Valeur::Entier(depart)) = (&argument.nom, &argument.valeur) else {
-            return Err(Erreur { message: "une valeur se déclare par son nom et son départ, un nombre entier : State(cart: 0)".into(), pos: argument.pos });
+        // Une valeur est un nombre entier (cart: 0) ou un texte (buyer: "").
+        let (nom, depart) = match (&argument.nom, &argument.valeur) {
+            (Some(nom), Valeur::Entier(depart)) => (nom, Some(*depart)),
+            (Some(nom), Valeur::Texte(texte)) if texte.chars().count() <= TEXTE_MAX => (nom, None),
+            (Some(nom), Valeur::Texte(_)) => return Err(Erreur { message: format!("« {nom} » : un texte fait au plus {TEXTE_MAX} caractères"), pos: argument.pos }),
+            _ => {
+                return Err(Erreur {
+                    message: "une valeur se déclare par son nom et son départ, un nombre entier ou un texte : State(cart: 0, buyer: \"\")".into(),
+                    pos: argument.pos,
+                })
+            }
         };
         if !est_nom_de_valeur(nom) {
             return Err(Erreur { message: format!("« {nom} » : le nom d'une valeur s'écrit en minuscules, comme « cart »"), pos: argument.pos });
         }
-        if etat.iter().any(|(connu, _)| connu == nom) {
+        if bloc.arguments.iter().filter(|a| a.nom.as_deref() == Some(nom.as_str())).count() > 1 {
             return Err(Erreur { message: format!("la valeur « {nom} » est déclarée deux fois"), pos: argument.pos });
         }
-        if *depart > VALEUR_MAX {
-            return Err(Erreur { message: format!("« {nom} » : une valeur va de 0 à {VALEUR_MAX}"), pos: argument.pos });
+        match depart {
+            Some(depart) if depart > VALEUR_MAX => return Err(Erreur { message: format!("« {nom} » : une valeur va de 0 à {VALEUR_MAX}"), pos: argument.pos }),
+            Some(depart) => etat.push((nom.clone(), depart)),
+            None => {}
         }
-        etat.push((nom.clone(), *depart));
     }
-    if etat.len() > VALEURS_MAX {
+    if bloc.arguments.len() > VALEURS_MAX {
         return Err(Erreur { message: format!("trop de valeurs : une page en déclare au plus {VALEURS_MAX}"), pos: bloc.pos });
     }
     Ok(etat)
@@ -403,8 +510,11 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
     let etat = initial(programme)?;
     prix(programme)?;
     gardees(programme)?;
-    // Ce qu'un texte peut montrer : les valeurs déclarées, et celles que le moteur calcule.
-    let montrables = a_montrer(programme, &etat);
+    // Ce qu'un texte peut montrer : les valeurs déclarées, nombres et textes, et celles que le
+    // moteur calcule.
+    let textes = textes_initiaux(programme);
+    let montrables = avec_textes(&a_montrer(programme, &etat), &textes);
+    let est_texte = |nom: &str| textes.iter().any(|(connu, _)| connu == nom);
     let declare = bloc_d_etat(programme)?;
     let prix_declares = match programme.racine.argument("prices").map(|a| &a.valeur) {
         Some(Valeur::Bloc(bloc)) => Some(bloc),
@@ -428,6 +538,11 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
                 match (argument.nom.as_deref(), &argument.valeur) {
                     (Some("name"), _) | (Some("label"), Valeur::Texte(_)) => {}
                     (Some("value"), Valeur::Nom(valeur)) if etat.iter().any(|(connu, _)| connu == valeur) => {}
+                    // Un champ peut présenter un texte ; une case, non.
+                    (Some("value"), Valeur::Nom(valeur)) if est_texte(valeur) && bloc.nom == "Input" => {}
+                    (Some("value"), Valeur::Nom(valeur)) if est_texte(valeur) => {
+                        return Err(Erreur { message: format!("« Checkbox(value: {valeur}) » : « {valeur} » est un texte ; une case attend un nombre, state: State(gift: 0)"), pos: argument.pos })
+                    }
                     (Some("value"), Valeur::Nom(valeur)) => {
                         return Err(Erreur { message: format!("« {}(value: {valeur}) » : aucune valeur ne s'appelle « {valeur} » ; déclare-la sur la page, state: State({valeur}: 0)", bloc.nom), pos: argument.pos })
                     }
@@ -449,6 +564,15 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
             let (valeur, _) = condition(bloc)?;
             if !montrables.iter().any(|(connu, _)| connu == valeur) {
                 return Err(Erreur { message: format!("« If({valeur}, …) » : aucune valeur ne s'appelle « {valeur} » ; déclare-la sur la page, state: State({valeur}: 0)"), pos: bloc.pos });
+            }
+            // Un texte se compare au vide, un nombre à un nombre : pas de mélange.
+            let au_vide = bloc.arguments.iter().any(|a| matches!((a.nom.as_deref(), &a.valeur), (Some("is" | "not"), Valeur::Texte(_))));
+            let a_un_nombre = bloc.arguments.iter().any(|a| a.nom.as_deref().is_some_and(|mot| COMPARAISONS.contains(&mot)) && matches!(a.valeur, Valeur::Entier(_)));
+            if est_texte(valeur) && a_un_nombre {
+                return Err(Erreur { message: format!("« {valeur} » est un texte : on demande seulement s'il est vide, If({valeur}, is: \"\") ou If({valeur}, not: \"\")"), pos: bloc.pos });
+            }
+            if !est_texte(valeur) && au_vide {
+                return Err(Erreur { message: format!("« {valeur} » est un nombre : on le compare à un nombre, If({valeur}, is: 0)"), pos: bloc.pos });
             }
         }
         // Sur un plateau, la place d'un bloc est une valeur de la page : Point(x: star_x, y: star_y).
@@ -716,6 +840,58 @@ mod tests {
     }
 
     #[test]
+    fn une_valeur_peut_etre_un_texte() {
+        let source = "Page(
+  state: State(buyer: \"\", city: \"Paris\", cart: 0),
+  keep: [buyer],
+  children: [
+    Input(value: buyer, label: \"Your first name\", max: 12),
+    Input(value: city, label: \"Your city\"),
+    If(buyer, not: \"\", children: [ \"Hello {buyer}, from {city}.\" ]),
+    If(buyer, is: \"\", children: [ \"Who are you?\" ]),
+    Button(name: Add, text: \"Add\"),
+  ],
+  rules: [ On(Add.tap, effect: cart.add(1)) ],
+)";
+        let html = crate::vue_a_plat(source, "").unwrap();
+        assert!(html.contains("<input type=\"text\" maxlength=\"12\" value=\"\" data-bind=\"buyer\">"), "{html}");
+        assert!(html.contains("<input type=\"text\" maxlength=\"80\" value=\"Paris\" data-bind=\"city\">"), "{html}");
+        // Au départ le prénom est vide : la salutation est cachée, la question montrée.
+        assert!(html.contains("data-if=\"buyer|not=0\" hidden><p class=\"holo-P\">Hello <span data-state=\"buyer\"></span>, from <span data-state=\"city\">Paris</span>.</p>"), "{html}");
+        assert!(html.contains("data-if=\"buyer|is=0\"><p"), "{html}");
+        let depart = crate::etat_initial(source);
+        assert_eq!(depart, "cart=0;buyer=';city='Paris");
+        // Écrire un prénom : il est nettoyé et coupé à la longueur permise ; rien ne se mêle
+        // aux séparateurs de l'état, même un texte hostile.
+        let ecrit = crate::saisir(source, &depart, "buyer", "Zoé;cart=99<b>&\u{7} et la suite est trop longue");
+        assert_eq!(ecrit, format!("cart=0;buyer='{};city='Paris", coder("Zoé;cart=99<")));
+        assert_eq!(crate::conditions(source, &ecrit), "buyer|not=0:1;buyer|is=0:0");
+        // Un geste ailleurs ne touche pas aux textes.
+        let apres = crate::arbitrer(source, &ecrit, "Add.tap");
+        assert!(apres.starts_with("cart=1;buyer='Zo") && apres.ends_with(";city='Paris"), "{apres}");
+        // Garder et reprendre : seul le prénom est gardé.
+        assert_eq!(crate::a_garder(source, &apres), format!("buyer='{}", coder("Zoé;cart=99<")));
+        let repris = crate::reprendre(source, &format!("buyer='{};city='{};cart=5", coder("Ada"), coder("Lyon")));
+        assert_eq!(repris, "cart=0;buyer='Ada;city='Paris");
+        // Ce que montre la page ne devient jamais du code.
+        let hostile = crate::vue_a_plat(&source.replace("city: \"Paris\"", "city: \"<script>x</script>\""), "").unwrap();
+        assert!(!hostile.contains("<script>") && hostile.contains("&lt;script&gt;"), "{hostile}");
+        assert_eq!(decoder(&coder("é à 🙂 ; = '")).as_deref(), Some("é à 🙂 ; = '"));
+        assert_eq!(decoder("%ZZ"), None);
+        for (source, message) in [
+            ("Page(state: State(a: \"\"), children: [ If(a, over: 2, children: []) ])", "est un texte"),
+            ("Page(state: State(a: 0), children: [ If(a, is: \"\", children: []) ])", "est un nombre"),
+            ("Page(state: State(a: \"\"), children: [ If(a, is: \"oui\", children: []) ])", "attend un nombre entier"),
+            ("Page(state: State(a: \"\"), children: [ Checkbox(value: a, label: \"x\") ])", "une case attend un nombre"),
+            ("Page(state: State(a: \"\", a: 0))", "déclarée deux fois"),
+            ("Page(state: State(a: \"\"), children: [ Button(name: B, text: \"x\") ], rules: [ On(B.tap, effect: a.add(1)) ])", "aucune valeur ne s'appelle « a »"),
+        ] {
+            let erreur = page(source).unwrap_err();
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
+    }
+
+    #[test]
     fn un_champ_une_case_et_des_valeurs_gardees() {
         let source = "Page(
   state: State(tip: 0, gift: 0, visits: 0),
@@ -822,7 +998,7 @@ mod tests {
             ("Page(state: State(cart: 0), children: [ Button(name: B, text: \"{car}\") ])", "aucune valeur ne s'appelle « car »"),
             ("Page(state: State(cart: 0), children: [ List(children: [ \"{total}\" ]) ])", "aucune valeur ne s'appelle « total »"),
             ("Page(state: State(Cart: 0))", "en minuscules"),
-            ("Page(state: State(cart: \"zero\"))", "un nombre entier"),
+            ("Page(state: State(cart: 1.5))", "un nombre entier ou un texte"),
             ("Page(state: State(cart: 0, cart: 1))", "déclarée deux fois"),
             ("Page(state: State(cart: 5000000000))", "de 0 à 1000000000"),
             ("Page(state: 4)", "un bloc « State(...) »"),

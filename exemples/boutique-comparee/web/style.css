@@ -110,3 +110,4 @@ pre { font-family: ui-monospace, Consolas, monospace; background: rgba(127, 127,
 .check { display: flex; align-items: center; gap: 8px; margin: 0 0 16px 0; cursor: pointer; }
 .field { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; margin: 0 0 16px 0; }
 .field input { font: inherit; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 6px; padding: 6px 10px; width: 120px; }
+.field input[type=text] { width: min(100%, 280px); box-sizing: border-box; }

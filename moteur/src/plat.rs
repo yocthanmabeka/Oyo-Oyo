@@ -30,6 +30,7 @@ grid-template-columns:repeat(auto-fill,minmax(min(100%,max(120px,calc((100% - (v
 :where(.holo-Row,.holo-Column,.holo-Grid)>.holo-If>*{margin:0}:where(.holo-If[hidden]){display:none}\
 :where(.holo-Input){display:flex;flex-direction:column;gap:4px;align-items:flex-start}\
 :where(.holo-Input input){font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 10px;width:120px}\
+:where(.holo-Input input[type=text]){width:min(100%,280px);box-sizing:border-box}\
 :where(.holo-Checkbox){display:flex;align-items:center;gap:8px;cursor:pointer}\
 :where(.holo-Checkbox input){width:18px;height:18px;margin:0;accent-color:currentColor}\
 :where(.holo-Board){position:relative;overflow:hidden;border-radius:12px}\
@@ -85,15 +86,32 @@ pub fn site_html(programme: &Programme, page: &Bloc, base: &str, titre: &str) ->
     // Les conditions, à leur départ : ce qui est faux est caché dès le premier affichage (ADR-025).
     // La réponse vient de `etat::conditions`, comme après chaque changement : une condition
     // n'est décidée qu'à un seul endroit.
-    let reponses = crate::etat::conditions(programme, &montrees);
+    let textes = crate::etat::textes_initiaux(programme);
+    let reponses = crate::etat::conditions(programme, &crate::etat::avec_textes(&montrees, &textes));
+    let texte_de_depart = |nom: &str| textes.iter().find(|(connu, _)| connu == nom).map(|(_, texte)| texte.as_str());
     let conditions = |html: String| -> String {
         let mut sortie = String::with_capacity(html.len());
         for (rang, morceau) in html.split(MARQUE).enumerate() {
             if rang % 2 == 0 {
                 sortie.push_str(morceau);
+            } else if let Some(champ) = morceau.strip_prefix('!') {
+                // Un champ : de texte ou de nombre, selon la valeur qu'il présente.
+                let (nom, max) = champ.split_once('|').unwrap_or((champ, ""));
+                if texte_de_depart(nom).is_some() {
+                    let longueur = max.parse::<usize>().map_or(crate::etat::TEXTE_COURANT, |m| m.min(crate::etat::TEXTE_MAX));
+                    sortie.push_str(&format!(" type=\"text\" maxlength=\"{longueur}\""));
+                } else {
+                    sortie.push_str(" type=\"number\" inputmode=\"numeric\" min=\"0\"");
+                    if !max.is_empty() {
+                        sortie.push_str(&format!(" max=\"{max}\""));
+                    }
+                }
             } else if let Some(nom) = morceau.strip_prefix('#') {
                 // Un champ : la valeur de départ, telle quelle.
-                sortie.push_str(&montrees.iter().find(|(connu, _)| connu == nom).map_or(0, |(_, v)| *v).to_string());
+                match texte_de_depart(nom) {
+                    Some(texte) => sortie.push_str(&echapper(texte)),
+                    None => sortie.push_str(&montrees.iter().find(|(connu, _)| connu == nom).map_or(0, |(_, v)| *v).to_string()),
+                }
             } else if let Some(nom) = morceau.strip_prefix('?') {
                 // Une case : cochée au départ si la valeur n'est pas zéro.
                 if montrees.iter().any(|(connu, v)| connu == nom && *v > 0) {
@@ -111,6 +129,12 @@ pub fn site_html(programme: &Programme, page: &Bloc, base: &str, titre: &str) ->
     };
     corps = conditions(corps);
     mondes = conditions(mondes);
+    // Les textes, à leur départ, là où un texte les montre.
+    for (nom, texte) in &textes {
+        let (vide, pleine) = (format!("<span data-state=\"{nom}\"></span>"), format!("<span data-state=\"{nom}\">{}</span>", echapper(texte)));
+        corps = corps.replace(&vide, &pleine);
+        mondes = mondes.replace(&vide, &pleine);
+    }
     for (nom, valeur) in montrees.clone() {
         let (vide, pleine) = (format!("<span data-state=\"{nom}\"></span>"), format!("<span data-state=\"{nom}\">{valeur}</span>"));
         corps = corps.replace(&vide, &pleine);
@@ -246,11 +270,11 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
             let valeur = echapper(valeur);
             if bloc.nom == "Input" {
                 let max = match bloc.argument("max").map(|a| &a.valeur) {
-                    Some(Valeur::Entier(max)) => format!(" max=\"{max}\""),
+                    Some(Valeur::Entier(max)) => max.to_string(),
                     _ => String::new(),
                 };
                 sortie.push_str(&format!(
-                    "<label class=\"{classes}\"{nom}><span>{}</span><input type=\"number\" inputmode=\"numeric\" min=\"0\"{max} value=\"{MARQUE}#{valeur}{MARQUE}\" data-bind=\"{valeur}\"></label>",
+                    "<label class=\"{classes}\"{nom}><span>{}</span><input{MARQUE}!{valeur}|{max}{MARQUE} value=\"{MARQUE}#{valeur}{MARQUE}\" data-bind=\"{valeur}\"></label>",
                     markdown(etiquette)
                 ));
             } else {

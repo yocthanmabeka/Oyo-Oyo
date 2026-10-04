@@ -6,6 +6,31 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Étape 3, fin : les valeurs de texte et le champ de texte
+
+**Ce que Yocthan a dit**
+
+- Le jeu : « J'ai fait un score de 7, donc ça marche vraiment. » Puis : « Tu termines l'étape 3, et après on passe à l'étape 4. »
+
+**Fait** (`ADR-027`, à l'essai)
+
+- Une valeur peut être un texte : `State(buyer: "")`. `{buyer}` le montre. `If(buyer, is: "")` et `If(buyer, not: "")` disent s'il est vide ou rempli.
+- `Input(value: buyer, label: "…", max: 20)` : le même bloc que pour un nombre. Comme la valeur est un texte, le champ est un champ de texte.
+- Un texte se garde par `keep`, comme un nombre.
+- La boutique demande le prénom de l'acheteur et écrit « This order is for … ». Sa jumelle web aussi.
+- 83 tests du moteur. Vérifié dans Chrome avec « Zoé <b>&; Arc » : montré lettre pour lettre, aucune balise créée, retrouvé après rechargement.
+
+**Choix**
+
+- Un seul bloc `Input`, dont le genre vient de la valeur. En HTML, `input` a vingt-deux genres.
+- Un texte ne se compare qu'au vide. Comparer deux textes appellerait vite « contient », « commence par », puis des expressions.
+
+**Erreur en route**
+
+- Un test attendait qu'un prénom de treize caractères passe dans un champ borné à douze. C'est le test qui avait tort : le moteur coupait bien.
+
+---
+
 ## 2026-10-04 — Le jeu corrigé et validé ; étape 3 : la case, le champ, les valeurs gardées
 
 **Ce que Yocthan a dit, après avoir joué**

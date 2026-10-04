@@ -32,7 +32,7 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `Point` | aucun (`canvas`, WebGL, à écrire soi-même) | nouveau |
 | `World` | aucun | nouveau |
 | `On` | `addEventListener`, `onclick` | changé : une règle, pas du code |
-| `Input` | `input type="number"` | repris, avec une majuscule ; l'étiquette est obligatoire |
+| `Input` | `input type="number"`, `input type="text"` | repris, avec une majuscule ; l'étiquette est obligatoire ; le genre du champ vient de la valeur |
 | `Checkbox` | `input type="checkbox"` | changé : un mot à lui |
 | `Every` | `setInterval` | changé : une règle, qui s'arrête seule quand on ne regarde pas |
 | `Board` | `position: relative` et `absolute` | changé : un bloc, des places de 0 à 100 |
