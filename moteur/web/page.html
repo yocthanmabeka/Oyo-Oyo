@@ -312,7 +312,7 @@
     etats.set(chemin, arbitrer(source, etats.get(chemin) ?? "", signal));
     montrerLesValeurs();
     for (const effet of effets(source, signal).split(",").filter(Boolean)) {
-      appliquer(effet);
+      appliquer(effet, signal);
     }
   }
 
@@ -811,11 +811,27 @@
 
   // ---------------------------------------------------------------- les règles du fichier
 
-  // Entrer dans un point : on y va directement, comme on suit un lien. Le point s'ouvre là où
-  // il est sur la page, grandit jusqu'à remplir la fenêtre, et devient le site. Le carrefour,
-  // lui, ne s'ouvre que si on le demande (son bouton, ou la capacité « portals »).
+  // Le passage ordinaire d'un site à l'autre, comme sur le web : la page s'efface, la suivante
+  // apparaît. Bref et discret. Avec les animations réduites, le changement est immédiat.
+  async function fondu(changer) {
+    if (calme.matches) return changer();
+    racine.style.transition = "opacity .16s ease";
+    racine.style.opacity = "0";
+    await new Promise((suite) => setTimeout(suite, 170));
+    await changer();
+    racine.getBoundingClientRect(); // la page neuve est d'abord prise en compte invisible
+    racine.style.opacity = "1";
+    setTimeout(() => { racine.style.transition = ""; racine.style.opacity = ""; }, 200);
+  }
+
+  // Entrer dans un point : on y va directement. Le carrefour ne s'ouvre que si on le demande
+  // (son bouton, ou la capacité « portals »). Deux façons d'y aller, deux mouvements :
+  // - par un bouton de la page (« Enter the workshop ») : c'est un lien, on passe d'un site à
+  //   l'autre comme sur le web, par un simple fondu ;
+  // - en touchant le point lui-même : là on est dans le métavers, le point s'ouvre où il est,
+  //   grandit jusqu'à remplir la fenêtre, et devient le site.
   let entreeDirecte = false;
-  async function entrerDans(nom) {
+  async function entrerDans(nom, parLePoint = false) {
     const contenu = sitesContenus().find((s) => s.nom === nom);
     if (!contenu || entreeDirecte) return;
     // Le fichier d'un autre serveur : on ne le lit pas sans que le visiteur ait vu où il va.
@@ -827,6 +843,14 @@
     }
     sortirDesPoints();
     entreeDirecte = true;
+    if (!parLePoint) {
+      try {
+        await fondu(() => (contenu.fichier ? ouvrirFichier(contenu.fichier) : afficherSite(contenu.chemin)));
+      } finally {
+        entreeDirecte = false;
+      }
+      return;
+    }
     const point = page.querySelector(`[data-name="${CSS.escape(nom)}"]`).getBoundingClientRect();
     const taille = Math.max(point.width, 24);
     const bouton = portail(contenu, taille, true);
@@ -844,17 +868,18 @@
     }
   }
 
-  function appliquer(effet) {
+  function appliquer(effet, signal = "") {
     const [nom, capacite] = effet.split(".");
     if (capacite === "enter" && sitesContenus().some((s) => s.nom === nom)) {
-      entrerDans(nom);
+      // Le signal vient-il du point lui-même, ou d'un bouton qui y mène ?
+      entrerDans(nom, signal === `${nom}.tap`);
     } else if (capacite === "portals") {
       // La page demande son carrefour : On(Map.tap, effect: Shop.portals).
       ouvrirCarrefour();
     } else if (capacite === "leave") {
       // Sortir d'un site : on remonte à celui qui le contient.
       if (!carrefour.hidden) fermerCarrefour();
-      else if (dernier(site) === nom) afficherSite(parent(site));
+      else if (dernier(site) === nom) fondu(() => afficherSite(parent(site)));
     }
   }
 

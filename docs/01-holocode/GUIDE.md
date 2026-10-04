@@ -265,7 +265,7 @@ Page(
 )
 ```
 
-- On y passe **sans changer de page** : le point s'ouvre sur place, grandit jusqu'à remplir la fenêtre, et devient l'autre fichier. L'adresse de la barre devient celle de l'autre fichier, et le bouton « retour » ramène.
+- On y passe **sans changer de page**. Par un bouton, c'est un passage ordinaire, comme sur le web : la page s'efface, l'autre apparaît. En touchant le point lui-même, il s'ouvre sur place, grandit jusqu'à remplir la fenêtre, et devient l'autre fichier. L'adresse de la barre devient celle de l'autre fichier, et le bouton « retour » ramène.
 - Les fichiers où mènent les points d'une page sont lus d'avance (ils sont petits) : le passage est immédiat. Un fichier introuvable ou refusé par le moteur laisse le passage fermé.
 - **Dézoomer** alors que la page est déjà à sa taille normale fait ressortir du monde où l'on est : on revient au site, ou au fichier, d'où l'on venait.
 - La différence avec `A` : `A` fait changer de page, à l'ancienne ; un `Point` se traverse à pied.
@@ -322,7 +322,9 @@ Page(
 - `above: Open` place le point juste au-dessus du bloc nommé `Open`, à l'extrémité droite de la page. C'est, pour l'instant, la seule façon de dire où il est.
 - `color` lui donne une couleur qui le distingue de la page.
 - `World.secret(...)` donne au site du dedans son propre style.
-- Entrer dans un point qui contient un site y mène **directement**, comme un lien : le point s'ouvre là où il est, grandit jusqu'à remplir la fenêtre, et devient le site.
+- Entrer dans un point qui contient un site y mène **directement**. Il y a deux façons d'y aller, et chacune a son mouvement :
+  - par un **bouton** de la page (`On(Open.tap, effect: Workshop.enter)`) : c'est un lien. On passe d'un site à l'autre comme sur le web, par un fondu bref ;
+  - en touchant **le point lui-même** : là, on est dans le métavers. Le point s'ouvre où il est, grandit jusqu'à remplir la fenêtre, et devient le site.
 - Le **carrefour** ne s'ouvre que si on le demande : par le bouton « Carrefour », en haut à droite, ou par une règle (`portals`). Il montre des portails ronds, chacun avec le site où il mène : les sites contenus dans la page, celui où l'on est, celui d'où l'on vient. Seule exception : un point qui mène au fichier d'un autre serveur passe par le carrefour, pour qu'on voie le nom du serveur avant d'y aller.
 - Un clic sur un portail l'ouvre : il grandit jusqu'à remplir la fenêtre et devient le site, sans recharger la page. C'est alors un site comme un autre, avec ses propres pixels où l'on peut zoomer. Le `World` d'un point accepte lui aussi `pixels:`, donc un site peut en contenir un autre, qui en contient un autre, sans fin.
 - Chaque site a son adresse : celle du fichier, puis `#` et le chemin des points traversés, comme `mon-site.holo#Secret/Tresor`. Le bouton « retour » du navigateur remonte d'un site.
