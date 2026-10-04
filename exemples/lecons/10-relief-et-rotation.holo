@@ -1,0 +1,32 @@
+// Leçon 10 — Tourner la page
+//
+// Ce qu'on apprend :
+//   Sans « tilt », une page ne tourne pas. L'écrire active la rotation.
+//   « relief: Relief(tilt: 360deg) » : on peut faire le tour de la page.
+//   « height » est la hauteur du relief : ce qui est lumineux se soulève quand la page est de biais.
+//   Le relief est celui des points : il faut aussi « points: Points() ».
+//
+// À essayer :
+//   Ouvre le bouton rond en bas à droite, puis « Tourner », et glisse avec la souris.
+//   Remplace 360deg par 40deg : la page s'arrête à cet angle.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 10 : tourner la page",
+  points: Points(),
+  relief: Relief(height: 10px, tilt: 360deg),
+  children: [
+    H1("Tourne-moi"),
+    "Bouton rond en bas à droite, puis « Tourner ».",
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 9 : le zoom, et les pixels qui deviennent des points", to: "09-zoom-et-points.holo"),
+      A("Leçon 11 : un site planté dans un pixel →", to: "11-pixels.holo"),
+    ]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

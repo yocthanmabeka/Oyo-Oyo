@@ -1,0 +1,33 @@
+// Leçon 9 — Le zoom, et les pixels qui deviennent des points
+//
+// Ce qu'on apprend :
+//   Sans rien écrire, une page reste un site ordinaire, même en zoomant.
+//   « points: Points(...) » active le passage en points : en zoomant (Ctrl + molette, ou pincer),
+//   la page grossit d'abord normalement, puis chaque pixel devient un point lumineux.
+//   « after: 2 » : jusqu'à un zoom de 2, la page reste lisible (jamais moins de 2).
+//   « zoom: Zoom(max: 1000) » : on ne grossit pas plus de mille fois.
+//
+// À essayer :
+//   Zoome sur le titre avec Ctrl + molette. Dézoome pour revenir.
+//   Retire la ligne « points: » : le zoom ne mène plus aux points.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 9 : le zoom, et les pixels qui deviennent des points",
+  zoom: Zoom(max: 1000),
+  points: Points(after: 2, size: 6px, fragment: 40px, grid: 4, depth: 6),
+  children: [
+    H1("Zoome sur moi"),
+    "Chaque pixel de cette page devient un point quand on s'approche assez.",
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 8 : passer dans un autre fichier", to: "08-passage.holo"),
+      A("Leçon 10 : tourner la page →", to: "10-relief-et-rotation.holo"),
+    ]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

@@ -1,0 +1,36 @@
+// Leçon 2 — Le texte
+//
+// Ce qu'on apprend :
+//   H1, H2, H3 : trois niveaux de titres. On ne saute pas de niveau : H3 ne suit pas H1.
+//   P : un paragraphe, écrit avec son bloc. Text : du texte sans rôle, pour une étiquette.
+//   Deux étoiles de chaque côté : gras. Une étoile : italique. Des accents graves : du code.
+//   Entre trois guillemets, le texte tient sur plusieurs lignes, et les retours à la ligne sont gardés.
+//
+// À essayer :
+//   Mets un mot en gras. Ajoute une ligne dans le texte entre trois guillemets.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 2 : le texte",
+  children: [
+    H1("Le texte"),
+    H2("Un titre de deuxième niveau"),
+    H3("Un titre de troisième niveau"),
+    P("Un paragraphe avec du **gras**, de l'*italique* et du `code`."),
+    Text("Du texte sans rôle : une étiquette."),
+    P("""
+      Ouvert du lundi au vendredi.
+      Fermé le dimanche.
+    """),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 1 : une page", to: "01-page.holo"),
+      A("Leçon 3 : une image, une liste, un lien →", to: "03-image-liste-lien.holo"),
+    ]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

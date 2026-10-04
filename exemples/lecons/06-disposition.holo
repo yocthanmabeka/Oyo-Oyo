@@ -1,0 +1,38 @@
+// Leçon 6 — Ranger : Row, Column, Grid
+//
+// Ce qu'on apprend :
+//   Sans rien écrire, les blocs se rangent l'un sous l'autre.
+//   Row : côte à côte. Ce qui ne tient pas passe à la ligne.
+//   Column : l'un sous l'autre. Grid : en colonnes égales ; moins de colonnes sur un petit écran.
+//   « gap » est l'écart. « align » le placement : start, center, end, et between pour Row.
+//
+// À essayer :
+//   Rétrécis la fenêtre : la grille perd des colonnes. Change « columns: 3 » en 2.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 6 : ranger : Row, Column, Grid",
+  children: [
+    H1("Ranger"),
+    Row(gap: 8px, align: between, children: [
+      Text("À gauche"),
+      Text("À droite"),
+    ]),
+    Grid(columns: 3, gap: 12px, children: [
+      Column.case(gap: 4px, align: center, children: [ Text("Un"), Text("premier") ]),
+      Column.case(gap: 4px, align: center, children: [ Text("Deux"), Text("deuxième") ]),
+      Column.case(gap: 4px, align: center, children: [ Text("Trois"), Text("troisième") ]),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 5 : les styles", to: "05-styles.holo"),
+      A("Leçon 7 : un point, et le monde qu'il contient →", to: "07-point-et-monde.holo"),
+    ]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.case { border: 1px solid #E9B44C; border-radius: 12px; padding: 8px 16px; }

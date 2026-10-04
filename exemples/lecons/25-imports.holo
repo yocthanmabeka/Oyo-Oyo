@@ -1,0 +1,32 @@
+// Leçon 25 — Un morceau commun à plusieurs pages
+//
+// Ce qu'on apprend :
+//   « import "25-imports-morceau.holo" », tout en haut, rend un autre fichier disponible.
+//   Ce fichier est un morceau : Part(name: Entete, children: [...]), avec ses styles.
+//   Use(Entete) pose le morceau à cet endroit.
+//   Les styles du morceau viennent avec lui ; si la page écrit le même style, le sien reste.
+//
+// À essayer :
+//   Ouvre 25-imports-morceau.holo, change son texte, recharge cette page.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+import "25-imports-morceau.holo"
+
+Page(
+  title: "Leçon 25 : un morceau commun à plusieurs pages",
+  children: [
+    Use(Entete),
+    H1("Un morceau commun"),
+    "Le bandeau au-dessus vient d'un autre fichier.",
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 24 : faire glisser", to: "24-glisser.holo"),
+      A("Leçon 26 : un point seul, le Big Bang →", to: "26-point-seul.holo"),
+    ]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

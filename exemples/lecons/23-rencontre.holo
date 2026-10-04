@@ -1,0 +1,43 @@
+// Leçon 23 — La rencontre de deux objets
+//
+// Ce qu'on apprend :
+//   When(Moi, meets: Cible, effect: ...) : la règle guette une rencontre.
+//   Elle se déclenche au moment où les deux blocs se touchent, sur un plateau.
+//   « within » est la distance de rencontre, de 1 à 100 ; 10 sans rien écrire.
+//   Les deux blocs ont un nom, et un x et un y dans un Board.
+//
+// À essayer :
+//   Amène le point jaune sur le bleu avec les flèches : la cible part ailleurs, au hasard.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  name: Chasse,
+  title: "Leçon 23 : la rencontre de deux objets",
+  state: State(x: 10, y: 50, cx: 80, cy: 50, prises: 0),
+  children: [
+    H1("Une rencontre"),
+    Text("Prises : {prises}. Va toucher le point bleu avec les flèches."),
+    Board(height: 260px, children: [
+      Point(name: Cible, seed: 3, color: "#8fd3ff", x: cx, y: cy),
+      Point(name: Moi, seed: 9, color: "#E9B44C", x: x, y: y),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 22 : une règle qui guette", to: "22-guetter.holo"),
+      A("Leçon 24 : faire glisser →", to: "24-glisser.holo"),
+    ]),
+  ],
+  rules: [
+    On(Key.left, effect: x.sub(5)),
+    On(Key.right, effect: x.add(5)),
+    On(Key.up, effect: y.sub(5)),
+    On(Key.down, effect: y.add(5)),
+    When(Moi, meets: Cible, within: 12, effect: [prises.add(1), cx.random(100), cy.random(100)]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+Board { background: #1a1a2e; border: 1px solid #E9B44C; border-radius: 16px; }

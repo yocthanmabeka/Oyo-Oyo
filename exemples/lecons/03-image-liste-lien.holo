@@ -1,0 +1,38 @@
+// Leçon 3 — Une image, une liste, un lien
+//
+// Ce qu'on apprend :
+//   Image : « source » est un fichier rangé à côté ; « alt » dit ce que montre l'image, pour qui ne la voit pas.
+//   List : une liste. Avec « ordered: true », elle est numérotée.
+//   A : un lien. « to » est l'adresse : un fichier rangé à côté, ou une adresse du web.
+//
+// À essayer :
+//   Ajoute une ligne à la liste. Retire « ordered: true » de la seconde.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 3 : une image, une liste, un lien",
+  children: [
+    H1("Une image, une liste, un lien"),
+    Image(source: "etoile.svg", alt: "Une étoile jaune sur un fond bleu nuit"),
+    List(children: [
+      "Une ligne",
+      "Une autre ligne",
+    ]),
+    List(ordered: true, children: [
+      "D'abord ceci",
+      "Ensuite cela",
+    ]),
+    A("Un lien vers le code du projet", to: "https://github.com/yocthanmabeka/Metaverse"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 2 : le texte", to: "02-texte.holo"),
+      A("Leçon 4 : un trait, une citation, du texte tel quel →", to: "04-trait-citation-code.holo"),
+    ]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+Image { width: 160px; height: 160px; border-radius: 12px; }

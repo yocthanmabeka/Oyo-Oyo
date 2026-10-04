@@ -1,0 +1,31 @@
+// Leçon 4 — Un trait, une citation, du texte tel quel
+//
+// Ce qu'on apprend :
+//   Hr() : un trait de séparation.
+//   Quote : une citation ; « by » dit qui l'a dit, et on peut l'omettre.
+//   Code : du texte montré lettre pour lettre ; rien n'y est interprété.
+//
+// À essayer :
+//   Retire « by » de la citation. Mets des étoiles dans Code : elles restent des étoiles.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 4 : un trait, une citation, du texte tel quel",
+  children: [
+    H1("Un trait, une citation, du texte tel quel"),
+    "Avant le trait.",
+    Hr(),
+    Quote("Je m'arrête encore pour le regarder.", by: "Une cliente"),
+    Code("PROMO-2026 **pas de gras ici**"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 3 : une image, une liste, un lien", to: "03-image-liste-lien.holo"),
+      A("Leçon 5 : les styles →", to: "05-styles.holo"),
+    ]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

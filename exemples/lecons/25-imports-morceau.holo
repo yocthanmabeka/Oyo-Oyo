@@ -1,0 +1,11 @@
+// Le morceau de la leçon 25. Ce fichier n'est pas une page : il est importé par 25-imports.holo.
+// Un morceau a un nom et un contenu, et ses styles viennent avec lui.
+
+Part(
+  name: Entete,
+  children: [
+    Text.bandeau("Ce bandeau est écrit une seule fois, dans un fichier à part."),
+  ],
+)
+
+.bandeau { background: #E9B44C; color: #101020; padding: 8px 16px; border-radius: 12px; }

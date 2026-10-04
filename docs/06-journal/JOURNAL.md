@@ -6,6 +6,26 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Les leçons : un fichier par notion
+
+**Ce que Yocthan a dit**
+
+- « À chaque étape, à chaque nouveau code injecté, qu'il y ait un fichier qui explique exactement une seule chose. » Il aurait voulu le demander dès le départ. « Dans le guide, vu que c'est dense, comprendre sera compliqué. » Il demande aussi de le faire pour tout ce qui existe déjà, de la première notion à aujourd'hui.
+- Continuer avec les étapes 5, 6 et 7, lui envoyer les corrections à voir, et ouvrir dans Chrome ce qui s'exécute.
+
+**Fait**
+
+- `exemples/lecons/` : vingt-six leçons, de la première page au Big Bang. Chaque leçon est un petit fichier `.holo` : les commentaires du haut disent ce qu'on apprend et quoi essayer, le code le montre, et un lien en bas mène à la leçon suivante. On les suit dans Chrome et dans VS Code côte à côte.
+- L'index est `exemples/lecons/README.md`. L'accueil des démonstrations y mène.
+- Un test du moteur vérifie toutes les leçons : une leçon qui ne marche plus fait échouer les tests.
+- La règle est notée dans `AGENTS.md` : chaque notion ajoutée reçoit sa leçon, dans la même pull request.
+
+**Ce qui n'est pas fait**
+
+- Les étapes 5 (fin), 6 et 7 : elles restent à faire, une par une.
+
+---
+
 ## 2026-10-04 — Étape 5, première moitié : les imports, et un site de deux pages
 
 **Ce que Yocthan a dit**

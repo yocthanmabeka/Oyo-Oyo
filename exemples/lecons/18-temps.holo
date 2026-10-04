@@ -1,0 +1,35 @@
+// Leçon 18 — Le temps
+//
+// Ce qu'on apprend :
+//   Every(1s, effect: secondes.add(1)) : une règle qui se répète, ici toutes les secondes.
+//   Le rythme s'écrit en s ou en ms, de 100ms à 3600s.
+//   L'horloge se tait quand la fenêtre est cachée.
+//   Quand un geste change la valeur, son horloge repart de zéro.
+//
+// À essayer :
+//   Regarde le compteur monter. Remplace 1s par 250ms.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 18 : le temps",
+  state: State(secondes: 0),
+  children: [
+    H1("Le temps"),
+    Text("{secondes} secondes."),
+    Button(name: Zero, text: "Remettre à zéro"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 17 : garder une valeur d'une visite à l'autre", to: "17-garder.holo"),
+      A("Leçon 19 : le hasard →", to: "19-hasard.holo"),
+    ]),
+  ],
+  rules: [
+    Every(1s, effect: secondes.add(1)),
+    On(Zero.tap, effect: secondes.set(0)),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

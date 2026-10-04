@@ -1,0 +1,42 @@
+// Leçon 15 — Montrer selon une valeur
+//
+// Ce qu'on apprend :
+//   If(compte, is: 0, children: [...]) : ce qu'il contient ne se montre que si la condition est vraie.
+//   Les comparaisons, en mots : is (égal), not (différent), over (plus grand), under (plus petit).
+//   Plusieurs valent ensemble : « over: 0, under: 5 » veut dire de 1 à 4.
+//   Il n'y a pas de « sinon » : on écrit une seconde condition.
+//
+// À essayer :
+//   Appuie cinq fois. Change « over: 4 » en « over: 2 ».
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 15 : montrer selon une valeur",
+  state: State(compte: 0),
+  children: [
+    H1("Montrer selon une valeur"),
+    Button(name: Plus, text: "+ 1"),
+    If(compte, is: 0, children: [
+      "Tu n'as pas encore appuyé.",
+    ]),
+    If(compte, over: 0, under: 5, children: [
+      Text("Tu as appuyé {compte} fois. Continue."),
+    ]),
+    If(compte, over: 4, children: [
+      Text("{compte} fois : bravo."),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 14 : des prix, un nombre d'articles, un total", to: "14-prix.holo"),
+      A("Leçon 16 : écrire dans un champ, cocher une case →", to: "16-saisie.holo"),
+    ]),
+  ],
+  rules: [
+    On(Plus.tap, effect: compte.add(1)),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

@@ -1,0 +1,42 @@
+// Leçon 20 — Un plateau, où l'on place les choses
+//
+// Ce qu'on apprend :
+//   Board : un plateau. Ce qu'il contient se place par « x » et « y », de 0 à 100.
+//   x : de gauche (0) à droite (100). y : de haut (0) en bas (100).
+//   Avec un nombre, le bloc reste à sa place. Avec le nom d'une valeur, il la suit.
+//   Une valeur qui sert de place reste entre 0 et 100 : rien ne sort du plateau.
+//
+// À essayer :
+//   Appuie sur les boutons. Insiste à droite : le point s'arrête au bord.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 20 : un plateau, où l'on place les choses",
+  state: State(place: 50),
+  children: [
+    H1("Un plateau"),
+    Board(height: 240px, children: [
+      Point(name: Fixe, seed: 3, color: "#8fd3ff", x: 10, y: 10),
+      Point(name: Mobile, seed: 9, color: "#E9B44C", x: place, y: 80),
+    ]),
+    Row(gap: 8px, align: between, children: [
+      Button(name: Gauche, text: "Vers la gauche"),
+      Button(name: Droite, text: "Vers la droite"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 19 : le hasard", to: "19-hasard.holo"),
+      A("Leçon 21 : le clavier →", to: "21-clavier.holo"),
+    ]),
+  ],
+  rules: [
+    On(Gauche.tap, effect: place.sub(10)),
+    On(Droite.tap, effect: place.add(10)),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+Board { background: #1a1a2e; border: 1px solid #E9B44C; border-radius: 16px; }
