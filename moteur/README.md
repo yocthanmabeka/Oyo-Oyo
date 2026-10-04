@@ -106,6 +106,8 @@ Ce téléphone ne fait pas moins bien que le Flip 5. Ce n'est toujours pas un t�
 
 Ce que ces mesures ne disent pas : la consommation de batterie, l'échauffement dans la durée, le comportement sans WebGPU (WebGL 2), et celui d'un téléphone plus modeste. Une seule série a été faite.
 
+Pour mesurer le mode de secours (WebGL 2) sur un appareil qui a WebGPU, ajouter `?webgl` à l'adresse.
+
 Pour refaire les mesures : `adb reverse tcp:8080 tcp:8080`, `adb forward tcp:9222 localabstract:chrome_devtools_remote`, ouvrir la page dans Chrome sur le téléphone (écran allumé et déverrouillé), puis `node outils/mesurer-telephone.mjs big-bang.holo @outils/mesures/big-bang.js` ou `node outils/mesurer-telephone.mjs boutique.holo @outils/mesures/vue-points.js`.
 
 ## Captures (Chrome sans fenêtre, rendu WebGL 2 logiciel)

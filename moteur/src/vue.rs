@@ -42,6 +42,10 @@ pub struct Reglages {
     pub portails_taille: f64,
     /// `Portals(brightness:)` : la lumière du fond du carrefour, de 0 (aucune) à 1.
     pub portails_lumiere: f64,
+    /// Les pixels de la page deviennent-ils des points quand on zoome ? Seulement si l'auteur
+    /// l'a demandé, en écrivant `points:` ou en plantant un site dans un pixel (`pixels:`).
+    /// Sinon la page reste un site ordinaire, quel que soit le zoom.
+    pub points_actifs: bool,
     /// `Zoom(speed:)` : la vitesse du zoom à la molette. 1 : la vitesse ordinaire.
     pub zoom_vitesse: f64,
     /// `Portals(duration:)` : la durée, en millisecondes, de l'ouverture d'un portail.
@@ -82,6 +86,7 @@ impl Default for Reglages {
             portails_nombre: 12,
             portails_taille: 170.0,
             portails_lumiere: 0.15,
+            points_actifs: false,
             zoom_vitesse: 1.0,
             portails_duree: 450.0,
             zoom_max: 1e12, reduire: false, niveaux_de_sites: 8, apres: 4.0, taille_point: 6.0, taille_morceler: 40.0, cote: 4, niveaux: 20, densite: 2.0, relief: 10.0, angle_max: 0.0 }
@@ -162,7 +167,9 @@ pub fn reglages(programme: &Programme) -> Result<Reglages, Erreur> {
     }
     if let Some(points) = bloc_de(page, "points", "Points")? {
         seulement(points, &["after", "size", "fragment", "grid", "depth", "density"])?;
-        r.apres = nombre(points, "after", None, 1.0, 16.0, r.apres)?;
+        // Jamais moins de 2 : tout visiteur peut au moins doubler la taille du texte avant que
+        // la page ne change de nature (accessibilité, WCAG 1.4.4).
+        r.apres = nombre(points, "after", None, 2.0, 16.0, r.apres)?;
         r.taille_point = nombre(points, "size", Some("px"), 2.0, 32.0, r.taille_point)?;
         r.cote = entier(points, "grid", 2, 8, r.cote)?;
         r.niveaux = entier(points, "depth", 0, 20, u64::from(r.niveaux))? as u32;
@@ -193,6 +200,25 @@ pub fn reglages(programme: &Programme) -> Result<Reglages, Erreur> {
         r.portails_nombre = entier(portails, "count", 1, 64, u64::from(r.portails_nombre))? as u32;
         r.portails_taille = nombre(portails, "size", Some("px"), 80.0, 400.0, r.portails_taille)?;
         r.portails_lumiere = nombre(portails, "brightness", None, 0.0, 1.0, r.portails_lumiere)?;
+    }
+    // Les points s'activent : en écrivant `points:`, ou en plantant un site dans un pixel, qu'on
+    // ne trouve qu'en vue points. Sans cela, la page reste un site ordinaire.
+    let mut pixels_plantes = false;
+    let _ = crate::regles::pour_chaque_bloc(page, &mut |bloc| {
+        pixels_plantes |= bloc.argument("pixels").is_some();
+        Ok(())
+    });
+    r.points_actifs = page.argument("points").is_some() || pixels_plantes;
+    // Le relief est celui des points : sans eux, il n'a rien à soulever ni à faire tourner.
+    if let (false, Some(relief)) = (r.points_actifs, page.argument("relief")) {
+        return Err(Erreur {
+            message: "« relief » demande les points : ajoute « points: Points() » à la page (le relief est celui des points, et c'est en points que la page tourne)".into(),
+            pos: relief.pos,
+        });
+    }
+    // Sans les points, le zoom ordinaire s'arrête de lui-même à ce que `Zoom(max:)` permet.
+    if !r.points_actifs {
+        r.apres = r.apres.min(r.zoom_max);
     }
     // Garde-fou : le zoom ordinaire fait partie du zoom. On ne peut pas grossir la page vivante
     // au-delà de `Zoom(max:)` (revue Codex du 2026-10-03, B-01).
@@ -267,23 +293,26 @@ mod tests {
             ("zoom: 4", "un bloc « Zoom(...) »"),
             ("zoom: Points(size: 6px)", "un bloc « Zoom(...) »"),
             ("zoom: Zoom(levels: 0)", "entier entre 1 et 16"),
-            ("zoom: Zoom(max: 2)", "dépasse « Zoom(max: 2) »"),
+            ("zoom: Zoom(max: 2), points: Points()", "dépasse « Zoom(max: 2) »"),
+            ("zoom: Zoom(max: 2), pixels: []", "dépasse « Zoom(max: 2) »"),
+            ("relief: Relief(tilt: 360deg)", "« relief » demande les points"),
+            ("points: Points(after: 1)", "entre 2 et 16"),
             ("zoom: Zoom(max: 1), points: Points(after: 16)", "dépasse « Zoom(max: 1) »"),
             ("zoom: Zoom(active: yes)", "true ou false"),
             ("portals: Portals(layout: circle)", "grid, row, column, diagonal"),
             ("portals: Portals(count: 0)", "entier entre 1 et 64"),
             ("portals: Portals(size: 20px)", "entre 80px et 400px"),
             ("portals: Portals(brightness: 3)", "entre 0 et 1"),
-            ("points: Points(after: 40)", "entre 1 et 16"),
+            ("points: Points(after: 40)", "entre 2 et 16"),
             ("points: Points(size: 6)", "entre 2px et 32px"),
             ("points: Points(size: 1px)", "entre 2px et 32px"),
             ("points: Points(grid: 20)", "entier entre 2 et 8"),
             ("points: Points(depth: 99)", "entier entre 0 et 20"),
             ("points: Points(fragment: 12px)", "au moins 24px"),
             ("points: Points(density: 9)", "entre 1 et 3"),
-            ("relief: Relief(height: 500px)", "entre 0px et 40px"),
-            ("relief: Relief(tilt: 400deg)", "entre 0deg et 360deg"),
-            ("relief: Relief(tilt: 30px)", "entre 0deg et 360deg"),
+            ("points: Points(), relief: Relief(height: 500px)", "entre 0px et 40px"),
+            ("points: Points(), relief: Relief(tilt: 400deg)", "entre 0deg et 360deg"),
+            ("points: Points(), relief: Relief(tilt: 30px)", "entre 0deg et 360deg"),
             ("zoom: Zoom(speed: 10)", "entre 0.25 et 4"),
             ("portals: Portals(duration: 5s)", "entre 0ms et 2000ms"),
             ("portals: Portals(duration: 450)", "entre 0ms et 2000ms"),
@@ -292,6 +321,15 @@ mod tests {
             assert!(erreur.message.contains(message), "{reglage} → {erreur}");
         }
         assert!(lus(&page("zoom: Zoom(max: 2), points: Points(after: 2)")).is_ok());
+        // Sans rien écrire, une page ne devient pas des points : c'est un site ordinaire, et son
+        // zoom s'arrête à ce que « Zoom(max:) » permet.
+        let simple = lus(&page("zoom: Zoom(max: 2)")).unwrap();
+        assert_eq!((simple.points_actifs, simple.apres), (false, 2.0));
+        assert!(!lus(&page("title: \"x\"")).unwrap().points_actifs);
+        // Les points s'activent en les écrivant, ou en plantant un site dans un pixel.
+        assert!(lus(&page("points: Points()")).unwrap().points_actifs);
+        assert!(lus(&page("children: [ Button(name: B, text: \"x\") ], pixels: [ Point(name: S, above: B, seed: 1) ]")).unwrap().points_actifs);
+        assert!(lus(&page("children: [ Point(name: A, seed: 1, inside: World(children: [ Button(name: B, text: \"x\") ], pixels: [ Point(name: S, above: B, seed: 2) ])) ]")).unwrap().points_actifs);
         let r = lus(&page("zoom: Zoom(max: 50, shrink: true), points: Points(size: 8px, fragment: 64px, grid: 2, depth: 3), relief: Relief(height: 0px, tilt: 0deg)")).unwrap();
         assert_eq!((r.zoom_max, r.reduire, r.taille_point, r.taille_morceler, r.cote, r.niveaux, r.relief, r.angle_max), (50.0, true, 8.0, 64.0, 2, 3, 0.0, 0.0));
     }

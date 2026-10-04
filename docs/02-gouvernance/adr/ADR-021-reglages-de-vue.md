@@ -53,7 +53,7 @@ Page(
 | `Zoom(shrink:)` | `true` ou `false` | `false` |
 | `Zoom(levels:)` | 1 à 16 | 8 |
 | `Zoom(speed:)` | 0.25 à 4 | 1 |
-| `Points(after:)` | 1 à 16 | 4 |
+| `Points(after:)` | 2 à 16 | 4 |
 | `Zoom(active:)` | `true` ou `false` | `true` |
 | `Portals(layout:)` | `grid`, `row`, `column`, `diagonal` | `grid` |
 | `Portals(count:)` | 1 à 64 | 12 |
@@ -79,6 +79,8 @@ La borne « `fragment` au moins égal à `size` × `grid` » garantit qu'il n'y 
 **La rotation s'active (2026-10-04, plus tard le même jour).** Yocthan : « Il y a certaines propriétés ou fonctions qui doivent être activées, pour qu'il y ait de la cohérence entre les sites et le métavers. Si d'autres peuvent donner tout le temps en 3D, ça va déranger la lisibilité du site. » Sans `tilt`, une page ne tourne donc plus (avant : 360deg d'office). Écrire `Relief(tilt: 360deg)` active la rotation ; le bouton « Tourner » apparaît alors dès la page de face, sans passer d'abord par la vue points. Option écartée : un interrupteur à part (`Relief(active: true)`), qui aurait fait deux façons de dire « ne tourne pas » (`active: false` et `tilt: 0deg`). Question laissée à Yocthan : le passage en points au zoom (`Points(after:)`) reste offert d'office ; doit-il lui aussi s'activer ?
 
 **Le carrefour et l'interrupteur du zoom.** `Zoom(active:)` permet ou interdit le zoom. Un quatrième bloc, `Portals(layout:, count:, size:, brightness:)`, règle le carrefour : la disposition des portails (`grid`, `row`, `column`, `diagonal`, donc aussi le sens où on les fait défiler), leur nombre, leur taille, la lumière du fond. La page gagne une capacité, `portals`, pour ouvrir le carrefour par une règle. Demandé par Yocthan le 2026-10-03 : « chaque action doit être dans le code ».
+
+**Les points s'activent eux aussi (2026-10-04, le soir).** Claude avait laissé la question à Yocthan ; Gemini a répondu que le passage en points doit être demandé par l'auteur, comme la rotation, et Yocthan a suivi cette recommandation. Sans `points:`, une page ne devient plus jamais des points : le zoom reste un zoom de lecture. Planter un site dans un pixel (`pixels:`) active aussi les points, puisqu'on ne le trouve qu'ainsi. `relief:` sans points est refusé. Et `Points(after:)` ne descend plus sous 2 : une règle d'accessibilité (WCAG 1.4.4) demande que le texte puisse doubler de taille en restant du texte.
 
 **Corrections après la revue de Codex (2026-10-04).** `Zoom(max:)` ne bornait que la vue points : le zoom ordinaire passait outre. Il borne maintenant le zoom entier, et un fichier où `Points(after:)` dépasse `Zoom(max:)` est refusé. `Portals(count:)` ne bornait que les mondes calculés : il borne tout le carrefour. `density` est plafonnée par un nombre total de points (huit millions). Codex propose aussi de renommer la plupart des mots de cette fiche (`maxScale`, `threshold`, `subdivideAt`, `divisions`, `PointView`, `Depth`…) : c'est à Yocthan de trancher, rien n'est renommé.
 

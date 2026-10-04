@@ -9,6 +9,7 @@
   import init, { demarrer, pause } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
   const params = new URLSearchParams(location.search);
+  window.__holoSansWebGPU = params.has("webgl"); // ?webgl : mesurer le mode de secours, WebGL 2
   // L'adresse est celle du fichier .holo lui-même ; sinon ?monde=… ou le Big Bang.
   const fichier = location.pathname.endsWith(".holo") ? location.pathname : `/mondes/${params.get("monde") ?? "big-bang"}.holo`;
   try {

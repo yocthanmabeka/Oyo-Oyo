@@ -43,7 +43,15 @@ impl Rendu {
     pub async fn nouveau(canvas: HtmlCanvasElement) -> Result<(Rendu, HtmlCanvasElement), JsValue> {
         let mut canvas = canvas;
         let mut derniere_erreur = String::from("aucune carte graphique accessible");
+        // Pour mesurer le mode de secours sur un appareil qui a WebGPU : la page pose
+        // `window.__holoSansWebGPU` (adresse en « ?webgl »), et l'on passe directement à WebGL 2.
+        let sans_webgpu = web_sys::window()
+            .and_then(|fenetre| js_sys::Reflect::get(&fenetre, &JsValue::from_str("__holoSansWebGPU")).ok())
+            .is_some_and(|valeur| valeur.is_truthy());
         for (backends, nom) in [(wgpu::Backends::BROWSER_WEBGPU, "WebGPU"), (wgpu::Backends::GL, "WebGL 2")] {
+            if sans_webgpu && nom == "WebGPU" {
+                continue;
+            }
             match Rendu::avec(backends, canvas.clone()).await {
                 Ok(rendu) => return Ok((rendu, canvas)),
                 Err(e) => {

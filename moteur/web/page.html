@@ -111,6 +111,7 @@
   window.__holoPause = pause;
   window.__holoImages = images_dessinees; // combien d'images le moteur a dessinées : pour vérifier la sobriété
   const params = new URLSearchParams(location.search);
+  window.__holoSansWebGPU = params.has("webgl"); // ?webgl : mesurer le mode de secours, WebGL 2
   // L'adresse est celle du fichier .holo lui-même ; sinon ?monde=… ou la boutique d'exemple.
   // Ce fichier peut changer en cours de route : on passe d'un fichier à l'autre par un point,
   // sans recharger la page.
@@ -134,6 +135,7 @@
   let vitesseDuZoom = 1;     // Zoom(speed:)
   let dureeDuPortail = 450;  // Portals(duration:), en millisecondes
   let angleDeRotation = 0;   // Relief(tilt:), en degrés ; 0 : la page ne tourne pas
+  let pointsActifs = false;  // l'auteur a-t-il demandé les points (points: ou pixels:) ? Sinon, un site ordinaire
   // Les valeurs de chaque fichier ouvert (State) : « cart=2 ». Elles suivent le visiteur tant
   // qu'il ne recharge pas la page : il peut entrer dans un monde, passer ailleurs, revenir.
   const etats = new Map();
@@ -244,7 +246,8 @@
   // Ce que le fichier affiché dit de sa vue (Zoom, Points, Portals).
   function lireLesReglages() {
     let actif, rangement;
-    [densiteDemandee, reduire, zoomAvantPoints, actif, rangement, nombreDePortails, tailleDePortail, lumiereDuFond, vitesseDuZoom, dureeDuPortail, angleDeRotation] = reglages_de_vue(source);
+    [densiteDemandee, reduire, zoomAvantPoints, actif, rangement, nombreDePortails, tailleDePortail, lumiereDuFond, vitesseDuZoom, dureeDuPortail, angleDeRotation, pointsActifs] = reglages_de_vue(source);
+    pointsActifs = pointsActifs === 1;
     document.body.classList.toggle("tourne", angleDeRotation > 0 && actif === 1);
     if (!etats.has(chemin)) etats.set(chemin, etat_initial(source));
     document.documentElement.style.setProperty("--duree", `${dureeDuPortail}ms`);
@@ -252,7 +255,7 @@
     reduire = reduire === 1;
     zoomActif = actif === 1;
     disposition = ["grille", "ligne", "colonne", "diagonale"][rangement];
-    boutonPoints.style.display = zoomActif ? "" : "none";
+    boutonPoints.style.display = zoomActif && pointsActifs ? "" : "none";
   }
 
   // Passe à un autre fichier sans recharger la page : son adresse devient celle de la barre
@@ -518,7 +521,7 @@
   // La page devient un ensemble de points, un par pixel. Au départ rien ne change à l'écran :
   // un point fait exactement un pixel.
   function entrerEnPoints() {
-    if (enPoints || !carrefour.hidden) return Promise.resolve();
+    if (enPoints || !carrefour.hidden || !pointsActifs) return Promise.resolve();
     entreeEnCours ??= (async () => {
       densite = Math.min(densiteDemandee, Math.sqrt(POINTS_MAX / (innerWidth * innerHeight)));
       const pixels = await imageDeLaPage();
@@ -588,7 +591,9 @@
       return;
     }
     if (voulu > zoomAvantPoints && zoomVif < zoomAvantPoints) grossir(zoomAvantPoints, clientX, clientY);
-    if (calme.matches) return; // animations réduites : la page reste une page, on a grossi autant que permis
+    // Sans points demandés par l'auteur, ou avec les animations réduites par le visiteur : la
+    // page reste une page, on a grossi autant que permis.
+    if (!pointsActifs || calme.matches) return;
     await entrerEnPoints();
     zone().dispatchEvent(new WheelEvent("wheel", { deltaY, clientX, clientY, cancelable: true }));
   }
