@@ -619,7 +619,7 @@ Un plateau garde ses proportions : 640 de large, `height` de haut. Sur un télé
 **Une règle qui guette : `When`.** Elle se déclenche au moment où ce qu'elle guette **devient** vrai, pas tant qu'il le reste. Elle guette :
 
 - une valeur : `When(apple_y, over: 99, effect: …)`, avec les comparaisons de `If` (`is`, `not`, `over`, `under`) ;
-- une rencontre : `When(Basket, meets: Apple, effect: …)`. Les deux blocs ont un nom, et un `x` et un `y` dans un `Board`. Ils se rencontrent au moment où le bord de l'un touche le bord de l'autre : un rond et un carré se touchent comme à l'œil. Avec `within: 20`, on juge autrement : sur l'écart entre leurs places, de 1 à 100, sans regarder leur taille.
+- une rencontre : `When(Basket, meets: Apple, effect: …)`. Les deux blocs ont un nom, et un `x` et un `y` dans un `Board`. Ils se rencontrent au moment où le bord de l'un touche le bord de l'autre : un rond et un carré se touchent comme à l'œil. Avec `within: 20`, on juge autrement : sur l'écart entre leurs places, de 1 à 100, sans regarder leur taille. L'écart est mesuré sur chaque axe : `x` à 20 près **et** `y` à 20 près (un carré autour de l'objet, pas un cercle).
 
 **Des règles sous condition.** Une règle de temps tourne tant que la page est ouverte. Pour qu'elle ne vaille que pendant la partie, on la range sous une condition, avec le même `If` que pour montrer des blocs, et `rules` à la place de `children` :
 

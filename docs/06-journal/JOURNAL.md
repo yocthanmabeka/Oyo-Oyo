@@ -6,6 +6,19 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Un plateau aux proportions fixes
+
+- Yocthan, après la réponse de Gemini : le serveur et le jeu en ligne attendront ; d'abord que le métavers lui plaise, en local. Claude n'ajoute donc aucune bibliothèque réseau : elles ne serviraient qu'au serveur.
+- Fait, à l'essai : un plateau garde ses proportions (640 de large, `height` de haut). Il rétrécit sur un téléphone, ses formes et ses points avec lui. Les rencontres se calculent dans les unités du plateau : la même partie partout. La page ne mesure plus la largeur de l'écran.
+- Vérifié dans Chrome : sur un écran d'ordinateur (1280 de large), juste avant la prise, le bas de la pomme est 6,4 pixels au-dessus du panier ; sur un écran de téléphone simulé (360 de large), 2,9 pixels. C'est le même écart, à l'échelle du plateau : la partie est la même. Avant « Play », rien ne bouge.
+- Ce que cela coûte : sur un téléphone en hauteur, un plateau large laisse du vide en dessous. L'auteur peut choisir un plateau plus haut.
+- Codex a rendu sa revue pendant ce temps (PR 74). Quatre défauts qu'il a trouvés sont corrigés ici, sans décision à prendre : le test du guide échouait sur un dépôt aux fins de ligne Windows ; un son demandé lors d'un appel pouvait ressortir avec la réponse d'un glissement, d'une saisie ou de données ; un compte de tirages falsifié au maximum faisait planter le moteur en mode test ; `within` mesure l'écart sur chaque axe, et le guide le dit maintenant.
+- Erreur de Claude : la branche était partie d'une copie de `main` pas à jour ; la pull request était en conflit, et les tests en ligne ne démarraient pas. Le script de fusion a attendu dix minutes avant que Claude regarde pourquoi.
+
+![Le jeu de la pomme sur un écran de téléphone : le plateau a rétréci avec ses formes](images/2026-10-04-plateau-telephone.png)
+
+---
+
 ## 2026-10-04 — La réponse de Gemini sur les objets en volume et le jeu à plusieurs
 
 - Gardée dans `docs/05-discussions/reponses/2026-10-04-gemini-3d-et-plusieurs.md`, avec la lecture critique de Claude.
@@ -662,17 +675,6 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 - Le test du vocabulaire a échoué dès l'ajout de `Row` : la boutique ne l'employait pas encore. C'est son rôle.
 - Le serveur tenait une variable `HOLO_DEPOT` vide pour un dossier : corrigé.
-
----
-
-## 2026-10-04 — Un plateau aux proportions fixes
-
-- Yocthan, après la réponse de Gemini : le serveur et le jeu en ligne attendront ; d'abord que le métavers lui plaise, en local. Claude n'ajoute donc aucune bibliothèque réseau : elles ne serviraient qu'au serveur.
-- Fait, à l'essai : un plateau garde ses proportions (640 de large, `height` de haut). Il rétrécit sur un téléphone, ses formes et ses points avec lui. Les rencontres se calculent dans les unités du plateau : la même partie partout. La page ne mesure plus la largeur de l'écran.
-- Vérifié dans Chrome : sur un écran d'ordinateur (1280 de large), juste avant la prise, le bas de la pomme est 6,4 pixels au-dessus du panier ; sur un écran de téléphone simulé (360 de large), 2,9 pixels. C'est le même écart, à l'échelle du plateau : la partie est la même. Avant « Play », rien ne bouge.
-- Ce que cela coûte : sur un téléphone en hauteur, un plateau large laisse du vide en dessous. L'auteur peut choisir un plateau plus haut.
-
-![Le jeu de la pomme sur un écran de téléphone : le plateau a rétréci avec ses formes](images/2026-10-04-plateau-telephone.png)
 
 ---
 

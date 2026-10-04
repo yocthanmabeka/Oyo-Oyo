@@ -1073,7 +1073,7 @@ fn appliquer(programme: &Programme, etat: &mut Etat, effet: &Bloc, graine: u64, 
             // Le hasard n'en est pas un : c'est le énième tirage d'une suite fixée par la graine
             // du fichier. Rejouer les mêmes gestes redonne les mêmes nombres.
             "random" => {
-                *tirages += 1;
+                *tirages = tirages.wrapping_add(1);
                 crate::graine::melanger(graine ^ crate::graine::melanger(*tirages)) % (quantite + 1)
             }
             _ => quantite,

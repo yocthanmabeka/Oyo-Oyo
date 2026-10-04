@@ -127,6 +127,7 @@ pub fn touchees(source: &str, signal: &str) -> String {
 /// Le visiteur a écrit dans un champ ou coché une case : l'arbitre rend le nouvel état.
 pub fn saisir(source: &str, etat: &str, nom: &str, ecrit: &str) -> String {
     let Ok(programme) = verifier_page(source) else { return String::new() };
+    etat::capacites_demandees();
     let (nombres, textes) = (etat::relire(&programme, etat), etat::relire_textes(&programme, etat));
     if textes.iter().any(|(connu, _)| connu == nom) {
         ecrire_tout(&programme, &nombres, &etat::saisir_texte(&programme, &textes, nom, ecrit))
@@ -144,6 +145,7 @@ pub fn donnees(source: &str) -> String {
 /// Les données viennent d'arriver du serveur : l'arbitre les range et rend le nouvel état.
 pub fn recevoir(source: &str, etat: &str, json: &str) -> String {
     let Ok(programme) = verifier_page(source) else { return String::new() };
+    etat::capacites_demandees();
     let (nombres, textes) = etat::recevoir(&programme, &etat::relire(&programme, etat), &etat::relire_textes(&programme, etat), json);
     ecrire_tout(&programme, &nombres, &textes)
 }
@@ -151,6 +153,7 @@ pub fn recevoir(source: &str, etat: &str, json: &str) -> String {
 /// Le visiteur fait glisser un bloc d'un plateau : l'arbitre rend le nouvel état.
 pub fn glisser(source: &str, etat: &str, nom: &str, x: u32, y: u32) -> String {
     let Ok(programme) = verifier_page(source) else { return String::new() };
+    etat::capacites_demandees();
     ecrire_tout(&programme, &etat::glisser(&programme, &etat::relire(&programme, etat), nom, u64::from(x), u64::from(y)), &etat::relire_textes(&programme, etat))
 }
 
@@ -273,7 +276,8 @@ mod tests {
 
     #[test]
     fn les_exemples_du_guide_sont_acceptes_par_le_moteur() {
-        let guide = include_str!("../../docs/01-holocode/GUIDE.md");
+        // Un dépôt extrait sous Windows peut avoir des fins de ligne « \r\n » (relevé par Codex).
+        let guide = include_str!("../../docs/01-holocode/GUIDE.md").replace("\r\n", "\n");
         let exemples: Vec<&str> = guide.split("```holo
 ").skip(1).map(|suite| suite.split("```").next().unwrap()).collect();
         assert!(exemples.len() >= 11, "le guide a perdu ses exemples : {}", exemples.len());
