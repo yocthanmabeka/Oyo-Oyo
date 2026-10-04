@@ -17,7 +17,9 @@
 <html lang="fr"><head><meta charset="utf-8"><title>HoloCode</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  html,body{margin:0}
+  /* Le pincement appartient à la page : sans cela, Chrome grossit tout l'écran à sa façon et
+     les pixels ne deviennent jamais des points. On défile toujours avec un doigt. */
+  html,body{margin:0;touch-action:pan-x pan-y}
   /* La zone de dessin du moteur ne sert qu'en vue points. */
   canvas{position:fixed;inset:0;width:100vw;height:100vh;display:none;touch-action:none;z-index:1}
   .en-points canvas{display:block}
@@ -528,13 +530,17 @@
 
   // Zoomer sur la page (Ctrl + molette, ou pincer). D'abord un zoom ordinaire, où la page reste
   // un site qu'on lit et qu'on copie ; au-delà de Points(after:), ses pixels deviennent des points.
-  addEventListener("wheel", async (evenement) => {
-    // Sinon Chrome grossit ou réduit toute la fenêtre, et le site sort de son cadre.
-    if (evenement.ctrlKey) evenement.preventDefault();
-    if (enPoints || !evenement.ctrlKey || !carrefour.hidden || !cadre || entreeEnCours || enMonde || !zoomActif) return;
-    const { clientX, clientY } = evenement;
-    const deltaY = pasDeZoom(evenement);
-    const voulu = zoomVif * 2 ** (-deltaY * 0.003);
+  // Un seul chemin pour tout zoom, qu'il vienne de la molette ou de deux doigts : la page
+  // vivante d'abord, les points ensuite.
+  async function zoomer(facteur, clientX, clientY) {
+    const deltaY = -Math.log2(facteur) / 0.003;
+    if (enPoints) {
+      zone().dispatchEvent(new WheelEvent("wheel", { deltaY, clientX, clientY, cancelable: true }));
+      reveillerLeSuivi();
+      return;
+    }
+    if (!carrefour.hidden || !cadre || entreeEnCours || enMonde || !zoomActif) return;
+    const voulu = zoomVif * facteur;
     if (voulu <= zoomAvantPoints && (voulu >= 1 || zoomVif > 1)) {
       grossir(Math.max(1, voulu), clientX, clientY);
       return;
@@ -549,7 +555,40 @@
     if (voulu > zoomAvantPoints && zoomVif < zoomAvantPoints) grossir(zoomAvantPoints, clientX, clientY);
     await entrerEnPoints();
     zone().dispatchEvent(new WheelEvent("wheel", { deltaY, clientX, clientY, cancelable: true }));
+  }
+
+  // À la souris : Ctrl + molette (un pavé tactile envoie la même chose quand on pince).
+  addEventListener("wheel", (evenement) => {
+    // Sinon Chrome grossit ou réduit toute la fenêtre, et le site sort de son cadre.
+    if (evenement.ctrlKey) evenement.preventDefault();
+    if (enPoints || !evenement.ctrlKey) return; // en vue points, la zone de dessin reçoit la molette elle-même
+    zoomer(2 ** (-pasDeZoom(evenement) * 0.003), evenement.clientX, evenement.clientY);
   }, { passive: false });
+
+  // Au doigt : pincer la page. Le geste commencé sur la page continue sans lever les doigts
+  // quand ses pixels deviennent des points, et dans l'autre sens quand on revient.
+  let pincement = null; // l'écartement des deux doigts au dernier mouvement
+  const deuxDoigts = (touches) => ({
+    ecart: Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY),
+    x: (touches[0].clientX + touches[1].clientX) / 2,
+    y: (touches[0].clientY + touches[1].clientY) / 2,
+  });
+  addEventListener("touchstart", (evenement) => {
+    // Un pincement commencé sur la zone de dessin est suivi par le moteur lui-même.
+    const surLaPage = evenement.touches.length === 2 && !enPoints && !enMonde && carrefour.hidden;
+    pincement = surLaPage ? deuxDoigts(evenement.touches).ecart : null;
+  }, { capture: true, passive: true });
+  addEventListener("touchmove", (evenement) => {
+    if (pincement === null || evenement.touches.length !== 2) return;
+    evenement.preventDefault(); // ni le zoom ni le défilement du navigateur pendant qu'on pince
+    const { ecart, x, y } = deuxDoigts(evenement.touches);
+    if (Math.abs(ecart / pincement - 1) < 0.015) return; // un tremblement n'est pas un pincement
+    zoomer(ecart / pincement, x, y);
+    pincement = ecart;
+  }, { capture: true, passive: false });
+  for (const fin of ["touchend", "touchcancel"]) {
+    addEventListener(fin, (evenement) => { if (evenement.touches.length < 2) pincement = null; }, { capture: true, passive: true });
+  }
 
   // ---------------------------------------------------------------- le carrefour
 
