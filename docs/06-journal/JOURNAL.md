@@ -6,6 +6,32 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Étape 4 : le clavier, les règles qui guettent, les rencontres, et un deuxième jeu
+
+**Fait** (`ADR-028`, à l'essai)
+
+- **Un deuxième jeu sans code** : `exemples/jeu/panier.holo`. Une pomme tombe ; on la rattrape avec un panier, au clavier ou par deux boutons ; trois pommes perdues, la partie est finie.
+
+![Le deuxième jeu : la pomme et le panier](images/2026-10-04-deuxieme-jeu.png)
+
+- Ce que ce jeu a demandé au langage :
+  - **`Key`** : le clavier, dans une règle `On`. Les flèches et l'espace.
+  - **`When(apple_y, over: 99, effect: …)`** : une règle qui guette. Elle se déclenche au moment où la condition devient vraie.
+  - **`Meet(Basket, Apple, within: 9, effect: …)`** : la rencontre de deux blocs posés sur un plateau.
+  - Une valeur qui sert de place reste entre 0 et 100 : le panier ne sort pas.
+- Faire tomber la pomme n'a demandé aucun mot : `Every(100ms, effect: apple_y.add(3))`.
+- 84 tests du moteur ; la partie y est rejouée battement par battement. Joué dans Chrome avec de vraies touches : le panier va à droite et revient, la pomme rattrapée donne un point, la suivante, manquée, coûte une vie.
+
+**Ce qui n'est pas fait dans l'étape 4**
+
+- Le glissement du doigt.
+
+**Ce qui inquiète**
+
+- Le langage a maintenant quatre sortes de règles : `On`, `Every`, `When`, `Meet`. Et une règle ne fait qu'une demande, donc rattraper la pomme prend trois lignes. Si un troisième jeu demande encore une nouvelle sorte de règle, il faudra chercher une forme plus générale plutôt que d'ajouter un mot.
+
+---
+
 ## 2026-10-04 — Étape 3, fin : les valeurs de texte et le champ de texte
 
 **Ce que Yocthan a dit**

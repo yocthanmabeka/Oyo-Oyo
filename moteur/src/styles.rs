@@ -203,14 +203,16 @@ mod tests {
         // Le jeu complète la boutique : à eux deux, ils emploient tous les mots du langage.
         let jeu = include_str!("../../exemples/jeu/attraper.holo");
         crate::verifier_page(jeu).unwrap();
-        let source = &format!("{source}\n{jeu}");
+        let second = include_str!("../../exemples/jeu/panier.holo");
+        crate::verifier_page(second).unwrap();
+        let source = &format!("{source}\n{jeu}\n{second}");
         for bloc in crate::blocs::BLOCS {
             assert!(source.contains(&format!("{bloc}(")) || source.contains(&format!("{bloc}.")), "le bloc « {bloc} » manque dans l'exemple");
         }
         for (reglage, _) in REGLAGES {
             assert!(source.contains(&format!("{reglage}:")), "le réglage « {reglage} » manque dans l'exemple");
         }
-        for mot in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave", "state:", "prices:", "{count}", "{total}", ".add(", ".sub(", ".set(", "gap:", "align:", "columns:", "alt:", "is:", "over:", "by:", ".random(", "x:", "y:", "keep:", "value:", "label:", "max:"] {
+        for mot in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave", "state:", "prices:", "{count}", "{total}", ".add(", ".sub(", ".set(", "gap:", "align:", "columns:", "alt:", "is:", "over:", "by:", ".random(", "x:", "y:", "keep:", "value:", "label:", "max:", "within:", "Key.left"] {
             assert!(source.contains(mot), "« {mot} » manque dans l'exemple");
         }
     }

@@ -121,7 +121,7 @@
 </div>
 <script type="module">
   import init, {
-    pause, vue_a_plat, effets, etat_initial, arbitrer, conditions, horloges, touchees, saisir, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
+    pause, vue_a_plat, effets, etat_initial, arbitrer, conditions, horloges, touchees, touches, saisir, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
     mosaique_pivoter, mosaique_de_face, mosaique_sous, reglages_de_vue, reveiller, images_dessinees,
   } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
@@ -321,6 +321,7 @@
   // Le temps : une horloge par rythme écrit dans le fichier (Every(1s, …)). À chaque battement,
   // le signal est donné à l'arbitre, comme un toucher. L'horloge se tait quand la fenêtre est
   // cachée, en vue points et devant le carrefour : rien ne tourne pour rien.
+  let touchesEcoutees = []; // les touches que les règles du fichier écoutent : On(Key.left, …)
   let battements = []; // une horloge par règle Every : { ms, valeur, minuterie }
   function lancer(horloge, rang) {
     clearInterval(horloge.minuterie);
@@ -330,6 +331,7 @@
     }, horloge.ms);
   }
   function reglerLesHorloges() {
+    touchesEcoutees = touches(source).split(";").filter(Boolean);
     battements.forEach((horloge) => clearInterval(horloge.minuterie));
     battements = horloges(source).split(";").filter(Boolean).map((morceau) => {
       const [ms, valeur] = morceau.split(":");
@@ -1037,6 +1039,16 @@
       const bloc = evenement.target.closest("[data-name]");
       if (!bloc) return;
       emettre(`${bloc.dataset.name}.tap`);
+    });
+    // Le clavier : une touche que le fichier écoute devient un signal, comme un toucher. Les
+    // autres touches gardent leur rôle (défiler, écrire), et rien n'est pris à un champ où l'on écrit.
+    const nomDeTouche = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down", " ": "space" };
+    addEventListener("keydown", (evenement) => {
+      const touche = nomDeTouche[evenement.key];
+      if (!touche || !touchesEcoutees.includes(touche) || evenement.ctrlKey || evenement.altKey || evenement.metaKey) return;
+      if (evenement.target.closest?.("input, textarea, select, button") || enPoints || enMonde || !carrefour.hidden) return;
+      evenement.preventDefault();
+      emettre(`Key.${touche}`);
     });
     // Écrire dans un champ, cocher une case : c'est l'arbitre du moteur qui change la valeur.
     racine.addEventListener("input", (evenement) => {
