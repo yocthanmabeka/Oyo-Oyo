@@ -17,6 +17,8 @@ fn signaux(bloc: &str) -> &'static [&'static str] {
 fn capacites(bloc: &str) -> &'static [&'static str] {
     match bloc {
         "Point" => &["enter", "leave"],
+        // Jouer un son : On(Star.tap, effect: Ding.play).
+        "Sound" => &["play"],
         // Ouvrir le carrefour : les portails vers les mondes voisins.
         "Page" => &["portals"],
         _ => &[],
@@ -224,6 +226,17 @@ fn verifier_effets(regle: &Bloc, noms: &[(&str, &str)], etat: &crate::etat::Etat
             }
             _ if capacites_permises => {
                 nom_et_mot(regle, Some(effet), "l'effet")?;
+            }
+            // Une règle de temps ou une règle qui guette peut faire entendre un son ; elle ne
+            // peut pas emmener le visiteur ailleurs sans qu'il ait rien touché.
+            Valeur::Nom(_) => {
+                let (cible, capacite) = nom_et_mot(regle, Some(effet), "l'effet")?;
+                if type_de(cible) != Some("Sound") || capacite != "play" {
+                    return Err(Erreur {
+                        message: format!("« {} » : en dehors d'une demande, seule la lecture d'un son est permise ici (Ding.play) ; « {cible}.{capacite} » demande un geste du visiteur, dans une règle « On »", regle.nom),
+                        pos: regle.pos,
+                    });
+                }
             }
             _ => return Err(attend_une_demande()),
         }

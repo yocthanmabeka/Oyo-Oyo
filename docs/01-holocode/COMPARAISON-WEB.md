@@ -59,7 +59,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `picture`, `source`, `srcset` (plusieurs tailles) | | manque |
 | `figure`, `figcaption` (image et légende) | | manque |
 | `video` | | manque |
-| `audio` | | manque |
+| `audio` | `Sound(name:, source:)` et `Ding.play` : un bruit déclenché par une règle ; pas un lecteur | fait, à l'essai |
 | `canvas`, WebGL | `Point`, `World` | fait |
 | `svg` | comme fichier d'image seulement | en partie |
 | `iframe`, `embed`, `object` | `Point(inside: "fichier.holo")` : on y entre | fait |

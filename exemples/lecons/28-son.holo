@@ -1,0 +1,40 @@
+// Leçon 28 — Un son
+//
+// Ce qu'on apprend :
+//   Sound(name: Ding, source: "28-son.wav") : un son. Il ne se voit pas.
+//   Une règle le fait entendre : On(Jouer.tap, effect: Ding.play).
+//   « play » se met aussi dans une liste, à côté des demandes : [compte.add(1), Ding.play].
+//   Une règle de temps (Every) ou une règle qui guette (When) peut aussi jouer un son.
+//   Un navigateur ne joue un son qu'après un premier geste du visiteur : c'est sa règle, pas la nôtre.
+//
+// À essayer :
+//   Appuie sur le bouton. Au cinquième appui, la règle qui guette joue le son une fois de plus.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 28 : un son",
+
+  state: State(compte: 0),
+
+  children: [
+    H1("Un son"),
+    Sound(name: Ding, source: "28-son.wav"),
+    Text("Tu as appuyé {compte} fois."),
+    Button(name: Jouer, text: "Jouer le son"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 27 : des données venues du serveur", to: "27-donnees.holo"),
+    ]),
+  ],
+
+  rules: [
+    On(Jouer.tap, effect: [compte.add(1), Ding.play]),
+    When(compte, is: 5, effect: Ding.play),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

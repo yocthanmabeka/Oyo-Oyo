@@ -17,6 +17,7 @@ Page(
 
   children: [
     H1("Catch the star"),
+    Sound(name: Pop, source: "pop.wav"),
 
     // Avant la partie, et après.
     If(time, is: 0, children: [
@@ -49,7 +50,7 @@ Page(
 
     // Toucher l'étoile : un point de plus, et elle part ailleurs.
     // random(100) : un nombre au hasard, de 0 à 100.
-    On(Star.tap, effect: [score.add(1), star_x.random(100), star_y.random(100)]),
+    On(Star.tap, effect: [score.add(1), star_x.random(100), star_y.random(100), Pop.play]),
 
     // Le temps : chaque seconde, il en reste une de moins. Arrivé à zéro, il ne descend plus :
     // la partie est finie.

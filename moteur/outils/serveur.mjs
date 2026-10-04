@@ -33,6 +33,9 @@ const types = {
   ".json": "application/json",
   ".css": "text/css; charset=utf-8",
   ".svg": "image/svg+xml",
+  ".wav": "audio/wav",
+  ".mp3": "audio/mpeg",
+  ".ogg": "audio/ogg",
 };
 const cache = new Map();
 

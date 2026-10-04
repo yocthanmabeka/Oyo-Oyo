@@ -25,6 +25,7 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `A` | `a` | repris, avec une majuscule |
 | `Button` | `button` | repris, avec une majuscule |
 | `Image` | `img` | changé : le mot entier |
+| `Sound` | `audio`, `new Audio().play()` | changé : un bruit qu'une règle déclenche, pas un lecteur |
 | `List` | `ul`, `ol`, `li` | changé : un bloc au lieu de trois balises |
 | `Row` | `display: flex` | changé : mot de Flutter |
 | `Column` | `display: flex; flex-direction: column` | changé : mot de Flutter |
@@ -110,6 +111,7 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `tap` | `click`, `touchend` | changé : un mot pour la souris et le doigt |
 | `Key.left`, `Key.right`, `Key.up`, `Key.down`, `Key.space` | `keydown`, `ArrowLeft`… | changés : un signal comme les autres |
 | `enter`, `leave` | un routeur ; `history.pushState` | changés |
+| `play` | `audio.play()` | repris |
 | `portals` | aucun | nouveau |
 | `{cart}` | `${cart}` en JavaScript, `{cart}` en Svelte, `{{ cart }}` en Vue | repris |
 | `add`, `sub`, `set` | `+=`, `-=`, `=` | changés : des mots, pas des signes |

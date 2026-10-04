@@ -33,6 +33,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 26 : un point seul, le Big Bang", to: "26-point-seul.holo"),
+      A("Leçon 28 : un son →", to: "28-son.holo"),
     ]),
   ],
 )
