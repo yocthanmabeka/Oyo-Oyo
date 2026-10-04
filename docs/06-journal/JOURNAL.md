@@ -6,6 +6,28 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Entrer dans un point y mène directement
+
+**Ce que Yocthan a vu**
+
+- En appuyant sur « Enter the workshop », il y a bien une transition, mais il arrive sur le carrefour au lieu d'arriver dans l'atelier. « Le carrefour, c'est utile quand l'utilisateur a choisi de mettre d'autres mondes comme destination. Quelqu'un qui est déjà habitué au web ne va pas trouver ça normal. »
+
+**Corrigé**
+
+- Entrer dans un point mène directement au site : le point s'ouvre là où il est sur la page, grandit jusqu'à remplir la fenêtre, et devient le site. Pareil pour un point touché, un point planté dans un pixel, et un point qui mène à un autre fichier du même serveur.
+- Le carrefour ne s'ouvre plus que sur demande : son bouton, ou une règle `portals`.
+- Exception gardée : vers le fichier d'un autre serveur, on passe encore par le carrefour, qui affiche le nom du serveur et attend un clic. C'est une protection demandée par Codex.
+- Guide et `ADR-022` mis à jour.
+- Vérifié dans Chrome : de la boutique à l'atelier, et du salon au jardin (un autre fichier), sans carrefour. Le panier suit.
+
+![L'atelier, atteint directement, avec le panier](images/2026-10-04-atelier-directement.png)
+
+**Erreur de Claude**
+
+- Ce passage obligé par le carrefour datait du 3 octobre. Il mélangeait deux choses : aller quelque part, et choisir où aller. Claude ne l'avait pas vu comme un défaut.
+
+---
+
 ## 2026-10-04 — Big Bang : le point nous absorbe, au lieu de disparaître
 
 **Ce que Yocthan a vu**

@@ -60,6 +60,14 @@ Codex a montré que plusieurs promesses de cette fiche ne tenaient pas (`proposa
 
 Non corrigé, et dit : le poids déclaré (`weight`) n'est toujours pas comparé au poids réel ; il n'y a pas d'en-tête de sécurité `Content-Security-Policy` sur le serveur de démonstration.
 
+## Correction du 2026-10-04 : on entre directement
+
+Yocthan, en essayant la boutique : en appuyant sur « Enter the workshop », il arrivait sur le carrefour au lieu d'arriver dans l'atelier. « Quelqu'un qui est déjà habitué au web ne va pas trouver ça normal. » Le carrefour sert quand le visiteur veut choisir parmi d'autres mondes ; il ne doit pas s'interposer.
+
+- Entrer dans un point (`enter`, ou toucher le point) mène maintenant directement au site : le point s'ouvre sur place, grandit jusqu'à remplir la fenêtre, et devient le site.
+- Le carrefour ne s'ouvre que sur demande : son bouton, ou la capacité `portals`.
+- Exception gardée : vers le fichier d'un autre serveur, le carrefour reste le passage obligé, parce qu'il affiche le nom du serveur et attend un clic (« aucun contact sans geste », ci-dessus).
+
 ## Critères de validation
 
 - `exemples/maison/` : du salon au jardin par un point, sans rechargement ; retour par un dézoom.
