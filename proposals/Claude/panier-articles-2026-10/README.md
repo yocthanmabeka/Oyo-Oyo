@@ -2,7 +2,7 @@
 
 - Auteur : Claude
 - Date : 2026-10-04
-- Statut : proposition à discuter. Rien n'est construit.
+- Statut : l'option C a été construite à l'essai le 2026-10-04, après que Yocthan a donné le champ libre (« je suis toutes tes recommandations »). Voir `ADR-023`. Les options A et B restent des propositions.
 - Origine : Gemini, le 2026-10-04 : « Dans la vraie vie, un panier n'est pas un nombre : c'est une liste d'articles, avec un nom, un prix et une quantité. » Yocthan a demandé une proposition avant de construire.
 
 ## Le problème

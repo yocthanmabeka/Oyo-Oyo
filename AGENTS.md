@@ -58,7 +58,8 @@ Le canal entre les IA est **GitHub**, décidé par Yocthan le 2026-10-03 : simpl
 - **Tous les noms**, face à ceux de HTML, CSS et JavaScript : `docs/01-holocode/NOMS.md`. Les noms contestés y sont marqués ; ils attendent Codex, puis Yocthan.
 - **Le panier, à l'essai** (`ADR-023`) : `state: State(cart: 0)`, `{cart}` dans un texte, les demandes `cart.add(1)`, `cart.sub(1)`, `cart.set(0)` ; l'arbitre est dans `moteur/src/etat.rs`. Yocthan doit l'essayer et juger. Des nombres entiers seulement.
 - **Cohérence site et métavers** (demande de Yocthan) : ce qui met la page en 3D s'active dans le fichier. Sans `Relief(tilt:)`, une page ne tourne pas ; sans `points:` (ou `pixels:`), elle ne devient pas des points au zoom. `Points(after:)` ne descend pas sous 2.
-- Proposition en attente de Yocthan : un panier avec articles, prix et total (`proposals/Claude/panier-articles-2026-10/`).
+- Le panier a des prix et un total, à l'essai : `prices: Prices(sunrise: 120)`, et le moteur calcule `{count}` et `{total}` (`ADR-023`). Les deux autres écritures comparées sont dans `proposals/Claude/panier-articles-2026-10/`.
+- Reste à mesurer : le mode de secours WebGL 2 sur téléphone (`?webgl` dans l'adresse).
 - Dernier prompt donné à Gemini : `docs/05-discussions/prompts/2026-10-04-gemini.md`.
 - Trois prototypes Python dans `proposals/` (ChatGPT 8 tests, Claude 27, Gemini 8), des brouillons des règles.
 - **Mesuré sur téléphone le 2026-10-04** (Galaxy Z Flip 5, Chrome, WebGPU) : 59,8 images par seconde en zoomant à travers sept mondes, 59,7 en vue points, 88 Mo pour l'onglet. Même jour, Galaxy Z Flip 3 (2021) : 60,3 et 60,2 images par seconde, 99 Mo. Détail dans `moteur/README.md`. Sur cette mesure, Yocthan a accepté `ADR-010` ; reste à vérifier sur un téléphone modeste.

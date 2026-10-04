@@ -6,6 +6,39 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Le panier a des prix et un total
+
+**Ce que Yocthan a dit**
+
+- « Tu as des champs libres. » Dit une seconde fois, après la proposition de panier.
+
+**Fait**
+
+- Claude a construit l'option qu'il recommandait (la plus petite), à l'essai : `prices: Prices(sunrise: 120, blue_door: 90)` donne le prix de chaque article ; le moteur calcule `{count}` (le nombre d'articles) et `{total}` (ce qu'ils coûtent). L'auteur n'écrit aucun calcul. Détail dans `ADR-023`.
+- La boutique : chaque tableau a ses boutons « + » et « - », et le panier affiche le nombre et le total. Sa jumelle en JavaScript fait la même chose, avec une boucle et un affichage remis à jour à la main.
+
+![Le panier : deux tableaux, 270 euros](images/2026-10-04-panier-prix-total.png)
+
+- Vérifié dans Chrome : 120, 240, 390 euros ; retirer un tableau absent ne change rien ; puis 270. 74 tests du moteur.
+
+**Choix faits par Claude, à juger par Yocthan**
+
+- Les mots `Prices`, `{count}`, `{total}`. Avec `prices:`, les noms `count` et `total` sont pris par le moteur ; sans, ils restent libres.
+- Un prix est un nombre entier : pas de centimes.
+
+**Limites**
+
+- Les articles sont écrits d'avance dans le fichier. Le panier est un affichage, pas une commande.
+- Vider le panier demande une règle par article.
+- Trouvé en essayant : depuis que le serveur envoie la page déjà fabriquée, les boutons sont visibles avant que le moteur soit prêt, et un clic fait pendant ce temps est perdu. Sur téléphone, au tout premier chargement, cela peut durer quelques secondes. À corriger.
+- Le mode de secours n'est toujours pas mesuré sur le Flip 3 : téléphone verrouillé.
+
+**Erreur en route**
+
+- Le premier essai du panier affichait « 0 » après chaque clic : c'était le défaut ci-dessus, la capture cliquait avant que le moteur soit prêt.
+
+---
+
 ## 2026-10-04 — Les points s'activent ; un plancher de lisibilité ; proposition pour le panier
 
 **Ce que Yocthan a dit**

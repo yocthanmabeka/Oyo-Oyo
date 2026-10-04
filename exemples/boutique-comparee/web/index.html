@@ -29,9 +29,12 @@
 
     <!-- La grille : des div, et tout le travail est dans la feuille de style. -->
     <div class="grid">
-      <div class="column card"><p>Sunrise over the river</p><span class="note">120 euros</span></div>
-      <div class="column card"><p>The blue door</p><span class="note">90 euros</span></div>
-      <div class="column card"><p>Market day</p><span class="note">150 euros</span></div>
+      <div class="column card"><p>Sunrise over the river</p><span class="note">120 euros · <span data-quantity="sunrise">0</span> in your cart</span>
+        <div class="row"><button type="button" data-less="sunrise">-</button><button type="button" data-add="sunrise">+</button></div></div>
+      <div class="column card"><p>The blue door</p><span class="note">90 euros · <span data-quantity="blue_door">0</span> in your cart</span>
+        <div class="row"><button type="button" data-less="blue_door">-</button><button type="button" data-add="blue_door">+</button></div></div>
+      <div class="column card"><p>Market day</p><span class="note">150 euros · <span data-quantity="market_day">0</span> in your cart</span>
+        <div class="row"><button type="button" data-less="market_day">-</button><button type="button" data-add="market_day">+</button></div></div>
     </div>
 
     <h3>Today</h3>
@@ -39,10 +42,8 @@
 
     <!-- Le panier : HTML n'a pas de valeur qui change. Un span vide, que le script remplira. -->
     <h3>Your cart</h3>
-    <span class="note"><span class="cart-count">0</span> paintings in your cart</span>
-    <div class="row">
-      <button id="add" type="button">Add a painting</button>
-      <button id="remove" type="button">Remove one</button>
+    <div class="row between">
+      <span class="note"><span class="cart-count">0</span> paintings · <span class="cart-total">0</span> euros</span>
       <button id="empty" type="button">Empty the cart</button>
     </div>
 
@@ -56,7 +57,7 @@
   <section id="workshop" class="world" hidden>
     <h1>The workshop</h1>
     <p>Here the paintings are made.</p>
-    <div><span class="cart-count">0</span> paintings in your cart</div>
+    <div><span class="cart-count">0</span> paintings in your cart · <span class="cart-total">0</span> euros</div>
     <img src="../easel.svg" alt="">
     <button id="back" type="button">Back to the shop</button>
 

@@ -380,6 +380,42 @@ Ce que le moteur refuse :
 - une demande sans sa quantité, comme `cart.add` ;
 - une demande écrite ailleurs que dans `effect:`.
 
+**Des prix, un nombre d'articles, un total.** Quand la page donne des prix, le moteur calcule deux valeurs de plus : `{count}`, le nombre d'articles, et `{total}`, ce qu'ils coûtent ensemble. L'auteur n'écrit aucun calcul.
+
+```holo
+Page(
+  title: "My shop",
+
+  state: State(sunrise: 0, blue_door: 0),
+  prices: Prices(sunrise: 120, blue_door: 90),
+
+  children: [
+    Text("Sunrise over the river, 120 euros. {sunrise} in your cart."),
+    Button(name: AddSunrise, text: "Add"),
+    Text("The blue door, 90 euros. {blue_door} in your cart."),
+    Button(name: AddBlueDoor, text: "Add"),
+
+    Text("{count} paintings, {total} euros"),
+    Button(name: Empty, text: "Empty the cart"),
+  ],
+
+  rules: [
+    On(AddSunrise.tap, effect: sunrise.add(1)),
+    On(AddBlueDoor.tap, effect: blue_door.add(1)),
+    On(Empty.tap, effect: sunrise.set(0)),
+    On(Empty.tap, effect: blue_door.set(0)),
+  ],
+)
+```
+
+- Dans `State`, chaque valeur est la quantité d'un article.
+- Dans `Prices`, chaque prix porte le nom d'une valeur : c'est le prix de cet article. Un prix est un nombre entier.
+- Une valeur sans prix (des « j'aime », par exemple) ne compte ni dans `{count}` ni dans `{total}`.
+- Avec `prices:`, les noms `count` et `total` sont pris par le moteur : on ne les déclare pas dans `State`, et on ne peut pas les changer par une demande.
+- Un même signal peut avoir plusieurs règles : `Empty.tap` remet ici deux valeurs à zéro.
+
+Limites : les articles sont écrits d'avance dans le fichier ; pas de centimes ; et ce panier est un affichage, pas une commande : rien n'est envoyé à un serveur.
+
 Cette écriture est à l'essai (`ADR-023`).
 
 ## 7. Comment la page se regarde : `Zoom`, `Points`, `Relief`
@@ -525,7 +561,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 
 | Bloc | Réglages | Où |
 |---|---|---|
-| `Page` | `name`, `title`, `children`, `pixels`, `rules`, `state`, `zoom`, `points`, `relief`, `portals` | À la racine |
+| `Page` | `name`, `title`, `children`, `pixels`, `rules`, `state`, `prices`, `zoom`, `points`, `relief`, `portals` | À la racine |
 | `H1`, `H2`, `H3`, `P`, `Text` | le texte entre guillemets ; `name` | Dans `children` |
 | `A` | le texte entre guillemets, `to` | Dans `children` |
 | `Image` | `source`, `weight`, `name` | Dans `children` |
@@ -537,6 +573,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Grid` | `children`, `gap`, `columns`, `name` | Dans `children` |
 | `On` | le signal, puis `effect:` | Dans `rules` |
 | `State` | les valeurs et leur départ : `cart: 0` | Dans `state:` d'une `Page` |
+| `Prices` | le prix de chaque article : `sunrise: 120` | Dans `prices:` d'une `Page` |
 | `Zoom`, `Points`, `Relief`, `Portals` | voir la partie 7 | Dans `zoom:`, `points:`, `relief:`, `portals:` d'une `Page` |
 
 ## 10 bis. Chaque notion et son mot
@@ -565,6 +602,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Une valeur que la page retient | `state: State(cart: 0)` | fait, à l'essai |
 | Afficher une valeur | `{cart}` dans un texte | fait, à l'essai |
 | Changer une valeur | les demandes `add`, `sub`, `set` | fait, à l'essai |
+| Des prix, un nombre d'articles, un total | `prices: Prices(...)`, `{count}`, `{total}` | fait, à l'essai |
 | Activer ou désactiver le zoom | `Zoom(active:)` | fait |
 | Les limites du zoom | `Zoom(max:, shrink:)` | fait |
 | La vitesse du zoom | `Zoom(speed:)` | fait |
@@ -591,7 +629,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 - Les imports (`import`, `module`, `bridge js`, `bridge css`) : le moteur les lit mais ne les applique pas.
 - Pour la disposition : pas de largeur par élément, pas d'élément qui prend la place restante.
 - Les formulaires, les données venues d'ailleurs.
-- Pour les valeurs : seulement des nombres entiers. Pas de texte, pas de condition (« si le panier est vide »), pas de total, rien n'est gardé après un rechargement.
+- Pour les valeurs : seulement des nombres entiers. Pas de texte, pas de condition (« si le panier est vide »), pas d'autre calcul que le nombre et le total d'un panier, rien n'est gardé après un rechargement.
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
 - Les garde-fous de zoom pour un `Point` seul : ils sont encore fixés dans le moteur.

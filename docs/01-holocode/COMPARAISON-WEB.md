@@ -123,7 +123,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | Changer de page sans recharger (un routeur) | `Point(inside:)`, `enter`, `leave`, le dézoom | fait |
 | L'historique, le bouton « retour » | automatique : chaque site a son adresse | fait |
 | Survol, approche, défilement, clavier | | manque |
-| Garder une valeur, l'afficher (un panier) | `State(cart: 0)`, `{cart}`, `cart.add(1)` | fait, à l'essai : des nombres entiers seulement |
+| Garder une valeur, l'afficher (un panier) | `State(cart: 0)`, `{cart}`, `cart.add(1)` | fait, à l'essai : des nombres entiers ; avec `Prices`, le moteur calcule `{count}` et `{total}` |
 | Afficher sous condition, répéter sur une liste | | manque |
 | Chercher des données (`fetch`) | | manque |
 | Durées, minuteries, animations | les unités `ms`, `s` existent, sans emploi | manque |

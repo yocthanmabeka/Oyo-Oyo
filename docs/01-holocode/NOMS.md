@@ -33,6 +33,7 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `World` | aucun | nouveau |
 | `On` | `addEventListener`, `onclick` | changé : une règle, pas du code |
 | `State` | `let`, `useState`, les signaux | changé : une déclaration, pas une variable libre |
+| `Prices` | un objet JavaScript `{ sunrise: 120 }` | changé : une table déclarée |
 | `Zoom` ⚠ | `meta viewport`, la propriété `zoom` | changé |
 | `Points` ⚠ | aucun | nouveau |
 | `Relief` ⚠ | `transform: perspective() rotate3d()` | changé |
@@ -51,7 +52,7 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `ordered:` | `ol` | changé : un réglage au lieu d'une balise |
 | `rules:` | les balises `script` | changé |
 | `effect:` | le corps d'une fonction | changé : une demande, pas du code |
-| `state:` | aucun | nouveau |
+| `state:`, `prices:` | aucun | nouveaux |
 | `gap:` | `gap` | repris |
 | `align:` | `justify-content`, `align-items` | changé : un mot au lieu de deux |
 | `columns:` | `grid-template-columns` | changé ; en CSS, `columns` dit autre chose |
@@ -88,6 +89,7 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `portals` | aucun | nouveau |
 | `{cart}` | `${cart}` en JavaScript, `{cart}` en Svelte, `{{ cart }}` en Vue | repris |
 | `add`, `sub`, `set` | `+=`, `-=`, `=` | changés : des mots, pas des signes |
+| `{count}`, `{total}` | une boucle `for` ou `reduce` écrite à la main | nouveaux : calculés par le moteur |
 
 ### Les styles
 
