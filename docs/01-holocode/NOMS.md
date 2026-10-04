@@ -32,6 +32,8 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `Point` | aucun (`canvas`, WebGL, à écrire soi-même) | nouveau |
 | `World` | aucun | nouveau |
 | `On` | `addEventListener`, `onclick` | changé : une règle, pas du code |
+| `Every` | `setInterval` | changé : une règle, qui s'arrête seule quand on ne regarde pas |
+| `Board` | `position: relative` et `absolute` | changé : un bloc, des places de 0 à 100 |
 | `If` | `if` en JavaScript, `v-if`, `{#if}` | repris, devenu un bloc |
 | `Hr` | `hr` | repris, avec une majuscule |
 | `Quote` | `blockquote`, `q`, `cite` | changé : un mot au lieu de trois |
@@ -58,6 +60,7 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `effect:` | le corps d'une fonction | changé : une demande, pas du code |
 | `state:`, `prices:` | aucun | nouveaux |
 | `alt:` | `alt` | repris |
+| `x:`, `y:` | `left`, `top` | changés : de 0 à 100, jamais hors du plateau |
 | `by:` | `cite` | changé |
 | `is:`, `not:`, `over:`, `under:` | `===`, `!==`, `>`, `<` | changés : des mots, pas des signes |
 | `gap:` | `gap` | repris |
@@ -96,6 +99,7 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `portals` | aucun | nouveau |
 | `{cart}` | `${cart}` en JavaScript, `{cart}` en Svelte, `{{ cart }}` en Vue | repris |
 | `add`, `sub`, `set` | `+=`, `-=`, `=` | changés : des mots, pas des signes |
+| `random` | `Math.random()` | repris ; rejouable, et de 0 à n compris |
 | `{count}`, `{total}` | une boucle `for` ou `reduce` écrite à la main | nouveaux : calculés par le moteur |
 
 ### Les styles

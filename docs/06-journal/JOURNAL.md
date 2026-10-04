@@ -6,6 +6,30 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Étape 2 du planning : le temps, le hasard, le plateau, et un premier jeu
+
+**Fait** (`ADR-026`, à l'essai)
+
+- **Un jeu entier, sans une ligne de code** : `exemples/jeu/attraper.holo`. On touche une étoile le plus de fois possible en trente secondes ; elle change de place chaque seconde, et chaque fois qu'on la touche. Soixante lignes, commentaires compris.
+
+![Le jeu en cours : score 2, 26 secondes](images/2026-10-04-premier-jeu.png)
+
+- Trois mots de plus, ceux que le jeu demandait :
+  - **`Every(1s, effect: …)`** : une règle qui se répète. L'horloge se tait quand on ne regarde pas.
+  - **`random`** : `star_x.random(100)` tire un nombre de 0 à 100. Le hasard est rejouable : une suite fixée par le nom de la page.
+  - **`Board`** : un plateau où l'on place un bloc par `x` et `y`, de 0 à 100. Si `x` est le nom d'une valeur, le bloc la suit.
+- Commencer et finir n'ont demandé aucun mot : le temps ne descend pas sous zéro, et les conditions montrent le jeu ou l'écran de fin.
+- 81 tests du moteur. Joué dans Chrome : « Play », 30 secondes ; l'étoile bouge ; deux touchers, score 2.
+
+**Limites**
+
+- Les règles `Every` tournent tant que la page est ouverte, même le jeu fini : elles demandent, et rien ne change.
+- Pas de meilleur score : on ne compare pas deux valeurs.
+- L'étoile saute d'une place à l'autre : pas de mouvement continu.
+- `x` et `y` écrits hors d'un plateau sont ignorés en silence. À refuser.
+
+---
+
 ## 2026-10-04 — Les conditions décidées à un seul endroit
 
 **Ce que Yocthan a dit**

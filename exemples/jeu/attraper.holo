@@ -1,0 +1,68 @@
+// Un jeu entier, sans une ligne de code : toucher l'étoile le plus de fois possible en trente
+// secondes. Elle change de place chaque seconde, et chaque fois qu'on la touche.
+//
+// Ce fichier montre le temps (Every), le hasard (random) et le plateau (Board).
+
+Page(
+  name: Catch,
+  title: "Catch the star",
+
+  // Ce que le jeu retient.
+  state: State(
+    time: 0,       // les secondes qui restent ; 0 : la partie n'a pas commencé, ou elle est finie
+    score: 0,      // combien de fois l'étoile a été touchée
+    star_x: 50,    // où est l'étoile sur le plateau, de 0 (à gauche) à 100 (à droite)
+    star_y: 50,    // de 0 (en haut) à 100 (en bas)
+  ),
+
+  children: [
+    H1("Catch the star"),
+
+    // Avant la partie, et après.
+    If(time, is: 0, children: [
+      "Touch the star as many times as you can in 30 seconds. It moves every second.",
+      If(score, over: 0, children: [
+        P.result("Time is up. Your score: **{score}**"),
+      ]),
+      Button.play(name: Play, text: "Play"),
+    ]),
+
+    // Pendant la partie.
+    If(time, over: 0, children: [
+      Row(align: between, children: [
+        Text("Score: {score}"),
+        Text("Time: {time} s"),
+      ]),
+
+      // Un plateau : ce qu'il contient se place où l'on veut. x et y sont des valeurs de la
+      // page ; quand elles changent, l'étoile se déplace.
+      Board(height: 320px, children: [
+        Point(name: Star, seed: 7, color: "#E9B44C", x: star_x, y: star_y),
+      ]),
+    ]),
+  ],
+
+  rules: [
+    // Commencer : trente secondes, et le score à zéro.
+    On(Play.tap, effect: score.set(0)),
+    On(Play.tap, effect: time.set(30)),
+
+    // Toucher l'étoile : un point de plus, et elle part ailleurs.
+    // random(100) : un nombre au hasard, de 0 à 100.
+    On(Star.tap, effect: score.add(1)),
+    On(Star.tap, effect: star_x.random(100)),
+    On(Star.tap, effect: star_y.random(100)),
+
+    // Le temps : chaque seconde, il en reste une de moins, et l'étoile change de place.
+    // Arrivé à zéro, le temps ne descend plus : la partie est finie.
+    Every(1s, effect: time.sub(1)),
+    Every(1s, effect: star_x.random(100)),
+    Every(1s, effect: star_y.random(100)),
+  ],
+)
+
+Page { background: #0b1020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 30px; text-align: center; }
+Board { background: #131a33; border: 1px solid #E9B44C; border-radius: 16px; }
+.play { background: #E9B44C; color: #0b1020; font-size: 18px; font-weight: bold; padding: 10px 28px; border-radius: 999px; }
+.result { font-size: 18px; text-align: center; }

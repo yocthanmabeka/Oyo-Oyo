@@ -91,6 +91,11 @@ pub fn arbitrer(source: &str, etat: &str, signal: &str) -> String {
     }
 }
 
+/// Les rythmes des règles de temps d'une page (`Every`), en millisecondes : `1000;2500`.
+pub fn rythmes(source: &str) -> String {
+    verifier_page(source).map(|programme| etat::rythmes(&programme).iter().map(u64::to_string).collect::<Vec<_>>().join(";")).unwrap_or_default()
+}
+
 /// Les conditions d'une page (`If`), avec leur réponse pour cet état : `count|is=0:1;total|over=299:0`.
 pub fn conditions(source: &str, etat: &str) -> String {
     match verifier_page(source) {

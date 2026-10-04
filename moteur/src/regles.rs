@@ -96,6 +96,16 @@ pub fn verifier_regles(programme: &Programme) -> Result<(), Erreur> {
         if bloc.nom == "On" {
             verifier_regle(bloc, &noms, &etat)?;
         }
+        // Une règle de temps : un rythme, et une demande faite à l'arbitre (ADR-026).
+        if bloc.nom == "Every" {
+            crate::etat::rythme(bloc)?;
+            match bloc.argument("effect").map(|a| &a.valeur) {
+                Some(Valeur::Bloc(demande)) if crate::etat::est_demande(demande) => {
+                    crate::etat::demande(demande, &etat)?;
+                }
+                _ => return Err(Erreur { message: "« Every » attend une demande : Every(1s, effect: time.sub(1))".into(), pos: bloc.pos }),
+            }
+        }
         if bloc.nom == "Point" {
             verifier_budget(bloc)?;
         }

@@ -28,6 +28,10 @@ box-sizing:border-box;background:rgba(0,0,0,0.6);pointer-events:auto}\
 grid-template-columns:repeat(auto-fill,minmax(min(100%,max(120px,calc((100% - (var(--holo-columns,2) - 1)*var(--holo-gap,16px))/var(--holo-columns,2)))),1fr))}\
 :where(.holo-Row,.holo-Column,.holo-Grid)>*{margin:0;box-sizing:border-box;min-width:0}\
 :where(.holo-Row,.holo-Column,.holo-Grid)>.holo-If>*{margin:0}:where(.holo-If[hidden]){display:none}\
+:where(.holo-Board){position:relative;overflow:hidden;border-radius:12px}\
+:where(.holo-place){position:absolute;left:calc(var(--x)*1%);top:calc(var(--y)*1%);transform:translate(calc(var(--x)*-1%),calc(var(--y)*-1%));\
+transition:left .2s ease,top .2s ease,transform .2s ease}\
+@media (prefers-reduced-motion:reduce){.holo-place{transition:none}}\
 :where(.holo-Hr){border:0;border-top:1px solid currentColor;opacity:0.4;height:0}\
 :where(.holo-Quote){border-left:3px solid currentColor;padding:0 0 0 12px;font-style:italic}\
 :where(.holo-Quote>p){margin:0 0 4px 0}:where(.holo-Quote>footer){font-style:normal;font-size:0.9em;opacity:0.7}\
@@ -83,6 +87,10 @@ pub fn site_html(programme: &Programme, page: &Bloc, base: &str, titre: &str) ->
         for (rang, morceau) in html.split(MARQUE).enumerate() {
             if rang % 2 == 0 {
                 sortie.push_str(morceau);
+            } else if let Some(nom) = morceau.strip_prefix('@') {
+                // La place d'un bloc sur un plateau : la valeur de départ, de 0 à 100.
+                let valeur = montrees.iter().find(|(connu, _)| connu == nom).map_or(0, |(_, v)| *v);
+                sortie.push_str(&valeur.min(100).to_string());
             } else if !reponses.iter().any(|(cle, vraie)| cle == morceau && *vraie) {
                 sortie.push_str(" hidden");
             }
@@ -217,6 +225,35 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
             enfants(bloc, sortie, mondes, base)?;
             sortie.push_str("</div>");
         }
+        // Un plateau : ce qu'il contient se place où l'on veut, par x et y, de 0 à 100 (ADR-026).
+        "Board" => {
+            let mut hauteur = 320.0;
+            for argument in &bloc.arguments {
+                match (argument.nom.as_deref(), &argument.valeur) {
+                    (Some("name" | "children"), _) => {}
+                    (Some("height"), Valeur::Nombre { valeur, unite: Some(unite) }) if unite == "px" && (80.0..=800.0).contains(valeur) => hauteur = *valeur,
+                    (Some("height"), _) => return Err(Erreur { message: "« Board(height: …) » attend une taille entre 80px et 800px".into(), pos: argument.pos }),
+                    (Some(autre), _) => return Err(Erreur { message: format!("« Board » n'a pas de paramètre « {autre} » ; paramètres possibles : name, children, height"), pos: argument.pos }),
+                    (None, _) => return Err(Erreur { message: "« Board » range des blocs : Board(children: [ … ])".into(), pos: argument.pos }),
+                }
+            }
+            sortie.push_str(&format!("<div class=\"{classes}\"{nom} style=\"height:{hauteur}px\">"));
+            if let Some(Valeur::Liste(elements)) = bloc.argument("children").map(|a| &a.valeur) {
+                for element in elements {
+                    match element {
+                        Valeur::Bloc(pose) if pose.argument("x").is_some() || pose.argument("y").is_some() => {
+                            let (attribut_x, x) = place(pose, "x")?;
+                            let (attribut_y, y) = place(pose, "y")?;
+                            sortie.push_str(&format!("<div class=\"holo-place\"{attribut_x}{attribut_y} style=\"--x:{x};--y:{y}\">"));
+                            rendre(element, sortie, mondes, base, bloc)?;
+                            sortie.push_str("</div>");
+                        }
+                        autre => rendre(autre, sortie, mondes, base, bloc)?,
+                    }
+                }
+            }
+            sortie.push_str("</div>");
+        }
         // Un trait de séparation.
         "Hr" => {
             if let Some(argument) = bloc.arguments.iter().find(|a| a.nom.as_deref() != Some("name")) {
@@ -278,6 +315,20 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
         autre => return Err(Erreur { message: format!("« {autre} » ne se place pas dans « children »"), pos: bloc.pos }),
     }
     Ok(())
+}
+
+/// La place d'un bloc sur un plateau, le long d'un axe : un nombre de 0 à 100 écrit dans le
+/// fichier, ou le nom d'une valeur de la page, que le bloc suit alors quand elle change.
+/// Rend l'attribut qui dit à la page quelle valeur suivre, et la place de départ.
+fn place(bloc: &Bloc, axe: &str) -> Result<(String, String), Erreur> {
+    match bloc.argument(axe).map(|a| &a.valeur) {
+        Some(Valeur::Entier(nombre)) if *nombre <= 100 => Ok((String::new(), nombre.to_string())),
+        Some(Valeur::Nom(valeur)) => Ok((format!(" data-{axe}=\"{}\"", echapper(valeur)), format!("{MARQUE}@{valeur}{MARQUE}"))),
+        _ => Err(Erreur {
+            message: format!("sur un plateau, « {} » se place par x et y : un nombre de 0 à 100, ou le nom d'une valeur de la page (il manque « {axe} », ou il est mal écrit)", bloc.nom),
+            pos: bloc.pos,
+        }),
+    }
 }
 
 /// Les réglages d'un bloc de disposition : l'écart entre ses éléments, leur placement, et le
@@ -509,6 +560,27 @@ mod tests {
         assert!(page("Page(children: [ Quote(\"x\", by: 3) ])").unwrap_err().message.contains("qui l'a dit"));
         // Le caractère qui sert de marque aux conditions ne passe pas par un texte.
         assert!(!page("Page(children: [ \"a\u{1}b\" ])").unwrap().contains('\u{1}'));
+    }
+
+    #[test]
+    fn un_plateau_place_ses_blocs_ou_l_on_veut() {
+        let html = page(
+            "Page(state: State(sx: 70, sy: 250), children: [ Board(height: 200px, children: [ Point(name: Star, seed: 7, x: sx, y: sy), Button(name: B, text: \"b\", x: 10, y: 90), P(\"libre\") ]) ])",
+        )
+        .unwrap();
+        // L'étoile suit deux valeurs ; au départ elle est à leur place, sans dépasser le plateau.
+        assert!(html.contains("<div class=\"holo-Board\" style=\"height:200px\"><div class=\"holo-place\" data-x=\"sx\" data-y=\"sy\" style=\"--x:70;--y:100\"><button type=\"button\" class=\"holo-Point\" data-name=\"Star\""), "{html}");
+        // Un bloc posé à une place fixe, et un bloc sans place.
+        assert!(html.contains("<div class=\"holo-place\" style=\"--x:10;--y:90\"><button type=\"button\" class=\"holo-Button\" data-name=\"B\">b</button></div><p class=\"holo-P\">libre</p></div>"), "{html}");
+        for (source, message) in [
+            ("Page(children: [ Board(height: 5000px, children: []) ])", "entre 80px et 800px"),
+            ("Page(children: [ Board(width: 10px, children: []) ])", "n'a pas de paramètre « width »"),
+            ("Page(children: [ Board(children: [ P(\"a\", x: 10) ]) ])", "il manque « y »"),
+            ("Page(children: [ Board(children: [ P(\"a\", x: 10, y: 500) ]) ])", "un nombre de 0 à 100"),
+        ] {
+            let erreur = page(source).unwrap_err();
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
     }
 
     #[test]

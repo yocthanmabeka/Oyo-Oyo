@@ -500,6 +500,64 @@ Page(
 
 Cette écriture est à l'essai (`ADR-025`).
 
+## 6 quater. Un jeu : le temps, le hasard, le plateau
+
+Trois mots suffisent pour un premier jeu. Le jeu entier est dans `exemples/jeu/attraper.holo` : on touche une étoile le plus de fois possible en trente secondes.
+
+```holo
+Page(
+  name: Catch,
+  title: "Catch the star",
+
+  state: State(time: 0, score: 0, star_x: 50, star_y: 50),
+
+  children: [
+    If(time, is: 0, children: [
+      Button(name: Play, text: "Play"),
+    ]),
+    If(time, over: 0, children: [
+      Text("Score: {score}. Time: {time} s"),
+      Board(height: 320px, children: [
+        Point(name: Star, seed: 7, x: star_x, y: star_y),
+      ]),
+    ]),
+  ],
+
+  rules: [
+    On(Play.tap, effect: time.set(30)),
+    On(Star.tap, effect: score.add(1)),
+    On(Star.tap, effect: star_x.random(100)),
+    On(Star.tap, effect: star_y.random(100)),
+    Every(1s, effect: time.sub(1)),
+    Every(1s, effect: star_x.random(100)),
+    Every(1s, effect: star_y.random(100)),
+  ],
+)
+```
+
+**Le temps : `Every`.** Une règle qui se répète. `Every(1s, effect: time.sub(1))` : toutes les secondes, retirer 1 à `time`.
+
+- Le rythme s'écrit en `s` ou en `ms`, de `100ms` à `3600s`.
+- L'effet est une demande, comme pour `On`.
+- L'horloge se tait quand la fenêtre est cachée, en vue points et devant le carrefour.
+
+**Le hasard : `random`.** `star_x.random(100)` donne à `star_x` un nombre de 0 à 100, bornes comprises. Ce hasard est rejouable : les mêmes gestes, aux mêmes moments, redonnent la même partie.
+
+**Le plateau : `Board`.** Ce qu'il contient se place où l'on veut.
+
+| Réglage | Sens | Valeurs |
+|---|---|---|
+| `Board(height:)` | La hauteur du plateau. | 80px à 800px ; 320px sans rien écrire |
+| `x:` sur un bloc du plateau | Sa place de gauche à droite. | un nombre de 0 à 100, ou le nom d'une valeur |
+| `y:` sur un bloc du plateau | Sa place de haut en bas. | un nombre de 0 à 100, ou le nom d'une valeur |
+
+- Avec un nombre, le bloc reste à sa place. Avec le nom d'une valeur, il suit cette valeur quand elle change.
+- De 0 à 100, un bloc ne sort jamais du plateau.
+
+**Commencer et finir sans mot de plus.** Le temps ne descend pas sous zéro. Les conditions font le reste : `If(time, is: 0)` montre le bouton « Play » et le score, `If(time, over: 0)` montre le plateau.
+
+Cette écriture est à l'essai (`ADR-026`).
+
 ## 7. Comment la page se regarde : `Zoom`, `Points`, `Relief`
 
 Quand le visiteur zoome sur la page (Ctrl + molette, ou pincer), elle grossit d'abord comme n'importe quel site : le texte reste du texte, on le lit, on le sélectionne, on le copie. Au-delà du grossissement fixé par `Points(after:)`, chaque pixel devient un point lumineux, qui se morcelle ensuite. Dès que la page est grossie, glisser la déplace, dans tous les sens ; c'est le même geste avant et après le passage aux points. Quand il tourne la page, elle prend du relief. Ces trois blocs règlent cela.
@@ -657,7 +715,9 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `World` | `children`, `pixels`, `rules` | Dans `inside:` d'un `Point` |
 | `Row`, `Column` | `children`, `gap`, `align`, `name` | Dans `children` |
 | `Grid` | `children`, `gap`, `columns`, `name` | Dans `children` |
+| `Board` | `children`, `height`, `name` ; ses enfants prennent `x` et `y` | Dans `children` |
 | `On` | le signal, puis `effect:` | Dans `rules` |
+| `Every` | le rythme, puis `effect:` | Dans `rules` |
 | `State` | les valeurs et leur départ : `cart: 0` | Dans `state:` d'une `Page` |
 | `Prices` | le prix de chaque article : `sunrise: 120` | Dans `prices:` d'une `Page` |
 | `Zoom`, `Points`, `Relief`, `Portals` | voir la partie 7 | Dans `zoom:`, `points:`, `relief:`, `portals:` d'une `Page` |
@@ -688,6 +748,9 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Une valeur que la page retient | `state: State(cart: 0)` | fait, à l'essai |
 | Afficher une valeur | `{cart}` dans un texte | fait, à l'essai |
 | Changer une valeur | les demandes `add`, `sub`, `set` | fait |
+| Répéter une règle dans le temps | `Every(1s, effect:)` | fait, à l'essai |
+| Le hasard | la demande `random` | fait, à l'essai |
+| Placer librement | `Board`, et `x:`, `y:` sur ses enfants | fait, à l'essai |
 | Montrer ou cacher selon une valeur | `If(cart, is:, not:, over:, under:)` | fait, à l'essai |
 | Un trait, une citation, du texte tel quel | `Hr()`, `Quote(by:)`, `Code`, les accents graves | fait, à l'essai |
 | Le retour à la ligne | un texte entre trois guillemets | fait, à l'essai |

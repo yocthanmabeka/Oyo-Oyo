@@ -121,7 +121,7 @@
 </div>
 <script type="module">
   import init, {
-    pause, vue_a_plat, effets, etat_initial, arbitrer, conditions, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
+    pause, vue_a_plat, effets, etat_initial, arbitrer, conditions, rythmes, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
     mosaique_pivoter, mosaique_de_face, mosaique_sous, reglages_de_vue, reveiller, images_dessinees,
   } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
@@ -274,6 +274,7 @@
     pointsActifs = pointsActifs === 1;
     document.body.classList.toggle("tourne", angleDeRotation > 0 && actif === 1);
     if (!etats.has(chemin)) etats.set(chemin, etat_initial(source));
+    reglerLesHorloges();
     document.documentElement.style.setProperty("--duree", `${dureeDuPortail}ms`);
     densite = densiteDemandee;
     reduire = reduire === 1;
@@ -312,11 +313,29 @@
   // ---------------------------------------------------------------- le site affiché
 
   // Affiche un site du fichier, sans recharger la page : pas de noir entre deux sites.
+  // Le temps : une horloge par rythme écrit dans le fichier (Every(1s, …)). À chaque battement,
+  // le signal est donné à l'arbitre, comme un toucher. L'horloge se tait quand la fenêtre est
+  // cachée, en vue points et devant le carrefour : rien ne tourne pour rien.
+  let horloges = [];
+  function reglerLesHorloges() {
+    horloges.forEach(clearInterval);
+    horloges = rythmes(source).split(";").filter(Boolean).map((ms) => setInterval(() => {
+      if (document.hidden || enPoints || enMonde || !carrefour.hidden || entreeEnCours) return;
+      emettre(`every:${ms}`);
+    }, Number(ms)));
+  }
+
   // Écrit les valeurs de la page là où ses textes les montrent : « {cart} ».
   function montrerLesValeurs(ou = racine, ecrit = etats.get(chemin) ?? "", texteDuFichier = source) {
     const valeurs = new Map(ecrit.split(";").filter(Boolean).map((morceau) => morceau.split("=")));
     for (const place of ou.querySelectorAll("[data-state]")) {
       if (valeurs.has(place.dataset.state)) place.textContent = valeurs.get(place.dataset.state);
+    }
+    // Sur un plateau, un bloc suit les valeurs qui disent sa place : Point(x: star_x, y: star_y).
+    for (const axe of ["x", "y"]) {
+      for (const pose of ou.querySelectorAll(`[data-${axe}]`)) {
+        if (valeurs.has(pose.dataset[axe])) pose.style.setProperty(`--${axe}`, Math.min(100, Number(valeurs.get(pose.dataset[axe]))));
+      }
     }
     // Les conditions : If(count, is: 0). C'est le moteur qui répond ; la page ne compare rien
     // elle-même, elle cache ce que le moteur dit faux.
@@ -334,9 +353,13 @@
   // Un signal est émis (Add.tap) : l'arbitre du moteur dit ce que deviennent les valeurs, puis
   // les autres effets demandés par les règles sont appliqués.
   function emettre(signal) {
-    etats.set(chemin, arbitrer(source, etats.get(chemin) ?? "", signal));
-    montrerLesValeurs();
-    placerLesPixels(); // ce qui apparaît ou disparaît déplace le reste de la page
+    const avant = etats.get(chemin) ?? "";
+    const apres = arbitrer(source, avant, signal);
+    if (apres !== avant) {
+      etats.set(chemin, apres);
+      montrerLesValeurs();
+      placerLesPixels(); // ce qui apparaît ou disparaît déplace le reste de la page
+    }
     for (const effet of effets(source, signal).split(",").filter(Boolean)) {
       appliquer(effet, signal);
     }

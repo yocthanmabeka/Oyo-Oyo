@@ -91,7 +91,55 @@ pub fn vraie(comparaisons: &[(&str, u64)], valeur: u64) -> bool {
 }
 
 /// Ce qu'on peut demander pour une valeur.
-pub const DEMANDES: &[&str] = &["add", "sub", "set"];
+pub const DEMANDES: &[&str] = &["add", "sub", "set", "random"];
+
+/// Sous ce nom, l'état garde le nombre de tirages au hasard déjà faits. Ce n'est pas une valeur
+/// de l'auteur (le nom n'est pas un nom permis) : il sert à ce que le hasard soit rejouable.
+const TIRAGES: &str = "~";
+
+/// Le rythme le plus rapide et le plus lent d'une règle `Every`, en millisecondes.
+pub const RYTHME_MIN: u64 = 100;
+pub const RYTHME_MAX: u64 = 3_600_000;
+
+/// Le rythme d'une règle `Every(1s, effect: …)`, en millisecondes.
+pub fn rythme(regle: &Bloc) -> Result<u64, Erreur> {
+    let erreur = || Erreur {
+        message: "une règle de temps s'écrit « Every(1s, effect: time.sub(1)) » : une durée en s ou en ms, de 100ms à 3600s".into(),
+        pos: regle.pos,
+    };
+    let millisecondes = match regle.arguments.first() {
+        Some(Argument { nom: None, valeur: Valeur::Nombre { valeur, unite: Some(unite) }, .. }) if unite == "s" => valeur * 1000.0,
+        Some(Argument { nom: None, valeur: Valeur::Nombre { valeur, unite: Some(unite) }, .. }) if unite == "ms" => *valeur,
+        _ => return Err(erreur()),
+    };
+    if !(RYTHME_MIN as f64..=RYTHME_MAX as f64).contains(&millisecondes) {
+        return Err(erreur());
+    }
+    Ok(millisecondes.round() as u64)
+}
+
+/// Les rythmes des règles de temps du fichier, sans doublon : la page tient une horloge par rythme.
+pub fn rythmes(programme: &Programme) -> Vec<u64> {
+    let mut rythmes = Vec::new();
+    let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
+        if bloc.nom == "Every" {
+            if let Ok(ms) = rythme(bloc) {
+                if !rythmes.contains(&ms) {
+                    rythmes.push(ms);
+                }
+            }
+        }
+        Ok(())
+    });
+    rythmes
+}
+
+/// La graine du hasard d'un fichier : tirée du nom de sa page. Le même fichier, avec les mêmes
+/// gestes aux mêmes moments, redonne la même partie (ADR-008).
+fn graine_du_hasard(programme: &Programme) -> u64 {
+    let nom = crate::regles::nom_de(&programme.racine).unwrap_or("Home");
+    nom.bytes().fold(0x4A5E_u64, |g, octet| crate::graine::melanger(g ^ u64::from(octet)))
+}
 
 /// Les valeurs d'une page, dans l'ordre où elles sont déclarées.
 pub type Etat = Vec<(String, u64)>;
@@ -229,6 +277,8 @@ pub fn demande<'a>(bloc: &'a Bloc, etat: &Etat) -> Result<Demande<'a>, Erreur> {
     }
     match bloc.arguments.as_slice() {
         [argument] if argument.nom.is_none() => match argument.valeur {
+            // « random(0) » ne tirerait jamais que 0 : c'est sûrement une erreur.
+            Valeur::Entier(0) if verbe == "random" => Err(erreur(format!("« {valeur}.random » attend le plus grand nombre possible, au moins 1 : {valeur}.random(100) tire de 0 à 100"))),
             Valeur::Entier(quantite) if quantite <= VALEUR_MAX => Ok(Demande { valeur, verbe, quantite }),
             _ => Err(erreur(format!("« {valeur}.{verbe} » attend un nombre entier de 0 à {VALEUR_MAX} : {valeur}.{verbe}(1)"))),
         },
@@ -280,6 +330,14 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
                 return Err(Erreur { message: format!("« If({valeur}, …) » : aucune valeur ne s'appelle « {valeur} » ; déclare-la sur la page, state: State({valeur}: 0)"), pos: bloc.pos });
             }
         }
+        // Sur un plateau, la place d'un bloc est une valeur de la page : Point(x: star_x, y: star_y).
+        for axe in ["x", "y"] {
+            if let Some(Argument { valeur: Valeur::Nom(valeur), pos, .. }) = bloc.argument(axe) {
+                if !montrables.iter().any(|(connu, _)| connu == valeur) {
+                    return Err(Erreur { message: format!("« {axe}: {valeur} » : aucune valeur ne s'appelle « {valeur} » ; déclare-la sur la page, state: State({valeur}: 50)"), pos: *pos });
+                }
+            }
+        }
         let verifier_texte = |texte: &str, pos| {
             noms_dans(texte).into_iter().find(|nom| !montrables.iter().any(|(connu, _)| connu == nom)).map_or(Ok(()), |nom| {
                 Err(Erreur { message: format!("« {{{nom}}} » : aucune valeur ne s'appelle « {nom} » ; déclare-la sur la page, state: State({nom}: 0)"), pos })
@@ -309,26 +367,42 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
 /// dépasse pas `VALEUR_MAX` : elle s'arrête à la borne.
 pub fn arbitrer(programme: &Programme, etat: &Etat, signal: &str) -> Etat {
     let mut etat = etat.clone();
+    let graine = graine_du_hasard(programme);
+    let mut tirages = etat.iter().find(|(nom, _)| nom == TIRAGES).map_or(0, |(_, n)| *n);
+    let depart = tirages;
     let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
-        if bloc.nom != "On" {
-            return Ok(());
-        }
-        let declencheur = bloc.arguments.iter().find(|a| a.nom.is_none()).map(|a| &a.valeur);
-        if let (Some(Valeur::Nom(s)), Some(Valeur::Bloc(effet))) = (declencheur, bloc.argument("effect").map(|a| &a.valeur)) {
-            if s == signal {
-                if let Ok(d) = demande(effet, &etat) {
-                    if let Some((_, valeur)) = etat.iter_mut().find(|(nom, _)| nom == d.valeur) {
-                        *valeur = match d.verbe {
-                            "add" => valeur.saturating_add(d.quantite).min(VALEUR_MAX),
-                            "sub" => valeur.saturating_sub(d.quantite),
-                            _ => d.quantite,
-                        };
-                    }
+        // Une règle répond à un signal : celui d'un bloc (`On(Add.tap, …)`), ou celui de
+        // l'horloge (`Every(1s, …)`, signal « every:1000 »).
+        let concernee = match bloc.nom.as_str() {
+            "On" => matches!(bloc.arguments.iter().find(|a| a.nom.is_none()).map(|a| &a.valeur), Some(Valeur::Nom(s)) if s == signal),
+            "Every" => rythme(bloc).is_ok_and(|ms| signal == format!("every:{ms}")),
+            _ => false,
+        };
+        if let (true, Some(Valeur::Bloc(effet))) = (concernee, bloc.argument("effect").map(|a| &a.valeur)) {
+            if let Ok(d) = demande(effet, &etat) {
+                if let Some((_, valeur)) = etat.iter_mut().find(|(nom, _)| nom == d.valeur) {
+                    *valeur = match d.verbe {
+                        "add" => valeur.saturating_add(d.quantite).min(VALEUR_MAX),
+                        "sub" => valeur.saturating_sub(d.quantite),
+                        // Le hasard n'en est pas un : c'est le énième tirage d'une suite fixée par
+                        // la graine du fichier. Rejouer les mêmes gestes redonne les mêmes nombres.
+                        "random" => {
+                            tirages += 1;
+                            crate::graine::melanger(graine ^ crate::graine::melanger(tirages)) % (d.quantite + 1)
+                        }
+                        _ => d.quantite,
+                    };
                 }
             }
         }
         Ok(())
     });
+    if tirages != depart {
+        match etat.iter_mut().find(|(nom, _)| nom == TIRAGES) {
+            Some((_, n)) => *n = tirages,
+            None => etat.push((TIRAGES.to_string(), tirages)),
+        }
+    }
     etat
 }
 
@@ -343,6 +417,11 @@ pub fn relire(programme: &Programme, ecrit: &str) -> Etat {
     let mut etat = initial(programme).unwrap_or_default();
     for morceau in ecrit.split(';') {
         if let Some((nom, valeur)) = morceau.split_once('=') {
+            // Le compte des tirages au hasard suit l'état, pour que la suite continue.
+            if let (true, Ok(n)) = (nom == TIRAGES, valeur.parse::<u64>()) {
+                etat.push((TIRAGES.to_string(), n));
+                continue;
+            }
             if let (Some((_, place)), Ok(valeur)) = (etat.iter_mut().find(|(connu, _)| connu == nom), valeur.parse::<u64>()) {
                 *place = valeur.min(VALEUR_MAX);
             }
@@ -472,6 +551,67 @@ mod tests {
             ("Page(state: State(cart: 0), children: [ If(cart, above: 0, children: []) ])", "n'a pas de paramètre « above »"),
             ("Page(state: State(cart: 0), children: [ If(cart, is: 0) ])", "attend ce qu'il montre"),
             ("Page(state: State(cart: 0), children: [ If(is: 0, children: []) ])", "une condition s'écrit"),
+        ] {
+            let erreur = page(source).unwrap_err();
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
+    }
+
+    const JEU: &str = include_str!("../../exemples/jeu/attraper.holo");
+
+    #[test]
+    fn le_jeu_se_joue_par_des_regles_le_temps_et_le_hasard() {
+        let programme = page(JEU).unwrap();
+        assert_eq!(rythmes(&programme), [1000]);
+        let depart = initial(&programme).unwrap();
+        assert_eq!(ecrire(&depart), "time=0;score=0;star_x=50;star_y=50");
+        // Tant que la partie n'a pas commencé, le temps reste à zéro : il ne descend pas dessous.
+        let attente = arbitrer(&programme, &depart, "every:1000");
+        assert_eq!(attente[0], ("time".to_string(), 0));
+        // « Play » : trente secondes. Puis une seconde passe, l'étoile a bougé.
+        let lancee = arbitrer(&programme, &depart, "Play.tap");
+        assert_eq!((lancee[0].1, lancee[1].1), (30, 0));
+        let une_seconde = arbitrer(&programme, &lancee, "every:1000");
+        assert_eq!(une_seconde[0].1, 29);
+        assert!(une_seconde[2].1 <= 100 && une_seconde[3].1 <= 100);
+        assert_ne!((une_seconde[2].1, une_seconde[3].1), (50, 50), "l'étoile n'a pas bougé");
+        // Toucher l'étoile : un point, et elle part ailleurs.
+        let touchee = arbitrer(&programme, &une_seconde, "Star.tap");
+        assert_eq!(touchee[1].1, 1);
+        assert_ne!((touchee[2].1, touchee[3].1), (une_seconde[2].1, une_seconde[3].1));
+        // Trente secondes plus tard, la partie est finie, et le score est gardé.
+        let fin = (0..40).fold(touchee, |etat, _| arbitrer(&programme, &etat, "every:1000"));
+        assert_eq!((fin[0].1, fin[1].1), (0, 1));
+    }
+
+    #[test]
+    fn le_hasard_est_rejouable_et_reste_dans_ses_bornes() {
+        let source = "Page(name: Dice, state: State(die: 0), children: [ Button(name: Roll, text: \"Roll\") ], rules: [ On(Roll.tap, effect: die.random(5)) ])";
+        let lancers = |n: usize| {
+            let mut etat = crate::etat_initial(source);
+            (0..n).map(|_| { etat = crate::arbitrer(source, &etat, "Roll.tap"); etat.clone() }).collect::<Vec<_>>()
+        };
+        // Les mêmes gestes redonnent les mêmes nombres (ADR-008).
+        assert_eq!(lancers(50), lancers(50));
+        // De 0 à 5, bornes comprises, et toutes les faces sortent.
+        let faces: Vec<u64> = lancers(200).iter().map(|e| e.split(';').next().unwrap().trim_start_matches("die=").parse().unwrap()).collect();
+        assert!(faces.iter().all(|f| *f <= 5));
+        for face in 0..=5 {
+            assert!(faces.contains(&face), "la face {face} ne sort jamais");
+        }
+        // Deux fichiers de noms différents n'ont pas la même suite.
+        let autre = source.replace("name: Dice", "name: Other");
+        let suite = |src: &str| (0..20).fold((crate::etat_initial(src), Vec::new()), |(etat, mut vus), _| { let e = crate::arbitrer(src, &etat, "Roll.tap"); vus.push(e.clone()); (e, vus) }).1;
+        assert_ne!(suite(source), suite(&autre));
+        for (source, message) in [
+            ("Page(state: State(a: 0), children: [ Button(name: B, text: \"x\") ], rules: [ On(B.tap, effect: a.random(0)) ])", "au moins 1"),
+            ("Page(state: State(a: 0), rules: [ Every(1, effect: a.add(1)) ])", "une durée en s ou en ms"),
+            ("Page(state: State(a: 0), rules: [ Every(10ms, effect: a.add(1)) ])", "de 100ms à 3600s"),
+            ("Page(state: State(a: 0), rules: [ Every(2h, effect: a.add(1)) ])", "une durée en s ou en ms"),
+            ("Page(state: State(a: 0), rules: [ Every(1s) ])", "attend une demande"),
+            ("Page(state: State(a: 0), children: [ Point(name: P, seed: 1, inside: World(children: [])) ], rules: [ Every(1s, effect: P.enter) ])", "attend une demande"),
+            ("Page(state: State(a: 0), rules: [ Every(1s, effect: b.add(1)) ])", "aucune valeur ne s'appelle « b »"),
+            ("Page(children: [ Board(children: [ Point(name: S, seed: 1, x: nowhere, y: 10) ]) ])", "aucune valeur ne s'appelle « nowhere »"),
         ] {
             let erreur = page(source).unwrap_err();
             assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
