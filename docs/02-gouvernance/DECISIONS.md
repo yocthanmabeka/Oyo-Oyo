@@ -28,6 +28,7 @@ Ce registre empêche une proposition séduisante de devenir accidentellement une
 | [`ADR-022`](adr/ADR-022-liens-et-passages.md) | Deux façons d'aller ailleurs : `A` (le lien classique, on change de page) et le `Point` dont le monde est un autre fichier (on traverse sans changer de page) ; dézoomer fait ressortir ; `List(ordered:)` | `ACCEPTÉ` (écriture proposée) | journal du 2026-10-03 | HoloCode, HoloEngine |
 | [`ADR-023`](adr/ADR-023-etat-arbitre.md) | Les valeurs d'une page : `State(cart: 0)`, `{cart}` dans un texte, et trois demandes faites au moteur (`add`, `sub`, `set`) ; pas de code libre | `ACCEPTÉ` pour l'instant (écriture à revoir avec les noms) | journal du 2026-10-04 | HoloCode, HoloEngine |
 | [`ADR-024`](adr/ADR-024-disposition.md) | La disposition vient des blocs : `Row`, `Column`, `Grid`, avec `gap`, `align`, `columns` ; rien ne déborde, le téléphone est géré par le moteur | `ACCEPTÉ` pour l'instant (écriture à revoir avec les noms) | journal du 2026-10-04 | HoloCode, HoloEngine |
+| [`ADR-025`](adr/ADR-025-conditions-et-texte.md) | Les conditions : `If(valeur, is:, not:, over:, under:)`, en mots et sans « sinon » ; `Hr`, `Quote`, `Code`, le retour à la ligne, `Image(alt:)` | `EXPÉRIMENTATION` | journal du 2026-10-04 | HoloCode, HoloEngine |
 
 `ADR-003` à `ADR-006` ont été proposées par ChatGPT. Le 2026-09-21, Yocthan a accepté `ADR-003` (reformulée par Claude), `ADR-004` (telle quelle) et `ADR-005` (complétée par les chiffres de sa vision), et a laissé `ADR-006` en proposition. ChatGPT est invité à réagir aux reformulations.
 

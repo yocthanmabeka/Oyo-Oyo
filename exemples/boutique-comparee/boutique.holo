@@ -74,7 +74,8 @@ Page(
     P.card("Free delivery from **30 euros**."),
 
     H2("The paintings"),
-    Image(source: "painting.svg", weight: 1KB),
+    // « alt » dit ce que montre l'image, pour qui ne la voit pas.
+    Image(source: "painting.svg", weight: 1KB, alt: "A painting: a yellow sun over green hills"),
     List(children: [
       "Sunrise over the river",
       "The blue door",
@@ -113,10 +114,30 @@ Page(
     H3("Your cart"),
     // Une ligne : côte à côte. Ce qui ne tient pas passe à la ligne.
     // align : start (au début), center (au milieu), end (à la fin), between (écartés).
-    Row(gap: 8px, align: between, children: [
-      Text.note("{count} paintings · {total} euros"),
-      Button(name: Empty, text: "Empty the cart"),
+    // Une condition : ce qu'elle contient ne se montre que si elle est vraie.
+    // is (égal), not (différent), over (plus grand), under (plus petit).
+    If(count, is: 0, children: [
+      Text.note("Your cart is empty."),
     ]),
+    If(count, over: 0, children: [
+      Row(gap: 8px, align: between, children: [
+        Text.note("{count} paintings · {total} euros"),
+        Button(name: Empty, text: "Empty the cart"),
+      ]),
+    ]),
+    // Deux comparaisons valent ensemble : au-dessus de 0 et en dessous de 300.
+    If(total, over: 0, under: 300, children: [
+      Text.note("Add more paintings: delivery is free from 300 euros."),
+    ]),
+    If(total, over: 299, children: [
+      // Du texte montré tel quel, lettre pour lettre.
+      Text.note("Delivery is free. Your code:"),
+      Code("FREE-DELIVERY"),
+    ]),
+
+    // Un trait de séparation, puis une citation.
+    Hr(),
+    Quote("The blue door has been in my kitchen for a year. I still stop to look at it.", by: "A customer"),
 
     Button.card(name: Open, text: "Enter the workshop"),
 
@@ -137,7 +158,7 @@ Page(
           P("Here the paintings are made."),
           // Le panier vous suit dans le monde : c'est la même valeur.
           Text("{count} paintings in your cart · {total} euros"),
-          Image(source: "easel.svg", weight: 1KB),
+          Image(source: "easel.svg", weight: 1KB, alt: "An easel holding a blank canvas"),
           Button(name: Back, text: "Back to the shop"),
 
           // Un point dans un point : sans couleur imposée, la graine décide.

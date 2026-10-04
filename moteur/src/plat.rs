@@ -21,11 +21,23 @@ background:radial-gradient(circle,white 0%,var(--holo-color,white) 35%,transpare
 :where(.holo-World[hidden]){display:none}\
 :where(.holo-panneau){position:absolute;z-index:1;left:0;right:0;bottom:0;max-height:46vh;overflow:auto;padding:16px max(16px,calc(50% - 320px));\
 box-sizing:border-box;background:rgba(0,0,0,0.6);pointer-events:auto}\
+:where(.holo-If){display:contents}:where(.holo-If)>*{display:block;box-sizing:border-box;margin:0 0 16px 0}\
 :where(.holo-Row){display:flex;flex-wrap:wrap;align-items:center;gap:var(--holo-gap,16px);justify-content:var(--holo-align,flex-start)}\
 :where(.holo-Column){display:flex;flex-direction:column;gap:var(--holo-gap,16px);align-items:var(--holo-align,stretch)}\
 :where(.holo-Grid){display:grid;gap:var(--holo-gap,16px);\
 grid-template-columns:repeat(auto-fill,minmax(min(100%,max(120px,calc((100% - (var(--holo-columns,2) - 1)*var(--holo-gap,16px))/var(--holo-columns,2)))),1fr))}\
-:where(.holo-Row,.holo-Column,.holo-Grid)>*{margin:0;box-sizing:border-box;min-width:0}";
+:where(.holo-Row,.holo-Column,.holo-Grid)>*{margin:0;box-sizing:border-box;min-width:0}\
+:where(.holo-Row,.holo-Column,.holo-Grid)>.holo-If>*{margin:0}:where(.holo-If[hidden]){display:none}\
+:where(.holo-Hr){border:0;border-top:1px solid currentColor;opacity:0.4;height:0}\
+:where(.holo-Quote){border-left:3px solid currentColor;padding:0 0 0 12px;font-style:italic}\
+:where(.holo-Quote>p){margin:0 0 4px 0}:where(.holo-Quote>footer){font-style:normal;font-size:0.9em;opacity:0.7}\
+:where(.holo-Code){font-family:ui-monospace,Consolas,monospace;background:rgba(127,127,127,0.18);padding:8px 12px;border-radius:6px;overflow:auto;white-space:pre-wrap}\
+:where(.holo-Page code){font-family:ui-monospace,Consolas,monospace;background:rgba(127,127,127,0.18);padding:0 4px;border-radius:4px}:where(.holo-Code code){background:none;padding:0}";
+
+/// Entoure, dans le HTML en cours de fabrication, la condition d'un bloc `If` : `site_html`
+/// la remplace par « hidden » quand elle est fausse au départ. Ce caractère ne peut pas venir
+/// d'un texte de l'auteur : `echapper` le retire.
+const MARQUE: char = '\u{1}';
 
 /// Fabrique la page. `base` est le dossier du fichier `.holo`, pour retrouver ses images.
 /// Le fichier doit avoir passé les vérifications (`crate::verifier_page`).
@@ -61,7 +73,29 @@ pub fn site_html(programme: &Programme, page: &Bloc, base: &str, titre: &str) ->
     };
     // Les valeurs de la page, à leur départ, là où un texte les montre : « {cart} » (ADR-023).
     let depart = crate::etat::initial(programme).unwrap_or_default();
-    for (nom, valeur) in crate::etat::a_montrer(programme, &depart) {
+    let montrees = crate::etat::a_montrer(programme, &depart);
+    // Les conditions, à leur départ : ce qui est faux est caché dès le premier affichage (ADR-025).
+    let conditions = |html: String| -> String {
+        let mut sortie = String::with_capacity(html.len());
+        for (rang, morceau) in html.split(MARQUE).enumerate() {
+            if rang % 2 == 0 {
+                sortie.push_str(morceau);
+                continue;
+            }
+            // nom|mot=nombre|mot=nombre
+            let mut parties = morceau.split('|');
+            let nom = parties.next().unwrap_or("");
+            let comparaisons: Vec<(&str, u64)> = parties.filter_map(|p| p.split_once('=')).filter_map(|(mot, n)| Some((mot, n.parse().ok()?))).collect();
+            let valeur = montrees.iter().find(|(connu, _)| connu == nom).map_or(0, |(_, v)| *v);
+            if !crate::etat::vraie(&comparaisons, valeur) {
+                sortie.push_str(" hidden");
+            }
+        }
+        sortie
+    };
+    corps = conditions(corps);
+    mondes = conditions(mondes);
+    for (nom, valeur) in montrees.clone() {
         let (vide, pleine) = (format!("<span data-state=\"{nom}\"></span>"), format!("<span data-state=\"{nom}\">{valeur}</span>"));
         corps = corps.replace(&vide, &pleine);
         mondes = mondes.replace(&vide, &pleine);
@@ -154,7 +188,14 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
                     })
                 }
             };
-            sortie.push_str(&format!("<img class=\"{classes}\"{nom} src=\"{}{}\" alt=\"\">", echapper(base), echapper(source)));
+            // `alt` : le texte qui remplace l'image pour qui ne la voit pas. Sans lui, l'image
+            // est tenue pour un décor, et un lecteur d'écran la passe.
+            let alt = match bloc.argument("alt").map(|a| &a.valeur) {
+                None => "",
+                Some(Valeur::Texte(texte)) => texte.as_str(),
+                Some(_) => return Err(Erreur { message: "« Image(alt: …) » attend un texte entre guillemets : ce que montre l'image".into(), pos: bloc.pos }),
+            };
+            sortie.push_str(&format!("<img class=\"{classes}\"{nom} src=\"{}{}\" alt=\"{}\">", echapper(base), echapper(source), echapper(alt)));
         }
         "List" => {
             // `ordered: true` : une liste numérotée.
@@ -172,6 +213,33 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
             }
             sortie.push_str(&format!("</{balise}>"));
         }
+        // Une condition : ce qu'elle contient ne se montre que si elle est vraie (ADR-025).
+        "If" => {
+            let (valeur, comparaisons) = crate::etat::condition(bloc)?;
+            let attributs: String = comparaisons.iter().map(|(mot, nombre)| format!(" data-{mot}=\"{nombre}\"")).collect();
+            let marque: String = comparaisons.iter().map(|(mot, nombre)| format!("|{mot}={nombre}")).collect();
+            sortie.push_str(&format!("<div class=\"{classes}\"{nom} data-if=\"{}\"{attributs}{MARQUE}{}{marque}{MARQUE}>", echapper(valeur), echapper(valeur)));
+            enfants(bloc, sortie, mondes, base)?;
+            sortie.push_str("</div>");
+        }
+        // Un trait de séparation.
+        "Hr" => {
+            if let Some(argument) = bloc.arguments.iter().find(|a| a.nom.as_deref() != Some("name")) {
+                return Err(Erreur { message: "« Hr » est un trait de séparation : il s'écrit « Hr() »".into(), pos: argument.pos });
+            }
+            sortie.push_str(&format!("<hr class=\"{classes}\"{nom}>"));
+        }
+        // Une citation, avec son auteur si on le donne : Quote("…", by: "…").
+        "Quote" => {
+            let auteur = match bloc.argument("by").map(|a| &a.valeur) {
+                None => String::new(),
+                Some(Valeur::Texte(auteur)) => format!("<footer>— {}</footer>", markdown(auteur)),
+                Some(_) => return Err(Erreur { message: "« Quote(by: …) » attend un texte entre guillemets : qui l'a dit".into(), pos: bloc.pos }),
+            };
+            sortie.push_str(&format!("<blockquote class=\"{classes}\"{nom}><p>{}</p>{auteur}</blockquote>", markdown(texte_de(bloc)?)));
+        }
+        // Du texte montré tel quel, lettre pour lettre : un code, une commande, une adresse.
+        "Code" => sortie.push_str(&format!("<pre class=\"{classes}\"{nom}><code>{}</code></pre>", echapper(texte_de(bloc)?))),
         // La disposition : côte à côte, l'un sous l'autre, en grille (ADR-024).
         "Row" | "Column" | "Grid" => {
             sortie.push_str(&format!("<div class=\"{classes}\"{nom} style=\"{}\">", disposition(bloc)?));
@@ -364,7 +432,7 @@ fn chemin_sur(source: &str) -> bool {
 }
 
 fn echapper(texte: &str) -> String {
-    texte.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
+    texte.replace(MARQUE, "").replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
 }
 
 /// Le Markdown d'une ligne : `**gras**` et `*italique*`. Le reste du Markdown viendra.
@@ -381,7 +449,9 @@ fn markdown(texte: &str) -> String {
             .map(|(i, m)| if i % 2 == 1 { format!("<{balise}>{m}</{balise}>") } else { m.to_string() })
             .collect()
     }
-    let mut html = alterner(&alterner(&echapper(texte), "**", "strong"), "*", "em");
+    // `code` entre accents graves, puis le gras et l'italique. Dans un texte écrit sur
+    // plusieurs lignes (entre trois guillemets), chaque retour à la ligne est gardé.
+    let mut html = alterner(&alterner(&alterner(&echapper(texte), "`", "code"), "**", "strong"), "*", "em").replace('\n', "<br>");
     // `{cart}` : l'endroit où s'affiche une valeur de la page. `site_html` y écrit son départ,
     // la page d'entrée la tient à jour.
     for nom in crate::etat::noms_dans(texte) {
@@ -407,7 +477,7 @@ mod tests {
             "<h1 class=\"holo-H1\">My shop</h1>",
             "<p class=\"holo-P\">Paintings made by hand, one at a time.</p>",
             "<p class=\"holo-P holo-s-card\">Free delivery from <strong>30 euros</strong>.</p>",
-            "<img class=\"holo-Image\" src=\"/ex/painting.svg\" alt=\"\">",
+            "<img class=\"holo-Image\" src=\"/ex/painting.svg\" alt=\"A painting: a yellow sun over green hills\">",
             "<ul class=\"holo-List\"><li>Sunrise over the river</li>",
             "<div class=\"holo-Text holo-s-note\">Open until 6 pm</div>",
             "<button type=\"button\" class=\"holo-Button holo-s-card\" data-name=\"Open\">Enter the workshop</button>",
@@ -421,6 +491,29 @@ mod tests {
         // Le thème avant les types, les types avant les styles nommés.
         let place = |morceau: &str| html.find(morceau).unwrap();
         assert!(place(".holo-Page{") < place(".holo-H1{") && place(".holo-World,") < place(".holo-H1{") && place(".holo-P{") < place(".holo-s-card{"));
+    }
+
+    #[test]
+    fn le_texte_qui_manquait_trait_citation_code_retour_a_la_ligne_et_alt() {
+        let html = page(
+            "Page(children: [ Hr(), Quote(\"A **fine** shop.\", by: \"A visitor\"), Code(\"<b> WELCOME10 & co\"), P(\"\"\"\n  First line\n  Second `line`\n\"\"\"), Image(source: \"a.png\", alt: \"A red \\\"door\\\"\") ])"
+                .replace("\\\"", "'")
+                .as_str(),
+        )
+        .unwrap();
+        assert!(html.contains("<hr class=\"holo-Hr\">"), "{html}");
+        assert!(html.contains("<blockquote class=\"holo-Quote\"><p>A <strong>fine</strong> shop.</p><footer>— A visitor</footer></blockquote>"), "{html}");
+        // Dans Code, rien n'est interprété : ni balise, ni gras.
+        assert!(html.contains("<pre class=\"holo-Code\"><code>&lt;b&gt; WELCOME10 &amp; co</code></pre>"), "{html}");
+        assert!(html.contains("<p class=\"holo-P\">First line<br>Second <code>line</code></p>"), "{html}");
+        assert!(html.contains("<img class=\"holo-Image\" src=\"a.png\" alt=\"A red 'door'\">"), "{html}");
+        // Sans alt, l'image est un décor.
+        assert!(page("Page(children: [ Image(source: \"a.png\") ])").unwrap().contains("alt=\"\""));
+        assert!(page("Page(children: [ Image(source: \"a.png\", alt: 3) ])").unwrap_err().message.contains("attend un texte"));
+        assert!(page("Page(children: [ Hr(color: red) ])").unwrap_err().message.contains("s'écrit « Hr() »"));
+        assert!(page("Page(children: [ Quote(\"x\", by: 3) ])").unwrap_err().message.contains("qui l'a dit"));
+        // Le caractère qui sert de marque aux conditions ne passe pas par un texte.
+        assert!(!page("Page(children: [ \"a\u{1}b\" ])").unwrap().contains('\u{1}'));
     }
 
     #[test]

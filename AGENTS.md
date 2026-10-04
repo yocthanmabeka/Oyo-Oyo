@@ -52,7 +52,8 @@ Le canal entre les IA est **GitHub**, décidé par Yocthan le 2026-10-03 : simpl
 ## État au 2026-10-04
 
 - 18 pull requests, `main` au vert avec cinq tâches de test. Codex (ChatGPT) a livré sa revue dans `proposals/GPT5.6/revue-2026-10-03/` ; trois défauts qu'il a relevés sont corrigés dans le moteur (graines exactes, imports refusés, test figé).
-- Décisions : `ADR-001` à `ADR-024` ; vingt acceptées (dont `ADR-023` et `ADR-024`, validées « pour l'instant » par Yocthan le 2026-10-04, écriture à revoir avec les noms), trois en expérimentation (`ADR-011` à `ADR-013`), une en proposition (`ADR-006`).
+- **Le planning** : sept étapes, dans `docs/01-holocode/COMPARATIF-CONCURRENTS.md`, acceptées par Yocthan le 2026-10-04 (« Oui, commence »). Étape 1 faite sauf les listes répétées (`ADR-025`, à l'essai) : `If`, `Hr`, `Quote`, `Code`, `alt`. Étape suivante : le temps, le hasard, et un premier jeu.
+- Décisions : `ADR-001` à `ADR-025` ; vingt acceptées (dont `ADR-023` et `ADR-024`, validées « pour l'instant » par Yocthan le 2026-10-04, écriture à revoir avec les noms), quatre en expérimentation (`ADR-011` à `ADR-013`, `ADR-025`), une en proposition (`ADR-006`).
 - **La disposition** (`ADR-024`, validée pour l'instant) : `Row`, `Column`, `Grid`, avec `gap`, `align`, `columns`.
 - **La page arrive déjà fabriquée** : `moteur/src/bin/holo.rs` est le moteur en ligne de commande (`holo check`, `holo html`) ; le serveur de démonstration s'en sert pour envoyer le HTML de la page, lisible sans lancer le moteur dans le navigateur.
 - **HoloCode face aux meilleurs** (SolidJS, Rust, Three.js, Unreal), et ce qui manque pour écrire un jeu : `docs/01-holocode/COMPARATIF-CONCURRENTS.md`. Yocthan veut pouvoir construire un vrai jeu en HoloCode ; le premier jeu reste à choisir.

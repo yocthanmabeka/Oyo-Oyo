@@ -32,6 +32,10 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `Point` | aucun (`canvas`, WebGL, à écrire soi-même) | nouveau |
 | `World` | aucun | nouveau |
 | `On` | `addEventListener`, `onclick` | changé : une règle, pas du code |
+| `If` | `if` en JavaScript, `v-if`, `{#if}` | repris, devenu un bloc |
+| `Hr` | `hr` | repris, avec une majuscule |
+| `Quote` | `blockquote`, `q`, `cite` | changé : un mot au lieu de trois |
+| `Code` | `pre`, `code` | repris |
 | `State` | `let`, `useState`, les signaux | changé : une déclaration, pas une variable libre |
 | `Prices` | un objet JavaScript `{ sunrise: 120 }` | changé : une table déclarée |
 | `Zoom` ⚠ | `meta viewport`, la propriété `zoom` | changé |
@@ -53,6 +57,9 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `rules:` | les balises `script` | changé |
 | `effect:` | le corps d'une fonction | changé : une demande, pas du code |
 | `state:`, `prices:` | aucun | nouveaux |
+| `alt:` | `alt` | repris |
+| `by:` | `cite` | changé |
+| `is:`, `not:`, `over:`, `under:` | `===`, `!==`, `>`, `<` | changés : des mots, pas des signes |
 | `gap:` | `gap` | repris |
 | `align:` | `justify-content`, `align-items` | changé : un mot au lieu de deux |
 | `columns:` | `grid-template-columns` | changé ; en CSS, `columns` dit autre chose |

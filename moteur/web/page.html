@@ -318,6 +318,14 @@
     for (const place of ou.querySelectorAll("[data-state]")) {
       if (valeurs.has(place.dataset.state)) place.textContent = valeurs.get(place.dataset.state);
     }
+    // Les conditions : If(count, is: 0). Ce qui est faux est caché.
+    for (const bloc of ou.querySelectorAll("[data-if]")) {
+      if (!valeurs.has(bloc.dataset.if)) continue;
+      const valeur = BigInt(valeurs.get(bloc.dataset.if));
+      const { is, not, over, under } = bloc.dataset;
+      bloc.hidden = !((is === undefined || valeur === BigInt(is)) && (not === undefined || valeur !== BigInt(not)) &&
+        (over === undefined || valeur > BigInt(over)) && (under === undefined || valeur < BigInt(under)));
+    }
   }
 
   // Un signal est émis (Add.tap) : l'arbitre du moteur dit ce que deviennent les valeurs, puis
@@ -325,6 +333,7 @@
   function emettre(signal) {
     etats.set(chemin, arbitrer(source, etats.get(chemin) ?? "", signal));
     montrerLesValeurs();
+    placerLesPixels(); // ce qui apparaît ou disparaît déplace le reste de la page
     for (const effet of effets(source, signal).split(",").filter(Boolean)) {
       appliquer(effet, signal);
     }

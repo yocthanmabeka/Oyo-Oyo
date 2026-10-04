@@ -129,6 +129,8 @@ Une « séance » est une séance de travail comme celles de ces jours-ci. Les d
 | 6 | Dans les mondes : des formes simples, des images, le son, puis des modèles 3D | Des mondes qui ressemblent à quelque chose | 3D : 28 → 45 % ; jeu : 18 → 25 % | 6 séances |
 | 7 | Garder la partie ; jouer à plusieurs, avec l'arbitre sur un serveur | Le métavers au sens propre : s'y retrouver à plusieurs | Jeu : 25 → 30 % ; 3D : 45 → 50 % | 6 séances et plus |
 
+**Où l'on en est.** Étape 1 faite le 2026-10-04, sauf les listes répétées (`ADR-025`) : conditions, trait, citation, texte tel quel, retour à la ligne, `alt`. Les listes répétées attendent des valeurs plus riches que des nombres.
+
 En tout : une trentaine de séances. À chaque étape, on refait ce tableau, et on demande à Codex et à Gemini de le remplir de leur côté : l'écart entre les trois dira si l'on avance vraiment.
 
 ### Ce que le planning ne contient pas, et pourquoi
