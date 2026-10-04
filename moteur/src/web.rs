@@ -284,6 +284,12 @@ pub fn etat_initial(source: &str) -> String {
     crate::etat_initial(source)
 }
 
+/// Les rythmes des règles de temps d'une page, en millisecondes (`1000;2500`).
+#[wasm_bindgen]
+pub fn rythmes(source: &str) -> String {
+    crate::rythmes(source)
+}
+
 /// Les conditions d'une page et leur réponse pour cet état (`count|is=0:1;…`).
 #[wasm_bindgen]
 pub fn conditions(source: &str, etat: &str) -> String {

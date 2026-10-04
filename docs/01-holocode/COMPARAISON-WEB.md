@@ -127,7 +127,9 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | Afficher sous condition | `If(cart, is: 0, children: [...])` | fait, à l'essai |
 | Répéter sur une liste | | manque : il faut d'abord des valeurs qui soient des listes |
 | Chercher des données (`fetch`) | | manque |
-| Durées, minuteries, animations | les unités `ms`, `s` existent, sans emploi | manque |
+| Durées, minuteries | `Every(1s, effect: …)` ; `Portals(duration:)` | fait, à l'essai |
+| Le hasard (`Math.random`) | la demande `random`, rejouable | fait, à l'essai |
+| Animations écrites par l'auteur | | manque |
 | Garder des données dans le navigateur | | manque |
 | Calculer librement | prévu : fonctions pures, modules WebAssembly (`ADR-013`) | manque |
 | Modifier la page à la main (le DOM) | refusé (`ADR-015`) | exprès |
