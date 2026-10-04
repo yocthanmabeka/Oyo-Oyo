@@ -6,6 +6,41 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Faire le tour de la page ; deux réglages de plus ; le Flip 3 mesuré
+
+**Ce que Yocthan a demandé**
+
+- Mesurer sur son Galaxy Z Flip 3.
+- « La rotation n'est pas à 360 degrés, elle est bloquée à un certain angle. »
+- Créer les réglages utiles pour ce qui existe, et les mettre dans le langage s'ils n'y sont pas.
+- Un téléphone modeste sera difficile à trouver : régler d'abord tous les paramètres, on verra ensuite.
+
+**Fait**
+
+- `Relief(tilt:)` va jusqu'à `360deg`, et c'est la valeur par défaut. On fait le tour de la page ; par derrière, on la voit à l'envers, comme une feuille tenue devant une lampe. Un auteur qui écrit `tilt: 52deg` garde sa limite.
+
+![La page du salon vue par derrière](images/2026-10-04-page-vue-par-derriere.png)
+
+![Ses points, vus par derrière et de près](images/2026-10-04-points-vus-par-derriere.png)
+
+- Par derrière, pointer et glisser restent justes : le zoom vise l'endroit sous le doigt, la page suit le doigt. Vue par la tranche, le moteur ne calcule que les points proches de l'endroit regardé.
+- Deux réglages existaient dans le moteur sans mot pour les écrire : `Zoom(speed:)` (vitesse du zoom à la molette, 0.25 à 4) et `Portals(duration:)` (temps d'ouverture d'un portail, 0ms à 2000ms). Guide, inventaire, boutique et `ADR-021` mis à jour ; 67 tests.
+- Mesure sur le Flip 3 (Snapdragon 888, 2021), WebGPU : 60,3 images par seconde en zoomant dans le Big Bang, 60,2 en vue points (image la plus lente : 33 ms), entrée en vue points en 221 ms, 99 Mo pour l'onglet. Pas moins bien que le Flip 5.
+
+**Ce qui n'est pas vérifié**
+
+- Le pincement à deux doigts n'a été essayé que par simulation, pas avec de vrais doigts : à Yocthan de l'essayer.
+- Tourner la page se fait par le bouton « Tourner », le bouton droit ou Maj. Au doigt, il faut passer par le bouton : pas de geste à deux doigts pour tourner.
+- Toujours pas de téléphone modeste.
+
+**Erreurs en route**
+
+- Un test existant se servait de `speed` comme exemple de paramètre inconnu : il a échoué quand `speed` est devenu un vrai mot. Remplacé par un mot qui n'existe pas.
+- La première capture « par derrière » montrait la boutique arrêtée à 52 degrés : le serveur lisait le fichier de la branche principale, où `tilt: 52deg` est encore écrit. C'était la limite de l'auteur qui jouait, pas un défaut. Capture refaite sur le salon.
+- `sur_la_page` refusait tout regard venant de derrière la page : corrigé, avec un test.
+
+---
+
 ## 2026-10-04 — Au doigt, le pincement ne menait plus aux points ; `ADR-010` accepté
 
 **Ce que Yocthan a montré**

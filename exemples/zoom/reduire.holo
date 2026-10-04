@@ -19,7 +19,7 @@ Page(
 
   relief: Relief(
     height: 20px,     // un relief plus marqué
-    tilt: 70deg,      // et une page qu'on peut tourner davantage
+    tilt: 70deg,      // et une page qu'on ne peut pas tourner au-delà de cet angle
   ),
 
   children: [

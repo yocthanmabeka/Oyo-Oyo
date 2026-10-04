@@ -37,7 +37,7 @@ Page(
 
   relief: Relief(
     height: 10px,     // la hauteur du relief quand la page est de biais
-    tilt: 52deg,      // jusqu'où l'on peut tourner la page
+    tilt: 360deg,     // jusqu'où l'on peut tourner la page ; 360deg : on en fait le tour
   ),
 )
 ```
@@ -52,25 +52,29 @@ Page(
 | `Zoom(max:)` | 1 à 1 000 000 000 000 | pas de limite autre que la profondeur |
 | `Zoom(shrink:)` | `true` ou `false` | `false` |
 | `Zoom(levels:)` | 1 à 16 | 8 |
+| `Zoom(speed:)` | 0.25 à 4 | 1 |
 | `Points(after:)` | 1 à 16 | 4 |
 | `Zoom(active:)` | `true` ou `false` | `true` |
 | `Portals(layout:)` | `grid`, `row`, `column`, `diagonal` | `grid` |
 | `Portals(count:)` | 1 à 64 | 12 |
 | `Portals(size:)` | 80px à 400px | 170px |
 | `Portals(brightness:)` | 0 à 1 | 0,15 |
+| `Portals(duration:)` | 0ms à 2000ms | 450ms |
 | `Points(size:)` | 2px à 32px | 6px |
 | `Points(fragment:)` | 8px à 400px, et au moins `size` × `grid` | 40px |
 | `Points(grid:)` | 2 à 8 | 4 |
 | `Points(depth:)` | 0 à 20 | 20 |
 | `Points(density:)` | 1 à 3 | 2 |
 | `Relief(height:)` | 0px à 40px | 10px |
-| `Relief(tilt:)` | 0deg à 80deg | 52deg |
+| `Relief(tilt:)` | 0deg à 360deg | 360deg : on fait le tour de la page |
 
 La borne « `fragment` au moins égal à `size` × `grid` » garantit qu'il n'y a jamais plus de points à dessiner que l'écran ne peut en montrer (`ADR-005`).
 
 **Deux unités de plus dans le langage** : `px` (pixels d'écran) et `deg` (degrés).
 
 **Ajouts du même jour.** `Zoom(levels:)` limite le nombre de sites emboîtés les uns dans les autres ; un fichier qui en emboîte davantage est refusé. `Points(after:)` fixe le grossissement jusqu'où la page reste un site ordinaire, qu'on lit et qu'on copie : Yocthan veut que la « métaversification » ne commence qu'à partir d'une certaine profondeur de zoom, pour qu'un visiteur qui zoome seulement pour mieux lire garde l'expérience qu'il connaît.
+
+**Ajouts du 2026-10-04, demandés par Yocthan.** « La rotation n'est pas à 360 degrés, elle est bloquée à un certain angle » : `Relief(tilt:)` va maintenant jusqu'à `360deg`, et c'est la valeur par défaut (avant : 80deg au plus, 52deg par défaut). À partir de `180deg`, la rotation est libre : on fait le tour de la page et on la voit par derrière, à l'envers, comme une feuille. En dessous, l'auteur garde sa limite. Deux réglages s'ajoutent, parce qu'ils existaient dans le moteur sans mot pour les écrire : `Zoom(speed:)`, la vitesse du zoom à la molette, et `Portals(duration:)`, le temps que met un portail à s'ouvrir, première utilisation de l'unité `ms`. Options écartées : un bloc à part pour la rotation (`Rotation(max:)`), qui aurait fait deux mots pour une seule chose, et un mot `free` à la place d'un angle, qui aurait fait deux écritures. Défaut évité : en CSS, `transition-duration` accepte `s` et `ms`, et un nombre sans unité est ignoré en silence ; ici une seule unité, et l'oubli est refusé.
 
 **Le carrefour et l'interrupteur du zoom.** `Zoom(active:)` permet ou interdit le zoom. Un quatrième bloc, `Portals(layout:, count:, size:, brightness:)`, règle le carrefour : la disposition des portails (`grid`, `row`, `column`, `diagonal`, donc aussi le sens où on les fait défiler), leur nombre, leur taille, la lumière du fond. La page gagne une capacité, `portals`, pour ouvrir le carrefour par une règle. Demandé par Yocthan le 2026-10-03 : « chaque action doit être dans le code ».
 

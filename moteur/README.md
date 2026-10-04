@@ -89,6 +89,21 @@ Samsung Galaxy Z Flip 5 (SM-F731N), Chrome 153, le 2026-10-04, commit `d89c1e6`.
 | Tas JavaScript | 10 Mo |
 | Mémoire du processus de l'onglet, vue points ouverte (`dumpsys meminfo`) | 88 Mo en part propre (PSS), 179 Mo résidents (RSS) |
 
+Samsung Galaxy Z Flip 3 (SM-F711N, Snapdragon 888, 8 Go, Android 15), Chrome 153, le 2026-10-04, même méthode, sur la branche `langage/rotation-et-reglages`. Un téléphone de 2021, deux ans plus ancien. Écran vu par Chrome : 360 × 744, densité 3.
+
+| Mesure | Résultat |
+|---|---|
+| Mode graphique | WebGPU |
+| Big Bang au repos | 60,1 images par seconde ; image la plus lente : 16,8 ms |
+| Big Bang, zoom continu pendant 6 s, à travers 6 mondes emboîtés | 60,3 images par seconde ; image la plus lente : 16,8 ms |
+| Première image, moteur déjà en cache | 168 ms (753 ms à la première ouverture de la séance) |
+| Boutique, entrée en vue points | 221 ms ; 1 071 360 points au repos (720 × 1488) |
+| Boutique, vue points, zoom continu pendant 6 s jusqu'à 4 morcellements | 60,2 images par seconde ; image la plus lente : 33,3 ms ; jamais plus de 5 980 points à l'écran |
+| Tas JavaScript | 17 Mo |
+| Mémoire du processus de l'onglet, vue points ouverte (`dumpsys meminfo`) | 99 Mo en part propre (PSS), 241 Mo résidents (RSS) |
+
+Ce téléphone ne fait pas moins bien que le Flip 5. Ce n'est toujours pas un téléphone modeste : c'était un haut de gamme en 2021.
+
 Ce que ces mesures ne disent pas : la consommation de batterie, l'échauffement dans la durée, le comportement sans WebGPU (WebGL 2), et celui d'un téléphone plus modeste. Une seule série a été faite.
 
 Pour refaire les mesures : `adb reverse tcp:8080 tcp:8080`, `adb forward tcp:9222 localabstract:chrome_devtools_remote`, ouvrir la page dans Chrome sur le téléphone (écran allumé et déverrouillé), puis `node outils/mesurer-telephone.mjs big-bang.holo @outils/mesures/big-bang.js` ou `node outils/mesurer-telephone.mjs boutique.holo @outils/mesures/vue-points.js`.
