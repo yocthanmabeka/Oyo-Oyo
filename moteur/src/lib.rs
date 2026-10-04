@@ -91,6 +91,17 @@ pub fn arbitrer(source: &str, etat: &str, signal: &str) -> String {
     }
 }
 
+/// Les conditions d'une page (`If`), avec leur réponse pour cet état : `count|is=0:1;total|over=299:0`.
+pub fn conditions(source: &str, etat: &str) -> String {
+    match verifier_page(source) {
+        Ok(programme) => {
+            let montrees = etat::a_montrer(&programme, &etat::relire(&programme, etat));
+            etat::conditions(&programme, &montrees).iter().map(|(cle, vraie)| format!("{cle}:{}", u8::from(*vraie))).collect::<Vec<_>>().join(";")
+        }
+        Err(_) => String::new(),
+    }
+}
+
 /// Le fichier `.holo` d'un seul point de la page, pour ouvrir sa vue en profondeur.
 pub fn source_du_point(source: &str, nom: &str) -> Option<String> {
     let programme = verifier_page(source).ok()?;
