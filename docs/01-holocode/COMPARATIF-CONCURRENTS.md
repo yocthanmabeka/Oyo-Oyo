@@ -97,3 +97,48 @@ Aujourd'hui, un jeu est impossible : rien ne bouge tout seul, rien ne se décide
 La contrainte reste la même : pas de code libre. Chaque rang doit s'écrire par des règles (`On(...)`), des valeurs (`State`) et des demandes faites au moteur.
 
 La méthode que Claude recommande : choisir un premier jeu très petit, et n'ajouter au langage que ce que ce jeu demande. Par exemple « attraper les points » : des points apparaissent, on les touche avant qu'ils s'éteignent, le score monte, la partie dure trente secondes. Ce jeu demande les rangs 1, 2 et 3, et rien d'autre.
+
+## Jusqu'où viser dans chaque famille, et dans quel ordre
+
+Yocthan, le 2026-10-04 : « HoloCode ne cherche pas seulement à être un langage, mais un langage qui permet de faire à la fois du web et du jeu dans le web. Donc, en gros, un métavers. » Il demande, pour chaque famille, le maximum à atteindre, et un planning pour y arriver vite, avec un équilibre entre les familles.
+
+Ce qui suit est une proposition de Claude. Les pourcentages sont des jugements, comme plus haut.
+
+### Les cibles
+
+| Face à | Aujourd'hui | Cible | Pourquoi pas plus |
+|---|---|---|---|
+| SolidJS (le web) | 35 % | **70 %** | Les 30 % restants sont l'écosystème : des milliers de bibliothèques, d'exemples, de gens qui savent. Cela ne se programme pas, cela vient avec des utilisateurs. |
+| Three.js (la 3D dans le navigateur) | 20 % | **50 %** | Three.js a quinze ans d'effets visuels. La moitié suffit pour des mondes qu'on a envie de visiter : des formes, des images, des modèles, un personnage. |
+| Roblox, puis Unreal (le jeu) | 3 % | **30 % de Roblox, 10 % d'Unreal** | Unreal vise l'image de cinéma sur une machine puissante ; nous visons le téléphone ordinaire. Le bon repère est Roblox : des jeux simples, faits par des non-programmeurs. |
+| Rust (le langage) | 30 % | **40 %, sans le chercher** | HoloCode ne doit pas devenir un langage généraliste : c'est en interdisant le code libre qu'il reste facile et sûr. Le calcul libre passera par des modules enfermés (`ADR-013`), écrits en Rust ou autre. |
+
+L'équilibre : le web d'abord, parce que c'est la porte d'entrée de tout le monde (« web d'abord ») ; le jeu ensuite, parce que c'est lui qui donne une raison d'entrer dans les mondes ; la 3D riche en dernier, parce que c'est la plus coûteuse.
+
+### Le planning
+
+Une « séance » est une séance de travail comme celles de ces jours-ci. Les durées sont des estimations.
+
+| Étape | Ce qu'on construit | Ce que ça débloque | Effet attendu | Durée |
+|---|---|---|---|---|
+| 1 | Les conditions (« si le panier est vide »), les listes répétées, le texte de remplacement des images, le texte qui manque (retour à la ligne, trait, citation, code) | Un site qui s'adapte à ce qui se passe | Web : 35 → 50 % | 3 séances |
+| 2 | Le temps, le hasard tiré d'une graine, et un premier jeu entier : « attraper les points » | La preuve qu'un jeu s'écrit sans code | Jeu : 3 → 8 % de Roblox | 3 séances |
+| 3 | Les champs de saisie et les formulaires ; garder une valeur après un rechargement | Recherche, inscription, panier qui reste | Web : 50 → 60 % | 3 séances |
+| 4 | Des objets qui ont une place et qui bougent ; le clavier et le glissement ; les rencontres entre objets | Un personnage, une balle, un ennemi | Jeu : 8 → 18 % ; 3D : 20 → 28 % | 5 séances |
+| 5 | Les imports (réutiliser un morceau de page, un fichier de styles) ; les données venues d'un serveur, par un pont surveillé | Des sites de plusieurs pages, un vrai catalogue | Web : 60 → 70 % | 4 séances |
+| 6 | Dans les mondes : des formes simples, des images, le son, puis des modèles 3D | Des mondes qui ressemblent à quelque chose | 3D : 28 → 45 % ; jeu : 18 → 25 % | 6 séances |
+| 7 | Garder la partie ; jouer à plusieurs, avec l'arbitre sur un serveur | Le métavers au sens propre : s'y retrouver à plusieurs | Jeu : 25 → 30 % ; 3D : 45 → 50 % | 6 séances et plus |
+
+En tout : une trentaine de séances. À chaque étape, on refait ce tableau, et on demande à Codex et à Gemini de le remplir de leur côté : l'écart entre les trois dira si l'on avance vraiment.
+
+### Ce que le planning ne contient pas, et pourquoi
+
+- **Alléger le moteur** (570 Ko). On peut le couper en deux : une petite partie pour la page, la grosse (le dessin des points) seulement quand on zoome. À faire dès qu'une étape le permet ; cela remonterait la ligne « poids » face à SolidJS.
+- **Les lunettes de réalité virtuelle.** Possible après l'étape 6.
+- **Les mondes créés à partir d'une vidéo par une IA** (ce que montre Genie). C'est un calcul énorme, qui se fait sur des serveurs, pas sur un téléphone. La place de HoloCode serait d'accueillir le résultat (une vidéo, un modèle 3D) dans un monde, par un bloc ou par un pont. Cela suppose d'abord l'étape 6.
+- **Le téléphone d'entrée de gamme**, les **trois testeurs**, **les noms** : ils ne dépendent pas de ce planning, et le planning ne les remplace pas.
+
+### Ce qui peut faire échouer ce planning
+
+- Chaque étape ajoute des mots au langage. Si l'on en ajoute trop, il cesse d'être facile, et c'est sa seule avance. Règle à tenir : pas de mot nouveau sans un exemple réel qui le demande.
+- Le jeu pousse vers le code libre (« si ceci, alors cela, sinon… »). Il faudra tenir la ligne : des règles et des demandes, jamais de programme.

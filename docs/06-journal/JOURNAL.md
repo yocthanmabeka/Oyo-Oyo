@@ -6,6 +6,22 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Les cibles par famille et un planning en sept étapes
+
+**Ce que Yocthan a demandé**
+
+- Se rapprocher au maximum dans chaque famille, avec un équilibre : « HoloCode ne cherche pas seulement à être un langage, mais un langage qui permet de faire à la fois du web et du jeu dans le web. Donc, en gros, un métavers. » Il évoque les mondes créés à partir d'une vidéo. Il veut la cible pour chaque famille et un planning pour l'atteindre vite.
+
+**Proposé par Claude** (dans `docs/01-holocode/COMPARATIF-CONCURRENTS.md`)
+
+- Cibles : 70 % de SolidJS pour le web, 50 % de Three.js pour la 3D, 30 % de Roblox et 10 % d'Unreal pour le jeu, 40 % de Rust sans le chercher.
+- Sept étapes, une trentaine de séances : conditions et listes ; le temps, le hasard et un premier jeu ; formulaires ; objets qui bougent ; imports et données ; formes, images, son et modèles ; partie gardée et jeu à plusieurs.
+- Les mondes tirés d'une vidéo ne sont pas dans le planning : le calcul se fait sur des serveurs ; HoloCode pourrait en accueillir le résultat après l'étape 6.
+
+**Rien n'est décidé ni construit.** L'ordre des étapes attend l'accord de Yocthan.
+
+---
+
 ## 2026-10-04 — Le garde-fou de fusion avait un trou
 
 **Erreur**
