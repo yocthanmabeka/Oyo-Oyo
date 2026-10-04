@@ -185,6 +185,196 @@ pub fn reprendre(programme: &Programme, garde: &str) -> Etat {
     etat
 }
 
+/// Le rythme le plus rapide et le plus lent auquel une page redemande ses données.
+pub const DONNEES_MIN: u64 = 1_000;
+pub const DONNEES_MAX: u64 = 3_600_000;
+/// La taille d'un fichier de données, au plus.
+pub const DONNEES_OCTETS: usize = 65_536;
+
+/// D'où viennent les données de la page : `data: Data(from: "stock.json", every: 30s)`.
+/// Rend le fichier, et le rythme en millisecondes (0 : une seule fois, à l'ouverture).
+pub fn source_de_donnees(programme: &Programme) -> Result<Option<(String, u64)>, Erreur> {
+    let Some(argument) = programme.racine.argument("data") else { return Ok(None) };
+    let bloc = match &argument.valeur {
+        Valeur::Bloc(bloc) if bloc.nom == "Data" && programme.racine.nom == "Page" => bloc,
+        _ => return Err(Erreur { message: "« data » attend un bloc « Data(...) », sur la page : data: Data(from: \"stock.json\")".into(), pos: argument.pos }),
+    };
+    let (mut fichier, mut rythme) = (None, 0);
+    for argument in &bloc.arguments {
+        match (argument.nom.as_deref(), &argument.valeur) {
+            // Un fichier rangé à côté de la page : ni adresse complète, ni remontée de dossier.
+            // La page ne parle qu'au serveur d'où elle vient.
+            (Some("from"), Valeur::Texte(nom)) if nom.ends_with(".json") && !nom.starts_with('/') && !nom.contains("..") && nom.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '/')) => {
+                fichier = Some(nom.clone());
+            }
+            (Some("from"), _) => return Err(Erreur { message: "« Data(from: …) » attend un fichier .json rangé à côté de la page, comme \"stock.json\"".into(), pos: argument.pos }),
+            (Some("every"), Valeur::Nombre { valeur, unite: Some(unite) }) if unite == "s" || unite == "ms" => {
+                let ms = if unite == "s" { valeur * 1000.0 } else { *valeur };
+                if !(DONNEES_MIN as f64..=DONNEES_MAX as f64).contains(&ms) {
+                    return Err(Erreur { message: "« Data(every: …) » va de 1s à 3600s".into(), pos: argument.pos });
+                }
+                rythme = ms.round() as u64;
+            }
+            (Some("every"), _) => return Err(Erreur { message: "« Data(every: …) » attend une durée, de 1s à 3600s".into(), pos: argument.pos }),
+            (Some(mot), _) => return Err(Erreur { message: format!("« Data » n'a pas de paramètre « {mot} » ; paramètres possibles : from, every"), pos: argument.pos }),
+            (None, _) => return Err(Erreur { message: "chaque paramètre de « Data » est nommé : Data(from: \"stock.json\")".into(), pos: argument.pos }),
+        }
+    }
+    match fichier {
+        Some(fichier) => Ok(Some((fichier, rythme))),
+        None => Err(Erreur { message: "« Data » attend « from » : Data(from: \"stock.json\")".into(), pos: bloc.pos }),
+    }
+}
+
+/// Ce qu'on lit dans un fichier de données : un nombre entier, ou un texte.
+#[derive(Debug, PartialEq)]
+pub enum Donnee {
+    Nombre(u64),
+    Texte(String),
+}
+
+/// Lit un fichier de données : un objet JSON à plat, `{"stock": 4, "message": "Ouvert"}`.
+/// Sont repris : les nombres entiers positifs, les textes, et `true`/`false` (1 et 0). Tout le
+/// reste (nombres à virgule ou négatifs, listes, objets emboîtés, `null`) est laissé de côté.
+/// Un fichier mal formé ne donne rien du tout.
+pub fn lire_donnees(json: &str) -> Vec<(String, Donnee)> {
+    fn blancs(t: &[char], i: &mut usize) {
+        while *i < t.len() && t[*i].is_whitespace() {
+            *i += 1;
+        }
+    }
+    fn texte(t: &[char], i: &mut usize) -> Option<String> {
+        if t.get(*i) != Some(&'"') {
+            return None;
+        }
+        *i += 1;
+        let mut sortie = String::new();
+        loop {
+            let c = *t.get(*i)?;
+            *i += 1;
+            match c {
+                '"' => return Some(sortie),
+                '\\' => {
+                    let e = *t.get(*i)?;
+                    *i += 1;
+                    match e {
+                        'n' => sortie.push('\n'),
+                        't' => sortie.push(' '),
+                        'u' => {
+                            let hexa: String = t.get(*i..*i + 4)?.iter().collect();
+                            *i += 4;
+                            sortie.push(char::from_u32(u32::from_str_radix(&hexa, 16).ok()?).unwrap_or('?'));
+                        }
+                        autre => sortie.push(autre),
+                    }
+                }
+                autre => sortie.push(autre),
+            }
+        }
+    }
+    // Saute une valeur qu'on ne reprend pas : une liste, un objet, un nombre à virgule, null.
+    fn sauter(t: &[char], i: &mut usize) -> Option<()> {
+        let mut profondeur = 0usize;
+        loop {
+            match *t.get(*i)? {
+                '"' => {
+                    texte(t, i)?;
+                    continue;
+                }
+                '[' | '{' => profondeur += 1,
+                ']' | '}' if profondeur > 0 => profondeur -= 1,
+                ',' | '}' if profondeur == 0 => return Some(()),
+                _ => {}
+            }
+            *i += 1;
+        }
+    }
+    let lire = || -> Option<Vec<(String, Donnee)>> {
+        if json.len() > DONNEES_OCTETS {
+            return None;
+        }
+        let t: Vec<char> = json.chars().collect();
+        let mut i = 0;
+        let mut donnees = Vec::new();
+        blancs(&t, &mut i);
+        if t.get(i) != Some(&'{') {
+            return None;
+        }
+        i += 1;
+        loop {
+            blancs(&t, &mut i);
+            if t.get(i) == Some(&'}') {
+                return Some(donnees);
+            }
+            let cle = texte(&t, &mut i)?;
+            blancs(&t, &mut i);
+            if t.get(i) != Some(&':') {
+                return None;
+            }
+            i += 1;
+            blancs(&t, &mut i);
+            let debut = i;
+            match *t.get(i)? {
+                '"' => donnees.push((cle, Donnee::Texte(texte(&t, &mut i)?))),
+                c if c.is_ascii_digit() => {
+                    while t.get(i).is_some_and(|c| c.is_ascii_digit()) {
+                        i += 1;
+                    }
+                    // Un nombre à virgule ou avec exposant n'est pas repris.
+                    if t.get(i).is_some_and(|c| matches!(c, '.' | 'e' | 'E')) {
+                        sauter(&t, &mut i)?;
+                    } else if let Ok(nombre) = t[debut..i].iter().collect::<String>().parse::<u64>() {
+                        donnees.push((cle, Donnee::Nombre(nombre)));
+                    }
+                }
+                _ => {
+                    let mot: String = t[i..].iter().take(5).collect();
+                    if mot.starts_with("true") {
+                        donnees.push((cle, Donnee::Nombre(1)));
+                    } else if mot.starts_with("false") {
+                        donnees.push((cle, Donnee::Nombre(0)));
+                    }
+                    sauter(&t, &mut i)?;
+                }
+            }
+            blancs(&t, &mut i);
+            match *t.get(i)? {
+                ',' => i += 1,
+                '}' => return Some(donnees),
+                _ => return None,
+            }
+        }
+    };
+    lire().unwrap_or_default()
+}
+
+/// Les données viennent d'arriver. C'est l'arbitre qui les range : seulement dans des valeurs
+/// que la page déclare, de la bonne sorte (un nombre dans un nombre, un texte dans un texte),
+/// et dans leurs bornes. Puis les règles qui guettent ont leur mot à dire.
+pub fn recevoir(programme: &Programme, etat: &Etat, textes: &Textes, json: &str) -> (Etat, Textes) {
+    let avant = etat.clone();
+    let (mut etat, mut textes) = (etat.clone(), textes.clone());
+    if source_de_donnees(programme).ok().flatten().is_none() {
+        return (etat, textes);
+    }
+    for (cle, donnee) in lire_donnees(json) {
+        match donnee {
+            Donnee::Nombre(nombre) => {
+                let plafond = plafond(programme, &cle);
+                if let Some((_, place)) = etat.iter_mut().find(|(connu, _)| *connu == cle && connu != TIRAGES) {
+                    *place = nombre.min(plafond);
+                }
+            }
+            Donnee::Texte(texte) => {
+                if let Some((_, place)) = textes.iter_mut().find(|(connu, _)| *connu == cle) {
+                    *place = propre(&texte, TEXTE_MAX);
+                }
+            }
+        }
+    }
+    (suites(programme, avant, etat), textes)
+}
+
 /// Les demandes d'une règle : une seule (`effect: cart.add(1)`), ou plusieurs entre crochets
 /// (`effect: [score.set(0), lives.set(3)]`), faites dans l'ordre où elles sont écrites.
 pub fn demandes_de(regle: &Bloc) -> Vec<&Bloc> {
@@ -541,6 +731,7 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
     let etat = initial(programme)?;
     prix(programme)?;
     gardees(programme)?;
+    source_de_donnees(programme)?;
     // Ce qu'un texte peut montrer : les valeurs déclarées, nombres et textes, et celles que le
     // moteur calcule.
     let textes = textes_initiaux(programme);
@@ -1090,6 +1281,48 @@ mod tests {
         // Un fichier où deux règles se relancent l'une l'autre ne tourne pas sans fin.
         let boucle = page("Page(state: State(a: 0, b: 0), children: [ Button(name: B, text: \"x\") ], rules: [ On(B.tap, effect: a.set(1)), When(a, is: 1, effect: a.set(0)), When(a, is: 0, effect: a.set(1)) ])").unwrap();
         let _ = arbitrer(&boucle, &initial(&boucle).unwrap(), "B.tap");
+    }
+
+    #[test]
+    fn les_donnees_d_un_serveur_passent_par_l_arbitre() {
+        let source = "Page(
+  state: State(stock: 0, message: \"\", cart: 2, ouvert: 0, alerte: 0),
+  data: Data(from: \"stock.json\", every: 30s),
+  children: [ Text(\"{stock} en stock. {message}\"), Input(value: cart, label: \"x\", max: 5) ],
+  rules: [ When(stock, is: 0, effect: alerte.set(1)) ],
+)";
+        let programme = page(source).unwrap();
+        assert_eq!(source_de_donnees(&programme).unwrap(), Some(("stock.json".to_string(), 30_000)));
+        assert_eq!(crate::donnees(source), "stock.json|30000");
+        // Un nombre va dans un nombre, un texte dans un texte ; le reste est laissé de côté.
+        let depart = crate::etat_initial(source);
+        let recu = crate::recevoir(source, &depart, r#"{ "stock": 4, "message": "Ouvert \"aujourd'hui\"", "ouvert": true, "cart": 99, "inconnu": 7, "prix": 3.5, "liste": [1, {"a": "}"}], "rien": null, "stock2": -1 }"#);
+        assert_eq!(recu, format!("stock=4;cart=5;ouvert=1;alerte=0;message='{}", coder("Ouvert \"aujourd'hui\"")));
+        // Un texte offert à un nombre, ou l'inverse, ne change rien.
+        assert_eq!(crate::recevoir(source, &depart, r#"{"stock": "beaucoup", "message": 12}"#), depart);
+        // Un fichier mal formé, ou trop gros, ne change rien.
+        for mauvais in ["", "[1, 2]", "{\"stock\": 4", "{stock: 4}", "<html>", &format!("{{\"message\": \"{}\"}}", "x".repeat(DONNEES_OCTETS))] {
+            assert_eq!(crate::recevoir(source, &depart, mauvais), depart, "{}", &mauvais[..mauvais.len().min(30)]);
+        }
+        // Les règles qui guettent voient arriver les données : le stock tombe à zéro.
+        let plein = crate::recevoir(source, &depart, r#"{"stock": 3}"#);
+        assert!(crate::recevoir(source, &plein, r#"{"stock": 0}"#).contains("alerte=1"));
+        // Sans « data: », rien n'est reçu.
+        let sans = source.replace("  data: Data(from: \"stock.json\", every: 30s),\n", "");
+        assert_eq!(crate::recevoir(&sans, &crate::etat_initial(&sans), r#"{"stock": 4}"#), crate::etat_initial(&sans));
+        assert_eq!(crate::donnees(&sans), "");
+        for (source, message) in [
+            ("Page(data: Data(from: \"https://ailleurs.example/x.json\"))", "rangé à côté"),
+            ("Page(data: Data(from: \"../secret.json\"))", "rangé à côté"),
+            ("Page(data: Data(from: \"stock.txt\"))", "rangé à côté"),
+            ("Page(data: Data(every: 30s))", "attend « from »"),
+            ("Page(data: Data(from: \"a.json\", every: 10ms))", "de 1s à 3600s"),
+            ("Page(data: Data(from: \"a.json\", fill: 3))", "n'a pas de paramètre « fill »"),
+            ("Page(data: 3)", "un bloc « Data(...) »"),
+        ] {
+            let erreur = page(source).unwrap_err();
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
     }
 
     #[test]

@@ -129,6 +129,19 @@ pub fn saisir(source: &str, etat: &str, nom: &str, ecrit: &str) -> String {
     }
 }
 
+/// D'où viennent les données de la page, et à quel rythme : `stock.json|30000` (0 : une seule
+/// fois). Vide si la page n'en demande pas.
+pub fn donnees(source: &str) -> String {
+    verifier_page(source).ok().and_then(|programme| etat::source_de_donnees(&programme).ok().flatten()).map(|(fichier, rythme)| format!("{fichier}|{rythme}")).unwrap_or_default()
+}
+
+/// Les données viennent d'arriver du serveur : l'arbitre les range et rend le nouvel état.
+pub fn recevoir(source: &str, etat: &str, json: &str) -> String {
+    let Ok(programme) = verifier_page(source) else { return String::new() };
+    let (nombres, textes) = etat::recevoir(&programme, &etat::relire(&programme, etat), &etat::relire_textes(&programme, etat), json);
+    ecrire_tout(&programme, &nombres, &textes)
+}
+
 /// Le visiteur fait glisser un bloc d'un plateau : l'arbitre rend le nouvel état.
 pub fn glisser(source: &str, etat: &str, nom: &str, x: u32, y: u32) -> String {
     let Ok(programme) = verifier_page(source) else { return String::new() };

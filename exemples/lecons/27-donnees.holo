@@ -1,0 +1,42 @@
+// Leçon 27 — Des données venues du serveur
+//
+// Ce qu'on apprend :
+//   « data: Data(from: "27-donnees.json", every: 2s) » : la page va chercher un fichier de
+//   données, rangé à côté d'elle, à l'ouverture puis toutes les deux secondes.
+//   Le fichier est un objet JSON à plat : { "stock": 4, "message": "Ouvert" }.
+//   Chaque nom du fichier remplit la valeur de State du même nom : un nombre dans un nombre,
+//   un texte dans un texte. Ce qui ne correspond à rien est laissé de côté.
+//   La page ne parle qu'au serveur d'où elle vient.
+//
+// À essayer :
+//   Ouvre 27-donnees.json dans VS Code, change 4 en 0, enregistre : en deux secondes, la page suit.
+//   Écris un stock négatif ou un texte à la place du nombre : la page garde sa valeur.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 27 : des données venues du serveur",
+
+  state: State(stock: 0, message: ""),
+  data: Data(from: "27-donnees.json", every: 2s),
+
+  children: [
+    H1("Des données venues du serveur"),
+    Text("{message}"),
+    If(stock, over: 0, children: [
+      Text("Il reste {stock} tableaux."),
+    ]),
+    If(stock, is: 0, children: [
+      "Plus rien en stock.",
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 26 : un point seul, le Big Bang", to: "26-point-seul.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

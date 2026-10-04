@@ -314,6 +314,18 @@ pub fn saisir(source: &str, etat: &str, nom: &str, ecrit: &str) -> String {
     crate::saisir(source, etat, nom, ecrit)
 }
 
+/// D'où viennent les données de la page, et à quel rythme.
+#[wasm_bindgen]
+pub fn donnees(source: &str) -> String {
+    crate::donnees(source)
+}
+
+/// Les données viennent d'arriver du serveur.
+#[wasm_bindgen]
+pub fn recevoir(source: &str, etat: &str, json: &str) -> String {
+    crate::recevoir(source, etat, json)
+}
+
 /// Le visiteur fait glisser un bloc d'un plateau.
 #[wasm_bindgen]
 pub fn glisser(source: &str, etat: &str, nom: &str, x: u32, y: u32) -> String {

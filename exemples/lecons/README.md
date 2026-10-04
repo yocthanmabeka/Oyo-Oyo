@@ -34,5 +34,6 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 24 | [Faire glisser](24-glisser.holo) | `drag` |
 | 25 | [Un morceau commun à plusieurs pages](25-imports.holo) | `import`, `Part`, `Use` |
 | 26 | [Un point seul : le Big Bang](26-point-seul.holo) | `Point` à la racine, `fragments`, `brightness` |
+| 27 | [Des données venues du serveur](27-donnees.holo) | `data`, `Data`, `from`, `every` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
