@@ -6,6 +6,32 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Yocthan valide le panier et la disposition ; première comparaison de vitesse avec le web
+
+**Ce que Yocthan a dit**
+
+- Il a essayé : le bouton unique (« c'est pas mal, j'ai bien aimé »), le Big Bang (« ça fonctionne comme prévu »), le panier (« ça fonctionne »).
+- Sur ce qui était à l'essai : « Oui, j'ai kiffé. Les paniers, les états, tout ça. Valide-le pour l'instant. »
+- Ensuite : comparer avec d'autres sites, « histoire de voir si le langage est plus rapide que la majorité des langages ou pas ».
+- Le téléphone : déjà essayé deux fois aujourd'hui, inutile d'insister. « Si quelque chose passe, ça veut dire que ça marche. » Un téléphone d'entrée de gamme : pas avant trois mois.
+- Les trois personnes : plus tard. Pour l'instant, le cycle reste entre lui et les IA.
+- Codex : il attend le retour du quota. Il va dormir.
+
+**Fait**
+
+- `ADR-023` (le panier) et `ADR-024` (la disposition) passent d'`EXPÉRIMENTATION` à « `ACCEPTÉ` pour l'instant », sur sa décision. L'écriture reste à revoir avec les noms.
+- Première mesure, boutique en HoloCode contre la même en HTML, CSS et JavaScript, dans `exemples/boutique-comparee/README.md`. Résultat dit sans détour : HoloCode n'est pas plus rapide (premier affichage à peu près égal), il est près de cent fois plus lourd à la première visite (le moteur, 570 Ko, téléchargé une fois), et l'auteur écrit deux fois moins de lignes, sans JavaScript.
+
+**À ne pas refaire**
+
+- Ne plus redemander le téléphone à chaque message. Yocthan le rebranchera quand il voudra une mesure.
+
+**Suite possible**
+
+- Comparer avec React, Vue ou Svelte demande de les installer : à lui de le dire.
+
+---
+
 ## 2026-10-04 — Un seul bouton pour les outils du moteur ; un prompt pour Codex sur les animations
 
 **Ce que Yocthan a dit, après avoir essayé les sept fichiers**
