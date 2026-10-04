@@ -149,8 +149,18 @@ pub fn site_html(programme: &Programme, page: &Bloc, base: &str, titre: &str) ->
         corps = corps.replace(&vide, &pleine);
         mondes = mondes.replace(&vide, &pleine);
     }
+    // Une page vivante bouge ou écoute sans qu'on la touche : une horloge, le clavier, des
+    // données à recevoir, un bloc à faire glisser. (Des valeurs gardées, `keep`, ne la rendent
+    // pas vivante : la page légère regarde s'il y a vraiment quelque chose de gardé.) Le moteur doit
+    // alors arriver tout de suite. Les autres pages s'affichent seules : le moteur n'est
+    // téléchargé qu'au premier geste qui en a besoin (ADR-033).
+    let vivante = !crate::etat::horloges(programme).is_empty()
+        || !crate::etat::touches(programme).is_empty()
+        || crate::etat::source_de_donnees(programme).ok().flatten().is_some()
+        || corps.contains("data-drag=");
+    let vivante = if vivante { " data-vivant" } else { "" };
     Ok(format!(
-        "<style>{BASE}{}</style><div class=\"{classes}\" data-title=\"{titre}\"><main>{corps}</main>{mondes}</div>",
+        "<style>{BASE}{}</style><div class=\"{classes}\" data-title=\"{titre}\"{vivante}><main>{corps}</main>{mondes}</div>",
         css(programme)
     ))
 }
@@ -852,4 +862,16 @@ mod tests {
         assert!(page("Page(children: [ World(children: []) ])").unwrap_err().message.contains("ne se place pas"));
         assert_eq!(markdown("2 * 3"), "2 * 3");
     }
+
+    #[test]
+    fn une_page_qui_bouge_seule_demande_le_moteur_tout_de_suite() {
+        // La boutique attend qu'on la touche : elle s'affiche sans le moteur.
+        let boutique = crate::vue_a_plat(include_str!("../../exemples/boutique-comparee/boutique.holo"), "").unwrap();
+        assert!(!boutique.contains("data-vivant"));
+        // Un jeu a des horloges et le clavier : le moteur doit arriver tout de suite.
+        for jeu in [include_str!("../../exemples/jeu/attraper.holo"), include_str!("../../exemples/jeu/panier.holo")] {
+            assert!(crate::vue_a_plat(jeu, "").unwrap().contains("data-vivant>"));
+        }
+    }
+
 }

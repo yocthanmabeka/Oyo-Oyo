@@ -6,6 +6,38 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Le site léger : 8 Ko au lieu de 579
+
+**Ce que Yocthan a demandé**
+
+- « Sur 100 %, le projet te convainc à combien ? Est-ce ultra léger ? » Claude a répondu environ 45 %, et non : la boutique pesait 579 Ko, contre 6 Ko pour sa jumelle en HTML, parce que tout le moteur partait dès l'ouverture. Sa recommandation numéro un : ne télécharger le moteur qu'au besoin. Yocthan : « Oui, vas-y. »
+
+**Fait** (`ADR-033`, à l'essai)
+
+- La page d'entrée est coupée en deux : `page.html` (la page légère, 12 Ko non compressés) et `page-moteur.js` (le moteur de la page, chargé à la demande).
+- Le moteur n'est demandé qu'au premier geste qui en a besoin : un bouton nommé, un lien vers un point, un champ, le menu, le zoom. Ce qui a été touché en l'attendant est rejoué ; le menu touché s'ouvre.
+- Une page vivante (horloge, clavier, données, glissement) le demande tout de suite : c'est le moteur qui la marque, `data-vivant`. Une page aux valeurs gardées aussi, s'il y a vraiment quelque chose de gardé.
+- 91 tests du moteur.
+
+**Mesuré dans Chrome**
+
+| | Avant | Après |
+|---|---|---|
+| Boutique, à l'ouverture | 579 Ko | **8 Ko** |
+| Boutique, après le premier « + » | 579 Ko | 594 Ko (le moteur arrive ; le panier passe à 1) |
+| Jeu de la pomme | moteur tout de suite | moteur tout de suite ; la partie se joue comme avant |
+
+- Le menu touché avant l'arrivée du moteur s'ouvre ; « Enter the workshop » touché avant l'arrivée du moteur mène bien à l'atelier.
+
+**Ce que cela coûte**
+
+- Le premier toucher attend le moteur : imperceptible ici, en local ; pas mesuré sur un réseau lent ni sur un téléphone bon marché.
+- Une saisie commencée avant l'arrivée du moteur peut être effacée quand il redessine la page.
+
+![La boutique, légère : seul le HTML est téléchargé à l'ouverture](images/2026-10-04-boutique-legere.png)
+
+---
+
 ## 2026-10-04 — Un plateau aux proportions fixes
 
 - Yocthan, après la réponse de Gemini : le serveur et le jeu en ligne attendront ; d'abord que le métavers lui plaise, en local. Claude n'ajoute donc aucune bibliothèque réseau : elles ne serviraient qu'au serveur.
