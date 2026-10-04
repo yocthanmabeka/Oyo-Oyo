@@ -76,8 +76,8 @@
   .portail .nom{padding:4px 10px;border-radius:999px;background:rgba(0,0,0,.55);color:#fff}
   .portail.vers .apercu{box-shadow:0 0 0 5px var(--couleur),0 0 60px 16px var(--couleur)}
   /* Un portail qui s'ouvre : son aperçu grandit jusqu'à remplir la fenêtre, puis devient le site. */
-  .apercu.ouverture{position:fixed;z-index:9;box-shadow:none;transition:left .45s ease-in,top .45s ease-in,width .45s ease-in,height .45s ease-in,border-radius .45s ease-in}
-  .apercu.ouverture .contenu{transition:transform .45s ease-in}
+  .apercu.ouverture{position:fixed;z-index:9;box-shadow:none;transition:left var(--duree,.45s) ease-in,top var(--duree,.45s) ease-in,width var(--duree,.45s) ease-in,height var(--duree,.45s) ease-in,border-radius var(--duree,.45s) ease-in}
+  .apercu.ouverture .contenu{transition:transform var(--duree,.45s) ease-in}
   @media (prefers-reduced-motion:reduce){.apercu.ouverture,.apercu.ouverture .contenu,.portail .apercu{transition:none}}
 
   /* Chez quelqu'un d'autre : un bandeau qui appartient au moteur, pas au site. Un fichier ne
@@ -128,6 +128,8 @@
   // quelle que soit la densité demandée, pour tenir dans la mémoire d'un téléphone (B-05).
   const POINTS_MAX = 8e6;
   let densiteDemandee = 2;
+  let vitesseDuZoom = 1;     // Zoom(speed:)
+  let dureeDuPortail = 450;  // Portals(duration:), en millisecondes
   const chezSoi = (hote) => hote === "localhost" || hote === "127.0.0.1";
   // En http, on ne va que vers sa propre machine, et seulement si l'on y est déjà : une page
   // publique ne fait pas partir de requêtes vers le réseau privé du visiteur.
@@ -230,7 +232,8 @@
   // Ce que le fichier affiché dit de sa vue (Zoom, Points, Portals).
   function lireLesReglages() {
     let actif, rangement;
-    [densiteDemandee, reduire, zoomAvantPoints, actif, rangement, nombreDePortails, tailleDePortail, lumiereDuFond] = reglages_de_vue(source);
+    [densiteDemandee, reduire, zoomAvantPoints, actif, rangement, nombreDePortails, tailleDePortail, lumiereDuFond, vitesseDuZoom, dureeDuPortail] = reglages_de_vue(source);
+    document.documentElement.style.setProperty("--duree", `${dureeDuPortail}ms`);
     densite = densiteDemandee;
     reduire = reduire === 1;
     zoomActif = actif === 1;
@@ -562,7 +565,7 @@
     // Sinon Chrome grossit ou réduit toute la fenêtre, et le site sort de son cadre.
     if (evenement.ctrlKey) evenement.preventDefault();
     if (enPoints || !evenement.ctrlKey) return; // en vue points, la zone de dessin reçoit la molette elle-même
-    zoomer(2 ** (-pasDeZoom(evenement) * 0.003), evenement.clientX, evenement.clientY);
+    zoomer(2 ** (-pasDeZoom(evenement) * 0.003 * vitesseDuZoom), evenement.clientX, evenement.clientY);
   }, { passive: false });
 
   // Au doigt : pincer la page. Le geste commencé sur la page continue sans lever les doigts
@@ -750,7 +753,7 @@
     Object.assign(apercu.style, { left: "0px", top: "0px", width: "100vw", height: "100vh", borderRadius: "0" });
     Object.assign(apercu.querySelector(".contenu").style, { transform: "scale(1)", height: `${innerHeight}px` });
     const immobile = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    await new Promise((suite) => setTimeout(suite, immobile ? 0 : 470));
+    await new Promise((suite) => setTimeout(suite, immobile ? 0 : dureeDuPortail + 20));
     if (bouton.dataset.fichier) await ouvrirFichier(bouton.dataset.fichier);
     else afficherSite(versSite);
   }

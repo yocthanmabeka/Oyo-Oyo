@@ -19,6 +19,7 @@ Page(
     max: 1000000,     // on ne grossit pas la page plus d'un million de fois
     shrink: false,    // true : dézoomer réduit la page jusqu'à ce qu'elle soit un seul point
     levels: 8,        // au plus huit sites emboîtés les uns dans les autres
+    speed: 1,         // la vitesse du zoom à la molette ; 2 : deux fois plus vite
   ),
 
   // Quand on zoome (Ctrl + molette, ou pincer), chaque pixel de la page devient un point.
@@ -34,7 +35,7 @@ Page(
   // Quand on tourne la page, ce qui est lumineux se soulève au-dessus du fond.
   relief: Relief(
     height: 10px,     // la hauteur du relief
-    tilt: 52deg,      // jusqu'où l'on peut tourner la page
+    tilt: 360deg,     // jusqu'où l'on peut tourner la page ; 360deg : on en fait le tour
   ),
 
   // Le carrefour : les portails vers les mondes voisins. Il s'ouvre quand on entre dans un
@@ -46,6 +47,7 @@ Page(
     count: 12,        // combien de mondes on montre
     size: 170px,      // la taille d'un portail
     brightness: 0.15, // la lumière du fond, de 0 à 1, pour y voir même sur un site sombre
+    duration: 450ms,  // le temps que met un portail à s'ouvrir
   ),
 
   children: [

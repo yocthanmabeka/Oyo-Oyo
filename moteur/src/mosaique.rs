@@ -137,15 +137,31 @@ impl Mosaique {
 
     /// Déplace la vue de `dx`, `dy` pixels d'écran.
     pub fn deplacer(&mut self, dx: f64, dy: f64) {
-        self.cx -= dx / self.echelle;
-        self.cy -= dy / self.echelle;
+        // Vue par derrière, la page est retournée : elle suit quand même le doigt.
+        self.cx -= dx / self.echelle * self.lacet.cos().signum();
+        self.cy -= dy / self.echelle * self.tangage.cos().signum();
         self.borner();
     }
 
     /// Fait tourner la page : on la voit de biais.
     pub fn pivoter(&mut self, lacet: f64, tangage: f64) {
-        self.lacet = (self.lacet + lacet).clamp(-self.r.angle_max, self.r.angle_max);
-        self.tangage = (self.tangage + tangage).clamp(-self.r.angle_max, self.r.angle_max);
+        let limite = self.r.angle_max;
+        // Un demi-tour permis ou davantage : la rotation est libre, on fait le tour de la page et
+        // on la voit par derrière. Sinon, on s'arrête à l'angle fixé par l'auteur.
+        let borner = |angle: f64| {
+            if limite >= std::f64::consts::PI {
+                (angle + std::f64::consts::PI).rem_euclid(std::f64::consts::TAU) - std::f64::consts::PI
+            } else {
+                angle.clamp(-limite, limite)
+            }
+        };
+        self.lacet = borner(self.lacet + lacet);
+        self.tangage = borner(self.tangage + tangage);
+    }
+
+    /// La vitesse du zoom à la molette, fixée par le fichier (`Zoom(speed:)`).
+    pub fn vitesse(&self) -> f64 {
+        self.r.zoom_vitesse
     }
 
     /// Remet la page de face.
@@ -186,10 +202,10 @@ impl Mosaique {
         };
         let oeil = detourner([0.0, 0.0, d]);
         let rayon = detourner([sx, sy, -d]);
-        (rayon[2] < -1e-9).then(|| {
-            let t = -oeil[2] / rayon[2];
-            [oeil[0] + t * rayon[0], oeil[1] + t * rayon[1]]
-        })
+        // De face, le regard descend vers la page ; par derrière, il y remonte. Dans les deux
+        // cas, elle est devant l'œil. Vue par la tranche, on ne la touche pas.
+        let t = -oeil[2] / rayon[2];
+        (rayon[2].abs() > 1e-9 && t > 0.0).then(|| [oeil[0] + t * rayon[0], oeil[1] + t * rayon[1]])
     }
 
     fn pixel(&self, x: usize, y: usize) -> [f32; 3] {
@@ -270,6 +286,13 @@ impl Mosaique {
             haut = ys.iter().copied().fold(f64::MAX, f64::min) - marge;
             bas = ys.iter().copied().fold(f64::MIN, f64::max) + marge;
         }
+        // Vue presque par la tranche, la page s'étend jusqu'à l'horizon : on ne calcule que les
+        // points proches de l'endroit regardé. Les autres seraient minuscules.
+        let (portee_l, portee_h) = (2.0 * vue_l / self.echelle, 2.0 * vue_h / self.echelle);
+        gauche = gauche.max(self.cx - portee_l);
+        droite = droite.min(self.cx + portee_l);
+        haut = haut.max(self.cy - portee_h);
+        bas = bas.min(self.cy + portee_h);
         let borne = |v: f64, max: u32| (v.clamp(0.0, f64::from(max)) * par_pixel as f64) as u64;
         let (x0, x1) = (borne(gauche, self.largeur), borne(droite, self.largeur));
         let (y0, y1) = (borne(haut, self.hauteur), borne(bas, self.hauteur));
@@ -446,13 +469,39 @@ mod tests {
         let (petit, grand) = points.iter().fold((f32::MAX, 0f32), |(p, g), s| (p.min(s.rayon), g.max(s.rayon)));
         assert!(grand > petit * 1.2, "{petit} {grand}");
 
-        // On ne passe pas derrière la page, et « de face » la remet à plat.
-        m.pivoter(10.0, 10.0);
-        let angle_max = Reglages::default().angle_max;
-        assert_eq!((m.lacet, m.tangage), (angle_max, angle_max));
-        assert!(m.sprites(VUE.0, VUE.1).len() <= POINTS_MAX);
         m.de_face();
         assert_eq!((m.inclinaison(), m.lacet), (0.0, 0.0));
+    }
+
+    #[test]
+    fn on_fait_le_tour_de_la_page_sauf_si_l_auteur_fixe_une_limite() {
+        // Sans limite écrite, la rotation est libre : un demi-tour, et l'on voit la page par derrière.
+        let mut m = image();
+        m.pivoter(std::f64::consts::PI * 0.75, 0.0);
+        assert!((m.lacet - std::f64::consts::PI * 0.75).abs() < 1e-12, "on a dépassé le quart de tour");
+        m.pivoter(std::f64::consts::PI * 0.5, 0.0);
+        assert!((m.lacet + std::f64::consts::PI * 0.75).abs() < 1e-9, "après un tour, l'angle revient : {}", m.lacet);
+        // Par derrière, on pointe toujours la page, et elle suit le doigt.
+        m.de_face();
+        m.pivoter(std::f64::consts::PI, 0.0);
+        let [ux, uy] = m.sur_la_page(100.0, 50.0, distance(VUE.1)).expect("la page est devant l'œil");
+        let ([x, y], _) = m.projeter([ux, uy, 0.0], distance(VUE.1)).unwrap();
+        assert!((x - 100.0).abs() < 1e-6 && (y - 50.0).abs() < 1e-6, "{x} {y}");
+        assert!(ux < 0.0, "par derrière, la droite de l'écran est la gauche de la page");
+        let avant = m.cx;
+        m.deplacer(-10.0, 0.0);
+        assert!(m.cx < avant, "glisser vers la gauche amène ce qui était à gauche de l'écran");
+        // Par la tranche, le moteur ne s'affole pas : il dessine peu, et ne dépasse jamais sa limite.
+        for quart in [0.5, 0.49, 0.51, 1.0] {
+            m.de_face();
+            m.pivoter(std::f64::consts::PI * quart, 0.2);
+            assert!(m.sprites(VUE.0, VUE.1).len() <= POINTS_MAX, "{quart}");
+        }
+        // « Relief(tilt: 52deg) » : l'auteur arrête la rotation à 52 degrés.
+        let limite = 52f64.to_radians();
+        let mut m = Mosaique::new(80, 60, [233u8, 180, 76, 255].repeat(80 * 60), 1, VUE.0, VUE.1, Reglages { angle_max: limite, ..Reglages::default() }).unwrap();
+        m.pivoter(10.0, -10.0);
+        assert_eq!((m.lacet, m.tangage), (limite, -limite));
     }
 
     #[test]

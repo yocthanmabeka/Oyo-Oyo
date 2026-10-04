@@ -3,10 +3,10 @@
 //!
 //! ```holo
 //! Page(
-//!   zoom: Zoom(max: 1000000, shrink: false, levels: 8),
+//!   zoom: Zoom(max: 1000000, shrink: false, levels: 8, speed: 1),
 //!   points: Points(after: 4, size: 6px, fragment: 40px, grid: 4, depth: 20, density: 2),
-//!   relief: Relief(height: 10px, tilt: 52deg),
-//!   portals: Portals(layout: grid, count: 12, size: 170px, brightness: 0.15),
+//!   relief: Relief(height: 10px, tilt: 360deg),
+//!   portals: Portals(layout: grid, count: 12, size: 170px, brightness: 0.15, duration: 450ms),
 //! )
 //! ```
 //!
@@ -42,6 +42,10 @@ pub struct Reglages {
     pub portails_taille: f64,
     /// `Portals(brightness:)` : la lumière du fond du carrefour, de 0 (aucune) à 1.
     pub portails_lumiere: f64,
+    /// `Zoom(speed:)` : la vitesse du zoom à la molette. 1 : la vitesse ordinaire.
+    pub zoom_vitesse: f64,
+    /// `Portals(duration:)` : la durée, en millisecondes, de l'ouverture d'un portail.
+    pub portails_duree: f64,
     /// `Zoom(max:)` : combien de fois on peut grossir la page, au plus.
     pub zoom_max: f64,
     /// `Zoom(shrink:)` : vrai, dézoomer réduit la page jusqu'à un seul point ; faux, on ne
@@ -64,7 +68,8 @@ pub struct Reglages {
     pub densite: f64,
     /// `Relief(height:)` : de combien se soulève ce qui est lumineux, quand la page est de biais.
     pub relief: f64,
-    /// `Relief(tilt:)` : jusqu'où l'on peut tourner la page, en radians.
+    /// `Relief(tilt:)` : jusqu'où l'on peut tourner la page, en radians. Un demi-tour ou plus :
+    /// la rotation est libre, on fait le tour de la page.
     pub angle_max: f64,
 }
 
@@ -76,7 +81,9 @@ impl Default for Reglages {
             portails_nombre: 12,
             portails_taille: 170.0,
             portails_lumiere: 0.15,
-            zoom_max: 1e12, reduire: false, niveaux_de_sites: 8, apres: 4.0, taille_point: 6.0, taille_morceler: 40.0, cote: 4, niveaux: 20, densite: 2.0, relief: 10.0, angle_max: 52f64.to_radians() }
+            zoom_vitesse: 1.0,
+            portails_duree: 450.0,
+            zoom_max: 1e12, reduire: false, niveaux_de_sites: 8, apres: 4.0, taille_point: 6.0, taille_morceler: 40.0, cote: 4, niveaux: 20, densite: 2.0, relief: 10.0, angle_max: 360f64.to_radians() }
     }
 }
 
@@ -137,7 +144,8 @@ pub fn reglages(programme: &Programme) -> Result<Reglages, Erreur> {
         return Ok(r);
     }
     if let Some(zoom) = bloc_de(page, "zoom", "Zoom")? {
-        seulement(zoom, &["active", "max", "shrink", "levels"])?;
+        seulement(zoom, &["active", "max", "shrink", "levels", "speed"])?;
+        r.zoom_vitesse = nombre(zoom, "speed", None, 0.25, 4.0, r.zoom_vitesse)?;
         r.zoom_actif = match zoom.argument("active").map(|a| &a.valeur) {
             None => r.zoom_actif,
             Some(Valeur::Bool(b)) => *b,
@@ -168,10 +176,11 @@ pub fn reglages(programme: &Programme) -> Result<Reglages, Erreur> {
     if let Some(relief) = bloc_de(page, "relief", "Relief")? {
         seulement(relief, &["height", "tilt"])?;
         r.relief = nombre(relief, "height", Some("px"), 0.0, 40.0, r.relief)?;
-        r.angle_max = nombre(relief, "tilt", Some("deg"), 0.0, 80.0, r.angle_max.to_degrees())?.to_radians();
+        r.angle_max = nombre(relief, "tilt", Some("deg"), 0.0, 360.0, r.angle_max.to_degrees())?.to_radians();
     }
     if let Some(portails) = bloc_de(page, "portals", "Portals")? {
-        seulement(portails, &["layout", "count", "size", "brightness"])?;
+        seulement(portails, &["layout", "count", "size", "brightness", "duration"])?;
+        r.portails_duree = nombre(portails, "duration", Some("ms"), 0.0, 2000.0, r.portails_duree)?;
         r.portails_disposition = match portails.argument("layout").map(|a| &a.valeur) {
             None => r.portails_disposition,
             Some(Valeur::Nom(nom)) if nom == "grid" => Disposition::Grille,
@@ -243,7 +252,8 @@ mod tests {
         assert_eq!((r.zoom_max, r.reduire, r.niveaux_de_sites, r.apres), (1_000_000.0, false, 8, 4.0));
         assert_eq!((r.taille_point, r.taille_morceler, r.cote, r.niveaux, r.densite), (6.0, 40.0, 4, 20, 2.0));
         assert_eq!(r.relief, 10.0);
-        assert!((r.angle_max - 52f64.to_radians()).abs() < 1e-12);
+        assert!((r.angle_max - 360f64.to_radians()).abs() < 1e-12);
+        assert_eq!((r.zoom_vitesse, r.portails_duree), (1.0, 450.0));
     }
 
     #[test]
@@ -252,7 +262,7 @@ mod tests {
         for (reglage, message) in [
             ("zoom: Zoom(max: 0)", "un nombre entre 1 et"),
             ("zoom: Zoom(shrink: 1)", "true ou false"),
-            ("zoom: Zoom(speed: 3)", "n'a pas de paramètre « speed »"),
+            ("zoom: Zoom(turbo: 3)", "n'a pas de paramètre « turbo »"),
             ("zoom: 4", "un bloc « Zoom(...) »"),
             ("zoom: Points(size: 6px)", "un bloc « Zoom(...) »"),
             ("zoom: Zoom(levels: 0)", "entier entre 1 et 16"),
@@ -271,8 +281,11 @@ mod tests {
             ("points: Points(fragment: 12px)", "au moins 24px"),
             ("points: Points(density: 9)", "entre 1 et 3"),
             ("relief: Relief(height: 500px)", "entre 0px et 40px"),
-            ("relief: Relief(tilt: 90deg)", "entre 0deg et 80deg"),
-            ("relief: Relief(tilt: 30px)", "entre 0deg et 80deg"),
+            ("relief: Relief(tilt: 400deg)", "entre 0deg et 360deg"),
+            ("relief: Relief(tilt: 30px)", "entre 0deg et 360deg"),
+            ("zoom: Zoom(speed: 10)", "entre 0.25 et 4"),
+            ("portals: Portals(duration: 5s)", "entre 0ms et 2000ms"),
+            ("portals: Portals(duration: 450)", "entre 0ms et 2000ms"),
         ] {
             let erreur = lus(&page(reglage)).unwrap_err();
             assert!(erreur.message.contains(message), "{reglage} → {erreur}");
@@ -284,8 +297,9 @@ mod tests {
 
     #[test]
     fn le_carrefour_et_le_zoom_se_reglent() {
-        let r = lus("Page(zoom: Zoom(active: false), portals: Portals(layout: diagonal, count: 30, size: 120px, brightness: 0.4))").unwrap();
+        let r = lus("Page(zoom: Zoom(active: false, speed: 2), portals: Portals(layout: diagonal, count: 30, size: 120px, brightness: 0.4, duration: 0ms))").unwrap();
         assert!(!r.zoom_actif);
+        assert_eq!((r.zoom_vitesse, r.portails_duree), (2.0, 0.0));
         assert_eq!((r.portails_disposition, r.portails_nombre, r.portails_taille, r.portails_lumiere), (Disposition::Diagonale, 30, 120.0, 0.4));
         let defaut = Reglages::default();
         assert!(defaut.zoom_actif);

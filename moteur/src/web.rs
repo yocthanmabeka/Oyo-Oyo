@@ -98,7 +98,8 @@ fn reglages_restants(source: Option<String>, deja_grossi: Option<f64>) -> Result
 /// Ce que la page d'entrée doit savoir des réglages d'un fichier, dans cet ordre : la densité
 /// des points ; si dézoomer réduit la page (1) ou non (0) ; jusqu'à quel grossissement la page
 /// reste un site ordinaire ; si le zoom est permis (1) ou non (0) ; la disposition des portails
-/// (0 grille, 1 ligne, 2 colonne, 3 diagonale), leur nombre, leur taille, la lumière du fond.
+/// (0 grille, 1 ligne, 2 colonne, 3 diagonale), leur nombre, leur taille, la lumière du fond ;
+/// la vitesse du zoom à la molette ; la durée d'ouverture d'un portail, en millisecondes.
 #[wasm_bindgen]
 pub fn reglages_de_vue(source: &str) -> Result<Vec<f64>, JsValue> {
     let r = reglages_de(Some(source.to_string()))?;
@@ -108,7 +109,7 @@ pub fn reglages_de_vue(source: &str) -> Result<Vec<f64>, JsValue> {
         crate::vue::Disposition::Colonne => 2.0,
         crate::vue::Disposition::Diagonale => 3.0,
     };
-    Ok(vec![r.densite, f64::from(u8::from(r.reduire)), r.apres, f64::from(u8::from(r.zoom_actif)), disposition, f64::from(r.portails_nombre), r.portails_taille, r.portails_lumiere])
+    Ok(vec![r.densite, f64::from(u8::from(r.reduire)), r.apres, f64::from(u8::from(r.zoom_actif)), disposition, f64::from(r.portails_nombre), r.portails_taille, r.portails_lumiere, r.zoom_vitesse, r.portails_duree])
 }
 
 /// Les mondes voisins d'un site, calculés à partir d'une graine, pour remplir le carrefour.
@@ -403,7 +404,10 @@ fn brancher(canvas: &HtmlCanvasElement, etat: &Rc<RefCell<Etat>>) -> Result<(), 
             Some(m) => {
                 // Un pincement arrive comme une molette avec Ctrl, par petits pas : on les grossit.
                 let pas = if ev.ctrl_key() && ev.delta_y().abs() < 50.0 { ev.delta_y() * 6.0 } else { ev.delta_y() };
-                m.zoomer(2f64.powf(-pas * 0.003), f64::from(ev.client_x()), f64::from(ev.client_y()), vue_l, vue_h)
+                // Zoom(speed:) règle la molette de la main ; un zoom envoyé par la page (deux
+                // doigts, approche d'un point) suit exactement ce qu'elle demande.
+                let vitesse = if ev.is_trusted() { m.vitesse() } else { 1.0 };
+                m.zoomer(2f64.powf(-pas * 0.003 * vitesse), f64::from(ev.client_x()), f64::from(ev.client_y()), vue_l, vue_h)
             }
             None => etat.nav.zoomer(-(ev.delta_y() as f32) * 0.0018),
         }

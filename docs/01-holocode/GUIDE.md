@@ -302,6 +302,7 @@ Page(
     max: 1000000,
     shrink: false,
     levels: 8,
+    speed: 1,
   ),
 
   points: Points(
@@ -315,7 +316,7 @@ Page(
 
   relief: Relief(
     height: 10px,
-    tilt: 52deg,
+    tilt: 360deg,
   ),
 
   children: [
@@ -329,6 +330,7 @@ Page(
 | `Zoom(max:)` | Combien de fois on peut grossir la page, au plus. | 1 à 1 000 000 000 000 |
 | `Zoom(shrink:)` | `true` : dézoomer réduit la page jusqu'à un seul point. `false` : la page reste entière. | `true`, `false` |
 | `Zoom(levels:)` | Combien de sites peuvent s'emboîter, au plus. | 1 à 16 |
+| `Zoom(speed:)` | La vitesse du zoom à la molette. `1` : la vitesse ordinaire ; `2` : deux fois plus vite. Au doigt, la page suit toujours l'écartement des doigts. | 0.25 à 4 |
 | `Points(after:)` | Jusqu'à ce grossissement, la page reste un site ordinaire. | 1 à 16 |
 | `Points(size:)` | La taille où un pixel devient un point. | 2px à 32px |
 | `Points(fragment:)` | La taille où un point se morcelle. | 8px à 400px, au moins `size` × `grid` |
@@ -336,7 +338,7 @@ Page(
 | `Points(depth:)` | Combien de fois de suite. | 0 à 20 |
 | `Points(density:)` | Points par pixel d'écran, dans chaque sens. | 1 à 3 |
 | `Relief(height:)` | La hauteur du relief. | 0px à 40px |
-| `Relief(tilt:)` | Jusqu'où l'on peut tourner la page. | 0deg à 80deg |
+| `Relief(tilt:)` | Jusqu'où l'on peut tourner la page, de chaque côté. `360deg` (ou rien) : on en fait le tour, et on la voit par derrière, à l'envers comme une feuille. `52deg` : elle s'arrête à cet angle. `0deg` : elle ne tourne pas. | 0deg à 360deg |
 
 Ce sont des garde-fous : le visiteur ne dépasse pas ceux de l'auteur, et l'auteur ne dépasse pas ceux du langage.
 
@@ -359,6 +361,7 @@ Page(
     count: 12,
     size: 170px,
     brightness: 0.15,
+    duration: 450ms,
   ),
 
   children: [
@@ -377,6 +380,7 @@ Page(
 | `Portals(count:)` | Combien de mondes on montre. | 1 à 64 |
 | `Portals(size:)` | La taille d'un portail. | 80px à 400px |
 | `Portals(brightness:)` | La lumière du fond, pour y voir même sur un site sombre. | 0 à 1 |
+| `Portals(duration:)` | Le temps que met un portail à s'ouvrir. `0ms` : tout de suite. | 0ms à 2000ms |
 | `Zoom(active:)` | `false` : le visiteur ne peut pas zoomer dans la page. | `true`, `false` |
 
 - `count` borne tout le carrefour, y compris les sites écrits dans le fichier : s'il y en a davantage, un dernier rond dit combien ne sont pas montrés.
@@ -447,12 +451,15 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Le pixel d'une page | `pixels:` et `above:` | fait, écriture provisoire |
 | Le pixel qui devient un point | `Points(after:, size:)` | fait |
 | Le morcellement des points d'une page | `Points(fragment:, grid:, depth:)` | fait |
-| Le relief | `Relief(height:, tilt:)` | fait |
+| Le relief | `Relief(height:)` | fait |
+| Tourner la page, en faire le tour | `Relief(tilt:)` | fait |
 | Activer ou désactiver le zoom | `Zoom(active:)` | fait |
 | Les limites du zoom | `Zoom(max:, shrink:)` | fait |
+| La vitesse du zoom | `Zoom(speed:)` | fait |
 | Le nombre de sites emboîtés | `Zoom(levels:)` | fait |
 | Entrer dans un site, en sortir | `enter`, `leave` | fait |
 | Le carrefour, les portails | `Portals(layout:, count:, size:, brightness:)`, et la capacité `portals` | fait |
+| La durée d'ouverture d'un portail | `Portals(duration:)` | fait |
 | Le poids permis | `budget`, `weight` | fait |
 | Le toucher | le signal `tap` | fait |
 | Le son | aucun | à faire |
