@@ -6,6 +6,15 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — La réponse de Gemini sur les objets en volume et le jeu à plusieurs
+
+- Gardée dans `docs/05-discussions/reponses/2026-10-04-gemini-3d-et-plusieurs.md`, avec la lecture critique de Claude.
+- Gemini recommande : des points dont la taille grandit de près (l'objet paraît plein) ; un jeu à plusieurs par WebSocket, sur le modèle de Croquet (le serveur ne calcule rien, il numérote et renvoie les gestes) ; et, avant tout, des rencontres calculées dans des unités de plateau fixes, jamais en pixels.
+- Ce dernier point contredit ce que Claude venait de fusionner (la rencontre dépend de la largeur de l'écran). Claude est d'accord avec Gemini.
+- Rien n'est construit : on attend la réponse de Codex, puis le choix de Yocthan.
+
+---
+
 ## 2026-10-04 — La rencontre se fait au contact ; des règles sous condition ; deux prompts pour Gemini et Codex
 
 **Ce que Yocthan a vu**
