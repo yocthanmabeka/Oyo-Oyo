@@ -1,0 +1,50 @@
+// Leçon 31 — Des règles sous condition
+//
+// Ce qu'on apprend :
+//   Une règle de temps (Every) tourne tant que la page est ouverte. Souvent on veut qu'elle
+//   ne vaille que pendant quelque chose : une partie, un chronomètre lancé.
+//   If(marche, is: 1, rules: [ ... ]) : les règles rangées dedans ne valent que si la condition
+//   est vraie. C'est le même If que pour montrer des blocs, avec « rules » au lieu de « children ».
+//   On y range des règles de temps (Every) et des règles qui guettent (When).
+//   Une règle On répond à un geste : pour elle, on cache le bouton, par un If dans la page.
+//
+// À essayer :
+//   Lance le chronomètre, arrête-le : il ne compte que lancé. À dix secondes, il s'arrête tout seul.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 31 : des règles sous condition",
+
+  state: State(marche: 0, secondes: 0),
+
+  children: [
+    H1("Un chronomètre"),
+    Text("{secondes} secondes."),
+    If(marche, is: 0, children: [
+      Button(name: Lancer, text: "Lancer"),
+    ]),
+    If(marche, is: 1, children: [
+      Button(name: Arreter, text: "Arrêter"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 30 : des formes", to: "30-formes.holo"),
+    ]),
+  ],
+
+  rules: [
+    On(Lancer.tap, effect: [secondes.set(0), marche.set(1)]),
+    On(Arreter.tap, effect: marche.set(0)),
+
+    If(marche, is: 1, rules: [
+      Every(1s, effect: secondes.add(1)),
+      When(secondes, is: 10, effect: marche.set(0)),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

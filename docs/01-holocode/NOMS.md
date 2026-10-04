@@ -26,6 +26,7 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `Button` | `button` | repris, avec une majuscule |
 | `Image` | `img` | changé : le mot entier |
 | `Shape` | `div` avec du CSS, ou `svg` | changé : quatre formes nommées |
+| `If(…, rules:)` | `if (…) { … }` autour d'un `setInterval` ; `clearInterval` à ne pas oublier | changé : les règles rangées dedans ne valent que si la condition est vraie |
 | `Sound` | `audio`, `new Audio().play()` | changé : un bruit qu'une règle déclenche, pas un lecteur |
 | `List` | `ul`, `ol`, `li` | changé : un bloc au lieu de trois balises |
 | `Row` | `display: flex` | changé : mot de Flutter |

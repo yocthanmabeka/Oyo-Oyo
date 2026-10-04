@@ -3,7 +3,9 @@
 // Ce qu'on apprend :
 //   When(Moi, meets: Cible, effect: ...) : la règle guette une rencontre.
 //   Elle se déclenche au moment où les deux blocs se touchent, sur un plateau.
-//   « within » est la distance de rencontre, de 1 à 100 ; 10 sans rien écrire.
+//   Ils se rencontrent quand le bord de l'un touche le bord de l'autre.
+//   Pour une rencontre plus large ou plus étroite, « within: 20 » : on juge alors sur l'écart
+//   entre les places, de 1 à 100.
 //   Les deux blocs ont un nom, et un x et un y dans un Board.
 //
 // À essayer :
@@ -34,7 +36,7 @@ Page(
     On(Key.right, effect: x.add(5)),
     On(Key.up, effect: y.sub(5)),
     On(Key.down, effect: y.add(5)),
-    When(Moi, meets: Cible, within: 12, effect: [prises.add(1), cx.random(100), cy.random(100)]),
+    When(Moi, meets: Cible, effect: [prises.add(1), cx.random(100), cy.random(100)]),
   ],
 )
 Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }

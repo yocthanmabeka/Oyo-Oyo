@@ -98,6 +98,18 @@ pub fn verifier_regles(programme: &Programme) -> Result<(), Erreur> {
         if bloc.nom == "On" {
             verifier_regle(bloc, &noms, &etat)?;
         }
+        // Des règles sous condition : If(lives, over: 0, rules: [ … ]). Seules les règles de temps
+        // et les règles qui guettent s'y rangent : une règle « On » répond à un geste, et c'est
+        // le bouton qu'on cache, par un If dans la page.
+        if bloc.nom == "If" {
+            if let Some(Valeur::Liste(regles)) = bloc.argument("rules").map(|a| &a.valeur) {
+                for regle in regles {
+                    if !matches!(regle, Valeur::Bloc(b) if b.nom == "Every" || b.nom == "When") {
+                        return Err(Erreur { message: "sous une condition, on range des règles de temps et des règles qui guettent : If(lives, over: 0, rules: [ Every(…), When(…) ])".into(), pos: bloc.pos });
+                    }
+                }
+            }
+        }
         // Une règle qui guette une valeur, ou la rencontre de deux blocs (ADR-028).
         if bloc.nom == "When" {
             if bloc.argument("meets").is_some() {

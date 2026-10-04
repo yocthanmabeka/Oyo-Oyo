@@ -86,7 +86,7 @@ Défauts de JavaScript et de CSS évités :
 
 ### Négatives et risques
 
-- Une règle `Every` tourne tant que la page est ouverte, même quand le jeu est fini : elle demande, et la demande ne change rien. On ne peut pas dire « seulement pendant la partie ».
+- Une règle `Every` tourne tant que la page est ouverte, même quand le jeu est fini : elle demande, et la demande ne change rien. On ne peut pas dire « seulement pendant la partie ». (Corrigé le 2026-10-04 : `If(lives, over: 0, rules: [ … ])`, voir `ADR-028`.)
 - Un geste ne peut faire qu'une demande par règle : toucher l'étoile demande trois règles.
 - On ne peut pas comparer deux valeurs : pas de « meilleur score ».
 - Rien ne bouge de façon continue : l'étoile saute d'une place à l'autre (avec un court glissement). Pas de vitesse, pas de trajectoire.

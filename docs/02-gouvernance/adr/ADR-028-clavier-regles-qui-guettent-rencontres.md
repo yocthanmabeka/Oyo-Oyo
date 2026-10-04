@@ -59,6 +59,24 @@ Options écartées : réunir les trois règles sous le seul mot `On` (les trois 
 
 Dans ce qui suit, lire `When(A, meets: B, …)` là où il est écrit `Meet(A, B, …)`.
 
+## Correction du 2026-10-04 : la rencontre se fait au contact
+
+Yocthan, en jouant au jeu de la pomme avec les nouvelles formes : « Au lieu de les toucher, le rond pénètre vraiment en profondeur, et après ça déclenche. Il fallait que dès que sa circonférence touche l'un des côtés, ça réagisse. C'est comme ça qu'on construit du bon. »
+
+La rencontre était jugée sur l'écart entre les places des deux objets (`within`), sans regarder leur taille : un rond de 44 pixels et un carré de 64 devaient se recouvrir presque entièrement.
+
+Corrigé : **sans `within`, deux objets se rencontrent au moment où le bord de l'un touche le bord de l'autre.** L'arbitre connaît la taille de chacun et sa forme (rond ou carré ; un triangle et un losange comptent pour un rond un peu plus petit, un point pour son cœur lumineux), et la hauteur du plateau. Il lui manque la largeur du plateau, qui dépend de l'écran : la page la mesure et la lui donne. `within` reste, pour qui veut juger sur l'écart entre les places.
+
+Conséquence à connaître : la même partie ne se joue plus tout à fait pareil sur un écran large et sur un téléphone, puisque les mêmes places sont plus rapprochées sur un petit plateau. C'est fidèle à ce que voit le joueur ; mais le rejeu exact d'une partie suppose désormais de connaître la largeur du plateau.
+
+## Correction du 2026-10-04 : des règles sous condition
+
+En vérifiant le contact à l'écran, Claude a vu que le jeu jouait tout seul avant « Play » et après la fin : les règles de temps tournent tant que la page est ouverte, donc la pomme, cachée, continuait de tomber, d'être « rattrapée », et de faire partir un son. C'était noté comme une limite sans gravité dans `ADR-026` ; avec les rencontres et le son, c'est devenu un défaut.
+
+Corrigé sans mot nouveau : **`If(lives, over: 0, rules: [ … ])`**. Le même `If` que pour montrer des blocs, avec `rules` à la place de `children` : les règles rangées dedans ne valent que si la condition est vraie. On y range `Every` et `When` ; une règle `On` répond à un geste, et pour elle on cache le bouton.
+
+Options écartées : un réglage `while:` sur chaque règle (à répéter sur chacune) ; un mot nouveau (`During`).
+
 ## Comparaison faite avant de choisir
 
 | Question | Options | Choix, et pourquoi |
