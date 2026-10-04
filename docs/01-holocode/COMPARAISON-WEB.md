@@ -106,10 +106,10 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | Sélecteur par balise, par classe | `P { }`, `.card { }` | fait |
 | Sélecteurs composés, cascade, `!important` | refusés (`ADR-017`) | exprès |
 | `display`, `position`, `float` | refusés dans un style : la disposition vient des blocs | exprès |
-| La disposition elle-même : `flex`, `grid`, colonnes | | manque |
+| La disposition elle-même : `flex`, `grid`, colonnes | `Row`, `Column`, `Grid`, avec `gap`, `align`, `columns` | fait, à l'essai |
 | `:hover`, `:focus`, `:active` (l'apparence selon l'état) | | manque |
 | `transition`, `animation`, `@keyframes` | | manque |
-| `@media` (s'adapter à l'écran) | prévu : le moteur doit le faire seul | manque |
+| `@media` (s'adapter à l'écran) | le moteur le fait seul : une ligne passe à la ligne, une grille perd des colonnes | en partie |
 | Variables (`--couleur`) | | manque |
 | Dégradés, ombres, images de fond | | manque |
 | `@font-face` (charger une police) | | manque |
@@ -158,10 +158,10 @@ L'avis de Codex (revue du 2026-10-03) : mettre avant la disposition la sécurit�
 
 | Rang | Quoi | Pourquoi d'abord |
 |---|---|---|
-| 1 | La disposition : `Row`, `Column`, `Grid` | Sans elle, pas de vrai site. Yocthan connaît ces mots (Flutter). |
+| 1 | La disposition : `Row`, `Column`, `Grid` (fait le 2026-10-04, à l'essai) | Sans elle, pas de vrai site. Yocthan connaît ces mots (Flutter). |
 | 2 | Le texte qui manque : `Br`, `Hr`, citation, code | Petit, et l'on en a besoin partout |
 | 3 | Le texte de remplacement d'une image (`alt`) | Accessibilité : une image sans texte est invisible pour un aveugle |
-| 4 | L'état et les formulaires : `State`, `Input`, `Form` | Le passage de « lire » à « agir » |
+| 4 | L'état et les formulaires : `State` (fait le 2026-10-04, à l'essai), `Input`, `Form` | Le passage de « lire » à « agir » |
 | 5 | Le survol et l'approche : un signal `near` | Le même signal à plat et en profondeur |
 | 6 | Le son et la vidéo : `Audio`, `Video` | Les médias ; le son doit se placer dans l'espace |
 | 7 | Les tableaux : `Table` | Utile, mais moins urgent |

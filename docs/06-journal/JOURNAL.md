@@ -6,6 +6,45 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — La disposition ; la page fabriquée d'avance en Rust ; animations réduites ; un garde-fou de fusion
+
+**Ce que Yocthan a dit, après la lecture de Gemini**
+
+- Réduire les animations : cela s'active ou se désactive, « ça dépendra de chacun », et par défaut on reste au niveau normal, pour ne pas perturber.
+- « Il faut vraiment qu'on voie le Row et les colonnes. »
+- La sortie HTML côté serveur : d'accord, « mais c'est mieux de connecter avec un langage bas niveau ».
+- Les noms : faire ce qu'il y a à faire en attendant Codex, puis lui donner la liste de tous les noms face à ceux de HTML, CSS et JavaScript.
+- Les fusions : corriger ce qui peut conduire en erreur.
+
+**Fait**
+
+- **La disposition** (`ADR-024`, à l'essai) : `Row`, `Column`, `Grid`, avec `gap`, `align`, `columns`. Une ligne trop longue passe à la ligne ; une grille perd des colonnes sur un écran étroit. La boutique a une grille de trois tableaux et les boutons du panier côte à côte ; sa jumelle web aussi.
+
+![La boutique sur un écran large : trois colonnes](images/2026-10-04-disposition-grand-ecran.png)
+
+![La même sur un téléphone : deux colonnes, les boutons passent à la ligne](images/2026-10-04-disposition-telephone.png)
+
+- **La page fabriquée d'avance, en Rust.** `moteur/src/bin/holo.rs` : le même moteur, compilé pour le PC. `holo check` vérifie un fichier, `holo html` écrit sa page. Le serveur de démonstration s'en sert : la page arrive avec son contenu et son titre, lisible par un robot ou un navigateur qui ne lance pas le moteur. Sans ce programme, tout marche comme avant.
+- **Animations réduites.** C'est le réglage que chacun a déjà dans son téléphone ou son ordinateur. Sans lui, niveau normal. Avec lui : la page ne devient pas des points toute seule au zoom, pas de transition de portail. Le bouton « Vue points » reste offert.
+- **Un pixel planté est un vrai bouton** : on l'atteint au clavier, un lecteur d'écran dit son nom.
+- **`outils/fusionner.sh`** attend la fin des tests et refuse la fusion s'ils ne sont pas tous verts.
+- **`docs/01-holocode/NOMS.md`** : chaque mot de HoloCode face à celui du web (repris, changé, nouveau), puis les mots du web qu'on n'a pas pris.
+- 72 tests du moteur.
+
+**Ce qui n'est pas fait**
+
+- En vue points, un lecteur d'écran ne lit toujours rien.
+- La sortie HTML d'avance ne vaut que pour le serveur de démonstration ; il n'y a pas encore de vrai hébergement.
+- « Réduire les animations » suit le réglage de l'appareil ; il n'y a pas de bouton dans la page pour le changer. À voir avec Yocthan si c'est ce qu'il voulait.
+- Le nouveau bloc `Grid` porte le même mot que `Points(grid:)` : collision à trancher avec les noms.
+
+**Erreurs en route**
+
+- Le test du vocabulaire a échoué dès l'ajout de `Row` : la boutique ne l'employait pas encore. C'est son rôle.
+- Le serveur tenait une variable `HOLO_DEPOT` vide pour un dossier : corrigé.
+
+---
+
 ## 2026-10-04 — La réponse de Gemini (au premier prompt), lue par Claude
 
 **Ce que Yocthan a apporté**

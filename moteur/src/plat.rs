@@ -17,10 +17,15 @@ const BASE: &str = "\
 :where(.holo-Button){font:inherit;color:inherit;cursor:pointer;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 12px}\
 :where(.holo-Point){width:64px;height:64px;padding:0;border:0;border-radius:50%;cursor:pointer;\
 background:radial-gradient(circle,white 0%,var(--holo-color,white) 35%,transparent 70%);opacity:var(--holo-brightness,1)}\
-:where(.holo-pixel){position:absolute;width:1px;height:1px;margin:0;padding:0;background:var(--holo-color,white);cursor:pointer}:where(.holo-World){position:fixed;inset:0;margin:0;pointer-events:none}\
+:where(.holo-pixel){position:absolute;width:1px;height:1px;margin:0;padding:0;border:0;background:var(--holo-color,white);cursor:pointer}:where(.holo-World){position:fixed;inset:0;margin:0;pointer-events:none}\
 :where(.holo-World[hidden]){display:none}\
 :where(.holo-panneau){position:absolute;z-index:1;left:0;right:0;bottom:0;max-height:46vh;overflow:auto;padding:16px max(16px,calc(50% - 320px));\
-box-sizing:border-box;background:rgba(0,0,0,0.6);pointer-events:auto}";
+box-sizing:border-box;background:rgba(0,0,0,0.6);pointer-events:auto}\
+:where(.holo-Row){display:flex;flex-wrap:wrap;align-items:center;gap:var(--holo-gap,16px);justify-content:var(--holo-align,flex-start)}\
+:where(.holo-Column){display:flex;flex-direction:column;gap:var(--holo-gap,16px);align-items:var(--holo-align,stretch)}\
+:where(.holo-Grid){display:grid;gap:var(--holo-gap,16px);\
+grid-template-columns:repeat(auto-fill,minmax(min(100%,max(120px,calc((100% - (var(--holo-columns,2) - 1)*var(--holo-gap,16px))/var(--holo-columns,2)))),1fr))}\
+:where(.holo-Row,.holo-Column,.holo-Grid)>*{margin:0;box-sizing:border-box;min-width:0}";
 
 /// Fabrique la page. `base` est le dossier du fichier `.holo`, pour retrouver ses images.
 /// Le fichier doit avoir passé les vérifications (`crate::verifier_page`).
@@ -166,6 +171,12 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
             }
             sortie.push_str(&format!("</{balise}>"));
         }
+        // La disposition : côte à côte, l'un sous l'autre, en grille (ADR-024).
+        "Row" | "Column" | "Grid" => {
+            sortie.push_str(&format!("<div class=\"{classes}\"{nom} style=\"{}\">", disposition(bloc)?));
+            enfants(bloc, sortie, mondes, base)?;
+            sortie.push_str("</div>");
+        }
         // Le lien classique : on quitte la page pour une autre adresse, comme <a href> en HTML.
         "A" => {
             let adresse = match bloc.argument("to").map(|a| &a.valeur) {
@@ -203,6 +214,43 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
         autre => return Err(Erreur { message: format!("« {autre} » ne se place pas dans « children »"), pos: bloc.pos }),
     }
     Ok(())
+}
+
+/// Les réglages d'un bloc de disposition : l'écart entre ses éléments, leur placement, et le
+/// nombre de colonnes d'une grille. Tout est borné, et un réglage inconnu est refusé.
+fn disposition(bloc: &Bloc) -> Result<String, Erreur> {
+    let connus: &[&str] = if bloc.nom == "Grid" { &["name", "children", "gap", "columns"] } else { &["name", "children", "gap", "align"] };
+    let mut style = String::new();
+    for argument in &bloc.arguments {
+        let erreur = |attendu: &str| Erreur { message: format!("« {}({}: …) » attend {attendu}", bloc.nom, argument.nom.as_deref().unwrap_or("")), pos: argument.pos };
+        match (argument.nom.as_deref(), &argument.valeur) {
+            (Some("name" | "children"), _) => {}
+            (Some("gap"), valeur) => match valeur {
+                Valeur::Nombre { valeur, unite: Some(unite) } if unite == "px" && (0.0..=64.0).contains(valeur) => style.push_str(&format!("--holo-gap:{valeur}px;")),
+                _ => return Err(erreur("une taille entre 0px et 64px")),
+            },
+            (Some("columns"), valeur) if bloc.nom == "Grid" => match valeur {
+                Valeur::Entier(colonnes) if (1..=12).contains(colonnes) => style.push_str(&format!("--holo-columns:{colonnes};")),
+                _ => return Err(erreur("un nombre entier entre 1 et 12")),
+            },
+            (Some("align"), valeur) if bloc.nom != "Grid" => {
+                let place = match (bloc.nom.as_str(), valeur) {
+                    (_, Valeur::Nom(mot)) if mot == "start" => "flex-start",
+                    (_, Valeur::Nom(mot)) if mot == "center" => "center",
+                    (_, Valeur::Nom(mot)) if mot == "end" => "flex-end",
+                    ("Row", Valeur::Nom(mot)) if mot == "between" => "space-between",
+                    ("Row", _) => return Err(erreur("l'un de ces mots : start, center, end, between")),
+                    _ => return Err(erreur("l'un de ces mots : start, center, end")),
+                };
+                style.push_str(&format!("--holo-align:{place};"));
+            }
+            (Some(nom), _) => {
+                return Err(Erreur { message: format!("« {} » n'a pas de paramètre « {nom} » ; paramètres possibles : {}", bloc.nom, connus.join(", ")), pos: argument.pos })
+            }
+            (None, _) => return Err(Erreur { message: format!("« {} » range des blocs : {}(children: [ … ])", bloc.nom, bloc.nom), pos: argument.pos }),
+        }
+    }
+    Ok(style)
 }
 
 /// La couleur et la lumière d'un point, pour la page : celles que l'auteur impose, sinon
@@ -252,11 +300,12 @@ fn pixel_plante(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base:
     let (Some(nom), Some(Valeur::Nom(repere))) = (nom_de(point), point.argument("above").map(|a| &a.valeur)) else {
         return Err(Erreur { message: "un point planté dans un pixel a un nom et un repère : Point(name: Secret, above: Open, ...)".into(), pos: point.pos });
     };
+    // Un vrai bouton : on l'atteint au clavier, et un lecteur d'écran dit son nom.
     sortie.push_str(&format!(
-        "<i class=\"holo-pixel\" data-name=\"{}\" data-above=\"{}\" style=\"{}\"></i>",
-        echapper(nom),
+        "<button type=\"button\" class=\"holo-pixel\" data-name=\"{nom}\" aria-label=\"{nom}\" data-above=\"{}\" style=\"{}\"></button>",
         echapper(repere),
-        allure_du_point(point)?
+        allure_du_point(point)?,
+        nom = echapper(nom)
     ));
     monde_interieur(point, mondes, base)
 }
@@ -374,12 +423,38 @@ mod tests {
     }
 
     #[test]
+    fn la_disposition_range_cote_a_cote_en_colonne_et_en_grille() {
+        let html = page(
+            "Page(children: [ Row(gap: 8px, align: between, children: [ H1(\"Shop\"), Button(name: Menu, text: \"Menu\") ]), Grid(columns: 3, children: [ \"a\", Column(align: center, children: [ P(\"b\"), P(\"c\") ]) ]) ])",
+        )
+        .unwrap();
+        assert!(html.contains("<div class=\"holo-Row\" style=\"--holo-gap:8px;--holo-align:space-between;\"><h1 class=\"holo-H1\">Shop</h1><button"), "{html}");
+        assert!(html.contains("<div class=\"holo-Grid\" style=\"--holo-columns:3;\"><p class=\"holo-P\">a</p><div class=\"holo-Column\" style=\"--holo-align:center;\">"), "{html}");
+        // Un bouton rangé dans une ligne reste un bouton : sa règle le trouve.
+        assert!(html.contains("data-name=\"Menu\""));
+        for (source, message) in [
+            ("Page(children: [ Row(gap: 8, children: []) ])", "entre 0px et 64px"),
+            ("Page(children: [ Row(gap: 500px, children: []) ])", "entre 0px et 64px"),
+            ("Page(children: [ Row(align: middle, children: []) ])", "start, center, end, between"),
+            ("Page(children: [ Column(align: between, children: []) ])", "start, center, end"),
+            ("Page(children: [ Grid(columns: 40, children: []) ])", "entre 1 et 12"),
+            ("Page(children: [ Row(columns: 2, children: []) ])", "n'a pas de paramètre « columns »"),
+            ("Page(children: [ Grid(align: center, children: []) ])", "n'a pas de paramètre « align »"),
+            ("Page(children: [ Row(wrap: false, children: []) ])", "n'a pas de paramètre « wrap »"),
+            ("Page(children: [ Row(\"a\", \"b\") ])", "range des blocs"),
+        ] {
+            let erreur = page(source).unwrap_err();
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
+    }
+
+    #[test]
     fn un_site_se_plante_dans_un_pixel_de_la_page() {
         let html = page(
             "Page(children: [ Button(name: Open, text: \"x\") ], pixels: [ Point(name: Secret, above: Open, seed: 7, color: \"#FF4D6D\", inside: World(children: [ H1(\"Hidden\") ])) ])",
         )
         .unwrap();
-        assert!(html.contains("<i class=\"holo-pixel\" data-name=\"Secret\" data-above=\"Open\" style=\"--holo-color:#FF4D6D;\"></i>"), "{html}");
+        assert!(html.contains("<button type=\"button\" class=\"holo-pixel\" data-name=\"Secret\" aria-label=\"Secret\" data-above=\"Open\" style=\"--holo-color:#FF4D6D;\"></button>"), "{html}");
         assert!(html.contains("data-world=\"Secret\" hidden><div class=\"holo-panneau\"><h1 class=\"holo-H1\">Hidden</h1>"));
         assert!(page("Page(pixels: [ P(\"x\") ])").unwrap_err().message.contains("des blocs « Point(...) »"));
         assert!(page("Page(pixels: [ Point(name: A, seed: 1) ])").unwrap_err().message.contains("un nom et un repère"));
@@ -396,7 +471,7 @@ mod tests {
         assert!(html.contains("<div class=\"holo-Page holo-monde-ouvert holo-s-rose\" data-title=\"A\"><main><h1 class=\"holo-H1\">Inside</h1>"), "{html}");
         assert!(html.contains(".holo-World,.holo-monde-ouvert{color:white;}"));
         // Il a ses propres points plantés, et leurs mondes : la boucle continue.
-        assert!(html.contains("<i class=\"holo-pixel\" data-name=\"B\" data-above=\"Out\""));
+        assert!(html.contains("class=\"holo-pixel\" data-name=\"B\" aria-label=\"B\" data-above=\"Out\""));
         assert!(html.contains("data-world=\"B\" hidden>"));
         let plus_profond = crate::regles::site_de(&programme, "A/B").unwrap();
         assert!(site_html(&programme, plus_profond, "", "B").unwrap().contains("Deeper"));

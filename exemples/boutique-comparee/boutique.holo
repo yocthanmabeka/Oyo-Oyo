@@ -73,6 +73,14 @@ Page(
       "Market day",
     ]),
 
+    // Une grille : trois colonnes sur un grand écran, moins sur un téléphone, sans rien écrire
+    // de plus. Dans chaque case, une colonne : les éléments l'un sous l'autre.
+    Grid(columns: 3, gap: 12px, children: [
+      Column.card(gap: 4px, align: center, children: [ P("Sunrise over the river"), Text.note("120 euros") ]),
+      Column.card(gap: 4px, align: center, children: [ P("The blue door"), Text.note("90 euros") ]),
+      Column.card(gap: 4px, align: center, children: [ P("Market day"), Text.note("150 euros") ]),
+    ]),
+
     // Un lien classique : on quitte la page pour une autre adresse.
     A("The source code of this project", to: "https://github.com/yocthanmabeka/Metaverse"),
 
@@ -83,9 +91,13 @@ Page(
     // Le panier. « {cart} » affiche la valeur ; le texte se met à jour tout seul.
     H3("Your cart"),
     Text.note("{cart} paintings in your cart"),
-    Button(name: Add, text: "Add a painting"),
-    Button(name: Remove, text: "Remove one"),
-    Button(name: Empty, text: "Empty the cart"),
+    // Une ligne : les boutons côte à côte. S'ils ne tiennent pas, ils passent à la ligne.
+    // align : start (au début), center (au milieu), end (à la fin), between (écartés).
+    Row(gap: 8px, align: start, children: [
+      Button(name: Add, text: "Add a painting"),
+      Button(name: Remove, text: "Remove one"),
+      Button(name: Empty, text: "Empty the cart"),
+    ]),
 
     Button.card(name: Open, text: "Enter the workshop"),
 

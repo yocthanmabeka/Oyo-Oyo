@@ -148,5 +148,6 @@ Repris de la proposition de Gemini, à vérifier sur le téléphone :
 | `src/web.rs` | Zone de dessin, doigts, molette, boucle d'affichage, mesures dans `window.__holo` |
 | `web/index.html` | La seule page HTML, générée une fois pour tous les mondes |
 | `web/mesures.js` | L'affichage des mesures et le bouton « Copier le rapport » |
-| `outils/serveur.mjs` | Serveur local avec compression Brotli |
+| `outils/serveur.mjs` | Serveur local avec compression Brotli ; envoie la page déjà fabriquée si `holo` est construit |
+| `src/bin/holo.rs` | Le moteur en ligne de commande, pour le PC ou un serveur : `cargo build --release --bin holo`, puis `holo check fichier.holo` (vérifier) et `holo html fichier.holo` (écrire le HTML de la page) |
 | `outils/construire.ps1` | Construction complète |
