@@ -259,8 +259,16 @@ mod tests {
 ").skip(1).map(|suite| suite.split("```").next().unwrap()).collect();
         assert!(exemples.len() >= 11, "le guide a perdu ses exemples : {}", exemples.len());
         for exemple in exemples {
-            // Une page passe toutes les vérifications et se fabrique ; un point seul s'ouvre en profondeur.
-            let resultat = if exemple.trim_start().starts_with("Point(") { verifier(exemple).map(|_| ()) } else { vue_a_plat(exemple, "").map(|_| ()) };
+            // Une page passe toutes les vérifications et se fabrique ; un point seul s'ouvre en
+            // profondeur ; un morceau (un fichier fait pour être importé) est vérifié sans être affiché.
+            let debut = exemple.trim_start();
+            let resultat = if debut.starts_with("Point(") {
+                verifier(exemple).map(|_| ())
+            } else if debut.starts_with("Part(") {
+                verifier_page(exemple).map(|_| ())
+            } else {
+                vue_a_plat(exemple, "").map(|_| ())
+            };
             if let Err(erreur) = resultat {
                 panic!("un exemple du guide est refusé : {erreur}
 {exemple}");
