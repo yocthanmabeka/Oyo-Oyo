@@ -6,6 +6,22 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-04 — Le mode de secours mesuré sur le Flip 3
+
+**Fait**
+
+- Yocthan a déverrouillé le Flip 3. Mesure en WebGL 2, forcé par `?webgl` : 60,2 images par seconde en zoomant dans le Big Bang, 59,8 en vue points sur la boutique (image la plus lente : 33 ms), entrée en vue points en 318 ms, 86 Mo pour l'onglet. Détail dans `moteur/README.md`.
+- Le réglage « rester allumé sur USB » a été activé pour la mesure, puis remis.
+
+- Corrigé au passage, le défaut noté plus bas : un bouton touché avant que le moteur soit prêt n'est plus perdu. Le toucher est noté, puis rejoué dès que le moteur est là.
+
+**Ce que cela dit, et ne dit pas**
+
+- Le chemin de secours marche et n'est pas plus lent que WebGPU sur ce téléphone.
+- Le Flip 3 reste un téléphone puissant : la moitié du risque relevé par Gemini est levée, pas l'autre. Un téléphone d'entrée de gamme reste à mesurer.
+
+---
+
 ## 2026-10-04 — Le panier a des prix et un total
 
 **Ce que Yocthan a dit**
