@@ -1,10 +1,10 @@
 # ADR-027 — La saisie (`Input`, `Checkbox`) et les valeurs gardées (`keep`)
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ
 - Date : 2026-10-04
 - Responsable : Yocthan Mabeka
 - Discussions sources : journal du 2026-10-04 ; `docs/01-holocode/COMPARATIF-CONCURRENTS.md` (planning, étape 3)
-- Validation : Yocthan, le 2026-10-04 : « Tu corriges, ensuite tu fais l'étape 3. » L'écriture est une proposition de Claude ; à juger après essai.
+- Validation : Yocthan, le 2026-10-04 : « Tu corriges, ensuite tu fais l'étape 3. » L'écriture est une proposition de Claude ; à juger après essai. Validé par Yocthan le 2026-10-06 : « Qu'est-ce que tu attends pour valider tous ceux qui sont à l'essai ? »
 - Projets affectés : HoloCode, HoloEngine
 
 ## Contexte

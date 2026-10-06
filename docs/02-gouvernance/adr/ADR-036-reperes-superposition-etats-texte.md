@@ -1,10 +1,10 @@
 # ADR-036 — Les repères, les titres jusqu'à H6, le texte qui grandit, les états, la superposition
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ
 - Date : 2026-10-06
 - Responsable : Yocthan Mabeka
 - Discussions sources : `proposals/Claude/pourquoi-ces-refus-2026-10/SYNTHESE.md` ; avis des humains, de Gemini et de ChatGPT du 2026-10-06
-- Validation : Yocthan, le 2026-10-06 : « Oui, vas-y. » Les noms restent à revoir avec les autres (majuscules et casse : question posée à ChatGPT et Gemini).
+- Validation : Yocthan, le 2026-10-06 : « Oui, vas-y. » Les noms restent à revoir avec les autres (majuscules et casse : question posée à ChatGPT et Gemini). Validé par Yocthan le 2026-10-06 : « Qu'est-ce que tu attends pour valider tous ceux qui sont à l'essai ? »
 - Projets affectés : HoloCode, HoloEngine
 
 ## Décision (à l'essai)

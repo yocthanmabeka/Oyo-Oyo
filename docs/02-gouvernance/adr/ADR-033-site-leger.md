@@ -1,10 +1,10 @@
 # ADR-033 — Le site léger : le moteur n'arrive qu'au premier geste qui en a besoin
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ
 - Date : 2026-10-04
 - Responsable : Yocthan Mabeka
 - Discussions sources : journal du 2026-10-04 (« sur 100 %, le projet te convainc à combien ? » ; « Oui, vas-y »)
-- Validation : Yocthan, le 2026-10-04, pour un essai. L'écriture est une proposition de Claude.
+- Validation : Yocthan, le 2026-10-04, pour un essai. L'écriture est une proposition de Claude. Validé par Yocthan le 2026-10-06 : « Qu'est-ce que tu attends pour valider tous ceux qui sont à l'essai ? »
 - Projets affectés : HoloEngine (page d'entrée)
 
 ## Contexte

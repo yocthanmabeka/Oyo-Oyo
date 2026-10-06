@@ -1,10 +1,10 @@
 # ADR-025 — Les conditions (`If`), et le texte qui manquait (`Hr`, `Quote`, `Code`, `alt`)
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ
 - Date : 2026-10-04
 - Responsable : Yocthan Mabeka
 - Discussions sources : journal du 2026-10-04 ; `docs/01-holocode/COMPARATIF-CONCURRENTS.md` (planning, étape 1)
-- Validation : Yocthan, le 2026-10-04, sur le planning en sept étapes : « Oui, commence. » L'écriture est une proposition de Claude ; à juger après essai.
+- Validation : Yocthan, le 2026-10-04, sur le planning en sept étapes : « Oui, commence. » L'écriture est une proposition de Claude ; à juger après essai. Validé par Yocthan le 2026-10-06 : « Qu'est-ce que tu attends pour valider tous ceux qui sont à l'essai ? »
 - Projets affectés : HoloCode, HoloEngine
 
 ## Contexte

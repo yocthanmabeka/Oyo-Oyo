@@ -1,10 +1,10 @@
 # ADR-035 — Refuser une mécanique, jamais une capacité
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ
 - Date : 2026-10-06
 - Responsable : Yocthan Mabeka
 - Discussions sources : `proposals/Claude/pourquoi-ces-refus-2026-10/` (le pourquoi des refus, l'avis des humains, la synthèse) ; réponses de Gemini et de ChatGPT du 2026-10-06
-- Validation : Yocthan, le 2026-10-06 : « Oui, vas-y, commence la construction de tout ce qu'on vient de décider. » Principe formulé par ChatGPT, partagé par Gemini et Claude.
+- Validation : Yocthan, le 2026-10-06 : « Oui, vas-y, commence la construction de tout ce qu'on vient de décider. » Principe formulé par ChatGPT, partagé par Gemini et Claude. Validé par Yocthan le 2026-10-06 : « Qu'est-ce que tu attends pour valider tous ceux qui sont à l'essai ? »
 - Projets affectés : HoloCode
 
 ## Contexte
