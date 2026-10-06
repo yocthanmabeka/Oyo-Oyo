@@ -6,6 +6,21 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — HoloCode face aux langages et frameworks du web
+
+- Yocthan, avant la 3D : comparer HoloCode « avec les meilleurs langages et frameworks web, en commençant par TypeScript et en terminant par Flutter », par pourcentage, avec l'avis des gens et celui de Claude, et dire pourquoi certaines notions ne sont pas reprises.
+- Écrit : `docs/01-holocode/COMPARATIF-LANGAGES-WEB.md`. Neuf retenus : TypeScript, React, Angular, Vue, Svelte, SolidJS, Astro, Elm, Flutter. La même liste de tâches écrite dans les dix (HoloCode : 22 lignes, aucun code, rien à installer ; Svelte : 15 ; Flutter : 38 ; Elm : 50). Les avis des enquêtes (Stack Overflow 2025, State of JS 2025). Une note par critère.
+- Résultat, selon Claude : HoloCode à **70 %** pour son public (Svelte 82 %, Vue 77 %, React 71 %, Flutter 70 %), **58 %** pour un développeur professionnel. Premier sur la facilité, la concision et l'accessibilité ; dernier sur les composants (un `Part` n'a pas de paramètres), ce qu'on peut construire, les outils et l'entraide.
+- Yocthan, le même jour : les composants sont sa notion préférée de Flutter ; il les veut « faits pour le web », réutilisables deux fois avec une autre allure grâce au CSS ; puis les points 2 à 6. Avant de continuer, deux prompts : `docs/05-discussions/prompts/2026-10-06-gemini-composants-et-comparatif.md` et `2026-10-06-codex-composants-et-comparatif.md` (composants, même tableau rempli par eux, reste du plan).
+- Proposé avant la 3D : des morceaux à paramètres, des listes à champs, la disposition qui manque, un moteur allégé pour les pages qui bougent, des outils, un essai au lecteur d'écran ; environ 81 % avec ces six points. Rien n'est décidé.
+
+**Limites**
+
+- Les chiffres des enquêtes viennent d'extraits de recherche : les pages de Stack Overflow et de State of JS étaient bloquées depuis la session. Stack Overflow 2026, sortie le jour même, n'a pas pu être lue.
+- Les notes sont le jugement de Claude, qui juge son propre travail ; le nombre de lignes est la seule mesure.
+
+---
+
 ## 2026-10-06 — La veille sur la 3D, et les décisions prises
 
 - Yocthan : « vérifier ce que pensent les humains en 2026, exactement le 6 octobre […] et enfin tu mets décision prise ».
