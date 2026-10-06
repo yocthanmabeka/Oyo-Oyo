@@ -1,0 +1,7 @@
+// L'essai de la leçon 68 : ajouter, compter, vider.
+type tache "Acheter du pain"
+tap Ajouter
+expect taches = 2
+expect tache = ""
+tap Vider
+expect taches = 0

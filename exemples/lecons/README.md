@@ -82,3 +82,5 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 72 | [La place qui reste, et un thème partagé](72-place-et-theme.holo) | `grow`, un fichier de styles importé, `Text.titre.discret(…)` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
+
+Certaines leçons ont un **essai écrit** à côté (`68-liste-qui-change.essai`, `70-composants.essai`, `71-liste-a-champs.essai`) : des gestes et les valeurs attendues, que `holo essai` joue et que les tests du moteur vérifient (`ADR-054`). Pour voir les valeurs pendant qu'on essaie une leçon : ajouter `?valeurs` à son adresse.

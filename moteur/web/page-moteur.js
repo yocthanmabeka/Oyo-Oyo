@@ -373,8 +373,31 @@
     return morceaux.filter((morceau) => morceau !== demandes).join(";");
   }
 
+  // ?valeurs dans l'adresse (ADR-054) : un petit panneau montre les valeurs de la page à chaque
+  // changement, pour que l'auteur voie ce que ses règles font. Il ne sert qu'à l'essai.
+  const panneauDesValeurs = params.has("valeurs") ? document.body.appendChild(Object.assign(document.createElement("aside"), { id: "holo-valeurs", ariaLabel: "Les valeurs de la page" })) : null;
+  if (panneauDesValeurs) {
+    Object.assign(panneauDesValeurs.style, { position: "fixed", left: "8px", bottom: "8px", zIndex: 30, maxWidth: "min(92vw, 360px)", maxHeight: "40vh", overflow: "auto", font: "13px/1.5 ui-monospace, Consolas, monospace", background: "#000c", color: "#e8e8e8", border: "1px solid #888", borderRadius: "8px", padding: "8px 10px", whiteSpace: "pre-wrap" });
+  }
+  function montrerLePanneau(ecrit) {
+    if (!panneauDesValeurs) return;
+    const lignes = ecrit.split(";").filter(Boolean).filter((m) => !m.startsWith("!=")).map((morceau) => {
+      const coupe = morceau.indexOf("=");
+      const nom = morceau.slice(0, coupe);
+      const brut = morceau.slice(coupe + 1);
+      if (brut.startsWith("'")) return `${nom} = "${decodeURIComponent(brut.slice(1))}"`;
+      if (brut.startsWith("[")) {
+        const elements = brut.slice(1, -1).split(",").filter(Boolean).map((e) => decodeURIComponent(e).replace(/^\u001d/, "").replace(/&/g, ", ").replace(/=/g, ": ")).map((e) => decodeURIComponent(e));
+        return `${nom} = ${elements.length} élément(s)${elements.length ? "\n  · " + elements.join("\n  · ") : ""}`;
+      }
+      return `${nom} = ${brut}`;
+    });
+    panneauDesValeurs.textContent = `Valeurs de la page\n${lignes.join("\n") || "(aucune)"}`;
+  }
+
   // Écrit les valeurs de la page là où ses textes les montrent : « {cart} ».
   function montrerLesValeurs(ou = racine, ecrit = etats.get(chemin) ?? "", texteDuFichier = source) {
+    if (ou === racine) montrerLePanneau(ecrit);
     // Un texte voyage codé, précédé d'une apostrophe : buyer='Zo%C3%A9. Un nombre, tel quel.
     // Une liste voyage entre crochets : elle se montre par son nombre d'éléments (ADR-044).
     const lisible = (valeur) => (valeur.startsWith("'") ? decodeURIComponent(valeur.slice(1)) : valeur.startsWith("[") ? String(valeur.slice(1, -1).split(",").filter(Boolean).length) : valeur);

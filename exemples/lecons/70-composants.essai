@@ -1,0 +1,9 @@
+// L'essai de la leçon 70 : chaque copie du composant remplit sa propre valeur, et toutes le panier.
+// Lancer : holo essai exemples/lecons/70-composants.holo exemples/lecons/70-composants.essai
+tap AddNight
+tap AddNight
+expect night = 2
+expect cart = 12000
+tap AddSunrise
+expect sunrise = 1
+expect cart = 24000

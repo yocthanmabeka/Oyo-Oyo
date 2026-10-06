@@ -7,19 +7,19 @@ Part(
   children: [
     // L'en-tête et le menu sont des repères : un lecteur d'écran y saute directement.
     Header(children: [
-    Row(gap: 12px, align: between, children: [
-      Text.marque("L'atelier des mondes"),
-      Nav(children: [ Row(gap: 14px, children: [
-        A("Accueil", to: "accueil.holo"),
-        A("Catalogue", to: "catalogue.holo"),
-        A("Panier", to: "panier.holo"),
-        A("Journal", to: "journal.holo"),
-        A("Galerie", to: "galerie.holo"),
-        A("Jeu", to: "jeu.holo"),
-        A("Disponibilité", to: "disponibilite.holo"),
-      ]) ]),
-    ]),
-    Hr(),
+      Row(gap: 12px, align: between, children: [
+        Text.marque("L'atelier des mondes"),
+        Nav(children: [ Row(gap: 14px, children: [
+          A("Accueil", to: "accueil.holo"),
+          A("Catalogue", to: "catalogue.holo"),
+          A("Panier", to: "panier.holo"),
+          A("Journal", to: "journal.holo"),
+          A("Galerie", to: "galerie.holo"),
+          A("Jeu", to: "jeu.holo"),
+          A("Disponibilité", to: "disponibilite.holo"),
+        ]) ]),
+      ]),
+      Hr(),
     ]),
   ],
 )
