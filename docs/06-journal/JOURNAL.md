@@ -6,6 +6,13 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Un prompt pour ChatGPT, à la place de Codex
+
+- Le quota de Codex est épuisé ; celui de ChatGPT (conversation simple) ne l'est pas. Yocthan veut un avis rapide, sans travail sur le dépôt : une comparaison et un jugement de nécessité.
+- `docs/05-discussions/prompts/2026-10-06-chatgpt-refus.md` : tout est dedans (le projet, le tableau, les huit refus, l'avis de Gemini, ce que disent les humains, la recommandation de Claude), avec la consigne de ne pas travailler.
+
+---
+
 ## 2026-10-06 — Les refus face aux avis des humains
 
 **Ce que Yocthan a demandé** : vérifier sur Stack Overflow, Reddit, Twitter et les forums ce que les humains pensent des éléments refusés. Sa règle : si la majorité montre que l'élément manque ou le défend, on lève le refus ; si elle en dit surtout du mal, on le garde.
