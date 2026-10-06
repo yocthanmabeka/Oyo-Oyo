@@ -1,0 +1,8 @@
+// L'essai de la leçon 71 : le serveur remplit le catalogue, le visiteur ajoute un article.
+receive {"articles": [ {"title": "Sunrise", "price": 12000, "note": "Huile"}, {"title": "Night", "price": 6000, "note": "Encre"} ]}
+expect articles = 2
+type name "Forest"
+type price "9500"
+tap Ajouter
+expect articles = 3
+expect name = ""

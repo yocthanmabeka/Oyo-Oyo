@@ -57,6 +57,7 @@ Ce registre empêche une proposition séduisante de devenir accidentellement une
 | [`ADR-051`](adr/ADR-051-listes-a-champs.md) | Les listes à champs : `State(articles: [ Item(…) ])`, `{item.title}`, `push(Item(…))`, et `Data` qui remplit une liste | `ACCEPTÉ` | comparatif du 2026-10-06 ; Yocthan, 2026-10-06 | HoloCode, HoloEngine |
 | [`ADR-052`](adr/ADR-052-place-qui-reste-et-theme.md) | La place qui reste (`grow:` dans `Row` ou `Column`) ; un fichier de styles seuls importé comme thème | `ACCEPTÉ` | comparatif du 2026-10-06 ; Yocthan, 2026-10-06 | HoloCode, HoloEngine |
 | [`ADR-053`](adr/ADR-053-moteur-leger.md) | Un moteur léger (sans le dessin) pour les pages qui bougent : 149 Ko au lieu de 626 Ko ; le dessin chargé seulement quand la page s'en sert | `ACCEPTÉ` | comparatif du 2026-10-06 ; Yocthan, 2026-10-06 | HoloEngine |
+| [`ADR-054`](adr/ADR-054-outils-de-l-auteur.md) | Les outils de l'auteur : `?valeurs` (un panneau des valeurs), `holo fmt` (remettre en forme), `holo essai` (des essais écrits) | `ACCEPTÉ` | comparatif du 2026-10-06 ; Yocthan, 2026-10-06 | outils, HoloEngine |
 
 `ADR-003` à `ADR-006` ont été proposées par ChatGPT. Le 2026-09-21, Yocthan a accepté `ADR-003` (reformulée par Claude), `ADR-004` (telle quelle) et `ADR-005` (complétée par les chiffres de sa vision), et a laissé `ADR-006` en proposition. ChatGPT est invité à réagir aux reformulations.
 

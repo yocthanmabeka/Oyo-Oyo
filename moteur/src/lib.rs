@@ -24,6 +24,7 @@ pub mod modules;
 pub mod mosaique;
 pub mod mouvement;
 pub mod navigation;
+pub mod outils;
 pub mod plat;
 pub mod regles;
 pub mod repetition;

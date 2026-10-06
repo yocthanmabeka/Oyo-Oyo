@@ -20,6 +20,25 @@ Sans l'extension : ouvrir `http://localhost:8080/exemples/mon-dossier/ma-page.ho
 
 Si le fichier contient une erreur, la page affiche le message du moteur, avec la ligne et la colonne.
 
+**Les outils de l'auteur** (`ADR-054`) :
+
+- **Voir les valeurs** : ajouter `?valeurs` à l'adresse (`…/ma-page.holo?valeurs`). Un petit panneau, en bas à gauche, montre les valeurs de la page (`cart = 18000`, une liste et ses éléments) et se met à jour à chaque geste.
+- **Remettre en forme** : `moteur/target/release/holo fmt ma-page.holo`. Deux espaces de plus après une ligne qui ouvre, deux de moins quand elle se referme ; seuls les blancs changent.
+- **Des essais écrits** : un fichier `ma-page.essai` à côté de la page, puis `holo essai ma-page.holo ma-page.essai`. Une ligne par geste ou par vérification :
+
+```text
+// Ajouter deux fois le tableau « Night » remplit le panier.
+tap AddNight
+tap AddNight
+expect cart = 12000
+type name "Forest"
+expect name = "Forest"
+receive {"articles": []}
+expect articles = 0
+```
+
+`tap Nom` touche un bouton ; `signal Nom.hover` envoie un autre signal ; `type valeur "texte"` écrit dans un champ ; `receive {…}` fait comme si le serveur envoyait ces données ; `expect valeur = …` vérifie un nombre, un texte entre guillemets, ou le nombre d'éléments d'une liste. Les essais rangés dans `exemples/lecons/` sont joués par les tests du moteur.
+
 ## 2. La première page
 
 ```holo

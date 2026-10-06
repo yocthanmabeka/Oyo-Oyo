@@ -7,6 +7,8 @@
 //!                                     colonne C : message » ; les imports sont lus dans `dossier`
 //! holo html boutique.holo [dossier]   écrit la page web ordinaire du fichier (HTML et CSS)
 //! holo vocabulaire                    tous les mots du langage, en JSON, pour un éditeur
+//! holo fmt page.holo                  remet le fichier en forme, et l'écrit (ADR-054)
+//! holo essai page.holo page.essai     joue les gestes d'un essai écrit, vérifie les valeurs (ADR-054)
 //! ```
 //!
 //! C'est le même code Rust que dans le navigateur. Le serveur s'en sert pour envoyer la page
@@ -23,13 +25,64 @@ fn main() -> ExitCode {
         println!("{}", holo_moteur::vocabulaire());
         return ExitCode::SUCCESS;
     }
+    // Remettre un fichier en forme : seuls les blancs changent (ADR-054).
+    if let [commande, fichier] = arguments.as_slice() {
+        if commande == "fmt" {
+            let Ok(texte) = std::fs::read_to_string(fichier) else {
+                eprintln!("{fichier} : illisible");
+                return ExitCode::from(2);
+            };
+            let forme = holo_moteur::outils::mettre_en_forme(&texte);
+            if forme == texte {
+                println!("{fichier} : déjà en forme");
+            } else if std::fs::write(fichier, &forme).is_ok() {
+                println!("{fichier} : remis en forme");
+            } else {
+                eprintln!("{fichier} : impossible d'écrire");
+                return ExitCode::from(2);
+            }
+            return ExitCode::SUCCESS;
+        }
+    }
+    // Jouer un essai écrit (ADR-054).
+    if let [commande, page, essai] = arguments.as_slice() {
+        if commande == "essai" {
+            let (Ok(mut source), Ok(texte)) = (std::fs::read_to_string(page), std::fs::read_to_string(essai)) else {
+                eprintln!("{page} ou {essai} : illisible");
+                return ExitCode::from(2);
+            };
+            let ici = std::path::Path::new(page).parent().unwrap_or(std::path::Path::new(".")).to_path_buf();
+            for nom in holo_moteur::imports(&source).split(';').filter(|nom| !nom.is_empty()).map(str::to_string).collect::<Vec<_>>() {
+                if let Ok(importe) = std::fs::read_to_string(ici.join(&nom)) {
+                    source.push(holo_moteur::holo::FICHIER_SUIVANT);
+                    source.push_str(&nom);
+                    source.push(holo_moteur::holo::SEPARE_LE_NOM);
+                    source.push_str(&importe);
+                }
+            }
+            return match holo_moteur::outils::jouer(&source, &texte) {
+                Ok(holo_moteur::outils::Essai { reussies, echec: None }) => {
+                    println!("{essai} : ok, {reussies} ligne(s) jouée(s)");
+                    ExitCode::SUCCESS
+                }
+                Ok(holo_moteur::outils::Essai { echec: Some((ligne, message)), .. }) => {
+                    eprintln!("{essai}, ligne {ligne} : {message}");
+                    ExitCode::FAILURE
+                }
+                Err(erreur) => {
+                    eprintln!("{page} : {erreur}");
+                    ExitCode::FAILURE
+                }
+            };
+        }
+    }
     let (commande, fichier, dossier) = match arguments.as_slice() {
         [commande, fichier] => (commande.as_str(), fichier, ""),
         [commande, fichier, dossier] => (commande.as_str(), fichier, dossier.as_str()),
         _ => ("", &String::new(), ""),
     };
     if commande != "check" && commande != "html" {
-        eprintln!("usage : holo check fichier.holo | holo check - [dossier] | holo html fichier.holo [dossier] | holo vocabulaire");
+        eprintln!("usage : holo check fichier.holo | holo check - [dossier] | holo html fichier.holo [dossier] | holo fmt fichier.holo | holo essai page.holo page.essai | holo vocabulaire");
         return ExitCode::from(2);
     }
     // `-` : le texte arrive par l'entrée standard, tel qu'il est dans l'éditeur (ADR-046).
