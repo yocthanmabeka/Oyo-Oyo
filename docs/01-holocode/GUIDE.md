@@ -1212,6 +1212,7 @@ Page(
   state: State(name: "", price: 0, articles: [ Item(title: "Sunrise", price: 12000) ]),
   data: Data(from: "catalog.json"),
   children: [
+    H1("Shop"),
     Repeat(over: articles, children: [
       Column(children: [ H2("{item.title}"), Text("{item.price:cents} euros"), Button(name: Remove, text: "Remove") ]),
     ], rules: [ On(Remove.tap, effect: articles.remove(item)) ]),
