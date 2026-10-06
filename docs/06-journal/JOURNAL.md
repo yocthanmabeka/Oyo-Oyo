@@ -18,6 +18,7 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 - La page légère ne réveillait pas le moteur quand on cochait un bouton rond ou choisissait une option : elle n'écoutait que les boutons nommés et l'entrée dans un champ. Corrigé.
 - En relisant l'état d'une page, le moteur enlevait les retours à la ligne d'un texte long. Corrigé, avec un test.
 - Deux fois, le script d'essai de Claude a coupé sa propre sortie au retour à la ligne, et fait croire à une perte de texte.
+- Le script de fusion a refusé la première fois : une sonde de Codex (`proposals/GPT5.6/revue-langage-securite-2026-10-03`) avait une image sans `alt`, et le nouveau refus l'arrêtait avant qu'elle teste le poids déclaré. Claude a seulement ajouté `alt: ""` à cette image ; la sonde vérifie toujours la même chose.
 
 ---
 
