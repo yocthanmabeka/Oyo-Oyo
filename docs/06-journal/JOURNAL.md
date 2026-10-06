@@ -6,6 +6,14 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Les majuscules : les avis de ChatGPT et Gemini ; plus rien d'avalé en silence
+
+- Réponses et synthèse : `docs/05-discussions/reponses/2026-10-06-majuscules-et-casse.md`. ChatGPT, Gemini et Claude s'accordent : respecter la casse, refuser une faute avec le bon mot, corriger d'un clic dans un éditeur, garder `KB`. **Seul désaccord** : joindre deux mots par `_` (Gemini : plus facile sur un téléphone) ou en camelCase (ChatGPT). Claude penche pour `_`. À Yocthan de trancher.
+- **Corrigé tout de suite**, puisque les trois avis étaient d'accord : chaque bloc a la liste de ses paramètres, et un paramètre inconnu ou mal écrit est refusé (`Page(Title: …)` → « écris `title` ») ; un nom de bloc doit commencer par une majuscule (`name: buy` → « écris `name: Buy` ») ; `x`/`y` hors d'un plateau et `align` hors d'un `Stack` sont refusés avec la phrase qui dit où les mettre. 95 tests du moteur ; les 79 fichiers `.holo` du dépôt vérifiés : seuls échouent ceux qui doivent échouer (pages piégées exprès, anciennes propositions en français, dont une qui écrivait `titre:` et passait jusqu'ici en silence).
+- Le tableau en ligne a une section nouvelle sur l'écriture des mots. Yocthan demande qu'il soit **toujours** tenu à jour.
+
+---
+
 ## 2026-10-06 — La boutique comparée, mise à jour des deux côtés
 
 - Demande de Yocthan : actualiser le site qui compare HoloCode à HTML, CSS et JavaScript. Les deux versions de la boutique ont reçu les mêmes ajouts : en-tête et menu, pied de page, pastille « New » sur le tableau, survol et focus des boutons, un titre de niveau 4, des textes qui suivent le réglage du visiteur.

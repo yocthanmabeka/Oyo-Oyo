@@ -63,6 +63,7 @@ Règles :
 
 - Le premier titre est `H1`. On ne saute pas de niveau : `H3` ne suit pas `H1`.
 - La taille d'un titre se règle par le style, pas en changeant de numéro.
+- Un paramètre inconnu ou mal écrit est refusé avec le bon mot : `Page(Title: …)` → « écris `title` ». Un nom de bloc commence par une majuscule : `name: Ajouter`, jamais `name: ajouter`.
 - Les titres vont jusqu'à `H6`, pour les longs documents (leçon 36).
 - Dans un texte, `**gras**` et `*italique*`.
 
