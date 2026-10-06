@@ -11,7 +11,7 @@
 
 HoloCode savait déplacer une forme sur un plateau, pas à pas, par une horloge. Il ne savait ni choisir le caractère d'un mouvement, ni tourner, grandir, flouter, ni faire arriver un texte lettre par lettre, ni enchaîner des scènes. Yocthan voulait comparer un film de motion design écrit en HoloCode à son jumeau en HTML, CSS et JavaScript, après avoir amélioré HoloCode.
 
-## Décision (à l'essai)
+## Décision
 
 ```holo
 Page(

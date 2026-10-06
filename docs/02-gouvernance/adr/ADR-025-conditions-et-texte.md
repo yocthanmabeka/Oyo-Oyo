@@ -11,7 +11,7 @@
 
 Étape 1 du planning : faire passer HoloCode de 35 % à 50 % de ce que permet le meilleur outil du web. Une page savait retenir des valeurs (`ADR-023`), mais pas s'adapter à elles : le bouton « Vider le panier » s'affichait même devant un panier vide. Et il manquait des choses simples : un trait, une citation, du texte montré tel quel, un retour à la ligne, le texte qui remplace une image.
 
-## Décision (à l'essai)
+## Décision
 
 ### Les conditions
 

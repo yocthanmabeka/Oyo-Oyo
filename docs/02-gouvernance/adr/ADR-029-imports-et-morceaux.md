@@ -11,7 +11,7 @@
 
 Étape 5 du planning, première moitié. Un site de plusieurs pages a un menu et un thème communs. Sans import, on les recopie dans chaque fichier ; Gemini avait prévenu que c'était une dette dès les premiers sites. La directive `import "fichier.holo"` existait dans la grammaire depuis `ADR-013`, lue mais jamais appliquée.
 
-## Décision (à l'essai)
+## Décision
 
 Le fichier commun, `commun.holo` :
 

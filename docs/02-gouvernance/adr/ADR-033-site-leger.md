@@ -11,7 +11,7 @@
 
 Une page `.holo` arrivait déjà toute faite par le serveur : elle s'affichait aussi vite qu'une page HTML. Mais la page d'entrée téléchargeait aussitôt tout le moteur, environ 560 Ko compressés. La boutique d'exemple pesait donc 579 Ko, contre 6 Ko pour sa jumelle en HTML. Pour un site qu'on ne fait que lire, c'était cent fois trop. La promesse « ultra léger » n'était pas tenue.
 
-## Décision (à l'essai)
+## Décision
 
 1. La page d'entrée est coupée en deux : `page.html`, la page légère, et `page-moteur.js`, qui charge le moteur en Rust et prend la page en main.
 2. La page légère ne télécharge rien d'autre. On lit, on défile, on suit un lien vers une autre page `.holo` (le serveur la fabrique aussi).

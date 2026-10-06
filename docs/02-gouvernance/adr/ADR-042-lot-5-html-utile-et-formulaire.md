@@ -11,7 +11,7 @@
 
 Il restait au HTML deux urgences (envoyer un formulaire ; `fetch` pour envoyer) et une douzaine d'éléments utiles : l'icône de l'onglet, le barré et le surligné, l'exposant et l'indice, le lien vers un endroit de la page, l'image plus légère sur téléphone, la légende d'une image, le lecteur de son, la glissière, les champs de date, d'heure et de couleur, la barre de progression, le pli qui s'ouvre, la fenêtre par-dessus.
 
-## Décision (à l'essai)
+## Décision
 
 1. **`Page(icon: "etoile.svg")`** : l'icône de l'onglet (`.png`, `.svg`, `.ico`).
 2. **Dans un texte** : `~~barré~~`, `==surligné==`, `m^2^` (exposant), `H~2~O` (indice). Le souligné n'est pas offert : il ressemble à un lien.

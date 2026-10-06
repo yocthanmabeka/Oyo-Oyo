@@ -11,7 +11,7 @@
 
 Étape 5 du planning, seconde moitié. Une page ne savait montrer que ce qui était écrit dans son fichier. Un vrai site montre des choses qui changent sans qu'on récrive la page : un stock, un horaire, un message. C'est aussi la première fois qu'une page parle à un serveur après son ouverture : la revue de Codex a montré ce que cela peut coûter (requêtes vers d'autres serveurs sans geste du visiteur, fichiers sans limite).
 
-## Décision (à l'essai)
+## Décision
 
 ```holo
 Page(

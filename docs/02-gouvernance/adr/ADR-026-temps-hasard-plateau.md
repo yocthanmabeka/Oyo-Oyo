@@ -13,7 +13,7 @@ Un jeu était impossible : rien ne bougeait tout seul, rien n'était laissé au 
 
 Ce jeu demandait trois choses, et pas une de plus.
 
-## Décision (à l'essai)
+## Décision
 
 ```holo
 Page(

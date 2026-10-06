@@ -11,7 +11,7 @@
 
 Étape 6 du planning : dans les mondes, des formes, des images, du son, puis des modèles 3D. Le son est le premier morceau : c'est le plus petit, et un jeu sans son n'en est pas tout à fait un. Les images, elles, se placent déjà sur un plateau (`Image(..., x:, y:)`), sans rien ajouter.
 
-## Décision (à l'essai)
+## Décision
 
 ```holo
 Page(

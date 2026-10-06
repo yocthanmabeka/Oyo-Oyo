@@ -11,7 +11,7 @@
 
 Une boutique de dix produits s'écrivait dix fois : la même carte, le même bouton, la même règle. Le tableau classe en priorité « des listes de valeurs » et « répéter pour chaque élément » (`for`, `map`).
 
-## Décision (à l'essai)
+## Décision
 
 ```holo
 Repeat(

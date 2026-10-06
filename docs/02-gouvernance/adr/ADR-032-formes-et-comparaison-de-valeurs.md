@@ -11,7 +11,7 @@
 
 Deux manques revenaient dans les limites notées depuis le premier jeu : tout objet d'un jeu était un point lumineux, et l'on ne pouvait pas garder un meilleur score, faute de comparer deux valeurs. Le premier appartient à l'étape 6 (dans les mondes : des formes), le second à l'étape 7 (garder la partie).
 
-## Décision (à l'essai)
+## Décision
 
 ```holo
 Page(
