@@ -2,7 +2,7 @@
 
 - Auteur : Claude
 - Date : 2026-10-06
-- Statut : **PROPOSITION**, à valider par Yocthan. Rien n'est construit.
+- Statut : décidé le 2026-10-06 (`ADR-048`, `ADR-049`). Rien n'est construit.
 - Sources : le prompt (`docs/05-discussions/prompts/2026-10-06-*-3d-realiste.md`) ; la réponse de Gemini (`docs/05-discussions/reponses/2026-10-06-gemini-3d-realiste.md`) ; l'avis de ChatGPT sur Gemini (`docs/05-discussions/reponses/2026-10-06-chatgpt-sur-gemini-3d-realiste.md`) ; la proposition de Codex (PR 118, `proposals/GPT5.6/3d-realiste-evolutive-2026-10-06/README.md`) ; la revue de Codex du 2026-10-04.
 
 ## La question de Yocthan
