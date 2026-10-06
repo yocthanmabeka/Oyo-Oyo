@@ -44,7 +44,7 @@ cd moteur
 node outils/serveur.mjs        # http://localhost:8080
 ```
 
-Le script télécharge `wasm-bindgen` 0.2.100 dans `outils/bin/` s'il manque. Le serveur compresse en Brotli, comme un vrai hébergement, pour que le poids transféré affiché soit le vrai.
+Le script construit deux paquets : `web/pkg` (le moteur entier, avec le dessin) et `web/pkg-leger` (le moteur léger, sans le dessin, `ADR-053`) ; une page prend le léger, et ne fait venir le dessin que si elle montre des points ou des mondes. Le script télécharge `wasm-bindgen` 0.2.100 dans `outils/bin/` s'il manque. Le serveur compresse en Brotli, comme un vrai hébergement, pour que le poids transféré affiché soit le vrai.
 
 Paramètres d'adresse utiles : `?zoom=3.4` démarre à un zoom donné (pour les captures), `?monde=nom` charge `mondes/nom.holo`.
 

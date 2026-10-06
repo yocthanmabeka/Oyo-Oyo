@@ -3,7 +3,7 @@
 // il montre la faute que le moteur refuse, et, quand le moteur dit le bon mot (« écris « H1 » »),
 // il propose de le mettre d'un clic. Le moteur reste strict (ADR-037).
 
-import init, { verifier_texte, vocabulaire, vue_a_plat, imports, regler_maintenant } from "/pkg/holo_moteur.js";
+import init, { verifier_texte, vocabulaire, vue_a_plat, imports, regler_maintenant } from "/pkg-leger/holo_moteur.js";
 import { lireFaute, correctionPour, valeursDeclarees, nomsDeBlocs } from "/corrections.js";
 
 const $ = (id) => document.getElementById(id);

@@ -31,10 +31,12 @@ pub mod styles;
 pub mod univers;
 pub mod vue;
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", feature = "dessin"))]
 mod rendu;
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", feature = "dessin"))]
 mod web;
+#[cfg(target_arch = "wasm32")]
+mod web_page;
 
 use holo::{Erreur, Programme, Valeur};
 use univers::PointDecl;
@@ -64,6 +66,29 @@ pub fn verifier_page(source: &str) -> Result<Programme, Erreur> {
         plat::page_html(&programme, "")?;
     }
     Ok(programme)
+}
+
+/// La page a-t-elle besoin du dessin ? Oui si elle montre des points (`Point`, un monde), si ses
+/// pixels deviennent des points au zoom (`points:`, `pixels:`), si elle tourne (`Relief(tilt:)`),
+/// ou si c'est un monde seul. Sinon, le moteur léger suffit (ADR-053).
+pub fn a_besoin_du_dessin(source: &str) -> bool {
+    let Ok(programme) = holo::lire(source) else { return true };
+    if programme.racine.nom != "Page" {
+        return true;
+    }
+    if let Ok(r) = vue::reglages(&programme) {
+        if r.points_actifs || r.angle_max > 0.0 {
+            return true;
+        }
+    }
+    let mut dessin = false;
+    let _ = regles::pour_chaque_bloc(&programme.racine, &mut |bloc| {
+        if matches!(bloc.nom.as_str(), "Point" | "World") {
+            dessin = true;
+        }
+        Ok(())
+    });
+    dessin
 }
 
 /// L'éditeur (ADR-046) : le fichier est-il juste ? `ok`, ou la première faute, telle que le

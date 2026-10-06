@@ -1,10 +1,29 @@
 // Le moteur de la page d'entrée : il arrive après la page (voir page.html), quand un geste en
 // a besoin ou tout de suite si la page est vivante (ADR-033). Il charge le moteur en Rust,
 // compilé en WebAssembly, et prend la page en main.
+  // Le moteur léger (ADR-053) : lire le fichier, fabriquer la page, arbitrer les valeurs. Le
+  // dessin (les points, les mondes, la vue points) est un second moteur, chargé seulement quand
+  // la page s'en sert : une page qui ne fait que bouger ne le télécharge jamais.
   import init, {
-    pause, vue_a_plat, effets, etat_initial, arbitrer, envoi, formater, liste_html, module_info, module_fini, delais, lit_l_heure, regler_maintenant, avancer_l_horloge, conditions, horloges, touchees, touches, imports, donnees, recevoir, saisir, glisser, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
-    mosaique_pivoter, mosaique_de_face, mosaique_sous, reglages_de_vue, reveiller, images_dessinees,
-  } from "/pkg/holo_moteur.js";
+    vue_a_plat, effets, etat_initial, arbitrer, envoi, formater, liste_html, module_info, module_fini, delais, lit_l_heure, regler_maintenant, avancer_l_horloge, conditions, horloges, touchees, touches, imports, donnees, recevoir, saisir, glisser, a_garder, reprendre, mondes_voisins, reglages_de_vue, a_besoin_du_dessin,
+  } from "/pkg-leger/holo_moteur.js";
+  let dessin = null;
+  let dessinEnRoute = null;
+  const chargerLeDessin = () => (dessinEnRoute ??= import("/pkg/holo_moteur.js").then(async (m) => { await m.default(); dessin = m; return m; }));
+  const demarrer = async (...a) => (await chargerLeDessin()).demarrer(...a);
+  const demarrer_mosaique = async (...a) => (await chargerLeDessin()).demarrer_mosaique(...a);
+  // Ceux-là ne servent qu'une fois le dessin lancé : il est donc déjà là.
+  const changer_de_monde = (...a) => dessin?.changer_de_monde(...a);
+  const poser_mosaique = (...a) => dessin?.poser_mosaique(...a);
+  const retirer_mosaique = () => dessin?.retirer_mosaique();
+  const mosaique_camera = () => dessin?.mosaique_camera() ?? [];
+  const mosaique_sous = (...a) => dessin?.mosaique_sous(...a) ?? [];
+  const mosaique_tourner = (a) => dessin?.mosaique_tourner(a);
+  const mosaique_pivoter = (...a) => dessin?.mosaique_pivoter(...a);
+  const mosaique_de_face = () => dessin?.mosaique_de_face();
+  const pause = (a) => dessin?.pause(a);
+  const reveiller = () => dessin?.reveiller();
+  const images_dessinees = () => dessin?.images_dessinees() ?? 0;
   window.__holoPause = pause;
   window.__holoImages = images_dessinees; // combien d'images le moteur a dessinées : pour vérifier la sobriété
   const params = new URLSearchParams(location.search);
@@ -1107,6 +1126,9 @@
     source = await avecSesImports(await (await fetch(chemin, { headers: { accept: "text/plain" } })).text(), chemin);
     fichiersLus.set(chemin, Promise.resolve(source));
     lireLesReglages();
+    // Une page qui montrera des points ou des mondes fait venir le dessin tout de suite, sans
+    // l'attendre : il sera prêt quand le visiteur zoomera.
+    if (a_besoin_du_dessin(source)) chargerLeDessin().catch(() => {});
     // Un endroit de la page (#Hours) n'est pas un site : on reste sur la page, à cet endroit.
     const endroitDeLaPage = (nom) => nom && !nom.startsWith("@") && !nom.startsWith("~") && !nom.includes("/") && document.getElementById(nom)?.closest("#page") && !sitesContenus().some((s) => s.nom === nom);
     const departDuSite = endroitDeLaPage(decodeURIComponent(location.hash.slice(1))) ? "" : decodeURIComponent(location.hash.slice(1));
