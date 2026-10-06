@@ -43,6 +43,23 @@ Défaut du web évité : les sites qui envoient tout leur JavaScript avant qu'on
 - Une saisie commencée avant l'arrivée du moteur peut être effacée quand il redessine la page.
 - Pas encore mesuré sur un téléphone bon marché ni sur un réseau lent.
 
+## Correction du 2026-10-06 : la page qui attend (recette de Codex, E02, E03, F14)
+
+Trois défauts, tous venus de la même cause : en arrivant, le moteur redessinait toute la page.
+
+1. **Le moteur reprend la page au lieu de la redessiner**, quand le serveur l'a déjà fabriquée. Ce que le visiteur a écrit ou coché en l'attendant passe par l'arbitre, comme une saisie ordinaire ; le focus reste dans le champ ; la page ne remonte pas en haut ; les mouvements (`ADR-034`) ne repartent pas de zéro.
+2. **Un bouton touché avant l'arrivée du moteur montre qu'il attend**, tout de suite (il pâlit et repâlit ; le curseur devient une attente ; `aria-busy` pour un lecteur d'écran). Le signe disparaît quand le toucher est rejoué.
+3. **Si le moteur ne peut pas arriver**, un bandeau le dit : « La page se lit, mais les boutons ne répondent pas : rien n'a été ajouté ni envoyé. » Les touchers en attente sont oubliés, jamais rejoués en cachette plus tard. « Réessayer » redemande le moteur.
+
+Vérifié dans Chrome (PC), avec le serveur local réglé pour retarder le moteur de 5 s (`HOLO_MOTEUR=lent:5000`) ou le refuser (`HOLO_MOTEUR=panne`) :
+
+| Cas | Observé |
+|---|---|
+| E02, trois touchers pendant l'attente | signe d'attente en 2 ms ; après l'arrivée : exactement 3 créations, 360 euros |
+| E02, « Éloïse 🌍 » tapé pendant l'attente | gardé ; focus gardé ; la page répond « Bonjour Éloïse 🌍 » ; on continue d'écrire |
+| E03, moteur refusé | bandeau affiché ; aucun ajout ; titre et contenu lisibles |
+| F14, le menu touché pendant le film | le moteur arrive, le film continue sans repartir de zéro |
+
 ## Critères de validation
 
 - La boutique : au départ, seul le HTML est téléchargé ; au premier « Add », le moteur arrive et le panier passe à 1.

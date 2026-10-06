@@ -6,6 +6,27 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — La page qui attend le moteur (suggestions de Codex)
+
+**Ce que Yocthan a demandé** : « Travaille sur ce qu'a suggéré Codex. » Claude a pris dans ses deux revues ce qui ne demande aucune décision de Yocthan : les cas E02, E03 et F14 de la recette du site de référence.
+
+**La cause commune** : en arrivant, le moteur redessinait toute la page. Une saisie commencée était effacée, le focus perdu, le film relancé.
+
+**Fait** (correction de `ADR-033`)
+
+- Le moteur reprend la page fabriquée par le serveur au lieu de la redessiner ; ce qui a été écrit en l'attendant passe par l'arbitre.
+- Un bouton touché pendant l'attente le montre aussitôt ; le signe disparaît quand le toucher est rejoué.
+- Si le moteur ne peut pas arriver : un bandeau honnête, aucun toucher rejoué en cachette, un bouton « Réessayer ».
+- Le serveur local sait simuler un moteur lent (`HOLO_MOTEUR=lent:5000`) ou en panne (`HOLO_MOTEUR=panne`).
+
+**Vérifié dans Chrome (PC)** : trois touchers pendant 5 s d'attente donnent exactement 3 créations ; « Éloïse 🌍 » tapé avant le moteur reste, focus compris ; la panne est dite ; le film continue. Le site de référence, la boutique et le jeu marchent comme avant.
+
+**Erreur en route** : le premier banc d'essai retardait chacune des trois pièces du moteur (15 s au lieu de 5), et le serveur neuf compressait le moteur pour la première fois : les premières lectures se faisaient avant son arrivée.
+
+![Le moteur en panne : la page le dit](images/2026-10-06-moteur-en-panne.png)
+
+---
+
 ## 2026-10-06 — Les deux films du motion design, identiques point par point
 
 **Ce que Yocthan a relevé**

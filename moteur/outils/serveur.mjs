@@ -67,9 +67,18 @@ async function fichier(chemin) {
   return resultat;
 }
 
+// Pour éprouver la page qui attend (recette de Codex, E02 et E03) : HOLO_MOTEUR=lent:5000
+// retarde le moteur de cinq secondes ; HOLO_MOTEUR=panne le refuse. Sans cette variable, rien.
+const [modeMoteur, retardMoteur] = (process.env.HOLO_MOTEUR ?? "").split(":");
+
 createServer(async (req, res) => {
   try {
     let url = decodeURIComponent(new URL(req.url, "http://x").pathname);
+    // Le retard ne compte qu'une fois, sur la première pièce du moteur.
+    if (url === "/page-moteur.js" && modeMoteur === "lent") await new Promise((r) => setTimeout(r, Number(retardMoteur) || 5000));
+    if ((url === "/page-moteur.js" || url.startsWith("/pkg/")) && modeMoteur === "panne") {
+      throw Object.assign(new Error("moteur refusé (HOLO_MOTEUR=panne)"), { code: "PANNE" });
+    }
     if (url === "/") url = "/index.html";
     const dansExemples = url.startsWith("/exemples/");
     const dansMondes = url.startsWith("/mondes/");
