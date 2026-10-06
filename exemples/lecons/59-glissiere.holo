@@ -1,0 +1,30 @@
+// Leçon 59 — Une glissière
+//
+// Ce qu'on apprend :
+//   Slider(value: volume, label: "…", min: 0, max: 100) : choisir un nombre en glissant.
+//   La valeur est un nombre de la page ; elle ne sort jamais des bornes.
+//
+// À essayer :
+//   Glisse : le nombre suit.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 59 : une glissière",
+  state: State(taille: 60),
+  children: [
+    H1("Une glissière"),
+    Slider(value: taille, label: "La taille du tableau (cm)", min: 20, max: 120),
+    Text("Taille choisie : {taille} cm."),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 58 : un lecteur de son", to: "58-lecteur-de-son.holo"),
+      A("Leçon 60 : une date, une heure, une couleur →", to: "60-date-heure-couleur.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

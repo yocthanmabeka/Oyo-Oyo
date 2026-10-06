@@ -2,7 +2,7 @@
 // a besoin ou tout de suite si la page est vivante (ADR-033). Il charge le moteur en Rust,
 // compilé en WebAssembly, et prend la page en main.
   import init, {
-    pause, vue_a_plat, effets, etat_initial, arbitrer, delais, lit_l_heure, regler_maintenant, avancer_l_horloge, conditions, horloges, touchees, touches, imports, donnees, recevoir, saisir, glisser, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
+    pause, vue_a_plat, effets, etat_initial, arbitrer, envoi, delais, lit_l_heure, regler_maintenant, avancer_l_horloge, conditions, horloges, touchees, touches, imports, donnees, recevoir, saisir, glisser, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
     mosaique_pivoter, mosaique_de_face, mosaique_sous, reglages_de_vue, reveiller, images_dessinees,
   } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
@@ -359,6 +359,10 @@
       // Un choix en boutons ronds : celui dont l'option est la valeur est coché (ADR-038).
       else if (champ.type === "radio") champ.checked = champ.value === valeurs.get(champ.dataset.bind);
       else if (champ !== document.activeElement) champ.value = valeurs.get(champ.dataset.bind);
+    }
+    // Une barre de progression suit sa valeur : Progress(value: lives) (ADR-042).
+    for (const barre of ou.querySelectorAll("[data-progress]")) {
+      if (valeurs.has(barre.dataset.progress)) barre.value = Number(valeurs.get(barre.dataset.progress));
     }
     // Sur un plateau, un bloc suit les valeurs qui disent sa place : Point(x: starX, y: starY).
     for (const axe of ["x", "y"]) {
@@ -966,6 +970,24 @@
     }
   }
 
+  // Un formulaire qu'on envoie (ADR-042) : le moteur dit ce qu'il contient, la page l'envoie
+  // au serveur d'où elle vient, puis émet Contact.sent, ou Contact.failed. Un seul envoi à la fois.
+  const envoisEnCours = new Set();
+  async function envoyer(formulaire) {
+    if (envoisEnCours.has(formulaire)) return;
+    const corps = envoi(source, etats.get(chemin) ?? "", formulaire);
+    if (!corps) return;
+    envoisEnCours.add(formulaire);
+    const pour = chemin;
+    let arrive = false;
+    try {
+      const reponse = await fetch(chemin, { method: "POST", headers: { "content-type": "application/json" }, body: corps });
+      arrive = reponse.ok;
+    } catch { /* pas de réseau, ou pas de serveur pour recevoir */ }
+    envoisEnCours.delete(formulaire);
+    if (pour === chemin) emettre(`${formulaire}.${arrive ? "sent" : "failed"}`);
+  }
+
   function appliquer(effet, signal = "") {
     const [nom, capacite] = effet.split(".");
     if (capacite === "enter" && sitesContenus().some((s) => s.nom === nom)) {
@@ -979,6 +1001,13 @@
         son.currentTime = 0;
         son.play().catch(() => {});
       }
+    } else if (capacite === "open" || capacite === "close") {
+      // Une fenêtre par-dessus la page (ADR-042) : Confirm.open, Confirm.close.
+      const fenetre = racine.querySelector(`dialog[data-name="${CSS.escape(nom)}"]`);
+      if (fenetre && capacite === "open" && !fenetre.open) fenetre.showModal();
+      if (fenetre && capacite === "close") fenetre.close();
+    } else if (capacite === "send") {
+      envoyer(nom);
     } else if (capacite === "portals") {
       // La page demande son carrefour : On(Map.tap, effect: Shop.portals).
       ouvrirCarrefour();
@@ -1002,7 +1031,9 @@
     source = await avecSesImports(await (await fetch(chemin, { headers: { accept: "text/plain" } })).text(), chemin);
     fichiersLus.set(chemin, Promise.resolve(source));
     lireLesReglages();
-    const departDuSite = decodeURIComponent(location.hash.slice(1));
+    // Un endroit de la page (#Hours) n'est pas un site : on reste sur la page, à cet endroit.
+    const endroitDeLaPage = (nom) => nom && !nom.startsWith("@") && !nom.startsWith("~") && !nom.includes("/") && document.getElementById(nom)?.closest("#page") && !sitesContenus().some((s) => s.nom === nom);
+    const departDuSite = endroitDeLaPage(decodeURIComponent(location.hash.slice(1))) ? "" : decodeURIComponent(location.hash.slice(1));
     // La page du fichier est déjà là, fabriquée par le serveur : on la reprend. Un monde
     // demandé par l'adresse (#Atelier), lui, se dessine.
     const dejaLa = !departDuSite && racine.querySelector(".holo-Page") !== null;
@@ -1019,6 +1050,8 @@
       if (cheminDeSite.startsWith("@") && fichiersLus.has(cheminDeSite.slice(1))) ouvrirFichier(cheminDeSite.slice(1), "", { dansLHistorique: false });
       else if (cheminDeSite.startsWith("@")) proposerPassage(cheminDeSite.slice(1));
       else if (location.pathname !== chemin && location.pathname.endsWith(".holo")) ouvrirFichier(location.pathname, cheminDeSite, { dansLHistorique: false });
+      // Un lien vers un endroit de la page (ADR-042) : le navigateur y descend, rien d'autre.
+      else if (endroitDeLaPage(cheminDeSite)) return;
       else afficherSite(cheminDeSite, { dansLHistorique: false });
     });
     // Dans un monde calculé : dézoomer alors qu'on est revenu tout en haut en fait ressortir.
@@ -1135,6 +1168,10 @@
       if (evenement.target.closest?.("input, textarea, select, button") || enPoints || enMonde || !carrefour.hidden) return;
       evenement.preventDefault();
       emettre(`Key.${touche}`);
+    });
+    // Un formulaire ne recharge jamais la page : c'est une règle qui l'envoie (ADR-042).
+    racine.addEventListener("submit", (evenement) => {
+      if (evenement.target.closest(".holo-Form")) evenement.preventDefault();
     });
     // Écrire dans un champ, cocher une case : c'est l'arbitre du moteur qui change la valeur.
     racine.addEventListener("input", (evenement) => {

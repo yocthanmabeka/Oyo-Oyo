@@ -1,0 +1,32 @@
+// Leçon 61 — Une barre de progression
+//
+// Ce qu'on apprend :
+//   Progress(value: vies, max: 3, label: "…") : une barre qui suit un nombre de la page.
+//   Une jauge de vie dans un jeu, une étape dans une commande.
+//
+// À essayer :
+//   Touche « Perdre une vie ».
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 61 : une barre de progression",
+  state: State(vies: 3),
+  children: [
+    H1("Une barre de progression"),
+    Progress(value: vies, max: 3, label: "Vies"),
+    Button(name: Perdre, text: "Perdre une vie"),
+    Button(name: Rejouer, text: "Rejouer"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 60 : une date, une heure, une couleur", to: "60-date-heure-couleur.holo"),
+      A("Leçon 62 : des plis qui s'ouvrent →", to: "62-plis.holo"),
+    ]),
+  ],
+  rules: [ On(Perdre.tap, effect: vies.sub(1)), On(Rejouer.tap, effect: vies.set(3)) ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

@@ -1,0 +1,29 @@
+// Leçon 62 — Des plis qui s'ouvrent
+//
+// Ce qu'on apprend :
+//   Details(summary: "La question ?", children: [ … ]) : on voit la question ; on la touche,
+//   la réponse s'ouvre. open: true l'ouvre au départ. Il marche sans le moteur.
+//
+// À essayer :
+//   Touche une question.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 62 : des plis qui s'ouvrent",
+  children: [
+    H1("Des plis qui s'ouvrent"),
+    Details(summary: "Livrez-vous à l'étranger ?", children: [ P("Oui, partout en Europe, en cinq jours.") ]),
+    Details(summary: "Les tableaux sont-ils encadrés ?", open: true, children: [ P("Oui, d'un cadre en chêne.") ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 61 : une barre de progression", to: "61-progression.holo"),
+      A("Leçon 63 : une fenêtre par-dessus la page →", to: "63-fenetre.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

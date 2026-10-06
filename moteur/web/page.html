@@ -183,7 +183,10 @@
         bloc.classList.add("holo-attend");
         racine.setAttribute("aria-busy", "true");
       }
-      if (bloc || survole || evenement.target.closest('a[href^="#"]')) charger();
+      // Un lien vers un endroit de la page (#Hours) : le navigateur y descend, sans le moteur.
+      const ancre = evenement.target.closest('a[href^="#"]');
+      const endroit = ancre && document.getElementById(decodeURIComponent(ancre.getAttribute("href").slice(1)));
+      if (bloc || survole || (ancre && !endroit)) charger();
     };
     const ouvrirLeMenu = () => { window.__holoMenuDemande = true; charger(); };
     // Zoomer à la molette : la page à elle, pas le navigateur ; le moteur arrive pour la suite.
@@ -206,6 +209,8 @@
     racine.addEventListener("focusin", survol);
     racine.addEventListener("focusout", survol);
     racine.addEventListener("click", noter);
+    // Un formulaire ne recharge jamais la page, même avant l'arrivée du moteur (ADR-042).
+    racine.addEventListener("submit", (evenement) => { if (evenement.target.closest(".holo-Form")) evenement.preventDefault(); });
     racine.addEventListener("focusin", charger);
     // Un bouton rond coché, une option choisie : le moteur arrive, et reprend ce choix.
     racine.addEventListener("change", charger);
@@ -231,7 +236,8 @@
     document.getElementById("menu").hidden = parametres.has("nu");
     // ?moteur : tout de suite, pour mesurer ou comparer. Une adresse avec # ou ? sert aux
     // mondes et aux captures : le moteur aussi.
-    if (!racine.querySelector("[data-title]") || racine.querySelector("[data-vivant]") || location.search || location.hash) charger();
+    const endroit = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)));
+    if (!racine.querySelector("[data-title]") || racine.querySelector("[data-vivant]") || location.search || (location.hash && !endroit)) charger();
     // Des valeurs gardées d'une visite précédente (keep) : le moteur les remet. Le visiteur est
     // déjà venu, son navigateur a sans doute gardé le moteur.
     try { if (localStorage.getItem(`holo:${location.pathname}`)) charger(); } catch { /* stockage refusé */ }

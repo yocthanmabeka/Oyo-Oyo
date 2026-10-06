@@ -10,7 +10,7 @@
 // C'est le rôle que tiendra plus tard un navigateur qui sait lire le .holo.
 
 import { createServer } from "node:http";
-import { readFile, stat } from "node:fs/promises";
+import { appendFile, mkdir, readFile, stat } from "node:fs/promises";
 import { extname, join, normalize, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { brotliCompressSync, constants } from "node:zlib";
@@ -67,8 +67,10 @@ function pageToutePrete(gabarit, cheminHolo, dossier) {
     // La langue, la description et l'image de partage de la page (ADR-038), dans l'en-tête :
     // pour les lecteurs d'écran, pour Google, et pour l'aperçu d'un lien partagé.
     const lire = (attribut) => new RegExp(`${attribut}="([^"]*)"`).exec(html.slice(0, 20000))?.[1];
-    const [langue, description, image] = [lire("data-lang"), lire("data-description"), lire("data-image")];
+    const [langue, description, image, icone] = [lire("data-lang"), lire("data-description"), lire("data-image"), lire("data-icon")];
     let entete = `<title>${titre}</title><meta property="og:title" content="${titre}">`;
+    // La petite image de l'onglet (ADR-042).
+    if (icone) entete += `<link rel="icon" href="${icone}">`;
     if (description) entete += `<meta name="description" content="${description}"><meta property="og:description" content="${description}">`;
     if (image) entete += `<meta property="og:image" content="${image}">`;
     let page = gabarit.replace('<div id="page"></div>', () => `<div id="page">${html}</div>`).replace("<title>HoloCode</title>", () => entete);
@@ -94,9 +96,47 @@ async function fichier(chemin) {
 // retarde le moteur de cinq secondes ; HOLO_MOTEUR=panne le refuse. Sans cette variable, rien.
 const [modeMoteur, retardMoteur] = (process.env.HOLO_MOTEUR ?? "").split(":");
 
+// Les messages envoyés par un formulaire (ADR-042) : rangés dans messages/, à la racine du dépôt,
+// un fichier par page, une ligne par message. Ce dossier n'est jamais versionné. C'est Yocthan
+// qui les lit ; rien ne part ailleurs.
+const messages = join(depot, "messages");
+const MESSAGE_MAX = 16384;
+const MESSAGES_PAR_PAGE_MAX = 5_000_000;
+async function recevoirUnMessage(req, res, url) {
+  const morceaux = [];
+  let taille = 0;
+  for await (const morceau of req) {
+    taille += morceau.length;
+    if (taille > MESSAGE_MAX) return repondre(res, 413, "message trop long");
+    morceaux.push(morceau);
+  }
+  let envoi;
+  try { envoi = JSON.parse(Buffer.concat(morceaux).toString("utf8")); } catch { return repondre(res, 400, "message illisible"); }
+  if (typeof envoi?.form !== "string" || typeof envoi.values !== "object" || envoi.values === null || Array.isArray(envoi.values)) return repondre(res, 400, "message mal formé");
+  const nom = url.replace(/^\/+/, "").replace(/\.holo$/, "").replace(/[^A-Za-z0-9_-]+/g, "_");
+  const fichierDesMessages = join(messages, `${nom}.jsonl`);
+  await mkdir(messages, { recursive: true });
+  const deja = await stat(fichierDesMessages).then((s) => s.size, () => 0);
+  if (deja > MESSAGES_PAR_PAGE_MAX) return repondre(res, 507, "trop de messages gardés pour cette page");
+  await appendFile(fichierDesMessages, JSON.stringify({ recu: new Date().toISOString(), page: url, form: envoi.form, values: envoi.values }) + "\n");
+  console.log(`Message reçu : ${url} (${envoi.form}) → messages/${nom}.jsonl`);
+  return repondre(res, 204, "");
+}
+function repondre(res, code, texte) {
+  res.writeHead(code, { "content-type": "text/plain; charset=utf-8" });
+  res.end(texte);
+}
+
 createServer(async (req, res) => {
   try {
     let url = decodeURIComponent(new URL(req.url, "http://x").pathname);
+    if (req.method === "POST") {
+      if (!url.endsWith(".holo") || !/application\/json/.test(req.headers["content-type"] ?? "")) return repondre(res, 405, "seul un formulaire d'une page .holo envoie ici");
+      // Seulement pour une page qui existe, parmi les exemples servis.
+      const pageHolo = url.startsWith("/exemples/") ? join(exemples, normalize(url.slice("/exemples/".length))) : "";
+      if (!pageHolo.startsWith(exemples) || !existsSync(pageHolo)) return repondre(res, 404, "page introuvable");
+      return await recevoirUnMessage(req, res, url);
+    }
     // Le retard ne compte qu'une fois, sur la première pièce du moteur.
     if (url === "/page-moteur.js" && modeMoteur === "lent") await new Promise((r) => setTimeout(r, Number(retardMoteur) || 5000));
     if ((url === "/page-moteur.js" || url.startsWith("/pkg/")) && modeMoteur === "panne") {

@@ -1,0 +1,33 @@
+// Leçon 55 — Barré, surligné, exposant, indice
+//
+// Ce qu'on apprend :
+//   Dans un texte, comme le gras (**…**) et l'italique (*…*) :
+//     ~~ancien prix~~   barré          ==important==   surligné
+//     m^2^              exposant       H~2~O           indice
+//   Le souligné n'existe pas exprès : sur le web, ce qui est souligné ressemble à un lien.
+//
+// À essayer :
+//   Lis les quatre lignes, puis cherche les marques dans le fichier.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 55 : barré, surligné, exposant, indice",
+  children: [
+    H1("Barré, surligné, exposant, indice"),
+    P("Prix : ~~120 €~~ 90 € seulement."),
+    P("À retenir : ==la livraison est offerte dès 30 €==."),
+    P("Un atelier de 40 m^2^, sous les toits."),
+    P("La peinture sèche mieux loin de l'eau : H~2~O."),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 54 : sa propre police", to: "54-police.holo"),
+      A("Leçon 56 : aller plus bas dans la page →", to: "56-aller-plus-bas.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

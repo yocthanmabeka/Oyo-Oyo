@@ -116,6 +116,12 @@ pub fn delais(source: &str, etat: &str) -> String {
     etat::delais(&programme, &etat::relire(&programme, etat)).iter().map(|(ms, court)| format!("{ms}:{}", u8::from(*court))).collect::<Vec<_>>().join(";")
 }
 
+/// Ce qu'un formulaire de la page envoie au serveur, en JSON (ADR-042). Vide s'il n'existe pas.
+pub fn envoi(source: &str, etat: &str, formulaire: &str) -> String {
+    let Ok(programme) = verifier_page(source) else { return String::new() };
+    etat::envoi(&programme, &etat::relire(&programme, etat), &etat::relire_textes(&programme, etat), formulaire).unwrap_or_default()
+}
+
 /// La page lit-elle l'heure du visiteur ? Elle la tient alors à jour, minute après minute.
 pub fn lit_l_heure(source: &str) -> bool {
     verifier_page(source).is_ok_and(|programme| etat::lit_l_heure(&programme))

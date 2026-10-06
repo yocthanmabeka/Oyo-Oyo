@@ -1036,6 +1036,49 @@ Page(
 
 Cette écriture est à l'essai (`ADR-040`). La leçon est `49-repeter.holo`.
 
+## 6 quindecies. Le HTML utile, et envoyer un message
+
+```holo
+Page(
+  title: "Contact",
+  icon: "star.svg",
+  state: State(name: "", message: "", visit: "", size: 60, done: 0),
+  children: [
+    H1("Contact"),
+    A("Opening hours", to: "#Hours"),
+    P("Price: ~~120~~ 90 euros. ==Free delivery==. A 40 m^2^ studio."),
+    Image(source: "studio.jpg", alt: "The studio", caption: "The studio, in spring.", phone: "studio-small.jpg"),
+    Sound(source: "chime.wav", label: "The studio chime"),
+    Details(summary: "Do you ship abroad?", children: [ P("Yes, everywhere in Europe.") ]),
+    Form(name: Contact, children: [
+      Input(value: name, label: "Your name"),
+      Input(value: visit, label: "Preferred day", type: date),
+      Slider(value: size, label: "Size (cm)", min: 20, max: 120),
+      Input(value: message, label: "Your message", lines: 4),
+      Button(name: Send, text: "Send"),
+    ]),
+    Progress(value: done, max: 1, label: "Sent"),
+    Dialog(name: Thanks, children: [ H2("Thank you"), P("Your message has arrived.") ]),
+    H2("Opening hours", name: Hours),
+    P("Tuesday to Saturday, 9 am to 6 pm."),
+  ],
+  rules: [
+    On(Send.tap, effect: Contact.send),
+    On(Contact.sent, effect: [done.set(1), Thanks.open]),
+  ],
+)
+```
+
+- **`icon:`** : l'image de l'onglet. **`~~barré~~`**, **`==surligné==`**, **`m^2^`**, **`H~2~O`** dans un texte.
+- **`A(to: "#Hours")`** mène au bloc nommé `Hours` ; un nom qui n'existe pas est refusé.
+- **`Image(caption:, phone:)`** : une légende ; une image plus légère pour un téléphone.
+- **`Sound(label:)`** : un lecteur, avec ses boutons. **`Details(summary:, children:)`** : un pli qui s'ouvre.
+- **`Slider(value:, label:, min:, max:)`**, **`Input(type: date | time | color)`**, **`Progress(value:, max:, label:)`**.
+- **`Dialog(name:)`** : une fenêtre par-dessus la page ; `Thanks.open`, `Thanks.close`, la croix, Échap.
+- **`Form(name:)`** : `Contact.send` envoie au serveur d'où vient la page les valeurs de ses champs ; puis `Contact.sent` (arrivé) ou `Contact.failed`. Chez soi, chaque message est rangé dans `messages/`, à la racine du dépôt.
+
+Ces ajouts sont à l'essai (`ADR-042`). Les leçons sont `55-petits-textes.holo` à `65-icone-de-l-onglet.holo`.
+
 ## 6 undecies. Les repères, la superposition, le survol, le texte qui grandit
 
 **Les repères.** Une personne aveugle saute d'un repère à l'autre avec son lecteur d'écran. Rien ne change à l'œil.
@@ -1269,17 +1312,22 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 
 | Bloc | Réglages | Où |
 |---|---|---|
-| `Page` | `name`, `title`, `lang`, `description`, `image`, `fonts`, `children`, `pixels`, `rules`, `state`, `prices`, `keep`, `data`, `zoom`, `points`, `relief`, `portals` | À la racine |
+| `Page` | `name`, `title`, `lang`, `description`, `image`, `icon`, `fonts`, `children`, `pixels`, `rules`, `state`, `prices`, `keep`, `data`, `zoom`, `points`, `relief`, `portals` | À la racine |
 | `H1` à `H6`, `P`, `Text` | le texte entre guillemets ; `name` | Dans `children` |
 | `Header`, `Nav`, `Footer` | `children`, `name` | Dans `children` ; `Header` et `Footer` posés directement dans la page en sont l'en-tête et le pied |
 | `Main` | `children`, `name` | Directement dans la page |
 | `Stack` | `children`, `name` ; ses enfants prennent `align` | Dans `children` |
 | `A` | le texte entre guillemets, `to` | Dans `children` |
-| `Image` | `source`, `alt` (obligatoire), `weight`, `name` | Dans `children` |
+| `Image` | `source`, `alt` (obligatoire), `caption`, `phone`, `weight`, `name` | Dans `children` |
 | `Video` | `source`, `label`, `weight`, `name` | Dans `children` |
 | `Table` | `caption`, `head`, `rows`, `name` | Dans `children` |
 | `Choice` | `value`, `label`, `options`, `menu`, `name` | Dans `children` |
-| `Sound` | `name`, `source`, `weight` | Dans `children` |
+| `Sound` | `name`, `source`, `weight` ; avec `label`, un lecteur | Dans `children` |
+| `Slider` | `value`, `label`, `min`, `max`, `name` | Dans `children` |
+| `Progress` | `value`, `max`, `label`, `name` | Dans `children` |
+| `Details` | `summary`, `children`, `open`, `name` | Dans `children` |
+| `Dialog` | `name`, `children` ; capacités `open`, `close` | Dans `children` |
+| `Form` | `name`, `children` ; capacité `send` ; signaux `sent`, `failed` | Dans `children` |
 | `Shape` | `form`, `color`, `size`, `name` | Dans `children` |
 | `Scenes` | `children`, `height`, `repeat`, `name` | Dans `children` |
 | `Scene` | `for`, `children`, `name` | Dans `Scenes` |
@@ -1295,7 +1343,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Row`, `Column` | `children`, `gap`, `align`, `name` | Dans `children` |
 | `Grid` | `children`, `gap`, `columns`, `name` | Dans `children` |
 | `Board` | `children`, `height`, `name` ; ses enfants prennent `x`, `y` et `drag` | Dans `children` |
-| `Input` | `value`, `label`, `max`, `lines`, `name` | Dans `children` |
+| `Input` | `value`, `label`, `max`, `lines`, `type` (`date`, `time`, `color`), `name` | Dans `children` |
 | `Checkbox` | `value`, `label`, `name` | Dans `children` |
 | `Part` | `name`, `children` | À la racine d'un fichier importé |
 | `Use` | le nom d'un morceau importé | Dans `children` |
@@ -1376,20 +1424,21 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Écrire une fois, répéter pour chaque élément | `Repeat(items: [ Item(…) ], children: [ … ])`, `item` | fait, à l'essai |
 | Une couleur nommée, le thème sombre, le téléphone | `--or`, `dark: { … }`, `phone: { … }` | fait, à l'essai |
 | Sa propre police | `fonts: [ Font(family:, source:) ]` | fait, à l'essai |
+| Envoyer un formulaire | `Form(name:)`, `Contact.send`, `sent`, `failed` | fait, à l'essai |
+| Une fenêtre, un pli, une glissière, une barre | `Dialog`, `Details`, `Slider`, `Progress` | fait, à l'essai |
 | Réagir au zoom par une règle (« quand on zoome, alors… ») | aucun | à faire |
 | Ranger côte à côte, l'un sous l'autre, en grille | `Row`, `Column`, `Grid` | fait, à l'essai |
 | L'écart et le placement | `gap:`, `align:`, `columns:` | fait, à l'essai |
 | Réutiliser un morceau de fichier (les imports) | `import` est lu, pas appliqué | à faire |
-| Les formulaires, les valeurs qui changent | aucun | à faire |
 | Le personnage | aucun | à faire |
 
 L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../exemples/boutique-comparee/boutique.holo).
 
 ## 11. Ce qui n'existe pas encore
 
-- `module`, `bridge js`, `bridge css` : le moteur les lit mais ne les applique pas. Des valeurs qui soient des listes (une liste qui change pendant la visite), et l'envoi de données à un serveur.
+- `module`, `bridge js`, `bridge css` : le moteur les lit mais ne les applique pas. Des valeurs qui soient des listes (une liste qui change pendant la visite).
 - Pour la disposition : pas de largeur par élément, pas d'élément qui prend la place restante.
-- La liste de choix, l'envoi d'un formulaire ; les données venues d'ailleurs.
+- Les données venues d'un autre serveur ; l'envoi d'un fichier ; les comptes.
 - Pour les valeurs : des nombres entiers et des textes. Pas de liste, pas d'autre calcul que le nombre et le total d'un panier.
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.

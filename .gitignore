@@ -12,3 +12,6 @@ dist/
 build/
 *.vsix
 target/
+
+# Les messages reçus par les formulaires des pages, en local (ADR-042) : jamais versionnés.
+messages/

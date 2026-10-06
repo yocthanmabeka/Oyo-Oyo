@@ -1,0 +1,42 @@
+// Leçon 63 — Une fenêtre par-dessus la page
+//
+// Ce qu'on apprend :
+//   Dialog(name: Confirmer, children: [ … ]) : une fenêtre, cachée au départ.
+//   On(Demander.tap, effect: Confirmer.open)    l'ouvre
+//   On(Oui.tap, effect: Confirmer.close)        la ferme ; la croix et la touche Échap aussi.
+//   Tant qu'elle est ouverte, le reste de la page attend.
+//
+// À essayer :
+//   Touche « Vider le panier », puis réponds.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 63 : une fenêtre par-dessus la page",
+  state: State(panier: 3),
+  children: [
+    H1("Une fenêtre par-dessus la page"),
+    Text("Panier : {panier} tableau(x)."),
+    Button(name: Demander, text: "Vider le panier"),
+    Dialog(name: Confirmer, children: [
+      H2("Vider le panier ?"),
+      P("Les tableaux choisis seront retirés."),
+      Row(gap: 8px, children: [ Button(name: Oui, text: "Oui, vider"), Button(name: Non, text: "Non") ]),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 62 : des plis qui s'ouvrent", to: "62-plis.holo"),
+      A("Leçon 64 : envoyer un message →", to: "64-formulaire.holo"),
+    ]),
+  ],
+  rules: [
+    On(Demander.tap, effect: Confirmer.open),
+    On(Oui.tap, effect: [panier.set(0), Confirmer.close]),
+    On(Non.tap, effect: Confirmer.close),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
