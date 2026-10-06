@@ -6,6 +6,14 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Un prompt sur les majuscules et la casse
+
+- Demande de Yocthan : un prompt pour ChatGPT et Gemini sur les majuscules, avec tous les mots du langage, la question « le langage respecte-t-il la casse ? », et le désaccord de Claude.
+- `docs/05-discussions/prompts/2026-10-06-majuscules-et-casse.md`. Claude a d'abord essayé dix fautes de casse dans le moteur : huit sont refusées avec le bon mot à écrire ; **deux passent** : `Page(Title: …)` est accepté sans rien dire et le titre est perdu (un défaut), et `Button(name: buy, …)` est accepté avec une minuscule.
+- Rien n'est changé avant les réponses et la décision de Yocthan.
+
+---
+
 ## 2026-10-06 — Les repères, les titres jusqu'à H6, le texte qui grandit, le survol, la superposition
 
 **Ce que Yocthan a dit** : « Oui, vas-y, commence la construction de tout ce qu'on vient de décider. »
