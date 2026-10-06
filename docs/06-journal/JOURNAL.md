@@ -6,6 +6,26 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — La pile : tout voir dans un seul onglet
+
+- Yocthan, à court de batterie, avait fermé des fenêtres : « faire une stack […] qui me permettra de consommer moins de charges […] pour voir tout ce que tu crées ».
+- Fait : **la pile**, `http://localhost:8080/pile`. Tout ce qui s'ouvre dans le navigateur (96 pages aujourd'hui : 69 leçons, les sites, les jeux, les jumeaux en HTML, les mondes), le plus récent en haut, rangé par jour, avec une recherche. La page choisie s'ouvre à côté de la liste ; sur un téléphone, à sa place, avec « ← La pile », et elle est arrêtée quand on revient. La date est celle du dernier commit du fichier (celle du disque pour un fichier pas encore versionné). Un morceau (`Part`), qui ne s'ouvre pas seul, se montre dans l'éditeur. « nouveau » marque ce qui a changé depuis la dernière visite.
+- Pour montrer une page : `node outils/montrer.mjs /exemples/…`. La pile ouverte l'affiche elle-même, sans nouvel onglet ; s'il n'y en a pas, Chrome s'ouvre une fois, sur la pile. Seul ce PC peut le demander, pas un autre appareil du Wi-Fi. Rien ne tourne tant qu'on ne choisit rien ; la liste est relue quand on revient sur l'onglet.
+- Corrigé en passant : l'éditeur ouvrait par défaut une leçon qui n'existe pas (`01-bonjour.holo`) ; c'est `01-page.holo`.
+- Vérifié dans Chrome sans fenêtre : la liste (96 liens), la leçon 9 ouverte par l'adresse, puis la leçon 68 montrée par le serveur dans le même onglet ; sur un écran de téléphone, la page à la place de la liste, le retour qui l'arrête, rien qui dépasse de l'écran.
+
+![La pile sur un PC : la liste, et la page montrée par Claude](images/2026-10-06-pile.png)
+
+![La pile sur un téléphone](images/2026-10-06-pile-telephone.png)
+
+**Erreurs en route**
+
+- Sur un écran de téléphone, la barre au-dessus de la page dépassait de 150 pixels (une colonne de grille qui prenait la largeur de son texte) : corrigé avant la PR.
+- Mes essais depuis Git Bash envoyaient `C:/Program Files/Git/exemples/…` au lieu de `/exemples/…` (Git Bash convertit les chemins) : `montrer.mjs` retrouve maintenant le bon chemin.
+- En relançant le serveur d'essai, l'ancien tenait encore le port : arrêté à la main.
+
+---
+
 ## 2026-10-06 — Les PR de Codex fusionnées ; les quatorze noms tranchés
 
 - Yocthan : « Il y a 14 mots à nommer […] tu fais le pull request des codex […] je suis tes recommandations. »

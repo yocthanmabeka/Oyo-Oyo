@@ -18,7 +18,7 @@ const ligneFautive = $("ligne-fautive");
 
 const params = new URLSearchParams(location.search);
 const cle = params.get("cle") ?? "";
-let chemin = params.get("fichier") ?? "/exemples/lecons/01-bonjour.holo";
+let chemin = params.get("fichier") ?? "/exemples/lecons/01-page.holo";
 let enregistre = ""; // le texte tel qu'il est sur le disque
 let finsDeLigneWindows = false; // le fichier était écrit avec \r\n : on le garde ainsi
 let faute = null; // { ligne, debut, fin, message }
