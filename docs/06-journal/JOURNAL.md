@@ -6,6 +6,13 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — ADR-011 précisée : la vue à plat reste du HTML, partout
+
+- Yocthan a demandé pourquoi on perdrait ce que le web offre gratuitement, puis ce qu'est HoloIR ; après les réponses : « tu valides les différentes parties… A, B, C et D… on fait comme tu l'as dit ».
+- Inscrit dans `ADR-011`, partie A : la vue à plat reste du vrai HTML, **même dans le navigateur propre au projet** (la phrase qui disait le contraire est barrée, pas effacée) ; la vue en profondeur recevra un jour une couche invisible pour les lecteurs d'écran. B (rejetée), C (direction acceptée) et D (proposition) ne changent pas.
+
+---
+
 ## 2026-10-06 — Lot 5 : le HTML utile, et envoyer un message
 
 - Fait (`ADR-042`, à l'essai) : `Page(icon:)` ; `~~barré~~`, `==surligné==`, `m^2^`, `H~2~O` ; `A(to: "#Horaires")` vers un bloc nommé (refusé s'il n'existe pas) ; `Image(caption:, phone:)` ; `Sound(label:)`, un lecteur ; `Slider` ; `Input(type: date | time | color)` ; `Progress` ; `Details` ; `Dialog` avec `open` et `close` ; `Form` avec `send`, puis `sent` ou `failed`. Leçons 55 à 65.
