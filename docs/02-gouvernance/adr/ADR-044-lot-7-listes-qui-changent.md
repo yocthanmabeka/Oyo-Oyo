@@ -1,17 +1,17 @@
 # ADR-044 — Lot 7 : une liste qui change pendant la visite
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ
 - Date : 2026-10-06
 - Responsable : Yocthan Mabeka
 - Discussions sources : le grand tableau (« des listes de valeurs », à 50 %) ; `ADR-040` (la répétition d'une liste écrite dans le fichier) ; Yocthan, le 2026-10-06 : « Oui, travaille sur ce qui reste »
-- Validation : à donner par Yocthan après essai.
+- Validation : validé par Yocthan le 2026-10-06, après l'avoir essayé : « valide le point 1, 2, j'ai testé et ça marche en tout cas, donc du coup il faut le valider »
 - Projets affectés : HoloCode, HoloEngine
 
 ## Contexte
 
 `Repeat` (`ADR-040`) répète une liste écrite dans le fichier. Il manquait une liste que le visiteur remplit : des tâches, des notes, une liste d'envies.
 
-## Décision (à l'essai)
+## Décision
 
 1. **Une liste est une valeur de la page** : `State(tasks: [])`, ou avec des éléments de départ, `State(tasks: ["Pain"])`. Des textes, cent au plus, de deux cents caractères au plus.
 2. **Trois demandes**, seulement dans une règle `On` (un geste du visiteur) : `tasks.push(task)` ajoute le texte d'une valeur de la page (un texte vide n'est pas ajouté) ; `tasks.remove(item)` retire l'élément de la ligne touchée ; `tasks.clear()` vide la liste.

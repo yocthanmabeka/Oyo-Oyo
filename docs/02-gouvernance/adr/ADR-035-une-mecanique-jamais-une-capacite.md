@@ -33,4 +33,4 @@ Un refus qui laisse un besoin sans réponse est une dette : elle s'inscrit dans 
 
 ## Conditions de réexamen
 
-- Quand Yocthan aura choisi la règle de décision : suivre la majorité des humains, ou la question du travail à faire (ChatGPT). Sur les huit refus examinés, les deux ont donné le même résultat.
+- ~~Quand Yocthan aura choisi la règle de décision~~ **Choisie le 2026-10-06** (Yocthan : « évidemment, tu valides », en suivant la recommandation de Claude) : **on part du travail à faire** — de quoi l'auteur a-t-il besoin pour réussir ce qu'il veut faire ? (la question de ChatGPT) ; **l'avis de la majorité des humains sert de vérification**. S'ils se contredisent, Claude le signale et Yocthan tranche. (Claude avait d'abord résumé la seconde option par « ce qui demande le moins de travail » : c'était faux ; il s'agit du travail de l'auteur, pas du nôtre.)

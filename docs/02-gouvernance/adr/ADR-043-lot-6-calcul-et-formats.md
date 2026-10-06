@@ -1,17 +1,17 @@
 # ADR-043 — Lot 6 : multiplier, diviser, et écrire un nombre joliment
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ
 - Date : 2026-10-06
 - Responsable : Yocthan Mabeka
 - Discussions sources : le grand tableau (le calcul à 30 %, `Intl` absent) ; Yocthan, le 2026-10-06 : « Oui, travaille sur ce qui reste »
-- Validation : à donner par Yocthan après essai.
+- Validation : validé par Yocthan le 2026-10-06, après l'avoir essayé : « valide le point 1, 2, j'ai testé et ça marche en tout cas, donc du coup il faut le valider »
 - Projets affectés : HoloCode, HoloEngine
 
 ## Contexte
 
 Une page ne savait qu'ajouter, retirer, fixer et tirer au hasard. Et un nombre s'affichait brut : « 18 h 5 », « 1234567 », « 123450 » pour 1 234,50 €.
 
-## Décision (à l'essai)
+## Décision
 
 1. **Deux demandes** : `prix.mul(2)` (multiplier) et `part.div(3)` (diviser, en nombres entiers, arrondi vers le bas). La quantité peut être une autre valeur : `total.mul(quantite)`. Diviser par `0` écrit dans le fichier est refusé ; par une valeur qui vaut 0, rien ne change.
 2. **Un format après le nom d'une valeur** : `{minute:00}` (des zéros devant, de `00` à `000000`), `{visites:number}` (les milliers séparés), `{total:cents}` (un prix en centimes), `{weekday:name}` et `{month:name}` (le nom du jour et du mois). Dans une répétition : `{item.price:cents}`.
