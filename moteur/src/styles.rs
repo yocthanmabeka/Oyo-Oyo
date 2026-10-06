@@ -80,6 +80,21 @@ pub fn verifier_styles(programme: &Programme) -> Result<(), Erreur> {
             }
             verifier_reglage(reglage)?;
         }
+        // Les états (hover, focus, active) : chacun une fois, avec des réglages connus.
+        for (k, (etat, reglages, pos)) in regle.etats.iter().enumerate() {
+            if regle.etats[..k].iter().any(|(autre, ..)| autre == etat) {
+                return Err(Erreur { message: format!("l'état « {etat} » est donné deux fois dans « {} »", regle.cible), pos: *pos });
+            }
+            if reglages.is_empty() {
+                return Err(Erreur { message: format!("l'état « {etat} » de « {} » est vide : écris ce qui change, comme « {etat}: {{ background: navy; }} »", regle.cible), pos: *pos });
+            }
+            for (j, reglage) in reglages.iter().enumerate() {
+                if reglages[..j].iter().any(|autre| autre.nom == reglage.nom) {
+                    return Err(Erreur { message: format!("le réglage « {} » est donné deux fois dans l'état « {etat} »", reglage.nom), pos: reglage.pos });
+                }
+                verifier_reglage(reglage)?;
+            }
+        }
     }
     noms_poses(&programme.racine, programme)
 }
@@ -215,14 +230,25 @@ mod tests {
         // Le film en mouvement (ADR-034).
         let film = include_str!("../../exemples/motion/holocode/showreel.holo");
         crate::verifier_page(film).unwrap();
-        let source = &format!("{source}\n{jeu}\n{second}\n{accueil}\n{commun}\n{donnees}\n{film}");
+        // Les repères, les titres profonds, les états et la superposition (ADR-036).
+        let lecons = [
+            include_str!("../../exemples/lecons/35-reperes.holo"),
+            include_str!("../../exemples/lecons/36-titres-profonds.holo"),
+            include_str!("../../exemples/lecons/37-survol.holo"),
+            include_str!("../../exemples/lecons/38-superposition.holo"),
+        ];
+        for lecon in lecons {
+            crate::verifier_page(lecon).unwrap();
+        }
+        let lecons = lecons.join("\n");
+        let source = &format!("{source}\n{jeu}\n{second}\n{accueil}\n{commun}\n{donnees}\n{film}\n{lecons}");
         for bloc in crate::blocs::BLOCS {
             assert!(source.contains(&format!("{bloc}(")) || source.contains(&format!("{bloc}.")), "le bloc « {bloc} » manque dans l'exemple");
         }
         for (reglage, _) in REGLAGES {
             assert!(source.contains(&format!("{reglage}:")), "le réglage « {reglage} » manque dans l'exemple");
         }
-        for mot in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave", "state:", "prices:", "{count}", "{total}", ".add(", ".sub(", ".set(", "gap:", "align:", "columns:", "alt:", "is:", "over:", "by:", ".random(", "x:", "y:", "keep:", "value:", "label:", "max:", "Key.left", "meets:", "drag:", "data:", "from:", ".play", "form:", "enter:", "loop:", "letters:", "each:", "repeat:", "ease:", "rotate:", "flip:", "tilt:", "blur:", "hue:", "round:", "scale:", "opacity:"] {
+        for mot in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave", "state:", "prices:", "{count}", "{total}", ".add(", ".sub(", ".set(", "gap:", "align:", "columns:", "alt:", "is:", "over:", "by:", ".random(", "x:", "y:", "keep:", "value:", "label:", "max:", "Key.left", "meets:", "drag:", "data:", "from:", ".play", "form:", "enter:", "loop:", "letters:", "each:", "repeat:", "ease:", "rotate:", "flip:", "tilt:", "blur:", "hue:", "round:", "scale:", "opacity:", "hover:", "focus:", "active:", "top_right"] {
             assert!(source.contains(mot), "« {mot} » manque dans l'exemple");
         }
     }

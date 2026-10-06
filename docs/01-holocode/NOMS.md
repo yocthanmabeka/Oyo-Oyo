@@ -19,7 +19,10 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | HoloCode | HTML, CSS ou JavaScript | Ce qu'on a fait |
 |---|---|---|
 | `Page` | `html`, `head`, `body`, `main` | changé : un seul bloc au lieu de quatre balises |
-| `H1`, `H2`, `H3` | `h1`, `h2`, `h3` | repris, avec une majuscule |
+| `H1` à `H6` | `h1` à `h6` | repris, avec une majuscule |
+| `Header`, `Nav`, `Main`, `Footer` | `header`, `nav`, `main`, `footer` | repris, avec une majuscule |
+| `Stack` et `align:` sur ses enfants | `position: absolute`, `z-index`, `top`, `right` | changé : le nom de Flutter ; une place nommée au lieu de coordonnées |
+| `hover:`, `focus:`, `active:` dans un style | `:hover`, `:focus-visible`, `:active` | repris, sans sélecteur : un état appartient à son style |
 | `P` | `p` | repris, avec une majuscule |
 | `Text` | `span` | changé : le mot dit ce que c'est |
 | `A` | `a` | repris, avec une majuscule |

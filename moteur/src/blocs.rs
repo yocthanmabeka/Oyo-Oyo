@@ -4,10 +4,11 @@
 use crate::holo::{Bloc, Erreur, Programme, Valeur};
 
 /// `Text` est du texte sans rôle ; `P`, `H1`, `H2` et `H3` sont un `Text` avec un rôle (ADR-020).
-pub const BLOCS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Part", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop"];
+pub const BLOCS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Part", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop", "H4", "H5", "H6", "Main", "Nav", "Header", "Footer", "Stack"];
 
-/// Le titre le plus profond : on s'arrête à `H3` tant qu'un vrai besoin n'apparaît pas.
-pub const TITRE_MAX: u32 = 3;
+/// Le titre le plus profond : `H6`, comme en HTML (correction d'ADR-020 du 2026-10-06 ; les
+/// longs documents en ont besoin). Le numéro dit toujours la place dans le plan, jamais la taille.
+pub const TITRE_MAX: u32 = 6;
 
 /// Vérifie tous les blocs d'un fichier : chacun existe, et les titres ne sautent pas de niveau.
 pub fn verifier_blocs(programme: &Programme) -> Result<(), Erreur> {
@@ -141,7 +142,7 @@ mod tests {
         assert!(div.message.contains("bloc inconnu « Div »"));
         let h4 = verifier(include_str!("../../experiments/conformite-v0.1/cas/refuses/E11-titre-trop-profond.holo")).unwrap_err();
         assert_eq!(h4.pos.ligne, 7);
-        assert!(h4.message.contains("de « H1 » à « H3 »"));
+        assert!(h4.message.contains("de « H1 » à « H6 »"));
         assert!(verifier("Page(children: [ Texte(\"Bonjour\") ])").unwrap_err().message.contains("écris « Text »"));
         assert!(verifier("Page(styles: [ Style(color: gray) ])").unwrap_err().message.contains("comme en CSS"));
     }

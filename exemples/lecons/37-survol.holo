@@ -1,0 +1,45 @@
+// Leçon 37 — Le survol, le focus, l'appui
+//
+// Ce qu'on apprend :
+//   Dans un style, on peut dire ce qui change :
+//     hover: { … }   quand la souris passe dessus
+//     focus: { … }   quand on y arrive au clavier (touche Tab)
+//     active: { … }  pendant qu'on appuie
+//   Le changement se fait en douceur. Sur un écran tactile, le survol n'existe pas : il ne
+//   reste jamais collé après un toucher.
+//
+// À essayer :
+//   Passe la souris sur le bouton, puis appuie dessus. Ensuite, touche Tab.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 37 : le survol",
+  state: State(appuis: 0),
+  children: [
+    H1("Le survol"),
+    Button.vif(name: Appuie, text: "Passe la souris sur moi"),
+    Text("Appuyé {appuis} fois."),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 36 : des titres plus profonds", to: "36-titres-profonds.holo"),
+      A("Leçon 38 : poser un bloc sur un autre →", to: "38-superposition.holo"),
+    ]),
+  ],
+  rules: [ On(Appuie.tap, effect: appuis.add(1)) ],
+)
+
+.vif {
+  background: #E9B44C;
+  color: #101020;
+  border-radius: 999px;
+  padding: 10px 22px;
+  hover: { background: #ffd27a; }
+  focus: { border: 3px solid white; }
+  active: { opacity: 0.7; }
+}
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

@@ -13,7 +13,11 @@ use crate::styles::est_couleur;
 /// toujours le dernier mot aux styles du fichier.
 const BASE: &str = "\
 :where(.holo-Page){min-height:100vh;box-sizing:border-box;margin:0}\
-:where(.holo-Page>main){max-width:640px;margin:0 auto;position:relative}:where(.holo-Page>main,.holo-panneau)>*{display:block;box-sizing:border-box;margin:0 0 16px 0}\
+:where(.holo-Page>main,.holo-Page>header,.holo-Page>footer){display:block;max-width:640px;margin:0 auto;position:relative}\
+:where(.holo-Page>main,.holo-Page>header,.holo-Page>footer,.holo-panneau,.holo-Header,.holo-Footer,.holo-Main)>*{display:block;box-sizing:border-box;margin:0 0 16px 0}\
+:where(.holo-Nav)>*{margin:0}\
+:where(.holo-Stack){display:inline-grid;position:relative;max-width:100%;vertical-align:top}:where(.holo-Stack>:first-child>.holo-Image){width:100%;display:block}:where(.holo-Stack)>*{grid-area:1/1;min-width:0;margin:0}\
+:where(.holo-pose){z-index:1;margin:6px}\
 :where(.holo-Button){font:inherit;color:inherit;cursor:pointer;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 12px}\
 :where(.holo-Point){width:64px;height:64px;padding:0;border:0;border-radius:50%;cursor:pointer;\
 background:radial-gradient(circle,white 0%,var(--holo-color,white) 35%,transparent 70%);opacity:var(--holo-brightness,1)}\
@@ -85,7 +89,23 @@ fn site_html_brut(programme: &Programme, page: &Bloc, base: &str, titre: &str) -
     }
     let mut corps = String::new();
     let mut mondes = String::new();
-    enfants(page, &mut corps, &mut mondes, base)?;
+    // Les repères (ADR-036) : un `Header` et un `Footer` posés directement dans la page en
+    // sont l'en-tête et le pied, hors du contenu principal ; un `Main` dit où est ce contenu.
+    let mut entete = String::new();
+    let mut pied = String::new();
+    if let Some(Valeur::Liste(elements)) = page.argument("children").map(|a| &a.valeur) {
+        for element in elements {
+            match element {
+                Valeur::Bloc(b) if b.nom == "Header" => rendre(element, &mut entete, &mut mondes, base, page)?,
+                Valeur::Bloc(b) if b.nom == "Footer" => rendre(element, &mut pied, &mut mondes, base, page)?,
+                Valeur::Bloc(b) if b.nom == "Main" => {
+                    reperes_permis(b)?;
+                    enfants(b, &mut corps, &mut mondes, base)?;
+                }
+                _ => rendre(element, &mut corps, &mut mondes, base, page)?,
+            }
+        }
+    }
     if let Some(Valeur::Liste(plantes)) = page.argument("pixels").map(|a| &a.valeur) {
         for plante in plantes {
             pixel_plante(plante, &mut corps, &mut mondes, base, page)?;
@@ -150,16 +170,22 @@ fn site_html_brut(programme: &Programme, page: &Bloc, base: &str, titre: &str) -
     };
     corps = conditions(corps);
     mondes = conditions(mondes);
+    entete = conditions(entete);
+    pied = conditions(pied);
     // Les textes, à leur départ, là où un texte les montre.
     for (nom, texte) in &textes {
         let (vide, pleine) = (format!("<span data-state=\"{nom}\"></span>"), format!("<span data-state=\"{nom}\">{}</span>", echapper(texte)));
         corps = corps.replace(&vide, &pleine);
         mondes = mondes.replace(&vide, &pleine);
+        entete = entete.replace(&vide, &pleine);
+        pied = pied.replace(&vide, &pleine);
     }
     for (nom, valeur) in montrees.clone() {
         let (vide, pleine) = (format!("<span data-state=\"{nom}\"></span>"), format!("<span data-state=\"{nom}\">{valeur}</span>"));
         corps = corps.replace(&vide, &pleine);
         mondes = mondes.replace(&vide, &pleine);
+        entete = entete.replace(&vide, &pleine);
+        pied = pied.replace(&vide, &pleine);
     }
     // Une page vivante bouge ou écoute sans qu'on la touche : une horloge, le clavier, des
     // données à recevoir, un bloc à faire glisser. (Des valeurs gardées, `keep`, ne la rendent
@@ -172,7 +198,7 @@ fn site_html_brut(programme: &Programme, page: &Bloc, base: &str, titre: &str) -
         || corps.contains("data-drag=");
     let vivante = if vivante { " data-vivant" } else { "" };
     Ok(format!(
-        "<style>{BASE}{}</style><div class=\"{classes}\" data-title=\"{titre}\"{vivante}><main>{corps}</main>{mondes}</div>",
+        "<style>{BASE}{}</style><div class=\"{classes}\" data-title=\"{titre}\"{vivante}>{entete}<main>{corps}</main>{pied}{mondes}</div>",
         css(programme)
     ))
 }
@@ -198,11 +224,81 @@ fn css(programme: &Programme) -> String {
         sortie.push_str(&selecteur);
         sortie.push('{');
         for reglage in &regle.reglages {
-            sortie.push_str(&format!("{}:{};", reglage.nom, reglage.valeur.replace('<', "")));
+            sortie.push_str(&format!("{}:{};", reglage.nom, valeur_css(reglage)));
+        }
+        // Un style qui change à l'état passe d'un aspect à l'autre en douceur.
+        if regle.etats.iter().any(|(etat, ..)| etat != "focus") {
+            sortie.push_str("transition:background .15s,color .15s,border-color .15s,opacity .15s;");
         }
         sortie.push('}');
+        // Les états (ADR-036). Le survol n'existe qu'avec une souris : sur un écran tactile, il
+        // resterait collé après un toucher. Le focus est celui du clavier.
+        for (etat, reglages, _) in &regle.etats {
+            let corps: String = reglages.iter().map(|r| format!("{}:{};", r.nom, valeur_css(r))).collect();
+            let regle_etat = match etat.as_str() {
+                "hover" => format!("@media (hover:hover){{{}:hover{{{corps}}}}}", selecteur.split(',').map(str::to_string).collect::<Vec<_>>().join(":hover,")),
+                "focus" => format!("{}:focus-visible{{{corps}}}", selecteur.split(',').collect::<Vec<_>>().join(":focus-visible,")),
+                _ => format!("{}:active{{{corps}}}", selecteur.split(',').collect::<Vec<_>>().join(":active,")),
+            };
+            sortie.push_str(&regle_etat);
+        }
     }
     sortie
+}
+
+/// La largeur de page pour laquelle un auteur écrit ses tailles (`main` fait 640px au plus).
+const LARGEUR_D_AUTEUR: f64 = 640.0;
+
+/// La valeur d'un réglage, telle que le navigateur la reçoit. Une taille de texte écrite en
+/// pixels suit le réglage « texte plus grand » du visiteur (en rem : 16px = 1rem) ; un grand
+/// titre rétrécit sur un écran plus étroit que la page, sans jamais passer sous 24px (ADR-036).
+fn valeur_css(reglage: &crate::holo::Reglage) -> String {
+    let valeur = reglage.valeur.replace('<', "");
+    if reglage.nom != "font-size" {
+        return valeur;
+    }
+    let Some(px) = valeur.strip_suffix("px").and_then(|n| n.trim().parse::<f64>().ok()) else { return valeur };
+    let rem = px / 16.0;
+    if px <= 24.0 {
+        return format!("{}rem", arrondi(rem));
+    }
+    format!("clamp(1.5rem,{}vw,{}rem)", arrondi(px * 100.0 / LARGEUR_D_AUTEUR), arrondi(rem))
+}
+
+fn arrondi(n: f64) -> String {
+    let n = (n * 1000.0).round() / 1000.0;
+    if n.fract() == 0.0 { format!("{n:.0}") } else { format!("{n}") }
+}
+
+/// Un repère ne prend que des enfants et un nom.
+fn reperes_permis(bloc: &Bloc) -> Result<(), Erreur> {
+    for argument in &bloc.arguments {
+        match argument.nom.as_deref() {
+            Some("name" | "children" | "enter" | "loop") => {}
+            Some(autre) => return Err(Erreur { message: format!("« {} » n'a pas de paramètre « {autre} » ; paramètres possibles : children, name", bloc.nom), pos: argument.pos }),
+            None => return Err(Erreur { message: format!("« {0} » range des blocs : {0}(children: [ … ])", bloc.nom), pos: argument.pos }),
+        }
+    }
+    Ok(())
+}
+
+/// Les places d'un bloc posé dans un `Stack`.
+const COINS: &[&str] = &["top_left", "top", "top_right", "left", "center", "right", "bottom_left", "bottom", "bottom_right"];
+
+/// `top_right` → (haut, côté) en CSS.
+fn coin(mot: &str) -> Option<(&'static str, &'static str)> {
+    Some(match mot {
+        "top_left" => ("start", "start"),
+        "top" => ("start", "center"),
+        "top_right" => ("start", "end"),
+        "left" => ("center", "start"),
+        "center" => ("center", "center"),
+        "right" => ("center", "end"),
+        "bottom_left" => ("end", "start"),
+        "bottom" => ("end", "center"),
+        "bottom_right" => ("end", "end"),
+        _ => return None,
+    })
 }
 
 fn classes(bloc: &Bloc) -> String {
@@ -297,8 +393,52 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
             }
             sortie.push_str("</div>");
         }
+        // Les repères, pour qui navigue avec un lecteur d'écran (ADR-036).
+        "Nav" | "Header" | "Footer" => {
+            reperes_permis(bloc)?;
+            let balise = bloc.nom.to_ascii_lowercase();
+            sortie.push_str(&format!("<{balise} class=\"{classes}\"{nom}>"));
+            enfants(bloc, sortie, mondes, base)?;
+            sortie.push_str(&format!("</{balise}>"));
+        }
+        "Main" => return Err(Erreur { message: "« Main » se place directement dans la page : Page(children: [ Header(…), Main(children: [ … ]), Footer(…) ])".into(), pos: bloc.pos }),
+        // La superposition (ADR-036) : le premier enfant donne la taille ; les autres se posent
+        // dessus, chacun à sa place (align:), comme un badge sur une image.
+        "Stack" => {
+            for argument in &bloc.arguments {
+                match argument.nom.as_deref() {
+                    Some("name" | "children") => {}
+                    Some(autre) => return Err(Erreur { message: format!("« Stack » n'a pas de paramètre « {autre} » ; paramètres possibles : children, name"), pos: argument.pos }),
+                    None => return Err(Erreur { message: "« Stack » superpose des blocs : Stack(children: [ Image(…), Text(\"Promo\", align: top_right) ])".into(), pos: argument.pos }),
+                }
+            }
+            sortie.push_str(&format!("<div class=\"{classes}\"{nom}>"));
+            if let Some(Valeur::Liste(elements)) = bloc.argument("children").map(|a| &a.valeur) {
+                for (rang, element) in elements.iter().enumerate() {
+                    let (pose, style) = match element {
+                        Valeur::Bloc(enfant) => match enfant.argument("align") {
+                            Some(argument) if enfant.nom != "Row" && enfant.nom != "Column" => {
+                                let (haut, cote) = match &argument.valeur {
+                                    Valeur::Nom(mot) => coin(mot).ok_or_else(|| Erreur { message: format!("« align: » dans « Stack » attend l'une de ces places : {}", COINS.join(", ")), pos: argument.pos })?,
+                                    _ => return Err(Erreur { message: format!("« align: » dans « Stack » attend l'une de ces places : {}", COINS.join(", ")), pos: argument.pos }),
+                                };
+                                let mut reste = enfant.clone();
+                                reste.arguments.retain(|a| a.nom.as_deref() != Some("align"));
+                                (Valeur::Bloc(reste), format!(" class=\"holo-pose\" style=\"align-self:{haut};justify-self:{cote}\""))
+                            }
+                            _ => (element.clone(), if rang == 0 { String::new() } else { " class=\"holo-pose\" style=\"align-self:center;justify-self:center\"".to_string() }),
+                        },
+                        _ => (element.clone(), String::new()),
+                    };
+                    sortie.push_str(&format!("<div{style}>"));
+                    rendre(&pose, sortie, mondes, base, bloc)?;
+                    sortie.push_str("</div>");
+                }
+            }
+            sortie.push_str("</div>");
+        }
         "Scene" => return Err(Erreur { message: "« Scene » se range dans des scènes : Scenes(children: [ Scene(for: 3s, children: [ … ]) ])".into(), pos: bloc.pos }),
-        "H1" | "H2" | "H3" | "P" | "Text" => {
+        "H1" | "H2" | "H3" | "H4" | "H5" | "H6" | "P" | "Text" => {
             let balise = match bloc.nom.as_str() {
                 "P" => "p".to_string(),
                 "Text" => "div".to_string(),
@@ -986,6 +1126,43 @@ mod tests {
             ("Page(children: [ Scene(for: 1s, children: []) ])", "se range dans des scènes"),
         ] {
             let erreur = crate::vue_a_plat(source, "").unwrap_err();
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
+    }
+
+
+    #[test]
+    fn les_reperes_les_etats_la_superposition() {
+        // L'en-tête et le pied sortent du contenu principal ; Main dit où il est.
+        let html = crate::vue_a_plat("Page(children: [ Header(children: [ Nav(children: [ A(\"Home\", to: \"a.holo\") ]) ]), Main(children: [ H1(\"Hi\") ]), Footer(children: [ \"End\" ]) ])", "").unwrap();
+        assert!(html.contains("<header class=\"holo-Header\"><nav class=\"holo-Nav\"><a class=\"holo-A\" href=\"a.holo\">Home</a></nav></header><main><h1 class=\"holo-H1\">Hi</h1></main><footer class=\"holo-Footer\"><p class=\"holo-P\">End</p></footer>"), "{html}");
+        // Les titres jusqu'à H6.
+        assert!(crate::vue_a_plat("Page(children: [ H1(\"a\"), H2(\"b\"), H3(\"c\"), H4(\"d\"), H5(\"e\"), H6(\"f\") ])", "").unwrap().contains("<h6 class=\"holo-H6\">f</h6>"));
+        // Le texte suit le réglage du visiteur ; un grand titre rétrécit sur un petit écran.
+        let html = crate::vue_a_plat("Page(children: [ H1(\"a\"), P(\"b\") ])\nP { font-size: 18px; }\nH1 { font-size: 64px; }", "").unwrap();
+        assert!(html.contains(".holo-P{font-size:1.125rem;}"), "{html}");
+        assert!(html.contains(".holo-H1{font-size:clamp(1.5rem,10vw,4rem);}"), "{html}");
+        // Les états d'un style.
+        let html = crate::vue_a_plat("Page(children: [ Button.go(name: G, text: \"Go\") ])\n.go { background: blue; hover: { background: navy; } focus: { border: 2px solid white; } active: { opacity: 0.5; } }", "").unwrap();
+        assert!(html.contains(".holo-s-go{background:blue;transition:"), "{html}");
+        assert!(html.contains("@media (hover:hover){.holo-s-go:hover{background:navy;}}"), "{html}");
+        assert!(html.contains(".holo-s-go:focus-visible{border:2px solid white;}"), "{html}");
+        assert!(html.contains(".holo-s-go:active{opacity:0.5;}"), "{html}");
+        // La superposition.
+        let html = crate::vue_a_plat("Page(children: [ Stack(children: [ Image(source: \"a.png\", alt: \"x\"), Text(\"New\", align: top_right) ]) ])", "").unwrap();
+        assert!(html.contains("<div class=\"holo-Stack\"><div><img"), "{html}");
+        assert!(html.contains("<div class=\"holo-pose\" style=\"align-self:start;justify-self:end\"><div class=\"holo-Text\">New</div></div></div>"), "{html}");
+        // Ce qui est refusé.
+        for (source, message) in [
+            ("Page(children: [ Row(children: [ Main(children: []) ]) ])", "se place directement dans la page"),
+            ("Page(children: [ Nav(color: red, children: []) ])", "n'a pas de paramètre « color »"),
+            ("Page(children: [ Stack(children: [ P(\"a\"), P(\"b\", align: middle) ]) ])", "l'une de ces places"),
+            ("Page(children: [ P(\"a\") ])\nP { hover: { color: red; } hover: { color: blue; } }", "donné deux fois"),
+            ("Page(children: [ P(\"a\") ])\nP { visited: { color: red; } }", "n'est pas un état"),
+            ("Page(children: [ P(\"a\") ])\nP { hover: { position: absolute; } }", "la disposition vient des blocs"),
+            ("Page(children: [ H1(\"a\"), H7(\"b\") ])", "de « H1 » à « H6 »"),
+        ] {
+            let erreur = crate::verifier_page(source).err().or_else(|| crate::vue_a_plat(source, "").err()).unwrap_or_else(|| panic!("accepté : {source}"));
             assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
         }
     }

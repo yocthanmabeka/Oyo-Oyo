@@ -59,6 +59,10 @@ Yocthan a relevé que le style d'un jeu n'est pas celui d'un site : un jeu parle
 6. **Chaque réglage est vérifié** : un réglage inconnu, une valeur mal écrite, un `;` oublié, un style défini deux fois ou jamais défini sont refusés avec leur ligne.
 7. **L'apparence ne change en cours de route que par une règle du monde** (`On(...)`), jamais par du code qui modifie un style de n'importe où.
 
+### Correction du 2026-10-06 : les états d'un style
+
+Un style peut dire ce qui change au survol, au focus du clavier et pendant l'appui, sans sélecteur : `.card { background: blue; hover: { background: navy; } }` (`ADR-036`). La règle 2 (« deux façons seulement de viser ») tient : un état appartient à son style.
+
 ### Défauts de HTML, CSS et JavaScript évités
 
 - CSS : un réglage mal orthographié ignoré en silence ; un `;` oublié qui avale la ligne suivante ; la cascade et la spécificité, où l'ordre des règles change le résultat ; la disposition mêlée à l'apparence ; plusieurs noms pour le même réglage (`background` et `background-color`).

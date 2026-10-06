@@ -6,6 +6,32 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Les repères, les titres jusqu'à H6, le texte qui grandit, le survol, la superposition
+
+**Ce que Yocthan a dit** : « Oui, vas-y, commence la construction de tout ce qu'on vient de décider. »
+
+**Fait** (`ADR-035` et `ADR-036`, à l'essai)
+
+- Le principe : refuser une mécanique, jamais une capacité (`ADR-035`).
+- Les repères `Header`, `Nav`, `Main`, `Footer`. L'en-tête et le pied posés dans la page sortent du contenu principal, comme il se doit.
+- Les titres jusqu'à `H6` (correction d'`ADR-020`).
+- Le texte qui suit le réglage « texte plus grand » du visiteur, sans rien écrire : le moteur écrit les `px` d'une taille de texte en `rem` ; un titre de plus de 24px rétrécit sur un écran plus étroit que la page.
+- Les états dans un style : `hover: { … }`, `focus: { … }`, `active: { … }` (correction d'`ADR-017`).
+- La superposition : `Stack(children: [ … ])` et `align: top_right` sur un enfant.
+- Les leçons 35 à 38 ; le site de référence en profite (en-tête, menu et pied en repères, une pastille « Nouveau », un bouton qui réagit au survol). 94 tests du moteur.
+- Le grand tableau mis à jour : couverture estimée de 43 % à 47 % (HTML 52 %, CSS 53 %).
+
+**Vérifié dans Chrome** : un en-tête, un menu, un contenu principal et un pied de page, l'en-tête hors du contenu ; la souris sur le bouton change sa couleur, la touche Tab y met une bordure blanche ; la pastille dans le coin de l'image ; un titre de 18px passe à 27px quand le visiteur règle son texte à 24 au lieu de 16 ; le titre de 96px du film fait 58,5px sur un téléphone de 390px et ne déborde plus.
+
+**Erreurs en route**
+
+- La pastille se posait au bord de la page : le `Stack` prenait toute la largeur. Puis, corrigé trop vite, l'image de la carte rétrécissait. Le `Stack` prend maintenant la place qu'on lui donne, et son image la remplit.
+- Mon premier essai du survol visait un endroit vide de la page.
+
+![L'accueil avec ses repères et la pastille « Nouveau »](images/2026-10-06-reperes-et-pastille.png)
+
+---
+
 ## 2026-10-06 — La réponse de ChatGPT, et la synthèse des quatre avis
 
 - Réponse de ChatGPT : `docs/05-discussions/reponses/2026-10-06-chatgpt-refus.md`. Synthèse : `proposals/Claude/pourquoi-ces-refus-2026-10/SYNTHESE.md`.

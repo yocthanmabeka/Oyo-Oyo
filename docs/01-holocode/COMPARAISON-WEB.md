@@ -17,8 +17,9 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `meta charset` | toujours UTF-8 | fait |
 | `meta viewport` (le zoom) | `Zoom(active:, max:, shrink:)` | fait |
 | `meta description`, mots-clés, image de partage | | manque |
-| `header`, `footer`, `aside` | | manque |
-| `nav` | | manque |
+| `header`, `footer`, `main` | `Header`, `Footer`, `Main` | fait, à l'essai |
+| `nav` | `Nav` | fait, à l'essai |
+| `aside` | | manque |
 | `section`, `article` | le titre suffit : `H1`, `H2`, `H3` donnent le plan | exprès |
 | `div` | refusé : un bloc dit ce qu'il est (`ADR-009`) | exprès |
 | `span` | `Text` | fait |
@@ -28,7 +29,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | HTML | HoloCode | État |
 |---|---|---|
 | `h1`, `h2`, `h3` | `H1`, `H2`, `H3` | fait |
-| `h4`, `h5`, `h6` | refusés : trois niveaux (`ADR-020`) | exprès |
+| `h4`, `h5`, `h6` | `H4`, `H5`, `H6` (correction d'`ADR-020`, 2026-10-06) | fait, à l'essai |
 | `p` | `P`, ou une phrase nue | fait |
 | `strong`, `b` | `**gras**` dans un texte | fait |
 | `em`, `i` | `*italique*` dans un texte | fait |
@@ -110,7 +111,9 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | Sélecteurs composés, cascade, `!important` | refusés (`ADR-017`) | exprès |
 | `display`, `position`, `float` | refusés dans un style : la disposition vient des blocs | exprès |
 | La disposition elle-même : `flex`, `grid`, colonnes | `Row`, `Column`, `Grid`, avec `gap`, `align`, `columns` | fait, à l'essai |
-| `:hover`, `:focus`, `:active` (l'apparence selon l'état) | | manque |
+| `:hover`, `:focus`, `:active` (l'apparence selon l'état) | `hover: { … }`, `focus: { … }`, `active: { … }` dans un style | fait, à l'essai |
+| `position: absolute` pour un badge, une pastille | `Stack(children: [ … ])` et `align:` | fait, à l'essai |
+| Tailles de texte qui suivent le réglage du visiteur (`rem`) | automatique : les `px` d'une taille de texte deviennent des `rem` ; les grands titres rétrécissent sur un petit écran | fait, à l'essai |
 | `transition`, `animation`, `@keyframes` | `enter: Enter(…)`, `loop: Loop(…)`, `Scenes` : d'où il part ou où il va, quand, combien de temps, quel caractère ; lettre à lettre et enfant après enfant sans JavaScript | fait, à l'essai |
 | `@media` (s'adapter à l'écran) | le moteur le fait seul : une ligne passe à la ligne, une grille perd des colonnes | en partie |
 | Variables (`--couleur`) | | manque |

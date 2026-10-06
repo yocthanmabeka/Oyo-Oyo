@@ -1,9 +1,9 @@
-// Titles go from H1 to H3 (ADR-020).
+// Titles go from H1 to H6 (ADR-020, corrected on 2026-10-06).
 Page(
   children: [
     H1("My shop"),
     H2("Products"),
     H3("Paintings"),
-    H4("Small paintings"),
+    H7("Small paintings"),
   ],
 )
