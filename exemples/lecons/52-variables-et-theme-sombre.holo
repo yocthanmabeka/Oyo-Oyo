@@ -30,8 +30,8 @@ Page(
   ],
 )
 
-Page { --fond: #FAF7F0; --encre: #1a1a2e; --or: #B8860B; background: --fond; color: --encre; font-family: Georgia, serif; padding: 24px 16px; dark: { --fond: #101020; --encre: #F5F5F5; --or: #E9B44C; } }
+Page { --fond: #FAF7F0; --encre: #1a1a2e; --or: #B8860B; --lien: #7A5000; background: --fond; color: --encre; font-family: Georgia, serif; padding: 24px 16px; dark: { --fond: #101020; --encre: #F5F5F5; --or: #E9B44C; --lien: #E9B44C; } }
 H1 { color: --or; font-size: 28px; }
 H2 { color: --or; font-size: 20px; }
-A { color: --or; }
+A { color: --lien; }
 .carte { border: 1px solid --or; border-radius: 12px; padding: 16px; }

@@ -39,7 +39,7 @@ a { color: #8fd3ff; }
 .stack { position: relative; display: inline-grid; max-width: 100%; vertical-align: top; }
 .stack > * { grid-area: 1 / 1; margin: 0; }
 .stack img { display: block; }
-.badge { align-self: start; justify-self: end; margin: 6px; z-index: 1; background: #E4572E; color: white; border-radius: 999px; padding: 2px 10px; font-size: 0.813rem; font-weight: bold; }
+.badge { align-self: start; justify-self: end; margin: 6px; z-index: 1; background: #B83A1F; color: white; border-radius: 999px; padding: 2px 10px; font-size: 0.813rem; font-weight: bold; }
 
 /* Ce qui suit n'a pas d'équivalent à écrire en HoloCode : le moteur s'en charge. */
 
