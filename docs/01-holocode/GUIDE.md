@@ -972,6 +972,45 @@ Page(
 
 Ces ajouts sont à l'essai (`ADR-039`). Les leçons sont `45-survol-qui-agit.holo` à `48-heure.holo`.
 
+## 6 quaterdecies. Écrire une fois, répéter : `Repeat`
+
+```holo
+Page(
+  title: "Shop",
+  state: State(sunrise: 0, river: 0),
+  prices: Prices(sunrise: 120, river: 90),
+  children: [
+    H1("Shop"),
+    Grid(columns: 2, children: [
+      Repeat(
+        items: [
+          Item(key: sunrise, title: "Sunrise", price: 120, image: "sunrise.png"),
+          Item(key: river, title: "The river", price: 90, image: "river.png"),
+        ],
+        children: [
+          Column(children: [
+            Image(source: item.image, alt: ""),
+            H2("{item.title}"),
+            Text("{item.price} euros, {item} in the cart"),
+            Button(name: Add, text: "Add"),
+          ]),
+        ],
+        rules: [ On(Add.tap, effect: item.add(1)) ],
+      ),
+    ]),
+    P("Cart: {count} paintings, {total} euros."),
+  ],
+)
+```
+
+- **`Repeat(items:, children:)`** : le modèle (`children`) est posé une fois pour chaque `Item`.
+- **`Item(…)`** : les champs d'un élément, des textes, des nombres ou des mots. `key:` est sa clé : le nom d'une valeur de la page.
+- Dans le modèle, **`item`** désigne l'élément : `{item.title}` dans un texte, `item.image` à la place d'une valeur, `{item}` pour montrer la valeur de la clé, `item.add(1)` pour la changer.
+- **Un bloc nommé reçoit le nom de son élément** : `Add` devient `AddSunrise` et `AddRiver`. **`rules:`** : les règles du modèle, écrites une fois par élément.
+- De 1 à 200 éléments ; pas de répétition dans une répétition.
+
+Cette écriture est à l'essai (`ADR-040`). La leçon est `49-repeter.holo`.
+
 ## 6 undecies. Les repères, la superposition, le survol, le texte qui grandit
 
 **Les repères.** Une personne aveugle saute d'un repère à l'autre avec son lecteur d'écran. Rien ne change à l'œil.
@@ -1238,6 +1277,8 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `On` | le signal, puis `effect:` | Dans `rules` |
 | `Every` | le rythme, puis `effect:` | Dans `rules` |
 | `After` | la durée, puis `effect:` | Dans `rules` |
+| `Repeat` | `items`, `children`, `rules` | Dans `children` |
+| `Item` | `key`, et les champs de l'élément | Dans `items` d'un `Repeat` |
 | `When` | le nom d'une valeur, puis `is`, `not`, `over`, `under` ; ou le nom d'un bloc, puis `meets` et `within` ; et `effect:` | Dans `rules` |
 | `State` | les valeurs et leur départ : `cart: 0` | Dans `state:` d'une `Page` |
 | `Data` | `from`, `every` | Dans `data:` d'une `Page` |
@@ -1306,6 +1347,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Une seule fois, plus tard | `After(3s, effect: …)` | fait, à l'essai |
 | La date et l'heure du visiteur | `year`, `month`, `day`, `weekday`, `hour`, `minute` | fait, à l'essai |
 | L'approche d'un personnage, en profondeur | aucun | à faire |
+| Écrire une fois, répéter pour chaque élément | `Repeat(items: [ Item(…) ], children: [ … ])`, `item` | fait, à l'essai |
 | Réagir au zoom par une règle (« quand on zoome, alors… ») | aucun | à faire |
 | Ranger côte à côte, l'un sous l'autre, en grille | `Row`, `Column`, `Grid` | fait, à l'essai |
 | L'écart et le placement | `gap:`, `align:`, `columns:` | fait, à l'essai |
@@ -1317,7 +1359,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 
 ## 11. Ce qui n'existe pas encore
 
-- `module`, `bridge js`, `bridge css` : le moteur les lit mais ne les applique pas. Les listes, et l'envoi de données à un serveur.
+- `module`, `bridge js`, `bridge css` : le moteur les lit mais ne les applique pas. Des valeurs qui soient des listes (une liste qui change pendant la visite), et l'envoi de données à un serveur.
 - Pour la disposition : pas de largeur par élément, pas d'élément qui prend la place restante.
 - La liste de choix, l'envoi d'un formulaire ; les données venues d'ailleurs.
 - Pour les valeurs : des nombres entiers et des textes. Pas de liste, pas d'autre calcul que le nombre et le total d'un panier.

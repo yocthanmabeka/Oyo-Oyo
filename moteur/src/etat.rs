@@ -1153,6 +1153,9 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
             }
         }
         let verifier_texte = |texte: &str, pos| {
+            if texte.contains("{item.") || texte.contains("{item}") {
+                return Err(Erreur { message: "« {item…} » montre un champ de l'élément : il n'a de sens que dans une répétition, Repeat(items: [ … ], children: [ … ])".into(), pos });
+            }
             noms_dans(texte).into_iter().find(|nom| !montrables.iter().any(|(connu, _)| connu == nom)).map_or(Ok(()), |nom| {
                 if nom.contains('_') {
                     return Err(Erreur { message: format!("« {{{nom}}} » : deux mots se joignent comme en Flutter ; écris « {{{}}} » (ADR-037)", en_flutter(nom)), pos });

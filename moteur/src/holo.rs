@@ -705,6 +705,8 @@ pub fn lire(source: &str) -> Result<Programme, Erreur> {
         styles_importes.extend(morceau.styles);
     }
     poser_les_morceaux(&mut programme.racine, &morceaux)?;
+    // Les répétitions sont dépliées à leur tour, comme les morceaux (ADR-040).
+    crate::repetition::deplier_site(&mut programme.racine, &mut 0)?;
     // Les styles des morceaux d'abord, ceux de la page ensuite : à cible égale, la page garde le sien.
     styles_importes.retain(|importe: &RegleStyle| !programme.styles.iter().any(|propre| propre.cible == importe.cible));
     let mut styles: Vec<RegleStyle> = Vec::new();

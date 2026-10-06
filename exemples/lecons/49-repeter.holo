@@ -1,0 +1,58 @@
+// Leçon 49 — Écrire une carte une fois, la répéter pour chaque produit
+//
+// Ce qu'on apprend :
+//   Repeat(items: [ Item(…), Item(…) ], children: [ … ]) : le modèle (children) est posé une
+//   fois pour chaque élément (Item). Dans le modèle, « item » désigne l'élément :
+//     {item.title}     un champ, dans un texte
+//     item.image       un champ, à la place d'une valeur (source: item.image)
+//     key: sunrise     la clé de l'élément : le nom d'une valeur de la page
+//     {item}           cette valeur, dans un texte (ici, combien sont au panier)
+//     item.add(1)      une demande faite à cette valeur
+//   Un bloc nommé reçoit le nom de son élément : Add devient AddSunrise, AddRiver, AddForest.
+//   Les règles de la répétition (rules:) sont écrites, elles aussi, une fois pour chaque élément.
+//   Jusqu'à 200 éléments ; pas de répétition dans une répétition.
+//
+// À essayer :
+//   Ajoute des tableaux au panier : chaque carte a son bouton, et le total suit.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 49 : répéter",
+  state: State(sunrise: 0, river: 0, forest: 0),
+  prices: Prices(sunrise: 120, river: 90, forest: 150),
+  children: [
+    H1("Répéter une carte"),
+    Grid(columns: 3, gap: 16px, children: [
+      Repeat(
+        items: [
+          Item(key: sunrise, title: "Le soleil sur la rivière", price: 120, image: "etoile.svg"),
+          Item(key: river, title: "La rivière", price: 90, image: "etoile.svg"),
+          Item(key: forest, title: "La forêt", price: 150, image: "etoile.svg"),
+        ],
+        children: [
+          Column.carte(gap: 8px, children: [
+            Image(source: item.image, alt: ""),
+            H2("{item.title}"),
+            Text("{item.price} € · au panier : {item}"),
+            Button(name: Add, text: "Ajouter"),
+          ]),
+        ],
+        rules: [ On(Add.tap, effect: item.add(1)) ],
+      ),
+    ]),
+    P("Panier : {count} tableau(x), {total} €."),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 48 : l'heure du visiteur", to: "48-heure.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+H2 { font-size: 18px; }
+A { color: #8fd3ff; }
+Image { width: 64px; }
+.carte { border: 1px solid #E9B44C; border-radius: 12px; padding: 12px; }

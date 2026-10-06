@@ -65,6 +65,8 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `After` | `setTimeout`, et `clearTimeout` à ne pas oublier | changé : une règle ; sous une condition, elle part quand la condition devient vraie et s'arrête seule si elle redevient fausse |
 | `hover`, `hoverEnd` (signaux) | `mouseenter`, `mouseleave`, `focus`, `blur` | changé : un seul couple pour la souris, le clavier et le doigt |
 | `else:` dans `If` | `else` | repris, devenu un paramètre du `If` |
+| `Repeat`, `Item`, `item` | `for`, `map`, `v-for`, `{#each}`, `template` | changé : la liste et le modèle dans un bloc ; dépliés à la lecture, la page reste du HTML ordinaire |
+| `key:` dans `Item` | `key` de React et de Vue | repris : c'est aussi le nom d'une valeur de la page, et il donne leur nom aux blocs de la copie |
 | `year`, `month`, `day`, `weekday`, `hour`, `minute` | `new Date()`, `getFullYear()`, `getMonth() + 1`, `getDay()` | changé : six valeurs qu'on lit, sans objet ni calcul ; le mois va de 1 à 12, la semaine commence le lundi |
 | `Board` | `position: relative` et `absolute` | changé : un bloc, des places de 0 à 100 |
 | `Part`, `Use` | `template`, les composants de React ou de Vue | changés : un morceau nommé, posé par son nom, sans paramètres |

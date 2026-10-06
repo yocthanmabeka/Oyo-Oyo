@@ -43,6 +43,7 @@ Ce registre empêche une proposition séduisante de devenir accidentellement une
 | [`ADR-037`](adr/ADR-037-ecriture-des-noms.md) | L'écriture des noms : la casse compte, une seule écriture par mot, celle de Flutter (`appleX`, `topRight`, `BlueDoor`) ; les styles comme le CSS ; une faute est refusée avec le bon mot | `ACCEPTÉ` | décidé par Yocthan le 2026-10-06 | HoloCode, HoloEngine |
 | [`ADR-038`](adr/ADR-038-lot-1-langue-video-tableau-texte-choix.md) | Lot 1 : `Page(lang:, description:, image:)`, `alt` obligatoire, `Video`, `Table`, `Input(lines:)`, `Choice` | `EXPÉRIMENTATION` | le grand tableau, 2026-10-06 | HoloCode, HoloEngine |
 | [`ADR-039`](adr/ADR-039-lot-2-survol-sinon-attente-heure.md) | Lot 2 : le survol qui agit (`hover`, `hoverEnd`), `else:`, `After`, l'heure du visiteur | `EXPÉRIMENTATION` | le grand tableau, 2026-10-06 | HoloCode, HoloEngine |
+| [`ADR-040`](adr/ADR-040-lot-3-repetition.md) | Lot 3 : `Repeat`, `Item`, `item` ; écrire une fois, répéter pour chaque élément | `EXPÉRIMENTATION` | le grand tableau, 2026-10-06 | HoloCode, HoloEngine |
 
 `ADR-003` à `ADR-006` ont été proposées par ChatGPT. Le 2026-09-21, Yocthan a accepté `ADR-003` (reformulée par Claude), `ADR-004` (telle quelle) et `ADR-005` (complétée par les chiffres de sa vision), et a laissé `ADR-006` en proposition. ChatGPT est invité à réagir aux reformulations.
 

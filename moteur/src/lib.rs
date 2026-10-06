@@ -22,6 +22,7 @@ pub mod mouvement;
 pub mod navigation;
 pub mod plat;
 pub mod regles;
+pub mod repetition;
 pub mod styles;
 pub mod univers;
 pub mod vue;
