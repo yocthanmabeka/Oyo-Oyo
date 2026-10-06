@@ -1,13 +1,14 @@
 {
   "name": "holocode",
   "displayName": "HoloCode",
-  "description": "Reconnaît les fichiers .holo : couleurs du langage, commentaires, et un bouton pour ouvrir le fichier dans le navigateur.",
-  "version": "0.1.1",
+  "description": "Reconnaît les fichiers .holo : couleurs du langage, la faute soulignée et corrigée d'un clic, les mots proposés, et un bouton pour ouvrir le fichier dans le navigateur.",
+  "version": "0.2.0",
   "publisher": "holoverse",
   "license": "UNLICENSED",
   "engines": { "vscode": "^1.80.0" },
   "categories": ["Programming Languages"],
   "main": "./extension.js",
+  "activationEvents": ["onLanguage:holo"],
   "contributes": {
     "languages": [
       {

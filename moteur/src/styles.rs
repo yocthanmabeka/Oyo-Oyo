@@ -65,6 +65,11 @@ const REGLAGES: &[(&str, Forme)] = &[
     ("transition", Forme::Duree),
 ];
 
+/// Les noms des réglages d'un style, pour l'éditeur (ADR-046).
+pub fn noms_des_reglages() -> Vec<&'static str> {
+    REGLAGES.iter().map(|(nom, _)| *nom).collect()
+}
+
 /// Les variables (ADR-041) : `--or: #E9B44C;` dans le style de `Page`, puis `color: --or;`
 /// partout. Rend chaque variable et sa valeur (celle du thème clair).
 pub fn variables(programme: &Programme) -> Vec<(String, String)> {

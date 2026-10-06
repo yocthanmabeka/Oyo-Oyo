@@ -65,6 +65,74 @@ pub fn verifier_page(source: &str) -> Result<Programme, Erreur> {
     Ok(programme)
 }
 
+/// L'éditeur (ADR-046) : le fichier est-il juste ? `ok`, ou la première faute, telle que le
+/// moteur la refuse : `ligne 7, colonne 5 : « h1 » : … écris « H1 »`. Un point seul (`Point(…)`)
+/// se vérifie comme un monde ; un morceau importé (`Part(…)`), pour ses blocs et ses styles :
+/// le reste se vérifie dans la page qui l'importe.
+pub fn verifier_texte(source: &str) -> String {
+    let racine = holo::lire(source).map(|p| p.racine.nom);
+    let resultat = match racine.as_deref() {
+        Ok("Point") => verifier(source).map(|_| ()),
+        Ok("Part") => holo::lire(source).and_then(|p| blocs::verifier_blocs(&p).and_then(|()| styles::verifier_styles(&p))),
+        _ => verifier_page(source).map(|_| ()),
+    };
+    match resultat {
+        Ok(()) if racine.as_deref() == Ok("Part") => "ok : un morceau, à vérifier aussi dans la page qui l'importe".into(),
+        Ok(()) => "ok".into(),
+        Err(erreur) => erreur.to_string(),
+    }
+}
+
+/// Tous les mots du langage, pour l'éditeur (ADR-046) : il les propose pendant qu'on écrit, pour
+/// qu'on les touche au lieu de les taper (une majuscule au milieu d'un mot coûte cher sur un
+/// téléphone, ADR-037). En JSON.
+pub fn vocabulaire() -> String {
+    fn liste(mots: &[&str]) -> String {
+        format!("[{}]", mots.iter().map(|m| format!("\"{m}\"")).collect::<Vec<_>>().join(","))
+    }
+    const MOUVEMENT: &[&str] = &["opacity", "x", "y", "scale", "rotate", "flip", "tilt", "blur", "hue", "round", "at", "for", "ease", "letters", "each"];
+    let mut boucle: Vec<&str> = MOUVEMENT.to_vec();
+    boucle.push("back");
+    let autres: [(&str, &[&str]); 10] = [
+        ("Repeat", &["items", "over", "children", "rules"]),
+        ("Item", &["key"]),
+        ("Data", &["from", "every"]),
+        ("Enter", MOUVEMENT),
+        ("Loop", &boucle),
+        ("Zoom", &["active", "max", "shrink", "levels", "speed"]),
+        ("Points", &["after", "size", "fragment", "grid", "depth", "density"]),
+        ("Relief", &["height", "tilt"]),
+        ("Portals", &["layout", "count", "size", "brightness", "duration"]),
+        ("Font", &["family", "source"]),
+    ];
+    let mut parametres: Vec<String> = blocs::parametres_des_blocs().iter().map(|(bloc, p)| format!("\"{bloc}\":{}", liste(p))).collect();
+    for (bloc, p) in autres {
+        if !blocs::parametres_des_blocs().iter().any(|(b, _)| *b == bloc) {
+            parametres.push(format!("\"{bloc}\":{}", liste(p)));
+        }
+    }
+    let mut reglages = styles::noms_des_reglages();
+    reglages.push("display");
+    format!(
+        "{{\"blocs\":{},\"parametres\":{{{}}},\"reglages\":{},\"etats\":{},\"demandes\":{},\"signaux\":{},\"capacites\":{},\"touches\":{},\"mots\":{},\"calculees\":{},\"formats\":{}}}",
+        liste(blocs::BLOCS),
+        parametres.join(","),
+        liste(&reglages),
+        liste(holo::ETATS),
+        liste(&["add", "sub", "set", "random", "mul", "div", "push", "remove", "clear"]),
+        liste(&["tap", "hover", "hoverEnd", "sent", "failed", "done"]),
+        liste(&["enter", "leave", "play", "portals", "open", "close", "send", "run"]),
+        liste(etat::TOUCHES),
+        liste(&[
+            "true", "false", "item", "circle", "square", "triangle", "diamond", "start", "center", "end", "between", "topLeft", "top", "topRight", "left", "right", "bottomLeft", "bottom",
+            "bottomRight", "linear", "smooth", "out", "in", "back", "spring", "bounce", "forever", "grid", "row", "column", "diagonal", "date", "time", "color", "none", "uppercase",
+            "lowercase", "capitalize", "underline", "line-through", "bold", "italic", "normal", "solid", "dashed", "dotted",
+        ]),
+        liste(&["count", "total", "year", "month", "day", "weekday", "hour", "minute"]),
+        liste(format::FORMATS),
+    )
+}
+
 /// La vue à plat d'un fichier `.holo` : une page web ordinaire, fabriquée par le moteur.
 pub fn vue_a_plat(source: &str, base: &str) -> Result<String, Erreur> {
     vue_a_plat_de(source, base, "")
@@ -318,6 +386,21 @@ pub fn monde_d_accueil(source: &str) -> Option<String> {
     // Yocthan : pas de points décoratifs autour de la page. Le lieu est éteint ; ce sont les
     // éléments de la page eux-mêmes qui deviendront des points (voir `mosaique.rs`).
     Some(format!("Point(name: {nom}, seed: {graine}, brightness: 0, fragments: 12)"))
+}
+
+#[cfg(test)]
+mod editeur {
+    #[test]
+    fn l_editeur_recoit_la_faute_et_le_vocabulaire() {
+        assert_eq!(crate::verifier_texte("Page(children: [ H1(\"a\") ])"), "ok");
+        assert_eq!(crate::verifier_texte("Page(children: [ h1(\"a\") ])"), "ligne 1, colonne 18 : « h1 » : un nom de bloc commence par une majuscule, écris « H1 »");
+        assert!(crate::verifier_texte("Point(name: A, seed: 1)").starts_with("ok"));
+        assert!(crate::verifier_texte("Part(name: Menu, children: [ P(\"x\") ])").starts_with("ok : un morceau"));
+        let mots = crate::vocabulaire();
+        for attendu in ["\"blocs\":[\"Page\",", "\"Page\":[\"name\",", "\"Repeat\":[\"items\"", "\"hoverEnd\"", "\"topRight\"", "\"letter-spacing\"", "\"dark\"", "\"cents\""] {
+            assert!(mots.contains(attendu), "manque {attendu} dans {mots}");
+        }
+    }
 }
 
 #[cfg(test)]

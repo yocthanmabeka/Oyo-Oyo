@@ -16,6 +16,8 @@ Ce guide montre comment écrire un fichier `.holo` aujourd'hui, avec ce que le m
 
 Sans l'extension : ouvrir `http://localhost:8080/exemples/mon-dossier/ma-page.holo` dans Chrome.
 
+**L'éditeur** (à l'essai, `ADR-046`), sur le PC et sur le téléphone : `http://localhost:8080/editeur?cle=…` (le serveur affiche l'adresse exacte, avec sa clé, à son démarrage). Le texte à gauche, la page à droite, mise à jour pendant qu'on écrit ; la faute soulignée à sa place, et, quand le moteur dit le bon mot, un bouton **« Remplacer « h1 » par « H1 » »** ; en bas, les mots du langage à toucher, pour ne pas taper de majuscule au milieu d'un mot sur un téléphone. Dans VS Code, l'extension (version 0.2.0) souligne la même faute et propose la même correction dans l'ampoule (`Ctrl+.`).
+
 Si le fichier contient une erreur, la page affiche le message du moteur, avec la ligne et la colonne.
 
 ## 2. La première page

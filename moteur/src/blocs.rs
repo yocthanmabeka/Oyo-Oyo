@@ -71,6 +71,11 @@ const REGLAGES_DES_BLOCS: &[(&str, &[&str])] = &[
     ("Module", &["name", "source", "input", "output", "time", "memory"]),
 ];
 
+/// Les réglages de chaque bloc, pour l'éditeur (ADR-046) : il propose ceux du bloc où l'on écrit.
+pub fn parametres_des_blocs() -> &'static [(&'static str, &'static [&'static str])] {
+    REGLAGES_DES_BLOCS
+}
+
 /// Les blocs qui ne se voient pas : ils ne bougent pas (`enter`, `loop`).
 const SANS_MOUVEMENT: &[&str] = &["Page", "World", "Part", "On", "Every", "When", "After", "Sound", "Scene"];
 

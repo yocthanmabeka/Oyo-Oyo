@@ -4,18 +4,22 @@ Fait reconnaître les fichiers `.holo` par VS Code.
 
 - **Les couleurs du langage** : blocs (`Page`, `P`, `Point`), paramètres (`name:`), styles (`.card { … }`), textes, nombres avec leur unité, couleurs, commentaires.
 - **Les commentaires et les parenthèses** : `Ctrl+/` commente une ligne ; les parenthèses, crochets et accolades se referment seuls.
+- **La faute, soulignée à sa place** (ADR-046) : le moteur vérifie le fichier pendant qu'on écrit, même pas encore enregistré, et souligne en rouge ce qu'il refuse, avec son message. Quand il dit le bon mot (« écris « H1 » »), ou qu'un mot connu est tout proche (`Butten` → `Button`), l'ampoule (ou `Ctrl+.`) propose **« Remplacer « h1 » par « H1 » »** : un clic, et c'est corrigé. Le moteur reste strict : rien n'est corrigé sans ce clic.
+- **Les mots du langage proposés** : les blocs, les réglages, les valeurs du fichier ; après `Ajouter.`, les signaux ; après `panier.`, les demandes.
 - **Un bouton ▶ en haut à droite** d'un fichier `.holo` (ou `Ctrl+Alt+H`, ou clic droit dans l'explorateur) : enregistre le fichier et l'ouvre dans le navigateur, à sa propre adresse. Le serveur local doit tourner : `node moteur/outils/serveur.mjs`.
 
 ## Installer
 
 ```
 python outils/vscode-holocode/empaqueter.py
-code --install-extension outils/vscode-holocode/holocode-0.1.1.vsix
+code --install-extension outils/vscode-holocode/holocode-0.2.0.vsix
 ```
 
-Puis recharger la fenêtre de VS Code.
+Puis recharger la fenêtre de VS Code. Pour souligner les fautes, l'extension se sert du moteur construit dans le dépôt : `cargo build --release --bin holo` dans `moteur/`, une fois.
+
+Le même éditeur existe dans le navigateur, sur le PC et sur le téléphone : `http://localhost:8080/editeur?cle=…` (l'adresse exacte est affichée par le serveur à son démarrage).
 
 ## Limites
 
 - Le bouton ▶ n'ouvre que les fichiers rangés dans `exemples/` ou dans `moteur/mondes/` : ce sont les deux dossiers que le serveur local sait servir.
-- Les erreurs du fichier ne sont pas soulignées dans l'éditeur. Elles s'affichent dans le navigateur, avec leur ligne. Les souligner demandera de brancher le vérificateur du moteur sur VS Code.
+- Le moteur ne donne que la première faute : une fois corrigée, la suivante apparaît.
