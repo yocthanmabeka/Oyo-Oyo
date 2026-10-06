@@ -579,7 +579,7 @@ mod tests {
         }
         assert_eq!(m.echelle, m.echelle_repos);
 
-        // « Points(grid: 2, depth: 3) » : trois morcellements, en grilles de 2 × 2, pas un de plus.
+        // « Points(divisions: 2, levels: 3) » : trois morcellements, en grilles de 2 × 2, pas un de plus.
         let mut m = image(Reglages { cote: 2, niveaux: 3, ..Reglages::default() });
         for _ in 0..40 {
             m.zoomer(3.0, 400.0, 300.0, VUE.0, VUE.1);

@@ -16,7 +16,7 @@
 Page(
   title: "Leçon 9 : le zoom, et les pixels qui deviennent des points",
   zoom: Zoom(max: 1000),
-  points: Points(after: 2, size: 6px, fragment: 40px, grid: 4, depth: 6),
+  points: Points(after: 2, size: 6px, fragment: 40px, divisions: 4, levels: 6),
   children: [
     H1("Zoome sur moi"),
     "Chaque pixel de cette page devient un point quand on s'approche assez.",

@@ -29,8 +29,8 @@ Page(
                       // (jamais moins de 2 : on peut toujours doubler la taille du texte)
     size: 6px,        // un pixel devient un point lumineux quand il atteint cette taille
     fragment: 40px,   // un point se morcelle quand il atteint cette taille…
-    grid: 4,          // …en une grille de 4 × 4…
-    depth: 20,        // …et cela au plus vingt fois de suite
+    divisions: 4,     // …en une grille de 4 × 4…
+    levels: 20,       // …et cela au plus vingt fois de suite
     density: 2,       // points par pixel d'écran, dans chaque sens
   ),
 

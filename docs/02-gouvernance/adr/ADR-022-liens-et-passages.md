@@ -1,6 +1,6 @@
 # ADR-022 — Deux façons d'aller ailleurs : le lien `A`, et le point qu'on traverse
 
-- Statut : ACCEPTÉ pour le principe ; l'écriture exacte est une proposition de Claude
+- Statut : ACCEPTÉ — noms et écriture tranchés le 2026-10-06 (`ADR-047`)
 - Date : 2026-10-03
 - Responsable : Yocthan Mabeka
 - Discussions sources : journal du 2026-10-03

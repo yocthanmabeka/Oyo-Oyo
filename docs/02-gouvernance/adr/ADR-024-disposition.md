@@ -1,6 +1,6 @@
 # ADR-024 — La disposition : `Row`, `Column`, `Grid`
 
-- Statut : ACCEPTÉ pour l'instant ; l'écriture exacte reste à revoir avec les noms
+- Statut : ACCEPTÉ — noms et écriture tranchés le 2026-10-06 (`ADR-047`) : `Grid` reste ; `Points(grid:)` devient `divisions:`
 - Date : 2026-10-04
 - Responsable : Yocthan Mabeka
 - Discussions sources : journal du 2026-10-04 ; revue de Codex du 2026-10-03 ; réponse de Gemini du 2026-10-04
@@ -59,7 +59,7 @@ Défauts de CSS évités : le débordement horizontal par oubli de `flex-wrap` ;
 ### Négatives et risques
 
 - Peu de réglages : pas de largeur par élément, pas d'élément qui prend « tout le reste », pas d'alignement en hauteur au choix. Des mises en page courantes ne sont pas encore possibles.
-- `Grid` porte le même mot que le réglage `Points(grid:)`, qui dit autre chose (le morcellement d'un point). Gemini avait prévenu de cette collision. À trancher avec les noms.
+- `Grid` porte le même mot que le réglage `Points(grid:)`, qui dit autre chose (le morcellement d'un point). Gemini avait prévenu de cette collision. Tranché le 2026-10-06 (`ADR-047`) : `Grid` reste, le réglage devient `Points(divisions:)`.
 - `columns` désigne en CSS le texte en colonnes de journal : un programmeur du web peut s'y tromper.
 
 ## Ce qui reste à faire
@@ -75,4 +75,4 @@ Défauts de CSS évités : le débordement horizontal par oubli de `flex-wrap` ;
 ## Conditions de réexamen
 
 - Quand Yocthan aura écrit une page avec ces blocs et dit ce qui manque.
-- Quand les noms seront tranchés (`Grid` face à `Points(grid:)`).
+- ~~Quand les noms seront tranchés~~ Tranchés le 2026-10-06 (`ADR-047`).

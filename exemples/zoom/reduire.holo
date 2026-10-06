@@ -13,8 +13,8 @@ Page(
   points: Points(
     size: 8px,        // des points plus gros que d'habitude
     fragment: 48px,
-    grid: 2,          // qui se morcellent en 2 × 2 seulement
-    depth: 4,         // et quatre fois au plus
+    divisions: 2,     // qui se morcellent en 2 × 2 seulement
+    levels: 4,        // et quatre fois au plus
   ),
 
   relief: Relief(

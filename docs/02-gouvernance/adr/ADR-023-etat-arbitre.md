@@ -1,6 +1,6 @@
 # ADR-023 — Les valeurs d'une page : `State`, `{cart}`, et les demandes `add`, `sub`, `set`
 
-- Statut : ACCEPTÉ pour l'instant ; l'écriture exacte reste à revoir avec les noms
+- Statut : ACCEPTÉ — noms et écriture tranchés le 2026-10-06 (`ADR-047`)
 - Date : 2026-10-04
 - Responsable : Yocthan Mabeka
 - Discussions sources : journal du 2026-10-04
