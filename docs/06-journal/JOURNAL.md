@@ -6,6 +6,14 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Le grand tableau : HoloCode d'abord, avec tous ses mots
+
+- Yocthan : HoloCode doit venir en premier, avant HTML, CSS et JavaScript, et on doit pouvoir voir tous ses mots-clés, comme ceux du web.
+- Fait, sur la page en ligne et dans `docs/01-holocode/TABLEAU-WEB.md` : HoloCode en premier dans le filtre de langage, dans les résumés et dans la première colonne ; une partie nouvelle, « Les mots de HoloCode » : **224 mots** en 106 lignes, rangés par sorte (blocs, paramètres, mots-valeurs, signaux, demandes, styles, unités, le fichier), avec ce qu'ils font, leur équivalent sur le web, et leur état (142 décidés, 82 à l'essai, d'après les fiches de décision).
+- Erreur de Claude : le premier résumé disait « 106 sortes de mots » ; c'étaient des lignes, dont certaines regroupent plusieurs mots (`H1, H2, H3`). Corrigé : on compte les mots.
+
+---
+
 ## 2026-10-06 — L'écriture de Flutter, décidée par Yocthan
 
 - Yocthan : « On peut garder les deux, mais Flutter, c'est la base pour moi. » Claude a signalé que garder les deux ferait deux écritures du même mot, contre l'avis unanime des trois IA, et lui a proposé trois façons ; il a choisi « Flutter seul + correction » (`ADR-037`, accepté).
