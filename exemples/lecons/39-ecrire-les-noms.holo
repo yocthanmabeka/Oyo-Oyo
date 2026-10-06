@@ -1,0 +1,36 @@
+// Leçon 39 — Écrire les noms
+//
+// Ce qu'on apprend :
+//   HoloCode écrit les noms comme Flutter.
+//     Un bloc, et le nom d'un bloc : une majuscule au début et à chaque mot.
+//       Button, BlueDoor, name: AddCoin
+//     Une valeur, un paramètre, un mot-valeur : une minuscule au début, une majuscule à
+//     chaque mot suivant.
+//       coinCount, title, topRight
+//   Ce qu'on touche a une majuscule ; ce qui change n'en a pas.
+//   Les styles s'écrivent comme en CSS : font-size, .carte.
+//
+// À essayer :
+//   Écris coin_count à la place de coinCount : le moteur refuse, et dit « écris coinCount ».
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 39 : écrire les noms",
+  state: State(coinCount: 0),
+  children: [
+    H1("Écrire les noms"),
+    Text("{coinCount} pièces"),
+    Button(name: AddCoin, text: "Une pièce de plus"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 38 : poser un bloc sur un autre", to: "38-superposition.holo"),
+    ]),
+  ],
+  rules: [ On(AddCoin.tap, effect: coinCount.add(1)) ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

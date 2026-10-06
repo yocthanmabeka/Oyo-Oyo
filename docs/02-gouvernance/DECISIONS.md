@@ -40,6 +40,7 @@ Ce registre empêche une proposition séduisante de devenir accidentellement une
 | [`ADR-034`](adr/ADR-034-mouvement.md) | Le mouvement : `enter: Enter(…)` (d'où il part), `loop: Loop(…)` (où il va), `Scenes` et `Scene(for:)` ; sept courbes nommées, lettre à lettre, enfant après enfant ; fabriqué en CSS | `EXPÉRIMENTATION` | journal du 2026-10-04 | HoloCode, HoloEngine |
 | [`ADR-035`](adr/ADR-035-une-mecanique-jamais-une-capacite.md) | Refuser une mécanique, jamais une capacité | `EXPÉRIMENTATION` | refus examinés le 2026-10-06 | HoloCode |
 | [`ADR-036`](adr/ADR-036-reperes-superposition-etats-texte.md) | Les repères (`Header`, `Nav`, `Main`, `Footer`), les titres jusqu'à `H6`, le texte qui suit le réglage du visiteur, les états d'un style, la superposition (`Stack`) | `EXPÉRIMENTATION` | refus examinés le 2026-10-06 | HoloCode, HoloEngine |
+| [`ADR-037`](adr/ADR-037-ecriture-des-noms.md) | L'écriture des noms : la casse compte, une seule écriture par mot, celle de Flutter (`appleX`, `topRight`, `BlueDoor`) ; les styles comme le CSS ; une faute est refusée avec le bon mot | `ACCEPTÉ` | décidé par Yocthan le 2026-10-06 | HoloCode, HoloEngine |
 
 `ADR-003` à `ADR-006` ont été proposées par ChatGPT. Le 2026-09-21, Yocthan a accepté `ADR-003` (reformulée par Claude), `ADR-004` (telle quelle) et `ADR-005` (complétée par les chiffres de sa vision), et a laissé `ADR-006` en proposition. ChatGPT est invité à réagir aux reformulations.
 

@@ -20,7 +20,7 @@ Page(
         // Une pastille posée sur l'image : Stack et align (leçon 38).
         Stack(children: [
           Image(source: "lever.svg", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu", weight: 1KB),
-          Text.pastille("Nouveau", align: top_right),
+          Text.pastille("Nouveau", align: topRight),
         ]),
         P("Lever sur le fleuve"),
         Text.prix("120 euros"),

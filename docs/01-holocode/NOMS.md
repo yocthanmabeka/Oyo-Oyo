@@ -2,7 +2,17 @@
 
 Deux listes. La première part de HoloCode : pour chaque mot, celui du web qui lui correspond, et ce qu'on en a fait. La seconde part du web : les mots qu'on n'a pas pris.
 
-Mis à jour le 2026-10-04. Le détail balise par balise est dans [`COMPARAISON-WEB.md`](COMPARAISON-WEB.md) ; le mode d'emploi dans [`GUIDE.md`](GUIDE.md).
+Mis à jour le 2026-10-06.
+
+**L'écriture des noms** (`ADR-037`, décidé par Yocthan le 2026-10-06) : celle de Flutter. La casse compte ; une seule écriture par mot ; deux mots se joignent par une majuscule (`appleX`, `topRight`, `BlueDoor`), jamais par `_` ; les styles gardent l'écriture du CSS (`font-size`).
+
+| Sorte de mot | Écriture | Exemple |
+|---|---|---|
+| Bloc, et nom donné à un bloc | une majuscule au début et à chaque mot | `Button`, `BlueDoor`, `name: AddSunrise` |
+| Paramètre, mot-valeur, signal, demande | une minuscule au début, une majuscule à chaque mot suivant | `title`, `topRight`, `tap`, `add` |
+| Nom de valeur | pareil | `cart`, `appleX`, `blueDoor` |
+| Style | comme en CSS : minuscules, mots joints par `-` | `font-size`, `.carte` |
+| Unité d'octets | majuscules (B = octet, b = bit) | `KB`, `MB` | Le détail balise par balise est dans [`COMPARAISON-WEB.md`](COMPARAISON-WEB.md) ; le mode d'emploi dans [`GUIDE.md`](GUIDE.md).
 
 Comment lire la colonne « Ce qu'on a fait » :
 

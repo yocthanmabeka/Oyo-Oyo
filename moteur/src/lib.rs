@@ -104,7 +104,7 @@ pub fn arbitrer(source: &str, etat: &str, signal: &str) -> String {
 }
 
 /// Les horloges d'une page, une par règle `Every` : son rythme en millisecondes et la valeur
-/// qu'elle fait changer. `1000:time;2000:star_x`.
+/// qu'elle fait changer. `1000:time;2000:starX`.
 pub fn horloges(source: &str) -> String {
     verifier_page(source).map(|programme| etat::horloges(&programme).iter().map(|(ms, valeur)| format!("{ms}:{valeur}")).collect::<Vec<_>>().join(";")).unwrap_or_default()
 }

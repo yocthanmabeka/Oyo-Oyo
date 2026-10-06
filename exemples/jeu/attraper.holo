@@ -11,8 +11,8 @@ Page(
   state: State(
     time: 0,       // les secondes qui restent ; 0 : la partie n'a pas commencé, ou elle est finie
     score: 0,      // combien de fois l'étoile a été touchée
-    star_x: 50,    // où est l'étoile sur le plateau, de 0 (à gauche) à 100 (à droite)
-    star_y: 50,    // de 0 (en haut) à 100 (en bas)
+    starX: 50,    // où est l'étoile sur le plateau, de 0 (à gauche) à 100 (à droite)
+    starY: 50,    // de 0 (en haut) à 100 (en bas)
     best: 0,       // le meilleur score, gardé d'une visite à l'autre
   ),
 
@@ -45,7 +45,7 @@ Page(
       // Un plateau : ce qu'il contient se place où l'on veut. x et y sont des valeurs de la
       // page ; quand elles changent, l'étoile se déplace.
       Board(height: 320px, children: [
-        Point(name: Star, seed: 7, color: "#E9B44C", x: star_x, y: star_y),
+        Point(name: Star, seed: 7, color: "#E9B44C", x: starX, y: starY),
       ]),
     ]),
   ],
@@ -57,7 +57,7 @@ Page(
 
     // Toucher l'étoile : un point de plus, et elle part ailleurs.
     // random(100) : un nombre au hasard, de 0 à 100.
-    On(Star.tap, effect: [score.add(1), star_x.random(100), star_y.random(100), Pop.play]),
+    On(Star.tap, effect: [score.add(1), starX.random(100), starY.random(100), Pop.play]),
 
     // Une comparaison peut porter sur une autre valeur, et une demande aussi : au moment où
     // le score dépasse le meilleur score, le meilleur score devient ce score.
@@ -71,7 +71,7 @@ Page(
     // horloge ; quand un geste change une valeur, l'horloge de cette valeur repart de zéro.
     // Donc : après « Play », la première seconde est une vraie seconde ; et une étoile qu'on
     // vient de toucher reste deux vraies secondes à sa nouvelle place.
-    Every(2s, effect: [star_x.random(100), star_y.random(100)]),
+    Every(2s, effect: [starX.random(100), starY.random(100)]),
   ],
 )
 

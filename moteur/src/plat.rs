@@ -283,20 +283,20 @@ fn reperes_permis(bloc: &Bloc) -> Result<(), Erreur> {
 }
 
 /// Les places d'un bloc posé dans un `Stack`.
-const COINS: &[&str] = &["top_left", "top", "top_right", "left", "center", "right", "bottom_left", "bottom", "bottom_right"];
+const COINS: &[&str] = &["topLeft", "top", "topRight", "left", "center", "right", "bottomLeft", "bottom", "bottomRight"];
 
-/// `top_right` → (haut, côté) en CSS.
+/// `topRight` → (haut, côté) en CSS.
 fn coin(mot: &str) -> Option<(&'static str, &'static str)> {
     Some(match mot {
-        "top_left" => ("start", "start"),
+        "topLeft" => ("start", "start"),
         "top" => ("start", "center"),
-        "top_right" => ("start", "end"),
+        "topRight" => ("start", "end"),
         "left" => ("center", "start"),
         "center" => ("center", "center"),
         "right" => ("center", "end"),
-        "bottom_left" => ("end", "start"),
+        "bottomLeft" => ("end", "start"),
         "bottom" => ("end", "center"),
-        "bottom_right" => ("end", "end"),
+        "bottomRight" => ("end", "end"),
         _ => return None,
     })
 }
@@ -409,7 +409,7 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
                 match argument.nom.as_deref() {
                     Some("name" | "children") => {}
                     Some(autre) => return Err(Erreur { message: format!("« Stack » n'a pas de paramètre « {autre} » ; paramètres possibles : children, name"), pos: argument.pos }),
-                    None => return Err(Erreur { message: "« Stack » superpose des blocs : Stack(children: [ Image(…), Text(\"Promo\", align: top_right) ])".into(), pos: argument.pos }),
+                    None => return Err(Erreur { message: "« Stack » superpose des blocs : Stack(children: [ Image(…), Text(\"Promo\", align: topRight) ])".into(), pos: argument.pos }),
                 }
             }
             sortie.push_str(&format!("<div class=\"{classes}\"{nom}>"));
@@ -419,6 +419,9 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
                         Valeur::Bloc(enfant) => match enfant.argument("align") {
                             Some(argument) if enfant.nom != "Row" && enfant.nom != "Column" => {
                                 let (haut, cote) = match &argument.valeur {
+                                    Valeur::Nom(mot) if mot.contains('_') && coin(&crate::etat::en_flutter(mot)).is_some() => {
+                                        return Err(Erreur { message: format!("« {mot} » : deux mots se joignent comme en Flutter ; écris « {} » (ADR-037)", crate::etat::en_flutter(mot)), pos: argument.pos })
+                                    }
                                     Valeur::Nom(mot) => coin(mot).ok_or_else(|| Erreur { message: format!("« align: » dans « Stack » attend l'une de ces places : {}", COINS.join(", ")), pos: argument.pos })?,
                                     _ => return Err(Erreur { message: format!("« align: » dans « Stack » attend l'une de ces places : {}", COINS.join(", ")), pos: argument.pos }),
                                 };
@@ -1155,7 +1158,7 @@ mod tests {
         assert!(html.contains(".holo-s-go:focus-visible{border:2px solid white;}"), "{html}");
         assert!(html.contains(".holo-s-go:active{opacity:0.5;}"), "{html}");
         // La superposition.
-        let html = crate::vue_a_plat("Page(children: [ Stack(children: [ Image(source: \"a.png\", alt: \"x\"), Text(\"New\", align: top_right) ]) ])", "").unwrap();
+        let html = crate::vue_a_plat("Page(children: [ Stack(children: [ Image(source: \"a.png\", alt: \"x\"), Text(\"New\", align: topRight) ]) ])", "").unwrap();
         assert!(html.contains("<div class=\"holo-Stack\"><div><img"), "{html}");
         assert!(html.contains("<div class=\"holo-pose\" style=\"align-self:start;justify-self:end\"><div class=\"holo-Text\">New</div></div></div>"), "{html}");
         // Ce qui est refusé.

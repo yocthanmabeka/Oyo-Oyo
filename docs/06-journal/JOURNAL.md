@@ -6,6 +6,13 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — L'écriture de Flutter, décidée par Yocthan
+
+- Yocthan : « On peut garder les deux, mais Flutter, c'est la base pour moi. » Claude a signalé que garder les deux ferait deux écritures du même mot, contre l'avis unanime des trois IA, et lui a proposé trois façons ; il a choisi « Flutter seul + correction » (`ADR-037`, accepté).
+- Fait : un nom de valeur s'écrit `appleX` (sans `_`), un nom de bloc `AddSunrise`, une place `topRight`. Une ancienne écriture est refusée avec le bon mot, y compris entre accolades dans un texte (`{apple_x}` → « écris `{appleX}` »). Exemples, leçons, guide et moteur convertis. Leçon 39. 95 tests ; tous les fichiers `.holo` du dépôt vérifiés.
+
+---
+
 ## 2026-10-06 — Les majuscules : les avis de ChatGPT et Gemini ; plus rien d'avalé en silence
 
 - Réponses et synthèse : `docs/05-discussions/reponses/2026-10-06-majuscules-et-casse.md`. ChatGPT, Gemini et Claude s'accordent : respecter la casse, refuser une faute avec le bon mot, corriger d'un clic dans un éditeur, garder `KB`. **Seul désaccord** : joindre deux mots par `_` (Gemini : plus facile sur un téléphone) ou en camelCase (ChatGPT). Claude penche pour `_`. À Yocthan de trancher.
