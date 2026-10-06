@@ -308,7 +308,7 @@
       if (champ.type === "checkbox") champ.checked = valeurs.get(champ.dataset.bind) !== "0";
       else if (champ !== document.activeElement) champ.value = valeurs.get(champ.dataset.bind);
     }
-    // Sur un plateau, un bloc suit les valeurs qui disent sa place : Point(x: star_x, y: star_y).
+    // Sur un plateau, un bloc suit les valeurs qui disent sa place : Point(x: starX, y: starY).
     for (const axe of ["x", "y"]) {
       for (const pose of ou.querySelectorAll(`[data-${axe}]`)) {
         if (valeurs.has(pose.dataset[axe])) pose.style.setProperty(`--${axe}`, Math.min(100, Number(valeurs.get(pose.dataset[axe]))));

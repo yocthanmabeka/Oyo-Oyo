@@ -46,5 +46,6 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 36 | [Des titres plus profonds](36-titres-profonds.holo) | `H4, H5, H6` |
 | 37 | [Le survol, le focus, l'appui](37-survol.holo) | `hover:, focus:, active:` |
 | 38 | [Poser un bloc sur un autre](38-superposition.holo) | `Stack, align:` |
+| 39 | [Écrire les noms](39-ecrire-les-noms.holo) | l'écriture de Flutter |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.

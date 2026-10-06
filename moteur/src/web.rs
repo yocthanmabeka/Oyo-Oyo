@@ -284,7 +284,7 @@ pub fn etat_initial(source: &str) -> String {
     crate::etat_initial(source)
 }
 
-/// Les horloges d'une page : `1000:time;2000:star_x`.
+/// Les horloges d'une page : `1000:time;2000:starX`.
 #[wasm_bindgen]
 pub fn horloges(source: &str) -> String {
     crate::horloges(source)

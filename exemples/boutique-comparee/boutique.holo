@@ -46,16 +46,16 @@ Page(
   // Les valeurs de la page : ce qu'elle retient. Ici, combien de chaque tableau est dans le
   // panier. Tout part de zéro.
   // Une valeur est un nombre entier, ou un texte entre guillemets (buyer : le prénom de l'acheteur).
-  state: State(sunrise: 0, blue_door: 0, market_day: 0, gift: 0, tip: 0, buyer: ""),
+  state: State(sunrise: 0, blueDoor: 0, marketDay: 0, gift: 0, tip: 0, buyer: ""),
 
   // Les prix. Chacun porte le nom d'une valeur : c'est le prix de cet article. Dès qu'une page
   // donne des prix, le moteur calcule deux valeurs de plus, qu'on affiche comme les autres :
   // {count}, le nombre d'articles, et {total}, ce qu'ils coûtent. Aucun calcul à écrire.
-  prices: Prices(sunrise: 120, blue_door: 90, market_day: 150),
+  prices: Prices(sunrise: 120, blueDoor: 90, marketDay: 150),
 
   // Ce que la page garde d'une visite à l'autre, dans le navigateur du visiteur : on recharge
   // la page, le panier est encore là. Les autres valeurs repartent de leur départ.
-  keep: [sunrise, blue_door, market_day, gift, tip, buyer],
+  keep: [sunrise, blueDoor, marketDay, gift, tip, buyer],
 
   // Le carrefour : les portails vers les mondes voisins. Il s'ouvre quand on entre dans un
   // point, ou par le bouton « Carrefour ». Les sites écrits dans ce fichier passent d'abord ;
@@ -98,7 +98,7 @@ Page(
     // dessus, en haut à droite (ADR-036).
     Stack(children: [
       Image(source: "painting.svg", weight: 1KB, alt: "A painting: a yellow sun over green hills"),
-      Text.badge("New", align: top_right),
+      Text.badge("New", align: topRight),
     ]),
     List(children: [
       "Sunrise over the river",
@@ -116,12 +116,12 @@ Page(
       ]),
       Column.card(gap: 4px, align: center, children: [
         P("The blue door"),
-        Text.note("90 euros · {blue_door} in your cart"),
+        Text.note("90 euros · {blueDoor} in your cart"),
         Row(gap: 8px, align: center, children: [ Button(name: LessBlueDoor, text: "-"), Button(name: AddBlueDoor, text: "+") ]),
       ]),
       Column.card(gap: 4px, align: center, children: [
         P("Market day"),
-        Text.note("150 euros · {market_day} in your cart"),
+        Text.note("150 euros · {marketDay} in your cart"),
         Row(gap: 8px, align: center, children: [ Button(name: LessMarketDay, text: "-"), Button(name: AddMarketDay, text: "+") ]),
       ]),
     ]),
@@ -233,12 +233,12 @@ Page(
     // set (fixer). Le moteur décide : le panier ne descend jamais sous zéro.
     On(AddSunrise.tap, effect: sunrise.add(1)),
     On(LessSunrise.tap, effect: sunrise.sub(1)),
-    On(AddBlueDoor.tap, effect: blue_door.add(1)),
-    On(LessBlueDoor.tap, effect: blue_door.sub(1)),
-    On(AddMarketDay.tap, effect: market_day.add(1)),
-    On(LessMarketDay.tap, effect: market_day.sub(1)),
+    On(AddBlueDoor.tap, effect: blueDoor.add(1)),
+    On(LessBlueDoor.tap, effect: blueDoor.sub(1)),
+    On(AddMarketDay.tap, effect: marketDay.add(1)),
+    On(LessMarketDay.tap, effect: marketDay.sub(1)),
     // Vider le panier : une règle, trois demandes, entre crochets.
-    On(Empty.tap, effect: [sunrise.set(0), blue_door.set(0), market_day.set(0)]),
+    On(Empty.tap, effect: [sunrise.set(0), blueDoor.set(0), marketDay.set(0)]),
   ],
 )
 

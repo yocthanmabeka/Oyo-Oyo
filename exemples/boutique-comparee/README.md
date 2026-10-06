@@ -97,7 +97,7 @@ Les deux versions ont reçu les mêmes ajouts, et restent identiques à l'écran
 | Ajout | HoloCode | HTML, CSS, JavaScript |
 |---|---|---|
 | En-tête et menu, pied de page | `Header(…)`, `Nav(…)`, `Footer(…)` | `<header>`, `<nav>`, `<footer>`, et une règle CSS pour leur largeur |
-| Pastille « New » sur le tableau | `Stack(children: [ Image(…), Text.badge("New", align: top_right) ])` | un conteneur en grille, `grid-area`, `align-self`, `justify-self`, `z-index` |
+| Pastille « New » sur le tableau | `Stack(children: [ Image(…), Text.badge("New", align: topRight) ])` | un conteneur en grille, `grid-area`, `align-self`, `justify-self`, `z-index` |
 | Survol, clavier, appui | `Button { hover: { … } focus: { … } active: { … } }` | `@media (hover: hover) { button:hover { … } }`, `:focus-visible`, `:active`, `transition` |
 | Titre de niveau 4 | `H4("Weekdays")` | `<h4>` |
 | Texte qui suit le réglage du visiteur | rien à écrire : le moteur change les `px` en `rem` et `clamp()` | `font-size: 1rem`, `clamp(1.5rem, 5vw, 2rem)` à écrire à la main |

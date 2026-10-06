@@ -3,14 +3,14 @@
 // Ce qu'on apprend :
 //   Stack(children: [...]) pose ses enfants les uns sur les autres. Le premier donne la
 //   taille ; les autres se posent dessus, à la place qu'on dit avec align: :
-//     top_left    top      top_right
+//     topLeft    top      topRight
 //     left        center   right
-//     bottom_left bottom   bottom_right
+//     bottomLeft bottom   bottomRight
 //   Sans align:, un bloc se pose au centre. C'est ainsi qu'on met une pastille « Nouveau » sur
 //   une image, ou un nombre sur une icône.
 //
 // À essayer :
-//   Mets align: bottom_left sur la pastille.
+//   Mets align: bottomLeft sur la pastille.
 //
 // (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
 
@@ -20,12 +20,13 @@ Page(
     H1("La superposition"),
     Stack(children: [
       Image(source: "etoile.svg", alt: "Une étoile dorée"),
-      Text.pastille("Nouveau", align: top_right),
+      Text.pastille("Nouveau", align: topRight),
     ]),
 
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 37 : le survol", to: "37-survol.holo"),
+      A("Leçon 39 : écrire les noms →", to: "39-ecrire-les-noms.holo"),
     ]),
   ],
 )

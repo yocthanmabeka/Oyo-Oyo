@@ -15,8 +15,8 @@ Page(
     best: 0,
     near: 0,        // les pommes passées près du panier
     basket: 50,
-    apple_x: 50,
-    apple_y: 0,
+    appleX: 50,
+    appleY: 0,
   ),
   keep: [best],
 
@@ -40,7 +40,7 @@ Page(
         Text("Meilleur : {best}"),
       ]),
       Board(height: 360px, children: [
-        Shape(name: Apple, form: circle, color: "#C2462B", size: 44px, x: apple_x, y: apple_y),
+        Shape(name: Apple, form: circle, color: "#C2462B", size: 44px, x: appleX, y: appleY),
         Shape(name: Basket, form: square, color: "#8a3b12", size: 64px, x: basket, y: 96, drag: true),
       ]),
       Row(gap: 12px, align: between, children: [
@@ -53,7 +53,7 @@ Page(
   ],
 
   rules: [
-    On(Play.tap, effect: [phase.set(1), score.set(0), lives.set(3), near.set(0), apple_x.set(50), apple_y.set(0), basket.set(50)]),
+    On(Play.tap, effect: [phase.set(1), score.set(0), lives.set(3), near.set(0), appleX.set(50), appleY.set(0), basket.set(50)]),
     On(Pause.tap, effect: phase.set(2)),
     On(Reprendre.tap, effect: phase.set(1)),
     On(Key.left, effect: basket.sub(8)),
@@ -61,11 +61,11 @@ Page(
 
     // Les règles du jeu ne valent que pendant la partie, pas en pause.
     If(phase, is: 1, rules: [
-      Every(100ms, effect: apple_y.add(3)),
-      When(Basket, meets: Apple, effect: [score.add(1), apple_x.random(100), apple_y.set(0), Pop.play]),
+      Every(100ms, effect: appleY.add(3)),
+      When(Basket, meets: Apple, effect: [score.add(1), appleX.random(100), appleY.set(0), Pop.play]),
       // within : juger sur l'écart des places (à 14 près sur chaque axe), sans regarder la taille.
       When(Basket, meets: Apple, within: 14, effect: near.add(1)),
-      When(apple_y, over: 99, effect: [lives.sub(1), apple_x.random(100), apple_y.set(0), Lost.play]),
+      When(appleY, over: 99, effect: [lives.sub(1), appleX.random(100), appleY.set(0), Lost.play]),
     ]),
 
     When(lives, is: 0, effect: phase.set(0)),

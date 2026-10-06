@@ -658,8 +658,36 @@ pub fn avec_textes(montrees: &Etat, textes: &Textes) -> Etat {
 }
 
 /// `cart`, `items_seen` : une minuscule, puis des minuscules, des chiffres ou `_`.
+/// Un nom de valeur s'écrit comme en Flutter : une minuscule au début, puis lettres et chiffres,
+/// les mots joints par une majuscule (`appleX`, `blueDoor`), sans `_` (ADR-037).
 fn est_nom_de_valeur(nom: &str) -> bool {
-    nom.starts_with(|c: char| c.is_ascii_lowercase()) && nom.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+    nom.starts_with(|c: char| c.is_ascii_lowercase()) && nom.chars().all(|c| c.is_ascii_alphanumeric())
+}
+
+/// `appleX` → `appleX` ; `topRight` → `topRight`. Pour dire le bon mot à qui a écrit l'autre.
+pub fn en_flutter(nom: &str) -> String {
+    let mut sortie = String::with_capacity(nom.len());
+    let mut majuscule = false;
+    for c in nom.chars() {
+        if c == '_' {
+            majuscule = !sortie.is_empty();
+        } else if majuscule {
+            sortie.push(c.to_ascii_uppercase());
+            majuscule = false;
+        } else {
+            sortie.push(c);
+        }
+    }
+    sortie
+}
+
+/// Le message pour un nom de valeur mal écrit.
+fn nom_de_valeur_mal_ecrit(nom: &str) -> String {
+    if nom.contains('_') {
+        format!("« {nom} » : deux mots se joignent comme en Flutter, par une majuscule ; écris « {} » (ADR-037)", en_flutter(nom))
+    } else {
+        format!("« {nom} » : le nom d'une valeur commence par une minuscule, comme « cart » ou « appleX » (ADR-037)")
+    }
 }
 
 /// Le bloc `State(...)` donné à la page par `state:`.
@@ -756,7 +784,7 @@ fn initial_sans_prix(programme: &Programme) -> Result<Etat, Erreur> {
             }
         };
         if !est_nom_de_valeur(nom) {
-            return Err(Erreur { message: format!("« {nom} » : le nom d'une valeur s'écrit en minuscules, comme « cart »"), pos: argument.pos });
+            return Err(Erreur { message: nom_de_valeur_mal_ecrit(nom), pos: argument.pos });
         }
         if bloc.arguments.iter().filter(|a| a.nom.as_deref() == Some(nom.as_str())).count() > 1 {
             return Err(Erreur { message: format!("la valeur « {nom} » est déclarée deux fois"), pos: argument.pos });
@@ -822,8 +850,9 @@ pub fn noms_dans(texte: &str) -> Vec<&str> {
     while let Some(debut) = reste.find('{') {
         reste = &reste[debut + 1..];
         if let Some(fin) = reste.find('}') {
-            if est_nom_de_valeur(&reste[..fin]) {
-                noms.push(&reste[..fin]);
+            let nom = &reste[..fin];
+            if nom.starts_with(|c: char| c.is_ascii_lowercase()) && nom.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+                noms.push(nom);
             }
         }
     }
@@ -919,7 +948,7 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
                 }
             }
         }
-        // Sur un plateau, la place d'un bloc est une valeur de la page : Point(x: star_x, y: star_y).
+        // Sur un plateau, la place d'un bloc est une valeur de la page : Point(x: starX, y: starY).
         for axe in ["x", "y"] {
             if let Some(Argument { valeur: Valeur::Nom(valeur), pos, .. }) = bloc.argument(axe) {
                 if !montrables.iter().any(|(connu, _)| connu == valeur) {
@@ -929,6 +958,9 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
         }
         let verifier_texte = |texte: &str, pos| {
             noms_dans(texte).into_iter().find(|nom| !montrables.iter().any(|(connu, _)| connu == nom)).map_or(Ok(()), |nom| {
+                if nom.contains('_') {
+                    return Err(Erreur { message: format!("« {{{nom}}} » : deux mots se joignent comme en Flutter ; écris « {{{}}} » (ADR-037)", en_flutter(nom)), pos });
+                }
                 Err(Erreur { message: format!("« {{{nom}}} » : aucune valeur ne s'appelle « {nom} » ; déclare-la sur la page, state: State({nom}: 0)"), pos })
             })
         };
@@ -1313,8 +1345,8 @@ mod tests {
     }
 
     const BOUTIQUE: &str = "Page(
-  state: State(sunrise: 0, blue_door: 2, likes: 5),
-  prices: Prices(sunrise: 120, blue_door: 90),
+  state: State(sunrise: 0, blueDoor: 2, likes: 5),
+  prices: Prices(sunrise: 120, blueDoor: 90),
   children: [
     Text(\"{count} paintings, {total} euros\"),
     Button(name: Add, text: \"Add\"),
@@ -1327,13 +1359,13 @@ mod tests {
         let programme = page(BOUTIQUE).unwrap();
         let depart = initial(&programme).unwrap();
         // « likes » n'a pas de prix : ce n'est pas un article, il ne compte pas.
-        assert_eq!(ecrire(&a_montrer(&programme, &depart)), "sunrise=0;blue_door=2;likes=5;count=2;total=180");
+        assert_eq!(ecrire(&a_montrer(&programme, &depart)), "sunrise=0;blueDoor=2;likes=5;count=2;total=180");
         let apres = arbitrer(&programme, &depart, "Add.tap");
-        assert_eq!(ecrire(&a_montrer(&programme, &apres)), "sunrise=1;blue_door=2;likes=5;count=3;total=300");
+        assert_eq!(ecrire(&a_montrer(&programme, &apres)), "sunrise=1;blueDoor=2;likes=5;count=3;total=300");
         assert!(crate::vue_a_plat(BOUTIQUE, "").unwrap().contains("<span data-state=\"count\">2</span> paintings, <span data-state=\"total\">180</span> euros"));
         // Ce que la page renvoie contient les valeurs calculées ; elles ne sont pas reprises telles
         // quelles : le moteur les recalcule toujours.
-        assert_eq!(crate::arbitrer(BOUTIQUE, "sunrise=1;blue_door=2;likes=5;count=999;total=1", "Add.tap"), "sunrise=2;blue_door=2;likes=5;count=4;total=420");
+        assert_eq!(crate::arbitrer(BOUTIQUE, "sunrise=1;blueDoor=2;likes=5;count=999;total=1", "Add.tap"), "sunrise=2;blueDoor=2;likes=5;count=4;total=420");
         // Sans prix, pas de valeurs calculées : « count » est un nom libre.
         assert_eq!(crate::etat_initial("Page(state: State(count: 7))"), "count=7");
         // Un total ne déborde pas.
@@ -1384,9 +1416,9 @@ mod tests {
     fn le_jeu_se_joue_par_des_regles_le_temps_et_le_hasard() {
         let programme = page(JEU).unwrap();
         // Trois règles de temps, trois horloges : le temps chaque seconde, l'étoile toutes les deux.
-        assert_eq!(horloges(&programme), [(1000, "time".to_string()), (2000, "star_x,star_y".to_string())]);
+        assert_eq!(horloges(&programme), [(1000, "time".to_string()), (2000, "starX,starY".to_string())]);
         let depart = initial(&programme).unwrap();
-        assert_eq!(ecrire(&depart), "time=0;score=0;star_x=50;star_y=50;best=0");
+        assert_eq!(ecrire(&depart), "time=0;score=0;starX=50;starY=50;best=0");
         // Tant que la partie n'a pas commencé, le temps reste à zéro : il ne descend pas dessous.
         assert_eq!(arbitrer(&programme, &depart, "every:0")[0], ("time".to_string(), 0));
         // « Play » : trente secondes. Ce geste change le temps : son horloge repartira de zéro.
@@ -1404,7 +1436,7 @@ mod tests {
         let touchee = arbitrer(&programme, &bougee, "Star.tap");
         assert_eq!(touchee[1].1, 1);
         assert_ne!((touchee[2].1, touchee[3].1), (bougee[2].1, bougee[3].1));
-        assert_eq!(touchees(&programme, "Star.tap"), ["score", "star_x", "star_y"]);
+        assert_eq!(touchees(&programme, "Star.tap"), ["score", "starX", "starY"]);
         // Trente secondes plus tard, la partie est finie, et le score est gardé.
         let fin = (0..40).fold(touchee, |etat, _| arbitrer(&programme, &etat, "every:0"));
         assert_eq!((fin[0].1, fin[1].1), (0, 1));
@@ -1431,7 +1463,7 @@ mod tests {
         let valeur = |etat: &Etat, nom: &str| etat.iter().find(|(connu, _)| connu == nom).unwrap().1;
         let depart = initial(&programme).unwrap();
         let joue = arbitrer(&programme, &depart, "Play.tap");
-        assert_eq!((valeur(&joue, "lives"), valeur(&joue, "basket"), valeur(&joue, "apple_y")), (3, 50, 0));
+        assert_eq!((valeur(&joue, "lives"), valeur(&joue, "basket"), valeur(&joue, "appleY")), (3, 50, 0));
         // Le clavier déplace le panier, qui ne sort jamais du plateau.
         let gauche = (0..20).fold(joue.clone(), |etat, _| arbitrer(&programme, &etat, "Key.left"));
         assert_eq!(valeur(&gauche, "basket"), 0);
@@ -1445,20 +1477,20 @@ mod tests {
             etat = arbitrer(&programme, &etat, "every:0");
             battements += 1;
         }
-        assert_eq!((valeur(&etat, "score"), valeur(&etat, "apple_y"), valeur(&etat, "lives")), (1, 0, 3), "après {battements} battements");
+        assert_eq!((valeur(&etat, "score"), valeur(&etat, "appleY"), valeur(&etat, "lives")), (1, 0, 3), "après {battements} battements");
         assert!(battements > 20, "la pomme a été prise trop tôt : {battements}");
         // Le panier parti loin, la pomme arrive en bas : une vie de moins, une seule, et une
         // nouvelle pomme.
         let mut etat = (0..20).fold(etat, |e, _| arbitrer(&programme, &e, "Key.left"));
-        let pomme_a_droite = PANIER_DE_POMMES.replace("apple_x.random(100)", "apple_x.set(90)");
+        let pomme_a_droite = PANIER_DE_POMMES.replace("appleX.random(100)", "appleX.set(90)");
         let programme = page(&pomme_a_droite).unwrap();
-        etat.iter_mut().find(|(nom, _)| nom == "apple_x").unwrap().1 = 90;
+        etat.iter_mut().find(|(nom, _)| nom == "appleX").unwrap().1 = 90;
         let mut battements = 0;
         while valeur(&etat, "lives") == 3 && battements < 60 {
             etat = arbitrer(&programme, &etat, "every:0");
             battements += 1;
         }
-        assert_eq!((valeur(&etat, "lives"), valeur(&etat, "apple_y"), valeur(&etat, "score")), (2, 0, 1));
+        assert_eq!((valeur(&etat, "lives"), valeur(&etat, "appleY"), valeur(&etat, "score")), (2, 0, 1));
         // Trois pommes perdues : la partie est finie.
         let fin = (0..200).fold(etat, |e, _| arbitrer(&programme, &e, "every:0"));
         assert_eq!((valeur(&fin, "lives"), valeur(&fin, "score")), (0, 1));
@@ -1485,7 +1517,7 @@ mod tests {
         // Le contact, pas la pénétration : la pomme (un rond de 44) est prise au moment où son
         // bord touche le dessus du panier (un carré de 64), pas quand elle est déjà dedans.
         let programme = page(PANIER_DE_POMMES).unwrap();
-        let avec = |y: u64| { let mut e = joue.clone(); e.iter_mut().find(|(n, _)| n == "apple_y").unwrap().1 = y; e };
+        let avec = |y: u64| { let mut e = joue.clone(); e.iter_mut().find(|(n, _)| n == "appleY").unwrap().1 = y; e };
         // Plateau de 360 : le dessus du panier est à 284 ; le bas de la pomme est à y/100 × 316 + 44.
         assert!(!guette(&programme, programme_regle(&programme), &avec(75)), "à 75, le bas de la pomme est à 281 : elle ne touche pas encore");
         assert!(guette(&programme, programme_regle(&programme), &avec(76)), "à 76, le bas de la pomme est à 284 : elle touche");
@@ -1510,13 +1542,13 @@ mod tests {
         // ne se laisse pas glisser ne bouge pas ; et une rencontre faite en glissant compte.
         let programme = page(PANIER_DE_POMMES).unwrap();
         let glisse = glisser(&programme, &joue, "Basket", 250, 10);
-        assert_eq!((valeur(&glisse, "basket"), valeur(&glisse, "apple_y")), (100, 0));
+        assert_eq!((valeur(&glisse, "basket"), valeur(&glisse, "appleY")), (100, 0));
         assert_eq!(glisser(&programme, &joue, "Apple", 10, 90), joue);
         let mut pres = joue.clone();
-        pres.iter_mut().find(|(nom, _)| nom == "apple_y").unwrap().1 = 90;
+        pres.iter_mut().find(|(nom, _)| nom == "appleY").unwrap().1 = 90;
         pres.iter_mut().find(|(nom, _)| nom == "basket").unwrap().1 = 10;
         let rattrapee = glisser(&programme, &pres, "Basket", 50, 0);
-        assert_eq!((valeur(&rattrapee, "score"), valeur(&rattrapee, "apple_y")), (1, 0));
+        assert_eq!((valeur(&rattrapee, "score"), valeur(&rattrapee, "appleY")), (1, 0));
         // Une règle peut faire plusieurs demandes, dans l'ordre ; une seule s'écrit sans crochets.
         let plusieurs = page("Page(state: State(a: 0, b: 0), children: [ Button(name: B, text: \"x\") ], rules: [ On(B.tap, effect: [a.add(2), b.set(7), a.add(1)]) ])").unwrap();
         assert_eq!(ecrire(&arbitrer(&plusieurs, &initial(&plusieurs).unwrap(), "B.tap")), "a=3;b=7");
@@ -1788,7 +1820,12 @@ mod tests {
             ("Page(children: [ \"{cart} items\" ])", "aucune valeur ne s'appelle « cart »"),
             ("Page(state: State(cart: 0), children: [ Button(name: B, text: \"{car}\") ])", "aucune valeur ne s'appelle « car »"),
             ("Page(state: State(cart: 0), children: [ List(children: [ \"{total}\" ]) ])", "aucune valeur ne s'appelle « total »"),
-            ("Page(state: State(Cart: 0))", "en minuscules"),
+            ("Page(state: State(Cart: 0))", "commence par une minuscule"),
+            // L'écriture de Flutter (ADR-037) : l'autre est refusée avec le bon mot.
+            ("Page(state: State(apple_x: 0))", "écris « appleX »"),
+            ("Page(state: State(appleX: 0), children: [ Text(\"{apple_x}\") ])", "écris « {appleX} »"),
+            ("Page(children: [ Button(name: Less_sunrise, text: \"-\") ])", "écris « name: LessSunrise »"),
+            ("Page(children: [ Stack(children: [ P(\"a\"), P(\"b\", align: top_right) ]) ])", "écris « topRight »"),
             ("Page(state: State(cart: 1.5))", "un nombre entier ou un texte"),
             ("Page(state: State(cart: 0, cart: 1))", "déclarée deux fois"),
             ("Page(state: State(cart: 5000000000))", "de 0 à 1000000000"),

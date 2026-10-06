@@ -13,8 +13,8 @@ Page(
     lives: 0,       // les pommes qu'on peut encore laisser tomber ; 0 : pas de partie en cours
     score: 0,
     basket: 50,     // où est le panier, de 0 (à gauche) à 100 (à droite)
-    apple_x: 50,    // où est la pomme
-    apple_y: 0,     // de 0 (en haut) à 100 (en bas)
+    appleX: 50,    // où est la pomme
+    appleY: 0,     // de 0 (en haut) à 100 (en bas)
   ),
 
   children: [
@@ -42,7 +42,7 @@ Page(
       // jamais. « drag: true » : on peut le faire glisser, et sa valeur suit le doigt.
       Board(height: 360px, children: [
         // Deux formes : la pomme est un rond, le panier un carré.
-        Shape(name: Apple, form: circle, color: "#E4572E", size: 44px, x: apple_x, y: apple_y),
+        Shape(name: Apple, form: circle, color: "#E4572E", size: 44px, x: appleX, y: appleY),
         Shape(name: Basket, form: square, color: "#E9B44C", size: 64px, x: basket, y: 96, drag: true),
       ]),
     ]),
@@ -50,7 +50,7 @@ Page(
 
   rules: [
     // Commencer. Une règle peut faire plusieurs demandes : on les met entre crochets.
-    On(Play.tap, effect: [score.set(0), lives.set(3), apple_x.set(50), apple_y.set(0), basket.set(50)]),
+    On(Play.tap, effect: [score.set(0), lives.set(3), appleX.set(50), appleY.set(0), basket.set(50)]),
 
     // Le clavier : « Key » est le clavier du visiteur. Signaux : left, right, up, down, space.
     On(Key.left, effect: basket.sub(8)),
@@ -60,14 +60,14 @@ Page(
     // vie). Avant « Play » et après la fin, la pomme ne tombe pas et aucun son ne part.
     If(lives, over: 0, rules: [
       // La pomme tombe : dix fois par seconde, elle descend un peu.
-      Every(100ms, effect: apple_y.add(3)),
+      Every(100ms, effect: appleY.add(3)),
 
       // Une rencontre : au moment où le bord de la pomme touche le bord du panier, un point
       // de plus, et une nouvelle pomme part d'en haut, à une place tirée au hasard.
-      When(Basket, meets: Apple, effect: [score.add(1), apple_x.random(100), apple_y.set(0), Pop.play]),
+      When(Basket, meets: Apple, effect: [score.add(1), appleX.random(100), appleY.set(0), Pop.play]),
 
       // Au moment où la pomme arrive tout en bas, une vie de moins, et une nouvelle pomme.
-      When(apple_y, over: 99, effect: [lives.sub(1), apple_x.random(100), apple_y.set(0), Lost.play]),
+      When(appleY, over: 99, effect: [lives.sub(1), appleX.random(100), appleY.set(0), Lost.play]),
     ]),
   ],
 )

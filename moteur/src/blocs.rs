@@ -76,9 +76,10 @@ fn verifier_reglages(bloc: &Bloc, parent: &str) -> Result<(), Erreur> {
             // majuscule, ce qui change (une valeur) n'en a pas.
             if nom == "name" {
                 if let crate::holo::Valeur::Nom(donne) = &argument.valeur {
-                    if donne.starts_with(|c: char| c.is_ascii_lowercase()) {
-                        let majuscule: String = donne.chars().take(1).map(|c| c.to_ascii_uppercase()).chain(donne.chars().skip(1)).collect();
-                        return Err(Erreur { message: format!("« name: {donne} » : un nom de bloc commence par une majuscule, comme un bloc ; écris « name: {majuscule} »"), pos: argument.pos });
+                    if donne.starts_with(|c: char| c.is_ascii_lowercase()) || donne.contains('_') {
+                        let flutter = crate::etat::en_flutter(donne);
+                        let majuscule: String = flutter.chars().take(1).map(|c| c.to_ascii_uppercase()).chain(flutter.chars().skip(1)).collect();
+                        return Err(Erreur { message: format!("« name: {donne} » : un nom de bloc s'écrit comme en Flutter, une majuscule au début et à chaque mot ; écris « name: {majuscule} » (ADR-037)"), pos: argument.pos });
                     }
                 }
             }

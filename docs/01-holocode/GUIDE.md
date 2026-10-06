@@ -37,6 +37,24 @@ Page(
 
 Un fichier contient un seul bloc racine : une `Page`, ou un `Point`.
 
+## 2 bis. Écrire les noms : l'écriture de Flutter
+
+HoloCode fait la différence entre une majuscule et une minuscule : `Page` et `page` ne sont pas le même mot. Chaque mot a **une seule** écriture, celle de Flutter : deux mots se joignent par une majuscule, jamais par `_`.
+
+| Sorte de mot | Écriture | Exemple |
+|---|---|---|
+| Bloc, et nom donné à un bloc | une majuscule au début et à chaque mot | `Button`, `BlueDoor`, `name: AddSunrise` |
+| Paramètre, mot-valeur, signal, demande | une minuscule au début, une majuscule à chaque mot suivant | `title`, `topRight`, `tap`, `add` |
+| Nom de valeur | pareil | `cart`, `appleX`, `blueDoor` |
+| Style | comme en CSS : minuscules, mots joints par `-` | `font-size`, `.carte` |
+| Unité d'octets | majuscules (B = octet, b = bit) | `KB`, `MB` |
+
+- **Ce qu'on touche a une majuscule, ce qui change n'en a pas** : dans `On(AddSunrise.tap, effect: sunrise.add(1))`, on voit d'un coup d'œil le bouton et la valeur.
+- Une faute n'est jamais avalée : le moteur la refuse et donne le bon mot. `apple_x` → « écris `appleX` » ; `Page(Title: …)` → « écris `title` » ; `name: buy` → « écris `name: Buy` ».
+- Les styles gardent l'écriture du CSS, pour qu'on n'ait pas à réapprendre le CSS.
+
+Décidé par Yocthan (`ADR-037`). La leçon est `39-ecrire-les-noms.holo`.
+
 ## 3. Le texte
 
 ```holo
@@ -426,13 +444,13 @@ Ce que le moteur refuse :
 Page(
   title: "My shop",
 
-  state: State(sunrise: 0, blue_door: 0),
-  prices: Prices(sunrise: 120, blue_door: 90),
+  state: State(sunrise: 0, blueDoor: 0),
+  prices: Prices(sunrise: 120, blueDoor: 90),
 
   children: [
     Text("Sunrise over the river, 120 euros. {sunrise} in your cart."),
     Button(name: AddSunrise, text: "Add"),
-    Text("The blue door, 90 euros. {blue_door} in your cart."),
+    Text("The blue door, 90 euros. {blueDoor} in your cart."),
     Button(name: AddBlueDoor, text: "Add"),
 
     Text("{count} paintings, {total} euros"),
@@ -441,9 +459,9 @@ Page(
 
   rules: [
     On(AddSunrise.tap, effect: sunrise.add(1)),
-    On(AddBlueDoor.tap, effect: blue_door.add(1)),
+    On(AddBlueDoor.tap, effect: blueDoor.add(1)),
     On(Empty.tap, effect: sunrise.set(0)),
-    On(Empty.tap, effect: blue_door.set(0)),
+    On(Empty.tap, effect: blueDoor.set(0)),
   ],
 )
 ```
@@ -513,7 +531,7 @@ Page(
   name: Catch,
   title: "Catch the star",
 
-  state: State(time: 0, score: 0, star_x: 50, star_y: 50),
+  state: State(time: 0, score: 0, starX: 50, starY: 50),
 
   children: [
     If(time, is: 0, children: [
@@ -522,16 +540,16 @@ Page(
     If(time, over: 0, children: [
       Text("Score: {score}. Time: {time} s"),
       Board(height: 320px, children: [
-        Point(name: Star, seed: 7, x: star_x, y: star_y),
+        Point(name: Star, seed: 7, x: starX, y: starY),
       ]),
     ]),
   ],
 
   rules: [
     On(Play.tap, effect: time.set(30)),
-    On(Star.tap, effect: [score.add(1), star_x.random(100), star_y.random(100)]),
+    On(Star.tap, effect: [score.add(1), starX.random(100), starY.random(100)]),
     Every(1s, effect: time.sub(1)),
-    Every(2s, effect: [star_x.random(100), star_y.random(100)]),
+    Every(2s, effect: [starX.random(100), starY.random(100)]),
   ],
 )
 ```
@@ -543,7 +561,7 @@ Page(
 - L'horloge se tait quand la fenêtre est cachée, en vue points et devant le carrefour.
 - Chaque règle `Every` a sa propre horloge. Quand un geste change une valeur, l'horloge de cette valeur repart de zéro : après `On(Play.tap, effect: time.set(30))`, la première seconde dure une vraie seconde.
 
-**Le hasard : `random`.** `star_x.random(100)` donne à `star_x` un nombre de 0 à 100, bornes comprises. Ce hasard est rejouable : les mêmes gestes, aux mêmes moments, redonnent la même partie.
+**Le hasard : `random`.** `starX.random(100)` donne à `starX` un nombre de 0 à 100, bornes comprises. Ce hasard est rejouable : les mêmes gestes, aux mêmes moments, redonnent la même partie.
 
 **Le plateau : `Board`.** Ce qu'il contient se place où l'on veut.
 
@@ -569,12 +587,12 @@ Page(
   name: Orchard,
   title: "Catch the apple",
 
-  state: State(lives: 3, score: 0, basket: 50, apple_x: 50, apple_y: 0),
+  state: State(lives: 3, score: 0, basket: 50, appleX: 50, appleY: 0),
 
   children: [
     Text("Score: {score}. Lives: {lives}"),
     Board(height: 360px, children: [
-      Point(name: Apple, seed: 3, x: apple_x, y: apple_y),
+      Point(name: Apple, seed: 3, x: appleX, y: appleY),
       Point(name: Basket, seed: 9, x: basket, y: 96, drag: true),
     ]),
   ],
@@ -583,10 +601,10 @@ Page(
     On(Key.left, effect: basket.sub(8)),
     On(Key.right, effect: basket.add(8)),
 
-    Every(100ms, effect: apple_y.add(3)),
+    Every(100ms, effect: appleY.add(3)),
 
-    When(Basket, meets: Apple, effect: [score.add(1), apple_x.random(100), apple_y.set(0)]),
-    When(apple_y, over: 99, effect: [lives.sub(1), apple_x.random(100), apple_y.set(0)]),
+    When(Basket, meets: Apple, effect: [score.add(1), appleX.random(100), appleY.set(0)]),
+    When(appleY, over: 99, effect: [lives.sub(1), appleX.random(100), appleY.set(0)]),
   ],
 )
 ```
@@ -597,9 +615,9 @@ Page(
 |---|---|---|
 | `On` | un geste du visiteur | `On(Play.tap, …)`, `On(Key.left, …)` |
 | `Every` | le temps | `Every(100ms, …)` |
-| `When` | un moment : quelque chose devient vrai | `When(apple_y, over: 99, …)`, `When(Basket, meets: Apple, …)` |
+| `When` | un moment : quelque chose devient vrai | `When(appleY, over: 99, …)`, `When(Basket, meets: Apple, …)` |
 
-**Plusieurs demandes dans une règle.** On les met entre crochets : `effect: [score.add(1), apple_y.set(0)]`. Elles sont faites dans l'ordre. Une seule demande s'écrit sans crochets.
+**Plusieurs demandes dans une règle.** On les met entre crochets : `effect: [score.add(1), appleY.set(0)]`. Elles sont faites dans l'ordre. Une seule demande s'écrit sans crochets.
 
 **Le clavier : `Key`.** `On(Key.left, effect: basket.sub(8))`. `Key` est le clavier du visiteur.
 
@@ -614,13 +632,13 @@ Un plateau garde ses proportions : 640 de large, `height` de haut. Sur un télé
 
 **Faire glisser : `drag: true`.** Sur un bloc posé dans un `Board`, le visiteur peut le faire glisser, au doigt ou à la souris. Ses places, quand ce sont des valeurs de la page, suivent le doigt. Ici `basket` suit ; `y: 96` est un nombre fixe, donc le panier ne monte pas. Aucune règle à écrire.
 
-**Ce qui bouge tout seul.** `Every(100ms, effect: apple_y.add(3))` : dix fois par seconde, la pomme descend un peu.
+**Ce qui bouge tout seul.** `Every(100ms, effect: appleY.add(3))` : dix fois par seconde, la pomme descend un peu.
 
 **Une valeur qui sert de place reste sur le plateau** : de 0 à 100. Le panier ne sort jamais.
 
 **Une règle qui guette : `When`.** Elle se déclenche au moment où ce qu'elle guette **devient** vrai, pas tant qu'il le reste. Elle guette :
 
-- une valeur : `When(apple_y, over: 99, effect: …)`, avec les comparaisons de `If` (`is`, `not`, `over`, `under`) ;
+- une valeur : `When(appleY, over: 99, effect: …)`, avec les comparaisons de `If` (`is`, `not`, `over`, `under`) ;
 - une rencontre : `When(Basket, meets: Apple, effect: …)`. Les deux blocs ont un nom, et un `x` et un `y` dans un `Board`. Ils se rencontrent au moment où le bord de l'un touche le bord de l'autre : un rond et un carré se touchent comme à l'œil. Avec `within: 20`, on juge autrement : sur l'écart entre leurs places, de 1 à 100, sans regarder leur taille. L'écart est mesuré sur chaque axe : `x` à 20 près **et** `y` à 20 près (un carré autour de l'objet, pas un cercle).
 
 **Des règles sous condition.** Une règle de temps tourne tant que la page est ouverte. Pour qu'elle ne vaille que pendant la partie, on la range sous une condition, avec le même `If` que pour montrer des blocs, et `rules` à la place de `children` :
@@ -910,7 +928,7 @@ Page(
 - `Header` et `Footer` posés directement dans la page sortent du contenu principal, comme il se doit. `Main` ne se pose que directement dans la page. Sans `Main`, tout le contenu de la page est le contenu principal.
 - Ils vont bien dans un morceau partagé (`Part`) : le menu d'un site s'écrit une fois.
 
-**La superposition.** `Stack` pose ses enfants les uns sur les autres. Le premier donne la taille ; les autres se posent dessus, à la place dite par `align:` (`top_left`, `top`, `top_right`, `left`, `center`, `right`, `bottom_left`, `bottom`, `bottom_right` ; au centre sans rien dire).
+**La superposition.** `Stack` pose ses enfants les uns sur les autres. Le premier donne la taille ; les autres se posent dessus, à la place dite par `align:` (`topLeft`, `top`, `topRight`, `left`, `center`, `right`, `bottomLeft`, `bottom`, `bottomRight` ; au centre sans rien dire).
 
 ```holo
 Page(
@@ -918,7 +936,7 @@ Page(
   children: [
     Stack(children: [
       Image(source: "star.svg", alt: "A golden star"),
-      Text("New", align: top_right),
+      Text("New", align: topRight),
     ]),
   ],
 )
