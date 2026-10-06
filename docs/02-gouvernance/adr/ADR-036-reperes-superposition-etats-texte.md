@@ -7,7 +7,7 @@
 - Validation : Yocthan, le 2026-10-06 : « Oui, vas-y. » Les noms restent à revoir avec les autres (majuscules et casse : question posée à ChatGPT et Gemini). Validé par Yocthan le 2026-10-06 : « Qu'est-ce que tu attends pour valider tous ceux qui sont à l'essai ? »
 - Projets affectés : HoloCode, HoloEngine
 
-## Décision (à l'essai)
+## Décision
 
 1. **Les repères** : `Header`, `Nav`, `Main`, `Footer`, en blocs. `Header` et `Footer` posés directement dans la page sortent du contenu principal ; `Main` ne se pose que directement dans la page. Les quatre avis l'ont demandé ; 63 % des utilisateurs de lecteurs d'écran se servent des repères au moins parfois (WebAIM 2024).
 2. **Les titres jusqu'à `H6`** (correction d'`ADR-020`). Même règle : le numéro dit la place dans le plan ; on ne saute pas de niveau.

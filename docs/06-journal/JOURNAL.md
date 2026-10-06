@@ -6,6 +6,14 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Ce qui restait « à l'essai » ailleurs
+
+- Yocthan : « valide tout ce qui est à laisser [à l'essai] si tu n'as pas encore validé ».
+- Recherché dans tout le dépôt. Mis à jour : le statut du moteur (`moteur/README.md`, `ACCEPTÉ`, mesuré à 60 images par seconde sur deux téléphones) ; l'en-tête de l'architecture (`ARCHITECTURE.md`, qui disait encore `EXPÉRIMENTATION` et « sans aucun HTML ») ; les titres « Décision (à l'essai) » des fiches déjà acceptées ; deux mentions dans le README de la boutique.
+- **Non validé, exprès** : `docs/01-holocode/SPECIFICATION-V0.1.md`, la proposition en Python de Codex (GPT5.6). Le projet l'a remplacée par le moteur en Rust et le guide ; l'accepter dirait le contraire de ce qui est construit. Recommandation de Claude à Yocthan : la marquer `REMPLACÉ`. Décision attendue.
+
+---
+
 ## 2026-10-06 — Les lots 1 à 5 validés
 
 - Yocthan : « En fait, j'ai tout testé de tout ce qui était à laisser [à l'essai] et je trouve que c'est bon. Donc, euh, valide-le. »

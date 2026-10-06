@@ -51,7 +51,7 @@ Ce registre empêche une proposition séduisante de devenir accidentellement une
 
 Les décisions `ADR-003` à `ADR-015` ont chacune une fiche détaillée dans [`adr/`](adr/). Toutes ont été validées par Yocthan le 2026-09-21 : `ADR-007`, `008`, `009`, `010` et `012` sont ses propres décisions ; `ADR-011`, `013`, `014` et `015` ont été proposées par Claude, puis acceptées par Yocthan après lecture.
 
-Après la revue de ChatGPT, Yocthan a classé en `EXPÉRIMENTATION` les choix techniques qu'aucune mesure n'a encore confirmés : `ADR-010`, `011`, `012` et `013`. La direction est retenue et le travail commence dans ce sens ; c'est la mesure sur un vrai téléphone qui les fera passer en `ACCEPTÉ`. `ADR-014` a été reformulée par ChatGPT.
+Après la revue de ChatGPT, Yocthan a classé en `EXPÉRIMENTATION` les choix techniques qu'aucune mesure n'a encore confirmés : `ADR-010`, `011`, `012` et `013`. (Depuis, le 2026-10-06 : `ADR-010` et `011` acceptées après les mesures sur téléphone, `013` acceptée pour la direction, `012` rejetée.) La direction est retenue et le travail commence dans ce sens ; c'est la mesure sur un vrai téléphone qui les fera passer en `ACCEPTÉ`. `ADR-014` a été reformulée par ChatGPT.
 
 ## Autorité de validation
 

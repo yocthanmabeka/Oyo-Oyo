@@ -63,9 +63,9 @@ Depuis le 2026-10-03, `boutique.holo` écrit aussi comment sa page se regarde (`
 - `List(children: […])` : le bloc `List` existait dans le vocabulaire sans exemple ; il prend ses éléments dans `children`, comme les autres blocs.
 - Les règles du monde intérieur sont écrites dans ce monde (`World(rules: […])`).
 
-Depuis le 2026-10-04, la boutique a un panier (`ADR-023`, à l'essai). En HoloCode : une ligne pour déclarer (`state: State(cart: 0)`), `{cart}` dans le texte, et une règle par bouton (`On(Add.tap, effect: cart.add(1))`). En JavaScript : une variable, une fonction `showCart()` à rappeler après chaque changement, et un garde-fou écrit à la main pour ne pas descendre sous zéro. Oublier un seul appel à `showCart()`, et l'écran ne dit plus la vérité.
+Depuis le 2026-10-04, la boutique a un panier (`ADR-023`, décidé depuis). En HoloCode : une ligne pour déclarer (`state: State(cart: 0)`), `{cart}` dans le texte, et une règle par bouton (`On(Add.tap, effect: cart.add(1))`). En JavaScript : une variable, une fonction `showCart()` à rappeler après chaque changement, et un garde-fou écrit à la main pour ne pas descendre sous zéro. Oublier un seul appel à `showCart()`, et l'écran ne dit plus la vérité.
 
-Le même jour, la disposition (`ADR-024`, à l'essai) : `Grid(columns: 3)` et `Row(gap: 8px)` en HoloCode ; en CSS, `display: grid` avec une formule `minmax` pour le téléphone, et `display: flex` sans oublier `flex-wrap`.
+Le même jour, la disposition (`ADR-024`, décidé depuis) : `Grid(columns: 3)` et `Row(gap: 8px)` en HoloCode ; en CSS, `display: grid` avec une formule `minmax` pour le téléphone, et `display: flex` sans oublier `flex-wrap`.
 
 ## Mesure du 2026-10-04 : est-ce plus rapide que le web ?
 

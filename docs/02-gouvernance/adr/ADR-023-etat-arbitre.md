@@ -11,7 +11,7 @@
 
 Jusqu'ici une page ne retenait rien : un bouton savait seulement faire entrer dans un point ou en sortir. On ne pouvait écrire ni panier, ni compteur, ni « j'aime ». Codex avait placé « une première action avec état arbitré » en troisième dans son ordre de chantiers, après la boutique et la mesure sur téléphone, toutes deux faites. `ADR-015` fixe la règle : pas de code libre dans un bloc, tout changement d'état passe par un arbitre.
 
-## Décision (à l'essai)
+## Décision
 
 ```holo
 Page(

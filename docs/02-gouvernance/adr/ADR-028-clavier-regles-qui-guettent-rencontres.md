@@ -11,7 +11,7 @@
 
 Étape 4 du planning : des objets qui ont une place et qui bougent, le clavier, les rencontres entre objets. Même méthode qu'à l'étape 2 : un jeu très petit, et seulement les mots qu'il demande. Le jeu : `exemples/jeu/panier.holo`. Une pomme tombe ; on la rattrape avec un panier qu'on déplace au clavier ou par deux boutons ; trois pommes perdues, la partie est finie.
 
-## Décision (à l'essai)
+## Décision
 
 ```holo
 Page(

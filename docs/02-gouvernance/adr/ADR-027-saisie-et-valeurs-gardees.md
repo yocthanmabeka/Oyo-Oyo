@@ -11,7 +11,7 @@
 
 Étape 3 du planning : les champs de saisie et les formulaires, et une valeur gardée après un rechargement. Jusqu'ici le visiteur ne pouvait qu'appuyer sur des boutons, et tout était perdu en rechargeant la page.
 
-## Décision (à l'essai)
+## Décision
 
 ```holo
 Page(

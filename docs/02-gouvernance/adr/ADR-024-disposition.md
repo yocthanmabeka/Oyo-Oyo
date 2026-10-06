@@ -11,7 +11,7 @@
 
 Tout s'affichait l'un sous l'autre. Codex et Gemini placent tous deux la disposition en premier dans l'ordre des chantiers : sans elle, pas de vrai site. `ADR-017` a posé qu'un style ne dit que l'apparence, et que la disposition vient des blocs. Il manquait ces blocs.
 
-## Décision (à l'essai)
+## Décision
 
 ```holo
 Page(

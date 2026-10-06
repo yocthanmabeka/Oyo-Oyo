@@ -11,7 +11,7 @@
 
 HoloCode refuse des éléments du web (`div`, `script`, la cascade, `position`…). Quatre avis (les humains, Gemini, ChatGPT, Claude) ont jugé ces refus le 2026-10-06. Ils s'accordent sur une même ligne.
 
-## Décision (à l'essai)
+## Décision
 
 **HoloCode refuse une mécanique, jamais une capacité.** Il supprime la complexité accidentelle, jamais la puissance utile. Avant d'ajouter ou de refuser un élément, on se demande : *quel travail sert-il à faire, et comment HoloCode le permet-il plus simplement ?*
 

@@ -11,7 +11,7 @@
 
 Le tableau compte 48 éléments du web à ajouter (14 en priorité, 34 utiles). Ils sont construits par lots. Le lot 1 prend les urgences qui ne demandent aucun choix d'architecture.
 
-## Décision (à l'essai)
+## Décision
 
 1. **`Page(lang:, description:, image:)`** : la langue (`fr`, `en`, `fr-CA`), la description (300 caractères au plus) et l'image de partage. Le serveur les met dans l'en-tête ; le moteur reprend la langue.
 2. **`alt` obligatoire sur `Image`**, `alt: ""` pour un décor. Avant, un oubli rendait l'image invisible aux aveugles sans rien dire.

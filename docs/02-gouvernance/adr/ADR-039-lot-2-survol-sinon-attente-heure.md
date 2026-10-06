@@ -11,7 +11,7 @@
 
 Le lot 2 prend quatre manques que le tableau classe « utiles » ou « en priorité » : le survol comme signal, le « sinon », « une seule fois, plus tard » (`setTimeout`) et la date du jour.
 
-## Décision (à l'essai)
+## Décision
 
 1. **`On(Carte.hover, effect: …)` et `On(Carte.hoverEnd, effect: …)`** : tout bloc nommé qui se voit émet ces deux signaux. Un survol change des valeurs ou joue un son ; il n'emmène jamais ailleurs (`enter`, `portals` demandent un toucher). Il est atteignable partout : à la souris, au clavier (le bloc reçoit le focus avec Tab), au doigt (toucher survole, toucher ailleurs quitte). La page légère fait venir le moteur au premier survol et le rejoue s'il dure encore.
 2. **`If(…, children: [ … ], else: [ … ])`** : ce qu'on montre quand la condition est fausse.

@@ -11,7 +11,7 @@
 
 Le tableau compte dix éléments du CSS jugés utiles et absents : l'interligne et l'espacement, les majuscules et le barré, sa propre police, les dégradés et les images de fond, les ombres, les variables, le thème sombre, l'adaptation au téléphone, les transitions, et une pose fixe (tourner, agrandir).
 
-## Décision (à l'essai)
+## Décision
 
 Les mots restent ceux du CSS ; ce qui change, ce sont les garde-fous.
 

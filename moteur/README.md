@@ -1,6 +1,6 @@
 # Moteur HoloCode — sprint Big Bang
 
-- Statut : `EXPÉRIMENTATION`
+- Statut : `ACCEPTÉ` — mesuré sur deux téléphones (environ 60 images par seconde) ; « valide tout ce qui est à laisser [à l'essai] si tu n'as pas encore validé » (Yocthan, 2026-10-06)
 - Décisions mises à l'épreuve : `ADR-005` (téléphone, navigateur, 1 Go), `ADR-007` (vue en profondeur), `ADR-008` (même fichier, même résultat), `ADR-009` (format `.holo`), `ADR-010` (moteur Rust, WebAssembly, `wgpu`)
 - Auteur : Claude, à la demande de Yocthan, le 2026-10-03
 
