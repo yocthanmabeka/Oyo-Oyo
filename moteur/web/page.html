@@ -101,10 +101,20 @@
   #origine[hidden]{display:none}
   #origine button{padding:4px 8px;border:1px solid #888;border-radius:6px;background:none;color:#fff;font:inherit;cursor:pointer}
   #erreur{position:fixed;left:8px;bottom:8px;right:8px;z-index:10;color:#f88;font:13px monospace;white-space:pre-wrap}
+  /* Un bouton touché avant l'arrivée du moteur : il montre qu'il attend, tout de suite. */
+  .holo-attend{cursor:progress;animation:holo-attend .9s ease-in-out infinite alternate}
+  @keyframes holo-attend{to{opacity:.45}}
+  @media (prefers-reduced-motion:reduce){.holo-attend{animation:none;opacity:.6}}
+  /* Le moteur n'a pas pu démarrer : la page le dit, sans rien cacher de ce qui se lit. */
+  #panne{position:fixed;left:12px;right:76px;bottom:12px;z-index:10;display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 14px;
+    border-radius:10px;background:#2a1212;color:#ffd6d6;border:1px solid #f88;font:14px system-ui,sans-serif}
+  #panne[hidden]{display:none}
+  #panne button{padding:6px 12px;border-radius:6px;border:1px solid #ffd6d6;background:none;color:inherit;font:inherit;cursor:pointer}
 </style>
 </head><body><canvas id="zone"></canvas><div id="page"></div>
 <img id="image" alt=""><div id="etat"></div>
 <div id="carrefour" hidden></div>
+<div id="panne" hidden role="alert"><span>Le moteur n'a pas pu démarrer. La page se lit, mais les boutons ne répondent pas : rien n'a été ajouté ni envoyé.</span><button type="button">Réessayer</button></div>
 <div id="origine" hidden><span></span><button type="button">Revenir</button></div>
 <div id="menu" hidden>
   <div id="outils" hidden>
@@ -130,18 +140,46 @@
     const racine = document.getElementById("page");
     const bascule = document.getElementById("bascule");
     const attente = (window.__holoAttente = []);
+    const panne = document.getElementById("panne");
     let demande = false;
+    let essai = 0;
+    // Plus rien n'attend : les boutons touchés cessent de le montrer.
+    const finDeLAttente = () => {
+      for (const bloc of racine.querySelectorAll(".holo-attend")) bloc.classList.remove("holo-attend");
+      racine.removeAttribute("aria-busy");
+    };
     const charger = () => {
       if (demande) return;
       demande = true;
+      panne.hidden = true;
       const moteur = document.createElement("script");
       moteur.type = "module";
-      moteur.src = "/page-moteur.js";
+      // Un nouvel essai demande le fichier à nouveau, sans reprendre l'échec gardé en cache.
+      moteur.src = essai ? `/page-moteur.js?essai=${essai}` : "/page-moteur.js";
+      moteur.onerror = () => window.__holoEchec(false);
       document.body.append(moteur);
+    };
+    // Le moteur n'a pas pu arriver. Les touchers en attente sont oubliés : aucun ne sera rejoué
+    // plus tard sans que le visiteur le sache. `relancer` : il faut recharger la page (le module
+    // est arrivé, mais pas le WebAssembly).
+    window.__holoEchec = (relancer) => {
+      attente.length = 0;
+      finDeLAttente();
+      panne.hidden = false;
+      panne.querySelector("button").onclick = () => {
+        if (relancer) return location.reload();
+        essai += 1;
+        demande = false;
+        charger();
+      };
     };
     const noter = (evenement) => {
       const bloc = evenement.target.closest("[data-name]");
-      if (bloc) attente.push(bloc.dataset.name);
+      if (bloc) {
+        attente.push(bloc.dataset.name);
+        bloc.classList.add("holo-attend");
+        racine.setAttribute("aria-busy", "true");
+      }
       if (bloc || evenement.target.closest('a[href^="#"]')) charger();
     };
     const ouvrirLeMenu = () => { window.__holoMenuDemande = true; charger(); };
@@ -154,6 +192,7 @@
     addEventListener("wheel", zoom, { passive: false });
     addEventListener("touchstart", pincer, { passive: true });
     window.__holoArreterDeNoter = () => {
+      finDeLAttente();
       racine.removeEventListener("click", noter);
       racine.removeEventListener("focusin", charger);
       bascule.removeEventListener("click", ouvrirLeMenu);

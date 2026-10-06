@@ -344,7 +344,10 @@
     }
   }
 
-  function afficherSite(cheminDeSite, { dansLHistorique = true } = {}) {
+  // `reprendre` : la page est déjà là, fabriquée par le serveur (ADR-033). Le moteur la prend
+  // en main sans la redessiner : ce qui a été écrit en l'attendant reste, le focus aussi, et
+  // les mouvements (ADR-034) ne repartent pas de zéro.
+  function afficherSite(cheminDeSite, { dansLHistorique = true, reprendre = false } = {}) {
     sortirDesPoints();
     fermerCarrefour();
     if (cheminDeSite.startsWith("~")) {
@@ -358,7 +361,8 @@
       boutonMode.textContent = "Carrefour";
     }
     site = cheminDeSite;
-    racine.innerHTML = vue_a_plat(source, base, site);
+    if (reprendre) adopterLesSaisies();
+    else racine.innerHTML = vue_a_plat(source, base, site);
     montrerLesValeurs();
     cadre = racine.querySelector(".holo-Page");
     page = cadre.querySelector("main");
@@ -369,7 +373,7 @@
     document.body.style.background = fond;
     grossir(1);
     placerLesPixels();
-    scrollTo(0, 0);
+    if (!reprendre) scrollTo(0, 0);
     if (dansLHistorique && !dAilleurs(chemin) && decodeURIComponent(location.hash.slice(1)) !== site) {
       history.pushState(history.state, "", site ? `#${site}` : location.pathname + location.search);
     }
@@ -383,6 +387,17 @@
     // que le visiteur n'a pas ouvert le carrefour.
     for (const contenu of sitesContenus()) {
       if (contenu.fichier && !dAilleurs(contenu.fichier)) lire(contenu.fichier);
+    }
+  }
+
+  // Ce que le visiteur a écrit ou coché avant l'arrivée du moteur passe par l'arbitre, comme
+  // une saisie ordinaire : rien n'est perdu, et la valeur est bornée comme d'habitude.
+  function adopterLesSaisies() {
+    for (const champ of racine.querySelectorAll("[data-bind]")) {
+      const change = champ.type === "checkbox" ? champ.checked !== champ.defaultChecked : champ.value !== champ.defaultValue;
+      if (!change) continue;
+      const ecrit = champ.type === "checkbox" ? (champ.checked ? "1" : "0") : champ.value;
+      etats.set(chemin, ranger(saisir(source, etats.get(chemin) ?? "", champ.dataset.bind, ecrit)));
     }
   }
 
@@ -920,12 +935,22 @@
   }
 
   try {
-    await init();
+    try {
+      await init();
+    } catch (e) {
+      // Le moteur n'a pas pu arriver (réseau, fichier absent) : la page le dit, reste lisible,
+      // et propose de réessayer. Aucun toucher n'est compté comme fait.
+      window.__holoEchec?.(true);
+      throw new Error("le moteur n'a pas pu démarrer");
+    }
     source = await avecSesImports(await (await fetch(chemin, { headers: { accept: "text/plain" } })).text(), chemin);
     fichiersLus.set(chemin, Promise.resolve(source));
     lireLesReglages();
     const departDuSite = decodeURIComponent(location.hash.slice(1));
-    afficherSite(departDuSite.startsWith("@") ? "" : departDuSite, { dansLHistorique: false });
+    // La page du fichier est déjà là, fabriquée par le serveur : on la reprend. Un monde
+    // demandé par l'adresse (#Atelier), lui, se dessine.
+    const dejaLa = !departDuSite && racine.querySelector(".holo-Page") !== null;
+    afficherSite(departDuSite.startsWith("@") ? "" : departDuSite, { dansLHistorique: false, reprendre: dejaLa });
     // Une adresse en #@… désigne le fichier d'un autre serveur : on propose le passage.
     if (departDuSite.startsWith("@")) proposerPassage(departDuSite.slice(1));
     // « Revenir » : par où l'on est venu, ou, si l'on est arrivé directement, au fichier de départ.
@@ -1109,5 +1134,6 @@
   } catch (e) {
     const pre = document.body.appendChild(document.createElement("pre"));
     pre.id = "erreur";
-    pre.textContent = "Le moteur a refusé ce fichier : " + (e?.message ?? e);
+    pre.textContent = (e?.message === "le moteur n'a pas pu démarrer" ? "" : "Le moteur a refusé ce fichier : " + (e?.message ?? e));
+    if (!pre.textContent) pre.remove();
   }
