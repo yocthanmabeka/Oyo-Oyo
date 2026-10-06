@@ -6,6 +6,32 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — La veille sur la 3D, et les décisions prises
+
+- Yocthan : « vérifier ce que pensent les humains en 2026, exactement le 6 octobre […] et enfin tu mets décision prise ».
+- Veille faite sur Internet (`docs/05-discussions/veille/2026-10-06-3d-web-et-mobile.md`) : WebGPU actif par défaut dans Chrome Android et Safari 26, pas dans Firefox Android ; tout le monde garde WebGL 2 ; sur certains Android, WebGPU est plus lent que WebGL 2 ; sur iPhone, des pages plantent dès 100 à 200 Mo ; la qualité adaptative est une pratique courante ; `KHR_gaussian_splatting` est ratifié ; glTF 2.1 est annoncé ; le mot « métavers » est mal vu depuis la fermeture d'Horizon Worlds en réalité virtuelle.
+- Décisions écrites : **`ADR-048`** (HoloCode décrit une qualité, jamais une technique) et **`ADR-049`** (objets préparés à l'avance, paliers qui bougent pendant la visite, WebGL 2 obligatoire, chemin de base sans calcul général, Khronos PBR Neutral, meshoptimizer), acceptées. Le chantier attend le feu vert de Yocthan.
+
+**Limites**
+
+- Reddit, Poly Haven et plusieurs forums n'ont pas pu être lus directement : ce qui en vient est tiré d'extraits de recherche. Peu de discussions d'août à octobre 2026 trouvées. Le nombre de triangles de la chaise reste à confirmer.
+
+---
+
+## 2026-10-06 — La 3D réaliste : deux prompts avant de construire
+
+- Yocthan veut commencer la 3D, « ultra réaliste si possible », mais sans faire exploser les machines : commencer bas, croître petit à petit, et s'aider d'extensions s'il le faut. Il demande l'avis de Codex et de Gemini avant la première ligne.
+- Direction proposée par Claude, dans la discussion : abandonner les points pour les objets proches (sans profondeur, jamais réalistes) ; des modèles préparés à l'avance sur PC (la voie D de Codex), avec niveaux de détail et lumière précalculée ; des paliers de qualité automatiques (léger, normal, haut) ; le réalisme par la lumière et les matériaux. Premier essai envisagé : une chaise, en points et en objet plein, sur le Flip 3. Rien n'est décidé ni construit.
+- Écrits : `docs/05-discussions/prompts/2026-10-06-gemini-3d-realiste.md` (sans accès au dépôt, tout le contexte dedans) et `2026-10-06-codex-3d-realiste.md` (réponse attendue par PR dans `proposals/GPT5.6/`). Les extensions y sont cadrées par `ADR-011` : pas de pont JavaScript, modules enfermés acceptés.
+- Gemini a répondu le même jour (`docs/05-discussions/reponses/2026-10-06-gemini-3d-realiste.md`, lecture critique de Claude à la fin) : « oui, à condition de tout préparer hors ligne ». À vérifier avant d'y croire : l'onglet qui serait abattu à 350–450 Mo sur un téléphone d'entrée de gamme (ce qui remettrait en cause le 1 Go d'`ADR-005`), et le coût réel de KTX2. Codex a répondu par la PR 118 (`proposals/GPT5.6/3d-realiste-evolutive-2026-10-06/`), et ChatGPT a relu Gemini (`docs/05-discussions/reponses/2026-10-06-chatgpt-sur-gemini-3d-realiste.md`). Les trois disent : possible, sans revoir la vision. Synthèse de Claude, avec ce que Yocthan a à décider (`ADR-048` le principe, `ADR-049` la direction, puis le premier chantier) : `proposals/Claude/3d-realiste-2026-10/SYNTHESE.md`.
+- Fait depuis une session dans le nuage, sans le PC de Yocthan : rien n'a été lancé ni mesuré.
+
+**Erreur en route**
+
+- Au début de la session, le dépôt `Metaverse` était invisible (Claude n'y avait pas encore accès) ; Claude a d'abord cherché dans les autres dépôts.
+
+---
+
 ## 2026-10-06 — La pile : tout voir dans un seul onglet
 
 - Yocthan, à court de batterie, avait fermé des fenêtres : « faire une stack […] qui me permettra de consommer moins de charges […] pour voir tout ce que tu crées ».
