@@ -19,6 +19,11 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 - La première mise en forme comptait un niveau par parenthèse ; les leçons en comptent un par ligne (`Row(children: [` ne décale que de deux espaces) : refaite.
 - Elle déplaçait aussi des commentaires que l'auteur de la boutique avait alignés exprès : un commentaire seul, aligné plus loin, garde maintenant sa place.
+## 2026-10-06 — Codex relit les composants ; deux styles importés ne se gênent plus en silence
+
+- Codex a répondu au prompt sur les composants (PR 124, `proposals/GPT5.6/web-assez-utilisable-2026-10-07/`). Il constate que les composants à paramètres existaient déjà, refait le tableau (HoloCode à **74,6 %** pour son public, Svelte 85,4 %), et relève un défaut : les noms de style d'un fichier importé valent pour toute la page, et deux fichiers qui écrivent le même style se gênaient, le premier gagnant en silence.
+- Corrigé (`ADR-050`, correction du jour) : deux fichiers importés qui écrivent le même style sont refusés, avec leurs deux noms. Les noms de style importés restent partagés avec la page, parce que le site de référence s'en sert comme d'un thème commun ; un composant qui ne veut rien partager se style par son nom.
+- Vérifié : 115 tests ; toutes les pages de `exemples/site/` et `exemples/site-reference/` passent `holo check`.
 
 ---
 

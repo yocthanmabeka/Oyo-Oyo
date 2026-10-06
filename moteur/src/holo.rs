@@ -694,7 +694,7 @@ pub fn lire(source: &str) -> Result<Programme, Erreur> {
     let fournis: Vec<(&str, &str)> = fichiers.filter_map(|f| f.split_once(SEPARE_LE_NOM)).collect();
     let mut morceaux: Vec<(String, Vec<Valeur>)> = Vec::new();
     let mut composants: Vec<crate::composants::Composant> = Vec::new();
-    let mut styles_importes = Vec::new();
+    let mut styles_importes: Vec<(String, RegleStyle)> = Vec::new();
     for nom in imports_de(source)? {
         let pos = programme.imports.iter().find(|i| i.cible == nom).map_or(programme.racine.pos, |i| i.pos);
         let Some((_, texte)) = fournis.iter().find(|(fourni, _)| *fourni == nom) else {
@@ -705,7 +705,7 @@ pub fn lire(source: &str) -> Result<Programme, Erreur> {
             Ok(morceau) => morceau,
             Err(e) => match lire_seul(&format!("Part(name: HoloStyles, children: []) {texte}")) {
                 Ok(styles) if !styles.styles.is_empty() && styles.imports.is_empty() => {
-                    styles_importes.extend(styles.styles);
+                    styles_importes.extend(styles.styles.into_iter().map(|r| (nom.clone(), r)));
                     continue;
                 }
                 _ => return Err(Erreur { message: format!("dans « {nom} », ligne {} : {}", e.pos.ligne, e.message), pos }),
@@ -727,7 +727,7 @@ pub fn lire(source: &str) -> Result<Programme, Erreur> {
             morceaux.push((composant.nom.clone(), composant.enfants.clone()));
         }
         composants.push(composant);
-        styles_importes.extend(morceau.styles);
+        styles_importes.extend(morceau.styles.into_iter().map(|r| (nom.clone(), r)));
     }
     poser_les_morceaux(&mut programme.racine, &morceaux)?;
     // Les composants (ADR-050) : ceux de la page, puis ceux des fichiers importés. Ils sont posés
@@ -751,14 +751,18 @@ pub fn lire(source: &str) -> Result<Programme, Erreur> {
         _ => "fr",
     });
     crate::repetition::deplier_site(&mut programme.racine, &mut 0)?;
-    // Les styles des morceaux d'abord, ceux de la page ensuite : à cible égale, la page garde le sien.
-    styles_importes.retain(|importe: &RegleStyle| !programme.styles.iter().any(|propre| propre.cible == importe.cible));
-    let mut styles: Vec<RegleStyle> = Vec::new();
-    for regle in styles_importes {
-        if !styles.iter().any(|deja| deja.cible == regle.cible) {
-            styles.push(regle);
+    // Deux fichiers importés qui écrivent le même style se gêneraient : l'un gagnerait en silence.
+    // C'est refusé, avec les deux noms (revue de Codex, PR 124). Un composant qui ne veut rien
+    // partager se style par son nom, `ArticleCard { … }`, qui ne vise que ses copies.
+    for (i, (fichier, regle)) in styles_importes.iter().enumerate() {
+        if let Some((autre, _)) = styles_importes[..i].iter().find(|(f, r)| f != fichier && r.cible == regle.cible) {
+            let pos = programme.imports.iter().find(|imp| imp.cible == *fichier).map_or(programme.racine.pos, |imp| imp.pos);
+            return Err(Erreur { message: format!("« {autre} » et « {fichier} » écrivent tous deux le style « {} » : l'un effacerait l'autre ; renomme-le dans l'un des deux", regle.cible), pos });
         }
     }
+    // Les styles des morceaux d'abord, ceux de la page ensuite : à cible égale, la page garde le sien.
+    styles_importes.retain(|(_, importe)| !programme.styles.iter().any(|propre| propre.cible == importe.cible));
+    let mut styles: Vec<RegleStyle> = styles_importes.into_iter().map(|(_, r)| r).collect();
     styles.append(&mut programme.styles);
     programme.styles = styles;
     programme.imports.retain(|i| i.sorte != "import");
@@ -898,6 +902,17 @@ mod tests {
         // Un fichier ordinaire, même bien rempli, passe.
         let large = format!("Page(children: [{}])", "P(\"x\"), ".repeat(2000));
         assert!(lire(&large).is_ok());
+    }
+
+    #[test]
+    fn deux_fichiers_importes_ne_peuvent_pas_ecrire_le_meme_style() {
+        let page = "import \"a.holo\"\nimport \"b.holo\"\nPage(children: [ Use(Alpha), Use(Beta) ])";
+        let source = format!("{page}{s}a.holo{n}Part(name: Alpha, children: [ P.card(\"a\") ])\n.card {{ color: red; }}{s}b.holo{n}Part(name: Beta, children: [ P.card(\"b\") ])\n.card {{ color: blue; }}", s = FICHIER_SUIVANT, n = SEPARE_LE_NOM);
+        let erreur = lire(&source).unwrap_err();
+        assert!(erreur.message.contains("« a.holo » et « b.holo » écrivent tous deux le style « .card »"), "{erreur}");
+        // La page, elle, peut toujours réécrire un style importé : c'est le sien qui reste.
+        let source = format!("import \"a.holo\"\nPage(children: [ Use(Alpha) ])\n.card {{ color: green; }}{s}a.holo{n}Part(name: Alpha, children: [ P.card(\"a\") ])\n.card {{ color: red; }}", s = FICHIER_SUIVANT, n = SEPARE_LE_NOM);
+        assert_eq!(lire(&source).unwrap().styles.len(), 1);
     }
 
     #[test]
