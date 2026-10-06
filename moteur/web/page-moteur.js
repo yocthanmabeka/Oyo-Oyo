@@ -2,7 +2,7 @@
 // a besoin ou tout de suite si la page est vivante (ADR-033). Il charge le moteur en Rust,
 // compilé en WebAssembly, et prend la page en main.
   import init, {
-    pause, vue_a_plat, effets, etat_initial, arbitrer, envoi, formater, liste_html, delais, lit_l_heure, regler_maintenant, avancer_l_horloge, conditions, horloges, touchees, touches, imports, donnees, recevoir, saisir, glisser, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
+    pause, vue_a_plat, effets, etat_initial, arbitrer, envoi, formater, liste_html, module_info, module_fini, delais, lit_l_heure, regler_maintenant, avancer_l_horloge, conditions, horloges, touchees, touches, imports, donnees, recevoir, saisir, glisser, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
     mosaique_pivoter, mosaique_de_face, mosaique_sous, reglages_de_vue, reveiller, images_dessinees,
   } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
@@ -1008,6 +1008,60 @@
     if (pour === chemin) emettre(`${formulaire}.${arrive ? "sent" : "failed"}`);
   }
 
+  // Un module enfermé (ADR-011 partie C, ADR-045). Il tourne dans un fil à part : la page ne se
+  // bloque jamais. Il ne reçoit que sa mémoire, plafonnée (elle ne peut pas grandir au-delà), et
+  // un nombre ; il n'a ni réseau, ni page, ni heure : un module qui demande autre chose ne
+  // démarre pas. Son temps court à partir du moment où il commence ; au-delà, le fil est arrêté.
+  const CODE_DE_LA_BOITE = `onmessage = async ({ data: { octets, entree, pages } }) => {
+    try {
+      const memory = new WebAssembly.Memory({ initial: pages, maximum: pages });
+      const { instance } = await WebAssembly.instantiate(octets, { env: { memory } });
+      if (typeof instance.exports.run !== "function") throw new Error("le module n'offre pas run");
+      postMessage({ debut: true });
+      const sortie = instance.exports.run(entree >>> 0);
+      postMessage({ ok: true, sortie: sortie >>> 0 });
+    } catch (e) {
+      postMessage({ ok: false, raison: String((e && e.message) || e) });
+    }
+  };`;
+  const modulesEnCours = new Set();
+  async function executer(nom) {
+    if (modulesEnCours.has(nom)) return;
+    const [fichier, entree, temps, pages] = module_info(source, etats.get(chemin) ?? "", nom).split("|");
+    if (!fichier) return;
+    modulesEnCours.add(nom);
+    const pour = chemin;
+    let resultat = { ok: false, raison: "module introuvable" };
+    try {
+      const reponse = await fetch(dossierDe(chemin) + fichier);
+      const octets = reponse.ok ? await reponse.arrayBuffer() : null;
+      if (octets && octets.byteLength <= 4e6) {
+        const boite = new Worker(URL.createObjectURL(new Blob([CODE_DE_LA_BOITE], { type: "text/javascript" })));
+        resultat = await new Promise((fin) => {
+          let arret = 0;
+          const finir = (r) => { clearTimeout(arret); clearTimeout(demarrage); boite.terminate(); fin(r); };
+          // Le démarrage lui-même a une limite : un module trop lourd à préparer est arrêté aussi.
+          const demarrage = setTimeout(() => finir({ ok: false, raison: "trop long à démarrer" }), 5000);
+          boite.onmessage = ({ data }) => {
+            if (data.debut) {
+              clearTimeout(demarrage);
+              arret = setTimeout(() => finir({ ok: false, raison: `arrêté après ${temps} ms` }), Number(temps));
+            } else finir(data);
+          };
+          boite.onerror = () => finir({ ok: false, raison: "erreur du module" });
+          boite.postMessage({ octets, entree: Number(entree), pages: Number(pages) }, [octets]);
+        });
+      }
+    } catch { /* pas de réseau */ }
+    modulesEnCours.delete(nom);
+    (window.__holoModules ??= []).push({ nom, ...resultat }); // ce qui s'est passé, pour le vérifier
+    if (pour !== chemin) return;
+    if (!resultat.ok) return emettre(`${nom}.failed`);
+    const apres = ranger(module_fini(source, etats.get(chemin) ?? "", nom, resultat.sortie));
+    if (apres) changerLEtat(apres);
+    for (const effet of effets(source, `${nom}.done`).split(",").filter(Boolean)) appliquer(effet, `${nom}.done`);
+  }
+
   function appliquer(effet, signal = "") {
     const [nom, capacite] = effet.split(".");
     if (capacite === "enter" && sitesContenus().some((s) => s.nom === nom)) {
@@ -1028,6 +1082,8 @@
       if (fenetre && capacite === "close") fenetre.close();
     } else if (capacite === "send") {
       envoyer(nom);
+    } else if (capacite === "run") {
+      executer(nom);
     } else if (capacite === "portals") {
       // La page demande son carrefour : On(Map.tap, effect: Shop.portals).
       ouvrirCarrefour();

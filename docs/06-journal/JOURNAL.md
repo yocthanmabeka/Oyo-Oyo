@@ -12,6 +12,10 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 - La preuve, dans Chrome : `compter` rend 5 050 ; `boucle` est arrêté après 2 000 ms, et la page a compté trois touchers pendant qu'il tournait ; `memoire` demande 64 Mo sous un plafond de 1 Mo et s'arrête. 105 tests.
 - Rien n'a été installé : les modules sont compilés avec Rust et la cible WebAssembly déjà présents pour le moteur.
 
+**Erreur en route**
+
+- La pull request du lot 8 a été fusionnée sans `moteur/web/page-moteur.js` : j'avais oublié ce fichier dans la liste à commiter, et le script de fusion l'a signalé (« 1 uncommitted change ») après coup. Sans lui, la boîte du module n'existe pas dans la page. Réparé par une pull request de suite, aussitôt.
+
 ![Le module enfermé : somme, boucle arrêtée, mémoire refusée](images/2026-10-06-lot8-module.png)
 
 ---
