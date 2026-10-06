@@ -6,6 +6,16 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — La réponse de ChatGPT, et la synthèse des quatre avis
+
+- Réponse de ChatGPT : `docs/05-discussions/reponses/2026-10-06-chatgpt-refus.md`. Synthèse : `proposals/Claude/pourquoi-ces-refus-2026-10/SYNTHESE.md`.
+- Les quatre avis (humains, Gemini, ChatGPT, Claude) s'accordent sur presque tout : garder les refus de `div`, de la page modifiée à la main, de `position` pour la mise en page et de la cascade ; ajouter `Main`, `Nav`, `Header`, `Footer`, les états (`hover`, `focus`), la superposition en blocs et des tailles de texte qui suivent le réglage du visiteur ; jamais de code libre, mais du calcul enfermé. Trois sur quatre veulent les titres jusqu'à `H6` tout de suite ; Claude se range à cet avis.
+- Le principe proposé par ChatGPT : refuser une mécanique, jamais une capacité.
+- ChatGPT conteste la règle de Yocthan (suivre la majorité des humains) : sur les forums parlent surtout des développeurs. Sur ces huit refus, les deux méthodes donnent le même résultat.
+- Rien n'est construit : Yocthan décide.
+
+---
+
 ## 2026-10-06 — Un prompt pour ChatGPT, à la place de Codex
 
 - Le quota de Codex est épuisé ; celui de ChatGPT (conversation simple) ne l'est pas. Yocthan veut un avis rapide, sans travail sur le dépôt : une comparaison et un jugement de nécessité.
