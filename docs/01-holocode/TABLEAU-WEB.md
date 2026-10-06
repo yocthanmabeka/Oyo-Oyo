@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-06). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (290 mots : 290 décidés, 0 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (297 mots : 290 décidés, 7 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
 - **Couverture** : la part de ce que fait l’élément web qu’on obtient en HoloCode aujourd’hui. Estimation de Claude, non mesurée.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,11 +9,11 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 290 mots | 290 décidés, 0 à l’essai |
+| **HoloCode** | 297 mots | 290 décidés, 7 à l’essai |
 | HTML | 82 % de couverture | 47 oui, 6 en partie, 6 non, 3 refusés |
 | CSS | 78 % de couverture | 24 oui, 6 en partie, 2 non, 2 refusés |
-| JavaScript | 48 % de couverture | 11 oui, 12 en partie, 9 non, 1 refusés |
-| HTML, CSS, JS ensemble | 72 % de couverture | 82 oui, 24 en partie, 17 non, 6 refusés |
+| JavaScript | 52 % de couverture | 13 oui, 11 en partie, 8 non, 1 refusés |
+| HTML, CSS, JS ensemble | 73 % de couverture | 84 oui, 23 en partie, 16 non, 6 refusés |
 
 # Partie 1 — Les mots de HoloCode
 
@@ -382,6 +382,18 @@
 |---|---|---|---|
 | `~~barré~~, ==surligné==, ^exposant^, ~indice~` | Les petites marques du texte | `s, mark, sup, sub` | Décidé (ADR-042) |
 
+## Demandes
+
+| Mot HoloCode | Ce qu’il fait | Sur le web | État |
+|---|---|---|---|
+| `mul, div` | Multiplier, diviser (en nombres entiers) | `*=, /=` | À l’essai (ADR-043) |
+
+## Le fichier
+
+| Mot HoloCode | Ce qu’il fait | Sur le web | État |
+|---|---|---|---|
+| `{n:00}, {n:number}, {n:cents}, {weekday:name}, {month:name}` | Écrire un nombre joliment, dans la langue de la page | `padStart, Intl` | À l’essai (ADR-043) |
+
 # Partie 2 — HoloCode face à HTML, CSS et JavaScript
 
 ## HTML — Structure de la page
@@ -556,15 +568,15 @@
 | En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|---|
 | `State(…)` | `variables` | garder une valeur | En partie | 70 % | Déjà là | Nombres entiers et textes ; pas de décimaux. |
-| `add, sub, set, random` | `calcul (+ − × ÷)` | calculer | En partie | 30 % | Oui, utile | Pas de multiplication ni de division (sauf le total d'un panier). |
+| `add, sub, mul, div, set, random` | `calcul (+ − × ÷)` | calculer | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-043, à l'essai). En nombres entiers ; pas de pourcentage ni de racine. |
 | `If(…, else: […]), When(…)` | `if, else` | décider | Oui | 100 % | Déjà là | Le « sinon » ajouté le 2026-10-06 (ADR-039). |
 | `Repeat(items: [ Item(…) ])` | `tableaux, objets` | des listes de valeurs | En partie | 50 % | Oui, utile | Une liste écrite dans le fichier (ADR-040) ; une liste qui change pendant la visite reste à faire. |
 | `Repeat(items:, children:, rules:)` | `for, map` | répéter pour chaque élément | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-040) : déplié à la lecture, la page reste du HTML ordinaire. |
 | — | `fonctions` | du calcul réutilisable | Non | 0 % | Plus tard | Prévu : des fonctions pures enfermées (ADR-013). |
 | `{nom} dans un texte` | `texte (majuscules, longueur, découper)` | travailler un texte | En partie | 20 % | Plus tard | — |
 | `random, rejouable` | `Math.random` | le hasard | Oui | 90 % | Déjà là | Mieux pour un jeu : la même partie se rejoue. |
-| `{year} {month} {day} {weekday} {hour} {minute}` | `Date` | la date et l'heure du jour | En partie | 70 % | Déjà là | Ajouté le 2026-10-06 (ADR-039). Pas encore de calcul sur les dates (un compte à rebours) ni de format (14 h 05). |
-| — | `Intl (formats)` | 1 234,50 €, dates en français | Non | 0 % | Oui, utile | — |
+| `{weekday:name} {day} {month:name} {year}, {hour} h {minute:00}` | `Date` | la date et l'heure du jour | En partie | 80 % | Déjà là | ADR-039 et ADR-043. Pas encore de calcul sur les dates (un compte à rebours). |
+| `{n:number}, {n:cents}, {minute:00}, {weekday:name}` | `Intl (formats)` | 1 234,50 €, dates en français | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-043, à l'essai). Langue de la page ; noms en français et en anglais. |
 
 ## JavaScript — Temps
 

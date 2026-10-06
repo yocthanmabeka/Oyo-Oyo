@@ -1,0 +1,41 @@
+// Leçon 66 — Multiplier, diviser
+//
+// Ce qu'on apprend :
+//   Deux demandes de plus, à côté de add, sub, set et random :
+//     prix.mul(2)       multiplier
+//     part.div(3)       diviser : un nombre entier, arrondi vers le bas (10 ÷ 3 = 3)
+//   La quantité peut être une autre valeur : total.mul(quantite).
+//   Diviser par 0 écrit dans le fichier est refusé ; par une valeur qui vaut 0, rien ne change.
+//
+// À essayer :
+//   Choisis une quantité, puis calcule le prix ; partage-le entre amis.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 66 : multiplier, diviser",
+  state: State(quantite: 3, prix: 0, amis: 2, part: 0),
+  children: [
+    H1("Multiplier, diviser"),
+    Input(value: quantite, label: "Combien de cartes postales (12 € pièce) ?", max: 100),
+    Button(name: Calculer, text: "Calculer le prix"),
+    Text("Prix : {prix} €"),
+    Input(value: amis, label: "Partagé entre combien d'amis ?", max: 20),
+    Button(name: Partager, text: "Partager"),
+    Text("Chacun paie : {part} €"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 65 : l'icône de l'onglet", to: "65-icone-de-l-onglet.holo"),
+      A("Leçon 67 : écrire un nombre joliment →", to: "67-formats.holo"),
+    ]),
+  ],
+  rules: [
+    On(Calculer.tap, effect: [prix.set(12), prix.mul(quantite)]),
+    On(Partager.tap, effect: [part.set(prix), part.div(amis)]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

@@ -6,6 +6,15 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Lot 6 : multiplier, diviser, et écrire un nombre joliment
+
+- Yocthan : « Oui, travaille sur ce qui reste. » Fait (`ADR-043`, à l'essai) : les demandes `mul` et `div` ; les formats `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}`, `{month:name}`, et `{item.price:cents}` dans une répétition ; la langue de la page choisit les séparateurs et les noms. Leçons 66 et 67. Nouveau module du moteur : `format.rs`.
+- Vérifié dans Chrome : « Nous sommes mardi 6 octobre 2026, il est 19 h 45. », « Visites : 1 234 567 » puis « 1 236 567 » après deux clics, « 1 234,50 € » ; 3 cartes à 12 € font 36 €, 18 € chacun pour deux. 103 tests.
+
+![La date en mots, les milliers, les centimes](images/2026-10-06-lot6-formats.png)
+
+---
+
 ## 2026-10-06 — Ce qui restait « à l'essai » ailleurs
 
 - Yocthan : « valide tout ce qui est à laisser [à l'essai] si tu n'as pas encore validé ».

@@ -19,6 +19,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 64 : envoyer un message", to: "64-formulaire.holo"),
+      A("Leçon 66 : multiplier, diviser →", to: "66-calculer.holo"),
     ]),
   ],
 )

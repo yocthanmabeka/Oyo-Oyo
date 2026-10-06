@@ -1079,6 +1079,29 @@ Page(
 
 Ces ajouts sont décidés (`ADR-042`). Les leçons sont `55-petits-textes.holo` à `65-icone-de-l-onglet.holo`.
 
+## 6 sedecies. Multiplier, diviser, et écrire un nombre joliment
+
+```holo
+Page(
+  title: "Postcards",
+  state: State(count: 3, price: 0, friends: 2, share: 0, total: 123450),
+  children: [
+    H1("Postcards"),
+    P("{weekday:name} {day} {month:name} {year}, {hour} h {minute:00}"),
+    Input(value: count, label: "How many postcards (12 euros each)?", max: 100),
+    Button(name: Compute, text: "Compute"),
+    P("Price: {price} euros, {share} euros each."),
+    P("This month: {total:cents} euros."),
+  ],
+  rules: [ On(Compute.tap, effect: [price.set(12), price.mul(count), share.set(price), share.div(friends)]) ],
+)
+```
+
+- **`mul`** multiplie, **`div`** divise (en nombres entiers, arrondi vers le bas) ; la quantité peut être une autre valeur.
+- **Un format après deux-points** : `{minute:00}` (05), `{n:number}` (1 234 567), `{n:cents}` (1 234,50), `{weekday:name}` et `{month:name}` (mardi, octobre). La langue de la page choisit les séparateurs et les noms ; dans une répétition, `{item.price:cents}`.
+
+Ces ajouts sont à l'essai (`ADR-043`). Les leçons sont `66-calculer.holo` et `67-formats.holo`.
+
 ## 6 undecies. Les repères, la superposition, le survol, le texte qui grandit
 
 **Les repères.** Une personne aveugle saute d'un repère à l'autre avec son lecteur d'écran. Rien ne change à l'œil.
@@ -1425,6 +1448,8 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Une couleur nommée, le thème sombre, le téléphone | `--or`, `dark: { … }`, `phone: { … }` | fait |
 | Sa propre police | `fonts: [ Font(family:, source:) ]` | fait |
 | Envoyer un formulaire | `Form(name:)`, `Contact.send`, `sent`, `failed` | fait |
+| Multiplier, diviser | les demandes `mul`, `div` | fait, à l'essai |
+| Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait, à l'essai |
 | Une fenêtre, un pli, une glissière, une barre | `Dialog`, `Details`, `Slider`, `Progress` | fait |
 | Réagir au zoom par une règle (« quand on zoome, alors… ») | aucun | à faire |
 | Ranger côte à côte, l'un sous l'autre, en grille | `Row`, `Column`, `Grid` | fait |

@@ -15,6 +15,7 @@
 
 pub mod blocs;
 pub mod etat;
+pub mod format;
 pub mod graine;
 pub mod holo;
 pub mod mosaique;
@@ -120,6 +121,11 @@ pub fn delais(source: &str, etat: &str) -> String {
 pub fn envoi(source: &str, etat: &str, formulaire: &str) -> String {
     let Ok(programme) = verifier_page(source) else { return String::new() };
     etat::envoi(&programme, &etat::relire(&programme, etat), &etat::relire_textes(&programme, etat), formulaire).unwrap_or_default()
+}
+
+/// Une valeur écrite avec son format (ADR-043) : `formater("minute", 5, "00", "fr")` → `05`.
+pub fn formater(nom: &str, valeur: u64, format: &str, langue: &str) -> String {
+    format::formater(nom, valeur, format, langue)
 }
 
 /// La page lit-elle l'heure du visiteur ? Elle la tient alors à jour, minute après minute.

@@ -73,5 +73,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 63 | [Une fenêtre par-dessus la page](63-fenetre.holo) | `Dialog`, `open`, `close` |
 | 64 | [Envoyer un message](64-formulaire.holo) | `Form`, `send`, `sent`, `failed` |
 | 65 | [L'icône de l'onglet](65-icone-de-l-onglet.holo) | `Page(icon:)` |
+| 66 | [Multiplier, diviser](66-calculer.holo) | `mul`, `div` |
+| 67 | [Écrire un nombre joliment](67-formats.holo) | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.

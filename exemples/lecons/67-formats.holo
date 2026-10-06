@@ -1,0 +1,38 @@
+// Leçon 67 — Écrire un nombre joliment
+//
+// Ce qu'on apprend :
+//   Après le nom d'une valeur, deux-points et un format :
+//     {minute:00}       des zéros devant : 5 devient 05 (00 à 000000)
+//     {visites:number}  les milliers séparés : 1 234 567
+//     {total:cents}     un prix en centimes : 123450 devient 1 234,50
+//     {weekday:name}    le nom du jour (mardi) ; {month:name} celui du mois (octobre)
+//   La langue de la page décide des séparateurs et des noms : Page(lang: "en") écrit
+//   1,234.50 et Tuesday. Sans langue, c'est le français.
+//   Dans une répétition, un champ nombre prend aussi un format : {item.price:cents}.
+//
+// À essayer :
+//   Regarde la date, puis ajoute des visiteurs.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 67 : écrire un nombre joliment",
+  state: State(visites: 1234567, total: 123450),
+  children: [
+    H1("Écrire un nombre joliment"),
+    P("Nous sommes {weekday:name} {day} {month:name} {year}, il est {hour} h {minute:00}."),
+    P("Visites : {visites:number}"),
+    P("Total du panier : {total:cents} €"),
+    Button(name: Visiteurs, text: "Mille visiteurs de plus"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 66 : multiplier, diviser", to: "66-calculer.holo"),
+    ]),
+  ],
+  rules: [ On(Visiteurs.tap, effect: visites.add(1000)) ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

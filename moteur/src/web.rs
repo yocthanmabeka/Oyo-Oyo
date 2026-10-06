@@ -302,6 +302,12 @@ pub fn envoi(source: &str, etat: &str, formulaire: &str) -> String {
     crate::envoi(source, etat, formulaire)
 }
 
+/// Une valeur écrite avec son format, dans la langue de la page.
+#[wasm_bindgen]
+pub fn formater(nom: &str, valeur: f64, format: &str, langue: &str) -> String {
+    crate::formater(nom, valeur.max(0.0) as u64, format, langue)
+}
+
 /// La page lit-elle l'heure du visiteur ?
 #[wasm_bindgen]
 pub fn lit_l_heure(source: &str) -> bool {
