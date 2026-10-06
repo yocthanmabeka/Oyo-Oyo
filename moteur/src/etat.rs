@@ -568,9 +568,11 @@ pub type Etat = Vec<(String, u64)>;
 pub type Textes = Vec<(String, String)>;
 
 /// La longueur d'un texte, au plus. Un champ peut l'abaisser par `max:`.
-pub const TEXTE_MAX: usize = 200;
+pub const TEXTE_MAX: usize = 2000;
 /// La longueur d'un texte saisi quand le champ ne dit rien.
 pub const TEXTE_COURANT: usize = 80;
+/// La longueur d'un texte long (`Input(lines:)`) quand l'auteur n'a pas dit `max`.
+pub const TEXTE_LONG: usize = 1000;
 
 /// Les textes déclarés par la page, à leur départ.
 pub fn textes_initiaux(programme: &Programme) -> Textes {
@@ -618,7 +620,9 @@ pub fn relire_textes(programme: &Programme, ecrit: &str) -> Textes {
     for morceau in ecrit.split(';') {
         if let Some((nom, code)) = morceau.split_once("='") {
             if let (Some((_, place)), Some(texte)) = (textes.iter_mut().find(|(connu, _)| connu == nom), decoder(code)) {
-                *place = propre(&texte, TEXTE_MAX);
+                // Les retours à la ligne d'un texte long (Input(lines:)) sont gardés ; les autres
+                // caractères invisibles, non.
+                *place = propre_sur_plusieurs_lignes(&texte, TEXTE_MAX);
             }
         }
     }
@@ -630,22 +634,55 @@ fn propre(texte: &str, longueur: usize) -> String {
     texte.chars().filter(|c| !c.is_control()).take(longueur).collect()
 }
 
+/// Un texte long (`Input(lines:)`) garde ses retours à la ligne.
+fn propre_sur_plusieurs_lignes(texte: &str, longueur: usize) -> String {
+    texte.replace("\r\n", "\n").chars().filter(|c| *c == '\n' || !c.is_control()).take(longueur).collect()
+}
+
+/// Les options d'un `Choice`, telles qu'écrites.
+pub fn options_du_choix(bloc: &Bloc) -> Vec<&str> {
+    match bloc.argument("options").map(|a| &a.valeur) {
+        Some(Valeur::Liste(options)) => options.iter().filter_map(|o| match o {
+            Valeur::Texte(t) => Some(t.as_str()),
+            _ => None,
+        }).collect(),
+        _ => Vec::new(),
+    }
+}
+
 /// Le visiteur a écrit dans un champ de texte. Comme pour un nombre : seulement une valeur
 /// qu'un champ présente, et pas plus longue que ce champ ne le permet.
 pub fn saisir_texte(programme: &Programme, textes: &Textes, nom: &str, ecrit: &str) -> Textes {
     let mut textes = textes.clone();
     let mut longueur = None;
+    let mut lignes = false;
+    let mut choix: Option<Vec<String>> = None;
     let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
-        if bloc.nom == "Input" && matches!(bloc.argument("value").map(|a| &a.valeur), Some(Valeur::Nom(valeur)) if valeur == nom) {
+        let presente = matches!(bloc.argument("value").map(|a| &a.valeur), Some(Valeur::Nom(valeur)) if valeur == nom);
+        if bloc.nom == "Input" && presente {
+            lignes = bloc.argument("lines").is_some();
             longueur = Some(match bloc.argument("max").map(|a| &a.valeur) {
                 Some(Valeur::Entier(max)) => (*max as usize).min(TEXTE_MAX),
+                _ if lignes => TEXTE_LONG,
                 _ => TEXTE_COURANT,
             });
         }
+        // Un choix n'accepte que l'une de ses options (ou rien).
+        if bloc.nom == "Choice" && presente {
+            choix = Some(options_du_choix(bloc).into_iter().map(str::to_string).collect());
+        }
         Ok(())
     });
+    if let Some(options) = choix {
+        if let Some((_, place)) = textes.iter_mut().find(|(connu, _)| connu == nom) {
+            if ecrit.is_empty() || options.iter().any(|o| o == ecrit) {
+                *place = ecrit.to_string();
+            }
+        }
+        return textes;
+    }
     if let (Some(longueur), Some((_, place))) = (longueur, textes.iter_mut().find(|(connu, _)| connu == nom)) {
-        *place = propre(ecrit, longueur);
+        *place = if lignes { propre_sur_plusieurs_lignes(ecrit, longueur) } else { propre(ecrit, longueur) };
     }
     textes
 }
@@ -887,8 +924,34 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
             return Err(Erreur { message: "les valeurs se déclarent sur la page, pas dans un monde : elles valent pour tout le fichier".into(), pos: bloc.pos });
         }
         // Un champ ou une case présente une valeur déclarée par la page, et dit ce qu'il attend.
+        // Un choix présente un texte, et ses options sont des textes (ADR-038).
+        if bloc.nom == "Choice" {
+            let exemple = "Choice(value: size, label: \"Size\", options: [\"S\", \"M\", \"L\"])";
+            for argument in &bloc.arguments {
+                match (argument.nom.as_deref(), &argument.valeur) {
+                    (Some("name"), _) | (Some("label"), Valeur::Texte(_)) | (Some("menu"), Valeur::Bool(_)) => {}
+                    (Some("value"), Valeur::Nom(valeur)) if est_texte(valeur) => {}
+                    (Some("value"), Valeur::Nom(valeur)) => {
+                        return Err(Erreur { message: format!("« Choice(value: {valeur}) » : un choix présente un texte ; déclare-le ainsi : state: State({valeur}: \"\")"), pos: argument.pos })
+                    }
+                    (Some("options"), Valeur::Liste(options)) if (2..=20).contains(&options.len()) && options.iter().all(|o| matches!(o, Valeur::Texte(t) if !t.is_empty() && t.chars().count() <= 80)) => {}
+                    (Some("options"), _) => return Err(Erreur { message: "« Choice(options: …) » attend de 2 à 20 textes entre guillemets : options: [\"S\", \"M\", \"L\"]".into(), pos: argument.pos }),
+                    (Some(mot), _) => return Err(Erreur { message: format!("« Choice({mot}: …) » est mal écrit : {exemple}"), pos: argument.pos }),
+                    (None, _) => return Err(Erreur { message: format!("chaque paramètre de « Choice » est nommé : {exemple}"), pos: argument.pos }),
+                }
+            }
+            for requis in ["value", "label", "options"] {
+                if bloc.argument(requis).is_none() {
+                    return Err(Erreur { message: format!("« Choice » attend « {requis} » : {exemple}"), pos: bloc.pos });
+                }
+            }
+            let options = options_du_choix(bloc);
+            if options.iter().enumerate().any(|(i, o)| options[..i].contains(o)) {
+                return Err(Erreur { message: "« Choice » : deux options ont le même texte".into(), pos: bloc.pos });
+            }
+        }
         if bloc.nom == "Input" || bloc.nom == "Checkbox" {
-            let permis: &[&str] = if bloc.nom == "Input" { &["name", "value", "label", "max"] } else { &["name", "value", "label"] };
+            let permis: &[&str] = if bloc.nom == "Input" { &["name", "value", "label", "max", "lines"] } else { &["name", "value", "label"] };
             let exemple = if bloc.nom == "Input" { "Input(value: quantity, label: \"How many?\")" } else { "Checkbox(value: gift, label: \"Gift wrap\")" };
             for argument in &bloc.arguments {
                 match (argument.nom.as_deref(), &argument.valeur) {
@@ -903,6 +966,13 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
                         return Err(Erreur { message: format!("« {}(value: {valeur}) » : aucune valeur ne s'appelle « {valeur} » ; déclare-la sur la page, state: State({valeur}: 0)", bloc.nom), pos: argument.pos })
                     }
                     (Some("max"), Valeur::Entier(max)) if bloc.nom == "Input" && *max <= VALEUR_MAX => {}
+                    // Un texte long : de 2 à 20 lignes visibles, pour une valeur qui est un texte.
+                    (Some("lines"), Valeur::Entier(n)) if bloc.nom == "Input" && (2..=20).contains(n) => {
+                        if !matches!(bloc.argument("value").map(|a| &a.valeur), Some(Valeur::Nom(v)) if est_texte(v)) {
+                            return Err(Erreur { message: "« Input(lines: …) » écrit un texte long : sa valeur est un texte, state: State(message: \"\")".into(), pos: argument.pos });
+                        }
+                    }
+                    (Some("lines"), _) => return Err(Erreur { message: "« Input(lines: …) » attend un nombre de lignes, de 2 à 20".into(), pos: argument.pos }),
                     (Some(mot), _) if permis.contains(&mot) => return Err(Erreur { message: format!("« {}({mot}: …) » est mal écrit : {exemple}", bloc.nom), pos: argument.pos }),
                     (Some(mot), _) => return Err(Erreur { message: format!("« {} » n'a pas de paramètre « {mot} » ; paramètres possibles : {}", bloc.nom, permis.join(", ")), pos: argument.pos }),
                     (None, _) => return Err(Erreur { message: format!("chaque paramètre de « {} » est nommé : {exemple}", bloc.nom), pos: argument.pos }),

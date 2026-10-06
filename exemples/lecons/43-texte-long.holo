@@ -1,0 +1,33 @@
+// Leçon 43 — Un texte long
+//
+// Ce qu'on apprend :
+//   Input(value: message, label: "…", lines: 5) : un champ de plusieurs lignes, pour un
+//   message. La valeur est un texte, déclarée vide : State(message: "").
+//   Les retours à la ligne sont gardés. Sans max, on peut écrire 1000 caractères.
+//
+// À essayer :
+//   Écris un message de deux lignes.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 43 : un texte long",
+  state: State(message: ""),
+  children: [
+    H1("Un texte long"),
+    Input(value: message, label: "Votre message", lines: 5),
+    If(message, not: "", children: [
+      Text("Vous avez écrit : {message}"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 42 : un tableau", to: "42-tableau.holo"),
+      A("Leçon 44 : un choix →", to: "44-choix.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

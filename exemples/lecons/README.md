@@ -47,5 +47,10 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 37 | [Le survol, le focus, l'appui](37-survol.holo) | `hover:, focus:, active:` |
 | 38 | [Poser un bloc sur un autre](38-superposition.holo) | `Stack, align:` |
 | 39 | [Écrire les noms](39-ecrire-les-noms.holo) | l'écriture de Flutter |
+| 40 | [La langue, la description, l'image de partage](40-langue-et-partage.holo) | `Page(lang:, description:, image:)` |
+| 41 | [Une vidéo](41-video.holo) | `Video` |
+| 42 | [Un tableau de données](42-tableau.holo) | `Table` |
+| 43 | [Un texte long](43-texte-long.holo) | `Input(lines:)` |
+| 44 | [Un choix parmi plusieurs](44-choix.holo) | `Choice` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.

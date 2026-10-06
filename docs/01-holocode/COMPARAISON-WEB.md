@@ -16,7 +16,8 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `title` | `Page(title:)` | fait |
 | `meta charset` | toujours UTF-8 | fait |
 | `meta viewport` (le zoom) | `Zoom(active:, max:, shrink:)` | fait |
-| `meta description`, mots-clés, image de partage | | manque |
+| `meta description`, image de partage | `Page(description:, image:)` | fait, à l'essai |
+| `html lang` | `Page(lang:)` | fait, à l'essai |
 | `header`, `footer`, `main` | `Header`, `Footer`, `Main` | fait, à l'essai |
 | `nav` | `Nav` | fait, à l'essai |
 | `aside` | | manque |
@@ -59,7 +60,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `img alt` (le texte pour qui ne voit pas l'image) | `Image(alt:)`, facultatif | fait, à l'essai |
 | `picture`, `source`, `srcset` (plusieurs tailles) | | manque |
 | `figure`, `figcaption` (image et légende) | | manque |
-| `video` | | manque |
+| `video` | `Video(source:, label:)`, sans lecture automatique | fait, à l'essai |
 | `audio` | `Sound(name:, source:)` et `Ding.play` : un bruit déclenché par une règle ; pas un lecteur | fait, à l'essai |
 | `canvas`, WebGL | `Point`, `World` | fait |
 | `svg` | comme fichier d'image seulement | en partie |
@@ -69,7 +70,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 
 | HTML | HoloCode | État |
 |---|---|---|
-| `table`, `tr`, `td`, `th`, `thead`, `tbody`, `caption` | | manque |
+| `table`, `tr`, `td`, `th`, `thead`, `tbody`, `caption` | `Table(caption:, head:, rows:)` | fait, à l'essai |
 
 ### Les formulaires
 
@@ -81,7 +82,8 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `input` : texte | `Input(value: buyer, …)` quand la valeur est un texte | fait, à l'essai |
 | `input` : date, bouton radio, fichier… | | manque |
 | `label` | le réglage `label:`, obligatoire | fait, à l'essai |
-| `textarea`, `select`, `option` | | manque |
+| `textarea` | `Input(…, lines: 5)` | fait, à l'essai |
+| `select`, `option`, `input radio` | `Choice(value:, label:, options:)`, `menu: true` | fait, à l'essai |
 | `fieldset`, `legend`, `datalist`, `output`, `progress`, `meter` | | manque |
 
 ### Ce qui s'ouvre et se ferme

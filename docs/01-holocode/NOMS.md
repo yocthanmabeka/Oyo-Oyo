@@ -30,6 +30,11 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 |---|---|---|
 | `Page` | `html`, `head`, `body`, `main` | changé : un seul bloc au lieu de quatre balises |
 | `H1` à `H6` | `h1` à `h6` | repris, avec une majuscule |
+| `Video` | `video controls` | repris ; jamais de lecture automatique ; `label` obligatoire |
+| `Table` et `caption:`, `head:`, `rows:` | `table`, `caption`, `thead`, `th`, `tbody`, `tr`, `td` | changé : trois paramètres au lieu de sept balises |
+| `Choice` et `options:`, `menu:` | `input type="radio"`, `select`, `option` | changé : un seul bloc pour les deux ; `menu: true` pour la liste déroulante |
+| `Input(lines:)` | `textarea` | changé : le même champ, sur plusieurs lignes |
+| `Page(lang:, description:, image:)` | `html lang`, `meta name="description"`, `meta property="og:image"` | repris, sur la page |
 | `Header`, `Nav`, `Main`, `Footer` | `header`, `nav`, `main`, `footer` | repris, avec une majuscule |
 | `Stack` et `align:` sur ses enfants | `position: absolute`, `z-index`, `top`, `right` | changé : le nom de Flutter ; une place nommée au lieu de coordonnées |
 | `hover:`, `focus:`, `active:` dans un style | `:hover`, `:focus-visible`, `:active` | repris, sans sélecteur : un état appartient à son style |

@@ -306,6 +306,8 @@
     for (const champ of ou.querySelectorAll("[data-bind]")) {
       if (!valeurs.has(champ.dataset.bind)) continue;
       if (champ.type === "checkbox") champ.checked = valeurs.get(champ.dataset.bind) !== "0";
+      // Un choix en boutons ronds : celui dont l'option est la valeur est coché (ADR-038).
+      else if (champ.type === "radio") champ.checked = champ.value === valeurs.get(champ.dataset.bind);
       else if (champ !== document.activeElement) champ.value = valeurs.get(champ.dataset.bind);
     }
     // Sur un plateau, un bloc suit les valeurs qui disent sa place : Point(x: starX, y: starY).
@@ -367,6 +369,8 @@
     cadre = racine.querySelector(".holo-Page");
     page = cadre.querySelector("main");
     document.title = cadre.dataset.title || "HoloCode";
+    // La langue de la page (ADR-038) : un lecteur d'écran la prononce avec la bonne voix.
+    if (cadre.dataset.lang) document.documentElement.lang = cadre.dataset.lang;
     // Le fond de la fenêtre est celui du site : jamais de noir autour d'un site clair.
     const fond = getComputedStyle(cadre).backgroundColor;
     document.documentElement.style.setProperty("--fond", fond);
@@ -394,7 +398,9 @@
   // une saisie ordinaire : rien n'est perdu, et la valeur est bornée comme d'habitude.
   function adopterLesSaisies() {
     for (const champ of racine.querySelectorAll("[data-bind]")) {
-      const change = champ.type === "checkbox" ? champ.checked !== champ.defaultChecked : champ.value !== champ.defaultValue;
+      // Un bouton rond ne compte que s'il est coché.
+      if (champ.type === "radio" && !champ.checked) continue;
+      const change = champ.type === "checkbox" || champ.type === "radio" ? champ.checked !== champ.defaultChecked : champ.value !== champ.defaultValue;
       if (!change) continue;
       const ecrit = champ.type === "checkbox" ? (champ.checked ? "1" : "0") : champ.value;
       etats.set(chemin, ranger(saisir(source, etats.get(chemin) ?? "", champ.dataset.bind, ecrit)));

@@ -1,0 +1,33 @@
+// Leçon 40 — La langue, la description, l'image de partage
+//
+// Ce qu'on apprend :
+//   lang: "fr"          la langue de la page : un lecteur d'écran la lit avec la bonne voix.
+//   description: "…"    ce que Google montre sous le titre (300 caractères au plus).
+//   image: "…"          l'image qu'on voit quand on partage le lien (WhatsApp, Facebook…).
+//   Rien ne change à l'écran : c'est pour ceux qui écoutent, qui cherchent et qui partagent.
+//
+// À essayer :
+//   Écris lang: "français" : le moteur refuse, et dit d'écrire "fr".
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 40 : la langue et le partage",
+  lang: "fr",
+  description: "Une leçon de HoloCode : dire la langue de sa page et ce qu'elle montre quand on la partage.",
+  image: "etoile.svg",
+  children: [
+    H1("La langue et le partage"),
+    "Cette page dit sa langue, sa description et son image de partage. Rien ne change à l'écran.",
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 39 : écrire les noms", to: "39-ecrire-les-noms.holo"),
+      A("Leçon 41 : une vidéo →", to: "41-video.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

@@ -92,7 +92,7 @@ Page(
   title: "My shop",
   children: [
     H1("My shop"),
-    Image(source: "painting.svg", weight: 1KB),
+    Image(source: "painting.svg", weight: 1KB, alt: "A painting: a sun over the hills"),
     List(children: [
       "Sunrise over the river",
       "The blue door",
@@ -102,7 +102,7 @@ Page(
 )
 ```
 
-- `Image(source:)` : un fichier rangé à côté du `.holo`. Ni adresse complète, ni `../`. `weight` est son poids déclaré.
+- `Image(source:, alt:)` : un fichier rangé à côté du `.holo`. Ni adresse complète, ni `../`. `alt` est **obligatoire** : ce que montre l'image, pour qui ne la voit pas ; pour un simple décor, `alt: ""`. `weight` est son poids déclaré.
 - `List(children: [...])` : une liste.
 - `Button(name:, text:)` : un bouton. `name` lui donne un nom, qui sert aux règles. Deux blocs ne portent pas le même nom.
 
@@ -277,7 +277,7 @@ Page(
       inside: World(
         children: [
           H1("The workshop"),
-          Image(source: "easel.svg", weight: 1KB),
+          Image(source: "easel.svg", weight: 1KB, alt: "An easel"),
           Button(name: Back, text: "Back to the shop"),
         ],
         rules: [
@@ -906,6 +906,37 @@ Le meilleur score tient alors en une règle : au moment où le score dépasse le
 
 Cette écriture est à l'essai (`ADR-032`). Les leçons sont `29-comparer-deux-valeurs.holo` et `30-formes.holo`.
 
+## 6 duodecies. La langue, la vidéo, le tableau, le texte long, le choix
+
+```holo
+Page(
+  title: "Opening hours",
+  lang: "en",
+  description: "When the studio is open, and how to write to us.",
+  image: "share.png",
+  state: State(message: "", size: ""),
+  children: [
+    Video(source: "tour.mp4", label: "A walk through the studio"),
+    Table(
+      caption: "Opening hours",
+      head: ["Day", "Hours"],
+      rows: [ ["Monday", "9 am – 6 pm"], ["Friday", "closed"] ],
+    ),
+    Input(value: message, label: "Your message", lines: 5),
+    Choice(value: size, label: "Size", options: ["S", "M", "L"]),
+  ],
+)
+```
+
+- **`lang:`, `description:`, `image:`** sur la `Page` : la langue (un lecteur d'écran prend la bonne voix), le texte que Google montre sous le titre, et l'image qu'on voit quand on partage le lien. Rien ne change à l'écran.
+- **`Video(source:, label:)`** : une vidéo `.mp4` ou `.webm` rangée à côté, avec ses boutons. `label` est obligatoire. Elle ne démarre jamais toute seule.
+- **`Table(caption:, head:, rows:)`** : un tableau de données. Chaque ligne a autant de cases que `head`. Sur un téléphone, il défile de côté sans déborder de la page.
+- **`Input(…, lines: 5)`** : un texte long, sur plusieurs lignes ; sa valeur est un texte. Les retours à la ligne sont gardés ; 1000 caractères au plus sans `max`.
+- **`Choice(value:, label:, options:)`** : un choix parmi des options, en boutons ronds ; `menu: true` en fait une liste déroulante. La valeur est un texte, et n'accepte que ses options.
+- **`Image` demande maintenant toujours `alt`** : `alt: ""` pour un décor.
+
+Ces ajouts sont à l'essai (`ADR-038`). Les leçons sont `40-langue-et-partage.holo` à `44-choix.holo`.
+
 ## 6 undecies. Les repères, la superposition, le survol, le texte qui grandit
 
 **Les repères.** Une personne aveugle saute d'un repère à l'autre avec son lecteur d'écran. Rien ne change à l'œil.
@@ -1139,13 +1170,16 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 
 | Bloc | Réglages | Où |
 |---|---|---|
-| `Page` | `name`, `title`, `children`, `pixels`, `rules`, `state`, `prices`, `keep`, `data`, `zoom`, `points`, `relief`, `portals` | À la racine |
+| `Page` | `name`, `title`, `lang`, `description`, `image`, `children`, `pixels`, `rules`, `state`, `prices`, `keep`, `data`, `zoom`, `points`, `relief`, `portals` | À la racine |
 | `H1` à `H6`, `P`, `Text` | le texte entre guillemets ; `name` | Dans `children` |
 | `Header`, `Nav`, `Footer` | `children`, `name` | Dans `children` ; `Header` et `Footer` posés directement dans la page en sont l'en-tête et le pied |
 | `Main` | `children`, `name` | Directement dans la page |
 | `Stack` | `children`, `name` ; ses enfants prennent `align` | Dans `children` |
 | `A` | le texte entre guillemets, `to` | Dans `children` |
-| `Image` | `source`, `weight`, `alt`, `name` | Dans `children` |
+| `Image` | `source`, `alt` (obligatoire), `weight`, `name` | Dans `children` |
+| `Video` | `source`, `label`, `weight`, `name` | Dans `children` |
+| `Table` | `caption`, `head`, `rows`, `name` | Dans `children` |
+| `Choice` | `value`, `label`, `options`, `menu`, `name` | Dans `children` |
 | `Sound` | `name`, `source`, `weight` | Dans `children` |
 | `Shape` | `form`, `color`, `size`, `name` | Dans `children` |
 | `Scenes` | `children`, `height`, `repeat`, `name` | Dans `children` |
@@ -1162,7 +1196,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Row`, `Column` | `children`, `gap`, `align`, `name` | Dans `children` |
 | `Grid` | `children`, `gap`, `columns`, `name` | Dans `children` |
 | `Board` | `children`, `height`, `name` ; ses enfants prennent `x`, `y` et `drag` | Dans `children` |
-| `Input` | `value`, `label`, `max`, `name` | Dans `children` |
+| `Input` | `value`, `label`, `max`, `lines`, `name` | Dans `children` |
 | `Checkbox` | `value`, `label`, `name` | Dans `children` |
 | `Part` | `name`, `children` | À la racine d'un fichier importé |
 | `Use` | le nom d'un morceau importé | Dans `children` |

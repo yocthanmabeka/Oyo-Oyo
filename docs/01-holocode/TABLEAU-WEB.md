@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-06). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (224 mots : 224 décidés, 0 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (236 mots : 224 décidés, 12 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
 - **Couverture** : la part de ce que fait l’élément web qu’on obtient en HoloCode aujourd’hui. Estimation de Claude, non mesurée.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,11 +9,11 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 224 mots | 224 décidés, 0 à l’essai |
-| HTML | 52 % de couverture | 25 oui, 11 en partie, 23 non, 3 refusés |
+| **HoloCode** | 236 mots | 224 décidés, 12 à l’essai |
+| HTML | 63 % de couverture | 33 oui, 10 en partie, 16 non, 3 refusés |
 | CSS | 53 % de couverture | 14 oui, 9 en partie, 9 non, 2 refusés |
 | JavaScript | 32 % de couverture | 6 oui, 11 en partie, 15 non, 1 refusés |
-| HTML, CSS, JS ensemble | 47 % de couverture | 45 oui, 31 en partie, 47 non, 6 refusés |
+| HTML, CSS, JS ensemble | 53 % de couverture | 53 oui, 30 en partie, 40 non, 6 refusés |
 
 # Partie 1 — Les mots de HoloCode
 
@@ -48,6 +48,7 @@
 | `Quote` | Une citation, et son auteur | `blockquote` | Décidé (ADR-025) |
 | `Code` | Du code montré tel quel | `pre, code` | Décidé (ADR-025) |
 | `List` | Une liste, à puces ou numérotée | `ul, ol, li` | Décidé (ADR-009) |
+| `Table` | Un tableau de données | `table, caption, thead, tbody, tr, th, td` | À l’essai (ADR-038) |
 
 ## Blocs : les médias
 
@@ -56,6 +57,7 @@
 | `Image` | Une image | `img` | Décidé (ADR-009) |
 | `Sound` | Un son qu'une règle fait entendre | `audio` | Décidé (ADR-031) |
 | `Shape` | Une forme : rond, carré, triangle, losange | `div + CSS, svg` | Décidé (ADR-032) |
+| `Video` | Une vidéo, avec ses boutons, jamais lancée seule | `video controls` | À l’essai (ADR-038) |
 
 ## Blocs : la disposition
 
@@ -74,6 +76,7 @@
 | `Button` | Un bouton | `button` | Décidé (ADR-009) |
 | `Input` | Un champ où l'on écrit un nombre ou un texte | `input` | Décidé (ADR-027) |
 | `Checkbox` | Une case à cocher | `input type=checkbox` | Décidé (ADR-027) |
+| `Choice` | Un choix parmi des options : boutons ronds, ou liste avec menu: true | `input radio, select, option` | À l’essai (ADR-038) |
 
 ## Blocs : les mondes
 
@@ -132,6 +135,7 @@
 | `data` | Les données du serveur | `fetch` | Décidé (ADR-030) |
 | `zoom, points, relief, portals` | Comment la page se regarde | — | Décidé (ADR-021) |
 | `pixels` | Des sites plantés dans des pixels | — | Décidé (ADR-021) |
+| `lang, description, image` | La langue, la description pour Google, l'image de partage | `html lang, meta description, og:image` | À l’essai (ADR-038) |
 
 ## Paramètres : le texte
 
@@ -141,6 +145,7 @@
 | `to` | L'adresse d'un lien | `href` | Décidé (ADR-022) |
 | `by` | L'auteur d'une citation | `cite` | Décidé (ADR-025) |
 | `ordered` | Une liste numérotée | `ol` | Décidé (ADR-009) |
+| `caption, head, rows` | La légende, les titres de colonnes et les lignes d'un tableau | `caption, thead, tbody` | À l’essai (ADR-038) |
 
 ## Paramètres : les médias
 
@@ -163,6 +168,8 @@
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `value, label, max` | La valeur liée, l'étiquette (obligatoire), le maximum | `value, label, max` | Décidé (ADR-027) |
+| `lines` | Un texte long, sur plusieurs lignes | `textarea` | À l’essai (ADR-038) |
+| `options, menu` | Les options d'un choix ; la liste déroulante | `option, select` | À l’essai (ADR-038) |
 
 ## Paramètres : les mondes
 
@@ -273,9 +280,9 @@
 | `Page(title:)` | `title` | le titre de l'onglet | Oui | 100 % | Déjà là | — |
 | `toujours UTF-8` | `meta charset` | l'encodage | Oui | 100 % | Déjà là | Rien à écrire. |
 | `Zoom(active:, max:)` | `meta viewport` | le zoom sur téléphone | Oui | 100 % | Déjà là | Fait autrement : le zoom est au cœur de HoloCode. |
-| — | `meta description, image de partage` | ce que montrent Google et les réseaux | Non | 0 % | Oui, en priorité | Sans elle, un site HoloCode est mal présenté dans les recherches et les partages. |
+| `Page(description:, image:)` | `meta description, image de partage` | ce que montrent Google et les réseaux | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
 | — | `link rel=icon` | la petite image de l'onglet | Non | 0 % | Oui, utile | Tout vrai site en a une. |
-| — | `lang` | la langue de la page | Non | 0 % | Oui, en priorité | Un lecteur d'écran prononce mal une page sans langue. |
+| `Page(lang:)` | `lang` | la langue de la page | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
 | `Header, Footer, Main` | `header, footer, main` | en-tête, pied, contenu principal | Oui | 100 % | Déjà là | Ajoutés le 2026-10-06 (ADR-036). |
 | `Nav` | `nav` | le menu de navigation | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-036). |
 | — | `aside` | un encadré à part | Non | 0 % | Plus tard | — |
@@ -316,10 +323,10 @@
 | En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|---|
 | `Image(source:)` | `img` | une image | Oui | 100 % | Déjà là | — |
-| `Image(alt:)` | `img alt` | le texte pour qui ne voit pas | En partie | 80 % | Oui, en priorité | Il est encore facultatif : il devrait être obligatoire. |
+| `Image(alt:), obligatoire` | `img alt` | le texte pour qui ne voit pas | Oui | 100 % | Déjà là | Obligatoire depuis le 2026-10-06 ; alt: "" pour un décor (ADR-038). |
 | — | `picture, srcset` | une image plus légère sur téléphone | Non | 0 % | Oui, utile | Pour tenir la promesse de légèreté avec de vraies photos. |
 | — | `figure, figcaption` | une image et sa légende | Non | 0 % | Oui, utile | — |
-| — | `video` | une vidéo | Non | 0 % | Oui, en priorité | Très demandé ; votre vision parle aussi de vidéo devenue monde. |
+| `Video(source:, label:)` | `video` | une vidéo | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-038). Pas encore de sous-titres. |
 | `Sound(…) et .play` | `audio` | un son, un lecteur | En partie | 40 % | Oui, utile | Un son court, oui ; un lecteur de musique, non. |
 | `Point, World, Shape` | `canvas, WebGL` | un dessin libre, de la 3D | En partie | 40 % | Oui, utile | Des points et quatre formes ; pas de dessin libre ni de modèles 3D. |
 | `comme fichier d'image` | `svg dans la page` | un dessin vectoriel | En partie | 30 % | Plus tard | — |
@@ -329,7 +336,7 @@
 
 | En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|---|
-| — | `table, tr, td, th, caption` | un tableau de données | Non | 0 % | Oui, en priorité | Horaires, tarifs, comparatifs : beaucoup de sites en ont besoin. |
+| `Table(caption:, head:, rows:)` | `table, tr, td, th, caption` | un tableau de données | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-038). Pas de case sur deux colonnes. |
 
 ## HTML — Formulaires
 
@@ -339,13 +346,13 @@
 | — | `form (envoyer)` | envoyer des réponses à un serveur | Non | 0 % | Oui, en priorité | Contact, commande, inscription : le passage de « lire » à « agir ». |
 | `Input(value:, label:, max:)` | `input texte, nombre` | un champ | Oui | 100 % | Déjà là | — |
 | `Checkbox(value:, label:)` | `input checkbox` | une case à cocher | Oui | 100 % | Déjà là | — |
-| — | `input radio` | un choix parmi plusieurs | Non | 0 % | Oui, en priorité | Taille S, M ou L : on en a besoin partout. |
+| `Choice(value:, label:, options:)` | `input radio` | un choix parmi plusieurs | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
 | — | `input range` | un curseur à glisser | Non | 0 % | Oui, utile | Volume, quantité ; utile aussi dans les mondes. |
 | — | `input date, heure, couleur` | choisir une date, une couleur | Non | 0 % | Oui, utile | — |
 | — | `input email, mot de passe, fichier` | adresse, secret, envoi de fichier | Non | 0 % | Plus tard | Seulement avec l'envoi au serveur et des comptes. |
 | `label: (obligatoire)` | `label` | le nom d'un champ | Oui | 100 % | Déjà là | Mieux que HTML : impossible de l'oublier. |
-| — | `textarea` | un texte long | Non | 0 % | Oui, en priorité | Le message d'un formulaire de contact. |
-| — | `select, option` | une liste déroulante | Non | 0 % | Oui, en priorité | Choisir un pays, une taille. |
+| `Input(…, lines: 5)` | `textarea` | un texte long | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
+| `Choice(…, menu: true)` | `select, option` | une liste déroulante | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
 | — | `fieldset, legend, datalist` | regrouper, suggérer | Non | 0 % | Plus tard | — |
 | `{valeur}, {total}` | `output` | afficher un résultat | Oui | 90 % | Déjà là | — |
 | — | `progress, meter` | une barre de progression | Non | 0 % | Oui, utile | Une jauge de vie dans un jeu, un téléchargement. |

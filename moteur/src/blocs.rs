@@ -4,7 +4,7 @@
 use crate::holo::{Bloc, Erreur, Programme, Valeur};
 
 /// `Text` est du texte sans rôle ; `P`, `H1`, `H2` et `H3` sont un `Text` avec un rôle (ADR-020).
-pub const BLOCS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Part", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop", "H4", "H5", "H6", "Main", "Nav", "Header", "Footer", "Stack"];
+pub const BLOCS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Part", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop", "H4", "H5", "H6", "Main", "Nav", "Header", "Footer", "Stack", "Video", "Table", "Choice"];
 
 /// Le titre le plus profond : `H6`, comme en HTML (correction d'ADR-020 du 2026-10-06 ; les
 /// longs documents en ont besoin). Le numéro dit toujours la place dans le plan, jamais la taille.
@@ -20,7 +20,7 @@ pub fn verifier_blocs(programme: &Programme) -> Result<(), Erreur> {
 /// absents de cette liste vérifient leurs réglages eux-mêmes (`State`, `Prices`, `Data`,
 /// `Zoom`, `Points`, `Relief`, `Portals`, `Enter`, `Loop`, `Use`).
 const REGLAGES_DES_BLOCS: &[(&str, &[&str])] = &[
-    ("Page", &["name", "title", "children", "pixels", "rules", "state", "prices", "keep", "data", "zoom", "points", "relief", "portals"]),
+    ("Page", &["name", "title", "children", "pixels", "rules", "state", "prices", "keep", "data", "zoom", "points", "relief", "portals", "lang", "description", "image"]),
     ("World", &["name", "children", "pixels", "rules"]),
     ("Part", &["name", "children"]),
     ("Text", &["name"]),
@@ -50,7 +50,10 @@ const REGLAGES_DES_BLOCS: &[(&str, &[&str])] = &[
     ("Stack", &["name", "children"]),
     ("Board", &["name", "children", "height"]),
     ("Point", &["name", "seed", "brightness", "fragments", "color", "palette", "budget", "inside", "above"]),
-    ("Input", &["name", "value", "label", "max"]),
+    ("Input", &["name", "value", "label", "max", "lines"]),
+    ("Choice", &["name", "value", "label", "options", "menu"]),
+    ("Video", &["name", "source", "label", "weight"]),
+    ("Table", &["name", "caption", "head", "rows"]),
     ("Checkbox", &["name", "value", "label"]),
     ("If", &["name", "is", "not", "over", "under", "children", "rules"]),
     ("On", &["effect"]),

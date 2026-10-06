@@ -1,0 +1,30 @@
+// Leçon 41 — Une vidéo
+//
+// Ce qu'on apprend :
+//   Video(source: "film.mp4", label: "…") montre une vidéo rangée à côté du fichier
+//   (.mp4 ou .webm), avec ses boutons : lecture, pause, son, plein écran.
+//   label est obligatoire : il dit ce que montre la vidéo, pour qui ne la voit pas.
+//   Une vidéo ne démarre jamais toute seule : c'est le visiteur qui appuie.
+//
+// À essayer :
+//   Appuie sur lecture.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 41 : une vidéo",
+  children: [
+    H1("Une vidéo"),
+    Video(source: "41-video.mp4", label: "Une mire de couleurs qui défile, avec un son continu", weight: 80KB),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 40 : la langue et le partage", to: "40-langue-et-partage.holo"),
+      A("Leçon 42 : un tableau →", to: "42-tableau.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

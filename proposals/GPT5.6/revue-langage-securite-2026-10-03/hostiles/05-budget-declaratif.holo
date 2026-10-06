@@ -6,7 +6,7 @@ Page(
       seed: 5,
       budget: 1B,
       inside: World(children: [
-        Image(source: "actually-huge.png", weight: 1B),
+        Image(source: "actually-huge.png", weight: 1B, alt: ""),
       ]),
     ),
   ],

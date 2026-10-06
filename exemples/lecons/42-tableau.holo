@@ -1,0 +1,39 @@
+// Leçon 42 — Un tableau de données
+//
+// Ce qu'on apprend :
+//   Table(caption: "…", head: [...], rows: [ [...], [...] ]) montre un tableau.
+//     caption : son titre ; head : la ligne des titres de colonnes ; rows : les lignes.
+//   Chaque ligne a autant de cases que head. Une case est un texte ; on peut y mettre
+//   du **gras** ou une valeur {commeCeci}.
+//   Sur un téléphone, un tableau trop large défile de côté, sans déborder de la page.
+//
+// À essayer :
+//   Ajoute une ligne ["Samedi", "10 h – 13 h"].
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 42 : un tableau",
+  children: [
+    H1("Un tableau"),
+    Table(
+      caption: "Les horaires de l'atelier",
+      head: ["Jour", "Horaires"],
+      rows: [
+        ["Lundi", "9 h – 18 h"],
+        ["Mercredi", "9 h – 18 h"],
+        ["Vendredi", "**fermé**"],
+      ],
+    ),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 41 : une vidéo", to: "41-video.holo"),
+      A("Leçon 43 : un texte long →", to: "43-texte-long.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
