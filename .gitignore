@@ -15,3 +15,5 @@ target/
 
 # Les messages reçus par les formulaires des pages, en local (ADR-042) : jamais versionnés.
 messages/
+# Les anciennes versions des fichiers écrits par l'éditeur (ADR-046) : jamais versionnées.
+editeur-sauvegardes/

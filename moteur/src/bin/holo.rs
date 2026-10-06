@@ -2,35 +2,60 @@
 //!
 //! ```text
 //! holo check boutique.holo            vérifie le fichier ; « ok », ou l'erreur avec sa ligne
+//! holo check - [dossier]              vérifie le texte reçu sur l'entrée standard (un éditeur
+//!                                     qui n'a pas encore enregistré) ; « ok », ou « ligne L,
+//!                                     colonne C : message » ; les imports sont lus dans `dossier`
 //! holo html boutique.holo [dossier]   écrit la page web ordinaire du fichier (HTML et CSS)
+//! holo vocabulaire                    tous les mots du langage, en JSON, pour un éditeur
 //! ```
 //!
 //! C'est le même code Rust que dans le navigateur. Le serveur s'en sert pour envoyer la page
 //! déjà fabriquée : un robot de recherche, ou un navigateur qui ne lance pas le moteur, lit
 //! quand même le site. `dossier` est l'adresse du dossier du fichier, pour retrouver ses images.
 
+use std::io::Read;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
+    // Les mots du langage, pour l'extension VS Code (ADR-046).
+    if arguments.first().map(String::as_str) == Some("vocabulaire") {
+        println!("{}", holo_moteur::vocabulaire());
+        return ExitCode::SUCCESS;
+    }
     let (commande, fichier, dossier) = match arguments.as_slice() {
         [commande, fichier] => (commande.as_str(), fichier, ""),
         [commande, fichier, dossier] => (commande.as_str(), fichier, dossier.as_str()),
         _ => ("", &String::new(), ""),
     };
     if commande != "check" && commande != "html" {
-        eprintln!("usage : holo check fichier.holo | holo html fichier.holo [dossier]");
+        eprintln!("usage : holo check fichier.holo | holo check - [dossier] | holo html fichier.holo [dossier] | holo vocabulaire");
         return ExitCode::from(2);
     }
-    let mut source = match std::fs::read_to_string(fichier) {
-        Ok(source) => source,
-        Err(erreur) => {
-            eprintln!("{fichier} : {erreur}");
+    // `-` : le texte arrive par l'entrée standard, tel qu'il est dans l'éditeur (ADR-046).
+    let depuis_l_editeur = fichier == "-";
+    let mut source = if depuis_l_editeur {
+        let mut texte = String::new();
+        if std::io::stdin().read_to_string(&mut texte).is_err() {
+            eprintln!("le texte reçu n'est pas lisible");
             return ExitCode::from(2);
+        }
+        texte
+    } else {
+        match std::fs::read_to_string(fichier) {
+            Ok(source) => source,
+            Err(erreur) => {
+                eprintln!("{fichier} : {erreur}");
+                return ExitCode::from(2);
+            }
         }
     };
     // Les fichiers importés sont lus à côté, et joints au texte : le moteur ne lit rien seul.
-    let ici = std::path::Path::new(fichier).parent().unwrap_or(std::path::Path::new("."));
+    let ici = if depuis_l_editeur {
+        std::path::PathBuf::from(if dossier.is_empty() { "." } else { dossier })
+    } else {
+        std::path::Path::new(fichier).parent().unwrap_or(std::path::Path::new(".")).to_path_buf()
+    };
     for nom in holo_moteur::imports(&source).split(';').filter(|nom| !nom.is_empty()).map(str::to_string).collect::<Vec<_>>() {
         if let Ok(texte) = std::fs::read_to_string(ici.join(&nom)) {
             source.push(holo_moteur::holo::FICHIER_SUIVANT);
@@ -48,6 +73,12 @@ fn main() -> ExitCode {
             let secondes = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
             holo_moteur::regler_maintenant(holo_moteur::etat::depuis_secondes_unix(secondes));
         }
+    }
+    // Pour un éditeur : la même réponse que celle de l'éditeur du navigateur (ADR-046).
+    if depuis_l_editeur && commande == "check" {
+        let reponse = holo_moteur::verifier_texte(&source);
+        println!("{reponse}");
+        return if reponse.starts_with("ok") { ExitCode::SUCCESS } else { ExitCode::FAILURE };
     }
     let resultat = match commande {
         "check" => holo_moteur::verifier_page(&source).map(|_| "ok".to_string()),

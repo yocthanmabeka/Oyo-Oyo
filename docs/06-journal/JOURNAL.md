@@ -6,6 +6,23 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — L'éditeur : la faute à sa place, la correction d'un clic
+
+- Yocthan, citant la ligne du tableau « Corriger d'un clic — dans l'éditeur ; le moteur reste strict — « Remplacer par H1 » — à faire : il faut un éditeur » : « Travaille sur l'éditeur now ».
+- Fait (`ADR-046`, à l'essai) : **l'éditeur du navigateur**, `/editeur`, sur le PC et le téléphone, sans rien installer (le texte en couleurs, la page à côté mise à jour pendant qu'on écrit, la faute soulignée, le bouton « Remplacer « h1 » par « H1 » », les mots à toucher, l'enregistrement avec la clé affichée par le serveur, une sauvegarde de l'ancienne version) ; et **l'extension VS Code 0.2.0** (la faute soulignée avant même d'enregistrer, l'ampoule, les mots proposés). Une seule logique de correction, `moteur/web/corrections.js`. Le moteur donne `verifier_texte` et `vocabulaire` (en ligne de commande : `holo check -`, `holo vocabulaire`).
+- Vérifié dans Chrome : « h1 » → « H1 » d'un clic et l'aperçu qui montre « Bonjour » ; « textx » → « text » ; les blocs proposés dans `children: [` ; l'enregistrement avec la clé, refusé sans elle ; les onglets sur un écran de téléphone. L'extension, avec une imitation de VS Code et le vrai moteur : la faute soulignée (ligne 4, « h1 »), l'ampoule et son remplacement, 241 mots proposés. 106 tests.
+- L'extension n'est pas encore installée dans le VS Code de Yocthan : c'est une commande, qu'il décide de lancer.
+
+![L'éditeur : le texte, la page, les mots à toucher, la faute en bas](images/2026-10-06-editeur.png)
+
+**Erreurs en route**
+
+- Mes premiers essais de l'éditeur agissaient avant l'arrivée du moteur (8 secondes dans le Chrome de test) : fausses alertes, corrigées dans le test.
+- Dans une liste `children: [`, l'éditeur proposait d'abord les réglages de la page au lieu des blocs : corrigé (il sait maintenant dans quelle sorte de liste on écrit).
+- J'ai voulu réécrire `holo.rs` sans l'avoir relu depuis l'ajout de l'heure : l'outil l'a refusé ; relu, puis écrit.
+
+---
+
 ## 2026-10-06 — Lot 8 : le premier module enfermé, et la preuve demandée par Codex
 
 - Fait (`ADR-045`, à l'essai ; construction de `ADR-011`, partie C) : `module "…"` en haut du fichier ; `Module(name:, source:, input:, output:, time:, memory:)` ; `run`, `done`, `failed`. La boîte : un fil à part, une mémoire donnée par le moteur et plafonnée, rien d'autre ; arrêté au-delà de son temps. Les ponts `bridge js` et `bridge css` sont maintenant refusés. Leçon 69, et trois modules d'essai en Rust (`exemples/lecons/modules/`, 68 à 105 octets une fois compilés). Nouveau module du moteur : `modules.rs`.

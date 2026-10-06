@@ -416,6 +416,18 @@ pub fn source_du_point(source: &str, nom: &str) -> Option<String> {
     crate::source_du_point(source, nom)
 }
 
+/// L'éditeur : `ok`, ou la première faute avec sa ligne et sa colonne (ADR-046).
+#[wasm_bindgen]
+pub fn verifier_texte(source: &str) -> String {
+    crate::verifier_texte(source)
+}
+
+/// L'éditeur : tous les mots du langage, en JSON.
+#[wasm_bindgen]
+pub fn vocabulaire() -> String {
+    crate::vocabulaire()
+}
+
 /// Vérifie un fichier `.holo` sans rien lancer. Rend `ok` ou le message d'erreur.
 #[wasm_bindgen]
 pub fn verifier_holo(source: &str) -> String {

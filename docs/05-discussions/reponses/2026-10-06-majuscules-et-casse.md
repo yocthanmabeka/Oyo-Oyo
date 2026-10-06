@@ -22,7 +22,7 @@ Réponses au prompt [`../prompts/2026-10-06-majuscules-et-casse.md`](../prompts/
 |---|---|---|---|---|
 | Respecter la casse | Oui | Oui | Oui | **Les trois** |
 | Refuser une faute avec le bon mot | Oui | Oui | Oui | **Les trois** |
-| Corriger d'un clic dans l'éditeur | Oui | Oui | Oui | **Les trois** (il faut un éditeur : à faire) |
+| Corriger d'un clic dans l'éditeur | Oui | Oui | Oui | **Les trois** : **fait le 2026-10-06, à l'essai** (`ADR-046` : l'éditeur du navigateur et l'extension VS Code) |
 | `Page(Title: …)` accepté en silence | Bug sérieux | Inacceptable | Défaut | **Les trois** : **corrigé le 2026-10-06** |
 | `name: buy` accepté | Refuser, proposer `Buy` | Refuser | Refuser | **Les trois** : **corrigé le 2026-10-06** |
 | `KB` en majuscules | Garder | Garder | Garder | **Les trois** |

@@ -10,7 +10,8 @@
 // C'est le rôle que tiendra plus tard un navigateur qui sait lire le .holo.
 
 import { createServer } from "node:http";
-import { appendFile, mkdir, readFile, stat } from "node:fs/promises";
+import { appendFile, mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
 import { extname, join, normalize, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { brotliCompressSync, constants } from "node:zlib";
@@ -96,6 +97,57 @@ async function fichier(chemin) {
 // retarde le moteur de cinq secondes ; HOLO_MOTEUR=panne le refuse. Sans cette variable, rien.
 const [modeMoteur, retardMoteur] = (process.env.HOLO_MOTEUR ?? "").split(":");
 
+// L'éditeur (ADR-046) : il peut écrire un fichier .holo sous exemples/, avec la clé que le
+// serveur tire au hasard à son démarrage et affiche. Sans la clé, rien ne s'écrit : un autre
+// appareil du Wi-Fi peut lire et essayer, pas modifier. Le fichier est d'abord écrit à côté,
+// puis mis à sa place d'un coup : jamais de fichier à moitié écrit. Une ancienne version est
+// gardée dans editeur-sauvegardes/ (jamais versionné), au cas où.
+const cleDeLEditeur = process.env.HOLO_CLE || randomBytes(9).toString("base64url");
+const sauvegardes = join(depot, "editeur-sauvegardes");
+const FICHIER_MAX = 262144;
+async function enregistrerUnFichier(req, res, url) {
+  if ((req.headers["x-holo-cle"] ?? "") !== cleDeLEditeur) return repondre(res, 403, "la clé de l'éditeur manque ou n'est pas la bonne : ouvre l'éditeur par l'adresse affichée au démarrage du serveur");
+  if (!url.startsWith("/exemples/") || !url.endsWith(".holo") || url.includes("..")) return repondre(res, 400, "l'éditeur n'écrit que des fichiers .holo sous exemples/");
+  const chemin = join(exemples, normalize(url.slice("/exemples/".length)));
+  if (!chemin.startsWith(exemples)) return repondre(res, 400, "hors du dossier des exemples");
+  const morceaux = [];
+  let taille = 0;
+  for await (const morceau of req) {
+    taille += morceau.length;
+    if (taille > FICHIER_MAX) return repondre(res, 413, `fichier trop long : plus de ${FICHIER_MAX} octets`);
+    morceaux.push(morceau);
+  }
+  const texte = Buffer.concat(morceaux);
+  await mkdir(join(chemin, ".."), { recursive: true });
+  const ancien = await readFile(chemin).catch(() => null);
+  if (ancien && !ancien.equals(texte)) {
+    await mkdir(sauvegardes, { recursive: true });
+    const horodatage = new Date().toISOString().replace(/[:.]/g, "-");
+    await writeFile(join(sauvegardes, `${url.slice(1).replace(/[\\/]/g, "_")}.${horodatage}`), ancien);
+  }
+  const provisoire = `${chemin}.${process.pid}.tmp`;
+  await writeFile(provisoire, texte);
+  await rename(provisoire, chemin);
+  console.log(`Enregistré par l'éditeur : ${url} (${texte.length} octets)`);
+  return repondre(res, 204, "");
+}
+// Tous les fichiers .holo servis, pour le panneau « Fichiers » de l'éditeur.
+async function listerLesHolo() {
+  const trouves = [];
+  async function parcourir(dossier, prefixe) {
+    let entrees = [];
+    try { entrees = await readdir(dossier, { withFileTypes: true }); } catch { return; }
+    for (const e of entrees.sort((a, b) => a.name.localeCompare(b.name, "fr"))) {
+      if (e.name.startsWith(".") || e.name === "node_modules") continue;
+      if (e.isDirectory()) await parcourir(join(dossier, e.name), `${prefixe}${e.name}/`);
+      else if (e.name.endsWith(".holo")) trouves.push(`${prefixe}${e.name}`);
+    }
+  }
+  await parcourir(exemples, "/exemples/");
+  await parcourir(mondes, "/mondes/");
+  return trouves;
+}
+
 // Les messages envoyés par un formulaire (ADR-042) : rangés dans messages/, à la racine du dépôt,
 // un fichier par page, une ligne par message. Ce dossier n'est jamais versionné. C'est Yocthan
 // qui les lit ; rien ne part ailleurs.
@@ -130,6 +182,12 @@ function repondre(res, code, texte) {
 createServer(async (req, res) => {
   try {
     let url = decodeURIComponent(new URL(req.url, "http://x").pathname);
+    if (req.method === "PUT") return await enregistrerUnFichier(req, res, url);
+    if (url === "/liste-holo") {
+      res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-cache" });
+      return res.end(JSON.stringify(await listerLesHolo()));
+    }
+    if (url === "/editeur") url = "/editeur.html";
     if (req.method === "POST") {
       if (!url.endsWith(".holo") || !/application\/json/.test(req.headers["content-type"] ?? "")) return repondre(res, 405, "seul un formulaire d'une page .holo envoie ici");
       // Seulement pour une page qui existe, parmi les exemples servis.
@@ -181,6 +239,7 @@ createServer(async (req, res) => {
   console.log(`Fichiers .holo : ${depot}`);
   console.log(rendeur ? `Pages fabriquées d'avance par : ${rendeur}` : "Pages fabriquées dans le navigateur (pour les fabriquer d'avance : cargo build --release --bin holo)");
   console.log(`Sur ce PC      : http://localhost:${port}`);
+  console.log(`L'éditeur      : http://localhost:${port}/editeur?cle=${cleDeLEditeur}   (la clé permet d'enregistrer ; sans elle, on lit et on essaie)`);
   for (const ip of ips) console.log(`Sur le téléphone (même Wi-Fi) : http://${ip}:${port}`);
   console.log("WebGPU exige une page sécurisée : sur le téléphone, voir « Tester sur le téléphone » dans moteur/README.md.");
 });
