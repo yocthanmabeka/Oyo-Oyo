@@ -6,6 +6,22 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — La boutique comparée, mise à jour des deux côtés
+
+- Demande de Yocthan : actualiser le site qui compare HoloCode à HTML, CSS et JavaScript. Les deux versions de la boutique ont reçu les mêmes ajouts : en-tête et menu, pied de page, pastille « New » sur le tableau, survol et focus des boutons, un titre de niveau 4, des textes qui suivent le réglage du visiteur.
+- Vérifié par captures côte à côte, sur ordinateur et sur téléphone : identiques.
+- Mesuré : 9 Ko contre 8 Ko téléchargés (579 Ko le 2026-10-04, avant le site léger) ; même premier affichage ; 176 lignes en HoloCode contre 348 en web (90 + 103 + 155).
+
+**Erreurs de Claude**
+
+- Dans la version web, une règle de marges ajoutée était plus « forte » que celles de la grille, du menu et de la pastille : la grille passait à une colonne et la pastille tombait sous l'image. Corrigé avec `:where()`. C'est la cascade que HoloCode refuse, et Claude y est tombé en écrivant le jumeau.
+- Le point lumineux était centré côté web et à gauche côté HoloCode depuis le 2026-10-03 ; aligné.
+- Le script qui écrivait ce journal s'est arrêté sur une variable réutilisée ; la pull request est partie sans lui. Ajouté à part.
+
+![Les deux boutiques côte à côte (HoloCode à gauche, web à droite)](images/2026-10-06-boutiques-jumelles.png)
+
+---
+
 ## 2026-10-06 — Un prompt sur les majuscules et la casse
 
 - Demande de Yocthan : un prompt pour ChatGPT et Gemini sur les majuscules, avec tous les mots du langage, la question « le langage respecte-t-il la casse ? », et le désaccord de Claude.
