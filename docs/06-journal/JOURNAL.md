@@ -6,6 +6,13 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — ADR-006, 012 et 013 réunies dans ADR-011
+
+- Yocthan : voir ADR-011, 012, 013 et 006 pour savoir ce qu'il y a à décider ; les réunir dans un seul fichier, ADR-011, et supprimer les autres.
+- Fait : `docs/02-gouvernance/adr/ADR-011-rendu-par-vue.md` contient tout, sans rien perdre, en quatre parties (A : le rendu par vue ; B : les ponts, ancienne 012 ; C : les deux étages, ancienne 013 ; D : HoloIR, ancienne 006), avec en tête un tableau de ce qu'il y a à décider et la recommandation de Claude : valider A, ne pas construire B, valider la direction de C, laisser D en proposition. Chaque partie garde son statut jusqu'à la décision de Yocthan. Les fichiers 006, 012 et 013 sont supprimés ; le registre pointe vers les parties ; les numéros cités ailleurs restent compréhensibles.
+
+---
+
 ## 2026-10-06 — Lot 1 : la langue et le partage, la vidéo, le tableau, le texte long, le choix
 
 - Yocthan : construire tout ce qu'on a décidé d'ajouter. 48 éléments restaient (14 en priorité, 34 utiles) ; ils se construisent par lots. Le lot 1 prend les urgences sans choix d'architecture (`ADR-038`, à l'essai).
