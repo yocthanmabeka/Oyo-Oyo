@@ -17,7 +17,11 @@ Page(
     H2("Trois créations"),
     Grid(columns: 3, gap: 16px, children: [
       Column.carte(gap: 6px, children: [
-        Image(source: "lever.svg", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu", weight: 1KB),
+        // Une pastille posée sur l'image : Stack et align (leçon 38).
+        Stack(children: [
+          Image(source: "lever.svg", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu", weight: 1KB),
+          Text.pastille("Nouveau", align: top_right),
+        ]),
         P("Lever sur le fleuve"),
         Text.prix("120 euros"),
         A("Lire son histoire", to: "fiche.holo"),

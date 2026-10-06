@@ -42,6 +42,10 @@ Page(
 )
 ```
 
+## Correction du 2026-10-06 : jusqu'à `H6`
+
+Le point 5 (« les titres s'arrêtent à `H3` ») est levé, après l'avis des humains, de Gemini et de ChatGPT : les longs documents (techniques, juridiques) ont besoin de plus de niveaux, et 71,6 % des utilisateurs de lecteurs d'écran naviguent d'abord par les titres. Les titres vont de `H1` à `H6`, avec la même règle : le numéro dit la place dans le plan, jamais la taille (`ADR-036`).
+
 ## Défauts de HTML, CSS et JavaScript évités
 
 - HTML : choisir `h3` « parce que c'est plus petit » ; sauter des niveaux ; six niveaux dont trois presque jamais utilisés ; tout écrire en `div`, sans dire ce que les choses sont.

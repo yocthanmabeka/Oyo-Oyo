@@ -1,0 +1,38 @@
+// Leçon 38 — Poser un bloc sur un autre
+//
+// Ce qu'on apprend :
+//   Stack(children: [...]) pose ses enfants les uns sur les autres. Le premier donne la
+//   taille ; les autres se posent dessus, à la place qu'on dit avec align: :
+//     top_left    top      top_right
+//     left        center   right
+//     bottom_left bottom   bottom_right
+//   Sans align:, un bloc se pose au centre. C'est ainsi qu'on met une pastille « Nouveau » sur
+//   une image, ou un nombre sur une icône.
+//
+// À essayer :
+//   Mets align: bottom_left sur la pastille.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 38 : poser un bloc sur un autre",
+  children: [
+    H1("La superposition"),
+    Stack(children: [
+      Image(source: "etoile.svg", alt: "Une étoile dorée"),
+      Text.pastille("Nouveau", align: top_right),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 37 : le survol", to: "37-survol.holo"),
+    ]),
+  ],
+)
+
+Image { width: 200px; height: 200px; border-radius: 16px; }
+.pastille { background: #E4572E; color: white; border-radius: 999px; padding: 4px 12px; font-size: 14px; font-weight: bold; }
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

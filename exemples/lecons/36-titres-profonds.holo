@@ -1,0 +1,39 @@
+// Leçon 36 — Des titres plus profonds
+//
+// Ce qu'on apprend :
+//   Les titres vont de H1 à H6. Le numéro dit la place dans le plan, jamais la taille :
+//   H4 est une partie de H3, comme 1.2.3.1 dans un document.
+//   On ne saute pas de niveau : H5 ne vient pas juste après H3.
+//   La taille se règle par le style.
+//
+// À essayer :
+//   Remplace H5 par H6 : le moteur refuse, parce qu'un niveau est sauté.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 36 : des titres plus profonds",
+  children: [
+    H1("Conditions de vente"),
+    H2("1. La commande"),
+    H3("1.1 Le panier"),
+    H4("1.1.1 Ajouter une création"),
+    H5("1.1.1.1 Quantité"),
+    H6("1.1.1.1.1 Au plus cinq"),
+    "Un long document a besoin de plusieurs niveaux de plan.",
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 35 : les repères", to: "35-reperes.holo"),
+      A("Leçon 37 : le survol →", to: "37-survol.holo"),
+    ]),
+  ],
+)
+
+H4 { font-size: 18px; }
+H5 { font-size: 16px; font-style: italic; }
+H6 { font-size: 14px; opacity: 0.8; }
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

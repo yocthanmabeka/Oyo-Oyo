@@ -35,6 +35,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 33 : une boucle", to: "33-boucle.holo"),
+      A("Leçon 35 : les repères →", to: "35-reperes.holo"),
     ]),
   ],
 )

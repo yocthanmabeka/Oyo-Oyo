@@ -1,18 +1,18 @@
 # HoloCode face à HTML, CSS et JavaScript : le grand tableau
 
-- Relevé de Claude, le 2026-10-06, moteur à la PR 83. 129 éléments.
+- Relevé de Claude, le 2026-10-06, mis à jour après `ADR-036` (repères, titres jusqu’à H6, texte qui suit le réglage du visiteur, états, superposition). 130 éléments.
 - **Couverture** : la part de ce que fait l’élément web qu’on obtient en HoloCode aujourd’hui. Estimation de Claude, élément par élément, non mesurée.
-- **Doit exister** : avis de Claude, soumis à Codex, Gemini et Yocthan. Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
+- **Doit exister** : avis de Claude, après les avis des humains, de Gemini et de ChatGPT. Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 - Le détail plus ancien, balise par balise : [`COMPARAISON-WEB.md`](COMPARAISON-WEB.md).
 
 ## Résumé
 
 | | Couverture moyenne | Oui | En partie | Non | Refusés exprès |
 |---|---|---|---|---|---|
-| HTML | 47 % | 22 | 12 | 25 | 3 |
-| CSS | 47 % | 12 | 8 | 11 | 2 |
+| HTML | 52 % | 25 | 11 | 23 | 3 |
+| CSS | 53 % | 14 | 9 | 9 | 2 |
 | JavaScript | 32 % | 6 | 11 | 15 | 1 |
-| **Ensemble** | 43 % | 40 | 31 | 51 | 6 |
+| **Ensemble** | 47 % | 45 | 31 | 47 | 6 |
 
 Les moyennes ne comptent ni les refus exprès, ni ce qui est sans objet.
 
@@ -27,8 +27,8 @@ Les moyennes ne comptent ni les refus exprès, ni ce qui est sans objet.
 | `meta description, image de partage` | ce que montrent Google et les réseaux | — | Non | 0 % | Oui, en priorité | Sans elle, un site HoloCode est mal présenté dans les recherches et les partages. |
 | `link rel=icon` | la petite image de l'onglet | — | Non | 0 % | Oui, utile | Tout vrai site en a une. |
 | `lang` | la langue de la page | — | Non | 0 % | Oui, en priorité | Un lecteur d'écran prononce mal une page sans langue. |
-| `header, footer` | en-tête et pied de page | `Part et Use (sans rôle)` | En partie | 40 % | Oui, utile | Le morceau existe, mais un lecteur d'écran ne sait pas que c'est un en-tête. |
-| `nav` | le menu de navigation | — | Non | 0 % | Oui, en priorité | Repère essentiel pour les aveugles ; à donner au menu. |
+| `header, footer, main` | en-tête, pied, contenu principal | `Header, Footer, Main` | Oui | 100 % | Déjà là | Ajoutés le 2026-10-06 (ADR-036). |
+| `nav` | le menu de navigation | `Nav` | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-036). |
 | `aside` | un encadré à part | — | Non | 0 % | Plus tard | — |
 | `section, article` | des parties de page | `les titres H1 à H3` | Refusé exprès | — | Non | Jugement de Claude, sans décision : les titres donnent déjà le plan. Soumis à Codex et Gemini. |
 | `div` | une boîte sans sens | — | Refusé exprès | — | Non | Refusé par Yocthan (ADR-009) : chaque bloc dit ce qu'il est. |
@@ -39,7 +39,7 @@ Les moyennes ne comptent ni les refus exprès, ni ce qui est sans objet.
 | Élément du web | Rôle | En HoloCode | Existe ? | Couverture | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|---|
 | `h1, h2, h3` | les titres | `H1, H2, H3` | Oui | 100 % | Déjà là | — |
-| `h4, h5, h6` | titres plus profonds | — | Non | 0 % | Plus tard | Pas un refus : ADR-020 dit qu'on en ajoutera au premier vrai besoin (un long mode d'emploi). |
+| `h4, h5, h6` | titres plus profonds | `H4, H5, H6` | Oui | 100 % | Déjà là | Ajoutés le 2026-10-06 (correction d'ADR-020). |
 | `p` | un paragraphe | `P, ou une phrase seule` | Oui | 100 % | Déjà là | — |
 | `strong, b` | le gras | `**gras**` | Oui | 100 % | Déjà là | — |
 | `em, i` | l'italique | `*italique*` | Oui | 100 % | Déjà là | — |
@@ -116,7 +116,7 @@ Les moyennes ne comptent ni les refus exprès, ni ce qui est sans objet.
 | `link stylesheet` | un fichier de styles partagé | `import "commun.holo"` | En partie | 70 % | Déjà là | Les styles viennent avec un morceau ; pas de fichier de styles seul. |
 | `script` | du code dans la page | — | Refusé exprès | — | Non | Refusé (ADR-015) : aucun code libre, pour la sécurité. |
 | `template, slot` | un morceau réutilisable | `Part et Use` | En partie | 60 % | Oui, utile | Pas encore de morceau avec des paramètres (une carte produit réutilisée). |
-| `attributs aria, tabindex` | l'accessibilité fine | `quelques-uns, ajoutés par le moteur` | En partie | 30 % | Oui, en priorité | Et en vue points, un lecteur d'écran ne voit rien. |
+| `attributs aria, tabindex` | l'accessibilité fine | `les repères, et quelques attributs ajoutés par le moteur` | En partie | 45 % | Oui, en priorité | En vue points, un lecteur d'écran ne voit toujours rien. |
 
 ## CSS — Couleurs et texte
 
@@ -144,7 +144,7 @@ Les moyennes ne comptent ni les refus exprès, ni ce qui est sans objet.
 | `opacity` | la transparence | `opacity` | Oui | 100 % | Déjà là | — |
 | `overflow` | ce qui dépasse | — | Non | 0 % | Plus tard | — |
 | `cursor` | la forme du curseur | — | Non | 0 % | Plus tard | — |
-| `unités %, rem, vw, clamp` | des tailles qui s'adaptent à l'écran | `seulement px` | Non | 0 % | Oui, en priorité | Défaut vu dans le film : un grand titre déborde d'un petit téléphone. |
+| `unités %, rem, vw, clamp` | des tailles qui s'adaptent à l'écran | `automatique pour le texte : px → rem, grands titres en clamp` | En partie | 60 % | Oui, utile | Le texte suit le réglage du visiteur ; les autres tailles restent en px. |
 
 ## CSS — Disposition
 
@@ -155,6 +155,7 @@ Les moyennes ne comptent ni les refus exprès, ni ce qui est sans objet.
 | `grid` | une grille | `Grid(columns:, gap:)` | En partie | 70 % | Déjà là | Pas de zones nommées ni de case sur deux colonnes. |
 | `@media (s'adapter à l'écran)` | changer selon la taille | `automatique : la grille perd des colonnes` | En partie | 50 % | Oui, utile | On ne peut pas dire « sur téléphone, cache ceci ». |
 | `aspect-ratio` | garder des proportions | `Board (automatique)` | En partie | 30 % | Plus tard | — |
+| `position: absolute (badge, pastille)` | poser un bloc sur un autre | `Stack et align:` | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-036). Pas encore de bulle attachée à un bloc. |
 | `sélecteurs par balise et par nom` | viser des blocs | `P { }, .carte { }` | Oui | 100 % | Déjà là | — |
 | `sélecteurs composés, cascade, !important` | viser finement, forcer | — | Refusé exprès | — | Non | Refusé (ADR-017) : source de conflits sans fin en CSS. |
 
@@ -162,7 +163,7 @@ Les moyennes ne comptent ni les refus exprès, ni ce qui est sans objet.
 
 | Élément du web | Rôle | En HoloCode | Existe ? | Couverture | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|---|
-| `hover, focus, active` | l'apparence au survol, au clic | — | Non | 0 % | Oui, en priorité | Un bouton qui ne réagit pas au survol paraît mort. |
+| `hover, focus, active` | l'apparence au survol, au clic | `hover:, focus:, active: dans un style` | Oui | 100 % | Déjà là | Ajoutés le 2026-10-06 (ADR-036). |
 | `transition` | passer en douceur d'un état à l'autre | `Enter à l'apparition seulement` | En partie | 30 % | Oui, utile | — |
 | `animation, @keyframes` | une animation | `Enter, Loop, Scenes` | Oui | 75 % | Déjà là | Dix propriétés et sept courbes ; pas d'étapes intermédiaires libres. |
 | `transform 2D` | déplacer, tourner, grandir | `x, y, rotate, scale dans Enter et Loop` | En partie | 50 % | Oui, utile | Seulement pendant un mouvement, pas une pose fixe. |

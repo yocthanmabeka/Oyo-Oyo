@@ -1,0 +1,44 @@
+// Leçon 35 — Les repères de la page
+//
+// Ce qu'on apprend :
+//   Une personne aveugle écoute la page avec un lecteur d'écran. Pour ne pas tout écouter,
+//   elle saute d'un repère à l'autre : l'en-tête, le menu, le contenu, le pied de page.
+//   Header(...) : l'en-tête, en haut.  Nav(...) : le menu.
+//   Main(...) : le contenu principal.  Footer(...) : le pied de page, en bas.
+//   On les écrit directement dans la page. Rien ne change à l'œil ; tout change à l'oreille.
+//
+// À essayer :
+//   Sur Windows, lance le Narrateur (Ctrl + Windows + Entrée), puis la touche D : il saute
+//   de repère en repère.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 35 : les repères de la page",
+  children: [
+    Header(children: [
+      Text("Mon atelier"),
+      Nav(children: [
+        Row(gap: 16px, children: [
+          A("Accueil", to: "01-page.holo"),
+          A("Leçon 36", to: "36-titres-profonds.holo"),
+        ]),
+      ]),
+    ]),
+    Main(children: [
+      H1("Les repères"),
+      "Ce paragraphe est dans le contenu principal.",
+    ]),
+    Footer(children: [
+      Hr(),
+      Row(gap: 16px, align: between, children: [
+        A("← Leçon 34 : des scènes", to: "34-scenes.holo"),
+        A("Leçon 36 : des titres plus profonds →", to: "36-titres-profonds.holo"),
+      ]),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

@@ -55,7 +55,7 @@ Page(
 
 | Bloc | Ce que c'est |
 |---|---|
-| `H1`, `H2`, `H3` | Un titre. Le numéro dit sa place dans le plan, jamais sa taille. |
+| `H1` à `H6` | Un titre. Le numéro dit sa place dans le plan, jamais sa taille. |
 | `P`, ou une phrase nue | Un paragraphe. |
 | `Text` | Du texte sans rôle : une étiquette, une ligne d'état. |
 
@@ -63,6 +63,7 @@ Règles :
 
 - Le premier titre est `H1`. On ne saute pas de niveau : `H3` ne suit pas `H1`.
 - La taille d'un titre se règle par le style, pas en changeant de numéro.
+- Les titres vont jusqu'à `H6`, pour les longs documents (leçon 36).
 - Dans un texte, `**gras**` et `*italique*`.
 
 ## 4. Images, listes, boutons
@@ -886,6 +887,65 @@ Le meilleur score tient alors en une règle : au moment où le score dépasse le
 
 Cette écriture est à l'essai (`ADR-032`). Les leçons sont `29-comparer-deux-valeurs.holo` et `30-formes.holo`.
 
+## 6 undecies. Les repères, la superposition, le survol, le texte qui grandit
+
+**Les repères.** Une personne aveugle saute d'un repère à l'autre avec son lecteur d'écran. Rien ne change à l'œil.
+
+```holo
+Page(
+  title: "Landmarks",
+  children: [
+    Header(children: [
+      Text("My studio"),
+      Nav(children: [ A("Home", to: "home.holo") ]),
+    ]),
+    Main(children: [ H1("Welcome"), "The main content." ]),
+    Footer(children: [ Text("Made in HoloCode") ]),
+  ],
+)
+```
+
+- `Header` : l'en-tête ; `Nav` : un menu ; `Main` : le contenu principal ; `Footer` : le pied de page.
+- `Header` et `Footer` posés directement dans la page sortent du contenu principal, comme il se doit. `Main` ne se pose que directement dans la page. Sans `Main`, tout le contenu de la page est le contenu principal.
+- Ils vont bien dans un morceau partagé (`Part`) : le menu d'un site s'écrit une fois.
+
+**La superposition.** `Stack` pose ses enfants les uns sur les autres. Le premier donne la taille ; les autres se posent dessus, à la place dite par `align:` (`top_left`, `top`, `top_right`, `left`, `center`, `right`, `bottom_left`, `bottom`, `bottom_right` ; au centre sans rien dire).
+
+```holo
+Page(
+  title: "A badge",
+  children: [
+    Stack(children: [
+      Image(source: "star.svg", alt: "A golden star"),
+      Text("New", align: top_right),
+    ]),
+  ],
+)
+```
+
+**Le survol, le focus, l'appui.** Dans un style, un état dit ce qui change : `hover: { … }` (la souris passe dessus), `focus: { … }` (on y arrive au clavier), `active: { … }` (pendant l'appui).
+
+```holo
+Page(
+  title: "Hover",
+  children: [ Button.cta(name: Go, text: "Go") ],
+)
+
+.cta {
+  background: #E9B44C;
+  hover: { background: #ffd27a; }
+  focus: { border: 3px solid white; }
+  active: { opacity: 0.7; }
+}
+```
+
+- Le changement se fait en douceur (0,15 s). Sur un écran tactile, le survol n'existe pas : il ne reste pas collé après un toucher.
+- Dans un état, les mêmes réglages qu'ailleurs. Pas de sélecteur : un état appartient à son style.
+
+**Le texte qui grandit.** Rien à écrire : une taille de texte écrite en pixels suit le réglage « texte plus grand » du visiteur (le moteur l'écrit en `rem` : 16px = 1rem). Un titre de plus de 24px rétrécit sur un écran plus étroit que la page, sans passer sous 24px : un grand titre ne déborde plus d'un téléphone.
+
+Ces quatre ajouts sont à l'essai (`ADR-036`). Les leçons sont `35-reperes.holo`, `36-titres-profonds.holo`, `37-survol.holo`, `38-superposition.holo`.
+
 ## 6 decies. Le mouvement : `Enter`, `Loop`, `Scenes`
 
 ```holo
@@ -1061,7 +1121,10 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | Bloc | Réglages | Où |
 |---|---|---|
 | `Page` | `name`, `title`, `children`, `pixels`, `rules`, `state`, `prices`, `keep`, `data`, `zoom`, `points`, `relief`, `portals` | À la racine |
-| `H1`, `H2`, `H3`, `P`, `Text` | le texte entre guillemets ; `name` | Dans `children` |
+| `H1` à `H6`, `P`, `Text` | le texte entre guillemets ; `name` | Dans `children` |
+| `Header`, `Nav`, `Footer` | `children`, `name` | Dans `children` ; `Header` et `Footer` posés directement dans la page en sont l'en-tête et le pied |
+| `Main` | `children`, `name` | Directement dans la page |
+| `Stack` | `children`, `name` ; ses enfants prennent `align` | Dans `children` |
 | `A` | le texte entre guillemets, `to` | Dans `children` |
 | `Image` | `source`, `weight`, `alt`, `name` | Dans `children` |
 | `Sound` | `name`, `source`, `weight` | Dans `children` |

@@ -42,5 +42,9 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 32 | [Faire entrer un bloc](32-entrer.holo) | `Enter` |
 | 33 | [Un mouvement en boucle](33-boucle.holo) | `Loop` |
 | 34 | [Des scènes qui s'enchaînent](34-scenes.holo) | `Scenes` |
+| 35 | [Les repères de la page](35-reperes.holo) | `Header, Nav, Main, Footer` |
+| 36 | [Des titres plus profonds](36-titres-profonds.holo) | `H4, H5, H6` |
+| 37 | [Le survol, le focus, l'appui](37-survol.holo) | `hover:, focus:, active:` |
+| 38 | [Poser un bloc sur un autre](38-superposition.holo) | `Stack, align:` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.

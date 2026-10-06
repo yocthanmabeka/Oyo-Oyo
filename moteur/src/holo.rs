@@ -86,8 +86,13 @@ pub struct Reglage {
 pub struct RegleStyle {
     pub cible: Cible,
     pub reglages: Vec<Reglage>,
+    /// Les états du bloc : `hover: { … }`, `focus: { … }`, `active: { … }` (ADR-036).
+    pub etats: Vec<(String, Vec<Reglage>, Pos)>,
     pub pos: Pos,
 }
+
+/// Les états qu'un style peut décrire : au survol, au focus du clavier, pendant l'appui.
+pub const ETATS: &[&str] = &["hover", "focus", "active"];
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Erreur {
@@ -296,6 +301,7 @@ impl<'a> Lecteur<'a> {
                 }
             }
             let mut reglages = Vec::new();
+            let mut etats = Vec::new();
             loop {
                 self.sauter_blancs();
                 match self.src.get(self.i) {
@@ -313,6 +319,55 @@ impl<'a> Lecteur<'a> {
                     return Err(Erreur { message: "un réglage s'écrit « nom: valeur; », comme « color: gray; »".into(), pos: pos_reglage });
                 }
                 self.i += 1;
+                // Un état : `hover: { background: navy; }`. Ses réglages valent pendant cet état.
+                while matches!(self.src.get(self.i), Some(b' ' | b'\t')) {
+                    self.i += 1;
+                }
+                if self.src.get(self.i) == Some(&b'{') {
+                    if !ETATS.contains(&nom.as_str()) {
+                        return Err(Erreur { message: format!("« {nom} » n'est pas un état ; un style décrit ces états : {} (ADR-036)", ETATS.join(", ")), pos: pos_reglage });
+                    }
+                    self.i += 1;
+                    let mut dedans = Vec::new();
+                    loop {
+                        self.sauter_blancs();
+                        match self.src.get(self.i) {
+                            None => return Err(Erreur { message: format!("l'état « {nom} » de « {cible} » n'est jamais refermé : « }} » manquant"), pos: pos_reglage }),
+                            Some(b'}') => {
+                                self.i += 1;
+                                break;
+                            }
+                            _ => {}
+                        }
+                        let pos_dedans = self.pos();
+                        let reglage = self.mot_de_style(true);
+                        self.sauter_blancs();
+                        if reglage.is_empty() || self.src.get(self.i) != Some(&b':') {
+                            return Err(Erreur { message: "dans un état, un réglage s'écrit « nom: valeur; », comme « background: navy; »".into(), pos: pos_dedans });
+                        }
+                        self.i += 1;
+                        let debut = self.i;
+                        while self.i < self.src.len() && !b";}\n{".contains(&self.src[self.i]) {
+                            self.avancer();
+                        }
+                        let valeur = self.texte[debut..self.i].trim().to_string();
+                        match self.src.get(self.i) {
+                            Some(b';') => self.i += 1,
+                            Some(b'}') => {}
+                            _ => return Err(Erreur { message: format!("« ; » manquant à la fin du réglage « {reglage} »"), pos: pos_dedans }),
+                        }
+                        if valeur.is_empty() {
+                            return Err(Erreur { message: format!("le réglage « {reglage} » n'a pas de valeur"), pos: pos_dedans });
+                        }
+                        dedans.push(Reglage { nom: reglage, valeur, pos: pos_dedans });
+                    }
+                    self.sauter_blancs();
+                    if self.src.get(self.i) == Some(&b';') {
+                        self.i += 1;
+                    }
+                    etats.push((nom, dedans, pos_reglage));
+                    continue;
+                }
                 let debut = self.i;
                 while self.i < self.src.len() && !b";}\n{".contains(&self.src[self.i]) {
                     self.avancer();
@@ -329,7 +384,7 @@ impl<'a> Lecteur<'a> {
                 }
                 reglages.push(Reglage { nom, valeur, pos: pos_reglage });
             }
-            regles.push(RegleStyle { cible, reglages, pos });
+            regles.push(RegleStyle { cible, reglages, etats, pos });
         }
     }
 

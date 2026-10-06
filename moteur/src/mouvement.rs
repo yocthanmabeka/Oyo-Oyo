@@ -366,8 +366,8 @@ pub fn du_bloc(bloc: &Bloc) -> Result<Option<(Vec<Mouvement>, Bloc)>, Erreur> {
     for parametre in ["loop", "enter"] {
         if let Some(argument) = bloc.argument(parametre) {
             let m = lire(&argument.valeur, parametre).map_err(|e| Erreur { pos: argument.pos, ..e })?;
-            if m.lettres.is_some() && !matches!(bloc.nom.as_str(), "H1" | "H2" | "H3" | "P" | "Text" | "Button" | "Quote") {
-                return Err(Erreur { message: "« letters: » coupe un texte en lettres : il va sur H1, H2, H3, P, Text, Button ou Quote".into(), pos: argument.pos });
+            if m.lettres.is_some() && !matches!(bloc.nom.as_str(), "H1" | "H2" | "H3" | "H4" | "H5" | "H6" | "P" | "Text" | "Button" | "Quote") {
+                return Err(Erreur { message: "« letters: » coupe un texte en lettres : il va sur un titre (H1 à H6), P, Text, Button ou Quote".into(), pos: argument.pos });
             }
             if m.chacun.is_some() && !matches!(bloc.argument("children").map(|a| &a.valeur), Some(Valeur::Liste(_))) {
                 return Err(Erreur { message: "« each: » fait bouger les enfants l'un après l'autre : il va sur un bloc qui a des « children »".into(), pos: argument.pos });
