@@ -414,7 +414,7 @@ Ce que cela dit : **HoloCode est déjà au niveau de React et de Flutter pour so
 | **Les classes, décorateurs, injection de dépendances** | Angular, Flutter (`StatefulWidget`) | Des notions d'architecture pour grandes équipes, pas pour quelqu'un qui veut une page. |
 | **L'étape de construction, npm, `node_modules`** | tous sauf htmx | Rien à installer : un fichier, un navigateur. Et pas des centaines de paquets tiers, chacun une porte d'entrée pour une attaque. |
 | **Le DOM virtuel** | React | Le serveur envoie le HTML déjà fabriqué ; ensuite seul ce qui change est touché (comme Solid). |
-| **Le promesses, `async` / `await`** | tous | `Data`, `Form` et `Module` donnent des signaux simples (`done`, `sent`, `failed`). |
+| **Les promesses, `async` / `await`** | tous | `Data`, `Form` et `Module` donnent des signaux simples (`done`, `sent`, `failed`). |
 | **Dessiner la page dans un canevas** | Flutter web | Une page doit rester du vrai HTML : lisible par les moteurs de recherche, les lecteurs d'écran, la traduction automatique (`ADR-011`). |
 | **Les ponts vers JavaScript** | tous | Rejetés (`ADR-011`, partie B) : ils réintroduiraient tout ce qu'on vient d'écarter. |
 | **Les classes utilitaires** (Tailwind) | autour de React et Vue | Des dizaines de petits noms à apprendre. HoloCode garde des styles écrits comme du CSS, que tout le web connaît. |
