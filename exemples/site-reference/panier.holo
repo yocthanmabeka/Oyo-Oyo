@@ -1,0 +1,139 @@
+// Le panier, et l'atelier où les créations sont exposées.
+//
+// Le panier est fictif : rien n'est vendu ni envoyé. Le même panier se voit à plat et dans
+// l'atelier, en profondeur : une seule description, deux vues.
+//
+// Cette page active le métavers : les pixels deviennent des points au zoom (points:), la
+// page tourne (relief:), un monde est planté dans un pixel (pixels:).
+
+import "commun.holo"
+import "pied.holo"
+
+Page(
+  name: Panier,
+  title: "Panier — L'atelier des mondes",
+
+  zoom: Zoom(max: 1000000, levels: 8),
+  points: Points(after: 3),
+  relief: Relief(height: 10px, tilt: 360deg),
+  portals: Portals(layout: grid, count: 8, size: 160px, brightness: 0.2),
+
+  state: State(lever: 0, porte: 0, marche: 0, cadeau: 0, cartes: 0, nom: ""),
+  prices: Prices(lever: 120, porte: 90, marche: 50),
+  keep: [lever, porte, marche, cadeau, cartes, nom],
+
+  children: [
+    Use(Menu),
+    H1("Le panier"),
+
+    Grid(columns: 3, gap: 14px, children: [
+      Column.carte(gap: 6px, align: center, children: [
+        Image(source: "lever.svg", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu", weight: 1KB),
+        P("Lever sur le fleuve"),
+        Text.prix("120 euros · {lever} au panier"),
+        Row(gap: 8px, align: center, children: [ Button(name: MoinsLever, text: "−"), Button(name: PlusLever, text: "+") ]),
+      ]),
+      Column.carte(gap: 6px, align: center, children: [
+        Image(source: "porte.svg", alt: "Une porte bleue dans un mur couleur sable", weight: 1KB),
+        P("La porte bleue"),
+        Text.prix("90 euros · {porte} au panier"),
+        Row(gap: 8px, align: center, children: [ Button(name: MoinsPorte, text: "−"), Button(name: PlusPorte, text: "+") ]),
+      ]),
+      Column.carte(gap: 6px, align: center, children: [
+        Image(source: "marche.svg", alt: "Des étals rouges et jaunes sous un ciel clair", weight: 1KB),
+        P("Jour de marché"),
+        Text.prix("50 euros · {marche} au panier"),
+        Row(gap: 8px, align: center, children: [ Button(name: MoinsMarche, text: "−"), Button(name: PlusMarche, text: "+") ]),
+      ]),
+    ]),
+
+    H2("Votre panier"),
+    If(count, is: 0, children: [
+      "Votre panier est vide.",
+    ]),
+    If(count, over: 0, children: [
+      Row(gap: 12px, align: between, children: [
+        Text.prix("{count} créations · {total} euros"),
+        Button(name: Vider, text: "Vider le panier"),
+      ]),
+      Checkbox(value: cadeau, label: "Emballage cadeau"),
+      If(cadeau, is: 1, children: [ Text.discret("Nous emballerons vos tableaux.") ]),
+      Input(value: cartes, label: "Cartes de vœux à joindre (5 au plus)", max: 5),
+      Input(value: nom, label: "Votre prénom", max: 30),
+      If(nom, not: "", children: [ Text.discret("Cette commande fictive est au nom de {nom}.") ]),
+    ]),
+
+    Hr(),
+    H2("L'atelier"),
+    "Les créations sont exposées dans l'atelier. Entrez-y par le bouton, ou touchez le point doré.",
+    Button.action(name: Entrer, text: "Explorer l'atelier"),
+
+    // L'atelier : un monde dans un point. Le panier y est le même.
+    Point(
+      name: Atelier,
+      seed: 42,
+      color: "#E9B44C",
+      palette: ["#E9B44C", "#8a3b12", "#2E5E8C"],
+      brightness: 0.85,
+      inside: World(
+        children: [
+          H1("L'atelier"),
+          P("Les tableaux sèchent au mur. Votre panier vous a suivi."),
+          Text("{count} créations · {total} euros"),
+          Row(gap: 8px, children: [
+            Button(name: AtelierLever, text: "+ Lever sur le fleuve"),
+            Button(name: AtelierPorte, text: "+ La porte bleue"),
+            Button(name: AtelierMarche, text: "+ Jour de marché"),
+          ]),
+          Row(gap: 8px, children: [
+            Button(name: AllerAuJardin, text: "Aller au jardin"),
+            Button(name: Revenir, text: "Revenir au panier"),
+          ]),
+          // Le jardin : un autre fichier.
+          Point(name: Jardin, seed: 12, color: "#3FA34D", inside: "jardin.holo"),
+          // La réserve : un monde calculé, qu'on traverse en zoomant, de monde en monde.
+          Point(name: Reserve, seed: 7),
+        ],
+        rules: [
+          On(AtelierLever.tap, effect: lever.add(1)),
+          On(AtelierPorte.tap, effect: porte.add(1)),
+          On(AtelierMarche.tap, effect: marche.add(1)),
+          On(AllerAuJardin.tap, effect: Jardin.enter),
+          On(Revenir.tap, effect: Atelier.leave),
+        ],
+      ),
+    ),
+
+    Use(Pied),
+  ],
+
+  // Un monde planté dans un pixel, juste au-dessus du bouton « Explorer l'atelier » : on ne
+  // le voit qu'en zoomant.
+  pixels: [
+    Point(
+      name: Cachette,
+      above: Entrer,
+      seed: 77,
+      color: "#FF4D6D",
+      inside: World(
+        children: [
+          H1("La cachette"),
+          P("Vous avez trouvé le pixel secret de la page. Il y a un monde dans chaque pixel."),
+          Button(name: SortirCachette, text: "Revenir"),
+        ],
+        rules: [ On(SortirCachette.tap, effect: Cachette.leave) ],
+      ),
+    ),
+  ],
+
+  rules: [
+    On(PlusLever.tap, effect: lever.add(1)),
+    On(MoinsLever.tap, effect: lever.sub(1)),
+    On(PlusPorte.tap, effect: porte.add(1)),
+    On(MoinsPorte.tap, effect: porte.sub(1)),
+    On(PlusMarche.tap, effect: marche.add(1)),
+    On(MoinsMarche.tap, effect: marche.sub(1)),
+    On(Vider.tap, effect: [lever.set(0), porte.set(0), marche.set(0)]),
+    On(Entrer.tap, effect: Atelier.enter),
+  ],
+)

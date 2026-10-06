@@ -1,0 +1,90 @@
+// Le catalogue : douze créations, écrites une à une (le langage n'a pas encore de liste
+// répétée). La grille passe à deux, puis à une colonne sur un téléphone.
+
+import "commun.holo"
+import "pied.holo"
+
+Page(
+  name: Catalogue,
+  title: "Catalogue — L'atelier des mondes",
+  children: [
+    Use(Menu),
+    H1("Le catalogue"),
+    "Douze tableaux, peints un à un. Les prix sont en euros.",
+    Grid(columns: 3, gap: 16px, children: [
+      Column.carte(gap: 6px, children: [
+        Image(source: "lever.svg", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu", weight: 1KB),
+        P("Lever sur le fleuve"),
+        Text.prix("120 euros"),
+        A("Lire son histoire", to: "fiche.holo"),
+      ]),
+      Column.carte(gap: 6px, children: [
+        Image(source: "porte.svg", alt: "Une porte bleue dans un mur couleur sable", weight: 1KB),
+        P("La porte bleue"),
+        Text.prix("90 euros"),
+        A("La mettre au panier", to: "panier.holo"),
+      ]),
+      Column.carte(gap: 6px, children: [
+        Image(source: "marche.svg", alt: "Des étals rouges et jaunes sous un ciel clair", weight: 1KB),
+        P("Jour de marché"),
+        Text.prix("50 euros"),
+        A("La mettre au panier", to: "panier.holo"),
+      ]),
+      Column.carte(gap: 6px, children: [
+        Image(source: "verger.svg", alt: "Des pommiers verts alignés sur une colline", weight: 1KB),
+        P("Le verger"),
+        Text.prix("70 euros"),
+        A("La mettre au panier", to: "panier.holo"),
+      ]),
+      Column.carte(gap: 6px, children: [
+        Image(source: "phare.svg", alt: "Un phare blanc sur une mer de nuit", weight: 1KB),
+        P("Le phare"),
+        Text.prix("110 euros"),
+        A("La mettre au panier", to: "panier.holo"),
+      ]),
+      Column.carte(gap: 6px, children: [
+        Image(source: "dune.svg", alt: "Des dunes ocre sous un ciel pâle", weight: 1KB),
+        P("Dunes"),
+        Text.prix("60 euros"),
+        A("La mettre au panier", to: "panier.holo"),
+      ]),
+      Column.carte(gap: 6px, children: [
+        Image(source: "orage.svg", alt: "Des nuages violets au-dessus d'un champ", weight: 1KB),
+        P("Avant l'orage"),
+        Text.prix("95 euros"),
+        A("La mettre au panier", to: "panier.holo"),
+      ]),
+      Column.carte(gap: 6px, children: [
+        Image(source: "jardin.svg", alt: "Une serre bleutée pleine de plantes", weight: 1KB),
+        P("Le jardin d'hiver"),
+        Text.prix("80 euros"),
+        A("La mettre au panier", to: "panier.holo"),
+      ]),
+      Column.carte(gap: 6px, children: [
+        Image(source: "atelier.svg", alt: "Un chevalet dans un atelier brun et clair", weight: 1KB),
+        P("L'atelier"),
+        Text.prix("130 euros"),
+        A("La mettre au panier", to: "panier.holo"),
+      ]),
+      Column.carte(gap: 6px, children: [
+        Image(source: "nuit.svg", alt: "Un ciel noir semé d'étoiles jaunes", weight: 1KB),
+        P("Nuit d'août"),
+        Text.prix("100 euros"),
+        A("La mettre au panier", to: "panier.holo"),
+      ]),
+      Column.carte(gap: 6px, children: [
+        Image(source: "barque.svg", alt: "Une barque sombre sur un lac doré", weight: 1KB),
+        P("La barque"),
+        Text.prix("75 euros"),
+        A("La mettre au panier", to: "panier.holo"),
+      ]),
+      Column.carte(gap: 6px, children: [
+        Image(source: "graine.svg", alt: "Une graine verte qui germe sur fond crème", weight: 1KB),
+        P("La graine"),
+        Text.prix("40 euros"),
+        A("La mettre au panier", to: "panier.holo"),
+      ]),
+    ]),
+    Use(Pied),
+  ],
+)

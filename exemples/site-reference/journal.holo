@@ -1,0 +1,40 @@
+// Le journal de l'atelier : un article long, trois niveaux de titres, des liens entre pages,
+// et un exemple de code montré tel quel.
+
+import "commun.holo"
+import "pied.holo"
+
+Page(
+  name: Journal,
+  title: "Journal — L'atelier des mondes",
+  children: [
+    Use(Menu),
+    H1("Le journal de l'atelier"),
+    Text.discret("Lundi 6 octobre"),
+
+    H2("Pourquoi un site qui contient des mondes"),
+    "Un site, d'habitude, est une feuille : on la lit, on tourne la page. Celui-ci est **aussi** un lieu. Si vous zoomez sur le panier, les pixels deviennent des points ; dans chaque point, il y a un monde.",
+    "Rien de tout cela n'est obligatoire. L'accueil, le catalogue et ce journal restent des pages ordinaires. Seul le panier ouvre la porte : c'est l'auteur qui décide, page par page.",
+
+    H3("Ce que le visiteur ne voit pas"),
+    "Ces pages ne contiennent ni HTML ni JavaScript écrits à la main. Le menu en haut vient d'un seul fichier, partagé :",
+    Code("""import "commun.holo"
+import "pied.holo"
+
+Page(
+  title: "Journal",
+  children: [ Use(Menu), H1("Le journal de l'atelier") ],
+)"""),
+
+    H2("Les tableaux de la semaine"),
+    List(ordered: true, children: [
+      A("Lever sur le fleuve, son histoire", to: "fiche.holo"),
+      A("Le catalogue complet", to: "catalogue.holo"),
+      A("Ce qui reste en stock", to: "disponibilite.holo"),
+    ]),
+
+    H3("Une phrase pour finir"),
+    Quote("Peindre, c'est choisir ce qu'on garde.", by: "Le peintre de l'atelier"),
+    Use(Pied),
+  ],
+)
