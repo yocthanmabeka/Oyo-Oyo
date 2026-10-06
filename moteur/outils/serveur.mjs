@@ -286,7 +286,7 @@ createServer(async (req, res) => {
     }
     // Le retard ne compte qu'une fois, sur la première pièce du moteur.
     if (url === "/page-moteur.js" && modeMoteur === "lent") await new Promise((r) => setTimeout(r, Number(retardMoteur) || 5000));
-    if ((url === "/page-moteur.js" || url.startsWith("/pkg/")) && modeMoteur === "panne") {
+    if ((url === "/page-moteur.js" || url.startsWith("/pkg/") || url.startsWith("/pkg-leger/")) && modeMoteur === "panne") {
       throw Object.assign(new Error("moteur refusé (HOLO_MOTEUR=panne)"), { code: "PANNE" });
     }
     if (url === "/") url = "/index.html";

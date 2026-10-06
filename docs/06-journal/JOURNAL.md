@@ -6,6 +6,19 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Un moteur léger, le dessin à part
+
+- Point 4 du comparatif. Fait (`ADR-053`) : une option de compilation `dessin` ; sans elle, le moteur léger lit, fabrique la page et arbitre, sans `wgpu`. La page prend le léger (`/pkg-leger/`) et ne fait venir le dessin (`/pkg/`) que si elle montre des points ou des mondes. L'éditeur prend le léger.
+- Mesuré : moteur entier 626 Ko transférés, **moteur léger 149 Ko**, quatre fois moins. **L'objectif de 100 Ko n'est pas atteint** : ce qui reste est le cœur (lecture, vérifications et leurs messages, page, arbitre).
+- Vérifié dans Chrome sans fenêtre : la leçon 70 ne télécharge que le moteur léger, ses boutons comptent (deux « Night » : 120,00 euros) ; la leçon 9, zoomée à la molette avec Ctrl, fait venir le dessin et passe en vue points.
+
+**Limites et erreurs**
+
+- Dans le nuage, Chrome n'a pas de carte graphique : le dessin des points n'a pas pu être regardé (« ni WebGPU ni WebGL 2 ne sont utilisables »). À vérifier sur le PC et le téléphone de Yocthan.
+- En relançant le serveur d'essai, ma commande d'arrêt a aussi arrêté le terminal qui la lançait : relancé à part.
+
+---
+
 ## 2026-10-06 — La place qui reste, et un thème partagé
 
 - Point 3 du comparatif. Fait (`ADR-052`) : `grow:` sur un bloc rangé dans `Row` ou `Column` (comme `Expanded` en Flutter, de 1 à 12 parts) ; un fichier qui ne contient que des styles s'importe comme un thème (`import "theme.holo"`). Les noms de style multiples étaient déjà là avec les composants.

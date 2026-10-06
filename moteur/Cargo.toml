@@ -9,13 +9,19 @@ publish = false
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+# Le dessin (WebGPU, WebGL 2) : le moteur entier. Sans lui (`--no-default-features`), le moteur
+# léger lit le fichier, fabrique la page et arbitre les valeurs, sans rien dessiner (ADR-053).
+default = ["dessin"]
+dessin = ["dep:wgpu"]
+
 [dependencies]
 bytemuck = { version = "1", features = ["derive"] }
 
 # Tout ce qui touche au navigateur et à la carte graphique n'est compilé que pour WebAssembly.
 # Le cœur (lecture du .holo, graines, mondes, navigation) reste du Rust pur, testable sur le PC.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wgpu = { version = "24", default-features = false, features = ["webgpu", "webgl", "wgsl"] }
+wgpu = { version = "24", default-features = false, features = ["webgpu", "webgl", "wgsl"], optional = true }
 wasm-bindgen = "=0.2.100"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
