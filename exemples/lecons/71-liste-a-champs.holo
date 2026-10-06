@@ -1,0 +1,59 @@
+// Leçon 71 — Une liste à champs : des articles, pas seulement des textes
+//
+// Ce qu'on apprend :
+//   State(articles: [ Item(title: "…", price: 0, note: "…") ])
+//                              une liste dont chaque élément a des champs, comme un Item de Repeat(items:)
+//   {item.title}, {item.price:cents}
+//                              un champ de l'élément, dans les lignes de Repeat(over: articles, …)
+//   data: Data(from: "71-catalogue.json")
+//                              le serveur remplit la liste : un tableau d'objets JSON ;
+//                              seuls les champs déclarés sont repris
+//   articles.push(Item(title: name, price: price, note: "Ajouté"))
+//                              ajoute un élément, avec ce que le visiteur a saisi
+//   articles.remove(item)      retire l'élément de la ligne touchée
+//
+// À essayer :
+//   Ouvre 71-catalogue.json, change un prix, enregistre, et recharge la page : le serveur a la main.
+//   Puis ajoute un article : « Forest », 95 euros.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 71 : une liste à champs",
+  state: State(name: "", price: 0, articles: [ Item(title: "Chargement…", price: 0, note: "") ]),
+  data: Data(from: "71-catalogue.json"),
+  children: [
+    H1("Une liste à champs"),
+    P("{articles} article(s) dans le catalogue :"),
+    Grid(columns: 3, children: [
+      Repeat(over: articles, children: [
+        Column.carte(gap: 6px, children: [
+          H2("{item.title}"),
+          Text("{item.price:cents} euros"),
+          Text.note("{item.note}"),
+          Button(name: Retirer, text: "Retirer"),
+        ]),
+      ], rules: [ On(Retirer.tap, effect: articles.remove(item)) ]),
+    ]),
+    H2("Ajouter un article"),
+    Row(gap: 8px, children: [
+      Input(value: name, label: "Titre"),
+      Input(value: price, label: "Prix en centimes"),
+      Button(name: Ajouter, text: "Ajouter"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 70 : les composants", to: "70-composants.holo"),
+    ]),
+  ],
+  rules: [
+    On(Ajouter.tap, effect: [articles.push(Item(title: name, price: price, note: "Ajouté")), name.set("")]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.carte { border: 1px solid #E9B44C; border-radius: 12px; padding: 12px 16px; }
+.note { opacity: 0.7; font-style: italic; }

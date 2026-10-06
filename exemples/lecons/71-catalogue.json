@@ -1,0 +1,7 @@
+{
+  "articles": [
+    { "title": "Sunrise", "price": 12000, "note": "Huile sur toile" },
+    { "title": "The river", "price": 9000, "note": "Aquarelle" },
+    { "title": "Night", "price": 6000, "note": "Encre" }
+  ]
+}

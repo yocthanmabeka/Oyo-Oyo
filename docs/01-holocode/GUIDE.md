@@ -928,7 +928,7 @@ Le fichier `stock.json` :
 - La page ne parle qu'au serveur d'où elle vient.
 - Rien n'est demandé quand la fenêtre est cachée.
 
-Limites : pas de liste (on ne reçoit pas « tous les articles ») ; la page n'envoie rien au serveur.
+Une liste se reçoit aussi : un tableau d'objets remplit une liste à champs (§ 6 septendecies, `ADR-051`). Limite : la page n'envoie rien au serveur, sauf par un formulaire (`Form`).
 
 Cette écriture est décidée (`ADR-030`).
 
@@ -1201,6 +1201,34 @@ Page(
 - **`Repeat(over: wishes, …)`** : une ligne par élément ; `{item}` est son texte. `{wishes}` montre le nombre ; `If(wishes, is: 0)` le compare ; `keep:` la garde.
 
 Ces ajouts sont décidés (`ADR-044`). La leçon est `68-liste-qui-change.holo`.
+
+### Une liste à champs : des articles, pas seulement des textes
+
+Un élément peut avoir des **champs**, comme un `Item` de `Repeat(items:)`. La leçon est `71-liste-a-champs.holo`.
+
+```holo
+Page(
+  title: "Shop",
+  state: State(name: "", price: 0, articles: [ Item(title: "Sunrise", price: 12000) ]),
+  data: Data(from: "catalog.json"),
+  children: [
+    Repeat(over: articles, children: [
+      Column(children: [ H2("{item.title}"), Text("{item.price:cents} euros"), Button(name: Remove, text: "Remove") ]),
+    ], rules: [ On(Remove.tap, effect: articles.remove(item)) ]),
+    Input(value: name, label: "Title"), Input(value: price, label: "Price"), Button(name: Add, text: "Add"),
+  ],
+  rules: [ On(Add.tap, effect: [articles.push(Item(title: name, price: price)), name.set("")]) ],
+)
+```
+
+- **`State(articles: [ Item(title: "…", price: 0) ])`** : tous les éléments ont les mêmes champs, dans le même ordre ; un champ est un texte (deux cents caractères au plus) ou un nombre entier ; seize champs au plus.
+- **`{item.title}`**, **`{item.price:cents}`** dans les lignes ; **`item.image`** à la place d'une valeur (`Image(source: item.image)`). Un champ inconnu est refusé, avec la liste des champs.
+- **`articles.push(Item(title: name, price: price))`** : chaque champ prend un texte, un nombre, ou le nom d'une valeur de la page. Un élément tout vide n'est pas ajouté.
+- **Le serveur peut remplir la liste** : `catalog.json` contient `{ "articles": [ { "title": "Sunrise", "price": 12000 } ] }`. Seuls les champs déclarés sont repris ; ceux qui manquent valent "" ou 0. Un tableau de textes remplit une liste de textes : `{ "news": ["Open today"] }`.
+- `State(articles: [])` : une liste vide au départ peut recevoir des textes ou des éléments à champs ; ses champs ne sont alors pas vérifiés.
+- Ce que le visiteur saisit, ou ce que le serveur envoie, n'est jamais pris pour une balise : tout est échappé.
+
+Cette écriture est décidée (`ADR-051`).
 
 ## 6 duodevicies. Du code enfermé : un module
 
@@ -1584,6 +1612,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Multiplier, diviser | les demandes `mul`, `div` | fait |
 | Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait |
 | Une liste qui change pendant la visite | `State(tasks: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` | fait |
+| Une liste d'articles à champs, aussi reçue du serveur | `State(articles: [ Item(…) ])`, `{item.title}`, `push(Item(…))`, `Data` | fait |
 | Du code enfermé (un module WebAssembly) | `module "…"`, `Module(…)`, `run`, `done`, `failed` | fait |
 | Une fenêtre, un pli, une glissière, une barre | `Dialog`, `Details`, `Slider`, `Progress` | fait |
 | Réagir au zoom par une règle (« quand on zoome, alors… ») | aucun | à faire |
@@ -1596,10 +1625,10 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 
 ## 11. Ce qui n'existe pas encore
 
-- Un module n'échange encore qu'un nombre contre un nombre. Des listes d'éléments à champs ; une liste reçue du serveur.
+- Un module n'échange encore qu'un nombre contre un nombre.
 - Pour la disposition : pas de largeur par élément, pas d'élément qui prend la place restante.
 - Les données venues d'un autre serveur ; l'envoi d'un fichier ; les comptes.
-- Pour les valeurs : des nombres entiers et des textes. Pas de liste, pas d'autre calcul que le nombre et le total d'un panier.
+- Pour les valeurs : des nombres entiers, des textes et des listes ; pas de nombre à virgule (les prix s'écrivent en centimes, `{price:cents}`). Pas de condition sur un champ dans une ligne (`If(item.done, …)`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
 - Les garde-fous de zoom pour un `Point` seul : ils sont encore fixés dans le moteur.

@@ -78,5 +78,6 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 68 | [Une liste qui change pendant la visite](68-liste-qui-change.holo) | `State(taches: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` |
 | 69 | [Du code enfermé : un module](69-module-enferme.holo) | `module "…"`, `Module`, `run`, `done`, `failed` |
 | 70 | [Les composants](70-composants.holo) | `parts`, `Part(params:, rules:)`, `ArticleCard(…)`, `ArticleCard { }`, `ArticleCard.promo(…)` |
+| 71 | [Une liste à champs](71-liste-a-champs.holo) | `State(articles: [ Item(…) ])`, `{item.title}`, `Data` qui remplit une liste, `push(Item(…))` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.

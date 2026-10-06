@@ -287,7 +287,9 @@ pub fn recevoir(source: &str, etat: &str, json: &str) -> String {
     let Ok(programme) = verifier_page(source) else { return String::new() };
     etat::capacites_demandees();
     let (nombres, textes) = etat::recevoir(&programme, &etat::relire(&programme, etat), &etat::relire_textes(&programme, etat), json);
-    ecrire_tout(&programme, &nombres, &textes, &listes::relire(&programme, etat))
+    // Les listes aussi : un tableau de textes, ou d'objets (ADR-051).
+    let listes = listes::recevoir(&programme, &listes::relire(&programme, etat), json);
+    ecrire_tout(&programme, &nombres, &textes, &listes)
 }
 
 /// Le visiteur fait glisser un bloc d'un plateau : l'arbitre rend le nouvel état.

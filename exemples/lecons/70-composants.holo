@@ -52,6 +52,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 69 : du code enfermé", to: "69-module-enferme.holo"),
+      A("Leçon 71 : une liste à champs →", to: "71-liste-a-champs.holo"),
     ]),
   ],
 )
