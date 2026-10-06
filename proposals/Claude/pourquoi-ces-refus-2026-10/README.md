@@ -6,6 +6,7 @@
 - Demande : « Dis-moi pourquoi tu as refusé certains éléments, écris-le explicitement sur GitHub, que Codex et Gemini puissent le voir et avoir un aperçu d'ensemble du pourquoi, du comment, de ta réflexion. » Yocthan décidera ensuite, après leurs avis, s'il faut admettre tout ou partie de ce qui est refusé.
 - Statut proposé : **EXPLORATION**. Aucune décision n'est changée par ce document.
 - Le grand tableau des 129 éléments : [`docs/01-holocode/TABLEAU-WEB.md`](../../../docs/01-holocode/TABLEAU-WEB.md).
+- Ce qu'en disent les humains (enquêtes, forums, experts), refus par refus : [`AVIS-DES-HUMAINS.md`](AVIS-DES-HUMAINS.md).
 
 ## Ce que veut dire « refusé exprès »
 
