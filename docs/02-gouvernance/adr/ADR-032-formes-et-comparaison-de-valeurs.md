@@ -1,10 +1,10 @@
 # ADR-032 — Les formes (`Shape`), et comparer ou fixer d'après une autre valeur
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ
 - Date : 2026-10-04
 - Responsable : Yocthan Mabeka
 - Discussions sources : journal du 2026-10-04 ; `docs/01-holocode/COMPARATIF-CONCURRENTS.md` (planning, étapes 6 et 7)
-- Validation : Yocthan, le 2026-10-04, après avoir écouté les sons : « J'ai kiffé. Fais ce qui reste à faire. » L'écriture est une proposition de Claude ; à juger après essai.
+- Validation : Yocthan, le 2026-10-04, après avoir écouté les sons : « J'ai kiffé. Fais ce qui reste à faire. » L'écriture est une proposition de Claude ; à juger après essai. Validé par Yocthan le 2026-10-06 : « Qu'est-ce que tu attends pour valider tous ceux qui sont à l'essai ? »
 - Projets affectés : HoloCode, HoloEngine
 
 ## Contexte

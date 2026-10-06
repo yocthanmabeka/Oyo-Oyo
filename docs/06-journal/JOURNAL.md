@@ -6,6 +6,14 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Tout ce qui était à l'essai est validé
+
+- Yocthan : « Qu'est-ce que tu attends pour valider tous ceux qui sont à l'essai ? Que tout passe au vert. » Claude attendait son accord : le statut d'une décision est à lui.
+- Validées (`ACCEPTÉ`) : `ADR-025` (conditions, texte), `ADR-027` (saisie, valeurs gardées), `ADR-029` (imports), `ADR-030` (données du serveur), `ADR-032` (formes, comparaison de valeurs), `ADR-033` (site léger), `ADR-034` (mouvement), `ADR-035` (une mécanique refusée, jamais une capacité), `ADR-036` (repères, titres, texte qui grandit, états, superposition). Les 224 mots de HoloCode sont tous décidés.
+- Laissées telles quelles, et dites à Yocthan : `ADR-011` (le rendu par vue : construit, mais c'est un choix d'architecture), `ADR-012` et `ADR-013` (les ponts vers JavaScript et les modules enfermés : jamais construits), `ADR-006` (une proposition).
+
+---
+
 ## 2026-10-06 — Le grand tableau : HoloCode d'abord, avec tous ses mots
 
 - Yocthan : HoloCode doit venir en premier, avant HTML, CSS et JavaScript, et on doit pouvoir voir tous ses mots-clés, comme ceux du web.

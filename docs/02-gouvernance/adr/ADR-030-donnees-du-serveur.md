@@ -1,10 +1,10 @@
 # ADR-030 — Les données venues du serveur : `Data`
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ
 - Date : 2026-10-04
 - Responsable : Yocthan Mabeka
 - Discussions sources : journal du 2026-10-04 ; `docs/01-holocode/COMPARATIF-CONCURRENTS.md` (planning, étape 5) ; revue de sécurité de Codex du 2026-10-03
-- Validation : Yocthan, le 2026-10-04 : « Oui, fais le 5, le 6 et le 7 », puis « On y va ». L'écriture est une proposition de Claude ; à juger après essai.
+- Validation : Yocthan, le 2026-10-04 : « Oui, fais le 5, le 6 et le 7 », puis « On y va ». L'écriture est une proposition de Claude ; à juger après essai. Validé par Yocthan le 2026-10-06 : « Qu'est-ce que tu attends pour valider tous ceux qui sont à l'essai ? »
 - Projets affectés : HoloCode, HoloEngine
 
 ## Contexte

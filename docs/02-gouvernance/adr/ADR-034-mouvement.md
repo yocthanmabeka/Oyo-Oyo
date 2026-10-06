@@ -1,10 +1,10 @@
 # ADR-034 — Le mouvement : `Enter`, `Loop`, `Scenes`
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ
 - Date : 2026-10-04
 - Responsable : Yocthan Mabeka
 - Discussions sources : journal du 2026-10-04 (« fais du motion design en HoloCode et en HTML, CSS, JavaScript, tous les curseurs à 100 % » ; « fais une amélioration, sinon il sera battu »)
-- Validation : Yocthan, le 2026-10-04, pour un essai. L'écriture est une proposition de Claude ; les noms restent à revoir avec les autres.
+- Validation : Yocthan, le 2026-10-04, pour un essai. L'écriture est une proposition de Claude ; les noms restent à revoir avec les autres. Validé par Yocthan le 2026-10-06 : « Qu'est-ce que tu attends pour valider tous ceux qui sont à l'essai ? »
 - Projets affectés : HoloCode, HoloEngine
 
 ## Contexte

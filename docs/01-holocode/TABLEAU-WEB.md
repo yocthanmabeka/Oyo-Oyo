@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
-- Relevé de Claude, le 2026-10-06, à jour d’`ADR-037` (l’écriture de Flutter). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (224 mots : 142 décidés, 82 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
+- Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-06). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
+- D’abord **tous les mots de HoloCode** (224 mots : 224 décidés, 0 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
 - **Couverture** : la part de ce que fait l’élément web qu’on obtient en HoloCode aujourd’hui. Estimation de Claude, non mesurée.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,7 +9,7 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 224 mots | 142 décidés, 82 à l’essai |
+| **HoloCode** | 224 mots | 224 décidés, 0 à l’essai |
 | HTML | 52 % de couverture | 25 oui, 11 en partie, 23 non, 3 refusés |
 | CSS | 53 % de couverture | 14 oui, 9 en partie, 9 non, 2 refusés |
 | JavaScript | 32 % de couverture | 6 oui, 11 en partie, 15 non, 1 refusés |
@@ -23,17 +23,17 @@
 |---|---|---|---|
 | `Page` | La page entière, le bloc racine d'un fichier | `html, head, body, main` | Décidé (ADR-009) |
 | `World` | Le monde qui est dans un point | — | Décidé (ADR-009) |
-| `Part` | Un morceau réutilisable, dans un fichier importé | `template` | À l’essai (ADR-029) |
-| `Use` | Pose un morceau importé, Use(Menu) | `slot, include` | À l’essai (ADR-029) |
+| `Part` | Un morceau réutilisable, dans un fichier importé | `template` | Décidé (ADR-029) |
+| `Use` | Pose un morceau importé, Use(Menu) | `slot, include` | Décidé (ADR-029) |
 
 ## Blocs : les repères
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `Header` | L'en-tête de la page | `header` | À l’essai (ADR-036) |
-| `Nav` | Un menu de navigation | `nav` | À l’essai (ADR-036) |
-| `Main` | Le contenu principal | `main` | À l’essai (ADR-036) |
-| `Footer` | Le pied de page | `footer` | À l’essai (ADR-036) |
+| `Header` | L'en-tête de la page | `header` | Décidé (ADR-036) |
+| `Nav` | Un menu de navigation | `nav` | Décidé (ADR-036) |
+| `Main` | Le contenu principal | `main` | Décidé (ADR-036) |
+| `Footer` | Le pied de page | `footer` | Décidé (ADR-036) |
 
 ## Blocs : le texte
 
@@ -42,11 +42,11 @@
 | `Text` | Du texte sans rôle : une étiquette, une ligne d'état | `span` | Décidé (ADR-020) |
 | `P` | Un paragraphe (une phrase seule en est un aussi) | `p` | Décidé (ADR-020) |
 | `H1, H2, H3` | Les titres ; le numéro dit la place dans le plan | `h1, h2, h3` | Décidé (ADR-020) |
-| `H4, H5, H6` | Les titres plus profonds, pour les longs documents | `h4, h5, h6` | À l’essai (ADR-036) |
+| `H4, H5, H6` | Les titres plus profonds, pour les longs documents | `h4, h5, h6` | Décidé (ADR-036) |
 | `A` | Un lien vers une autre page | `a href` | Décidé (ADR-022) |
-| `Hr` | Un trait de séparation | `hr` | À l’essai (ADR-025) |
-| `Quote` | Une citation, et son auteur | `blockquote` | À l’essai (ADR-025) |
-| `Code` | Du code montré tel quel | `pre, code` | À l’essai (ADR-025) |
+| `Hr` | Un trait de séparation | `hr` | Décidé (ADR-025) |
+| `Quote` | Une citation, et son auteur | `blockquote` | Décidé (ADR-025) |
+| `Code` | Du code montré tel quel | `pre, code` | Décidé (ADR-025) |
 | `List` | Une liste, à puces ou numérotée | `ul, ol, li` | Décidé (ADR-009) |
 
 ## Blocs : les médias
@@ -55,7 +55,7 @@
 |---|---|---|---|
 | `Image` | Une image | `img` | Décidé (ADR-009) |
 | `Sound` | Un son qu'une règle fait entendre | `audio` | Décidé (ADR-031) |
-| `Shape` | Une forme : rond, carré, triangle, losange | `div + CSS, svg` | À l’essai (ADR-032) |
+| `Shape` | Une forme : rond, carré, triangle, losange | `div + CSS, svg` | Décidé (ADR-032) |
 
 ## Blocs : la disposition
 
@@ -64,7 +64,7 @@
 | `Row` | Côte à côte | `display: flex` | Décidé (ADR-024) |
 | `Column` | L'un sous l'autre | `flex-direction: column` | Décidé (ADR-024) |
 | `Grid` | Une grille, qui perd des colonnes sur un téléphone | `display: grid` | Décidé (ADR-024) |
-| `Stack` | Poser un bloc sur un autre (une pastille sur une image) | `position: absolute, z-index` | À l’essai (ADR-036) |
+| `Stack` | Poser un bloc sur un autre (une pastille sur une image) | `position: absolute, z-index` | Décidé (ADR-036) |
 | `Board` | Un plateau : on y place les blocs par x et y | `position + JavaScript` | Décidé (ADR-026) |
 
 ## Blocs : agir
@@ -72,8 +72,8 @@
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `Button` | Un bouton | `button` | Décidé (ADR-009) |
-| `Input` | Un champ où l'on écrit un nombre ou un texte | `input` | À l’essai (ADR-027) |
-| `Checkbox` | Une case à cocher | `input type=checkbox` | À l’essai (ADR-027) |
+| `Input` | Un champ où l'on écrit un nombre ou un texte | `input` | Décidé (ADR-027) |
+| `Checkbox` | Une case à cocher | `input type=checkbox` | Décidé (ADR-027) |
 
 ## Blocs : les mondes
 
@@ -96,8 +96,8 @@
 |---|---|---|---|
 | `State` | Les valeurs de la page : State(cart: 0) | `variables JavaScript` | Décidé (ADR-023) |
 | `Prices` | Les prix ; le moteur calcule {count} et {total} | — | Décidé (ADR-023) |
-| `Data` | Des valeurs lues sur le serveur | `fetch` | À l’essai (ADR-030) |
-| `If` | Montrer, ou faire valoir des règles, selon une valeur | `if` | À l’essai (ADR-025) |
+| `Data` | Des valeurs lues sur le serveur | `fetch` | Décidé (ADR-030) |
+| `If` | Montrer, ou faire valoir des règles, selon une valeur | `if` | Décidé (ADR-025) |
 
 ## Blocs : les règles
 
@@ -111,9 +111,9 @@
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `Enter` | Faire entrer un bloc : d'où il part | `@keyframes + animation` | À l’essai (ADR-034) |
-| `Loop` | Faire vivre un bloc sans fin | `animation infinite alternate` | À l’essai (ADR-034) |
-| `Scenes, Scene` | Des scènes qui s'enchaînent | `délais calculés à la main` | À l’essai (ADR-034) |
+| `Enter` | Faire entrer un bloc : d'où il part | `@keyframes + animation` | Décidé (ADR-034) |
+| `Loop` | Faire vivre un bloc sans fin | `animation infinite alternate` | Décidé (ADR-034) |
+| `Scenes, Scene` | Des scènes qui s'enchaînent | `délais calculés à la main` | Décidé (ADR-034) |
 
 ## Paramètres : partout
 
@@ -129,7 +129,7 @@
 | `title` | Le titre de la page | `title` | Décidé (ADR-009) |
 | `rules` | Les règles | `le code JavaScript` | Décidé (ADR-015) |
 | `state, prices, keep` | Les valeurs, leurs prix, ce qu'on garde d'une visite à l'autre | `variables, localStorage` | Décidé (ADR-023, ADR-027) |
-| `data` | Les données du serveur | `fetch` | À l’essai (ADR-030) |
+| `data` | Les données du serveur | `fetch` | Décidé (ADR-030) |
 | `zoom, points, relief, portals` | Comment la page se regarde | — | Décidé (ADR-021) |
 | `pixels` | Des sites plantés dans des pixels | — | Décidé (ADR-021) |
 
@@ -139,7 +139,7 @@
 |---|---|---|---|
 | `text` | Le texte d'un bouton | `le texte de button` | Décidé (ADR-009) |
 | `to` | L'adresse d'un lien | `href` | Décidé (ADR-022) |
-| `by` | L'auteur d'une citation | `cite` | À l’essai (ADR-025) |
+| `by` | L'auteur d'une citation | `cite` | Décidé (ADR-025) |
 | `ordered` | Une liste numérotée | `ol` | Décidé (ADR-009) |
 
 ## Paramètres : les médias
@@ -147,7 +147,7 @@
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `source, alt, weight` | Le fichier, son texte de remplacement, son poids | `src, alt` | Décidé (ADR-009, ADR-025) |
-| `form, color, size` | La forme, la couleur et la taille d'une Shape | `CSS` | À l’essai (ADR-032) |
+| `form, color, size` | La forme, la couleur et la taille d'une Shape | `CSS` | Décidé (ADR-032) |
 
 ## Paramètres : la disposition
 
@@ -156,13 +156,13 @@
 | `gap, align, columns` | L'espace, l'alignement, le nombre de colonnes | `gap, align-items, grid-template-columns` | Décidé (ADR-024) |
 | `height` | La hauteur d'un plateau ou de scènes | `height` | Décidé (ADR-026) |
 | `x, y, drag` | La place sur un plateau, et le glissement | `left, top, draggable` | Décidé (ADR-026, ADR-028) |
-| `align (dans Stack)` | La place d'un bloc posé sur un autre | `top, right, bottom, left` | À l’essai (ADR-036) |
+| `align (dans Stack)` | La place d'un bloc posé sur un autre | `top, right, bottom, left` | Décidé (ADR-036) |
 
 ## Paramètres : agir
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `value, label, max` | La valeur liée, l'étiquette (obligatoire), le maximum | `value, label, max` | À l’essai (ADR-027) |
+| `value, label, max` | La valeur liée, l'étiquette (obligatoire), le maximum | `value, label, max` | Décidé (ADR-027) |
 
 ## Paramètres : les mondes
 
@@ -177,18 +177,18 @@
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `effect` | Ce qu'une règle demande | `le corps d'une fonction` | Décidé (ADR-015) |
-| `is, not, over, under` | Les comparaisons : égal, différent, plus grand, plus petit | `===, !==, >, <` | À l’essai (ADR-025) |
+| `is, not, over, under` | Les comparaisons : égal, différent, plus grand, plus petit | `===, !==, >, <` | Décidé (ADR-025) |
 | `meets, within` | Une rencontre entre deux blocs, au contact ou à un écart | `un calcul de collision` | Décidé (ADR-028) |
-| `from, every` | Le fichier de données et son rythme | `fetch + setInterval` | À l’essai (ADR-030) |
+| `from, every` | Le fichier de données et son rythme | `fetch + setInterval` | Décidé (ADR-030) |
 
 ## Paramètres : le mouvement
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `enter, loop` | Le mouvement d'un bloc | `animation` | À l’essai (ADR-034) |
-| `at, for, ease` | Quand il part, combien de temps, quel caractère | `animation-delay, -duration, -timing-function` | À l’essai (ADR-034) |
-| `letters, each, back, repeat` | Lettre à lettre, enfant après enfant, sans retour, sans fin | `du JavaScript` | À l’essai (ADR-034) |
-| `opacity, x, y, scale, rotate, flip, tilt, blur, hue, round` | Ce qui bouge | `opacity, transform, filter, border-radius` | À l’essai (ADR-034) |
+| `enter, loop` | Le mouvement d'un bloc | `animation` | Décidé (ADR-034) |
+| `at, for, ease` | Quand il part, combien de temps, quel caractère | `animation-delay, -duration, -timing-function` | Décidé (ADR-034) |
+| `letters, each, back, repeat` | Lettre à lettre, enfant après enfant, sans retour, sans fin | `du JavaScript` | Décidé (ADR-034) |
+| `opacity, x, y, scale, rotate, flip, tilt, blur, hue, round` | Ce qui bouge | `opacity, transform, filter, border-radius` | Décidé (ADR-034) |
 
 ## Paramètres : la vue
 
@@ -203,11 +203,11 @@
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `circle, square, triangle, diamond` | Les formes d'une Shape | `border-radius, clip-path` | À l’essai (ADR-032) |
+| `circle, square, triangle, diamond` | Les formes d'une Shape | `border-radius, clip-path` | Décidé (ADR-032) |
 | `start, center, end, between` | Les alignements de Row et Column | `flex-start, center, flex-end, space-between` | Décidé (ADR-024) |
-| `topLeft, top, topRight, left, center, right, bottomLeft, bottom, bottomRight` | Les places dans un Stack | `top, right, bottom, left` | À l’essai (ADR-036, ADR-037) |
-| `linear, smooth, out, in, back, spring, bounce` | Le caractère d'un mouvement | `cubic-bezier(…), linear(…)` | À l’essai (ADR-034) |
-| `forever` | Des scènes qui recommencent | `animation-iteration-count: infinite` | À l’essai (ADR-034) |
+| `topLeft, top, topRight, left, center, right, bottomLeft, bottom, bottomRight` | Les places dans un Stack | `top, right, bottom, left` | Décidé (ADR-036, ADR-037) |
+| `linear, smooth, out, in, back, spring, bounce` | Le caractère d'un mouvement | `cubic-bezier(…), linear(…)` | Décidé (ADR-034) |
+| `forever` | Des scènes qui recommencent | `animation-iteration-count: infinite` | Décidé (ADR-034) |
 | `grid, row, column, diagonal` | La disposition du carrefour | — | Décidé (ADR-021) |
 | `true, false` | Oui, non | `true, false` | Décidé (ADR-009) |
 
@@ -243,7 +243,7 @@
 | `border, border-radius` | La bordure, les coins arrondis | `les mêmes` | Décidé (ADR-017) |
 | `padding, margin, width, height, max-width` | Les marges et les tailles | `les mêmes` | Décidé (ADR-017) |
 | `opacity` | La transparence | `opacity` | Décidé (ADR-017) |
-| `hover, focus, active` | Ce qui change au survol, au clavier, pendant l'appui | `:hover, :focus-visible, :active` | À l’essai (ADR-036) |
+| `hover, focus, active` | Ce qui change au survol, au clavier, pendant l'appui | `:hover, :focus-visible, :active` | Décidé (ADR-036) |
 
 ## Unités
 
@@ -258,10 +258,10 @@
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `import` | Importer un autre fichier .holo | `link, script src` | À l’essai (ADR-029) |
+| `import` | Importer un autre fichier .holo | `link, script src` | Décidé (ADR-029) |
 | `//` | Un commentaire | `<!-- -->, /* */, //` | Décidé (ADR-009) |
 | `**gras**, *italique*, `code`` | Le texte enrichi, en Markdown | `strong, em, code` | Décidé (ADR-019) |
-| `""" … """` | Un texte qui garde ses retours à la ligne | `br` | À l’essai (ADR-025) |
+| `""" … """` | Un texte qui garde ses retours à la ligne | `br` | Décidé (ADR-025) |
 
 # Partie 2 — HoloCode face à HTML, CSS et JavaScript
 
