@@ -6,6 +6,18 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Ce qui reste à faire, revérifié
+
+- Yocthan : « Révérifie et dis-moi ce qui reste à faire… sans brûler tous mes tokens. » Un premier relevé par quinze agents a été arrêté à sa demande ; le relevé a été refait à la main, source par source : les statuts (`DECISIONS.md`), GitHub (pull requests, issues, branches), le dossier principal, les propositions, le grand tableau, les prompts, `AGENTS.md`.
+- Trouvé en plus de ce que Claude avait annoncé de mémoire : les issues ouvertes #82 (une exploration des dix pistes de Codex, demandée à Claude, jamais rendue), #84 (la revue de Codex sur les refus, jamais publiée), #20 (installer Chrome DevTools MCP, autorisé par Yocthan le 2026-10-03, jamais fait) et #16 (la revue de Codex du 2026-10-03, dont les points B-01 à B-11 sont traités dans le code) ; quatorze noms contestés par Codex, et non deux ; la branche `revert/gemini-v0.1`, devenue sans objet (les tests de Gemini passent : 8 sur 8) ; le prompt de Codex sur les animations, sans réponse.
+- Corrigé : deux phrases périmées d'`AGENTS.md` (les listes, le calcul et le code enfermé « restaient à faire » ; la synthèse des refus « attendait une décision ») et le statut de la synthèse des refus.
+
+**Erreur en route**
+
+- Ma première réponse, de mémoire, comptait deux noms contestés au lieu de quatorze et oubliait les issues ouvertes : c'est pour cela que Yocthan a demandé de revérifier.
+
+---
+
 ## 2026-10-06 — L'éditeur : la faute à sa place, la correction d'un clic
 
 - Yocthan, citant la ligne du tableau « Corriger d'un clic — dans l'éditeur ; le moteur reste strict — « Remplacer par H1 » — à faire : il faut un éditeur » : « Travaille sur l'éditeur now ».
