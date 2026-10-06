@@ -1,0 +1,10 @@
+carlito.woff2 — la police Carlito (graisse normale, caractères latins), servie pour la leçon 54.
+
+Copyright 2013 The Carlito Project Authors (https://github.com/googlefonts/carlito)
+
+Cette police est publiée sous la licence SIL Open Font License, version 1.1.
+Le texte de la licence : https://scripts.sil.org/OFL (aussi dans le dépôt d'origine, fichier OFL.txt).
+On peut l'utiliser, la copier et la redistribuer, avec cette mention ; on ne la vend pas seule.
+
+(Le fichier vient du paquet @fontsource/carlito, déjà présent sur le PC de Yocthan ; ces
+informations sont celles inscrites dans la police elle-même.)

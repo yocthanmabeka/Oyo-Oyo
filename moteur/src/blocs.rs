@@ -4,7 +4,7 @@
 use crate::holo::{Bloc, Erreur, Programme, Valeur};
 
 /// `Text` est du texte sans rôle ; `P`, `H1`, `H2` et `H3` sont un `Text` avec un rôle (ADR-020).
-pub const BLOCS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Part", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop", "H4", "H5", "H6", "Main", "Nav", "Header", "Footer", "Stack", "Video", "Table", "Choice", "After", "Repeat", "Item"];
+pub const BLOCS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Part", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop", "H4", "H5", "H6", "Main", "Nav", "Header", "Footer", "Stack", "Video", "Table", "Choice", "After", "Repeat", "Item", "Font"];
 
 /// Le titre le plus profond : `H6`, comme en HTML (correction d'ADR-020 du 2026-10-06 ; les
 /// longs documents en ont besoin). Le numéro dit toujours la place dans le plan, jamais la taille.
@@ -20,7 +20,7 @@ pub fn verifier_blocs(programme: &Programme) -> Result<(), Erreur> {
 /// absents de cette liste vérifient leurs réglages eux-mêmes (`State`, `Prices`, `Data`,
 /// `Zoom`, `Points`, `Relief`, `Portals`, `Enter`, `Loop`, `Use`).
 const REGLAGES_DES_BLOCS: &[(&str, &[&str])] = &[
-    ("Page", &["name", "title", "children", "pixels", "rules", "state", "prices", "keep", "data", "zoom", "points", "relief", "portals", "lang", "description", "image"]),
+    ("Page", &["name", "title", "children", "pixels", "rules", "state", "prices", "keep", "data", "zoom", "points", "relief", "portals", "lang", "description", "image", "fonts"]),
     ("World", &["name", "children", "pixels", "rules"]),
     ("Part", &["name", "children"]),
     ("Text", &["name"]),
@@ -62,6 +62,7 @@ const REGLAGES_DES_BLOCS: &[(&str, &[&str])] = &[
     ("When", &["is", "not", "over", "under", "meets", "within", "effect"]),
     ("Scenes", &["name", "children", "height", "repeat"]),
     ("Scene", &["name", "children", "for"]),
+    ("Font", &["family", "source"]),
 ];
 
 /// Les blocs qui ne se voient pas : ils ne bougent pas (`enter`, `loop`).

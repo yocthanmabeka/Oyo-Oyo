@@ -46,6 +46,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 48 : l'heure du visiteur", to: "48-heure.holo"),
+      A("Leçon 50 : un texte soigné →", to: "50-texte-soigne.holo"),
     ]),
   ],
 )

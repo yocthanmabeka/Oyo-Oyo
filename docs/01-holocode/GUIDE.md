@@ -237,7 +237,8 @@ Réglages connus :
 
 | Réglage | Valeur |
 |---|---|
-| `color`, `background` | Une couleur : `white`, `gold`, `#E9B44C` |
+| `color` | Une couleur : `white`, `gold`, `#E9B44C` |
+| `background` | Une couleur ; un dégradé, `linear-gradient(to right, #E9B44C, #1a1a2e)` ou `radial-gradient(white, navy)` ; ou une image rangée à côté, `url("fond.jpg")`, qui couvre le bloc |
 | `font-size`, `border-radius`, `width`, `height`, `max-width` | Une taille : `16px`, `50%` |
 | `padding`, `margin` | D'une à quatre tailles : `8px 16px` |
 | `font-weight` | `normal`, `bold` |
@@ -246,6 +247,29 @@ Réglages connus :
 | `text-align` | `left`, `center`, `right` |
 | `border` | `1px solid gray` |
 | `opacity` | Un nombre de 0 à 1 |
+| `line-height` | Un nombre sans unité, de 0.8 à 3 : `1.6` |
+| `letter-spacing` | Un écart de -10px à 40px : `2px` |
+| `text-transform` | `uppercase`, `lowercase`, `capitalize`, `none` |
+| `text-decoration` | `underline`, `line-through`, `none` |
+| `box-shadow`, `text-shadow` | Décalage, flou, couleur : `0 4px 12px #00000066` ; trois au plus ; ou `none` |
+| `rotate`, `scale` | Une pose : `-3deg` ; `1.05` |
+| `transition` | La durée du passage d'une allure à l'autre : `0.3s` ; ou `none` |
+
+**Les variables.** Une couleur ou une taille nommée une fois, dans le style de `Page`, puis employée partout, sans `var( )` :
+
+```holo
+Page(children: [ H1("Sunrise"), P.card("Hand-painted.") ])
+
+Page { --gold: #E9B44C; --ink: #1a1a2e; background: white; color: --ink; dark: { --ink: #F5F5F5; background: #101020; } }
+H1 { color: --gold; font-size: 40px; phone: { font-size: 28px; } }
+.card { border: 1px solid --gold; box-shadow: 0 8px 24px #00000040; }
+```
+
+**Les états** d'un style : `hover: { … }` (la souris), `focus: { … }` (le clavier), `active: { … }` (l'appui), `dark: { … }` (le visiteur a choisi le thème sombre), `phone: { … }` (un écran plus étroit que la page). Dans `phone:`, et seulement là, `display: none;` cache un bloc.
+
+**Sa propre police** : `Page(fonts: [ Font(family: "Carlito", source: "carlito.woff2") ])`, puis `font-family: Carlito, Georgia, serif;`. Le texte s'affiche tout de suite avec la police de secours.
+
+Ces ajouts sont à l'essai (`ADR-041`). Les leçons sont `50-texte-soigne.holo` à `54-police.holo`.
 
 Ce que le moteur refuse, alors que le CSS le laisse passer :
 
@@ -253,7 +277,8 @@ Ce que le moteur refuse, alors que le CSS le laisse passer :
 - un `;` oublié en fin de ligne ;
 - un style défini deux fois ;
 - un nom posé sur un bloc (`P.card`) sans style `.card` ;
-- un réglage de disposition (`display`, `position`, `float`) : un style ne dit que l'apparence ;
+- un réglage de disposition (`display`, `position`, `float`) : un style ne dit que l'apparence (seule exception : `display: none` dans `phone:`) ;
+- une hauteur de ligne en pixels (elle ne suivrait pas le texte grossi), une variable jamais définie, une image de fond hors du dossier ;
 - un sélecteur composé (`.card P { ... }`).
 
 ## 6. Un point, son monde, et les règles
@@ -1244,7 +1269,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 
 | Bloc | Réglages | Où |
 |---|---|---|
-| `Page` | `name`, `title`, `lang`, `description`, `image`, `children`, `pixels`, `rules`, `state`, `prices`, `keep`, `data`, `zoom`, `points`, `relief`, `portals` | À la racine |
+| `Page` | `name`, `title`, `lang`, `description`, `image`, `fonts`, `children`, `pixels`, `rules`, `state`, `prices`, `keep`, `data`, `zoom`, `points`, `relief`, `portals` | À la racine |
 | `H1` à `H6`, `P`, `Text` | le texte entre guillemets ; `name` | Dans `children` |
 | `Header`, `Nav`, `Footer` | `children`, `name` | Dans `children` ; `Header` et `Footer` posés directement dans la page en sont l'en-tête et le pied |
 | `Main` | `children`, `name` | Directement dans la page |
@@ -1278,6 +1303,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Every` | le rythme, puis `effect:` | Dans `rules` |
 | `After` | la durée, puis `effect:` | Dans `rules` |
 | `Repeat` | `items`, `children`, `rules` | Dans `children` |
+| `Font` | `family`, `source` | Dans `fonts:` d'une `Page` |
 | `Item` | `key`, et les champs de l'élément | Dans `items` d'un `Repeat` |
 | `When` | le nom d'une valeur, puis `is`, `not`, `over`, `under` ; ou le nom d'un bloc, puis `meets` et `within` ; et `effect:` | Dans `rules` |
 | `State` | les valeurs et leur départ : `cart: 0` | Dans `state:` d'une `Page` |
@@ -1348,6 +1374,8 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | La date et l'heure du visiteur | `year`, `month`, `day`, `weekday`, `hour`, `minute` | fait, à l'essai |
 | L'approche d'un personnage, en profondeur | aucun | à faire |
 | Écrire une fois, répéter pour chaque élément | `Repeat(items: [ Item(…) ], children: [ … ])`, `item` | fait, à l'essai |
+| Une couleur nommée, le thème sombre, le téléphone | `--or`, `dark: { … }`, `phone: { … }` | fait, à l'essai |
+| Sa propre police | `fonts: [ Font(family:, source:) ]` | fait, à l'essai |
 | Réagir au zoom par une règle (« quand on zoome, alors… ») | aucun | à faire |
 | Ranger côte à côte, l'un sous l'autre, en grille | `Row`, `Column`, `Grid` | fait, à l'essai |
 | L'écart et le placement | `gap:`, `align:`, `columns:` | fait, à l'essai |

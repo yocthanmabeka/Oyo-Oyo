@@ -91,8 +91,9 @@ pub struct RegleStyle {
     pub pos: Pos,
 }
 
-/// Les états qu'un style peut décrire : au survol, au focus du clavier, pendant l'appui.
-pub const ETATS: &[&str] = &["hover", "focus", "active"];
+/// Les états qu'un style peut décrire : au survol, au focus du clavier, pendant l'appui ; puis
+/// quand le visiteur a choisi le thème sombre, et sur un écran de téléphone (ADR-041).
+pub const ETATS: &[&str] = &["hover", "focus", "active", "dark", "phone"];
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Erreur {

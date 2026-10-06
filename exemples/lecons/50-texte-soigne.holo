@@ -1,0 +1,41 @@
+// Leçon 50 — Un texte soigné
+//
+// Ce qu'on apprend :
+//   line-height: 1.6;            la hauteur de ligne, sans unité : elle suit la taille du texte
+//   letter-spacing: 2px;         l'écart entre les lettres (il peut être négatif : -0.5px)
+//   text-transform: uppercase;   majuscules (aussi : lowercase, capitalize, none)
+//   text-decoration: line-through;  barré (aussi : underline, none)
+//   text-shadow: 0 2px 6px #000000AA;  une ombre sous les lettres
+//   Comme en CSS, mais une hauteur de ligne en pixels est refusée : elle ne suivrait pas le
+//   texte quand le visiteur le grossit.
+//
+// À essayer :
+//   Compare le paragraphe aéré et le paragraphe serré.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 50 : un texte soigné",
+  children: [
+    Text.surtitre("Nouvelle collection"),
+    H1("Un texte soigné"),
+    P.aere("Un paragraphe aéré se lit sans fatigue : les lignes respirent, l'œil retrouve facilement le début de la suivante. C'est ce qu'il faut pour un long texte."),
+    P.serre("Un paragraphe serré fatigue l'œil : les lignes se touchent presque, et l'on perd sa place en revenant à la ligne."),
+    Text.prix("Avant : 120 €"),
+    Text("Maintenant : 90 €"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 49 : répéter", to: "49-repeter.holo"),
+      A("Leçon 51 : ombres et fonds →", to: "51-ombres-et-fonds.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 32px; text-shadow: 0 2px 6px #000000AA; }
+A { color: #8fd3ff; }
+.surtitre { text-transform: uppercase; letter-spacing: 2px; font-size: 13px; color: #E9B44C; }
+.aere { line-height: 1.7; }
+.serre { line-height: 1; letter-spacing: -0.5px; }
+.prix { text-decoration: line-through; opacity: 0.6; }

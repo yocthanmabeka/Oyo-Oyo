@@ -57,5 +57,10 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 47 | [Une seule fois, plus tard](47-plus-tard.holo) | `After` |
 | 48 | [L'heure du visiteur](48-heure.holo) | `year`, `month`, `day`, `weekday`, `hour`, `minute` |
 | 49 | [Écrire une carte une fois, la répéter](49-repeter.holo) | `Repeat`, `Item`, `item` |
+| 50 | [Un texte soigné](50-texte-soigne.holo) | `line-height`, `letter-spacing`, `text-transform`, `text-decoration`, `text-shadow` |
+| 51 | [Ombres, fonds, et une pose qui bouge](51-ombres-et-fonds.holo) | `box-shadow`, `linear-gradient`, `url(…)`, `rotate`, `scale`, `transition` |
+| 52 | [Des couleurs nommées, et le thème sombre](52-variables-et-theme-sombre.holo) | `--or`, `dark:` |
+| 53 | [Sur un téléphone](53-telephone.holo) | `phone:`, `display: none` |
+| 54 | [Sa propre police](54-police.holo) | `fonts`, `Font` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.

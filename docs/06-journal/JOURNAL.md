@@ -6,6 +6,22 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Lot 4 : le CSS utile
+
+- Fait (`ADR-041`, à l'essai) : `line-height` (sans unité), `letter-spacing`, `text-transform`, `text-decoration`, `box-shadow`, `text-shadow`, `rotate`, `scale`, `transition` ; `background` en dégradé ou en image (`url("fond.jpg")`, qui couvre toujours le bloc) ; les variables (`Page { --or: … }`, puis `color: --or;`) ; deux états de style, `dark:` et `phone:` (avec `display: none` seulement là) ; sa propre police, `fonts: [ Font(family:, source:) ]`, toujours affichée avec `font-display: swap`. Leçons 50 à 54. Le serveur sait maintenant servir les polices et les images `.png`, `.jpg`, `.webp`.
+- La police de la leçon 54 est Carlito, libre (SIL Open Font License, « Copyright 2013 The Carlito Project Authors », lu dans le fichier lui-même), copiée depuis un paquet déjà présent sur le PC : rien n'a été téléchargé.
+- Vérifié dans Chrome, par les styles calculés : majuscules et espacement, interligne, barré ; dégradé, ombre, image qui couvre ; la carte qui se redresse et grandit au survol ; les thèmes clair et sombre ; le bandeau caché sur un écran de 390 pixels ; Carlito chargée. 100 tests.
+- Couverture estimée : CSS à 78 % ; ensemble de 56 % à 63 % ; 269 mots.
+
+![Ombres, dégradé, image de fond](images/2026-10-06-lot4-ombres-et-fonds.png)
+
+**Erreurs en route**
+
+- Le message de refus de `display` avait perdu la phrase qu'un cas de conformité attend (« la disposition vient des blocs ») : remise.
+- Mon premier essai du thème clair montrait le sombre : le Chrome de test suit le thème sombre de Windows. Le thème clair a été forcé pour le vérifier ; la page n'était pas en cause.
+
+---
+
 ## 2026-10-06 — Lot 3 : écrire une carte une fois, la répéter
 
 - Fait (`ADR-040`, à l'essai) : `Repeat(items: [ Item(…) ], children: [ … ], rules: [ … ])`. Dans le modèle, `item` désigne l'élément : `{item.title}`, `item.image`, `{item}`, `item.add(1)`. Un bloc nommé reçoit le nom de son élément (`Add` → `AddSunrise`) ; les règles du modèle sont écrites une fois par élément. Déplié à la lecture, comme `Use` : la page fabriquée d'avance est du HTML ordinaire. Leçon 49.
