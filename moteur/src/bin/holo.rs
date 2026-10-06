@@ -39,6 +39,16 @@ fn main() -> ExitCode {
             source.push_str(&texte);
         }
     }
+    // L'heure du lieu, si le serveur la donne (HOLO_MAINTENANT=2026,10,6,2,14,5 : année, mois,
+    // jour, jour de la semaine, heure, minute) ; sinon l'heure universelle (ADR-039).
+    let donnee: Option<Vec<u64>> = std::env::var("HOLO_MAINTENANT").ok().map(|v| v.split(',').filter_map(|n| n.trim().parse().ok()).collect());
+    match donnee.as_deref() {
+        Some(&[annee, mois, jour, semaine, heure, minute]) => holo_moteur::regler_maintenant([annee, mois, jour, semaine, heure, minute]),
+        _ => {
+            let secondes = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
+            holo_moteur::regler_maintenant(holo_moteur::etat::depuis_secondes_unix(secondes));
+        }
+    }
     let resultat = match commande {
         "check" => holo_moteur::verifier_page(&source).map(|_| "ok".to_string()),
         _ => holo_moteur::vue_a_plat(&source, dossier),

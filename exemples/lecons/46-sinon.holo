@@ -1,0 +1,42 @@
+// Leçon 46 — Sinon
+//
+// Ce qu'on apprend :
+//   If(panier, is: 0, children: [ … ], else: [ … ])
+//   children : ce qu'on montre quand la condition est vraie ;
+//   else : ce qu'on montre quand elle est fausse.
+//   Avant, il fallait écrire deux If, l'un contraire de l'autre.
+//
+// À essayer :
+//   Ajoute un tableau au panier, puis vide-le.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 46 : sinon",
+  state: State(panier: 0),
+  children: [
+    H1("Sinon"),
+    If(panier, is: 0,
+      children: [ P("Ton panier est vide.") ],
+      else: [ P("Ton panier contient {panier} tableau(x).") ],
+    ),
+    Row(gap: 8px, children: [
+      Button(name: Ajouter, text: "Ajouter un tableau"),
+      Button(name: Vider, text: "Vider"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 45 : le survol qui agit", to: "45-survol-qui-agit.holo"),
+      A("Leçon 47 : une seule fois, plus tard →", to: "47-plus-tard.holo"),
+    ]),
+  ],
+  rules: [
+    On(Ajouter.tap, effect: panier.add(1)),
+    On(Vider.tap, effect: panier.set(0)),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

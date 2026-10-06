@@ -178,6 +178,11 @@ fn site_html_brut(programme: &Programme, page: &Bloc, base: &str, titre: &str) -
                 // La place d'un bloc sur un plateau : la valeur de départ, de 0 à 100.
                 let valeur = montrees.iter().find(|(connu, _)| connu == nom).map_or(0, |(_, v)| *v);
                 sortie.push_str(&valeur.min(100).to_string());
+            } else if let Some(cle) = morceau.strip_prefix('^') {
+                // Le « sinon » d'une condition : caché quand elle est vraie (ADR-039).
+                if reponses.iter().any(|(connue, vraie)| connue == cle && *vraie) {
+                    sortie.push_str(" hidden");
+                }
             } else if !reponses.iter().any(|(cle, vraie)| cle == morceau && *vraie) {
                 sortie.push_str(" hidden");
             }
@@ -209,10 +214,25 @@ fn site_html_brut(programme: &Programme, page: &Bloc, base: &str, titre: &str) -
     // alors arriver tout de suite. Les autres pages s'affichent seules : le moteur n'est
     // téléchargé qu'au premier geste qui en a besoin (ADR-033).
     let vivante = !crate::etat::horloges(programme).is_empty()
+        || !crate::etat::delais(programme, &depart).is_empty()
+        || crate::etat::lit_l_heure(programme)
         || !crate::etat::touches(programme).is_empty()
         || crate::etat::source_de_donnees(programme).ok().flatten().is_some()
         || corps.contains("data-drag=");
     let vivante = if vivante { " data-vivant" } else { "" };
+    // Un bloc qu'une règle écoute au survol le dit à la page (ADR-039) : la page légère fait
+    // venir le moteur quand la souris arrive dessus.
+    // Un bloc qui ne reçoit pas le focus de lui-même (une carte, un texte) le reçoit alors, pour
+    // qu'on le survole aussi au clavier, avec Tab.
+    for nom in crate::regles::survoles(programme) {
+        let seul = format!(" data-name=\"{}\"", echapper(&nom));
+        for html in [&mut corps, &mut entete, &mut pied, &mut mondes] {
+            let Some(place) = html.find(&seul) else { continue };
+            let balise: String = html[..place].rsplit('<').next().unwrap_or("").chars().take_while(|c| c.is_ascii_alphanumeric()).collect();
+            let focus = if ["button", "a", "label", "fieldset", "video"].contains(&balise.as_str()) { "" } else { " tabindex=\"0\"" };
+            html.replace_range(place..place + seul.len(), &format!("{seul} data-hover{focus}"));
+        }
+    }
     // La langue, la description et l'image de partage (ADR-038) : le serveur et le moteur les
     // reprennent dans l'en-tête de la page, pour les lecteurs d'écran, Google et les réseaux.
     let mut partage = String::new();
@@ -546,6 +566,14 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
             sortie.push_str(&format!("<div class=\"{classes}\"{nom} data-if=\"{}\"{MARQUE}{cle}{MARQUE}>", echapper(&cle)));
             enfants(bloc, sortie, mondes, base)?;
             sortie.push_str("</div>");
+            // Le « sinon » : ce qui se montre quand la condition est fausse (ADR-039).
+            if let Some(Valeur::Liste(sinon)) = bloc.argument("else").map(|a| &a.valeur) {
+                sortie.push_str(&format!("<div class=\"holo-If\" data-else=\"{}\"{MARQUE}^{cle}{MARQUE}>", echapper(&cle)));
+                for element in sinon {
+                    rendre(element, sortie, mondes, base, bloc)?;
+                }
+                sortie.push_str("</div>");
+            }
         }
         // Un champ où le visiteur écrit un nombre, et une case qu'il coche. Chacun présente une
         // valeur de la page ; l'étiquette est obligatoire (ADR-027). `etat.rs` les a vérifiés.
@@ -1360,6 +1388,57 @@ mod tests {
             ("Page(state: State(n: 0), children: [ Choice(value: n, label: \"x\", options: [\"a\", \"b\"]) ])", "un choix présente un texte"),
             ("Page(state: State(t: \"\"), children: [ Choice(value: t, label: \"x\", options: [\"a\"]) ])", "de 2 à 20 textes"),
             ("Page(state: State(t: \"\"), children: [ Choice(value: t, label: \"x\", options: [\"a\", \"a\"]) ])", "le même texte"),
+        ] {
+            let erreur = crate::verifier_page(source).err().or_else(|| crate::vue_a_plat(source, "").err()).unwrap_or_else(|| panic!("accepté : {source}"));
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
+    }
+
+    #[test]
+    fn le_lot_2_survol_sinon_attente_heure() {
+        // Le survol : la page sait quels blocs l'écoutent ; il change des valeurs.
+        let source = "Page(state: State(vu: 0), children: [ Column(name: Carte, children: [ P(\"a\") ]), If(vu, is: 1, children: [ P(\"oui\") ], else: [ P(\"non\") ]) ], rules: [ On(Carte.hover, effect: vu.set(1)), On(Carte.hoverEnd, effect: vu.set(0)) ])";
+        let html = crate::vue_a_plat(source, "").unwrap();
+        assert!(html.contains("<div class=\"holo-Column\" data-name=\"Carte\" data-hover tabindex=\"0\""), "{html}");
+        // Le sinon : montré au départ, puisque la condition est fausse ; le « oui » est caché.
+        assert!(html.contains("data-if=\"vu|is=1\" hidden><p class=\"holo-P\">oui</p></div><div class=\"holo-If\" data-else=\"vu|is=1\"><p class=\"holo-P\">non</p></div>"), "{html}");
+        let survole = crate::arbitrer(source, &crate::etat_initial(source), "Carte.hover");
+        assert_eq!(survole, "vu=1");
+        assert_eq!(crate::arbitrer(source, &survole, "Carte.hoverEnd"), "vu=0");
+        // Une attente : une seule fois ; sous une condition, elle ne court que si la condition est vraie.
+        let source = "Page(state: State(bonjour: 0, message: 0), children: [ Text(\"{bonjour}\") ], rules: [ After(2s, effect: bonjour.set(1)), If(message, is: 1, rules: [ After(3s, effect: message.set(0)) ]) ])";
+        let depart = crate::etat_initial(source);
+        assert_eq!(crate::delais(source, &depart), "2000:1;3000:0");
+        assert_eq!(crate::delais(source, "bonjour=0;message=1"), "2000:1;3000:1");
+        assert_eq!(crate::arbitrer(source, &depart, "after:0"), "bonjour=1;message=0");
+        assert_eq!(crate::arbitrer(source, "bonjour=1;message=1", "after:1"), "bonjour=1;message=0");
+        assert!(crate::vue_a_plat(source, "").unwrap().contains(" data-vivant"));
+        // L'heure du visiteur : donnée au moteur, lue par la page, jamais changée par elle.
+        crate::regler_maintenant([2026, 10, 6, 2, 14, 5]);
+        let source = "Page(children: [ Sound(name: Ding, source: \"d.wav\"), P(\"{hour} h {minute}\"), If(hour, over: 8, under: 18, children: [ P(\"ouvert\") ], else: [ P(\"fermé\") ]) ], rules: [ When(hour, is: 15, effect: Ding.play) ])\n".to_string();
+        let html = crate::vue_a_plat(&source, "").unwrap();
+        assert!(html.contains("<span data-state=\"hour\">14</span> h <span data-state=\"minute\">5</span>"), "{html}");
+        assert!(html.contains("data-else=\"hour|over=8|under=18\" hidden>"), "{html}");
+        assert_eq!(crate::etat_initial(&source), "hour=14;minute=5");
+        // Une minute plus tard, l'heure avance ; à 15 h, la règle qui guette l'heure sonne.
+        crate::regler_maintenant([2026, 10, 6, 2, 15, 0]);
+        assert_eq!(crate::avancer_l_horloge(&source, "hour=14;minute=59"), "hour=15;minute=0;!=Ding.play");
+        // L'état écrit ne change pas l'heure : c'est celle donnée au moteur.
+        assert_eq!(crate::arbitrer(&source, "hour=3;minute=3", "rien"), "hour=15;minute=0");
+        assert_eq!(crate::etat::depuis_secondes_unix(0), [1970, 1, 1, 4, 0, 0]);
+        assert_eq!(crate::etat::depuis_secondes_unix(1_791_244_800 + 14 * 3600 + 5 * 60), [2026, 10, 6, 2, 14, 5]);
+        // Ce qui est refusé.
+        for (source, message) in [
+            ("Page(state: State(hour: 0), children: [])", "est l'heure du visiteur"),
+            ("Page(state: State(n: 0), children: [ Button(name: B, text: \"b\") ], rules: [ On(B.tap, effect: hour.add(1)) ])", "on ne la change pas"),
+            ("Page(state: State(n: 0), children: [ Input(value: hour, label: \"h\") ])", "on ne l'écrit pas"),
+            ("Page(state: State(n: 0), keep: [hour], children: [ P(\"{hour}\") ])", "ne se garde pas"),
+            ("Page(state: State(n: 0), children: [ If(n, is: 0, rules: [ Every(1s, effect: n.add(1)) ], else: [ P(\"x\") ]) ])", "va avec children"),
+            ("Page(state: State(n: 0), children: [ If(n, is: 0, children: [ P(\"a\") ], else: P(\"x\")) ])", "va avec children"),
+            ("Page(state: State(n: 0), children: [], rules: [ After(effect: n.add(1)) ])", "une attente s'écrit"),
+            ("Page(state: State(n: 0), children: [], rules: [ After(2h, effect: n.add(1)) ])", "une attente s'écrit"),
+            ("Page(state: State(n: 0), children: [ Point(name: A, seed: 1), P(\"x\") ], rules: [ On(A.hover, effect: A.enter) ])", "demande que le visiteur touche"),
+            ("Page(state: State(n: 0), children: [ Main(name: M, children: [ P(\"x\") ]) ], rules: [ On(M.hover, effect: n.add(1)) ])", "signal inconnu « hover »"),
         ] {
             let erreur = crate::verifier_page(source).err().or_else(|| crate::vue_a_plat(source, "").err()).unwrap_or_else(|| panic!("accepté : {source}"));
             assert!(erreur.message.contains(message), "{source}\n→ {erreur}");

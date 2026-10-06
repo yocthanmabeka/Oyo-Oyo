@@ -1,0 +1,42 @@
+// Leçon 48 — L'heure du visiteur
+//
+// Ce qu'on apprend :
+//   Le moteur donne l'heure de l'appareil du visiteur, comme six valeurs qu'on lit :
+//     year     l'année            month    le mois (1 à 12)     day     le jour (1 à 31)
+//     weekday  le jour de la semaine (1 lundi … 7 dimanche)
+//     hour     l'heure (0 à 23)   minute   la minute (0 à 59)
+//   On les montre ({hour}), on les compare (If(hour, over: 8, under: 18, …)).
+//   On ne les change pas, et on ne peut pas donner ces noms à ses propres valeurs.
+//   La page se tient à jour toute seule, minute après minute.
+//
+// À essayer :
+//   Regarde l'heure affichée, puis attends la minute suivante.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 48 : l'heure",
+  children: [
+    H1("L'heure du visiteur"),
+    P("Nous sommes le {day}/{month}/{year}, il est {hour} h {minute}."),
+    If(weekday, over: 5,
+      children: [ P("C'est le week-end : l'atelier est fermé.") ],
+      else: [
+        If(hour, over: 8, under: 18,
+          children: [ P.ouvert("L'atelier est ouvert : de 9 h à 18 h.") ],
+          else: [ P("L'atelier est fermé ; il ouvre à 9 h.") ],
+        ),
+      ],
+    ),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 47 : une seule fois, plus tard", to: "47-plus-tard.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.ouvert { color: #7be38f; }

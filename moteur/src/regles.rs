@@ -9,10 +9,19 @@ use crate::holo::{Bloc, Erreur, Programme, Valeur};
 /// Ce qu'un bloc sait émettre (signaux) et ce qu'on peut lui demander (capacités).
 fn signaux(bloc: &str) -> &'static [&'static str] {
     match bloc {
-        "Button" | "Point" | "Shape" => &["tap"],
+        "Button" | "Point" | "Shape" => &["tap", "hover", "hoverEnd"],
+        // Tout bloc qui se voit peut être survolé (ADR-039) : la souris arrive dessus, le
+        // clavier s'y pose, ou le doigt le touche sur un téléphone.
+        autre if crate::blocs::BLOCS.contains(&autre) && !INVISIBLES.contains(&autre) => &["hover", "hoverEnd"],
         _ => &[],
     }
 }
+
+/// Les blocs qui ne se voient pas, ou qui ne sont pas une boîte à l'écran : on ne les survole pas.
+const INVISIBLES: &[&str] = &["Page", "World", "Main", "On", "Every", "When", "After", "State", "Prices", "Data", "Zoom", "Points", "Relief", "Portals", "Part", "Use", "Sound", "Scene", "Enter", "Loop", "If"];
+
+/// Le survol : la souris arrive sur le bloc (`hover`), puis le quitte (`hoverEnd`).
+pub const SURVOL: &[&str] = &["hover", "hoverEnd"];
 
 fn capacites(bloc: &str) -> &'static [&'static str] {
     match bloc {
@@ -104,8 +113,8 @@ pub fn verifier_regles(programme: &Programme) -> Result<(), Erreur> {
         if bloc.nom == "If" {
             if let Some(Valeur::Liste(regles)) = bloc.argument("rules").map(|a| &a.valeur) {
                 for regle in regles {
-                    if !matches!(regle, Valeur::Bloc(b) if b.nom == "Every" || b.nom == "When") {
-                        return Err(Erreur { message: "sous une condition, on range des règles de temps et des règles qui guettent : If(lives, over: 0, rules: [ Every(…), When(…) ])".into(), pos: bloc.pos });
+                    if !matches!(regle, Valeur::Bloc(b) if b.nom == "Every" || b.nom == "When" || b.nom == "After") {
+                        return Err(Erreur { message: "sous une condition, on range des règles de temps et des règles qui guettent : If(lives, over: 0, rules: [ Every(…), After(…), When(…) ])".into(), pos: bloc.pos });
                     }
                 }
             }
@@ -126,7 +135,8 @@ pub fn verifier_regles(programme: &Programme) -> Result<(), Erreur> {
             verifier_effets(bloc, &noms, &etat, false)?;
         }
         // Une règle de temps : un rythme, et une ou plusieurs demandes faites à l'arbitre (ADR-026).
-        if bloc.nom == "Every" {
+        // Une seule fois, plus tard : After(3s, effect: …) (ADR-039).
+        if bloc.nom == "Every" || bloc.nom == "After" {
             crate::etat::rythme(bloc)?;
             verifier_effets(bloc, &noms, &etat, false)?;
         }
@@ -200,7 +210,9 @@ fn verifier_regle(regle: &Bloc, noms: &[(&str, &str)], etat: &crate::etat::Etat)
             return Err(Erreur { message: format!("signal inconnu « {mot} » : un « {type_source} » émet {}", lister(signaux(type_source))), pos: regle.pos });
         }
     }
-    verifier_effets(regle, noms, etat, true)
+    // Un survol ne fait que changer des valeurs ou jouer un son : on n'emmène pas le visiteur
+    // ailleurs parce que sa souris est passée par là.
+    verifier_effets(regle, noms, etat, !SURVOL.contains(&mot))
 }
 
 /// Les effets d'une règle : un seul, ou plusieurs entre crochets.
@@ -243,6 +255,12 @@ fn verifier_effets(regle: &Bloc, noms: &[(&str, &str)], etat: &crate::etat::Etat
             // peut pas emmener le visiteur ailleurs sans qu'il ait rien touché.
             Valeur::Nom(_) => {
                 let (cible, capacite) = nom_et_mot(regle, Some(effet), "l'effet")?;
+                if (type_de(cible) != Some("Sound") || capacite != "play") && regle.nom == "On" {
+                    return Err(Erreur {
+                        message: format!("un survol change des valeurs ou joue un son ; « {cible}.{capacite} » demande que le visiteur touche : On(…tap, effect: {cible}.{capacite})"),
+                        pos: regle.pos,
+                    });
+                }
                 if type_de(cible) != Some("Sound") || capacite != "play" {
                     return Err(Erreur {
                         message: format!("« {} » : en dehors d'une demande, seule la lecture d'un son est permise ici (Ding.play) ; « {cible}.{capacite} » demande un geste du visiteur, dans une règle « On »", regle.nom),
@@ -296,6 +314,24 @@ fn verifier_budget(point: &Bloc) -> Result<(), Erreur> {
         }),
         _ => Ok(()),
     }
+}
+
+/// Les blocs qu'une règle écoute au survol : `On(Card.hover, …)` ou `On(Card.hoverEnd, …)`.
+pub fn survoles(programme: &Programme) -> Vec<String> {
+    let mut noms: Vec<String> = Vec::new();
+    let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
+        if bloc.nom == "On" {
+            if let Some(Valeur::Nom(signal)) = bloc.arguments.iter().find(|a| a.nom.is_none()).map(|a| &a.valeur) {
+                if let Some((nom, mot)) = signal.split_once('.') {
+                    if SURVOL.contains(&mot) && nom != "Key" && !noms.iter().any(|n| n == nom) {
+                        noms.push(nom.to_string());
+                    }
+                }
+            }
+        }
+        Ok(())
+    });
+    noms
 }
 
 /// Les effets demandés par un signal, dans l'ordre où les règles sont écrites.
@@ -363,7 +399,9 @@ mod tests {
     fn une_regle_mal_ecrite_est_refusee() {
         let page = |regle: &str| format!("Page(children: [ Button(name: Open, text: \"x\"), Point(name: A, seed: 1) ], rules: [ {regle} ])");
         assert!(verifier(&page("On(Open.tap, effect: A.enter)")).is_ok());
-        assert!(verifier(&page("On(Open.hover, effect: A.enter)")).unwrap_err().message.contains("signal inconnu « hover »"));
+        assert!(verifier(&page("On(Open.swipe, effect: A.enter)")).unwrap_err().message.contains("signal inconnu « swipe »"));
+        // Un survol change des valeurs ; il n'emmène pas ailleurs (ADR-039).
+        assert!(verifier(&page("On(Open.hover, effect: A.enter)")).unwrap_err().message.contains("demande que le visiteur touche"));
         assert!(verifier(&page("On(Nobody.tap, effect: A.enter)")).unwrap_err().message.contains("aucun bloc ne s'appelle « Nobody »"));
         assert!(verifier(&page("On(Open.tap, effect: Open.enter)")).unwrap_err().message.contains("un « Button » offre rien"));
         assert!(verifier(&page("On(Open.tap)")).unwrap_err().message.contains("l'effet manque"));

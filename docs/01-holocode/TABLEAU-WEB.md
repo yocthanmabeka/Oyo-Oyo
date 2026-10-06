@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-06). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (236 mots : 224 décidés, 12 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (246 mots : 224 décidés, 22 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
 - **Couverture** : la part de ce que fait l’élément web qu’on obtient en HoloCode aujourd’hui. Estimation de Claude, non mesurée.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,11 +9,11 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 236 mots | 224 décidés, 12 à l’essai |
+| **HoloCode** | 246 mots | 224 décidés, 22 à l’essai |
 | HTML | 63 % de couverture | 33 oui, 10 en partie, 16 non, 3 refusés |
 | CSS | 53 % de couverture | 14 oui, 9 en partie, 9 non, 2 refusés |
-| JavaScript | 32 % de couverture | 6 oui, 11 en partie, 15 non, 1 refusés |
-| HTML, CSS, JS ensemble | 53 % de couverture | 53 oui, 30 en partie, 40 non, 6 refusés |
+| JavaScript | 41 % de couverture | 9 oui, 11 en partie, 12 non, 1 refusés |
+| HTML, CSS, JS ensemble | 55 % de couverture | 56 oui, 30 en partie, 37 non, 6 refusés |
 
 # Partie 1 — Les mots de HoloCode
 
@@ -270,6 +270,30 @@
 | `**gras**, *italique*, `code`` | Le texte enrichi, en Markdown | `strong, em, code` | Décidé (ADR-019) |
 | `""" … """` | Un texte qui garde ses retours à la ligne | `br` | Décidé (ADR-025) |
 
+## Blocs : les règles
+
+| Mot HoloCode | Ce qu’il fait | Sur le web | État |
+|---|---|---|---|
+| `After` | Une seule fois, plus tard ; sous une condition, part quand elle devient vraie | `setTimeout` | À l’essai (ADR-039) |
+
+## Paramètres : les règles
+
+| Mot HoloCode | Ce qu’il fait | Sur le web | État |
+|---|---|---|---|
+| `else` | Ce qu'un If montre quand la condition est fausse | `else` | À l’essai (ADR-039) |
+
+## Signaux et capacités
+
+| Mot HoloCode | Ce qu’il fait | Sur le web | État |
+|---|---|---|---|
+| `hover, hoverEnd` | La souris, le clavier ou le doigt arrive sur un bloc, puis le quitte | `mouseenter, mouseleave, focus, blur` | À l’essai (ADR-039) |
+
+## Valeurs calculées
+
+| Mot HoloCode | Ce qu’il fait | Sur le web | État |
+|---|---|---|---|
+| `{year}, {month}, {day}, {weekday}, {hour}, {minute}` | L'heure de l'appareil du visiteur, tenue à jour | `new Date()` | À l’essai (ADR-039) |
+
 # Partie 2 — HoloCode face à HTML, CSS et JavaScript
 
 ## HTML — Structure de la page
@@ -434,7 +458,7 @@
 |---|---|---|---|---|---|---|
 | `On(Nom.tap, effect:)` | `clic` | réagir à un toucher | Oui | 100 % | Déjà là | — |
 | `On(Key.left…)` | `clavier` | réagir aux touches | En partie | 40 % | Oui, utile | Seulement les flèches et l'espace. |
-| — | `survol, approche (mouseenter)` | quand la souris passe dessus | Non | 0 % | Oui, en priorité | Prévu sous le nom near : le même signal à plat et en profondeur. |
+| `On(Carte.hover), On(Carte.hoverEnd)` | `survol, approche (mouseenter)` | quand la souris passe dessus | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-039) : à la souris, au clavier et au doigt. L'approche d'un personnage, en profondeur, reste à faire. |
 | — | `défilement (scroll)` | réagir quand on descend | Non | 0 % | Oui, utile | Faire apparaître en descendant. |
 | `drag: true sur un plateau` | `glisser-déposer` | faire glisser | En partie | 50 % | Déjà là | Sur un plateau seulement. |
 | `le zoom du moteur` | `pincer, zoomer` | le zoom à deux doigts | Oui | 100 % | Déjà là | Le cœur du métavers. |
@@ -445,13 +469,13 @@
 |---|---|---|---|---|---|---|
 | `State(…)` | `variables` | garder une valeur | En partie | 70 % | Déjà là | Nombres entiers et textes ; pas de décimaux. |
 | `add, sub, set, random` | `calcul (+ − × ÷)` | calculer | En partie | 30 % | Oui, utile | Pas de multiplication ni de division (sauf le total d'un panier). |
-| `If(…), When(…)` | `if, else` | décider | En partie | 70 % | Oui, utile | Pas de « sinon » : il faut écrire deux If. |
+| `If(…, else: […]), When(…)` | `if, else` | décider | Oui | 100 % | Déjà là | Le « sinon » ajouté le 2026-10-06 (ADR-039). |
 | — | `tableaux, objets` | des listes de valeurs | Non | 0 % | Oui, en priorité | Sans liste, douze produits s'écrivent un par un. |
 | — | `for, map` | répéter pour chaque élément | Non | 0 % | Oui, en priorité | Va avec les listes. |
 | — | `fonctions` | du calcul réutilisable | Non | 0 % | Plus tard | Prévu : des fonctions pures enfermées (ADR-013). |
 | `{nom} dans un texte` | `texte (majuscules, longueur, découper)` | travailler un texte | En partie | 20 % | Plus tard | — |
 | `random, rejouable` | `Math.random` | le hasard | Oui | 90 % | Déjà là | Mieux pour un jeu : la même partie se rejoue. |
-| — | `Date` | la date et l'heure du jour | Non | 0 % | Oui, utile | « Ouvert aujourd'hui », un compte à rebours. |
+| `{year} {month} {day} {weekday} {hour} {minute}` | `Date` | la date et l'heure du jour | En partie | 70 % | Déjà là | Ajouté le 2026-10-06 (ADR-039). Pas encore de calcul sur les dates (un compte à rebours) ni de format (14 h 05). |
 | — | `Intl (formats)` | 1 234,50 €, dates en français | Non | 0 % | Oui, utile | — |
 
 ## JavaScript — Temps
@@ -459,7 +483,7 @@
 | En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|---|
 | `Every(1s, effect:)` | `setInterval` | répéter toutes les N secondes | Oui | 90 % | Déjà là | — |
-| — | `setTimeout` | une seule fois, plus tard | Non | 0 % | Oui, utile | « Dans 3 secondes, montre ceci » n'existe pas seul. |
+| `After(3s, effect: …)` | `setTimeout` | une seule fois, plus tard | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-039) ; sous une condition, l'attente part quand elle devient vraie. |
 | `le moteur` | `requestAnimationFrame` | dessiner image par image | Sans objet | — | Non | Le moteur s'en charge. |
 
 ## JavaScript — Réseau et mémoire

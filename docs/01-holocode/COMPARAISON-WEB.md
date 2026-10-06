@@ -131,7 +131,11 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | Changer de page sans recharger (un routeur) | `Point(inside:)`, `enter`, `leave`, le dézoom | fait |
 | L'historique, le bouton « retour » | automatique : chaque site a son adresse | fait |
 | Le clavier | `On(Key.left, effect: …)` : les flèches et l'espace | fait, à l'essai |
-| Survol, approche, défilement | | manque |
+| Survol (`mouseenter`, `mouseleave`) | `On(Carte.hover, …)`, `On(Carte.hoverEnd, …)` : aussi au clavier et au doigt | fait, à l'essai |
+| Approche, défilement | | manque |
+| `else` | `If(…, children: [ … ], else: [ … ])` | fait, à l'essai |
+| `setTimeout` | `After(3s, effect: …)` ; sous une condition, part quand elle devient vraie | fait, à l'essai |
+| `Date` (la date et l'heure du jour) | `{year}`, `{month}`, `{day}`, `{weekday}`, `{hour}`, `{minute}` | fait, à l'essai ; pas encore de calcul sur les dates |
 | Garder une valeur, l'afficher (un panier) | `State(cart: 0)`, `{cart}`, `cart.add(1)` | fait, à l'essai : des nombres entiers ; avec `Prices`, le moteur calcule `{count}` et `{total}` |
 | Afficher sous condition | `If(cart, is: 0, children: [...])` | fait, à l'essai |
 | Répéter sur une liste | | manque : il faut d'abord des valeurs qui soient des listes |
