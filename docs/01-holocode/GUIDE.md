@@ -207,10 +207,16 @@ Cette écriture est décidée (`ADR-024`).
 Dans `Row` ou `Column`, un bloc qui porte **`grow: 1`** prend la place qui reste, comme `Expanded` en Flutter. Avec `grow: 2` à côté d'un `grow: 1`, il en prend deux parts. Un bloc sans `grow` garde sa taille. Un champ de saisie qui grandit s'étire jusqu'au bout.
 
 ```holo
-Row(gap: 8px, children: [
-  Input(value: search, label: "Search", grow: 1),
-  Button(name: Go, text: "Go"),
-])
+Page(
+  state: State(search: ""),
+  children: [
+    H1("Shop"),
+    Row(gap: 8px, children: [
+      Input(value: search, label: "Search", grow: 1),
+      Button(name: Go, text: "Go"),
+    ]),
+  ],
+)
 ```
 
 Pour une largeur précise, le style `width` : `.narrow { width: 80px; }`. La leçon est `72-place-et-theme.holo` ; cette écriture est décidée (`ADR-052`).
