@@ -707,6 +707,10 @@ pub fn lire(source: &str) -> Result<Programme, Erreur> {
     }
     poser_les_morceaux(&mut programme.racine, &morceaux)?;
     // Les répétitions sont dépliées à leur tour, comme les morceaux (ADR-040).
+    crate::format::regler_langue(match programme.racine.argument("lang").map(|a| &a.valeur) {
+        Some(Valeur::Texte(l)) => l,
+        _ => "fr",
+    });
     crate::repetition::deplier_site(&mut programme.racine, &mut 0)?;
     // Les styles des morceaux d'abord, ceux de la page ensuite : à cible égale, la page garde le sien.
     styles_importes.retain(|importe: &RegleStyle| !programme.styles.iter().any(|propre| propre.cible == importe.cible));

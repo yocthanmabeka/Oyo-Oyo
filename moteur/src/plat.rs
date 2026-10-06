@@ -209,6 +209,15 @@ fn site_html_brut(programme: &Programme, page: &Bloc, base: &str, titre: &str) -
         entete = entete.replace(&vide, &pleine);
         pied = pied.replace(&vide, &pleine);
     }
+    // Les valeurs à format, à leur départ, dans la langue de la page.
+    let langue = match programme.racine.argument("lang").map(|a| &a.valeur) {
+        Some(Valeur::Texte(l)) => l.as_str(),
+        _ => "fr",
+    };
+    corps = crate::format::remplir(&corps, &montrees, langue);
+    mondes = crate::format::remplir(&mondes, &montrees, langue);
+    entete = crate::format::remplir(&entete, &montrees, langue);
+    pied = crate::format::remplir(&pied, &montrees, langue);
     for (nom, valeur) in montrees.clone() {
         let (vide, pleine) = (format!("<span data-state=\"{nom}\"></span>"), format!("<span data-state=\"{nom}\">{valeur}</span>"));
         corps = corps.replace(&vide, &pleine);
@@ -1235,6 +1244,10 @@ fn markdown(texte: &str) -> String {
     for nom in crate::etat::noms_dans(texte) {
         html = html.replace(&format!("{{{nom}}}"), &format!("<span data-state=\"{nom}\"></span>"));
     }
+    // `{minute:00}` : la valeur, avec son format (ADR-043).
+    for (nom, format) in crate::format::formats_dans(texte) {
+        html = html.replace(&format!("{{{nom}:{format}}}"), &format!("<span data-state=\"{nom}\" data-format=\"{format}\"></span>"));
+    }
     html
 }
 
@@ -1587,6 +1600,33 @@ mod tests {
             ("Page(state: State(t: \"\"), children: [ Choice(value: t, label: \"x\", options: [\"a\", \"a\"]) ])", "le même texte"),
         ] {
             let erreur = crate::verifier_page(source).err().or_else(|| crate::vue_a_plat(source, "").err()).unwrap_or_else(|| panic!("accepté : {source}"));
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
+    }
+
+    #[test]
+    fn le_lot_6_calculer_et_formats() {
+        crate::regler_maintenant([2026, 10, 6, 2, 9, 5]);
+        let source = "Page(state: State(n: 10, total: 123450), children: [ P(\"{weekday:name} {day} {month:name}, {hour} h {minute:00} ; {total:cents} ; {n:number}\"), Repeat(items: [ Item(price: 1999) ], children: [ P(\"{item.price:cents}\") ]) ], rules: [])";
+        let html = crate::vue_a_plat(source, "").unwrap();
+        assert!(html.contains("<span data-state=\"weekday\" data-format=\"name\">mardi</span> <span data-state=\"day\">6</span> <span data-state=\"month\" data-format=\"name\">octobre</span>, <span data-state=\"hour\">9</span> h <span data-state=\"minute\" data-format=\"00\">05</span> ; <span data-state=\"total\" data-format=\"cents\">1\u{202F}234,50</span> ; <span data-state=\"n\" data-format=\"number\">10</span>"), "{html}");
+        assert!(html.contains("<p class=\"holo-P\">19,99</p>"), "{html}");
+        // En anglais, les séparateurs et les noms changent.
+        let anglais = crate::vue_a_plat(&source.replace("Page(state", "Page(lang: \"en\", state"), "").unwrap();
+        assert!(anglais.contains(">Tuesday<") && anglais.contains(">1,234.50<") && anglais.contains("<p class=\"holo-P\">19.99</p>"), "{anglais}");
+        // Multiplier, diviser.
+        let source = "Page(state: State(a: 7, b: 0), children: [ Button(name: M, text: \"m\"), Button(name: D, text: \"d\"), Button(name: Z, text: \"z\") ], rules: [ On(M.tap, effect: a.mul(3)), On(D.tap, effect: a.div(2)), On(Z.tap, effect: a.div(b)) ])";
+        assert_eq!(crate::arbitrer(source, "a=7;b=0", "M.tap"), "a=21;b=0");
+        assert_eq!(crate::arbitrer(source, "a=7;b=0", "D.tap"), "a=3;b=0");
+        assert_eq!(crate::arbitrer(source, "a=7;b=0", "Z.tap"), "a=7;b=0");
+        for (source, message) in [
+            ("Page(state: State(a: 1), children: [ Button(name: B, text: \"b\") ], rules: [ On(B.tap, effect: a.div(0)) ])", "on ne divise pas par 0"),
+            ("Page(state: State(a: 1), children: [ P(\"{a:euros}\") ])", "format inconnu"),
+            ("Page(state: State(a: 1), children: [ P(\"{a:name}\") ])", "seuls weekday et month"),
+            ("Page(state: State(t: \"\"), children: [ P(\"{t:00}\") ])", "un format s'applique à un nombre"),
+            ("Page(children: [ Repeat(items: [ Item(t: \"x\") ], children: [ P(\"{item.t:cents}\") ]) ])", "doit être un nombre entier"),
+        ] {
+            let erreur = crate::verifier_page(source).unwrap_err();
             assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
         }
     }

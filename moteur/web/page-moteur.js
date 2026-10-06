@@ -2,7 +2,7 @@
 // a besoin ou tout de suite si la page est vivante (ADR-033). Il charge le moteur en Rust,
 // compilé en WebAssembly, et prend la page en main.
   import init, {
-    pause, vue_a_plat, effets, etat_initial, arbitrer, envoi, delais, lit_l_heure, regler_maintenant, avancer_l_horloge, conditions, horloges, touchees, touches, imports, donnees, recevoir, saisir, glisser, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
+    pause, vue_a_plat, effets, etat_initial, arbitrer, envoi, formater, delais, lit_l_heure, regler_maintenant, avancer_l_horloge, conditions, horloges, touchees, touches, imports, donnees, recevoir, saisir, glisser, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
     mosaique_pivoter, mosaique_de_face, mosaique_sous, reglages_de_vue, reveiller, images_dessinees,
   } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
@@ -349,8 +349,12 @@
       const coupe = morceau.indexOf("=");
       return [morceau.slice(0, coupe), lisible(morceau.slice(coupe + 1))];
     }));
+    // Une valeur à format (ADR-043) est écrite par le moteur, dans la langue de la page.
+    const langue = ou.querySelector?.("[data-lang]")?.dataset.lang || document.documentElement.lang || "fr";
     for (const place of ou.querySelectorAll("[data-state]")) {
-      if (valeurs.has(place.dataset.state)) place.textContent = valeurs.get(place.dataset.state);
+      if (!valeurs.has(place.dataset.state)) continue;
+      const valeur = valeurs.get(place.dataset.state);
+      place.textContent = place.dataset.format ? formater(place.dataset.state, Number(valeur), place.dataset.format, langue) : valeur;
     }
     // Un champ et une case montrent leur valeur ; on ne récrit pas le champ où l'on est en train d'écrire.
     for (const champ of ou.querySelectorAll("[data-bind]")) {

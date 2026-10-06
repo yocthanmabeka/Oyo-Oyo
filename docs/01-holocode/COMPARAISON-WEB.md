@@ -156,6 +156,8 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | Chercher des données (`fetch`) | `data: Data(from: "stock.json", every: 30s)` : des valeurs, du même serveur | fait ; pas de liste, pas d'envoi |
 | Durées, minuteries | `Every(1s, effect: …)` ; `Portals(duration:)` | fait |
 | Le hasard (`Math.random`) | la demande `random`, rejouable | fait |
+| Multiplier, diviser | les demandes `mul`, `div`, en nombres entiers | fait, à l'essai |
+| `Intl`, `padStart` (formats) | `{n:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}`, `{month:name}` | fait, à l'essai |
 | Animations écrites par l'auteur | | manque |
 | Garder des données dans le navigateur | `keep: [cart]` | fait |
 | Calculer librement | prévu : fonctions pures, modules WebAssembly (`ADR-013`) | manque |

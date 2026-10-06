@@ -290,6 +290,15 @@ fn remplacer_dans_le_texte(texte: &str, element: &Element) -> Result<String, Err
         if dedans == "item" {
             let cle = element.cle.ok_or_else(|| Erreur { message: "« {item} » montre la valeur de l'élément : il faut une clé, Item(key: sunrise, …)".into(), pos: element.pos })?;
             sortie.push_str(&format!("{{{cle}}}"));
+        } else if let Some((nom, format)) = dedans.strip_prefix("item.").and_then(|n| n.split_once(':')) {
+            // `{item.price:cents}` : un champ nombre, écrit avec son format (ADR-043).
+            let Some(Valeur::Entier(n)) = element.champs.iter().find(|(connu, _)| *connu == nom).map(|(_, v)| *v) else {
+                return Err(Erreur { message: format!("« {{item.{nom}:{format}}} » : le champ « {nom} » doit être un nombre entier"), pos: element.pos });
+            };
+            if !crate::format::est_format(format) || format == "name" {
+                return Err(Erreur { message: format!("« {{item.{nom}:{format}}} » : format inconnu ; pour un champ : 00, number, cents"), pos: element.pos });
+            }
+            sortie.push_str(&crate::format::formater(nom, *n, format, &crate::format::langue()));
         } else if let Some(nom) = dedans.strip_prefix("item.") {
             match element.champs.iter().find(|(connu, _)| *connu == nom).map(|(_, v)| *v) {
                 Some(Valeur::Texte(t)) => sortie.push_str(t),

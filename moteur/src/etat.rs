@@ -511,7 +511,7 @@ pub fn demandes_de(regle: &Bloc) -> Vec<&Bloc> {
 }
 
 /// Ce qu'on peut demander pour une valeur.
-pub const DEMANDES: &[&str] = &["add", "sub", "set", "random"];
+pub const DEMANDES: &[&str] = &["add", "sub", "set", "random", "mul", "div"];
 
 /// Sous ce nom, l'état garde le nombre de tirages au hasard déjà faits. Ce n'est pas une valeur
 /// de l'auteur (le nom n'est pas un nom permis) : il sert à ce que le hasard soit rejouable.
@@ -1070,6 +1070,7 @@ pub fn demande<'a>(bloc: &'a Bloc, etat: &Etat) -> Result<Demande<'a>, Erreur> {
         [Argument { nom: None, valeur: Valeur::Nom(autre), .. }] => Err(erreur(format!("« {valeur}.{verbe}({autre}) » : aucun nombre ne s'appelle « {autre} » ; déclare-le sur la page, state: State({autre}: 0)"))),
         [argument] if argument.nom.is_none() => match argument.valeur {
             // « random(0) » ne tirerait jamais que 0 : c'est sûrement une erreur.
+            Valeur::Entier(0) if verbe == "div" => Err(erreur(format!("« {valeur}.div(0) » : on ne divise pas par 0"))),
             Valeur::Entier(0) if verbe == "random" => Err(erreur(format!("« {valeur}.random » attend le plus grand nombre possible, au moins 1 : {valeur}.random(100) tire de 0 à 100"))),
             Valeur::Entier(quantite) if quantite <= VALEUR_MAX => Ok(Demande { valeur, verbe, quantite, depuis: None }),
             _ => Err(erreur(format!("« {valeur}.{verbe} » attend un nombre entier de 0 à {VALEUR_MAX} : {valeur}.{verbe}(1)"))),
@@ -1085,7 +1086,8 @@ pub fn noms_dans(texte: &str) -> Vec<&str> {
     while let Some(debut) = reste.find('{') {
         reste = &reste[debut + 1..];
         if let Some(fin) = reste.find('}') {
-            let nom = &reste[..fin];
+            // `{minute:00}` : la valeur `minute`, montrée avec un format (ADR-043).
+            let nom = reste[..fin].split_once(':').map_or(&reste[..fin], |(nom, _)| nom);
             if nom.starts_with(|c: char| c.is_ascii_lowercase()) && nom.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
                 noms.push(nom);
             }
@@ -1267,6 +1269,17 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
             }
         }
         let verifier_texte = |texte: &str, pos| {
+            for (nom, format) in crate::format::formats_dans(texte) {
+                if !crate::format::est_format(format) {
+                    return Err(Erreur { message: format!("« {{{nom}:{format}}} » : format inconnu ; formats possibles : 00 (zéros devant), number (1 234), cents (12,50), name (le nom du jour ou du mois)"), pos });
+                }
+                if format == "name" && nom != "weekday" && nom != "month" {
+                    return Err(Erreur { message: format!("« {{{nom}:name}} » : seuls weekday et month ont un nom (mardi, octobre)"), pos });
+                }
+                if est_texte(nom) {
+                    return Err(Erreur { message: format!("« {{{nom}:{format}}} » : « {nom} » est un texte ; un format s'applique à un nombre"), pos });
+                }
+            }
             if texte.contains("{item.") || texte.contains("{item}") {
                 return Err(Erreur { message: "« {item…} » montre un champ de l'élément : il n'a de sens que dans une répétition, Repeat(items: [ … ], children: [ … ])".into(), pos });
             }
@@ -1421,6 +1434,11 @@ fn appliquer(programme: &Programme, etat: &mut Etat, effet: &Bloc, graine: u64, 
         *valeur = match d.verbe {
             "add" => valeur.saturating_add(quantite),
             "sub" => valeur.saturating_sub(quantite),
+            // Multiplier, diviser (ADR-043) : des nombres entiers ; la division arrondit vers le bas,
+            // et une division par une valeur qui vaut 0 ne change rien.
+            "mul" => valeur.saturating_mul(quantite),
+            "div" if quantite == 0 => *valeur,
+            "div" => *valeur / quantite,
             // Le hasard n'en est pas un : c'est le énième tirage d'une suite fixée par la graine
             // du fichier. Rejouer les mêmes gestes redonne les mêmes nombres.
             "random" => {
