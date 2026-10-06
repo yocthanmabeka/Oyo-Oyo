@@ -34,6 +34,8 @@ const types = {
   ".css": "text/css; charset=utf-8",
   ".svg": "image/svg+xml",
   ".wav": "audio/wav",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
   ".mp3": "audio/mpeg",
   ".ogg": "audio/ogg",
 };
@@ -50,7 +52,16 @@ function pageToutePrete(gabarit, cheminHolo, dossier) {
   try {
     const html = execFileSync(rendeur, ["html", cheminHolo, dossier], { encoding: "utf8", timeout: 5000, maxBuffer: 4e6 }).trim();
     const titre = /data-title="([^"]*)"/.exec(html)?.[1] || "HoloCode";
-    return gabarit.replace('<div id="page"></div>', () => `<div id="page">${html}</div>`).replace("<title>HoloCode</title>", () => `<title>${titre}</title>`);
+    // La langue, la description et l'image de partage de la page (ADR-038), dans l'en-tête :
+    // pour les lecteurs d'écran, pour Google, et pour l'aperçu d'un lien partagé.
+    const lire = (attribut) => new RegExp(`${attribut}="([^"]*)"`).exec(html.slice(0, 20000))?.[1];
+    const [langue, description, image] = [lire("data-lang"), lire("data-description"), lire("data-image")];
+    let entete = `<title>${titre}</title><meta property="og:title" content="${titre}">`;
+    if (description) entete += `<meta name="description" content="${description}"><meta property="og:description" content="${description}">`;
+    if (image) entete += `<meta property="og:image" content="${image}">`;
+    let page = gabarit.replace('<div id="page"></div>', () => `<div id="page">${html}</div>`).replace("<title>HoloCode</title>", () => entete);
+    if (langue) page = page.replace('<html lang="fr">', () => `<html lang="${langue}">`);
+    return page;
   } catch {
     return gabarit; // fichier refusé : la page d'entrée affichera l'erreur du moteur
   }

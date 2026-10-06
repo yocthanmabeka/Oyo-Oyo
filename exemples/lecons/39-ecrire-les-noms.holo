@@ -26,6 +26,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 38 : poser un bloc sur un autre", to: "38-superposition.holo"),
+      A("Leçon 40 : la langue et le partage →", to: "40-langue-et-partage.holo"),
     ]),
   ],
   rules: [ On(AddCoin.tap, effect: coinCount.add(1)) ],

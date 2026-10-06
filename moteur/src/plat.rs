@@ -37,6 +37,15 @@ grid-template-columns:repeat(auto-fill,minmax(min(100%,max(120px,calc((100% - (v
 :where(.holo-Input input[type=text]){width:min(100%,280px);box-sizing:border-box}\
 :where(.holo-Checkbox){display:flex;align-items:center;gap:8px;cursor:pointer}\
 :where(.holo-Checkbox input){width:18px;height:18px;margin:0;accent-color:currentColor}\
+:where(.holo-Input textarea){font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 10px;width:min(100%,480px);box-sizing:border-box;resize:vertical}\
+:where(.holo-Choice){border:0;padding:0;margin:0 0 16px 0;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}\
+:where(.holo-Choice legend){padding:0;margin:0 0 6px 0;width:100%}:where(.holo-Choice label){display:flex;gap:6px;align-items:center;cursor:pointer}\
+:where(.holo-Choice input){accent-color:currentColor;width:18px;height:18px;margin:0}\
+:where(label.holo-Choice){flex-direction:column;align-items:flex-start;gap:4px}:where(.holo-Choice select){font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 10px}\
+:where(.holo-Video){display:block;width:100%;max-width:640px;border-radius:12px;background:black}\
+:where(.holo-tableau){overflow-x:auto;max-width:100%}:where(.holo-Table){border-collapse:collapse;min-width:100%}\
+:where(.holo-Table caption){text-align:left;font-weight:bold;padding:0 0 8px 0}:where(.holo-Table th,.holo-Table td){text-align:left;padding:8px 12px;border-bottom:1px solid color-mix(in srgb,currentColor 25%,transparent)}\
+:where(.holo-Table th){font-weight:bold}\
 :where(.holo-Board){position:relative;overflow:hidden;border-radius:12px;container-type:inline-size;margin-inline:auto}\
 :where(.holo-place){position:absolute;left:calc(var(--x)*1%);top:calc(var(--y)*1%);transform:translate(calc(var(--x)*-1%),calc(var(--y)*-1%));\
 transition:left .12s linear,top .12s linear,transform .12s linear}\
@@ -147,6 +156,13 @@ fn site_html_brut(programme: &Programme, page: &Bloc, base: &str, titre: &str) -
                         sortie.push_str(&format!(" max=\"{max}\""));
                     }
                 }
+            } else if let Some(choix) = morceau.strip_prefix('=') {
+                // Un choix : l'option cochée (ou choisie) au départ est celle de la valeur.
+                let mut parts = choix.splitn(3, '|');
+                let (attribut, nom, option) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""), parts.next().unwrap_or(""));
+                if texte_de_depart(nom).is_some_and(|t| echapper(t) == option && !t.is_empty()) {
+                    sortie.push_str(&format!(" {attribut}"));
+                }
             } else if let Some(nom) = morceau.strip_prefix('#') {
                 // Un champ : la valeur de départ, telle quelle.
                 match texte_de_depart(nom) {
@@ -197,8 +213,30 @@ fn site_html_brut(programme: &Programme, page: &Bloc, base: &str, titre: &str) -
         || crate::etat::source_de_donnees(programme).ok().flatten().is_some()
         || corps.contains("data-drag=");
     let vivante = if vivante { " data-vivant" } else { "" };
+    // La langue, la description et l'image de partage (ADR-038) : le serveur et le moteur les
+    // reprennent dans l'en-tête de la page, pour les lecteurs d'écran, Google et les réseaux.
+    let mut partage = String::new();
+    for (parametre, attribut) in [("lang", "data-lang"), ("description", "data-description"), ("image", "data-image")] {
+        match page.argument(parametre).map(|a| &a.valeur) {
+            None => {}
+            Some(Valeur::Texte(texte)) if parametre == "lang" && est_langue(texte) => partage.push_str(&format!(" {attribut}=\"{}\"", echapper(texte))),
+            Some(Valeur::Texte(texte)) if parametre == "description" && texte.chars().count() <= 300 => partage.push_str(&format!(" {attribut}=\"{}\"", echapper(texte))),
+            Some(Valeur::Texte(texte)) if parametre == "image" && chemin_sur(texte) => partage.push_str(&format!(" {attribut}=\"{}{}\"", echapper(base), echapper(texte))),
+            Some(_) => {
+                let pos = page.argument(parametre).map_or(page.pos, |a| a.pos);
+                return Err(Erreur {
+                    message: match parametre {
+                        "lang" => "« Page(lang: …) » attend une langue, comme \"fr\", \"en\" ou \"fr-CA\"".into(),
+                        "description" => "« Page(description: …) » attend un texte de 300 caractères au plus : ce que Google montre sous le titre".into(),
+                        _ => "« Page(image: …) » attend une image rangée à côté du fichier, comme \"partage.png\" : celle qu'on voit quand on partage le lien".into(),
+                    },
+                    pos,
+                });
+            }
+        }
+    }
     Ok(format!(
-        "<style>{BASE}{}</style><div class=\"{classes}\" data-title=\"{titre}\"{vivante}>{entete}<main>{corps}</main>{pied}{mondes}</div>",
+        "<style>{BASE}{}</style><div class=\"{classes}\" data-title=\"{titre}\"{vivante}{partage}>{entete}<main>{corps}</main>{pied}{mondes}</div>",
         css(programme)
     ))
 }
@@ -268,6 +306,12 @@ fn valeur_css(reglage: &crate::holo::Reglage) -> String {
 fn arrondi(n: f64) -> String {
     let n = (n * 1000.0).round() / 1000.0;
     if n.fract() == 0.0 { format!("{n:.0}") } else { format!("{n}") }
+}
+
+/// Une langue, comme « fr », « en » ou « fr-CA ».
+fn est_langue(texte: &str) -> bool {
+    let (langue, region) = texte.split_once('-').unwrap_or((texte, ""));
+    (2..=3).contains(&langue.len()) && langue.chars().all(|c| c.is_ascii_lowercase()) && (region.is_empty() || (region.len() == 2 && region.chars().all(|c| c.is_ascii_uppercase())))
 }
 
 /// Un repère ne prend que des enfants et un nom.
@@ -466,10 +510,11 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
                     })
                 }
             };
-            // `alt` : le texte qui remplace l'image pour qui ne la voit pas. Sans lui, l'image
-            // est tenue pour un décor, et un lecteur d'écran la passe.
+            // `alt` : le texte qui remplace l'image pour qui ne la voit pas. Il est obligatoire
+            // (ADR-038) : pour un simple décor, on l'écrit vide, alt: "", et un lecteur d'écran
+            // la passe. On ne l'oublie plus sans le savoir.
             let alt = match bloc.argument("alt").map(|a| &a.valeur) {
-                None => "",
+                None => return Err(Erreur { message: "« Image » attend « alt » : ce que montre l'image, pour qui ne la voit pas ; pour un simple décor, alt: \"\"".into(), pos: bloc.pos }),
                 Some(Valeur::Texte(texte)) => texte.as_str(),
                 Some(_) => return Err(Erreur { message: "« Image(alt: …) » attend un texte entre guillemets : ce que montre l'image".into(), pos: bloc.pos }),
             };
@@ -509,7 +554,21 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
                 return Err(Erreur { message: format!("« {} » attend « value » et « label »", bloc.nom), pos: bloc.pos });
             };
             let valeur = echapper(valeur);
-            if bloc.nom == "Input" {
+            if bloc.nom == "Input" && bloc.argument("lines").is_some() {
+                // Un texte long : plusieurs lignes, ses retours à la ligne gardés (ADR-038).
+                let lignes = match bloc.argument("lines").map(|a| &a.valeur) {
+                    Some(Valeur::Entier(n)) => *n,
+                    _ => 4,
+                };
+                let max = match bloc.argument("max").map(|a| &a.valeur) {
+                    Some(Valeur::Entier(max)) => (*max as usize).min(crate::etat::TEXTE_MAX),
+                    _ => crate::etat::TEXTE_LONG,
+                };
+                sortie.push_str(&format!(
+                    "<label class=\"{classes}\"{nom}><span>{}</span><textarea rows=\"{lignes}\" maxlength=\"{max}\" data-bind=\"{valeur}\">{MARQUE}#{valeur}{MARQUE}</textarea></label>",
+                    markdown(etiquette)
+                ));
+            } else if bloc.nom == "Input" {
                 let max = match bloc.argument("max").map(|a| &a.valeur) {
                     Some(Valeur::Entier(max)) => max.to_string(),
                     _ => String::new(),
@@ -524,6 +583,92 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
                     markdown(etiquette)
                 ));
             }
+        }
+        // Un choix : des boutons ronds (radio), ou une liste déroulante avec menu: true (ADR-038).
+        "Choice" => {
+            let (Some(Valeur::Nom(valeur)), Some(Valeur::Texte(etiquette))) = (bloc.argument("value").map(|a| &a.valeur), bloc.argument("label").map(|a| &a.valeur)) else {
+                return Err(Erreur { message: "« Choice » attend « value », « label » et « options »".into(), pos: bloc.pos });
+            };
+            let valeur = echapper(valeur);
+            let options = crate::etat::options_du_choix(bloc);
+            if matches!(bloc.argument("menu").map(|a| &a.valeur), Some(Valeur::Bool(true))) {
+                sortie.push_str(&format!("<label class=\"{classes}\"{nom}><span>{}</span><select data-bind=\"{valeur}\"><option value=\"\">—</option>", markdown(etiquette)));
+                for option in options {
+                    let o = echapper(option);
+                    sortie.push_str(&format!("<option value=\"{o}\"{MARQUE}=selected|{valeur}|{o}{MARQUE}>{o}</option>"));
+                }
+                sortie.push_str("</select></label>");
+            } else {
+                sortie.push_str(&format!("<fieldset class=\"{classes}\"{nom}><legend>{}</legend>", markdown(etiquette)));
+                for option in options {
+                    let o = echapper(option);
+                    sortie.push_str(&format!("<label><input type=\"radio\" name=\"choix-{valeur}\" value=\"{o}\" data-bind=\"{valeur}\"{MARQUE}=checked|{valeur}|{o}{MARQUE}><span>{o}</span></label>"));
+                }
+                sortie.push_str("</fieldset>");
+            }
+        }
+        // Une vidéo : avec ses commandes, jamais lancée toute seule (ADR-038).
+        "Video" => {
+            let source = match bloc.argument("source").map(|a| &a.valeur) {
+                Some(Valeur::Texte(s)) if chemin_sur(s) && (s.ends_with(".mp4") || s.ends_with(".webm")) => s,
+                _ => return Err(Erreur { message: "« Video » attend « source » : une vidéo rangée à côté du fichier, en .mp4 ou .webm, comme \"film.mp4\"".into(), pos: bloc.pos }),
+            };
+            let Some(Valeur::Texte(etiquette)) = bloc.argument("label").map(|a| &a.valeur) else {
+                return Err(Erreur { message: "« Video » attend « label » : ce que montre la vidéo, pour qui ne la voit pas".into(), pos: bloc.pos });
+            };
+            sortie.push_str(&format!(
+                "<video class=\"{classes}\"{nom} src=\"{}{}\" controls preload=\"metadata\" playsinline aria-label=\"{}\"></video>",
+                echapper(base),
+                echapper(source),
+                echapper(etiquette)
+            ));
+        }
+        // Un tableau de données : une légende, une ligne de titres, des lignes (ADR-038).
+        "Table" => {
+            let ligne = |valeur: &Valeur, pos| -> Result<Vec<String>, Erreur> {
+                match valeur {
+                    Valeur::Liste(cellules) => cellules.iter().map(|c| match c {
+                        Valeur::Texte(t) => Ok(markdown(t)),
+                        _ => Err(Erreur { message: "une case de « Table » est un texte entre guillemets".into(), pos }),
+                    }).collect(),
+                    _ => Err(Erreur { message: "une ligne de « Table » s'écrit entre crochets : [\"Lundi\", \"9 h – 18 h\"]".into(), pos }),
+                }
+            };
+            let tete = match bloc.argument("head") {
+                Some(argument) => Some(ligne(&argument.valeur, argument.pos)?),
+                None => None,
+            };
+            let Some(argument_lignes) = bloc.argument("rows") else {
+                return Err(Erreur { message: "« Table » attend « rows » : rows: [ [\"Lundi\", \"9 h\"], [\"Mardi\", \"9 h\"] ]".into(), pos: bloc.pos });
+            };
+            let Valeur::Liste(rangees) = &argument_lignes.valeur else {
+                return Err(Erreur { message: "« Table(rows: …) » est une liste de lignes : rows: [ [\"Lundi\", \"9 h\"] ]".into(), pos: argument_lignes.pos });
+            };
+            let largeur = tete.as_ref().map(Vec::len);
+            sortie.push_str(&format!("<div class=\"holo-tableau\"><table class=\"{classes}\"{nom}>"));
+            if let Some(Valeur::Texte(legende)) = bloc.argument("caption").map(|a| &a.valeur) {
+                sortie.push_str(&format!("<caption>{}</caption>", markdown(legende)));
+            }
+            if let Some(tete) = &tete {
+                sortie.push_str("<thead><tr>");
+                for cellule in tete {
+                    sortie.push_str(&format!("<th scope=\"col\">{cellule}</th>"));
+                }
+                sortie.push_str("</tr></thead>");
+            }
+            sortie.push_str("<tbody>");
+            for rangee in rangees {
+                let cellules = ligne(rangee, argument_lignes.pos)?;
+                if largeur.is_some_and(|l| l != cellules.len()) {
+                    return Err(Erreur { message: format!("chaque ligne de « Table » a autant de cases que « head » ({}) ; celle-ci en a {}", largeur.unwrap_or(0), cellules.len()), pos: argument_lignes.pos });
+                }
+                sortie.push_str("<tr>");
+                for cellule in cellules {
+                    sortie.push_str(&format!("<td>{cellule}</td>"));
+                }
+                sortie.push_str("</tr>");
+            }
+            sortie.push_str("</tbody></table></div>");
         }
         // Un plateau : ce qu'il contient se place où l'on veut, par x et y, de 0 à 100 (ADR-026).
         "Board" => {
@@ -921,8 +1066,9 @@ mod tests {
         assert!(html.contains("<pre class=\"holo-Code\"><code>&lt;b&gt; WELCOME10 &amp; co</code></pre>"), "{html}");
         assert!(html.contains("<p class=\"holo-P\">First line<br>Second <code>line</code></p>"), "{html}");
         assert!(html.contains("<img class=\"holo-Image\" src=\"a.png\" alt=\"A red 'door'\">"), "{html}");
-        // Sans alt, l'image est un décor.
-        assert!(page("Page(children: [ Image(source: \"a.png\") ])").unwrap().contains("alt=\"\""));
+        // Un décor s'écrit alt: "" ; sans alt, l'image est refusée (ADR-038).
+        assert!(page("Page(children: [ Image(source: \"a.png\", alt: \"\") ])").unwrap().contains("alt=\"\""));
+        assert!(page("Page(children: [ Image(source: \"a.png\") ])").unwrap_err().message.contains("attend « alt »"));
         assert!(page("Page(children: [ Image(source: \"a.png\", alt: 3) ])").unwrap_err().message.contains("attend un texte"));
         assert!(page("Page(children: [ Hr(color: red) ])").unwrap_err().message.contains("s'écrit « Hr() »"));
         assert!(page("Page(children: [ Quote(\"x\", by: 3) ])").unwrap_err().message.contains("qui l'a dit"));
@@ -1170,6 +1316,50 @@ mod tests {
             ("Page(children: [ P(\"a\") ])\nP { visited: { color: red; } }", "n'est pas un état"),
             ("Page(children: [ P(\"a\") ])\nP { hover: { position: absolute; } }", "la disposition vient des blocs"),
             ("Page(children: [ H1(\"a\"), H7(\"b\") ])", "de « H1 » à « H6 »"),
+        ] {
+            let erreur = crate::verifier_page(source).err().or_else(|| crate::vue_a_plat(source, "").err()).unwrap_or_else(|| panic!("accepté : {source}"));
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
+    }
+
+
+    #[test]
+    fn le_lot_1_langue_video_tableau_texte_choix() {
+        // La langue, la description et l'image de partage.
+        let html = crate::vue_a_plat("Page(lang: \"fr\", description: \"Une boutique\", image: \"p.png\", children: [ H1(\"a\") ])", "/ex/").unwrap();
+        assert!(html.contains(" data-lang=\"fr\" data-description=\"Une boutique\" data-image=\"/ex/p.png\">"), "{html}");
+        // La vidéo : avec ses boutons, jamais lancée seule.
+        let html = crate::vue_a_plat("Page(children: [ Video(source: \"f.mp4\", label: \"Un tour\") ])", "").unwrap();
+        assert!(html.contains("<video class=\"holo-Video\" src=\"f.mp4\" controls preload=\"metadata\" playsinline aria-label=\"Un tour\"></video>"), "{html}");
+        assert!(!html.contains("autoplay"));
+        // Le tableau.
+        let html = crate::vue_a_plat("Page(children: [ Table(caption: \"Horaires\", head: [\"Jour\", \"Heures\"], rows: [ [\"Lundi\", \"**9 h**\"] ]) ])", "").unwrap();
+        assert!(html.contains("<div class=\"holo-tableau\"><table class=\"holo-Table\"><caption>Horaires</caption><thead><tr><th scope=\"col\">Jour</th><th scope=\"col\">Heures</th></tr></thead><tbody><tr><td>Lundi</td><td><strong>9 h</strong></td></tr></tbody></table></div>"), "{html}");
+        // Le texte long et le choix, avec leur valeur de départ.
+        let html = crate::vue_a_plat("Page(state: State(message: \"Bonjour\", taille: \"M\"), children: [ Input(value: message, label: \"Message\", lines: 4), Choice(value: taille, label: \"Taille\", options: [\"S\", \"M\"]), Choice(value: taille, label: \"Encore\", options: [\"S\", \"M\"], menu: true) ])", "").unwrap();
+        assert!(html.contains("<textarea rows=\"4\" maxlength=\"1000\" data-bind=\"message\">Bonjour</textarea>"), "{html}");
+        assert!(html.contains("<input type=\"radio\" name=\"choix-taille\" value=\"S\" data-bind=\"taille\"><span>S</span>"), "{html}");
+        assert!(html.contains("<input type=\"radio\" name=\"choix-taille\" value=\"M\" data-bind=\"taille\" checked><span>M</span>"), "{html}");
+        assert!(html.contains("<option value=\"M\" selected>M</option>"), "{html}");
+        // Le choix n'accepte que ses options ; le texte long garde ses retours à la ligne.
+        let source = "Page(state: State(taille: \"\", message: \"\"), children: [ Choice(value: taille, label: \"T\", options: [\"S\", \"M\"]), Input(value: message, label: \"M\", lines: 3) ])";
+        let depart = crate::etat_initial(source);
+        assert!(crate::saisir(source, &depart, "taille", "M").contains("taille='M"));
+        assert!(!crate::saisir(source, &depart, "taille", "XXL").contains("XXL"));
+        let deux_lignes = crate::saisir(source, &depart, "message", "a\nb");
+        assert!(deux_lignes.contains("message='a%0Ab"));
+        // Relu pour le geste suivant, le texte long garde ses deux lignes.
+        assert!(crate::saisir(source, &deux_lignes, "taille", "S").contains("message='a%0Ab"));
+        // Ce qui est refusé.
+        for (source, message) in [
+            ("Page(lang: \"français\", children: [])", "attend une langue"),
+            ("Page(children: [ Video(source: \"f.avi\", label: \"x\") ])", "en .mp4 ou .webm"),
+            ("Page(children: [ Video(source: \"f.mp4\") ])", "attend « label »"),
+            ("Page(children: [ Table(head: [\"a\", \"b\"], rows: [ [\"1\"] ]) ])", "autant de cases"),
+            ("Page(state: State(n: 0), children: [ Input(value: n, label: \"x\", lines: 3) ])", "sa valeur est un texte"),
+            ("Page(state: State(n: 0), children: [ Choice(value: n, label: \"x\", options: [\"a\", \"b\"]) ])", "un choix présente un texte"),
+            ("Page(state: State(t: \"\"), children: [ Choice(value: t, label: \"x\", options: [\"a\"]) ])", "de 2 à 20 textes"),
+            ("Page(state: State(t: \"\"), children: [ Choice(value: t, label: \"x\", options: [\"a\", \"a\"]) ])", "le même texte"),
         ] {
             let erreur = crate::verifier_page(source).err().or_else(|| crate::vue_a_plat(source, "").err()).unwrap_or_else(|| panic!("accepté : {source}"));
             assert!(erreur.message.contains(message), "{source}\n→ {erreur}");

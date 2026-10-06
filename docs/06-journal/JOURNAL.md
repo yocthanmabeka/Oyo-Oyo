@@ -6,6 +6,21 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Lot 1 : la langue et le partage, la vidéo, le tableau, le texte long, le choix
+
+- Yocthan : construire tout ce qu'on a décidé d'ajouter. 48 éléments restaient (14 en priorité, 34 utiles) ; ils se construisent par lots. Le lot 1 prend les urgences sans choix d'architecture (`ADR-038`, à l'essai).
+- Fait : `Page(lang:, description:, image:)` (repris dans l'en-tête par le serveur) ; `alt` obligatoire sur `Image` (`alt: ""` pour un décor) ; `Video(source:, label:)`, jamais lancée seule ; `Table(caption:, head:, rows:)` ; `Input(…, lines:)` pour un texte long ; `Choice(value:, label:, options:)`, et `menu: true` pour une liste déroulante. Leçons 40 à 44. Une petite vidéo d'essai fabriquée avec ffmpeg, déjà sur le PC (62 Ko).
+- Vérifié dans Chrome : la langue, la description et l'image dans l'en-tête ; la vidéo a ses boutons, ne part pas seule, et joue ; le tableau a sa légende, ses titres et ses lignes ; un texte de deux lignes est gardé tel quel ; un bouton rond et une option de liste changent la valeur. 96 tests.
+- Couverture estimée : HTML de 52 % à 63 % ; ensemble de 47 % à 53 %. Restent 6 urgences (l'envoi d'un formulaire, les listes et la répétition, le survol comme signal, l'accessibilité fine) et 34 éléments utiles.
+
+**Erreurs en route**
+
+- La page légère ne réveillait pas le moteur quand on cochait un bouton rond ou choisissait une option : elle n'écoutait que les boutons nommés et l'entrée dans un champ. Corrigé.
+- En relisant l'état d'une page, le moteur enlevait les retours à la ligne d'un texte long. Corrigé, avec un test.
+- Deux fois, le script d'essai de Claude a coupé sa propre sortie au retour à la ligne, et fait croire à une perte de texte.
+
+---
+
 ## 2026-10-06 — Tout ce qui était à l'essai est validé
 
 - Yocthan : « Qu'est-ce que tu attends pour valider tous ceux qui sont à l'essai ? Que tout passe au vert. » Claude attendait son accord : le statut d'une décision est à lui.

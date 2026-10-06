@@ -236,6 +236,9 @@ mod tests {
             include_str!("../../exemples/lecons/36-titres-profonds.holo"),
             include_str!("../../exemples/lecons/37-survol.holo"),
             include_str!("../../exemples/lecons/38-superposition.holo"),
+            include_str!("../../exemples/lecons/41-video.holo"),
+            include_str!("../../exemples/lecons/42-tableau.holo"),
+            include_str!("../../exemples/lecons/44-choix.holo"),
         ];
         for lecon in lecons {
             crate::verifier_page(lecon).unwrap();

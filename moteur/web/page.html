@@ -188,6 +188,9 @@
     const pincer = (evenement) => { if (evenement.touches.length > 1) charger(); };
     racine.addEventListener("click", noter);
     racine.addEventListener("focusin", charger);
+    // Un bouton rond coché, une option choisie : le moteur arrive, et reprend ce choix.
+    racine.addEventListener("change", charger);
+    racine.addEventListener("input", charger);
     bascule.addEventListener("click", ouvrirLeMenu);
     addEventListener("wheel", zoom, { passive: false });
     addEventListener("touchstart", pincer, { passive: true });
@@ -195,6 +198,8 @@
       finDeLAttente();
       racine.removeEventListener("click", noter);
       racine.removeEventListener("focusin", charger);
+      racine.removeEventListener("change", charger);
+      racine.removeEventListener("input", charger);
       bascule.removeEventListener("click", ouvrirLeMenu);
       removeEventListener("wheel", zoom);
       removeEventListener("touchstart", pincer);

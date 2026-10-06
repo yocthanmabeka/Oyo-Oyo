@@ -4,6 +4,6 @@ Point(
   seed: 7,
   budget: 500KB,
   inside: World(children: [
-    Image(source: "painting.png", weight: 300KB),
+    Image(source: "painting.png", weight: 300KB, alt: "A painting"),
   ]),
 )

@@ -1,0 +1,33 @@
+// Leçon 44 — Un choix parmi plusieurs
+//
+// Ce qu'on apprend :
+//   Choice(value: taille, label: "…", options: ["S", "M", "L"]) : des boutons ronds, un
+//   seul coché à la fois. La valeur est un texte : State(taille: "").
+//   Avec menu: true, le même choix devient une liste déroulante (pour beaucoup d'options).
+//   Le choix n'accepte que ses options : rien d'autre ne peut entrer dans la valeur.
+//
+// À essayer :
+//   Choisis une taille, puis une couleur dans la liste.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 44 : un choix",
+  state: State(taille: "", couleur: ""),
+  children: [
+    H1("Un choix"),
+    Choice(value: taille, label: "La taille", options: ["S", "M", "L"]),
+    Choice(value: couleur, label: "La couleur", options: ["Rouge", "Vert", "Bleu", "Or", "Noir"], menu: true),
+    If(taille, not: "", children: [ Text("Taille choisie : {taille}") ]),
+    If(couleur, not: "", children: [ Text("Couleur choisie : {couleur}") ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 43 : un texte long", to: "43-texte-long.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
