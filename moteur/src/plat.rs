@@ -878,8 +878,14 @@ mod tests {
     fn la_boutique_devient_une_page_web() {
         let html = page_html(&lire(include_str!("../../exemples/boutique-comparee/boutique.holo")).unwrap(), "/ex/").unwrap();
         for attendu in [
-            "<div class=\"holo-Page\" data-title=\"My shop\"><main>",
-            "<h1 class=\"holo-H1\">My shop</h1>",
+            "<div class=\"holo-Page\" data-title=\"My shop\"><header class=\"holo-Header\">",
+            "<nav class=\"holo-Nav\">",
+            "</header><main><h1 class=\"holo-H1\">My shop</h1>",
+            "<div class=\"holo-Stack\"><div><img class=\"holo-Image\"",
+            "<div class=\"holo-Text holo-s-badge\">New</div>",
+            "<h4 class=\"holo-H4\">Weekdays</h4>",
+            "<footer class=\"holo-Footer\"><hr class=\"holo-Hr\">",
+            "@media (hover:hover){.holo-Button:hover{background:#2a2a4e;}}",
             "<p class=\"holo-P\">Paintings made by hand, one at a time.</p>",
             "<p class=\"holo-P holo-s-card\">Free delivery from <strong>30 euros</strong>.</p>",
             "<img class=\"holo-Image\" src=\"/ex/painting.svg\" alt=\"A painting: a yellow sun over green hills\">",

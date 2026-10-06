@@ -70,6 +70,20 @@ Page(
   ),
 
   children: [
+    // L'en-tête et le menu : des repères, pour qui navigue avec un lecteur d'écran. Posés
+    // directement dans la page, ils sortent du contenu principal (ADR-036).
+    Header(children: [
+      Row(gap: 16px, align: between, children: [
+        Text.note("Paintings by hand"),
+        Nav(children: [
+          Row(gap: 16px, children: [
+            A("Home", to: "boutique.holo"),
+            A("Source code", to: "https://github.com/yocthanmabeka/Metaverse"),
+          ]),
+        ]),
+      ]),
+    ]),
+
     H1("My shop"),
 
     // Une phrase seule est un paragraphe.
@@ -80,7 +94,12 @@ Page(
 
     H2("The paintings"),
     // « alt » dit ce que montre l'image, pour qui ne la voit pas.
-    Image(source: "painting.svg", weight: 1KB, alt: "A painting: a yellow sun over green hills"),
+    // Une pastille posée sur l'image : le premier enfant donne la taille, l'autre se pose
+    // dessus, en haut à droite (ADR-036).
+    Stack(children: [
+      Image(source: "painting.svg", weight: 1KB, alt: "A painting: a yellow sun over green hills"),
+      Text.badge("New", align: top_right),
+    ]),
     List(children: [
       "Sunrise over the river",
       "The blue door",
@@ -107,10 +126,9 @@ Page(
       ]),
     ]),
 
-    // Un lien classique : on quitte la page pour une autre adresse.
-    A("The source code of this project", to: "https://github.com/yocthanmabeka/Metaverse"),
-
     H3("Today"),
+    // Un titre de niveau 4 : une partie de « Today ». Les titres vont jusqu'à H6.
+    H4("Weekdays"),
     // Du texte sans rôle : une étiquette, une ligne d'état.
     Text.note("Open until 6 pm"),
 
@@ -198,6 +216,12 @@ Page(
         ],
       ),
     ),
+
+    // Le pied de page : un repère, lui aussi.
+    Footer(children: [
+      Hr(),
+      Text.note("Made by hand · 2026"),
+    ]),
   ],
 
   // Le bouton ne contient aucun code : une règle de la page relie
@@ -232,10 +256,12 @@ Page {
 H1 { color: #E9B44C; font-size: 32px; font-weight: bold; text-align: center; margin: 0 0 16px 0; }
 H2 { color: #E9B44C; font-size: 22px; }
 H3 { font-size: 16px; font-style: italic; opacity: 0.8; }
+H4 { font-size: 15px; color: silver; }
 
 P { font-size: 16px; }
 
-Image { width: 100%; max-width: 480px; height: 180px; border-radius: 12px; }
+// Une taille fixe, plafonnée à la place disponible : sur un téléphone, l'image rétrécit.
+Image { width: 480px; max-width: 100%; height: 180px; border-radius: 12px; }
 
 A { color: #8fd3ff; }
 
@@ -247,6 +273,19 @@ A { color: #8fd3ff; }
 }
 
 .note { font-size: 14px; color: silver; }
+
+// Les boutons réagissent : au survol de la souris, au clavier (Tab), pendant l'appui (ADR-036).
+Button {
+  hover: { background: #2a2a4e; }
+  focus: { border: 2px solid #E9B44C; }
+  active: { opacity: 0.7; }
+}
+
+// La pastille posée sur l'image.
+.badge { background: #E4572E; color: white; border-radius: 999px; padding: 2px 10px; font-size: 13px; font-weight: bold; }
+
+// Les tailles de texte sont écrites en pixels ; le moteur les fait suivre le réglage « texte
+// plus grand » du visiteur, et rétrécit le grand titre sur un téléphone (ADR-036).
 
 // Le thème du monde où l'on entre.
 World { background: black; color: white; text-align: center; }

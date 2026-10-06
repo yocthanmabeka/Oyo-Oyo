@@ -11,8 +11,22 @@
 </head>
 <body>
 
+  <div class="page">
+  <!-- L'en-tête et le menu : header et nav, hors de main. -->
+  <header class="top">
+    <div class="row wide between">
+      <span class="note">Paintings by hand</span>
+      <nav>
+        <div class="row wide">
+          <a href="index.html">Home</a>
+          <a href="https://github.com/yocthanmabeka/Metaverse">Source code</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
   <!-- La page -->
-  <main id="shop" class="page">
+  <main id="shop">
     <h1>My shop</h1>
 
     <p>Paintings made by hand, one at a time.</p>
@@ -20,7 +34,11 @@
     <p class="card">Free delivery from <strong>30 euros</strong>.</p>
 
     <h2>The paintings</h2>
-    <img src="../painting.svg" alt="A painting: a yellow sun over green hills">
+    <!-- Une pastille sur l'image : un conteneur en grille, et la pastille placée dans le coin. -->
+    <div class="stack">
+      <img src="../painting.svg" alt="A painting: a yellow sun over green hills">
+      <span class="badge">New</span>
+    </div>
     <ul>
       <li>Sunrise over the river</li>
       <li>The blue door</li>
@@ -38,6 +56,7 @@
     </div>
 
     <h3>Today</h3>
+    <h4>Weekdays</h4>
     <span class="note">Open until 6 pm</span>
 
     <!-- Le panier : HTML n'a pas de valeur qui change. Un span vide, que le script remplira. -->
@@ -75,6 +94,13 @@
     <!-- Le point : HTML n'a pas ce mot. On prend un div, et le script fera le reste. -->
     <div id="workshop-point" class="point" role="button" tabindex="0" aria-label="Workshop"></div>
   </main>
+
+  <!-- Le pied de page. -->
+  <footer class="bottom">
+    <hr>
+    <span class="note">Made by hand · 2026</span>
+  </footer>
+  </div>
 
   <!-- Le monde à l'intérieur du point. Il est dans la page dès le départ, caché. -->
   <section id="workshop" class="world" hidden>
