@@ -6,6 +6,15 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — La réponse de Gemini sur les refus
+
+- Gardée dans `docs/05-discussions/reponses/2026-10-06-gemini-refus.md`, avec la lecture de Claude.
+- Gemini garde `div`, `script`, la page modifiée à la main et la cascade ; il assouplirait les titres (jusqu'à `H6`), la superposition (un bloc `Stack` ou `Badge`) et les repères (des blocs `Header`, `Nav`, `Main`, `Footer`). Pour le survol : des états écrits dans le style (`hover: { … }`). Refus manquant selon lui : les tailles de texte en pixels.
+- Claude change d'avis sur un point : des blocs plutôt qu'un rôle pour les repères, parce qu'un non-programmeur comprend `Nav(…)`.
+- On attend Codex, puis Yocthan décide.
+
+---
+
 ## 2026-10-06 — Le grand tableau face au web, et pourquoi ces refus
 
 **Ce que Yocthan a demandé**
