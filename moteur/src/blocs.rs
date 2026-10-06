@@ -20,9 +20,9 @@ pub fn verifier_blocs(programme: &Programme) -> Result<(), Erreur> {
 /// absents de cette liste vérifient leurs réglages eux-mêmes (`State`, `Prices`, `Data`,
 /// `Zoom`, `Points`, `Relief`, `Portals`, `Enter`, `Loop`, `Use`).
 const REGLAGES_DES_BLOCS: &[(&str, &[&str])] = &[
-    ("Page", &["name", "title", "children", "pixels", "rules", "state", "prices", "keep", "data", "zoom", "points", "relief", "portals", "lang", "description", "image", "fonts", "icon", "modules"]),
+    ("Page", &["name", "title", "children", "pixels", "rules", "state", "prices", "keep", "data", "zoom", "points", "relief", "portals", "lang", "description", "image", "fonts", "icon", "modules", "parts"]),
     ("World", &["name", "children", "pixels", "rules"]),
-    ("Part", &["name", "children"]),
+    ("Part", &["name", "params", "children", "rules"]),
     ("Text", &["name"]),
     ("P", &["name"]),
     ("H1", &["name"]),

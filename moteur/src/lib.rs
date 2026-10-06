@@ -14,6 +14,7 @@
 //! compilée que pour WebAssembly.
 
 pub mod blocs;
+pub mod composants;
 pub mod etat;
 pub mod format;
 pub mod graine;

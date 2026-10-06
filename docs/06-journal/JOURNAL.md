@@ -6,6 +6,24 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Les composants, faits pour le web
+
+- Yocthan : « J'aime le composant. C'est une notion de Flutter que j'adore […] il faudra des composants faits vraiment pour le web […] grâce au CSS, tu vas l'utiliser facilement » ; puis le feu vert pour les six points du comparatif.
+- Fait (`ADR-050`) : un composant s'écrit une fois, `Part(name: ArticleCard, params: [title, price, qty], children: [ … ], rules: [ … ])`, dans `parts:` de la page ou dans un fichier importé ; il se pose comme un bloc, `ArticleCard(name: Sunrise, title: "Sunrise", price: 12000, qty: sunrise)` ; il se restyle de l'extérieur : `ArticleCard { … }` pour toutes les copies, `ArticleCard.promo(…)` et `.promo { … }` pour une seule, et ses variables (`.promo { --accent: crimson; }`). Un paramètre donné par le nom d'une valeur de la page la suit : c'est ainsi que le bouton d'une carte remplit le panier. Plusieurs noms de style par bloc (`P.card.big`), quatre au plus.
+- Comme `Use` et `Repeat`, un composant est déplié à la lecture : le reste du moteur n'a pas changé. Un composant peut être répété (`Repeat(… children: [ ArticleCard(title: item.title, …) ])`) ; ses règles vont alors dans la répétition.
+- Leçon 70 (`exemples/lecons/70-composants.holo`) ; guide § 6 sexies bis ; `NOMS.md`.
+- Vérifié : 110 tests ; la leçon 70 dans Chrome sans fenêtre, sur le moteur compilé dans le nuage : trois cartes, la troisième rouge, deux clics sur « Night » et un sur « Sunrise » donnent 240,00 euros.
+
+![La leçon 70 : trois copies du même composant, la troisième restylée par une ligne](images/2026-10-06-composants.png)
+
+**Erreurs en route**
+
+- Les règles d'un composant posé dans une répétition partaient dans la page, où `item` n'existe pas : elles vont maintenant dans la répétition.
+- Un composant dont la racine est un autre composant n'était pas déplié : corrigé, avec le refus d'un composant qui se pose lui-même.
+- Le premier essai dans Chrome cliquait trop vite : le moteur se charge au premier geste (`ADR-033`) ; avec une attente, les clics comptent.
+
+---
+
 ## 2026-10-06 — HoloCode face aux langages et frameworks du web
 
 - Yocthan, avant la 3D : comparer HoloCode « avec les meilleurs langages et frameworks web, en commençant par TypeScript et en terminant par Flutter », par pourcentage, avec l'avis des gens et celui de Claude, et dire pourquoi certaines notions ne sont pas reprises.
