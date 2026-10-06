@@ -1,10 +1,10 @@
 # ADR-041 — Lot 4 : le CSS utile (texte, ombres, fonds, variables, thème sombre, téléphone, police)
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ
 - Date : 2026-10-06
 - Responsable : Yocthan Mabeka
 - Discussions sources : le grand tableau (`docs/01-holocode/TABLEAU-WEB.md`) ; Yocthan, le 2026-10-06 : « tu travailles sur le lot 2 jusqu'au lot 5… je suis tes recommandations »
-- Validation : à donner par Yocthan après essai.
+- Validation : validé par Yocthan le 2026-10-06, après avoir tout essayé : « En fait, j'ai tout testé de tout ce qui était à laisser [à l'essai] et je trouve que c'est bon. Donc, euh, valide-le. »
 - Projets affectés : HoloCode, HoloEngine
 
 ## Contexte

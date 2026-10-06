@@ -198,7 +198,7 @@ Page(
 - Ils prennent un style nommé comme les autres : `Column.card(...)`.
 - Un bouton ou un point rangé dans une ligne garde son nom et ses règles.
 
-Cette écriture est à l'essai (`ADR-024`).
+Cette écriture est décidée (`ADR-024`).
 
 ## 5. Les styles
 
@@ -269,7 +269,7 @@ H1 { color: --gold; font-size: 40px; phone: { font-size: 28px; } }
 
 **Sa propre police** : `Page(fonts: [ Font(family: "Carlito", source: "carlito.woff2") ])`, puis `font-family: Carlito, Georgia, serif;`. Le texte s'affiche tout de suite avec la police de secours.
 
-Ces ajouts sont à l'essai (`ADR-041`). Les leçons sont `50-texte-soigne.holo` à `54-police.holo`.
+Ces ajouts sont décidés (`ADR-041`). Les leçons sont `50-texte-soigne.holo` à `54-police.holo`.
 
 Ce que le moteur refuse, alors que le CSS le laisse passer :
 
@@ -499,7 +499,7 @@ Page(
 
 Limites : les articles sont écrits d'avance dans le fichier ; pas de centimes ; et ce panier est un affichage, pas une commande : rien n'est envoyé à un serveur.
 
-Cette écriture est à l'essai (`ADR-023`).
+Cette écriture est décidée (`ADR-023`).
 
 ## 6 ter. Montrer selon une valeur : `If`
 
@@ -545,7 +545,7 @@ Page(
 - Il n'y a pas de « sinon » : on écrit une seconde condition, comme ci-dessus.
 - Une condition se place dans `children`, y compris dans une ligne, une colonne ou une grille.
 
-Cette écriture est à l'essai (`ADR-025`).
+Cette écriture est décidée (`ADR-025`).
 
 ## 6 quater. Un jeu : le temps, le hasard, le plateau
 
@@ -601,7 +601,7 @@ Page(
 
 **Commencer et finir sans mot de plus.** Le temps ne descend pas sous zéro. Les conditions font le reste : `If(time, is: 0)` montre le bouton « Play » et le score, `If(time, over: 0)` montre le plateau.
 
-Cette écriture est à l'essai (`ADR-026`).
+Cette écriture est décidée (`ADR-026`).
 
 ## 6 quater bis. Un jeu qui bouge : le clavier, le glissement, `When`
 
@@ -692,7 +692,7 @@ Page(
 - On y range des règles de temps (`Every`) et des règles qui guettent (`When`). Une règle `On` répond à un geste : pour elle, on cache le bouton.
 - Dans le jeu de la pomme, tout ce qui fait tomber, rattraper et perdre est rangé sous `If(lives, over: 0, rules: [ … ])` : avant « Play » et après la fin, rien ne bouge et aucun son ne part.
 
-Cette écriture est à l'essai (`ADR-028`).
+Cette écriture est décidée (`ADR-028`).
 
 ## 6 quinquies. Saisir, et garder : `Input`, `Checkbox`, `keep`
 
@@ -767,7 +767,7 @@ Page(
 
 Limites : pas de liste de choix, pas d'envoi à un serveur ; ce qui est gardé reste sur cet appareil.
 
-Cette écriture est à l'essai (`ADR-027`).
+Cette écriture est décidée (`ADR-027`).
 
 ## 6 sexies. Un site de plusieurs pages : `import`, `Part`, `Use`
 
@@ -814,7 +814,7 @@ Page(
 
 Limites : un morceau n'a ni valeurs ni règles, et n'importe pas d'autres fichiers ; seize imports au plus.
 
-Cette écriture est à l'essai (`ADR-029`).
+Cette écriture est décidée (`ADR-029`).
 
 ## 6 septies. Des données venues du serveur : `Data`
 
@@ -857,7 +857,7 @@ Le fichier `stock.json` :
 
 Limites : pas de liste (on ne reçoit pas « tous les articles ») ; la page n'envoie rien au serveur.
 
-Cette écriture est à l'essai (`ADR-030`).
+Cette écriture est décidée (`ADR-030`).
 
 ## 6 octies. Un son : `Sound`
 
@@ -884,7 +884,7 @@ Page(
 
 Limites : ni boucle, ni volume, ni arrêt.
 
-Cette écriture est à l'essai (`ADR-031`). La leçon est `exemples/lecons/28-son.holo`.
+Cette écriture est décidée (`ADR-031`). La leçon est `exemples/lecons/28-son.holo`.
 
 ## 6 nonies. Des formes, et comparer deux valeurs
 
@@ -929,7 +929,7 @@ Page(
 
 Le meilleur score tient alors en une règle : au moment où le score dépasse le meilleur, le meilleur devient ce score. Avec `keep: [best]`, il reste d'une visite à l'autre.
 
-Cette écriture est à l'essai (`ADR-032`). Les leçons sont `29-comparer-deux-valeurs.holo` et `30-formes.holo`.
+Cette écriture est décidée (`ADR-032`). Les leçons sont `29-comparer-deux-valeurs.holo` et `30-formes.holo`.
 
 ## 6 duodecies. La langue, la vidéo, le tableau, le texte long, le choix
 
@@ -960,7 +960,7 @@ Page(
 - **`Choice(value:, label:, options:)`** : un choix parmi des options, en boutons ronds ; `menu: true` en fait une liste déroulante. La valeur est un texte, et n'accepte que ses options.
 - **`Image` demande maintenant toujours `alt`** : `alt: ""` pour un décor.
 
-Ces ajouts sont à l'essai (`ADR-038`). Les leçons sont `40-langue-et-partage.holo` à `44-choix.holo`.
+Ces ajouts sont décidés (`ADR-038`). Les leçons sont `40-langue-et-partage.holo` à `44-choix.holo`.
 
 ## 6 terdecies. Le survol qui agit, le « sinon », plus tard, l'heure
 
@@ -995,7 +995,7 @@ Page(
 - **`After(3s, effect: …)`** : une seule fois, plus tard. Dans les règles de la page, l'attente part à l'ouverture ; sous une condition, elle part quand la condition devient vraie. Ici, « Added. » s'efface trois secondes après l'ajout.
 - **L'heure du visiteur** : `year`, `month`, `day`, `weekday` (1 lundi … 7 dimanche), `hour`, `minute`. On les montre et on les compare ; on ne les change pas. La page se tient à jour à chaque minute.
 
-Ces ajouts sont à l'essai (`ADR-039`). Les leçons sont `45-survol-qui-agit.holo` à `48-heure.holo`.
+Ces ajouts sont décidés (`ADR-039`). Les leçons sont `45-survol-qui-agit.holo` à `48-heure.holo`.
 
 ## 6 quaterdecies. Écrire une fois, répéter : `Repeat`
 
@@ -1034,7 +1034,7 @@ Page(
 - **Un bloc nommé reçoit le nom de son élément** : `Add` devient `AddSunrise` et `AddRiver`. **`rules:`** : les règles du modèle, écrites une fois par élément.
 - De 1 à 200 éléments ; pas de répétition dans une répétition.
 
-Cette écriture est à l'essai (`ADR-040`). La leçon est `49-repeter.holo`.
+Cette écriture est décidée (`ADR-040`). La leçon est `49-repeter.holo`.
 
 ## 6 quindecies. Le HTML utile, et envoyer un message
 
@@ -1077,7 +1077,7 @@ Page(
 - **`Dialog(name:)`** : une fenêtre par-dessus la page ; `Thanks.open`, `Thanks.close`, la croix, Échap.
 - **`Form(name:)`** : `Contact.send` envoie au serveur d'où vient la page les valeurs de ses champs ; puis `Contact.sent` (arrivé) ou `Contact.failed`. Chez soi, chaque message est rangé dans `messages/`, à la racine du dépôt.
 
-Ces ajouts sont à l'essai (`ADR-042`). Les leçons sont `55-petits-textes.holo` à `65-icone-de-l-onglet.holo`.
+Ces ajouts sont décidés (`ADR-042`). Les leçons sont `55-petits-textes.holo` à `65-icone-de-l-onglet.holo`.
 
 ## 6 undecies. Les repères, la superposition, le survol, le texte qui grandit
 
@@ -1136,7 +1136,7 @@ Page(
 
 **Le texte qui grandit.** Rien à écrire : une taille de texte écrite en pixels suit le réglage « texte plus grand » du visiteur (le moteur l'écrit en `rem` : 16px = 1rem). Un titre de plus de 24px rétrécit sur un écran plus étroit que la page, sans passer sous 24px : un grand titre ne déborde plus d'un téléphone.
 
-Ces quatre ajouts sont à l'essai (`ADR-036`). Les leçons sont `35-reperes.holo`, `36-titres-profonds.holo`, `37-survol.holo`, `38-superposition.holo`.
+Ces quatre ajouts sont décidés (`ADR-036`). Les leçons sont `35-reperes.holo`, `36-titres-profonds.holo`, `37-survol.holo`, `38-superposition.holo`.
 
 ## 6 decies. Le mouvement : `Enter`, `Loop`, `Scenes`
 
@@ -1167,7 +1167,7 @@ Page(
 
 Limites : pas de chemin à suivre (une courbe dessinée), pas de mouvement qui répond à la souris, pas de particules par centaines ; la couleur change par `hue`, pas vers une couleur choisie.
 
-Cette écriture est à l'essai (`ADR-034`). Les leçons sont `32-entrer.holo`, `33-boucle.holo`, `34-scenes.holo`. Le film complet : `exemples/motion/holocode/showreel.holo`, et son jumeau en HTML, CSS et JavaScript.
+Cette écriture est décidée (`ADR-034`). Les leçons sont `32-entrer.holo`, `33-boucle.holo`, `34-scenes.holo`. Le film complet : `exemples/motion/holocode/showreel.holo`, et son jumeau en HTML, CSS et JavaScript.
 
 ## 7. Comment la page se regarde : `Zoom`, `Points`, `Relief`
 
@@ -1382,28 +1382,28 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Le morcellement des points d'une page | `Points(fragment:, grid:, depth:)` | fait |
 | Le relief | `Relief(height:)` | fait |
 | Activer la rotation de la page, en faire le tour | `Relief(tilt:)` | fait |
-| Une valeur que la page retient | `state: State(cart: 0)` | fait, à l'essai |
-| Afficher une valeur | `{cart}` dans un texte | fait, à l'essai |
+| Une valeur que la page retient | `state: State(cart: 0)` | fait |
+| Afficher une valeur | `{cart}` dans un texte | fait |
 | Changer une valeur | les demandes `add`, `sub`, `set` | fait |
-| Recevoir des valeurs d'un serveur | `data: Data(from: "stock.json", every: 30s)` | fait, à l'essai |
-| Réutiliser un morceau de page et un thème | `import "commun.holo"`, `Part(name:)`, `Use(Menu)` | fait, à l'essai |
+| Recevoir des valeurs d'un serveur | `data: Data(from: "stock.json", every: 30s)` | fait |
+| Réutiliser un morceau de page et un thème | `import "commun.holo"`, `Part(name:)`, `Use(Menu)` | fait |
 | Répéter une règle dans le temps | `Every(1s, effect:)` | fait |
-| Le clavier | `On(Key.left, effect:)` | fait, à l'essai |
-| Agir au moment où une valeur atteint quelque chose | `When(lives, is: 0, effect:)` | fait, à l'essai |
-| La rencontre de deux objets | `When(Basket, meets: Apple, within:, effect:)` | fait, à l'essai |
-| Faire glisser un objet | `drag: true` sur un bloc d'un `Board` | fait, à l'essai |
-| Plusieurs demandes dans une règle | `effect: [a.add(1), b.set(0)]` | fait, à l'essai |
+| Le clavier | `On(Key.left, effect:)` | fait |
+| Agir au moment où une valeur atteint quelque chose | `When(lives, is: 0, effect:)` | fait |
+| La rencontre de deux objets | `When(Basket, meets: Apple, within:, effect:)` | fait |
+| Faire glisser un objet | `drag: true` sur un bloc d'un `Board` | fait |
+| Plusieurs demandes dans une règle | `effect: [a.add(1), b.set(0)]` | fait |
 | Le hasard | la demande `random` | fait |
 | Placer librement | `Board`, et `x:`, `y:` sur ses enfants | fait |
-| Une valeur qui est un texte | `State(buyer: "")`, `{buyer}`, `If(buyer, not: "")` | fait, à l'essai |
-| Écrire un texte | `Input(value: buyer, label:, max:)` | fait, à l'essai |
-| Écrire un nombre, cocher une case | `Input(value:, label:, max:)`, `Checkbox(value:, label:)` | fait, à l'essai |
-| Garder une valeur d'une visite à l'autre | `keep: [cart]` | fait, à l'essai |
-| Montrer ou cacher selon une valeur | `If(cart, is:, not:, over:, under:)` | fait, à l'essai |
-| Un trait, une citation, du texte tel quel | `Hr()`, `Quote(by:)`, `Code`, les accents graves | fait, à l'essai |
-| Le retour à la ligne | un texte entre trois guillemets | fait, à l'essai |
-| Le texte qui remplace une image | `Image(alt:)` | fait, à l'essai |
-| Des prix, un nombre d'articles, un total | `prices: Prices(...)`, `{count}`, `{total}` | fait, à l'essai |
+| Une valeur qui est un texte | `State(buyer: "")`, `{buyer}`, `If(buyer, not: "")` | fait |
+| Écrire un texte | `Input(value: buyer, label:, max:)` | fait |
+| Écrire un nombre, cocher une case | `Input(value:, label:, max:)`, `Checkbox(value:, label:)` | fait |
+| Garder une valeur d'une visite à l'autre | `keep: [cart]` | fait |
+| Montrer ou cacher selon une valeur | `If(cart, is:, not:, over:, under:)` | fait |
+| Un trait, une citation, du texte tel quel | `Hr()`, `Quote(by:)`, `Code`, les accents graves | fait |
+| Le retour à la ligne | un texte entre trois guillemets | fait |
+| Le texte qui remplace une image | `Image(alt:)` | fait |
+| Des prix, un nombre d'articles, un total | `prices: Prices(...)`, `{count}`, `{total}` | fait |
 | Activer ou désactiver le zoom | `Zoom(active:)` | fait |
 | Les limites du zoom | `Zoom(max:, shrink:)` | fait |
 | La vitesse du zoom | `Zoom(speed:)` | fait |
@@ -1414,21 +1414,21 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Le poids permis | `budget`, `weight` | fait |
 | Le toucher | le signal `tap` | fait |
 | Le son | `Sound(name:, source:)`, et la capacité `play` | fait |
-| Une forme simple | `Shape(form:, color:, size:)` | fait, à l'essai |
-| Comparer deux valeurs, fixer d'après une autre | `over: best`, `best.set(score)` | fait, à l'essai |
-| Le survol | `On(Carte.hover, …)`, `On(Carte.hoverEnd, …)` | fait, à l'essai |
-| Le « sinon » | `If(…, else: [ … ])` | fait, à l'essai |
-| Une seule fois, plus tard | `After(3s, effect: …)` | fait, à l'essai |
-| La date et l'heure du visiteur | `year`, `month`, `day`, `weekday`, `hour`, `minute` | fait, à l'essai |
+| Une forme simple | `Shape(form:, color:, size:)` | fait |
+| Comparer deux valeurs, fixer d'après une autre | `over: best`, `best.set(score)` | fait |
+| Le survol | `On(Carte.hover, …)`, `On(Carte.hoverEnd, …)` | fait |
+| Le « sinon » | `If(…, else: [ … ])` | fait |
+| Une seule fois, plus tard | `After(3s, effect: …)` | fait |
+| La date et l'heure du visiteur | `year`, `month`, `day`, `weekday`, `hour`, `minute` | fait |
 | L'approche d'un personnage, en profondeur | aucun | à faire |
-| Écrire une fois, répéter pour chaque élément | `Repeat(items: [ Item(…) ], children: [ … ])`, `item` | fait, à l'essai |
-| Une couleur nommée, le thème sombre, le téléphone | `--or`, `dark: { … }`, `phone: { … }` | fait, à l'essai |
-| Sa propre police | `fonts: [ Font(family:, source:) ]` | fait, à l'essai |
-| Envoyer un formulaire | `Form(name:)`, `Contact.send`, `sent`, `failed` | fait, à l'essai |
-| Une fenêtre, un pli, une glissière, une barre | `Dialog`, `Details`, `Slider`, `Progress` | fait, à l'essai |
+| Écrire une fois, répéter pour chaque élément | `Repeat(items: [ Item(…) ], children: [ … ])`, `item` | fait |
+| Une couleur nommée, le thème sombre, le téléphone | `--or`, `dark: { … }`, `phone: { … }` | fait |
+| Sa propre police | `fonts: [ Font(family:, source:) ]` | fait |
+| Envoyer un formulaire | `Form(name:)`, `Contact.send`, `sent`, `failed` | fait |
+| Une fenêtre, un pli, une glissière, une barre | `Dialog`, `Details`, `Slider`, `Progress` | fait |
 | Réagir au zoom par une règle (« quand on zoome, alors… ») | aucun | à faire |
-| Ranger côte à côte, l'un sous l'autre, en grille | `Row`, `Column`, `Grid` | fait, à l'essai |
-| L'écart et le placement | `gap:`, `align:`, `columns:` | fait, à l'essai |
+| Ranger côte à côte, l'un sous l'autre, en grille | `Row`, `Column`, `Grid` | fait |
+| L'écart et le placement | `gap:`, `align:`, `columns:` | fait |
 | Réutiliser un morceau de fichier (les imports) | `import` est lu, pas appliqué | à faire |
 | Le personnage | aucun | à faire |
 

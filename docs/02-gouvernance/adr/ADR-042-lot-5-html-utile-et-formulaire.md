@@ -1,10 +1,10 @@
 # ADR-042 — Lot 5 : le HTML utile, et l'envoi d'un formulaire
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ
 - Date : 2026-10-06
 - Responsable : Yocthan Mabeka
 - Discussions sources : le grand tableau (`docs/01-holocode/TABLEAU-WEB.md`) ; la question « où vont les messages ? », tranchée par Yocthan le 2026-10-06 en suivant la recommandation de Claude : dans un fichier de son serveur local, qu'il lit lui-même.
-- Validation : à donner par Yocthan après essai.
+- Validation : validé par Yocthan le 2026-10-06, après avoir tout essayé : « En fait, j'ai tout testé de tout ce qui était à laisser [à l'essai] et je trouve que c'est bon. Donc, euh, valide-le. »
 - Projets affectés : HoloCode, HoloEngine, le serveur d'essai
 
 ## Contexte

@@ -6,6 +6,15 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Les lots 1 à 5 validés
+
+- Yocthan : « En fait, j'ai tout testé de tout ce qui était à laisser [à l'essai] et je trouve que c'est bon. Donc, euh, valide-le. »
+- `ADR-038` à `ADR-042` passent en `ACCEPTÉ`. Toutes les fiches sont désormais acceptées, sauf HoloIR (`ADR-011`, partie D, proposition) et les ponts vers JavaScript (partie B, rejetés).
+- Le guide, la comparaison, `AGENTS.md` et le grand tableau ne disent plus « à l'essai » : les 290 mots de HoloCode sont décidés. Tableau en ligne republié.
+- Erreur trouvée en route : le guide disait encore « à l'essai » pour des écritures déjà validées le matin (`ADR-023` à `ADR-036`) ; corrigé en même temps.
+
+---
+
 ## 2026-10-06 — ADR-011 précisée : la vue à plat reste du HTML, partout
 
 - Yocthan a demandé pourquoi on perdrait ce que le web offre gratuitement, puis ce qu'est HoloIR ; après les réponses : « tu valides les différentes parties… A, B, C et D… on fait comme tu l'as dit ».
