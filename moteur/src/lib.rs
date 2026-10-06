@@ -100,7 +100,7 @@ pub fn vocabulaire() -> String {
         ("Enter", MOUVEMENT),
         ("Loop", &boucle),
         ("Zoom", &["active", "max", "shrink", "levels", "speed"]),
-        ("Points", &["after", "size", "fragment", "grid", "depth", "density"]),
+        ("Points", &["after", "size", "fragment", "divisions", "levels", "density"]),
         ("Relief", &["height", "tilt"]),
         ("Portals", &["layout", "count", "size", "brightness", "duration"]),
         ("Font", &["family", "source"]),

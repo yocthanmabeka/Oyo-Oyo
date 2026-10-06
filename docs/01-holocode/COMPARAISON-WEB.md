@@ -171,7 +171,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `Point`, `World`, `seed` | Un monde entier dans un nombre ; rien à télécharger |
 | `fragments` | Un point qui se morcelle en mondes, sans fin |
 | `pixels:` | Un site planté dans un pixel d'une page |
-| `Points(after:, size:, fragment:, grid:, depth:)` | Les pixels d'une page qui deviennent des points quand on zoome |
+| `Points(after:, size:, fragment:, divisions:, levels:)` | Les pixels d'une page qui deviennent des points quand on zoome |
 | `Relief(height:, tilt:)` | La page vue de biais, avec du relief |
 | `Portals(layout:, count:, size:, brightness:)` | Le carrefour : des portails vers les mondes voisins |
 | `Zoom(levels:)`, `budget`, `weight` | Des garde-fous écrits par l'auteur, vérifiés avant d'afficher |

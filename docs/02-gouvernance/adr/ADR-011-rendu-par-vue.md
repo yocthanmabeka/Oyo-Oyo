@@ -123,7 +123,7 @@ Ce sont des **outils de transition** :
 ## Partie C — Deux étages et trois sortes d'import (ancienne ADR-013)
 
 - Construction commencée le 2026-10-06 (`ADR-045`) : la preuve demandée par Codex est faite. Un module qui boucle sans fin est arrêté après son temps, sans bloquer la page ; un module qui réclame trop de mémoire est arrêté par son plafond. Les ponts `bridge js` et `bridge css` sont refusés à la lecture.
-- Statut : ACCEPTÉ pour la direction — Décidé par Yocthan le 2026-10-06 : « Personnellement, je suis tes recommandations. » La construction des modules enfermés reste à faire ; elle commencera par la preuve demandée par Codex : arrêter un module qui boucle sans fin. Le troisième import (`bridge`) tombe avec la partie B.
+- Statut : ACCEPTÉ — Décidé par Yocthan le 2026-10-06 : « Personnellement, je suis tes recommandations. » Construit le même jour (`ADR-045`, accepté). Avant cela : la construction des modules enfermés restait à faire ; elle commencera par la preuve demandée par Codex : arrêter un module qui boucle sans fin. Le troisième import (`bridge`) tombe avec la partie B.
 - Date : 2026-09-21
 - Projets affectés : HoloCode, HoloCode-Core, HoloRuntime
 - Proposé par : Claude. Validé par Yocthan le 2026-09-21, après lecture. La fusion de la pull request qui introduit cette fiche vaut confirmation.

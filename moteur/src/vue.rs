@@ -4,7 +4,7 @@
 //! ```holo
 //! Page(
 //!   zoom: Zoom(max: 1000000, shrink: false, levels: 8, speed: 1),
-//!   points: Points(after: 4, size: 6px, fragment: 40px, grid: 4, depth: 20, density: 2),
+//!   points: Points(after: 4, size: 6px, fragment: 40px, divisions: 4, levels: 20, density: 2),
 //!   relief: Relief(height: 10px, tilt: 360deg),   // sans « tilt », la page ne tourne pas
 //!   portals: Portals(layout: grid, count: 12, size: 170px, brightness: 0.15, duration: 450ms),
 //! )
@@ -64,9 +64,9 @@ pub struct Reglages {
     pub taille_point: f64,
     /// `Points(fragment:)` : la taille où un point se morcelle.
     pub taille_morceler: f64,
-    /// `Points(grid:)` : un point se morcelle en une grille de `grid × grid`.
+    /// `Points(divisions:)` : un point se morcelle en une grille de `divisions × divisions`.
     pub cote: u64,
-    /// `Points(depth:)` : combien de fois de suite un point peut se morceler.
+    /// `Points(levels:)` : combien de fois de suite un point peut se morceler.
     pub niveaux: u32,
     /// `Points(density:)` : points par pixel d'écran, dans chaque sens, au repos.
     pub densite: f64,
@@ -121,6 +121,15 @@ fn entier(bloc: &Bloc, param: &str, min: u64, max: u64, defaut: u64) -> Result<u
     }
 }
 
+/// Un ancien nom, changé le 2026-10-06 (`ADR-047`) : refusé, avec le bon mot, que l'éditeur
+/// remplace d'un clic.
+fn ancien_nom(bloc: &Bloc, ancien: &str, nouveau: &str) -> Result<(), Erreur> {
+    match bloc.argument(ancien) {
+        Some(a) => Err(Erreur { message: format!("« {}({ancien}:) » s'appelle maintenant « {nouveau} » : écris « {nouveau} »", bloc.nom), pos: a.pos }),
+        None => Ok(()),
+    }
+}
+
 /// Refuse un paramètre que le bloc ne connaît pas, en donnant la liste des possibles.
 fn seulement(bloc: &Bloc, connus: &[&str]) -> Result<(), Erreur> {
     for argument in &bloc.arguments {
@@ -166,19 +175,21 @@ pub fn reglages(programme: &Programme) -> Result<Reglages, Erreur> {
         };
     }
     if let Some(points) = bloc_de(page, "points", "Points")? {
-        seulement(points, &["after", "size", "fragment", "grid", "depth", "density"])?;
+        ancien_nom(points, "grid", "divisions")?;
+        ancien_nom(points, "depth", "levels")?;
+        seulement(points, &["after", "size", "fragment", "divisions", "levels", "density"])?;
         // Jamais moins de 2 : tout visiteur peut au moins doubler la taille du texte avant que
         // la page ne change de nature (accessibilité, WCAG 1.4.4).
         r.apres = nombre(points, "after", None, 2.0, 16.0, r.apres)?;
         r.taille_point = nombre(points, "size", Some("px"), 2.0, 32.0, r.taille_point)?;
-        r.cote = entier(points, "grid", 2, 8, r.cote)?;
-        r.niveaux = entier(points, "depth", 0, 20, u64::from(r.niveaux))? as u32;
+        r.cote = entier(points, "divisions", 2, 8, r.cote)?;
+        r.niveaux = entier(points, "levels", 0, 20, u64::from(r.niveaux))? as u32;
         r.densite = nombre(points, "density", None, 1.0, 3.0, r.densite)?;
         r.taille_morceler = nombre(points, "fragment", Some("px"), 8.0, 400.0, r.taille_morceler)?;
         // Garde-fou : un point qui vient de se morceler doit rester visible, et il ne doit
         // jamais y avoir plus de points à l'écran que quand ils apparaissent.
         if r.taille_morceler / (r.cote as f64) < r.taille_point {
-            return refus(points, "fragment", &format!("au moins {}px : « fragment » divisé par « grid » ne doit pas être plus petit que « size »", r.taille_point * r.cote as f64));
+            return refus(points, "fragment", &format!("au moins {}px : « fragment » divisé par « divisions » ne doit pas être plus petit que « size »", r.taille_point * r.cote as f64));
         }
     }
     if let Some(relief) = bloc_de(page, "relief", "Relief")? {
@@ -306,8 +317,10 @@ mod tests {
             ("points: Points(after: 40)", "entre 2 et 16"),
             ("points: Points(size: 6)", "entre 2px et 32px"),
             ("points: Points(size: 1px)", "entre 2px et 32px"),
-            ("points: Points(grid: 20)", "entier entre 2 et 8"),
-            ("points: Points(depth: 99)", "entier entre 0 et 20"),
+            ("points: Points(divisions: 20)", "entier entre 2 et 8"),
+            ("points: Points(levels: 99)", "entier entre 0 et 20"),
+            ("points: Points(grid: 4)", "s'appelle maintenant « divisions » : écris « divisions »"),
+            ("points: Points(depth: 6)", "s'appelle maintenant « levels » : écris « levels »"),
             ("points: Points(fragment: 12px)", "au moins 24px"),
             ("points: Points(density: 9)", "entre 1 et 3"),
             ("points: Points(), relief: Relief(height: 500px)", "entre 0px et 40px"),
@@ -330,7 +343,7 @@ mod tests {
         assert!(lus(&page("points: Points()")).unwrap().points_actifs);
         assert!(lus(&page("children: [ Button(name: B, text: \"x\") ], pixels: [ Point(name: S, above: B, seed: 1) ]")).unwrap().points_actifs);
         assert!(lus(&page("children: [ Point(name: A, seed: 1, inside: World(children: [ Button(name: B, text: \"x\") ], pixels: [ Point(name: S, above: B, seed: 2) ])) ]")).unwrap().points_actifs);
-        let r = lus(&page("zoom: Zoom(max: 50, shrink: true), points: Points(size: 8px, fragment: 64px, grid: 2, depth: 3), relief: Relief(height: 0px, tilt: 0deg)")).unwrap();
+        let r = lus(&page("zoom: Zoom(max: 50, shrink: true), points: Points(size: 8px, fragment: 64px, divisions: 2, levels: 3), relief: Relief(height: 0px, tilt: 0deg)")).unwrap();
         assert_eq!((r.zoom_max, r.reduire, r.taille_point, r.taille_morceler, r.cote, r.niveaux, r.relief, r.angle_max), (50.0, true, 8.0, 64.0, 2, 3, 0.0, 0.0));
     }
 

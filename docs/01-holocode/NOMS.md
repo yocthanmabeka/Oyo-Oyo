@@ -20,7 +20,7 @@ Comment lire la colonne « Ce qu'on a fait » :
 - **changé** : la même idée, un autre mot ;
 - **nouveau** : le web n'a pas de mot pour cela.
 
-Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la décision de Yocthan.
+Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026-10-06 (`ADR-047`) : douze sont gardés ; `Points(grid:)` devient `divisions:` et `Points(depth:)` devient `levels:`. Les anciennes écritures sont refusées, avec le bon mot.
 
 ## 1. Les mots de HoloCode
 
@@ -54,7 +54,7 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `List` | `ul`, `ol`, `li` | changé : un bloc au lieu de trois balises |
 | `Row` | `display: flex` | changé : mot de Flutter |
 | `Column` | `display: flex; flex-direction: column` | changé : mot de Flutter |
-| `Grid` ⚠ | `display: grid` | repris de CSS, devenu un bloc ; même mot que `Points(grid:)` |
+| `Grid` | `display: grid` | repris de CSS, devenu un bloc |
 | `Point` | aucun (`canvas`, WebGL, à écrire soi-même) | nouveau |
 | `World` | aucun | nouveau |
 | `On` | `addEventListener`, `onclick` | changé : une règle, pas du code |
@@ -99,10 +99,10 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `State` | `let`, `useState`, les signaux | changé : une déclaration, pas une variable libre |
 | `Data` | `fetch`, puis `JSON.parse`, puis la mise à jour de la page | changé : une déclaration ; l'arbitre range ce qui arrive |
 | `Prices` | un objet JavaScript `{ sunrise: 120 }` | changé : une table déclarée |
-| `Zoom` ⚠ | `meta viewport`, la propriété `zoom` | changé |
-| `Points` ⚠ | aucun | nouveau |
-| `Relief` ⚠ | `transform: perspective() rotate3d()` | changé |
-| `Portals` ⚠ | aucun (un routeur en JavaScript) | nouveau |
+| `Zoom` | `meta viewport`, la propriété `zoom` | changé |
+| `Points` | aucun | nouveau |
+| `Relief` | `transform: perspective() rotate3d()` | changé |
+| `Portals` | aucun (un routeur en JavaScript) | nouveau |
 
 ### Les réglages des blocs
 
@@ -139,19 +139,19 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `brightness:` | `filter: brightness()` | repris |
 | `color:` | `color` | repris |
 | `budget:`, `weight:` | aucun | nouveaux |
-| `pixels:` ⚠, `above:` ⚠ | `position: absolute` | changés, écriture provisoire |
+| `pixels:`, `above:` | `position: absolute` | changés |
 | `zoom:`, `points:`, `relief:`, `portals:` | aucun | nouveaux |
 | `active:` | `user-scalable=no` | changé |
 | `max:` | `maximum-scale` | changé |
-| `shrink:` ⚠ | `minimum-scale` ; `flex-shrink` dit autre chose | changé |
-| `levels:` ⚠, `speed:` | aucun | nouveaux |
-| `after:` ⚠ | aucun ; `::after` dit autre chose | nouveau |
+| `shrink:` | `minimum-scale` ; `flex-shrink` dit autre chose | changé |
+| `levels:`, `speed:` | aucun | nouveaux ; `levels:` dans `Zoom` et dans `Points`, avec la même idée : combien de fois l'un dans l'autre |
+| `after:` | aucun ; `::after` dit autre chose | nouveau |
 | `size:` | `width`, `height` | changé |
-| `fragment:` ⚠ | aucun ; le « fragment » d'une adresse dit autre chose | nouveau |
-| `grid:` ⚠ | aucun ; `display: grid` dit autre chose | nouveau |
-| `depth:` ⚠, `density:` | aucun | nouveaux |
+| `fragment:` | aucun ; le « fragment » d'une adresse dit autre chose | nouveau |
+| `divisions:` | aucun ; les `divisions` d'une grille de Three.js | nouveau ; s'appelait `grid:` jusqu'au 2026-10-06 |
+| `density:` | aucun | nouveau ; `Points(levels:)` s'appelait `depth:` jusqu'au 2026-10-06, mot gardé pour la profondeur de la 3D |
 | `height:` | `height` | repris |
-| `tilt:` ⚠ | `rotate3d()` | changé ; le mot dit « incliner », pas « faire le tour » |
+| `tilt:` | `rotate3d()` | changé ; le mot dit « incliner », pas « faire le tour » |
 | `layout:` | aucun | nouveau |
 | `count:` | aucun | nouveau |
 | `duration:` | `transition-duration` | repris, raccourci |
@@ -233,4 +233,4 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 - Mots repris tels quels ou presque : environ 35 (les titres, `P`, `A`, `Button`, les quinze réglages de style, les unités).
 - Mots changés : environ 30.
 - Mots nouveaux : environ 30, presque tous autour du point, du monde et de la façon de regarder la page.
-- Noms contestés, à trancher : `Grid` face à `grid:`, `pixels`, `above`, `Zoom`, `Points`, `Relief`, `Portals`, `shrink`, `levels`, `after`, `fragment`, `depth`, `tilt`.
+- Noms contestés : aucun. Les quatorze sont tranchés le 2026-10-06 (`ADR-047`).

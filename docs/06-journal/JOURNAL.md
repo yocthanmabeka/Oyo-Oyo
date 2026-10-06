@@ -6,6 +6,23 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Les PR de Codex fusionnées ; les quatorze noms tranchés
+
+- Yocthan : « Il y a 14 mots à nommer […] tu fais le pull request des codex […] je suis tes recommandations. »
+- Fusionnées, par le script et tests verts : les PR 72 (la contre-revue des noms par Codex), 74 (modèles 3D, arbitre partagé, noms ajoutés) et 79 (le cahier du site de référence). Ce sont des propositions, rangées dans `proposals/GPT5.6/` ; aucune ne change le moteur. Le dossier principal est revenu sur `main`, et le moteur en ligne de commande y est construit (l'extension VS Code s'en sert).
+- Rangé : la branche `revert/gemini-v0.1` (et sa copie de travail) supprimée ; les issues #16, #20 et #84 fermées avec un mot d'explication. Il reste une issue ouverte, #82.
+- Les noms (`ADR-047`) : douze gardés, deux changés. `Points(grid:)` devient `divisions:` (trois sens pour `grid`, c'était le défaut du CSS) ; `Points(depth:)` devient `levels:` (`depth` reste libre pour la profondeur de la 3D ; « levels » est le mot de Blender). `above` reste : `anchor`, que Codex lui-même jugeait son choix le moins solide, est le nom des liens sur le web. Les anciennes écritures sont refusées avec le bon mot, que l'éditeur remplace d'un clic.
+- Les décisions qui attendaient les noms sont acceptées, écriture comprise : `ADR-017`, `019`, `021`, `022`, `023`, `024`, `026`, `028`, `031`.
+- Vérifié : 106 tests ; les fichiers `.holo` du dépôt donnent les mêmes 23 refus voulus qu'avant ; `Points(grid: 4)` refusé ligne 3, colonne 18, avec « écris « divisions » » ; la leçon 9 dans Chrome, zoomée : 3 102 points, morcelés deux fois.
+
+![La leçon 9 avec les nouveaux noms : la page devenue des points](images/2026-10-06-lecon9-noms.png)
+
+**Erreur en route**
+
+- Ma première capture zoomait avant l'arrivée du moteur (il lui faut une dizaine de secondes dans le Chrome de test) : la page restait plate. Refaite en attendant le moteur.
+
+---
+
 ## 2026-10-06 — Tout ce qui est construit et essayé est validé ; deux installations
 
 - Yocthan, sur le relevé de ce qui restait : « valide le point 1, 2, j'ai testé et ça marche » ; « tu mets trop de trucs en essai, trop de trucs en attente […] tu valides déjà le tout » ; et, pour la suite, « fais-le et valide ».

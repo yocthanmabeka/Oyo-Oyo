@@ -1277,8 +1277,8 @@ Page(
     after: 4,
     size: 6px,
     fragment: 40px,
-    grid: 4,
-    depth: 20,
+    divisions: 4,
+    levels: 20,
     density: 2,
   ),
 
@@ -1301,9 +1301,9 @@ Page(
 | `Zoom(speed:)` | La vitesse du zoom à la molette. `1` : la vitesse ordinaire ; `2` : deux fois plus vite. Au doigt, la page suit toujours l'écartement des doigts. | 0.25 à 4 |
 | `Points(after:)` | Jusqu'à ce grossissement, la page reste un site ordinaire. Jamais moins de 2 : tout visiteur peut au moins doubler la taille du texte. | 2 à 16 |
 | `Points(size:)` | La taille où un pixel devient un point. | 2px à 32px |
-| `Points(fragment:)` | La taille où un point se morcelle. | 8px à 400px, au moins `size` × `grid` |
-| `Points(grid:)` | Un point se morcelle en `grid` × `grid`. | 2 à 8 |
-| `Points(depth:)` | Combien de fois de suite. | 0 à 20 |
+| `Points(fragment:)` | La taille où un point se morcelle. | 8px à 400px, au moins `size` × `divisions` |
+| `Points(divisions:)` | Un point se morcelle en `divisions` × `divisions` : avec `4`, chaque côté est coupé en quatre, soit 16 morceaux. | 2 à 8 |
+| `Points(levels:)` | Combien de fois de suite. Même idée que `Zoom(levels:)` : combien de fois l'un dans l'autre. | 0 à 20 |
 | `Points(density:)` | Points par pixel d'écran, dans chaque sens. | 1 à 3 |
 | `Relief(height:)` | La hauteur du relief. | 0px à 40px |
 | `Relief(tilt:)` | Jusqu'où l'on peut tourner la page, de chaque côté. Sans `tilt`, la page ne tourne pas : c'est un site ordinaire. L'écrire **active** la rotation, et le bouton « Tourner » apparaît, dès la page de face. `360deg` : on en fait le tour, et on la voit par derrière, à l'envers comme une feuille. `52deg` : elle s'arrête à cet angle. | 0deg à 360deg |
@@ -1461,7 +1461,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Le pixel d'une page | `pixels:` et `above:` | fait, écriture provisoire |
 | Activer les points au zoom | `points: Points()` | fait |
 | Le pixel qui devient un point | `Points(after:, size:)` | fait |
-| Le morcellement des points d'une page | `Points(fragment:, grid:, depth:)` | fait |
+| Le morcellement des points d'une page | `Points(fragment:, divisions:, levels:)` | fait |
 | Le relief | `Relief(height:)` | fait |
 | Activer la rotation de la page, en faire le tour | `Relief(tilt:)` | fait |
 | Une valeur que la page retient | `state: State(cart: 0)` | fait |

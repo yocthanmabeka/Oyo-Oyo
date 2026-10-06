@@ -1,6 +1,6 @@
 # ADR-017 — La forme : un thème, des styles nommés à point, des réglages par bloc ; les couleurs d'un point
 
-- Statut : ACCEPTÉ pour le principe ; la place des styles dans le fichier reste à décider
+- Statut : ACCEPTÉ — les styles s'écrivent après le bloc racine, comme ci-dessous ; validé avec le reste le 2026-10-06 (« tu valides déjà le tout »)
 - Date : 2026-10-03
 - Responsable : Yocthan Mabeka
 - Discussions sources : HC-013, revue Codex du 2026-10-03 (`proposals/GPT5.6/revue-2026-10-03/`), journal du 2026-10-03

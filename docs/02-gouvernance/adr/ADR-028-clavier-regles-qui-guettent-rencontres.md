@@ -1,6 +1,6 @@
 # ADR-028 — Le clavier (`Key`), les règles qui guettent (`When`), les rencontres (`Meet`)
 
-- Statut : ACCEPTÉ pour l'instant ; l'écriture exacte reste à revoir avec les noms
+- Statut : ACCEPTÉ — noms et écriture tranchés le 2026-10-06 (`ADR-047`)
 - Date : 2026-10-04
 - Responsable : Yocthan Mabeka
 - Discussions sources : journal du 2026-10-04 ; `docs/01-holocode/COMPARATIF-CONCURRENTS.md` (planning, étape 4)

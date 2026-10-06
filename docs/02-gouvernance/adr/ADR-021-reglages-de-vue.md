@@ -1,6 +1,6 @@
 # ADR-021 — La façon dont une page se regarde s'écrit dans le fichier : `Zoom`, `Points`, `Relief`
 
-- Statut : ACCEPTÉ pour le principe ; les noms et l'écriture exacte sont une proposition de Claude
+- Statut : ACCEPTÉ — noms et écriture tranchés le 2026-10-06 (`ADR-047`) : `Points(grid:)` devient `divisions:`, `Points(depth:)` devient `levels:`
 - Date : 2026-10-03
 - Responsable : Yocthan Mabeka
 - Discussions sources : journal du 2026-10-03 (la mosaïque, la profondeur, « ajoute tout ce qu'on vient de faire au langage »)
@@ -30,8 +30,8 @@ Page(
   points: Points(
     size: 6px,        // un pixel devient un point lumineux quand il atteint cette taille
     fragment: 40px,   // un point se morcelle quand il atteint cette taille…
-    grid: 4,          // …en une grille de 4 × 4…
-    depth: 20,        // …et cela au plus vingt fois de suite
+    divisions: 4,     // …en une grille de 4 × 4…
+    levels: 20,       // …et cela au plus vingt fois de suite
     density: 2,       // points par pixel d'écran, dans chaque sens
   ),
 
@@ -61,14 +61,14 @@ Page(
 | `Portals(brightness:)` | 0 à 1 | 0,15 |
 | `Portals(duration:)` | 0ms à 2000ms | 450ms |
 | `Points(size:)` | 2px à 32px | 6px |
-| `Points(fragment:)` | 8px à 400px, et au moins `size` × `grid` | 40px |
-| `Points(grid:)` | 2 à 8 | 4 |
-| `Points(depth:)` | 0 à 20 | 20 |
+| `Points(fragment:)` | 8px à 400px, et au moins `size` × `divisions` | 40px |
+| `Points(divisions:)` (`grid:` jusqu'au 2026-10-06) | 2 à 8 | 4 |
+| `Points(levels:)` (`depth:` jusqu'au 2026-10-06) | 0 à 20 | 20 |
 | `Points(density:)` | 1 à 3 | 2 |
 | `Relief(height:)` | 0px à 40px | 10px |
 | `Relief(tilt:)` | 0deg à 360deg | 0deg : la page ne tourne pas tant que l'auteur ne l'écrit pas |
 
-La borne « `fragment` au moins égal à `size` × `grid` » garantit qu'il n'y a jamais plus de points à dessiner que l'écran ne peut en montrer (`ADR-005`).
+La borne « `fragment` au moins égal à `size` × `divisions` » garantit qu'il n'y a jamais plus de points à dessiner que l'écran ne peut en montrer (`ADR-005`).
 
 **Deux unités de plus dans le langage** : `px` (pixels d'écran) et `deg` (degrés).
 
@@ -120,4 +120,4 @@ Mots : `fragment` reprend `fragments` (`ADR-016`), le mot retenu pour « morcele
 
 ## Conditions de réexamen
 
-- Quand Yocthan aura lu ces noms : `Zoom`, `Points`, `Relief`, `shrink`, `size`, `fragment`, `grid`, `depth`, `density`, `height`, `tilt`.
+- ~~Quand Yocthan aura lu ces noms~~ Tranchés le 2026-10-06 (`ADR-047`).

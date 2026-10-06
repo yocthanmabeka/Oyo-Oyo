@@ -202,7 +202,7 @@
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `active, max, shrink, levels, speed` | Les réglages de Zoom | — | Décidé (ADR-021) |
-| `after, size, fragment, grid, depth, density` | Les réglages de Points | — | Décidé (ADR-021) |
+| `after, size, fragment, divisions, levels, density` | Les réglages de Points | — | Décidé (ADR-021, ADR-047) |
 | `height, tilt` | Les réglages de Relief | — | Décidé (ADR-021) |
 | `layout, count, size, brightness, duration` | Les réglages de Portals | — | Décidé (ADR-021) |
 
