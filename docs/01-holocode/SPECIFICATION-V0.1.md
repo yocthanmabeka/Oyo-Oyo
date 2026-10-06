@@ -1,6 +1,6 @@
 # Proposition code by GPT5.6 — HoloCode v0.1
 
-**Statut : `EXPÉRIMENTATION`**  
+**Statut : `REMPLACÉ`** — par le moteur en Rust (`ADR-010`) et le guide de l'auteur (`docs/01-holocode/GUIDE.md`). Décidé par Yocthan le 2026-10-06, sur la recommandation de Claude : « je suis tes recommandations ». Le document est gardé tel quel, pour l'histoire du projet.  
 **Implémentation de référence : Python 3.11+**
 
 **Code source :** [`proposals/GPT5.6/holocode-v0.1`](../../proposals/GPT5.6/holocode-v0.1/)

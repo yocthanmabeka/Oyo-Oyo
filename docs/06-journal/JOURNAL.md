@@ -6,6 +6,23 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Tout ce qui est construit et essayé est validé ; deux installations
+
+- Yocthan, sur le relevé de ce qui restait : « valide le point 1, 2, j'ai testé et ça marche » ; « tu mets trop de trucs en essai, trop de trucs en attente […] tu valides déjà le tout » ; et, pour la suite, « fais-le et valide ».
+- Validé : les lots 6, 7, 8 et l'éditeur (`ADR-043` à `ADR-046` : `ACCEPTÉ`). Le grand tableau compte 311 mots, **tous décidés** ; plus aucune mention « à l'essai » dans le guide, la comparaison, le tableau ou `AGENTS.md`.
+- La spécification Python de Codex (`SPECIFICATION-V0.1.md`) est `REMPLACÉE` par le moteur et le guide (« je suis tes recommandations »). Seul HoloIR reste une proposition : rien n'est construit, on en reparlera avec la 3D.
+- La règle de décision (`ADR-035`) est choisie : on part du travail à faire de l'auteur (la question de ChatGPT), la majorité des humains sert de vérification ; s'ils se contredisent, Yocthan tranche.
+- La recette du site de référence : le verdict de Yocthan est bon (« mon verdict, il est déjà bon ») ; restent cinq débutants à trouver et le téléphone.
+- **Installé**, avec l'accord de Yocthan (« Oui, installe ») : Chrome DevTools MCP pour Claude Code (issue #20), à la portée de l'utilisateur, avec `--isolated` (un profil Chrome vide, effacé à la fermeture). Essai minimal, Chrome sans fenêtre : la leçon 1 ouverte, son titre lu, tout fermé, en 10 secondes ; aucun processus resté ouvert. Les outils n'apparaissent qu'au démarrage d'une nouvelle session de Claude Code.
+- **Installé** : l'extension VS Code 0.2.0 (la faute soulignée, l'ampoule, les mots proposés). Il faut recharger la fenêtre de VS Code.
+
+**Erreurs en route**
+
+- J'avais laissé à l'essai des lots que Yocthan avait déjà essayés et trouvés bons : c'est à lui de le dire une fois, pas à moi d'attendre une deuxième fois.
+- En présentant la règle de décision, j'avais résumé l'option de ChatGPT par « ce qui demande le moins de travail » : c'était faux. Il s'agit du travail que l'auteur veut accomplir, pas de notre travail à nous.
+
+---
+
 ## 2026-10-06 — Ce qui reste à faire, revérifié
 
 - Yocthan : « Révérifie et dis-moi ce qui reste à faire… sans brûler tous mes tokens. » Un premier relevé par quinze agents a été arrêté à sa demande ; le relevé a été refait à la main, source par source : les statuts (`DECISIONS.md`), GitHub (pull requests, issues, branches), le dossier principal, les propositions, le grand tableau, les prompts, `AGENTS.md`.

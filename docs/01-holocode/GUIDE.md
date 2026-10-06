@@ -16,7 +16,7 @@ Ce guide montre comment écrire un fichier `.holo` aujourd'hui, avec ce que le m
 
 Sans l'extension : ouvrir `http://localhost:8080/exemples/mon-dossier/ma-page.holo` dans Chrome.
 
-**L'éditeur** (à l'essai, `ADR-046`), sur le PC et sur le téléphone : `http://localhost:8080/editeur?cle=…` (le serveur affiche l'adresse exacte, avec sa clé, à son démarrage). Le texte à gauche, la page à droite, mise à jour pendant qu'on écrit ; la faute soulignée à sa place, et, quand le moteur dit le bon mot, un bouton **« Remplacer « h1 » par « H1 » »** ; en bas, les mots du langage à toucher, pour ne pas taper de majuscule au milieu d'un mot sur un téléphone. Dans VS Code, l'extension (version 0.2.0) souligne la même faute et propose la même correction dans l'ampoule (`Ctrl+.`).
+**L'éditeur** (`ADR-046`), sur le PC et sur le téléphone : `http://localhost:8080/editeur?cle=…` (le serveur affiche l'adresse exacte, avec sa clé, à son démarrage). Le texte à gauche, la page à droite, mise à jour pendant qu'on écrit ; la faute soulignée à sa place, et, quand le moteur dit le bon mot, un bouton **« Remplacer « h1 » par « H1 » »** ; en bas, les mots du langage à toucher, pour ne pas taper de majuscule au milieu d'un mot sur un téléphone. Dans VS Code, l'extension (version 0.2.0) souligne la même faute et propose la même correction dans l'ampoule (`Ctrl+.`).
 
 Si le fichier contient une erreur, la page affiche le message du moteur, avec la ligne et la colonne.
 
@@ -1102,7 +1102,7 @@ Page(
 - **`mul`** multiplie, **`div`** divise (en nombres entiers, arrondi vers le bas) ; la quantité peut être une autre valeur.
 - **Un format après deux-points** : `{minute:00}` (05), `{n:number}` (1 234 567), `{n:cents}` (1 234,50), `{weekday:name}` et `{month:name}` (mardi, octobre). La langue de la page choisit les séparateurs et les noms ; dans une répétition, `{item.price:cents}`.
 
-Ces ajouts sont à l'essai (`ADR-043`). Les leçons sont `66-calculer.holo` et `67-formats.holo`.
+Ces ajouts sont décidés (`ADR-043`). Les leçons sont `66-calculer.holo` et `67-formats.holo`.
 
 ## 6 septendecies. Une liste qui change pendant la visite
 
@@ -1129,7 +1129,7 @@ Page(
 - **`wish.set("")`** vide un texte.
 - **`Repeat(over: wishes, …)`** : une ligne par élément ; `{item}` est son texte. `{wishes}` montre le nombre ; `If(wishes, is: 0)` le compare ; `keep:` la garde.
 
-Ces ajouts sont à l'essai (`ADR-044`). La leçon est `68-liste-qui-change.holo`.
+Ces ajouts sont décidés (`ADR-044`). La leçon est `68-liste-qui-change.holo`.
 
 ## 6 duodevicies. Du code enfermé : un module
 
@@ -1157,7 +1157,7 @@ Page(
 - La boîte : un fil à part (la page ne se bloque jamais), une mémoire plafonnée, rien d'autre (ni réseau, ni page, ni heure). Au-delà de son temps, il est arrêté.
 - `bridge js` et `bridge css` sont refusés : un pont ferait entrer du code sans garantie.
 
-Cette écriture est à l'essai (`ADR-045`). La leçon est `69-module-enferme.holo` ; ses trois modules, dans `exemples/lecons/modules/`.
+Cette écriture est décidée (`ADR-045`). La leçon est `69-module-enferme.holo` ; ses trois modules, dans `exemples/lecons/modules/`.
 
 ## 6 undecies. Les repères, la superposition, le survol, le texte qui grandit
 
@@ -1507,10 +1507,10 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Une couleur nommée, le thème sombre, le téléphone | `--or`, `dark: { … }`, `phone: { … }` | fait |
 | Sa propre police | `fonts: [ Font(family:, source:) ]` | fait |
 | Envoyer un formulaire | `Form(name:)`, `Contact.send`, `sent`, `failed` | fait |
-| Multiplier, diviser | les demandes `mul`, `div` | fait, à l'essai |
-| Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait, à l'essai |
-| Une liste qui change pendant la visite | `State(tasks: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` | fait, à l'essai |
-| Du code enfermé (un module WebAssembly) | `module "…"`, `Module(…)`, `run`, `done`, `failed` | fait, à l'essai |
+| Multiplier, diviser | les demandes `mul`, `div` | fait |
+| Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait |
+| Une liste qui change pendant la visite | `State(tasks: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` | fait |
+| Du code enfermé (un module WebAssembly) | `module "…"`, `Module(…)`, `run`, `done`, `failed` | fait |
 | Une fenêtre, un pli, une glissière, une barre | `Dialog`, `Details`, `Slider`, `Progress` | fait |
 | Réagir au zoom par une règle (« quand on zoome, alors… ») | aucun | à faire |
 | Ranger côte à côte, l'un sous l'autre, en grille | `Row`, `Column`, `Grid` | fait |

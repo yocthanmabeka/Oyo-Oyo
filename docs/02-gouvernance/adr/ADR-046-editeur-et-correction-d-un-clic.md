@@ -1,17 +1,17 @@
 # ADR-046 — L'éditeur : la faute à sa place, la correction d'un clic, les mots à toucher
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ
 - Date : 2026-10-06
 - Responsable : Yocthan Mabeka
 - Discussions sources : les réponses sur la casse (`docs/05-discussions/reponses/2026-10-06-majuscules-et-casse.md`) : ChatGPT, Gemini et Claude d'accord pour « corriger d'un clic dans l'éditeur, le moteur restant strict » (« il faut un éditeur : à faire ») ; `ADR-037` (« un éditeur avec complétion compensera » la majuscule au milieu d'un mot sur un téléphone) ; Yocthan, le 2026-10-06 : « Travaille sur l'éditeur now »
-- Validation : à donner par Yocthan après essai.
+- Validation : validé par Yocthan le 2026-10-06, après l'avoir essayé : « valide le point 1, 2, j'ai testé et ça marche en tout cas, donc du coup il faut le valider »
 - Projets affectés : outils (éditeur, extension VS Code), HoloEngine (deux fonctions), serveur d'essai
 
 ## Contexte
 
 Le moteur refuse une faute et dit le bon mot (« écris « H1 » »), mais il fallait aller corriger à la main, ligne et colonne en tête. Et sur un téléphone, `topRight` coûte un geste de plus qu'`top_right`. Il manquait un éditeur.
 
-## Décision (à l'essai)
+## Décision
 
 Deux éditeurs, une seule façon de corriger.
 

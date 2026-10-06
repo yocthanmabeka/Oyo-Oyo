@@ -1,17 +1,17 @@
 # ADR-045 — Lot 8 : le premier module enfermé, et la preuve qu'on peut l'arrêter
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ
 - Date : 2026-10-06
 - Responsable : Yocthan Mabeka
 - Discussions sources : `ADR-011`, partie C (deux étages ; direction acceptée le 2026-10-06, « la construction commencera par la preuve demandée par Codex : arrêter un module qui boucle sans fin ») ; Yocthan, le 2026-10-06 : « Oui, travaille sur ce qui reste »
-- Validation : à donner par Yocthan après essai.
+- Validation : validé par Yocthan le 2026-10-06, après l'avoir essayé : « valide le point 1, 2, j'ai testé et ça marche en tout cas, donc du coup il faut le valider »
 - Projets affectés : HoloCode, HoloEngine
 
 ## Contexte
 
 HoloCode refuse le code libre (`ADR-015`, `ADR-035`). Pour ce qu'il ne fait pas lui-même (un calcul lourd, une physique, une IA), la partie C d'`ADR-011` prévoit des modules compilés en WebAssembly, enfermés. Codex avait demandé de prouver d'abord qu'un module qui boucle sans fin peut être arrêté, avant de promettre une boîte fermée.
 
-## Décision (à l'essai)
+## Décision
 
 ```holo
 module "somme.wasm"

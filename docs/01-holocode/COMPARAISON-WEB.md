@@ -110,7 +110,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 |---|---|---|
 | `style` | les styles, après la page | fait |
 | `link rel="stylesheet"` | les styles d'un morceau importé : `import "commun.holo"` | fait |
-| `script` | refusé dans un bloc (`ADR-015`) ; du code venu d'ailleurs passe par un module enfermé, `module "calcul.wasm"` (`ADR-045`, à l'essai) | exprès |
+| `script` | refusé dans un bloc (`ADR-015`) ; du code venu d'ailleurs passe par un module enfermé, `module "calcul.wasm"` (`ADR-045`) | exprès |
 | `noscript` | sans objet : rien ne dépend d'un script | exprès |
 | `template`, `slot` (morceaux réutilisables) | `Part(name: Menu, …)` et `Use(Menu)` ; un modèle répété avec ses champs : `Repeat` | fait |
 
@@ -152,13 +152,13 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `Date` (la date et l'heure du jour) | `{year}`, `{month}`, `{day}`, `{weekday}`, `{hour}`, `{minute}` | fait ; pas encore de calcul sur les dates |
 | Garder une valeur, l'afficher (un panier) | `State(cart: 0)`, `{cart}`, `cart.add(1)` | fait : des nombres entiers ; avec `Prices`, le moteur calcule `{count}` et `{total}` |
 | Afficher sous condition | `If(cart, is: 0, children: [...])` | fait |
-| Répéter sur une liste (`for`, `map`) | `Repeat(items: [ Item(…) ], children: [ … ])` : une liste écrite dans le fichier ; `Repeat(over: tasks, …)` : une liste qui change pendant la visite | fait ; la seconde, à l'essai |
-| Un tableau qu'on remplit (`push`, `splice`) | `State(tasks: [])`, `tasks.push(task)`, `tasks.remove(item)`, `tasks.clear()` | fait, à l'essai : des textes |
+| Répéter sur une liste (`for`, `map`) | `Repeat(items: [ Item(…) ], children: [ … ])` : une liste écrite dans le fichier ; `Repeat(over: tasks, …)` : une liste qui change pendant la visite | fait  |
+| Un tableau qu'on remplit (`push`, `splice`) | `State(tasks: [])`, `tasks.push(task)`, `tasks.remove(item)`, `tasks.clear()` | fait : des textes |
 | Chercher des données (`fetch`) | `data: Data(from: "stock.json", every: 30s)` : des valeurs, du même serveur | fait ; pas de liste, pas d'envoi |
 | Durées, minuteries | `Every(1s, effect: …)` ; `Portals(duration:)` | fait |
 | Le hasard (`Math.random`) | la demande `random`, rejouable | fait |
-| Multiplier, diviser | les demandes `mul`, `div`, en nombres entiers | fait, à l'essai |
-| `Intl`, `padStart` (formats) | `{n:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}`, `{month:name}` | fait, à l'essai |
+| Multiplier, diviser | les demandes `mul`, `div`, en nombres entiers | fait |
+| `Intl`, `padStart` (formats) | `{n:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}`, `{month:name}` | fait |
 | Animations écrites par l'auteur | | manque |
 | Garder des données dans le navigateur | `keep: [cart]` | fait |
 | Calculer librement | prévu : fonctions pures, modules WebAssembly (`ADR-013`) | manque |

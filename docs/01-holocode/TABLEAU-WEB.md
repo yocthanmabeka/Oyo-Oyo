@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-06). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (311 mots : 290 décidés, 21 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (311 mots : tous décidés), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
 - **Couverture** : la part de ce que fait l’élément web qu’on obtient en HoloCode aujourd’hui. Estimation de Claude, non mesurée.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,7 +9,7 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 311 mots | 290 décidés, 21 à l’essai |
+| **HoloCode** | 311 mots | tous décidés |
 | HTML | 82 % de couverture | 47 oui, 6 en partie, 6 non, 3 refusés |
 | CSS | 78 % de couverture | 24 oui, 6 en partie, 2 non, 2 refusés |
 | JavaScript | 54 % de couverture | 14 oui, 11 en partie, 7 non, 1 refusés |
@@ -386,49 +386,49 @@
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `mul, div` | Multiplier, diviser (en nombres entiers) | `*=, /=` | À l’essai (ADR-043) |
+| `mul, div` | Multiplier, diviser (en nombres entiers) | `*=, /=` | Décidé (ADR-043) |
 
 ## Le fichier
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `{n:00}, {n:number}, {n:cents}, {weekday:name}, {month:name}` | Écrire un nombre joliment, dans la langue de la page | `padStart, Intl` | À l’essai (ADR-043) |
+| `{n:00}, {n:number}, {n:cents}, {weekday:name}, {month:name}` | Écrire un nombre joliment, dans la langue de la page | `padStart, Intl` | Décidé (ADR-043) |
 
 ## Demandes
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `push, remove, clear` | Ajouter à une liste, retirer la ligne touchée, tout vider | `push, splice, length = 0` | À l’essai (ADR-044) |
+| `push, remove, clear` | Ajouter à une liste, retirer la ligne touchée, tout vider | `push, splice, length = 0` | Décidé (ADR-044) |
 
 ## Paramètres : les valeurs
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `over` | La liste qui change, montrée ligne par ligne : Repeat(over: tasks) | `map, innerHTML` | À l’essai (ADR-044) |
+| `over` | La liste qui change, montrée ligne par ligne : Repeat(over: tasks) | `map, innerHTML` | Décidé (ADR-044) |
 
 ## Blocs : les règles
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `Module` | Du code WebAssembly enfermé : un fil à part, une mémoire plafonnée, arrêté s'il dure trop | `new Worker, WebAssembly` | À l’essai (ADR-045) |
+| `Module` | Du code WebAssembly enfermé : un fil à part, une mémoire plafonnée, arrêté s'il dure trop | `new Worker, WebAssembly` | Décidé (ADR-045) |
 
 ## Paramètres : la page
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `modules, input, output, time, memory` | Les modules de la page ; ce qu'un module reçoit, rend, et ses limites | — | À l’essai (ADR-045) |
+| `modules, input, output, time, memory` | Les modules de la page ; ce qu'un module reçoit, rend, et ses limites | — | Décidé (ADR-045) |
 
 ## Signaux et capacités
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `run, done, failed` | Lancer un module ; il a rendu son nombre ; il a été arrêté | `postMessage, terminate` | À l’essai (ADR-045) |
+| `run, done, failed` | Lancer un module ; il a rendu son nombre ; il a été arrêté | `postMessage, terminate` | Décidé (ADR-045) |
 
 ## Le fichier
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `module "…"` | Annoncer un module en haut du fichier | `script src` | À l’essai (ADR-045) |
+| `module "…"` | Annoncer un module en haut du fichier | `script src` | Décidé (ADR-045) |
 
 # Partie 2 — HoloCode face à HTML, CSS et JavaScript
 
@@ -604,15 +604,15 @@
 | En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|---|
 | `State(…)` | `variables` | garder une valeur | En partie | 70 % | Déjà là | Nombres entiers et textes ; pas de décimaux. |
-| `add, sub, mul, div, set, random` | `calcul (+ − × ÷)` | calculer | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-043, à l'essai). En nombres entiers ; pas de pourcentage ni de racine. |
+| `add, sub, mul, div, set, random` | `calcul (+ − × ÷)` | calculer | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-043). En nombres entiers ; pas de pourcentage ni de racine. |
 | `If(…, else: […]), When(…)` | `if, else` | décider | Oui | 100 % | Déjà là | Le « sinon » ajouté le 2026-10-06 (ADR-039). |
-| `Repeat(items:) ; State(tasks: []), push, remove, clear` | `tableaux, objets` | des listes de valeurs | Oui | 75 % | Déjà là | Une liste écrite dans le fichier (ADR-040) ; une liste de textes qui change pendant la visite (ADR-044, à l'essai). Pas encore d'éléments à champs. |
+| `Repeat(items:) ; State(tasks: []), push, remove, clear` | `tableaux, objets` | des listes de valeurs | Oui | 75 % | Déjà là | Une liste écrite dans le fichier (ADR-040) ; une liste de textes qui change pendant la visite (ADR-044). Pas encore d'éléments à champs. |
 | `Repeat(items:, children:, rules:)` | `for, map` | répéter pour chaque élément | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-040) : déplié à la lecture, la page reste du HTML ordinaire. |
-| `Module(…) : du code WebAssembly enfermé` | `fonctions` | du calcul réutilisable | En partie | 40 % | Déjà là | Ajouté le 2026-10-06 (ADR-045, à l'essai) : un nombre en entrée, un nombre en sortie, arrêté s'il dure trop. |
+| `Module(…) : du code WebAssembly enfermé` | `fonctions` | du calcul réutilisable | En partie | 40 % | Déjà là | Ajouté le 2026-10-06 (ADR-045) : un nombre en entrée, un nombre en sortie, arrêté s'il dure trop. |
 | `{nom} dans un texte` | `texte (majuscules, longueur, découper)` | travailler un texte | En partie | 20 % | Plus tard | — |
 | `random, rejouable` | `Math.random` | le hasard | Oui | 90 % | Déjà là | Mieux pour un jeu : la même partie se rejoue. |
 | `{weekday:name} {day} {month:name} {year}, {hour} h {minute:00}` | `Date` | la date et l'heure du jour | En partie | 80 % | Déjà là | ADR-039 et ADR-043. Pas encore de calcul sur les dates (un compte à rebours). |
-| `{n:number}, {n:cents}, {minute:00}, {weekday:name}` | `Intl (formats)` | 1 234,50 €, dates en français | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-043, à l'essai). Langue de la page ; noms en français et en anglais. |
+| `{n:number}, {n:cents}, {minute:00}, {weekday:name}` | `Intl (formats)` | 1 234,50 €, dates en français | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-043). Langue de la page ; noms en français et en anglais. |
 
 ## JavaScript — Temps
 

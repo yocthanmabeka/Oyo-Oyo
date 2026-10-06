@@ -3,7 +3,7 @@
 - Auteur : Claude, le 2026-10-06. Pour Yocthan, qui décide.
 - Les avis : [Claude](README.md), [ce que disent les humains](AVIS-DES-HUMAINS.md), [Gemini](../../../docs/05-discussions/reponses/2026-10-06-gemini-refus.md), [ChatGPT](../../../docs/05-discussions/reponses/2026-10-06-chatgpt-refus.md) (à la place de Codex, dont le quota était épuisé). Codex pourra encore répondre au prompt qui l'attend.
 - Statut : **PROPOSITION**. Aucune décision n'est prise.
-- Suite (2026-10-06) : le principe est devenu `ADR-035`, acceptée par Yocthan ; les six constructions proposées plus bas sont faites (`ADR-036` à `ADR-045`). Reste ouverte la question de méthode, à la fin de ce document.
+- Suite (2026-10-06) : le principe est devenu `ADR-035`, acceptée par Yocthan ; les six constructions proposées plus bas sont faites (`ADR-036` à `ADR-045`). La question de méthode a été tranchée le même jour : on part du travail à faire de l'auteur, et l'avis de la majorité des humains sert de vérification (`ADR-035`).
 
 ## Les quatre avis
 
