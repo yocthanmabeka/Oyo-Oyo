@@ -6,6 +6,20 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Les listes à champs, aussi reçues du serveur
+
+- Point 2 du comparatif, avec le feu vert de Yocthan. Fait (`ADR-051`) : `State(articles: [ Item(title: "Sunrise", price: 12000) ])`, `{item.title}` et `{item.price:cents}` dans les lignes, `articles.push(Item(title: name, price: price))`, et `Data` qui remplit une liste depuis un tableau JSON (objets ou textes).
+- Leçon 71 (`exemples/lecons/71-liste-a-champs.holo` et son `71-catalogue.json`) ; guide § 6 septendecies.
+- Vérifié : 113 tests (dont un texte saisi `<Night>` qui reste du texte, un champ « secret » envoyé par le serveur qui n'apparaît pas, une image en `javascript:` refusée) ; la leçon 71 dans Chrome : trois articles arrivés du fichier JSON, « Retirer » en enlève un, « Forest » à 9500 centimes s'ajoute et se montre « 95,00 euros ».
+
+![La leçon 71 : le catalogue venu du serveur, et un article ajouté](images/2026-10-06-liste-a-champs.png)
+
+**Erreur en route**
+
+- Le moteur refusait un `Item` hors d'une répétition (`ADR-040`) : il est maintenant permis dans `State` et dans une demande `push`.
+
+---
+
 ## 2026-10-06 — Les composants, faits pour le web
 
 - Yocthan : « J'aime le composant. C'est une notion de Flutter que j'adore […] il faudra des composants faits vraiment pour le web […] grâce au CSS, tu vas l'utiliser facilement » ; puis le feu vert pour les six points du comparatif.

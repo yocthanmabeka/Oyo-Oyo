@@ -1082,6 +1082,8 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
 /// Le caractère qui tient la place de l'élément d'une ligne pendant la fabrication. Il ne peut
 /// pas venir d'un texte du visiteur : un texte saisi est nettoyé de ses caractères invisibles.
 const ELEMENT: char = '\u{2}';
+/// La marque d'un champ d'élément dans une ligne : `\u{3}0\u{3}` pour le premier champ montré.
+const CHAMP: char = '\u{3}';
 
 /// Les lignes d'une répétition dynamique, pour les éléments en cours de sa liste. Le texte de
 /// l'élément est posé après la fabrication, échappé : ce qu'un visiteur a écrit ne devient jamais
@@ -1101,24 +1103,72 @@ fn lignes(repetition: &Bloc, liste: &str, base: &str) -> Result<String, Erreur> 
     let Some((_, elements)) = listes.iter().find(|(nom, _)| nom == liste) else {
         return Err(Erreur { message: format!("« Repeat(over: {liste}) » : aucune liste ne s'appelle « {liste} » ; déclare-la, state: State({liste}: [])"), pos: repetition.pos });
     };
-    fn marquer(valeur: &mut Valeur) {
+    // Chaque élément est posé dans le modèle après la fabrication, échappé : `{item}` et
+    // `{item.title}` deviennent des marques, remplacées par le texte de l'élément ou du champ ;
+    // `item.image` à la place d'une valeur devient le champ (ADR-051).
+    fn marquer(valeur: &mut Valeur, champs: &[(String, String)], montres: &mut Vec<(String, Option<String>)>) {
         match valeur {
-            Valeur::Texte(t) => *t = t.replace("{item}", &ELEMENT.to_string()),
-            Valeur::Liste(l) => l.iter_mut().for_each(marquer),
-            Valeur::Bloc(b) => b.arguments.iter_mut().for_each(|a| marquer(&mut a.valeur)),
+            Valeur::Texte(t) => {
+                let mut sortie = String::new();
+                let mut reste = t.as_str();
+                while let Some(debut) = reste.find("{item") {
+                    sortie.push_str(&reste[..debut]);
+                    let apres = &reste[debut..];
+                    let Some(fin) = apres.find('}') else {
+                        sortie.push_str(apres);
+                        reste = "";
+                        break;
+                    };
+                    let dedans = &apres[1..fin];
+                    if dedans == "item" {
+                        sortie.push(ELEMENT);
+                    } else if let Some(champ) = dedans.strip_prefix("item.") {
+                        let (nom, format) = champ.split_once(':').map_or((champ, None), |(n, f)| (n, Some(f.to_string())));
+                        sortie.push_str(&format!("{CHAMP}{}{CHAMP}", montres.len()));
+                        montres.push((nom.to_string(), format));
+                    } else {
+                        sortie.push_str(&apres[..=fin]);
+                    }
+                    reste = &apres[fin + 1..];
+                }
+                sortie.push_str(reste);
+                *t = sortie;
+            }
+            Valeur::Nom(n) if n.starts_with("item.") => {
+                let champ = &n["item.".len()..];
+                if let Some((_, v)) = champs.iter().find(|(c, _)| c == champ) {
+                    *valeur = match v.parse::<u64>() {
+                        Ok(e) if !v.starts_with('0') || v == "0" => Valeur::Entier(e),
+                        _ => Valeur::Texte(v.clone()),
+                    };
+                }
+            }
+            Valeur::Liste(l) => l.iter_mut().for_each(|v| marquer(v, champs, montres)),
+            Valeur::Bloc(b) => b.arguments.iter_mut().for_each(|a| marquer(&mut a.valeur, champs, montres)),
             _ => {}
         }
     }
     let mut sortie = String::new();
     let mut mondes = String::new();
     for (rang, element) in elements.iter().enumerate() {
+        let champs = crate::listes::champs(element);
+        let mut montres = Vec::new();
         let mut ligne = String::new();
         for valeur in modele {
             let mut copie = valeur.clone();
-            marquer(&mut copie);
+            marquer(&mut copie, &champs, &mut montres);
             rendre(&copie, &mut ligne, &mut mondes, base, repetition)?;
         }
-        sortie.push_str(&format!("<div class=\"holo-ligne\" data-rang=\"{rang}\">{}</div>", ligne.replace(ELEMENT, &echapper(element))));
+        let mut ligne = ligne.replace(ELEMENT, &echapper(&crate::listes::texte_de(element)));
+        for (i, (nom, format)) in montres.iter().enumerate() {
+            let brut = champs.iter().find(|(c, _)| c == nom).map(|(_, v)| v.clone()).unwrap_or_default();
+            let montre = match (format, brut.parse::<u64>()) {
+                (Some(f), Ok(n)) => crate::format::formater(nom, n, f, &crate::format::langue()),
+                _ => brut,
+            };
+            ligne = ligne.replace(&format!("{CHAMP}{i}{CHAMP}"), &echapper(&montre));
+        }
+        sortie.push_str(&format!("<div class=\"holo-ligne\" data-rang=\"{rang}\">{ligne}</div>"));
     }
     Ok(sortie)
 }

@@ -628,6 +628,42 @@ pub fn textes_initiaux(programme: &Programme) -> Textes {
         .collect()
 }
 
+/// Les champs montrés dans un texte : `{item.title}`, `{item.price:cents}` → (title, None), (price, Some(cents)).
+pub fn champs_montres(texte: &str) -> Vec<(String, Option<String>)> {
+    let mut champs = Vec::new();
+    let mut reste = texte;
+    while let Some(debut) = reste.find("{item.") {
+        let apres = &reste[debut + 6..];
+        let Some(fin) = apres.find('}') else { break };
+        let dedans = &apres[..fin];
+        let (nom, format) = dedans.split_once(':').map_or((dedans, None), |(n, f)| (n, Some(f.to_string())));
+        champs.push((nom.to_string(), format));
+        reste = &apres[fin + 1..];
+    }
+    champs
+}
+
+/// Le texte sans ses `{item}` ni ses `{item.…}`, pour vérifier le reste.
+fn sans_les_champs(texte: &str) -> String {
+    let mut sortie = String::new();
+    let mut reste = texte;
+    while let Some(debut) = reste.find("{item") {
+        sortie.push_str(&reste[..debut]);
+        let apres = &reste[debut..];
+        let Some(fin) = apres.find('}') else {
+            sortie.push_str(apres);
+            return sortie;
+        };
+        let dedans = &apres[1..fin];
+        if dedans != "item" && !dedans.starts_with("item.") {
+            sortie.push_str(&apres[..=fin]);
+        }
+        reste = &apres[fin + 1..];
+    }
+    sortie.push_str(reste);
+    sortie
+}
+
 /// Un texte, écrit pour voyager dans l'état sans se mêler à ses séparateurs : tout ce qui
 /// n'est pas une lettre ou un chiffre ordinaire devient « %XX ».
 pub fn coder(texte: &str) -> String {
@@ -1113,7 +1149,7 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
     let textes = textes_initiaux(programme);
     let mut montrables = avec_textes(&a_montrer(programme, &etat), &textes);
     montrables.extend(crate::listes::comptes(&crate::listes::initiales(programme)));
-    let modeles = crate::listes::dans_un_modele(programme);
+    let modeles = crate::listes::modeles_et_listes(programme);
     let est_texte = |nom: &str| textes.iter().any(|(connu, _)| connu == nom);
     let declare = bloc_d_etat(programme)?;
     let prix_declares = match programme.racine.argument("prices").map(|a| &a.valeur) {
@@ -1278,7 +1314,8 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
                 }
             }
         }
-        let dans_un_modele = modeles.contains(&(bloc as *const Bloc));
+        let liste_du_modele = modeles.iter().find(|(b, _)| std::ptr::eq(*b, bloc)).map(|(_, l)| l.as_str());
+        let dans_un_modele = liste_du_modele.is_some();
         let verifier_texte = |texte: &str, pos| {
             for (nom, format) in crate::format::formats_dans(texte) {
                 if !crate::format::est_format(format) {
@@ -1291,10 +1328,26 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
                     return Err(Erreur { message: format!("« {{{nom}:{format}}} » : « {nom} » est un texte ; un format s'applique à un nombre"), pos });
                 }
             }
-            if dans_un_modele && texte.contains("{item.") {
-                return Err(Erreur { message: "dans les lignes d'une liste, « {item} » est le texte de l'élément ; il n'a pas de champs".into(), pos });
+            // Dans les lignes d'une liste à champs, `{item.title}` montre un champ (ADR-051).
+            if let Some(liste) = liste_du_modele {
+                for (champ, format) in champs_montres(texte) {
+                    match crate::listes::sorte(programme, liste) {
+                        Some(crate::listes::Sorte::Textes) | None => {
+                            return Err(Erreur { message: format!("dans les lignes de « {liste} », « {{item}} » est le texte de l'élément ; il n'a pas de champs : pour des champs, déclare la liste avec des Item(…), State({liste}: [ Item(title: \"…\") ])"), pos });
+                        }
+                        Some(crate::listes::Sorte::Fiches(champs)) if !champs.contains(&champ) => {
+                            return Err(Erreur { message: format!("les éléments de « {liste} » n'ont pas de champ « {champ} » ; champs : {}", champs.join(", ")), pos });
+                        }
+                        _ => {}
+                    }
+                    if let Some(f) = format {
+                        if !crate::format::est_format(&f) || f == "name" {
+                            return Err(Erreur { message: format!("« {{item.{champ}:{f}}} » : format inconnu ; pour un champ : 00, number, cents"), pos });
+                        }
+                    }
+                }
             }
-            let texte = if dans_un_modele { texte.replace("{item}", "") } else { texte.to_string() };
+            let texte = if dans_un_modele { sans_les_champs(texte) } else { texte.to_string() };
             let texte = texte.as_str();
             if texte.contains("{item.") || texte.contains("{item}") {
                 return Err(Erreur { message: "« {item…} » montre un champ de l'élément : il n'a de sens que dans une répétition, Repeat(items: [ … ], children: [ … ])".into(), pos });

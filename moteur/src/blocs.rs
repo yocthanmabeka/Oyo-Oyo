@@ -135,7 +135,9 @@ fn parcourir(bloc: &Bloc, dernier_titre: &mut u32, parent: &str) -> Result<(), E
         return Err(Erreur { message: bloc_inconnu(&bloc.nom), pos: bloc.pos });
     }
     // Une répétition est dépliée à la lecture (ADR-040) : un « Item » qui reste est mal placé.
-    if bloc.nom == "Item" {
+    // Depuis ADR-051, un « Item » est aussi un élément d'une liste de la page, dans State ou
+    // dans une demande « push ».
+    if bloc.nom == "Item" && parent != "State" && !parent.ends_with(".push") {
         return Err(Erreur { message: "« Item » est un élément d'une répétition : Repeat(items: [ Item(…) ], children: [ … ])".into(), pos: bloc.pos });
     }
     verifier_reglages(bloc, parent)?;
