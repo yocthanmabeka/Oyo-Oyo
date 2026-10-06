@@ -79,5 +79,6 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 69 | [Du code enfermé : un module](69-module-enferme.holo) | `module "…"`, `Module`, `run`, `done`, `failed` |
 | 70 | [Les composants](70-composants.holo) | `parts`, `Part(params:, rules:)`, `ArticleCard(…)`, `ArticleCard { }`, `ArticleCard.promo(…)` |
 | 71 | [Une liste à champs](71-liste-a-champs.holo) | `State(articles: [ Item(…) ])`, `{item.title}`, `Data` qui remplit une liste, `push(Item(…))` |
+| 72 | [La place qui reste, et un thème partagé](72-place-et-theme.holo) | `grow`, un fichier de styles importé, `Text.titre.discret(…)` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.

@@ -71,6 +71,18 @@ pub fn verifier_page(source: &str) -> Result<Programme, Erreur> {
 /// se vérifie comme un monde ; un morceau importé (`Part(…)`), pour ses blocs et ses styles :
 /// le reste se vérifie dans la page qui l'importe.
 pub fn verifier_texte(source: &str) -> String {
+    // Un fichier de styles seuls (ADR-052) : ses styles se vérifient comme ceux d'un morceau.
+    if holo::lire(source).is_err() {
+        let styles = format!("Part(name: HoloStyles, children: []) {source}");
+        if let Ok(p) = holo::lire(&styles) {
+            if !p.styles.is_empty() {
+                return match styles::verifier_styles(&p) {
+                    Ok(()) => "ok : un fichier de styles, à importer dans une page".into(),
+                    Err(e) => e.to_string(),
+                };
+            }
+        }
+    }
     let racine = holo::lire(source).map(|p| p.racine.nom);
     let resultat = match racine.as_deref() {
         Ok("Point") => verifier(source).map(|_| ()),
@@ -479,7 +491,11 @@ mod tests {
                 source.push_str(&std::fs::read_to_string(dossier.join(&nom)).unwrap());
             }
             let debut = source.lines().find(|l| !l.trim().is_empty() && !l.trim_start().starts_with("//") && !l.starts_with("import")).unwrap_or("");
-            let resultat = if debut.starts_with("Point(") {
+            // Un fichier de styles seuls (ADR-052) : un thème, importé par une autre leçon.
+            let verdict = verifier_texte(&source);
+            let resultat = if verdict.starts_with("ok : un fichier de styles") {
+                Ok(())
+            } else if debut.starts_with("Point(") {
                 verifier(&source).map(|_| ())
             } else if debut.starts_with("Part(") {
                 verifier_page(&source).map(|_| ())

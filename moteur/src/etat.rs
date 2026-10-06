@@ -1229,6 +1229,8 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
                         }
                     }
                     (Some("type"), _) => return Err(Erreur { message: "« Input(type: …) » attend date, time ou color ; un nombre ou un texte se devinent tout seuls".into(), pos: argument.pos }),
+                    // `grow:` range le bloc dans Row ou Column (ADR-052) ; sa place est vérifiée ailleurs.
+                    (Some("grow"), _) => {}
                     (Some(mot), _) if permis.contains(&mot) => return Err(Erreur { message: format!("« {}({mot}: …) » est mal écrit : {exemple}", bloc.nom), pos: argument.pos }),
                     (Some(mot), _) => return Err(Erreur { message: format!("« {} » n'a pas de paramètre « {mot} » ; paramètres possibles : {}", bloc.nom, permis.join(", ")), pos: argument.pos }),
                     (None, _) => return Err(Erreur { message: format!("chaque paramètre de « {} » est nommé : {exemple}", bloc.nom), pos: argument.pos }),

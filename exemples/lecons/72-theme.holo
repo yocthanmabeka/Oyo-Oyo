@@ -1,0 +1,10 @@
+// Le thème de la leçon 72 : un fichier qui ne contient que des styles.
+// Une page le prend par « import "72-theme.holo" » ; tous ses styles viennent avec lui.
+// Si la page écrit le même style, c'est le sien qui reste.
+
+Page { --accent: #E9B44C; --fond: #101020; background: --fond; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: --accent; font-size: 28px; }
+A { color: #8fd3ff; }
+.barre { border: 1px solid --accent; border-radius: 12px; padding: 8px 12px; }
+.titre { font-weight: bold; }
+.discret { opacity: 0.7; }
