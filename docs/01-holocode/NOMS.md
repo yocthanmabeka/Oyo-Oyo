@@ -66,6 +66,11 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `hover`, `hoverEnd` (signaux) | `mouseenter`, `mouseleave`, `focus`, `blur` | changé : un seul couple pour la souris, le clavier et le doigt |
 | `else:` dans `If` | `else` | repris, devenu un paramètre du `If` |
 | `Repeat`, `Item`, `item` | `for`, `map`, `v-for`, `{#each}`, `template` | changé : la liste et le modèle dans un bloc ; dépliés à la lecture, la page reste du HTML ordinaire |
+| `line-height`, `letter-spacing`, `text-transform`, `text-decoration`, `box-shadow`, `text-shadow`, `rotate`, `scale`, `transition` | les mêmes | repris ; `line-height` sans unité seulement ; `transition` ne prend qu'une durée |
+| `--or` (une variable) | `--or` et `var(--or)` | repris, employé sans `var( )` ; refusé s'il n'est défini nulle part |
+| `dark:`, `phone:` dans un style | `@media (prefers-color-scheme: dark)`, `@media (max-width: 640px)` | changé : des états du style, comme `hover:` |
+| `Font(family:, source:)` et `fonts:` | `@font-face` | changé : déclaré sur la page ; toujours `font-display: swap` |
+| `url("fond.jpg")` dans `background` | `background-image`, `background-size`, `background-repeat` | changé : l'image couvre toujours le bloc |
 | `key:` dans `Item` | `key` de React et de Vue | repris : c'est aussi le nom d'une valeur de la page, et il donne leur nom aux blocs de la copie |
 | `year`, `month`, `day`, `weekday`, `hour`, `minute` | `new Date()`, `getFullYear()`, `getMonth() + 1`, `getDay()` | changé : six valeurs qu'on lit, sans objet ni calcul ; le mois va de 1 à 12, la semaine commence le lundi |
 | `Board` | `position: relative` et `absolute` | changé : un bloc, des places de 0 à 100 |

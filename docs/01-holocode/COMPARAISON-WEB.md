@@ -107,7 +107,8 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 
 | CSS | HoloCode | État |
 |---|---|---|
-| Couleurs, fond, police, taille, graisse, italique, alignement | 15 réglages (voir le guide) | fait |
+| Couleurs, fond, police, taille, graisse, italique, alignement | 24 réglages (voir le guide) | fait |
+| `line-height`, `letter-spacing`, `text-transform`, `text-decoration` | les mêmes ; `line-height` sans unité | fait, à l'essai |
 | Bordure, coins arrondis, marges, largeur, hauteur, opacité | idem | fait |
 | Sélecteur par balise, par classe | `P { }`, `.card { }` | fait |
 | Sélecteurs composés, cascade, `!important` | refusés (`ADR-017`) | exprès |
@@ -117,10 +118,12 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `position: absolute` pour un badge, une pastille | `Stack(children: [ … ])` et `align:` | fait, à l'essai |
 | Tailles de texte qui suivent le réglage du visiteur (`rem`) | automatique : les `px` d'une taille de texte deviennent des `rem` ; les grands titres rétrécissent sur un petit écran | fait, à l'essai |
 | `transition`, `animation`, `@keyframes` | `enter: Enter(…)`, `loop: Loop(…)`, `Scenes` : d'où il part ou où il va, quand, combien de temps, quel caractère ; lettre à lettre et enfant après enfant sans JavaScript | fait, à l'essai |
-| `@media` (s'adapter à l'écran) | le moteur le fait seul : une ligne passe à la ligne, une grille perd des colonnes | en partie |
-| Variables (`--couleur`) | | manque |
-| Dégradés, ombres, images de fond | | manque |
-| `@font-face` (charger une police) | | manque |
+| `@media` (s'adapter à l'écran) | le moteur le fait seul (une ligne passe à la ligne, une grille perd des colonnes) ; et `phone: { … }`, avec `display: none` pour cacher | fait, à l'essai |
+| `prefers-color-scheme` (le thème sombre) | `dark: { … }` dans un style | fait, à l'essai |
+| Variables (`--couleur`) | `Page { --or: #E9B44C; }`, puis `color: --or;` | fait, à l'essai |
+| Dégradés, ombres, images de fond | `linear-gradient`, `radial-gradient`, `box-shadow`, `text-shadow`, `url("fond.jpg")` | fait, à l'essai |
+| `@font-face` (charger une police) | `fonts: [ Font(family:, source:) ]` | fait, à l'essai |
+| `transition`, `transform` 2D en pose fixe | `transition: 0.3s`, `rotate`, `scale` | fait, à l'essai |
 | `transform` 3D | `Relief(height:, tilt:)` | fait, autrement |
 
 ## 3. JavaScript

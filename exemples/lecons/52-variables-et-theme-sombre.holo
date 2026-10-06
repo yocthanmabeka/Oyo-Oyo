@@ -1,0 +1,37 @@
+// Leçon 52 — Des couleurs nommées, et le thème sombre
+//
+// Ce qu'on apprend :
+//   Page { --fond: #FAF7F0; --encre: #1a1a2e; --or: #B8860B; }
+//     des variables : une couleur (ou une taille) nommée une fois, dans le style de la page ;
+//   color: --encre;
+//     on s'en sert partout, sans var( ) : changer le thème se fait en une ligne ;
+//   dark: { --fond: #101020; --encre: #F5F5F5; }
+//     le thème sombre, quand le visiteur l'a choisi sur son appareil : on redonne seulement
+//     les couleurs qui changent.
+//   Une variable qui n'existe pas est refusée avec son nom (en CSS, elle échoue sans rien dire).
+//
+// À essayer :
+//   Passe ton appareil en thème sombre, puis en thème clair : la page suit.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 52 : variables et thème sombre",
+  children: [
+    H1("Des couleurs nommées"),
+    P("Cette page a deux thèmes : un clair, un sombre. Elle prend celui que tu as choisi sur ton appareil."),
+    Column.carte(children: [ H2("Une carte"), "Sa bordure et son titre prennent la couleur --or." ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 51 : ombres et fonds", to: "51-ombres-et-fonds.holo"),
+      A("Leçon 53 : sur un téléphone →", to: "53-telephone.holo"),
+    ]),
+  ],
+)
+
+Page { --fond: #FAF7F0; --encre: #1a1a2e; --or: #B8860B; background: --fond; color: --encre; font-family: Georgia, serif; padding: 24px 16px; dark: { --fond: #101020; --encre: #F5F5F5; --or: #E9B44C; } }
+H1 { color: --or; font-size: 28px; }
+H2 { color: --or; font-size: 20px; }
+A { color: --or; }
+.carte { border: 1px solid --or; border-radius: 12px; padding: 16px; }

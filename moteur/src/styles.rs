@@ -21,12 +21,25 @@ enum Forme {
     Bordure,
     /// Un ou plusieurs noms de police, séparés par des virgules.
     Police,
+    /// Le fond : une couleur, un dégradé (`linear-gradient(…)`, `radial-gradient(…)`), ou une
+    /// image rangée à côté du fichier (`url("fond.jpg")`), qui couvre toujours le bloc (ADR-041).
+    Fond,
+    /// Un nombre sans unité, entre deux bornes : `line-height: 1.5`, `scale: 1.1`.
+    Nombre(f64, f64),
+    /// Un écart en pixels, qui peut être négatif : `letter-spacing: -0.5px`.
+    Ecart,
+    /// Une à trois ombres, séparées par des virgules : `0 4px 12px #00000066` ; ou `none`.
+    Ombre,
+    /// Un angle, de -360deg à 360deg : `rotate: -3deg`.
+    Angle,
+    /// La durée d'un passage d'une allure à l'autre : `0.3s`, `200ms`, ou `none`.
+    Duree,
 }
 
 /// Les réglages connus : l'apparence, avec les noms du CSS de base.
 const REGLAGES: &[(&str, Forme)] = &[
     ("color", Forme::Couleur),
-    ("background", Forme::Couleur),
+    ("background", Forme::Fond),
     ("font-size", Forme::Taille),
     ("font-weight", Forme::Mot(&["normal", "bold"])),
     ("font-style", Forme::Mot(&["normal", "italic"])),
@@ -40,7 +53,48 @@ const REGLAGES: &[(&str, Forme)] = &[
     ("height", Forme::Taille),
     ("max-width", Forme::Taille),
     ("opacity", Forme::Fraction),
+    // Le lot 4 (ADR-041) : le texte, les ombres, la pose, le passage d'une allure à l'autre.
+    ("line-height", Forme::Nombre(0.8, 3.0)),
+    ("letter-spacing", Forme::Ecart),
+    ("text-transform", Forme::Mot(&["none", "uppercase", "lowercase", "capitalize"])),
+    ("text-decoration", Forme::Mot(&["none", "underline", "line-through"])),
+    ("box-shadow", Forme::Ombre),
+    ("text-shadow", Forme::Ombre),
+    ("rotate", Forme::Angle),
+    ("scale", Forme::Nombre(0.1, 5.0)),
+    ("transition", Forme::Duree),
 ];
+
+/// Les variables (ADR-041) : `--or: #E9B44C;` dans le style de `Page`, puis `color: --or;`
+/// partout. Rend chaque variable et sa valeur (celle du thème clair).
+pub fn variables(programme: &Programme) -> Vec<(String, String)> {
+    let mut variables: Vec<(String, String)> = Vec::new();
+    for regle in &programme.styles {
+        if matches!(&regle.cible, Cible::Type(t) if t == "Page" || t == "World") {
+            for reglage in regle.reglages.iter().chain(regle.etats.iter().flat_map(|(_, r, _)| r.iter())) {
+                if reglage.nom.starts_with("--") && !variables.iter().any(|(n, _)| *n == reglage.nom) {
+                    variables.push((reglage.nom.clone(), reglage.valeur.clone()));
+                }
+            }
+        }
+    }
+    variables
+}
+
+/// Les variables d'une valeur, `--or` dans `0 4px 8px --ombre`.
+pub fn variables_de(valeur: &str) -> Vec<&str> {
+    let mut noms = Vec::new();
+    let mut reste = valeur;
+    while let Some(debut) = reste.find("--") {
+        let avant_ok = debut == 0 || reste[..debut].ends_with([' ', ',', '(']);
+        let fin = reste[debut + 2..].find(|c: char| !(c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')).map_or(reste.len(), |f| debut + 2 + f);
+        if avant_ok && fin > debut + 2 {
+            noms.push(&reste[debut..fin]);
+        }
+        reste = &reste[fin.max(debut + 2)..];
+    }
+    noms
+}
 
 /// La disposition ne se règle pas dans un style : elle vient des blocs (ADR-017, règle 3).
 const DISPOSITION: &[&str] = &[
@@ -56,7 +110,9 @@ const COULEURS: &[&str] = &[
 
 /// Vérifie les règles de style d'un fichier et les noms de style posés sur les blocs.
 pub fn verifier_styles(programme: &Programme) -> Result<(), Erreur> {
+    let variables = variables(programme);
     for (i, regle) in programme.styles.iter().enumerate() {
+        let theme = matches!(&regle.cible, Cible::Type(t) if t == "Page" || t == "World");
         if let Cible::Type(nom) = &regle.cible {
             if !BLOCS.contains(&nom.as_str()) {
                 let majuscule = majuscule(nom);
@@ -78,9 +134,9 @@ pub fn verifier_styles(programme: &Programme) -> Result<(), Erreur> {
             if regle.reglages[..j].iter().any(|autre| autre.nom == reglage.nom) {
                 return Err(Erreur { message: format!("le réglage « {} » est donné deux fois dans « {} »", reglage.nom, regle.cible), pos: reglage.pos });
             }
-            verifier_reglage(reglage)?;
+            verifier_reglage(reglage, None, theme, &variables)?;
         }
-        // Les états (hover, focus, active) : chacun une fois, avec des réglages connus.
+        // Les états (hover, focus, active, dark, phone) : chacun une fois, avec des réglages connus.
         for (k, (etat, reglages, pos)) in regle.etats.iter().enumerate() {
             if regle.etats[..k].iter().any(|(autre, ..)| autre == etat) {
                 return Err(Erreur { message: format!("l'état « {etat} » est donné deux fois dans « {} »", regle.cible), pos: *pos });
@@ -92,7 +148,7 @@ pub fn verifier_styles(programme: &Programme) -> Result<(), Erreur> {
                 if reglages[..j].iter().any(|autre| autre.nom == reglage.nom) {
                     return Err(Erreur { message: format!("le réglage « {} » est donné deux fois dans l'état « {etat} »", reglage.nom), pos: reglage.pos });
                 }
-                verifier_reglage(reglage)?;
+                verifier_reglage(reglage, Some(etat), theme, &variables)?;
             }
         }
     }
@@ -119,9 +175,31 @@ fn noms_poses(bloc: &Bloc, programme: &Programme) -> Result<(), Erreur> {
     bloc.arguments.iter().try_for_each(|a| visiter(&a.valeur, programme))
 }
 
-fn verifier_reglage(reglage: &Reglage) -> Result<(), Erreur> {
+fn verifier_reglage(reglage: &Reglage, etat: Option<&str>, theme: bool, variables: &[(String, String)]) -> Result<(), Erreur> {
     let refus = |message: String| Err(Erreur { message, pos: reglage.pos });
     let nom = reglage.nom.as_str();
+    // Une variable se définit dans le thème (le style de Page) : une couleur ou une taille.
+    if let Some(reste) = nom.strip_prefix("--") {
+        if !theme {
+            return refus(format!("« {nom} » : une variable se définit dans le style de la page, « Page {{ {nom}: … }} », pour valoir partout"));
+        }
+        if reste.is_empty() || !reste.starts_with(|c: char| c.is_ascii_lowercase()) || !reste.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+            return refus(format!("« {nom} » : une variable s'écrit comme en CSS, en minuscules, les mots joints par « - », comme « --or-clair »"));
+        }
+        let valeur = reglage.valeur.as_str();
+        if !(est_couleur(valeur) || est_taille(valeur)) {
+            return refus(format!("« {nom}: {valeur} » : une variable porte une couleur ou une taille, comme « #E9B44C » ou « 16px »"));
+        }
+        return Ok(());
+    }
+    // Cacher un bloc sur un téléphone : seulement dans « phone: { … } » (ADR-041).
+    if nom == "display" {
+        return match (etat, reglage.valeur.as_str()) {
+            (Some("phone"), "none") => Ok(()),
+            (Some("phone"), _) => refus("dans « phone: { … } », « display » ne prend que « none » : cacher le bloc sur un téléphone".into()),
+            _ => refus("« display » règle la disposition, pas l'apparence : la disposition vient des blocs ; pour cacher un bloc sur un téléphone : « phone: { display: none; } » ; selon une valeur : If (ADR-017, ADR-041)".into()),
+        };
+    }
     if DISPOSITION.contains(&nom) {
         return refus(format!(
             "« {nom} » règle la disposition, pas l'apparence : un style ne dit que l'apparence, la disposition vient des blocs (ADR-017)"
@@ -134,7 +212,15 @@ fn verifier_reglage(reglage: &Reglage) -> Result<(), Erreur> {
         let connus: Vec<&str> = REGLAGES.iter().map(|(n, _)| *n).collect();
         return refus(format!("réglage inconnu « {nom} » ; réglages possibles : {}", connus.join(", ")));
     };
-    let valeur = reglage.valeur.as_str();
+    // Les variables sont remplacées par leur valeur, pour vérifier ce qu'elles donnent.
+    let mut valeur = reglage.valeur.clone();
+    for variable in variables_de(&reglage.valeur) {
+        match variables.iter().find(|(n, _)| n == variable) {
+            Some((_, remplacement)) => valeur = valeur.replacen(variable, remplacement, 1),
+            None => return refus(format!("« {variable} » n'est définie nulle part : écris « Page {{ {variable}: … }} »")),
+        }
+    }
+    let valeur = valeur.as_str();
     let mots: Vec<&str> = valeur.split_whitespace().collect();
     let correct = match forme {
         Forme::Couleur => mots.len() == 1 && est_couleur(valeur),
@@ -147,6 +233,15 @@ fn verifier_reglage(reglage: &Reglage) -> Result<(), Erreur> {
             let police = police.trim().trim_matches('"');
             !police.is_empty() && police.chars().all(|c| c.is_alphanumeric() || c == ' ' || c == '-')
         }),
+        Forme::Fond => est_couleur(valeur) || est_degrade(valeur) || image_de_fond(valeur).is_some(),
+        Forme::Nombre(min, max) => valeur.parse::<f64>().is_ok_and(|v| (*min..=*max).contains(&v)),
+        Forme::Ecart => pixels_signes(valeur).is_some_and(|v| (-10.0..=40.0).contains(&v)),
+        Forme::Ombre => valeur == "none" || {
+            let ombres: Vec<&str> = valeur.split(',').map(str::trim).collect();
+            ombres.len() <= 3 && ombres.iter().all(|ombre| est_ombre(ombre))
+        },
+        Forme::Angle => valeur.strip_suffix("deg").and_then(|n| n.parse::<f64>().ok()).is_some_and(|v| (-360.0..=360.0).contains(&v)),
+        Forme::Duree => valeur == "none" || duree_en_ms(valeur).is_some_and(|ms| (0.0..=2000.0).contains(&ms)),
     };
     if correct {
         return Ok(());
@@ -159,6 +254,13 @@ fn verifier_reglage(reglage: &Reglage) -> Result<(), Erreur> {
         Forme::Fraction => "un nombre entre 0 et 1".to_string(),
         Forme::Bordure => "une épaisseur, un trait et une couleur, comme « 1px solid gray »".to_string(),
         Forme::Police => "un ou plusieurs noms de police, séparés par des virgules".to_string(),
+        Forme::Fond => "une couleur, un dégradé comme « linear-gradient(#E9B44C, #1a1a2e) », ou une image rangée à côté, « url(\"fond.jpg\") »".to_string(),
+        Forme::Nombre(min, max) if nom == "line-height" => format!("un nombre sans unité, de {min} à {max}, comme « 1.5 » : la hauteur de ligne suit alors la taille du texte"),
+        Forme::Nombre(min, max) => format!("un nombre de {min} à {max}, comme « 1.1 »"),
+        Forme::Ecart => "un écart en pixels, de -10px à 40px, comme « 1px »".to_string(),
+        Forme::Ombre => "une ombre : décalage, flou et couleur, comme « 0 4px 12px #00000066 » (trois au plus, séparées par des virgules), ou « none »".to_string(),
+        Forme::Angle => "un angle de -360deg à 360deg, comme « -3deg »".to_string(),
+        Forme::Duree => "une durée de 0 à 2s, comme « 0.3s » ou « 200ms », ou « none »".to_string(),
     };
     refus(format!("« {nom}: {valeur} » : ce réglage attend {attendu}"))
 }
@@ -168,6 +270,58 @@ pub(crate) fn est_couleur(valeur: &str) -> bool {
         Some(hexa) => [3, 6, 8].contains(&hexa.len()) && hexa.bytes().all(|c| c.is_ascii_hexdigit()),
         None => COULEURS.contains(&valeur),
     }
+}
+
+/// `linear-gradient(to right, #E9B44C, #1a1a2e)` ou `radial-gradient(white, navy)` : une
+/// direction ou un angle facultatifs, puis de deux à cinq couleurs.
+fn est_degrade(valeur: &str) -> bool {
+    let Some(dedans) = valeur.strip_prefix("linear-gradient(").or_else(|| valeur.strip_prefix("radial-gradient(")).and_then(|v| v.strip_suffix(')')) else { return false };
+    let mut parts: Vec<&str> = dedans.split(',').map(str::trim).collect();
+    let lineaire = valeur.starts_with("linear");
+    if lineaire && parts.first().is_some_and(|p| p.starts_with("to ") || p.ends_with("deg")) {
+        let sens = parts.remove(0);
+        let correct = match sens.strip_prefix("to ") {
+            Some(cotes) => cotes.split_whitespace().all(|c| ["top", "bottom", "left", "right"].contains(&c)),
+            None => sens.strip_suffix("deg").and_then(|n| n.parse::<f64>().ok()).is_some_and(|v| (-360.0..=360.0).contains(&v)),
+        };
+        if !correct {
+            return false;
+        }
+    }
+    (2..=5).contains(&parts.len()) && parts.iter().all(|c| est_couleur(c))
+}
+
+/// `url("fond.jpg")` : le nom d'une image rangée à côté du fichier.
+pub(crate) fn image_de_fond(valeur: &str) -> Option<&str> {
+    let dedans = valeur.strip_prefix("url(")?.strip_suffix(')')?.trim().trim_matches('"');
+    let image = [".png", ".jpg", ".jpeg", ".webp", ".svg", ".gif", ".avif"].iter().any(|fin| dedans.ends_with(fin));
+    (image && crate::plat::chemin_sur(dedans)).then_some(dedans)
+}
+
+/// `-0.5px` → -0.5.
+fn pixels_signes(valeur: &str) -> Option<f64> {
+    if valeur == "0" {
+        return Some(0.0);
+    }
+    valeur.strip_suffix("px")?.parse::<f64>().ok().filter(|v| v.is_finite())
+}
+
+/// Une ombre : deux décalages (qui peuvent être négatifs), un flou facultatif, une couleur.
+fn est_ombre(ombre: &str) -> bool {
+    let mots: Vec<&str> = ombre.split_whitespace().collect();
+    let Some((couleur, tailles)) = mots.split_last() else { return false };
+    est_couleur(couleur)
+        && (2..=3).contains(&tailles.len())
+        && tailles[..2].iter().all(|t| pixels_signes(t).is_some_and(|v| v.abs() <= 100.0))
+        && tailles.get(2).is_none_or(|flou| est_taille(flou) && pixels_signes(flou).is_some_and(|v| v <= 200.0))
+}
+
+/// `0.3s` → 300 ; `200ms` → 200.
+pub(crate) fn duree_en_ms(valeur: &str) -> Option<f64> {
+    if let Some(ms) = valeur.strip_suffix("ms") {
+        return ms.parse().ok();
+    }
+    valeur.strip_suffix('s')?.parse::<f64>().ok().map(|s| s * 1000.0)
 }
 
 fn est_taille(valeur: &str) -> bool {
@@ -244,6 +398,11 @@ mod tests {
             include_str!("../../exemples/lecons/47-plus-tard.holo"),
             include_str!("../../exemples/lecons/48-heure.holo"),
             include_str!("../../exemples/lecons/49-repeter.holo"),
+            include_str!("../../exemples/lecons/50-texte-soigne.holo"),
+            include_str!("../../exemples/lecons/51-ombres-et-fonds.holo"),
+            include_str!("../../exemples/lecons/52-variables-et-theme-sombre.holo"),
+            include_str!("../../exemples/lecons/53-telephone.holo"),
+            include_str!("../../exemples/lecons/54-police.holo"),
         ];
         for lecon in lecons {
             crate::verifier_page(lecon).unwrap();
@@ -256,7 +415,7 @@ mod tests {
         for (reglage, _) in REGLAGES {
             assert!(source.contains(&format!("{reglage}:")), "le réglage « {reglage} » manque dans l'exemple");
         }
-        for mot in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave", "state:", "prices:", "{count}", "{total}", ".add(", ".sub(", ".set(", "gap:", "align:", "columns:", "alt:", "is:", "over:", "by:", ".random(", "x:", "y:", "keep:", "value:", "label:", "max:", "Key.left", "meets:", "drag:", "data:", "from:", ".play", "form:", "enter:", "loop:", "letters:", "each:", "repeat:", "ease:", "rotate:", "flip:", "tilt:", "blur:", "hue:", "round:", "scale:", "opacity:", "hover:", "focus:", "active:", "topRight", ".hover", ".hoverEnd", "else:", "{year}", "{month}", "{day}", "weekday", "{hour}", "{minute}", "items:", "key:", "{item.", "item.add("] {
+        for mot in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave", "state:", "prices:", "{count}", "{total}", ".add(", ".sub(", ".set(", "gap:", "align:", "columns:", "alt:", "is:", "over:", "by:", ".random(", "x:", "y:", "keep:", "value:", "label:", "max:", "Key.left", "meets:", "drag:", "data:", "from:", ".play", "form:", "enter:", "loop:", "letters:", "each:", "repeat:", "ease:", "rotate:", "flip:", "tilt:", "blur:", "hue:", "round:", "scale:", "opacity:", "hover:", "focus:", "active:", "topRight", ".hover", ".hoverEnd", "else:", "{year}", "{month}", "{day}", "weekday", "{hour}", "{minute}", "items:", "key:", "{item.", "item.add(", "dark:", "phone:", "display: none", "linear-gradient(", "url(", "fonts:", "family:", ": --"] {
             assert!(source.contains(mot), "« {mot} » manque dans l'exemple");
         }
     }

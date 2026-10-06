@@ -50,7 +50,7 @@ grid-template-columns:repeat(auto-fill,minmax(min(100%,max(120px,calc((100% - (v
 :where(.holo-place){position:absolute;left:calc(var(--x)*1%);top:calc(var(--y)*1%);transform:translate(calc(var(--x)*-1%),calc(var(--y)*-1%));\
 transition:left .12s linear,top .12s linear,transform .12s linear}\
 :where(.holo-place[data-drag]){touch-action:none;cursor:grab}.holo-place.holo-glisse{transition:none;cursor:grabbing}\
-@media (prefers-reduced-motion:reduce){.holo-place{transition:none}}\
+@media (prefers-reduced-motion:reduce){.holo-place{transition:none}.holo-Page,.holo-Page *{transition:none!important}}\
 :where(.holo-Sound){display:none}\
 :where(.holo-Shape){display:block;width:var(--holo-size,48px);height:var(--holo-size,48px);padding:0;border:0;background:var(--holo-color,currentColor)}\
 :where(button.holo-Shape){cursor:pointer}\
@@ -256,14 +256,59 @@ fn site_html_brut(programme: &Programme, page: &Bloc, base: &str, titre: &str) -
         }
     }
     Ok(format!(
-        "<style>{BASE}{}</style><div class=\"{classes}\" data-title=\"{titre}\"{vivante}{partage}>{entete}<main>{corps}</main>{pied}{mondes}</div>",
-        css(programme)
+        "<style>{}{BASE}{}</style><div class=\"{classes}\" data-title=\"{titre}\"{vivante}{partage}>{entete}<main>{corps}</main>{pied}{mondes}</div>",
+        polices(&programme.racine, base)?,
+        css(programme, base)
     ))
 }
 
 /// Le CSS des styles du fichier. Le thème d'abord, puis les types, puis les styles nommés :
 /// à précision égale, le dernier écrit l'emporte, ce qui donne la priorité voulue (ADR-017).
-fn css(programme: &Programme) -> String {
+/// Les polices de la page (ADR-041) : `fonts: [ Font(family: "Carlito", source: "carlito.woff2") ]`.
+/// Le texte s'affiche tout de suite avec la police de secours, puis prend la sienne quand elle
+/// arrive (`font-display: swap`) : jamais de texte invisible en attendant.
+fn polices(page: &Bloc, base: &str) -> Result<String, Erreur> {
+    let Some(argument) = page.argument("fonts") else { return Ok(String::new()) };
+    let exemple = "fonts: [ Font(family: \"Carlito\", source: \"carlito.woff2\") ]";
+    let Valeur::Liste(liste) = &argument.valeur else {
+        return Err(Erreur { message: format!("« fonts » est une liste de polices : {exemple}"), pos: argument.pos });
+    };
+    if liste.len() > 8 {
+        return Err(Erreur { message: "une page charge au plus 8 polices".into(), pos: argument.pos });
+    }
+    let mut css = String::new();
+    let mut familles: Vec<&str> = Vec::new();
+    for element in liste {
+        let Valeur::Bloc(police) = element else {
+            return Err(Erreur { message: format!("« fonts » contient des « Font(…) » : {exemple}"), pos: argument.pos });
+        };
+        if police.nom != "Font" {
+            return Err(Erreur { message: format!("« fonts » contient des « Font(…) », pas des « {} »", police.nom), pos: police.pos });
+        }
+        let (mut famille, mut source) = (None, None);
+        for a in &police.arguments {
+            match (a.nom.as_deref(), &a.valeur) {
+                (Some("family"), Valeur::Texte(t)) if !t.is_empty() && t.len() <= 40 && t.chars().all(|c| c.is_alphanumeric() || c == ' ' || c == '-') => famille = Some(t.as_str()),
+                (Some("family"), _) => return Err(Erreur { message: "« Font(family: …) » attend le nom de la police entre guillemets : lettres, chiffres, espaces".into(), pos: a.pos }),
+                (Some("source"), Valeur::Texte(s)) if chemin_sur(s) && [".woff2", ".woff", ".ttf", ".otf"].iter().any(|fin| s.ends_with(fin)) => source = Some(s.as_str()),
+                (Some("source"), _) => return Err(Erreur { message: "« Font(source: …) » attend un fichier de police rangé à côté : .woff2, .woff, .ttf ou .otf".into(), pos: a.pos }),
+                (Some(autre), _) => return Err(Erreur { message: format!("« Font » n'a pas de paramètre « {autre} » ; paramètres possibles : family, source"), pos: a.pos }),
+                (None, _) => return Err(Erreur { message: format!("chaque paramètre de « Font » est nommé : {exemple}"), pos: a.pos }),
+            }
+        }
+        let (Some(famille), Some(source)) = (famille, source) else {
+            return Err(Erreur { message: format!("« Font » attend « family » et « source » : {exemple}"), pos: police.pos });
+        };
+        if familles.contains(&famille) {
+            return Err(Erreur { message: format!("la police « {famille} » est chargée deux fois"), pos: police.pos });
+        }
+        familles.push(famille);
+        css.push_str(&format!("@font-face{{font-family:\"{famille}\";src:url(\"{}{}\");font-display:swap}}", echapper(base), echapper(source)));
+    }
+    Ok(css)
+}
+
+fn css(programme: &Programme, base: &str) -> String {
     let rang = |cible: &Cible| match cible {
         Cible::Type(t) if t == "Page" || t == "World" => 0,
         Cible::Type(_) => 1,
@@ -282,20 +327,24 @@ fn css(programme: &Programme) -> String {
         sortie.push_str(&selecteur);
         sortie.push('{');
         for reglage in &regle.reglages {
-            sortie.push_str(&format!("{}:{};", reglage.nom, valeur_css(reglage)));
+            sortie.push_str(&format!("{}:{};", reglage.nom, valeur_css(reglage, base)));
         }
-        // Un style qui change à l'état passe d'un aspect à l'autre en douceur.
-        if regle.etats.iter().any(|(etat, ..)| etat != "focus") {
-            sortie.push_str("transition:background .15s,color .15s,border-color .15s,opacity .15s;");
+        // Un style qui change au survol ou à l'appui passe d'un aspect à l'autre en douceur,
+        // à moins que l'auteur n'ait dit sa propre durée (`transition:`).
+        if regle.etats.iter().any(|(etat, ..)| etat == "hover" || etat == "active") && !regle.reglages.iter().any(|r| r.nom == "transition") {
+            sortie.push_str("transition:background .15s,color .15s,border-color .15s,opacity .15s,box-shadow .15s,scale .15s,rotate .15s;");
         }
         sortie.push('}');
         // Les états (ADR-036). Le survol n'existe qu'avec une souris : sur un écran tactile, il
-        // resterait collé après un toucher. Le focus est celui du clavier.
+        // resterait collé après un toucher. Le focus est celui du clavier. Le thème sombre suit
+        // le choix du visiteur ; « phone » vaut pour un écran plus étroit que la page (ADR-041).
         for (etat, reglages, _) in &regle.etats {
-            let corps: String = reglages.iter().map(|r| format!("{}:{};", r.nom, valeur_css(r))).collect();
+            let corps: String = reglages.iter().map(|r| format!("{}:{};", r.nom, valeur_css(r, base))).collect();
             let regle_etat = match etat.as_str() {
                 "hover" => format!("@media (hover:hover){{{}:hover{{{corps}}}}}", selecteur.split(',').map(str::to_string).collect::<Vec<_>>().join(":hover,")),
                 "focus" => format!("{}:focus-visible{{{corps}}}", selecteur.split(',').collect::<Vec<_>>().join(":focus-visible,")),
+                "dark" => format!("@media (prefers-color-scheme:dark){{{selecteur}{{{corps}}}}}"),
+                "phone" => format!("@media (max-width:{LARGEUR_D_AUTEUR}px){{{selecteur}{{{corps}}}}}"),
                 _ => format!("{}:active{{{corps}}}", selecteur.split(',').collect::<Vec<_>>().join(":active,")),
             };
             sortie.push_str(&regle_etat);
@@ -310,8 +359,22 @@ const LARGEUR_D_AUTEUR: f64 = 640.0;
 /// La valeur d'un réglage, telle que le navigateur la reçoit. Une taille de texte écrite en
 /// pixels suit le réglage « texte plus grand » du visiteur (en rem : 16px = 1rem) ; un grand
 /// titre rétrécit sur un écran plus étroit que la page, sans jamais passer sous 24px (ADR-036).
-fn valeur_css(reglage: &crate::holo::Reglage) -> String {
-    let valeur = reglage.valeur.replace('<', "");
+fn valeur_css(reglage: &crate::holo::Reglage, base: &str) -> String {
+    let mut valeur = reglage.valeur.replace('<', "");
+    // Une variable (ADR-041) : `--or` devient `var(--or)` ; sa définition reste telle quelle.
+    for variable in crate::styles::variables_de(&reglage.valeur) {
+        valeur = valeur.replacen(variable, &format!("var({variable})"), 1);
+    }
+    // Une image de fond couvre toujours le bloc, centrée, sans se répéter en mosaïque.
+    if reglage.nom == "background" {
+        if let Some(image) = crate::styles::image_de_fond(&reglage.valeur) {
+            return format!("url(\"{}{}\") center/cover no-repeat", echapper(base), echapper(image));
+        }
+    }
+    // Une durée de passage : elle vaut pour tout ce qui change d'allure.
+    if reglage.nom == "transition" && valeur != "none" {
+        return ["background", "color", "border-color", "opacity", "box-shadow", "scale", "rotate", "letter-spacing"].iter().map(|p| format!("{p} {valeur}")).collect::<Vec<_>>().join(",");
+    }
     if reglage.nom != "font-size" {
         return valeur;
     }
@@ -1005,7 +1068,7 @@ fn adresse_de_passage(adresse: &str) -> bool {
 }
 
 /// Une image se range à côté du fichier : ni adresse complète, ni remontée de dossier.
-fn chemin_sur(source: &str) -> bool {
+pub(crate) fn chemin_sur(source: &str) -> bool {
     !source.is_empty()
         && !source.starts_with('/')
         && !source.contains("..")
@@ -1390,6 +1453,55 @@ mod tests {
             ("Page(state: State(t: \"\"), children: [ Choice(value: t, label: \"x\", options: [\"a\", \"a\"]) ])", "le même texte"),
         ] {
             let erreur = crate::verifier_page(source).err().or_else(|| crate::vue_a_plat(source, "").err()).unwrap_or_else(|| panic!("accepté : {source}"));
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
+    }
+
+    #[test]
+    fn le_lot_4_le_css_utile() {
+        let source = "Page(fonts: [ Font(family: \"Carlito\", source: \"carlito.woff2\") ], children: [ P.carte(\"x\") ])\n\
+            Page { --or: #E9B44C; --marge: 16px; background: --or; dark: { --or: #806020; } }\n\
+            P { line-height: 1.6; letter-spacing: -0.5px; text-transform: uppercase; text-decoration: line-through; text-shadow: 0 2px 6px #000000AA; phone: { display: none; } }\n\
+            .carte { background: url(\"fond.jpg\"); box-shadow: 0 8px 24px #00000080, 0 1px 2px black; padding: --marge; rotate: -2deg; scale: 1.05; transition: 0.3s; hover: { rotate: 0deg; } }";
+        let html = crate::vue_a_plat(source, "/ex/").unwrap();
+        for attendu in [
+            "@font-face{font-family:\"Carlito\";src:url(\"/ex/carlito.woff2\");font-display:swap}",
+            ".holo-Page{--or:#E9B44C;--marge:16px;background:var(--or);}",
+            "@media (prefers-color-scheme:dark){.holo-Page{--or:#806020;}}",
+            "@media (max-width:640px){.holo-P{display:none;}}",
+            "line-height:1.6;letter-spacing:-0.5px;text-transform:uppercase;text-decoration:line-through;text-shadow:0 2px 6px #000000AA;",
+            "background:url(\"/ex/fond.jpg\") center/cover no-repeat;",
+            "padding:var(--marge);rotate:-2deg;scale:1.05;transition:background 0.3s,color 0.3s,",
+            "@media (hover:hover){.holo-s-carte:hover{rotate:0deg;}}",
+        ] {
+            assert!(html.contains(attendu), "manque : {attendu}\n{html}");
+        }
+        // Avec sa propre durée, la carte ne reçoit pas la durée automatique du survol.
+        assert!(!html.contains("scale .15s"), "{html}");
+        for (styles, message) in [
+            ("P { color: --rouge; }", "« --rouge » n'est définie nulle part"),
+            ("P { --rouge: red; }", "une variable se définit dans le style de la page"),
+            ("Page { --rouge: url(x); }", "une couleur ou une taille"),
+            ("P { line-height: 24px; }", "un nombre sans unité"),
+            ("P { display: none; }", "phone: { display: none; }"),
+            ("P { phone: { display: flex; } }", "ne prend que « none »"),
+            ("P { background: linear-gradient(red); }", "un dégradé"),
+            ("P { background: url(\"../secret.png\"); }", "une image rangée à côté"),
+            ("P { box-shadow: 0 4px; }", "une ombre"),
+            ("P { rotate: 3turn; }", "un angle"),
+            ("P { transition: 9s; }", "de 0 à 2s"),
+            ("P { night: { color: red; } }", "n'est pas un état"),
+        ] {
+            let source = format!("Page(children: [ P(\"x\") ])\n{styles}");
+            let erreur = crate::verifier_page(&source).unwrap_err();
+            assert!(erreur.message.contains(message), "{styles}\n→ {erreur}");
+        }
+        for (source, message) in [
+            ("Page(fonts: [ Font(family: \"A\", source: \"a.exe\") ], children: [])", ".woff2, .woff"),
+            ("Page(fonts: [ Font(source: \"a.woff2\") ], children: [])", "attend « family » et « source »"),
+            ("Page(fonts: Font(family: \"A\", source: \"a.woff2\"), children: [])", "une liste de polices"),
+        ] {
+            let erreur = crate::verifier_page(source).unwrap_err();
             assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
         }
     }

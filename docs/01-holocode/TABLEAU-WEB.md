@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-06). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (251 mots : 224 décidés, 27 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (269 mots : 224 décidés, 45 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
 - **Couverture** : la part de ce que fait l’élément web qu’on obtient en HoloCode aujourd’hui. Estimation de Claude, non mesurée.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,11 +9,11 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 251 mots | 224 décidés, 27 à l’essai |
+| **HoloCode** | 269 mots | 224 décidés, 45 à l’essai |
 | HTML | 64 % de couverture | 34 oui, 9 en partie, 16 non, 3 refusés |
-| CSS | 53 % de couverture | 14 oui, 9 en partie, 9 non, 2 refusés |
+| CSS | 78 % de couverture | 24 oui, 6 en partie, 2 non, 2 refusés |
 | JavaScript | 45 % de couverture | 10 oui, 12 en partie, 10 non, 1 refusés |
-| HTML, CSS, JS ensemble | 56 % de couverture | 58 oui, 30 en partie, 35 non, 6 refusés |
+| HTML, CSS, JS ensemble | 63 % de couverture | 68 oui, 27 en partie, 28 non, 6 refusés |
 
 # Partie 1 — Les mots de HoloCode
 
@@ -313,6 +313,29 @@
 |---|---|---|---|
 | `item` | L'élément en cours, dans le modèle : {item.title}, item.add(1) | `item => …` | À l’essai (ADR-040) |
 
+## Styles
+
+| Mot HoloCode | Ce qu’il fait | Sur le web | État |
+|---|---|---|---|
+| `line-height, letter-spacing, text-transform, text-decoration` | Le texte soigné | `les mêmes` | À l’essai (ADR-041) |
+| `box-shadow, text-shadow` | Les ombres | `les mêmes` | À l’essai (ADR-041) |
+| `rotate, scale, transition` | Une pose, et la durée du passage d'une allure à l'autre | `rotate, scale, transition` | À l’essai (ADR-041) |
+| `linear-gradient, radial-gradient, url(…)` | Un fond en dégradé ou en image | `background-image` | À l’essai (ADR-041) |
+| `--or (variables)` | Une couleur ou une taille nommée dans le style de la page | `--or, var(--or)` | À l’essai (ADR-041) |
+| `dark, phone` | Le thème sombre ; un écran de téléphone | `@media` | À l’essai (ADR-041) |
+
+## Blocs : la page
+
+| Mot HoloCode | Ce qu’il fait | Sur le web | État |
+|---|---|---|---|
+| `Font` | Une police rangée à côté, chargée par la page | `@font-face` | À l’essai (ADR-041) |
+
+## Paramètres : la page
+
+| Mot HoloCode | Ce qu’il fait | Sur le web | État |
+|---|---|---|---|
+| `fonts, family` | Les polices de la page ; le nom d'une police | `@font-face, font-family` | À l’essai (ADR-041) |
+
 # Partie 2 — HoloCode face à HTML, CSS et JavaScript
 
 ## HTML — Structure de la page
@@ -425,13 +448,13 @@
 | `font-family, font-size (en px)` | `font-family, font-size` | la police et sa taille | Oui | 90 % | Déjà là | — |
 | `font-weight, font-style` | `font-weight, font-style` | gras, italique | Oui | 100 % | Déjà là | — |
 | `text-align` | `text-align` | l'alignement | Oui | 100 % | Déjà là | — |
-| — | `line-height, letter-spacing` | l'interligne, l'espacement | Non | 0 % | Oui, utile | Pour des textes longs agréables à lire. |
-| — | `text-transform, text-decoration` | majuscules, souligné | Non | 0 % | Oui, utile | — |
-| — | `@font-face` | charger sa propre police | Non | 0 % | Oui, utile | Une marque a sa police. |
-| — | `dégradés, image de fond` | fond en dégradé ou en image | Non | 0 % | Oui, utile | — |
-| — | `box-shadow, text-shadow` | les ombres | Non | 0 % | Oui, utile | — |
-| — | `variables (--couleur)` | une couleur nommée, réutilisée | Non | 0 % | Oui, utile | Changer le thème d'un site en une ligne. |
-| — | `prefers-color-scheme` | le mode sombre | Non | 0 % | Oui, utile | Le visiteur a choisi le sombre : la page devrait suivre. |
+| `line-height (sans unité), letter-spacing` | `line-height, letter-spacing` | l'interligne, l'espacement | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
+| `text-transform, text-decoration` | `text-transform, text-decoration` | majuscules, souligné | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
+| `Page(fonts: [ Font(family:, source:) ])` | `@font-face` | charger sa propre police | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). Toujours font-display: swap ; une graisse par fichier. |
+| `linear-gradient, radial-gradient, url("fond.jpg")` | `dégradés, image de fond` | fond en dégradé ou en image | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). L'image couvre toujours le bloc. |
+| `box-shadow, text-shadow` | `box-shadow, text-shadow` | les ombres | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
+| `Page { --or: … } puis color: --or` | `variables (--couleur)` | une couleur nommée, réutilisée | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). Une variable inconnue est refusée. |
+| `dark: { … } dans un style` | `prefers-color-scheme` | le mode sombre | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
 
 ## CSS — Boîtes
 
@@ -452,7 +475,7 @@
 | — | `display, position, float, z-index` | placer à la main | Refusé exprès | — | Non | Refusé (ADR-017) : la disposition vient des blocs. |
 | `Row, Column (gap, align)` | `flexbox (en ligne, en colonne)` | côte à côte, l'un sous l'autre | Oui | 80 % | Déjà là | Pas d'élément qui prend la place qui reste. |
 | `Grid(columns:, gap:)` | `grid` | une grille | En partie | 70 % | Déjà là | Pas de zones nommées ni de case sur deux colonnes. |
-| `automatique : la grille perd des colonnes` | `@media (s'adapter à l'écran)` | changer selon la taille | En partie | 50 % | Oui, utile | On ne peut pas dire « sur téléphone, cache ceci ». |
+| `automatique, et phone: { … }` | `@media (s'adapter à l'écran)` | changer selon la taille | Oui | 85 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). Un seul seuil : celui de la page. |
 | `Board (automatique)` | `aspect-ratio` | garder des proportions | En partie | 30 % | Plus tard | — |
 | `Stack et align:` | `position: absolute (badge, pastille)` | poser un bloc sur un autre | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-036). Pas encore de bulle attachée à un bloc. |
 | `P { }, .carte { }` | `sélecteurs par balise et par nom` | viser des blocs | Oui | 100 % | Déjà là | — |
@@ -463,9 +486,9 @@
 | En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|---|
 | `hover:, focus:, active: dans un style` | `hover, focus, active` | l'apparence au survol, au clic | Oui | 100 % | Déjà là | Ajoutés le 2026-10-06 (ADR-036). |
-| `Enter à l'apparition seulement` | `transition` | passer en douceur d'un état à l'autre | En partie | 30 % | Oui, utile | — |
+| `transition: 0.3s ; automatique au survol` | `transition` | passer en douceur d'un état à l'autre | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
 | `Enter, Loop, Scenes` | `animation, @keyframes` | une animation | Oui | 75 % | Déjà là | Dix propriétés et sept courbes ; pas d'étapes intermédiaires libres. |
-| `x, y, rotate, scale dans Enter et Loop` | `transform 2D` | déplacer, tourner, grandir | En partie | 50 % | Oui, utile | Seulement pendant un mouvement, pas une pose fixe. |
+| `rotate, scale ; x, y dans Enter et Loop` | `transform 2D` | déplacer, tourner, grandir | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). Pas de déplacement fixe : la place vient des blocs. |
 | `Relief(tilt:), flip, tilt` | `transform 3D, perspective` | la profondeur | En partie | 50 % | Déjà là | Fait autrement : la page entière tourne. |
 | `blur, hue dans Enter et Loop` | `filter (flou, couleurs)` | flouter, teinter | En partie | 30 % | Plus tard | — |
 | `Shape(form:) : quatre formes` | `clip-path` | découper une forme | En partie | 20 % | Plus tard | — |

@@ -1,0 +1,39 @@
+// Leçon 51 — Ombres, fonds, et une pose qui bouge
+//
+// Ce qu'on apprend :
+//   box-shadow: 0 8px 24px #00000080;          une ombre sous le bloc (trois au plus)
+//   background: linear-gradient(#E9B44C, #8a3b12);   un dégradé (aussi : radial-gradient,
+//                                               et une direction : to right, 45deg)
+//   background: url("etoile.svg");             une image rangée à côté : elle couvre toujours
+//                                               le bloc, sans se répéter en mosaïque
+//   rotate: -2deg;  scale: 1.05;               une pose : tourné, agrandi
+//   transition: 0.3s;                          la durée du passage d'une allure à l'autre
+//
+// À essayer :
+//   Passe la souris sur les cartes : elles se redressent et grandissent, en douceur.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 51 : ombres et fonds",
+  children: [
+    H1("Ombres et fonds"),
+    Row(gap: 24px, children: [
+      Column.degrade(children: [ H2("Dégradé"), "Du doré au brun." ]),
+      Column.image(children: [ H2("Image"), "Une étoile en fond." ]),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 50 : un texte soigné", to: "50-texte-soigne.holo"),
+      A("Leçon 52 : variables et thème sombre →", to: "52-variables-et-theme-sombre.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+H2 { font-size: 20px; }
+A { color: #8fd3ff; }
+.degrade { background: linear-gradient(135deg, #E9B44C, #8a3b12); border-radius: 16px; padding: 16px; width: 200px; box-shadow: 0 8px 24px #00000080; rotate: -2deg; transition: 0.3s; hover: { rotate: 0deg; scale: 1.05; } }
+.image { background: url("etoile.svg"); color: #101020; border-radius: 16px; padding: 16px; width: 200px; height: 140px; box-shadow: 0 8px 24px #00000080; rotate: 2deg; transition: 0.3s; hover: { rotate: 0deg; scale: 1.05; } }

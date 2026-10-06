@@ -1,0 +1,33 @@
+// Leçon 53 — Sur un téléphone
+//
+// Ce qu'on apprend :
+//   phone: { … }   ce qui change sur un écran plus étroit que la page (640 pixels)
+//   phone: { display: none; }   cacher un bloc sur un téléphone ; c'est le seul endroit où
+//                               « display » est permis : la disposition vient des blocs
+//   La page s'adapte déjà seule (une ligne passe à la ligne, une grille perd des colonnes) :
+//   phone: sert à ce qu'elle ne peut pas deviner.
+//
+// À essayer :
+//   Rétrécis la fenêtre : le grand titre se resserre, et le bandeau décoratif disparaît.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 53 : sur un téléphone",
+  children: [
+    Text.bandeau("★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★"),
+    H1("Sur un téléphone"),
+    P("Sur un grand écran, le bandeau d'étoiles décore la page. Sur un téléphone, il prendrait trop de place : on le cache."),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 52 : variables et thème sombre", to: "52-variables-et-theme-sombre.holo"),
+      A("Leçon 54 : sa propre police →", to: "54-police.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; phone: { padding: 12px 8px; } }
+H1 { color: #E9B44C; font-size: 40px; letter-spacing: 1px; phone: { letter-spacing: 0px; } }
+A { color: #8fd3ff; }
+.bandeau { color: #E9B44C; letter-spacing: 8px; phone: { display: none; } }
