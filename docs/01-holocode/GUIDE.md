@@ -1129,6 +1129,34 @@ Page(
 
 Ces ajouts sont à l'essai (`ADR-044`). La leçon est `68-liste-qui-change.holo`.
 
+## 6 duodevicies. Du code enfermé : un module
+
+Pour ce que HoloCode ne fait pas lui-même (un calcul lourd, une physique, une IA), un module compilé en WebAssembly, écrit en Rust, en C ou en Zig, tourne dans une boîte fermée.
+
+```holo
+module "sum.wasm"
+Page(
+  title: "Sum",
+  state: State(n: 100, total: 0, stopped: 0),
+  modules: [ Module(name: Sum, source: "sum.wasm", input: n, output: total, time: 100ms, memory: 1MB) ],
+  children: [
+    H1("Sum"),
+    Button(name: Go, text: "Compute"),
+    P("{total:number}"),
+    If(stopped, is: 1, children: [ P("The module was stopped.") ]),
+  ],
+  rules: [ On(Go.tap, effect: Sum.run), On(Sum.failed, effect: stopped.set(1)) ],
+)
+```
+
+- **`module "sum.wasm"`** en haut du fichier : chaque module y est annoncé.
+- **`Module(name:, source:, input:, output:, time:, memory:)`** : il reçoit un nombre et en rend un ; `time` de 10ms à 5s, `memory` de 64KB à 16MB.
+- **`Sum.run`** le lance ; **`Sum.done`** : le nombre est arrivé ; **`Sum.failed`** : il a été arrêté.
+- La boîte : un fil à part (la page ne se bloque jamais), une mémoire plafonnée, rien d'autre (ni réseau, ni page, ni heure). Au-delà de son temps, il est arrêté.
+- `bridge js` et `bridge css` sont refusés : un pont ferait entrer du code sans garantie.
+
+Cette écriture est à l'essai (`ADR-045`). La leçon est `69-module-enferme.holo` ; ses trois modules, dans `exemples/lecons/modules/`.
+
 ## 6 undecies. Les repères, la superposition, le survol, le texte qui grandit
 
 **Les repères.** Une personne aveugle saute d'un repère à l'autre avec son lecteur d'écran. Rien ne change à l'œil.
@@ -1402,6 +1430,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `After` | la durée, puis `effect:` | Dans `rules` |
 | `Repeat` | `items`, `children`, `rules` | Dans `children` |
 | `Font` | `family`, `source` | Dans `fonts:` d'une `Page` |
+| `Module` | `name`, `source`, `input`, `output`, `time`, `memory` ; capacité `run` ; signaux `done`, `failed` | Dans `modules:` d'une `Page` ; annoncé en haut du fichier, `module "…"` |
 | `Item` | `key`, et les champs de l'élément | Dans `items` d'un `Repeat` |
 | `Repeat(over:)` | `over` (une liste de la page), `children`, `rules` | Dans `children` |
 | `When` | le nom d'une valeur, puis `is`, `not`, `over`, `under` ; ou le nom d'un bloc, puis `meets` et `within` ; et `effect:` | Dans `rules` |
@@ -1479,6 +1508,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Multiplier, diviser | les demandes `mul`, `div` | fait, à l'essai |
 | Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait, à l'essai |
 | Une liste qui change pendant la visite | `State(tasks: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` | fait, à l'essai |
+| Du code enfermé (un module WebAssembly) | `module "…"`, `Module(…)`, `run`, `done`, `failed` | fait, à l'essai |
 | Une fenêtre, un pli, une glissière, une barre | `Dialog`, `Details`, `Slider`, `Progress` | fait |
 | Réagir au zoom par une règle (« quand on zoome, alors… ») | aucun | à faire |
 | Ranger côte à côte, l'un sous l'autre, en grille | `Row`, `Column`, `Grid` | fait |
@@ -1490,7 +1520,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 
 ## 11. Ce qui n'existe pas encore
 
-- `module`, `bridge js`, `bridge css` : le moteur les lit mais ne les applique pas. Des listes d'éléments à champs ; une liste reçue du serveur.
+- Un module n'échange encore qu'un nombre contre un nombre. Des listes d'éléments à champs ; une liste reçue du serveur.
 - Pour la disposition : pas de largeur par élément, pas d'élément qui prend la place restante.
 - Les données venues d'un autre serveur ; l'envoi d'un fichier ; les comptes.
 - Pour les valeurs : des nombres entiers et des textes. Pas de liste, pas d'autre calcul que le nombre et le total d'un panier.

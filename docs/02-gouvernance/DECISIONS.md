@@ -48,6 +48,7 @@ Ce registre empêche une proposition séduisante de devenir accidentellement une
 | [`ADR-042`](adr/ADR-042-lot-5-html-utile-et-formulaire.md) | Lot 5 : le HTML utile ; `Form` et l'envoi vers un fichier du serveur local, `Dialog`, `Details`, `Slider`, `Progress` | `ACCEPTÉ` | le grand tableau ; Yocthan, 2026-10-06 | HoloCode, HoloEngine, serveur d'essai |
 | [`ADR-043`](adr/ADR-043-lot-6-calcul-et-formats.md) | Lot 6 : `mul`, `div` ; les formats `{n:00}`, `number`, `cents`, `name` | `EXPÉRIMENTATION` | le grand tableau ; Yocthan, 2026-10-06 | HoloCode, HoloEngine |
 | [`ADR-044`](adr/ADR-044-lot-7-listes-qui-changent.md) | Lot 7 : une liste qui change pendant la visite ; `push`, `remove(item)`, `clear`, `Repeat(over:)`, `text.set("")` | `EXPÉRIMENTATION` | le grand tableau ; Yocthan, 2026-10-06 | HoloCode, HoloEngine |
+| [`ADR-045`](adr/ADR-045-lot-8-premier-module-enferme.md) | Lot 8 : le premier module enfermé (`module "…"`, `Module`, `run`, `done`, `failed`) ; la preuve qu'on l'arrête ; `bridge` refusé | `EXPÉRIMENTATION` | `ADR-011` partie C ; Codex ; Yocthan, 2026-10-06 | HoloCode, HoloEngine |
 
 `ADR-003` à `ADR-006` ont été proposées par ChatGPT. Le 2026-09-21, Yocthan a accepté `ADR-003` (reformulée par Claude), `ADR-004` (telle quelle) et `ADR-005` (complétée par les chiffres de sa vision), et a laissé `ADR-006` en proposition. ChatGPT est invité à réagir aux reformulations.
 

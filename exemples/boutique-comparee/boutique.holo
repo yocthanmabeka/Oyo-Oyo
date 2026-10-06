@@ -2,12 +2,11 @@
 // La même boutique est écrite en HTML, CSS et JavaScript dans le dossier web/.
 // Ce fichier emploie tout le vocabulaire actuel du langage.
 
-// Les trois sortes d'import. Le moteur sait les lire mais ne les applique pas encore :
-// elles restent en commentaire pour que ce fichier soit valable aujourd'hui.
-//   import "shelves.holo"        un autre fichier .holo
-//   module "physics.wasm"        un module WebAssembly, enfermé
-//   bridge js "old-cart.js"      un pont vers du JavaScript existant
-//   bridge css "old-theme.css"   un pont vers du CSS existant
+// Les deux sortes d'import (cette boutique n'en a pas besoin) :
+//   import "shelves.holo"        un autre fichier .holo (leçon 25)
+//   module "physics.wasm"        un module WebAssembly, enfermé (leçon 69)
+// Les ponts vers du JavaScript ou du CSS existants (bridge js, bridge css) sont refusés :
+// ils feraient entrer du code sans garantie (ADR-011, partie B).
 
 Page(
   name: Shop,

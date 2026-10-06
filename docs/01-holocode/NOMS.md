@@ -74,6 +74,8 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `State(tasks: [])`, `push`, `remove(item)`, `clear` | un tableau JavaScript, `push`, `splice`, `length = 0` | changé : une valeur de la page, changée par des demandes ; on retire la ligne touchée |
 | `Repeat(over: tasks)` | `map` qui fabrique du HTML à chaque changement | changé : le moteur fabrique les lignes, et échappe ce que le visiteur a écrit |
 | `text.set("")` | `input.value = ""` | changé : une demande |
+| `module "…"`, `Module`, `run`, `done`, `failed` | `<script src>`, `new Worker`, `WebAssembly.instantiate` | changé : annoncé en haut du fichier, enfermé (un fil à part, une mémoire plafonnée, rien d'autre), arrêté s'il dure trop |
+| `bridge js`, `bridge css` | `<script>`, `<link>` vers du code existant | refusés (`ADR-011`, partie B) |
 | `mul`, `div` | `*=`, `/=`, `Math.floor` | changé : deux demandes, en nombres entiers |
 | `{n:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | `padStart`, `Intl.NumberFormat`, `toLocaleDateString` | changé : un mot après deux-points ; la langue vient de la page |
 | `Form`, `send`, `sent`, `failed` | `form`, `fetch(…, { method: "POST" })`, `.then`, `.catch` | changé : une règle envoie, deux signaux répondent ; la page ne recharge jamais |

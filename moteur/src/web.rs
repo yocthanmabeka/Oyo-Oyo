@@ -296,6 +296,18 @@ pub fn delais(source: &str, etat: &str) -> String {
     crate::delais(source, etat)
 }
 
+/// Ce qu'il faut pour faire tourner un module : `somme.wasm|10|100|16`.
+#[wasm_bindgen]
+pub fn module_info(source: &str, etat: &str, nom: &str) -> String {
+    crate::module_info(source, etat, nom)
+}
+
+/// Le module a rendu son nombre : le nouvel état.
+#[wasm_bindgen]
+pub fn module_fini(source: &str, etat: &str, nom: &str, valeur: f64) -> String {
+    crate::module_fini(source, etat, nom, valeur.max(0.0) as u64)
+}
+
 /// Les lignes d'une liste pour cet état.
 #[wasm_bindgen]
 pub fn liste_html(source: &str, base: &str, etat: &str, nom: &str) -> String {

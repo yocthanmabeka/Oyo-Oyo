@@ -19,6 +19,7 @@ pub mod format;
 pub mod graine;
 pub mod holo;
 pub mod listes;
+pub mod modules;
 pub mod mosaique;
 pub mod mouvement;
 pub mod navigation;
@@ -54,6 +55,8 @@ pub fn verifier_page(source: &str) -> Result<Programme, Erreur> {
     etat::verifier_etat(&programme)?;
     regles::verifier_regles(&programme)?;
     vue::reglages(&programme)?;
+    // Les modules enfermés, et leur annonce en haut du fichier (ADR-045).
+    modules::modules(&programme, &etat::initial(&programme)?)?;
     // Ce que l'affichage refuserait (une adresse en `javascript:`, une image hors du dossier)
     // est refusé dès la vérification : on fabrique la page à blanc (revue Codex, B-11).
     if programme.racine.nom == "Page" {
@@ -160,6 +163,24 @@ pub fn imports(source: &str) -> String {
 /// Les touches du clavier que la page écoute (`left;right`).
 pub fn touches(source: &str) -> String {
     verifier_page(source).map(|programme| etat::touches(&programme).join(";")).unwrap_or_default()
+}
+
+/// Ce que la page doit savoir pour faire tourner un module (ADR-045) : son fichier, le nombre
+/// qu'il reçoit (pour cet état), son temps en millisecondes et sa mémoire en pages de 64 Ko.
+/// `somme.wasm|10|100|16`. Vide si aucun module ne porte ce nom.
+pub fn module_info(source: &str, etat: &str, nom: &str) -> String {
+    let Ok(programme) = verifier_page(source) else { return String::new() };
+    let nombres = etat::relire(&programme, etat);
+    let Some(module) = modules::modules(&programme, &nombres).ok().and_then(|m| m.into_iter().find(|m| m.nom == nom)) else { return String::new() };
+    let entree = module.entree.and_then(|e| nombres.iter().find(|(c, _)| c == e)).map_or(0, |(_, v)| *v);
+    format!("{}|{entree}|{}|{}", module.source, module.temps, module.pages)
+}
+
+/// Le module a rendu son nombre : le nouvel état, après `Nom.done`.
+pub fn module_fini(source: &str, etat: &str, nom: &str, valeur: u64) -> String {
+    let Ok(programme) = verifier_page(source) else { return String::new() };
+    etat::capacites_demandees();
+    ecrire_tout(&programme, &modules::fini(&programme, &etat::relire(&programme, etat), nom, valeur), &etat::relire_textes(&programme, etat), &listes::relire(&programme, etat))
 }
 
 /// Les lignes d'une liste pour cet état (ADR-044) : la page les pose à la place des anciennes.

@@ -6,6 +6,16 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Lot 8 : le premier module enfermé, et la preuve demandée par Codex
+
+- Fait (`ADR-045`, à l'essai ; construction de `ADR-011`, partie C) : `module "…"` en haut du fichier ; `Module(name:, source:, input:, output:, time:, memory:)` ; `run`, `done`, `failed`. La boîte : un fil à part, une mémoire donnée par le moteur et plafonnée, rien d'autre ; arrêté au-delà de son temps. Les ponts `bridge js` et `bridge css` sont maintenant refusés. Leçon 69, et trois modules d'essai en Rust (`exemples/lecons/modules/`, 68 à 105 octets une fois compilés). Nouveau module du moteur : `modules.rs`.
+- La preuve, dans Chrome : `compter` rend 5 050 ; `boucle` est arrêté après 2 000 ms, et la page a compté trois touchers pendant qu'il tournait ; `memoire` demande 64 Mo sous un plafond de 1 Mo et s'arrête. 105 tests.
+- Rien n'a été installé : les modules sont compilés avec Rust et la cible WebAssembly déjà présents pour le moteur.
+
+![Le module enfermé : somme, boucle arrêtée, mémoire refusée](images/2026-10-06-lot8-module.png)
+
+---
+
 ## 2026-10-06 — Lot 7 : une liste qui change pendant la visite
 
 - Fait (`ADR-044`, à l'essai) : `State(taches: [])` ; `taches.push(tache)`, `taches.remove(item)` (la ligne touchée), `taches.clear()` ; `tache.set("")` ; `Repeat(over: taches, …)`, une ligne par élément, redessinée par le moteur quand la liste change ; `{taches}` et `If(taches, is: 0)` ; `keep:` garde la liste. Leçon 68. Nouveau module du moteur : `listes.rs`.
