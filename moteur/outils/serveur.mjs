@@ -50,7 +50,11 @@ const rendeur = ["release", "debug"].flatMap((profil) => ["holo.exe", "holo"].ma
 function pageToutePrete(gabarit, cheminHolo, dossier) {
   if (!rendeur) return gabarit;
   try {
-    const html = execFileSync(rendeur, ["html", cheminHolo, dossier], { encoding: "utf8", timeout: 5000, maxBuffer: 4e6 }).trim();
+    // L'heure du lieu, pour une page qui la lit (ADR-039) : le moteur la corrige ensuite avec
+    // celle de l'appareil du visiteur.
+    const d = new Date();
+    const HOLO_MAINTENANT = [d.getFullYear(), d.getMonth() + 1, d.getDate(), ((d.getDay() + 6) % 7) + 1, d.getHours(), d.getMinutes()].join(",");
+    const html = execFileSync(rendeur, ["html", cheminHolo, dossier], { encoding: "utf8", timeout: 5000, maxBuffer: 4e6, env: { ...process.env, HOLO_MAINTENANT } }).trim();
     const titre = /data-title="([^"]*)"/.exec(html)?.[1] || "HoloCode";
     // La langue, la description et l'image de partage de la page (ADR-038), dans l'en-tête :
     // pour les lecteurs d'écran, pour Google, et pour l'aperçu d'un lien partagé.

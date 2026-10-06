@@ -4,7 +4,7 @@
 use crate::holo::{Bloc, Erreur, Programme, Valeur};
 
 /// `Text` est du texte sans rôle ; `P`, `H1`, `H2` et `H3` sont un `Text` avec un rôle (ADR-020).
-pub const BLOCS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Part", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop", "H4", "H5", "H6", "Main", "Nav", "Header", "Footer", "Stack", "Video", "Table", "Choice"];
+pub const BLOCS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Part", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop", "H4", "H5", "H6", "Main", "Nav", "Header", "Footer", "Stack", "Video", "Table", "Choice", "After"];
 
 /// Le titre le plus profond : `H6`, comme en HTML (correction d'ADR-020 du 2026-10-06 ; les
 /// longs documents en ont besoin). Le numéro dit toujours la place dans le plan, jamais la taille.
@@ -55,16 +55,17 @@ const REGLAGES_DES_BLOCS: &[(&str, &[&str])] = &[
     ("Video", &["name", "source", "label", "weight"]),
     ("Table", &["name", "caption", "head", "rows"]),
     ("Checkbox", &["name", "value", "label"]),
-    ("If", &["name", "is", "not", "over", "under", "children", "rules"]),
+    ("If", &["name", "is", "not", "over", "under", "children", "rules", "else"]),
     ("On", &["effect"]),
     ("Every", &["effect"]),
+    ("After", &["effect"]),
     ("When", &["is", "not", "over", "under", "meets", "within", "effect"]),
     ("Scenes", &["name", "children", "height", "repeat"]),
     ("Scene", &["name", "children", "for"]),
 ];
 
 /// Les blocs qui ne se voient pas : ils ne bougent pas (`enter`, `loop`).
-const SANS_MOUVEMENT: &[&str] = &["Page", "World", "Part", "On", "Every", "When", "Sound", "Scene"];
+const SANS_MOUVEMENT: &[&str] = &["Page", "World", "Part", "On", "Every", "When", "After", "Sound", "Scene"];
 
 /// Vérifie les réglages d'un bloc, selon le bloc qui le contient (`parent`).
 fn verifier_reglages(bloc: &Bloc, parent: &str) -> Result<(), Erreur> {
@@ -145,7 +146,7 @@ fn parcourir(bloc: &Bloc, dernier_titre: &mut u32, parent: &str) -> Result<(), E
     for argument in &bloc.arguments {
         // L'effet d'une règle peut être une demande, `cart.add(1)` : `regles.rs` la vérifie.
         // (une seule, ou plusieurs entre crochets : dans les deux cas, on ne descend pas dedans)
-        let demande = matches!(bloc.nom.as_str(), "On" | "Every" | "When") && argument.nom.as_deref() == Some("effect");
+        let demande = matches!(bloc.nom.as_str(), "On" | "Every" | "When" | "After") && argument.nom.as_deref() == Some("effect");
         if !demande {
             visiter(&argument.valeur, plan, &bloc.nom)?;
         }

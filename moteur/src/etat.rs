@@ -73,7 +73,7 @@ pub fn condition(bloc: &Bloc) -> Result<(&str, Vec<(&str, Terme<'_>)>), Erreur> 
     let mut comparaisons = Vec::new();
     for argument in &bloc.arguments[1..] {
         match (argument.nom.as_deref(), &argument.valeur) {
-            (Some("children" | "rules" | "name"), _) if !regle => {}
+            (Some("children" | "rules" | "name" | "else"), _) if !regle => {}
             (Some("effect"), _) if regle => {}
             // Pour un texte : « is: "" » (vide) et « not: "" » (rempli). Vide vaut 0.
             (Some(mot @ ("is" | "not")), Valeur::Texte(texte)) if texte.is_empty() => comparaisons.push((if mot == "is" { "is" } else { "not" }, Terme::Nombre(0))),
@@ -99,6 +99,12 @@ pub fn condition(bloc: &Bloc) -> Result<(&str, Vec<(&str, Terme<'_>)>), Erreur> 
     let liste = |param: &str| matches!(bloc.argument(param).map(|a| &a.valeur), Some(Valeur::Liste(_)));
     if !regle && (liste("children") == liste("rules")) {
         return Err(erreur("« If » attend ce qu'il montre, If(count, is: 0, children: [ … ]), ou les règles qu'il met sous condition, If(lives, over: 0, rules: [ … ])"));
+    }
+    // Le « sinon » (ADR-039) : ce qu'on montre quand la condition est fausse. Il va avec children.
+    if let Some(argument) = bloc.argument("else").filter(|_| !regle) {
+        if !matches!(argument.valeur, Valeur::Liste(_)) || !liste("children") {
+            return Err(Erreur { message: "« else » va avec children : il montre des blocs quand la condition est fausse, If(cart, is: 0, children: [ … ], else: [ … ])".into(), pos: argument.pos });
+        }
     }
     Ok((valeur, comparaisons))
 }
@@ -153,6 +159,7 @@ pub fn gardees(programme: &Programme) -> Result<Vec<String>, Erreur> {
     let mut gardees = Vec::new();
     for nom in noms {
         match nom {
+            Valeur::Nom(nom) if HORLOGE.contains(&nom.as_str()) => return Err(erreur(format!("« keep » : « {nom} » est l'heure du visiteur, elle ne se garde pas"))),
             Valeur::Nom(nom) if declarees.iter().any(|(connu, _)| connu == nom) || textes.iter().any(|(connu, _)| connu == nom) => gardees.push(nom.clone()),
             Valeur::Nom(nom) => return Err(erreur(format!("« keep » : aucune valeur ne s'appelle « {nom} » ; on ne garde que des valeurs déclarées dans « State »"))),
             _ => return Err(erreur("« keep » attend des noms de valeurs : keep: [cart]".into())),
@@ -398,7 +405,7 @@ pub fn recevoir(programme: &Programme, etat: &Etat, textes: &Textes, json: &str)
         match donnee {
             Donnee::Nombre(nombre) => {
                 let plafond = plafond(programme, &cle);
-                if let Some((_, place)) = etat.iter_mut().find(|(connu, _)| *connu == cle && connu != TIRAGES) {
+                if let Some((_, place)) = etat.iter_mut().find(|(connu, _)| *connu == cle && connu != TIRAGES && !HORLOGE.contains(&connu.as_str())) {
                     *place = nombre.min(plafond);
                 }
             }
@@ -501,7 +508,11 @@ pub const RYTHME_MAX: u64 = 3_600_000;
 /// Le rythme d'une règle `Every(1s, effect: …)`, en millisecondes.
 pub fn rythme(regle: &Bloc) -> Result<u64, Erreur> {
     let erreur = || Erreur {
-        message: "une règle de temps s'écrit « Every(1s, effect: time.sub(1)) » : une durée en s ou en ms, de 100ms à 3600s".into(),
+        message: if regle.nom == "After" {
+            "une attente s'écrit « After(3s, effect: shown.set(1)) » : une durée en s ou en ms, de 100ms à 3600s".into()
+        } else {
+            "une règle de temps s'écrit « Every(1s, effect: time.sub(1)) » : une durée en s ou en ms, de 100ms à 3600s".into()
+        },
         pos: regle.pos,
     };
     let millisecondes = match regle.arguments.first() {
@@ -528,6 +539,21 @@ pub fn horloges(programme: &Programme) -> Vec<(u64, String)> {
         Ok(())
     });
     horloges
+}
+
+/// Les attentes du fichier, une par règle `After`, dans l'ordre où elles sont écrites : sa durée,
+/// et si elle court pour cet état (ADR-039). Une attente posée dans la page court dès
+/// l'ouverture ; une attente rangée sous une condition, `If(toast, is: 1, rules: [ After(3s, …) ])`,
+/// court à partir du moment où la condition devient vraie, et s'arrête si elle redevient fausse.
+/// Chacune ne sonne qu'une fois par période où elle court : c'est la page qui tient le compte.
+pub fn delais(programme: &Programme, etat: &Etat) -> Vec<(u64, bool)> {
+    let mut delais = Vec::new();
+    avec_leur_vigueur(programme, etat, &mut |bloc, vigueur| {
+        if bloc.nom == "After" {
+            delais.push((rythme(bloc).unwrap_or(RYTHME_MAX), vigueur));
+        }
+    });
+    delais
 }
 
 /// Les valeurs qu'un signal fait changer, d'après les règles `On`. Quand un geste change une
@@ -801,7 +827,98 @@ pub fn initial(programme: &Programme) -> Result<Etat, Erreur> {
             return Err(Erreur { message: format!("« {nom} » est calculé par le moteur quand la page donne des prix : ne le déclare pas dans « State »"), pos });
         }
     }
+    // L'heure du visiteur, quand le fichier la lit (ADR-039).
+    let mut etat = etat;
+    let maintenant = maintenant();
+    for nom in horloge_lue(programme) {
+        let rang = HORLOGE.iter().position(|h| *h == nom).unwrap_or(0);
+        etat.push((nom.to_string(), maintenant[rang]));
+    }
     Ok(etat)
+}
+
+/// L'heure du visiteur, que le moteur donne comme il donne `count` et `total` (ADR-039) :
+/// l'année, le mois (1 à 12), le jour (1 à 31), le jour de la semaine (1 lundi, 7 dimanche),
+/// l'heure (0 à 23) et la minute. On la lit, on ne la change pas.
+pub const HORLOGE: &[&str] = &["year", "month", "day", "weekday", "hour", "minute"];
+
+thread_local! {
+    /// L'heure donnée par celui qui appelle le moteur : la page (l'heure de l'appareil du
+    /// visiteur), ou le serveur qui fabrique la page d'avance.
+    static MAINTENANT: std::cell::Cell<[u64; 6]> = const { std::cell::Cell::new([2026, 1, 1, 4, 0, 0]) };
+}
+
+/// Donne l'heure au moteur : année, mois, jour, jour de la semaine, heure, minute.
+pub fn regler_maintenant(valeurs: [u64; 6]) {
+    MAINTENANT.with(|m| m.set(valeurs));
+}
+
+pub fn maintenant() -> [u64; 6] {
+    MAINTENANT.with(std::cell::Cell::get)
+}
+
+/// L'heure en temps universel, d'après les secondes écoulées depuis le 1er janvier 1970.
+/// Sert quand personne n'a donné l'heure du lieu.
+pub fn depuis_secondes_unix(secondes: u64) -> [u64; 6] {
+    let jours = (secondes / 86_400) as i64;
+    let reste = secondes % 86_400;
+    let z = jours + 719_468;
+    let ere = z.div_euclid(146_097);
+    let jour_de_l_ere = z - ere * 146_097;
+    let annee_de_l_ere = (jour_de_l_ere - jour_de_l_ere / 1460 + jour_de_l_ere / 36_524 - jour_de_l_ere / 146_096) / 365;
+    let jour_de_l_annee = jour_de_l_ere - (365 * annee_de_l_ere + annee_de_l_ere / 4 - annee_de_l_ere / 100);
+    let m = (5 * jour_de_l_annee + 2) / 153;
+    let jour = jour_de_l_annee - (153 * m + 2) / 5 + 1;
+    let mois = if m < 10 { m + 3 } else { m - 9 };
+    let annee = annee_de_l_ere + ere * 400 + i64::from(mois <= 2);
+    // Le 1er janvier 1970 était un jeudi : le quatrième jour de la semaine.
+    let semaine = (jours + 3).rem_euclid(7) + 1;
+    [annee as u64, mois as u64, jour as u64, semaine as u64, reste / 3600, reste % 3600 / 60]
+}
+
+/// Les noms de l'heure que le fichier lit : dans un texte (`{hour}`), une condition, une
+/// comparaison, une demande (`best.set(hour)`) ou une place.
+fn horloge_lue(programme: &Programme) -> Vec<&'static str> {
+    fn noter(nom: &str, lus: &mut Vec<&'static str>) {
+        if let Some(h) = HORLOGE.iter().find(|h| **h == nom) {
+            if !lus.contains(h) {
+                lus.push(h);
+            }
+        }
+    }
+    fn visiter(valeur: &Valeur, lus: &mut Vec<&'static str>) {
+        match valeur {
+            Valeur::Texte(texte) => noms_dans(texte).into_iter().for_each(|nom| noter(nom, lus)),
+            Valeur::Nom(nom) => noter(nom, lus),
+            Valeur::Liste(elements) => elements.iter().for_each(|e| visiter(e, lus)),
+            Valeur::Bloc(bloc) => bloc.arguments.iter().for_each(|a| visiter(&a.valeur, lus)),
+            _ => {}
+        }
+    }
+    let mut lus = Vec::new();
+    programme.racine.arguments.iter().for_each(|a| visiter(&a.valeur, &mut lus));
+    lus.sort_by_key(|h| HORLOGE.iter().position(|x| x == h));
+    lus
+}
+
+/// Le fichier lit-il l'heure ? La page la tient alors à jour, minute après minute.
+pub fn lit_l_heure(programme: &Programme) -> bool {
+    !horloge_lue(programme).is_empty()
+}
+
+/// Une minute a passé : l'heure écrite dans l'état devient l'heure donnée au moteur, et les
+/// règles qui guettent l'heure (`When(hour, is: 12, …)`) ont leur mot à dire.
+pub fn avancer_l_horloge(programme: &Programme, ecrit: &str) -> Etat {
+    let maintenant = relire(programme, ecrit);
+    let mut avant = maintenant.clone();
+    for morceau in ecrit.split(';') {
+        if let Some((nom, valeur)) = morceau.split_once('=') {
+            if let (true, Some((_, place)), Ok(valeur)) = (HORLOGE.contains(&nom), avant.iter_mut().find(|(connu, _)| connu == nom), valeur.parse::<u64>()) {
+                *place = valeur;
+            }
+        }
+    }
+    suites(programme, avant, maintenant)
 }
 
 fn initial_sans_prix(programme: &Programme) -> Result<Etat, Erreur> {
@@ -822,6 +939,9 @@ fn initial_sans_prix(programme: &Programme) -> Result<Etat, Erreur> {
         };
         if !est_nom_de_valeur(nom) {
             return Err(Erreur { message: nom_de_valeur_mal_ecrit(nom), pos: argument.pos });
+        }
+        if HORLOGE.contains(&nom.as_str()) {
+            return Err(Erreur { message: format!("« {nom} » est l'heure du visiteur, donnée par le moteur ; choisis un autre nom pour ta valeur (ADR-039)"), pos: argument.pos });
         }
         if bloc.arguments.iter().filter(|a| a.nom.as_deref() == Some(nom.as_str())).count() > 1 {
             return Err(Erreur { message: format!("la valeur « {nom} » est déclarée deux fois"), pos: argument.pos });
@@ -860,6 +980,9 @@ pub fn demande<'a>(bloc: &'a Bloc, etat: &Etat) -> Result<Demande<'a>, Erreur> {
     let Some((valeur, verbe)) = bloc.nom.split_once('.') else {
         return Err(erreur(format!("« {} » : une demande s'écrit « cart.add(1) »", bloc.nom)));
     };
+    if HORLOGE.contains(&valeur) {
+        return Err(erreur(format!("« {valeur} » est l'heure du visiteur : on la lit, on ne la change pas")));
+    }
     if !etat.iter().any(|(connu, _)| connu == valeur) {
         return Err(erreur(format!("aucune valeur ne s'appelle « {valeur} » : déclare-la sur la page, state: State({valeur}: 0)")));
     }
@@ -956,6 +1079,9 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
             for argument in &bloc.arguments {
                 match (argument.nom.as_deref(), &argument.valeur) {
                     (Some("name"), _) | (Some("label"), Valeur::Texte(_)) => {}
+                    (Some("value"), Valeur::Nom(valeur)) if HORLOGE.contains(&valeur.as_str()) => {
+                        return Err(Erreur { message: format!("« {}(value: {valeur}) » : « {valeur} » est l'heure du visiteur ; on la lit, on ne l'écrit pas", bloc.nom), pos: argument.pos })
+                    }
                     (Some("value"), Valeur::Nom(valeur)) if etat.iter().any(|(connu, _)| connu == valeur) => {}
                     // Un champ peut présenter un texte ; une case, non.
                     (Some("value"), Valeur::Nom(valeur)) if est_texte(valeur) && bloc.nom == "Input" => {}
@@ -1038,7 +1164,7 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
             match (&argument.nom.as_deref(), &argument.valeur) {
                 (None | Some("text"), Valeur::Texte(texte)) => verifier_texte(texte, argument.pos)?,
                 // Les phrases seules et les lignes d'une liste.
-                (Some("children"), Valeur::Liste(elements)) => {
+                (Some("children" | "else"), Valeur::Liste(elements)) => {
                     for element in elements {
                         if let Valeur::Texte(texte) = element {
                             verifier_texte(texte, argument.pos)?;
@@ -1063,6 +1189,7 @@ pub fn arbitrer(programme: &Programme, etat: &Etat, signal: &str) -> Etat {
     let mut tirages = etat.iter().find(|(nom, _)| nom == TIRAGES).map_or(0, |(_, n)| *n);
     let depart = tirages;
     let mut horloge = 0usize;
+    let mut attente = 0usize;
     // Les règles rangées sous une condition ne répondent que si elle est vraie au moment du signal.
     avec_leur_vigueur(programme, &avant_le_signal, &mut |bloc, vigueur| {
         // Une règle répond à un signal : celui d'un bloc (`On(Add.tap, …)`), ou celui de sa
@@ -1074,6 +1201,11 @@ pub fn arbitrer(programme: &Programme, etat: &Etat, signal: &str) -> Etat {
                 horloge += 1;
                 signal == format!("every:{}", horloge - 1)
             }
+            // Une attente qui vient de finir : « after:0 » pour la première du fichier.
+            "After" => {
+                attente += 1;
+                signal == format!("after:{}", attente - 1)
+            }
             _ => false,
         };
         if concernee && vigueur {
@@ -1082,7 +1214,7 @@ pub fn arbitrer(programme: &Programme, etat: &Etat, signal: &str) -> Etat {
             }
             // Les capacités d'une règle « On » sont appliquées par la page (elle connaît le
             // geste) ; celles d'une règle de temps sont notées ici.
-            if bloc.nom == "Every" {
+            if bloc.nom == "Every" || bloc.nom == "After" {
                 noter_les_capacites(bloc);
             }
         }
@@ -1121,7 +1253,7 @@ pub fn glisser(programme: &Programme, etat: &Etat, nom: &str, x: u64, y: u64) ->
     let glissable = crate::regles::bloc_nomme(programme, nom).filter(|bloc| matches!(bloc.argument("drag").map(|a| &a.valeur), Some(Valeur::Bool(true))));
     if let Some(bloc) = glissable {
         for (axe, place) in [("x", x), ("y", y)] {
-            if let Some(Valeur::Nom(valeur)) = bloc.argument(axe).map(|a| &a.valeur) {
+            if let Some(Valeur::Nom(valeur)) = bloc.argument(axe).map(|a| &a.valeur).filter(|v| !matches!(v, Valeur::Nom(n) if HORLOGE.contains(&n.as_str()))) {
                 if let Some((_, v)) = etat.iter_mut().find(|(connu, _)| connu == valeur) {
                     *v = place.min(100);
                 }
@@ -1342,6 +1474,10 @@ pub fn relire(programme: &Programme, ecrit: &str) -> Etat {
             // Le compte des tirages au hasard suit l'état, pour que la suite continue.
             if let (true, Ok(n)) = (nom == TIRAGES, valeur.parse::<u64>()) {
                 etat.push((TIRAGES.to_string(), n));
+                continue;
+            }
+            // L'heure n'est jamais reprise de l'état écrit : c'est celle donnée au moteur.
+            if HORLOGE.contains(&nom) {
                 continue;
             }
             if let (Some((_, place)), Ok(valeur)) = (etat.iter_mut().find(|(connu, _)| connu == nom), valeur.parse::<u64>()) {

@@ -2,7 +2,7 @@
 // a besoin ou tout de suite si la page est vivante (ADR-033). Il charge le moteur en Rust,
 // compilé en WebAssembly, et prend la page en main.
   import init, {
-    pause, vue_a_plat, effets, etat_initial, arbitrer, conditions, horloges, touchees, touches, imports, donnees, recevoir, saisir, glisser, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
+    pause, vue_a_plat, effets, etat_initial, arbitrer, delais, lit_l_heure, regler_maintenant, avancer_l_horloge, conditions, horloges, touchees, touches, imports, donnees, recevoir, saisir, glisser, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
     mosaique_pivoter, mosaique_de_face, mosaique_sous, reglages_de_vue, reveiller, images_dessinees,
   } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
@@ -212,6 +212,7 @@
   // Le temps : une horloge par rythme écrit dans le fichier (Every(1s, …)). À chaque battement,
   // le signal est donné à l'arbitre, comme un toucher. L'horloge se tait quand la fenêtre est
   // cachée, en vue points et devant le carrefour : rien ne tourne pour rien.
+  const survoles = new Set(); // les blocs survolés en ce moment (ADR-039)
   let touchesEcoutees = []; // les touches que les règles du fichier écoutent : On(Key.left, …)
   let battements = []; // une horloge par règle Every : { ms, valeur, minuterie }
   function lancer(horloge, rang) {
@@ -233,12 +234,7 @@
       const json = (await reponse.text()).slice(0, 65536);
       const avant = etats.get(chemin) ?? "";
       const apres = ranger(recevoir(source, avant, json));
-      if (apres && apres !== avant && pour === chemin) {
-        etats.set(chemin, apres);
-        montrerLesValeurs();
-        placerLesPixels();
-        garder();
-      }
+      if (apres && apres !== avant && pour === chemin) changerLEtat(apres);
     } catch { /* serveur muet : la page garde ses valeurs */ }
   }
   function reglerLesDonnees() {
@@ -257,6 +253,10 @@
 
   function reglerLesHorloges() {
     reglerLesDonnees();
+    attentes.forEach((attente) => clearTimeout(attente.minuterie));
+    attentes = [];
+    reglerLesDelais();
+    suivreLHeure();
     touchesEcoutees = touches(source).split(";").filter(Boolean);
     battements.forEach((horloge) => clearInterval(horloge.minuterie));
     battements = horloges(source).split(";").filter(Boolean).map((morceau) => {
@@ -265,6 +265,56 @@
     });
     battements.forEach(lancer);
   }
+  // Les attentes (After, ADR-039) : chacune sonne une fois, après sa durée, à partir du moment où
+  // elle court. Le moteur dit lesquelles courent pour l'état du moment ; la page tient le compte
+  // de celles qui ont déjà sonné, et l'oublie quand une attente cesse de courir.
+  let attentes = [];
+  function reglerLesDelais() {
+    const liste = delais(source, etats.get(chemin) ?? "").split(";").filter(Boolean);
+    liste.forEach((morceau, rang) => {
+      const [ms, court] = morceau.split(":");
+      const attente = (attentes[rang] ??= { minuterie: 0, sonnee: false });
+      if (court === "1" && !attente.minuterie && !attente.sonnee) {
+        const pour = chemin;
+        attente.minuterie = setTimeout(() => {
+          attente.minuterie = 0;
+          attente.sonnee = true;
+          if (pour === chemin) emettre(`after:${rang}`);
+        }, Number(ms));
+      } else if (court !== "1") {
+        clearTimeout(attente.minuterie);
+        attente.minuterie = 0;
+        attente.sonnee = false;
+      }
+    });
+  }
+  // L'heure du visiteur (ADR-039) : celle de son appareil, donnée au moteur à chaque minute.
+  function donnerLHeure() {
+    const d = new Date();
+    regler_maintenant(d.getFullYear(), d.getMonth() + 1, d.getDate(), ((d.getDay() + 6) % 7) + 1, d.getHours(), d.getMinutes());
+  }
+  let minuteSuivante = 0;
+  function suivreLHeure() {
+    clearTimeout(minuteSuivante);
+    if (!lit_l_heure(source)) return;
+    const d = new Date();
+    minuteSuivante = setTimeout(() => {
+      donnerLHeure();
+      const avant = etats.get(chemin) ?? "";
+      const apres = ranger(avancer_l_horloge(source, avant));
+      if (apres && apres !== avant) changerLEtat(apres);
+      suivreLHeure();
+    }, (60 - d.getSeconds()) * 1000 - d.getMilliseconds() + 50);
+  }
+  // Un nouvel état : la page le montre, le garde, et regarde quelles attentes courent.
+  function changerLEtat(apres) {
+    etats.set(chemin, apres);
+    montrerLesValeurs();
+    placerLesPixels();
+    garder();
+    reglerLesDelais();
+  }
+
   // Un geste vient de changer des valeurs : l'horloge de chacune repart de zéro. « Play » remet
   // le temps à trente : la première seconde dure une vraie seconde.
   function relancerLesHorloges(signal) {
@@ -318,7 +368,7 @@
     }
     // Les conditions : If(count, is: 0). C'est le moteur qui répond ; la page ne compare rien
     // elle-même, elle cache ce que le moteur dit faux.
-    const blocs = ou.querySelectorAll("[data-if]");
+    const blocs = ou.querySelectorAll("[data-if],[data-else]");
     if (!blocs.length) return;
     const reponses = new Map(conditions(texteDuFichier, ecrit).split(";").filter(Boolean).map((morceau) => {
       const coupe = morceau.lastIndexOf(":");
@@ -326,6 +376,8 @@
     }));
     for (const bloc of blocs) {
       if (reponses.has(bloc.dataset.if)) bloc.hidden = !reponses.get(bloc.dataset.if);
+      // Le « sinon » (ADR-039) : montré quand la condition est fausse.
+      else if (reponses.has(bloc.dataset.else)) bloc.hidden = reponses.get(bloc.dataset.else);
     }
   }
 
@@ -334,12 +386,8 @@
   function emettre(signal) {
     const avant = etats.get(chemin) ?? "";
     const apres = ranger(arbitrer(source, avant, signal));
-    if (apres !== avant) {
-      etats.set(chemin, apres);
-      montrerLesValeurs();
-      placerLesPixels(); // ce qui apparaît ou disparaît déplace le reste de la page
-      garder();
-    }
+    // Ce qui apparaît ou disparaît déplace le reste de la page : changerLEtat replace les pixels.
+    if (apres !== avant) changerLEtat(apres);
     relancerLesHorloges(signal);
     for (const effet of effets(source, signal).split(",").filter(Boolean)) {
       appliquer(effet, signal);
@@ -363,6 +411,7 @@
       boutonMode.textContent = "Carrefour";
     }
     site = cheminDeSite;
+    survoles.clear();
     if (reprendre) adopterLesSaisies();
     else racine.innerHTML = vue_a_plat(source, base, site);
     montrerLesValeurs();
@@ -943,6 +992,7 @@
   try {
     try {
       await init();
+      donnerLHeure();
     } catch (e) {
       // Le moteur n'a pas pu arriver (réseau, fichier absent) : la page le dit, reste lisible,
       // et propose de réessayer. Aucun toucher n'est compté comme fait.
@@ -1010,8 +1060,40 @@
       prise = null;
       racine.style.cursor = zoomVif === 1 ? "" : "grab";
     });
+    // Le survol (ADR-039) : la souris arrive sur un bloc qu'une règle écoute, le clavier s'y pose,
+    // ou le doigt le touche sur un téléphone, où la souris n'existe pas. « hover » part à
+    // l'arrivée, « hoverEnd » au départ ; un bloc dans un autre bloc survolé l'est aussi.
+    const survoler = (nom, dedans) => {
+      if (dedans === survoles.has(nom)) return;
+      if (dedans) survoles.add(nom);
+      else survoles.delete(nom);
+      emettre(`${nom}.${dedans ? "hover" : "hoverEnd"}`);
+    };
+    const survolsDe = (cible) => {
+      const blocs = [];
+      for (let bloc = cible?.closest?.("[data-hover]"); bloc; bloc = bloc.parentElement?.closest("[data-hover]")) blocs.push(bloc);
+      return blocs;
+    };
+    const passage = (dedans) => (evenement) => {
+      if (evenement.pointerType === "touch") return;
+      for (const bloc of survolsDe(evenement.target)) {
+        if (!bloc.contains(evenement.relatedTarget)) survoler(bloc.dataset.name, dedans);
+      }
+    };
+    racine.addEventListener("pointerover", passage(true));
+    racine.addEventListener("pointerout", passage(false));
+    racine.addEventListener("focusin", passage(true));
+    racine.addEventListener("focusout", passage(false));
+    let toucherDuDoigt = false;
+    racine.addEventListener("pointerdown", (evenement) => { toucherDuDoigt = evenement.pointerType === "touch"; }, true);
     // Sur la page : un toucher est envoyé au moteur, qui répond par les effets demandés.
     racine.addEventListener("click", (evenement) => {
+      if (toucherDuDoigt) {
+        // Au doigt : toucher un bloc le survole, toucher ailleurs le quitte.
+        const touches = survolsDe(evenement.target).map((bloc) => bloc.dataset.name);
+        for (const nom of [...survoles]) if (!touches.includes(nom)) survoler(nom, false);
+        for (const nom of touches) survoler(nom, true);
+      }
       const bloc = evenement.target.closest("[data-name]");
       if (!bloc) return;
       emettre(`${bloc.dataset.name}.tap`);
@@ -1036,11 +1118,7 @@
       const [x, y] = [vers(evenement.clientX, cadre.left, cadre.width, taille.width), vers(evenement.clientY, cadre.top, cadre.height, taille.height)];
       const avant = etats.get(chemin) ?? "";
       const apres = ranger(glisser(source, avant, pose.dataset.drag, x, y));
-      if (apres !== avant) {
-        etats.set(chemin, apres);
-        montrerLesValeurs();
-        garder();
-      }
+      if (apres !== avant) changerLEtat(apres);
     });
     for (const fin of ["pointerup", "pointercancel"]) {
       racine.addEventListener(fin, () => {
@@ -1063,16 +1141,22 @@
       const champ = evenement.target.closest("[data-bind]");
       if (!champ) return;
       const ecrit = champ.type === "checkbox" ? (champ.checked ? "1" : "0") : champ.value;
-      etats.set(chemin, ranger(saisir(source, etats.get(chemin) ?? "", champ.dataset.bind, ecrit)));
-      montrerLesValeurs();
-      placerLesPixels();
-      garder();
+      changerLEtat(ranger(saisir(source, etats.get(chemin) ?? "", champ.dataset.bind, ecrit)));
     });
     // En quittant un champ, il montre la valeur que l'arbitre a retenue (bornée).
     racine.addEventListener("change", () => montrerLesValeurs());
     // Le moteur est prêt : on rejoue ce qui a été touché en l'attendant.
     window.__holoArreterDeNoter?.();
-    for (const nom of touchersEnAttente.splice(0)) emettre(`${nom}.tap`);
+    for (const attendu of touchersEnAttente.splice(0)) {
+      const [nom, geste = "tap"] = attendu.split(".");
+      if (geste === "tap") {
+        emettre(`${nom}.tap`);
+        continue;
+      }
+      // Un survol à la souris ou au clavier est rejoué s'il dure encore ; au doigt, le toucher survole.
+      const bloc = racine.querySelector(`[data-name="${CSS.escape(nom)}"]`);
+      if (geste === "touch" || (geste === "hover" && bloc?.matches(":hover")) || (geste === "focus" && bloc?.contains(document.activeElement))) survoler(nom, true);
+    }
     carrefour.addEventListener("click", (evenement) => {
       const bouton = evenement.target.closest(".portail");
       if (bouton) franchir(bouton);

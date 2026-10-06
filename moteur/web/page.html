@@ -175,17 +175,36 @@
     };
     const noter = (evenement) => {
       const bloc = evenement.target.closest("[data-name]");
+      // Au doigt, toucher un bloc qu'une règle écoute au survol le survole (ADR-039).
+      const survole = evenement.pointerType === "touch" && evenement.target.closest("[data-hover]");
+      if (survole) attente.push(`${survole.dataset.name}.touch`);
       if (bloc) {
         attente.push(bloc.dataset.name);
         bloc.classList.add("holo-attend");
         racine.setAttribute("aria-busy", "true");
       }
-      if (bloc || evenement.target.closest('a[href^="#"]')) charger();
+      if (bloc || survole || evenement.target.closest('a[href^="#"]')) charger();
     };
     const ouvrirLeMenu = () => { window.__holoMenuDemande = true; charger(); };
     // Zoomer à la molette : la page à elle, pas le navigateur ; le moteur arrive pour la suite.
     const zoom = (evenement) => { if (evenement.ctrlKey) { evenement.preventDefault(); charger(); } };
     const pincer = (evenement) => { if (evenement.touches.length > 1) charger(); };
+    // La souris arrive sur un bloc qu'une règle écoute au survol, ou le clavier s'y pose (ADR-039) :
+    // le moteur arrive, et le survol est rejoué s'il dure encore.
+    const survol = (evenement) => {
+      if (evenement.pointerType === "touch") return;
+      const bloc = evenement.target.closest("[data-hover]");
+      if (!bloc || bloc.contains(evenement.relatedTarget)) return;
+      const signal = `${bloc.dataset.name}.${evenement.type.startsWith("focus") ? "focus" : "hover"}`;
+      if (evenement.type === "pointerover" || evenement.type === "focusin") {
+        if (!attente.includes(signal)) attente.push(signal);
+        charger();
+      } else if (attente.includes(signal)) attente.splice(attente.indexOf(signal), 1);
+    };
+    racine.addEventListener("pointerover", survol);
+    racine.addEventListener("pointerout", survol);
+    racine.addEventListener("focusin", survol);
+    racine.addEventListener("focusout", survol);
     racine.addEventListener("click", noter);
     racine.addEventListener("focusin", charger);
     // Un bouton rond coché, une option choisie : le moteur arrive, et reprend ce choix.
@@ -197,6 +216,10 @@
     window.__holoArreterDeNoter = () => {
       finDeLAttente();
       racine.removeEventListener("click", noter);
+      racine.removeEventListener("pointerover", survol);
+      racine.removeEventListener("pointerout", survol);
+      racine.removeEventListener("focusin", survol);
+      racine.removeEventListener("focusout", survol);
       racine.removeEventListener("focusin", charger);
       racine.removeEventListener("change", charger);
       racine.removeEventListener("input", charger);

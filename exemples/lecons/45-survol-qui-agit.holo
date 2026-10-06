@@ -1,0 +1,47 @@
+// Leçon 45 — Le survol qui agit
+//
+// Ce qu'on apprend :
+//   Une règle peut écouter le survol d'un bloc nommé :
+//     On(Carte.hover, effect: …)     quand la souris arrive sur la carte
+//     On(Carte.hoverEnd, effect: …)  quand elle la quitte
+//   Le survol change des valeurs (ou joue un son) ; il n'emmène jamais ailleurs : pour entrer
+//   dans un monde ou changer de page, il faut toucher.
+//   Partout, le survol est atteignable : à la souris, au clavier (touche Tab), et au doigt sur
+//   un téléphone, où toucher la carte la survole et toucher ailleurs la quitte.
+//   (Pour changer seulement l'allure au survol, un style suffit : voir la leçon 37.)
+//
+// À essayer :
+//   Passe la souris sur la carte, puis enlève-la. Sur un téléphone, touche la carte.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 45 : le survol qui agit",
+  state: State(regard: 0, passages: 0),
+  children: [
+    H1("Le survol qui agit"),
+    Column.carte(name: Carte, children: [
+      H2("Le soleil sur la rivière"),
+      "Une peinture faite à la main.",
+      If(regard, is: 1, children: [ P.astuce("Livrée en trois jours, encadrée.") ]),
+    ]),
+    Text("La souris est passée {passages} fois."),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 44 : un choix", to: "44-choix.holo"),
+      A("Leçon 46 : sinon →", to: "46-sinon.holo"),
+    ]),
+  ],
+  rules: [
+    On(Carte.hover, effect: [regard.set(1), passages.add(1)]),
+    On(Carte.hoverEnd, effect: regard.set(0)),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+H2 { font-size: 20px; }
+A { color: #8fd3ff; }
+.carte { border: 1px solid #E9B44C; border-radius: 12px; padding: 16px; hover: { background: #1a1a2e; } }
+.astuce { color: #E9B44C; }

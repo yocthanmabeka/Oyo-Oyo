@@ -52,5 +52,9 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 42 | [Un tableau de données](42-tableau.holo) | `Table` |
 | 43 | [Un texte long](43-texte-long.holo) | `Input(lines:)` |
 | 44 | [Un choix parmi plusieurs](44-choix.holo) | `Choice` |
+| 45 | [Le survol qui agit](45-survol-qui-agit.holo) | `On(Carte.hover)`, `hoverEnd` |
+| 46 | [Sinon](46-sinon.holo) | `If(…, else: [ … ])` |
+| 47 | [Une seule fois, plus tard](47-plus-tard.holo) | `After` |
+| 48 | [L'heure du visiteur](48-heure.holo) | `year`, `month`, `day`, `weekday`, `hour`, `minute` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.

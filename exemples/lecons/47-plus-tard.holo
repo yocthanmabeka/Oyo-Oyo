@@ -1,0 +1,41 @@
+// Leçon 47 — Une seule fois, plus tard
+//
+// Ce qu'on apprend :
+//   After(3s, effect: …) : une seule fois, après trois secondes. (Every, lui, recommence sans fin.)
+//   Posée dans les règles de la page, l'attente part à l'ouverture.
+//   Rangée sous une condition, If(message, is: 1, rules: [ After(3s, …) ]), elle part au moment
+//   où la condition devient vraie : un message qui s'efface tout seul.
+//   La durée va de 100ms à 3600s.
+//
+// À essayer :
+//   Attends deux secondes : le bonjour arrive. Touche « Ajouter » : le message s'efface tout seul.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 47 : plus tard",
+  state: State(accueil: 0, message: 0, panier: 0),
+  children: [
+    H1("Une seule fois, plus tard"),
+    If(accueil, is: 1, children: [ P.annonce("Bienvenue ! Prends ton temps.") ]),
+    Button(name: Ajouter, text: "Ajouter au panier"),
+    Text("Panier : {panier}"),
+    If(message, is: 1, children: [ P.annonce("Ajouté au panier.") ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 46 : sinon", to: "46-sinon.holo"),
+      A("Leçon 48 : l'heure du visiteur →", to: "48-heure.holo"),
+    ]),
+  ],
+  rules: [
+    After(2s, effect: accueil.set(1)),
+    On(Ajouter.tap, effect: [panier.add(1), message.set(1)]),
+    If(message, is: 1, rules: [ After(3s, effect: message.set(0)) ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.annonce { background: #1a1a2e; border: 1px solid #E9B44C; border-radius: 8px; padding: 8px 12px; }

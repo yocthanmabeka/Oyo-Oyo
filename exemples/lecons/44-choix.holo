@@ -24,6 +24,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 43 : un texte long", to: "43-texte-long.holo"),
+      A("Leçon 45 : le survol qui agit →", to: "45-survol-qui-agit.holo"),
     ]),
   ],
 )

@@ -937,6 +937,41 @@ Page(
 
 Ces ajouts sont à l'essai (`ADR-038`). Les leçons sont `40-langue-et-partage.holo` à `44-choix.holo`.
 
+## 6 terdecies. Le survol qui agit, le « sinon », plus tard, l'heure
+
+```holo
+Page(
+  title: "The studio",
+  state: State(tip: 0, added: 0, cart: 0),
+  children: [
+    Column(name: Card, children: [
+      H1("Sunrise over the river"),
+      If(tip, is: 1, children: [ P("Delivered in three days.") ]),
+    ]),
+    If(cart, is: 0, children: [ P("Your cart is empty.") ], else: [ P("{cart} in your cart.") ]),
+    Button(name: Add, text: "Add to cart"),
+    If(added, is: 1, children: [ P("Added.") ]),
+    If(hour, over: 8, under: 18,
+      children: [ P("Open now: it is {hour} h {minute}.") ],
+      else: [ P("Closed. We open at 9 am.") ],
+    ),
+  ],
+  rules: [
+    On(Card.hover, effect: tip.set(1)),
+    On(Card.hoverEnd, effect: tip.set(0)),
+    On(Add.tap, effect: [cart.add(1), added.set(1)]),
+    If(added, is: 1, rules: [ After(3s, effect: added.set(0)) ]),
+  ],
+)
+```
+
+- **`On(Card.hover, …)` et `On(Card.hoverEnd, …)`** : la souris arrive sur un bloc nommé, puis le quitte. Le clavier y arrive aussi (Tab), et le doigt sur un téléphone : toucher le bloc le survole, toucher ailleurs le quitte. Un survol change des valeurs ou joue un son ; pour entrer dans un monde, il faut toucher. Pour changer seulement l'allure, un style suffit : `hover: { … }`.
+- **`else: [ … ]`** dans un `If` : ce qu'on montre quand la condition est fausse.
+- **`After(3s, effect: …)`** : une seule fois, plus tard. Dans les règles de la page, l'attente part à l'ouverture ; sous une condition, elle part quand la condition devient vraie. Ici, « Added. » s'efface trois secondes après l'ajout.
+- **L'heure du visiteur** : `year`, `month`, `day`, `weekday` (1 lundi … 7 dimanche), `hour`, `minute`. On les montre et on les compare ; on ne les change pas. La page se tient à jour à chaque minute.
+
+Ces ajouts sont à l'essai (`ADR-039`). Les leçons sont `45-survol-qui-agit.holo` à `48-heure.holo`.
+
 ## 6 undecies. Les repères, la superposition, le survol, le texte qui grandit
 
 **Les repères.** Une personne aveugle saute d'un repère à l'autre avec son lecteur d'écran. Rien ne change à l'œil.
@@ -1188,7 +1223,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Hr` | aucun | Dans `children` |
 | `Quote` | le texte entre guillemets, `by` | Dans `children` |
 | `Code` | le texte entre guillemets | Dans `children` |
-| `If` | le nom d'une valeur, puis `is`, `not`, `over`, `under`, et `children` | Dans `children` |
+| `If` | le nom d'une valeur, puis `is`, `not`, `over`, `under`, et `children` (avec `else`) ou `rules` | Dans `children`, ou dans `rules` |
 | `List` | `children`, `ordered`, `name` | Dans `children` |
 | `Button` | `name`, `text` | Dans `children` |
 | `Point` | `name`, `seed`, `brightness`, `fragments`, `color`, `palette`, `budget`, `inside` ; `above` quand il est planté dans un pixel | Dans `children` ou `pixels`, ou à la racine |
@@ -1202,6 +1237,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Use` | le nom d'un morceau importé | Dans `children` |
 | `On` | le signal, puis `effect:` | Dans `rules` |
 | `Every` | le rythme, puis `effect:` | Dans `rules` |
+| `After` | la durée, puis `effect:` | Dans `rules` |
 | `When` | le nom d'une valeur, puis `is`, `not`, `over`, `under` ; ou le nom d'un bloc, puis `meets` et `within` ; et `effect:` | Dans `rules` |
 | `State` | les valeurs et leur départ : `cart: 0` | Dans `state:` d'une `Page` |
 | `Data` | `from`, `every` | Dans `data:` d'une `Page` |
@@ -1265,8 +1301,11 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Le son | `Sound(name:, source:)`, et la capacité `play` | fait |
 | Une forme simple | `Shape(form:, color:, size:)` | fait, à l'essai |
 | Comparer deux valeurs, fixer d'après une autre | `over: best`, `best.set(score)` | fait, à l'essai |
-| La vidéo | aucun | à faire |
-| Le survol, l'approche | aucun | à faire |
+| Le survol | `On(Carte.hover, …)`, `On(Carte.hoverEnd, …)` | fait, à l'essai |
+| Le « sinon » | `If(…, else: [ … ])` | fait, à l'essai |
+| Une seule fois, plus tard | `After(3s, effect: …)` | fait, à l'essai |
+| La date et l'heure du visiteur | `year`, `month`, `day`, `weekday`, `hour`, `minute` | fait, à l'essai |
+| L'approche d'un personnage, en profondeur | aucun | à faire |
 | Réagir au zoom par une règle (« quand on zoome, alors… ») | aucun | à faire |
 | Ranger côte à côte, l'un sous l'autre, en grille | `Row`, `Column`, `Grid` | fait, à l'essai |
 | L'écart et le placement | `gap:`, `align:`, `columns:` | fait, à l'essai |

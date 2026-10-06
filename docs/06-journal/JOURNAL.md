@@ -6,6 +6,28 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Lot 2 : le survol qui agit, le « sinon », plus tard, l'heure du visiteur
+
+- Yocthan : « tu travailles sur le lot 2 jusqu'au lot 5… je suis tes recommandations. » Le lot 2 est fait (`ADR-039`, à l'essai) ; la page pour écouter ADR-011 est en ligne : https://claude.ai/artifact/28bt9BUqNTg7Bfq1DDm5kc
+- Fait : `On(Carte.hover, …)` et `On(Carte.hoverEnd, …)` sur tout bloc nommé qui se voit ; `If(…, else: [ … ])` ; `After(3s, effect: …)`, qui part à l'ouverture ou, sous une condition, quand elle devient vraie ; l'heure du visiteur (`year`, `month`, `day`, `weekday`, `hour`, `minute`), tenue à jour à chaque minute. Leçons 45 à 48. Le serveur donne son heure au moteur (`HOLO_MAINTENANT`) pour la page fabriquée d'avance.
+- Le choix du nom : `hover` plutôt que `near` (proposé pour la profondeur), parce que les styles disent déjà `hover:`.
+- Contre les défauts du web : le survol est atteignable au clavier (le bloc reçoit le focus avec Tab) et au doigt (toucher survole, toucher ailleurs quitte) ; un survol ne peut pas emmener ailleurs.
+- Vérifié dans Chrome : la page légère fait venir le moteur au premier survol, puis le rejoue (souris, clavier, doigt) ; le « sinon » suit le panier ; le bonjour arrive à 2 s et le message s'efface 3 s après l'ajout ; l'heure affichée passe de 18 h 33 à 18 h 34 à la seconde près. 97 tests. Tous les fichiers du dépôt passent, sauf les 23 refus voulus.
+- Couverture estimée : ensemble de 53 % à 55 % ; 246 mots (22 à l'essai). Tableau en ligne republié.
+
+![Le survol au doigt, sur un téléphone](images/2026-10-06-lot2-survol-au-doigt.png)
+
+![L'heure du visiteur et le « sinon »](images/2026-10-06-lot2-heure.png)
+
+**Erreurs en route**
+
+- Un script de modification passé directement au shell a été mal lu (une apostrophe) : rien n'a été écrit. Les scripts passent désormais par un fichier.
+- Mon premier test du survol plaçait la souris à côté de la carte, et celui du « sinon » regardait avant l'arrivée du moteur : deux fausses alertes, corrigées dans le test, pas dans le moteur.
+- Le premier Tab sur la page légère réveillait le moteur sans rejouer le survol : corrigé (le focus est noté puis rejoué comme la souris).
+- `{minute}` s'affiche sans zéro devant (`18 h 5`) : les formats de date restent à faire.
+
+---
+
 ## 2026-10-06 — Les quatre parties d'ADR-011 décidées ; une page pour l'écouter
 
 - Yocthan : « Personnellement, je suis tes recommandations. » A (rendu par vue) : `ACCEPTÉ` ; B (ponts vers JavaScript et CSS) : `REJETÉ`, raison gardée ; C (deux étages, modules enfermés) : `ACCEPTÉ` pour la direction, construction à faire ; D (HoloIR) : reste `PROPOSITION`.

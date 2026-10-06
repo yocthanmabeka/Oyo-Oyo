@@ -109,6 +109,29 @@ pub fn horloges(source: &str) -> String {
     verifier_page(source).map(|programme| etat::horloges(&programme).iter().map(|(ms, valeur)| format!("{ms}:{valeur}")).collect::<Vec<_>>().join(";")).unwrap_or_default()
 }
 
+/// Les attentes d'une page (`After`), et si chacune court pour cet état : `3000:1;5000:0` (ADR-039).
+pub fn delais(source: &str, etat: &str) -> String {
+    let Ok(programme) = verifier_page(source) else { return String::new() };
+    etat::delais(&programme, &etat::relire(&programme, etat)).iter().map(|(ms, court)| format!("{ms}:{}", u8::from(*court))).collect::<Vec<_>>().join(";")
+}
+
+/// La page lit-elle l'heure du visiteur ? Elle la tient alors à jour, minute après minute.
+pub fn lit_l_heure(source: &str) -> bool {
+    verifier_page(source).is_ok_and(|programme| etat::lit_l_heure(&programme))
+}
+
+/// Donne au moteur l'heure du visiteur : année, mois, jour, jour de la semaine (1 lundi), heure, minute.
+pub fn regler_maintenant(valeurs: [u64; 6]) {
+    etat::regler_maintenant(valeurs);
+}
+
+/// Une minute a passé : l'état avec la nouvelle heure, après les règles qui la guettent.
+pub fn avancer_l_horloge(source: &str, etat: &str) -> String {
+    let Ok(programme) = verifier_page(source) else { return String::new() };
+    etat::capacites_demandees();
+    ecrire_tout(&programme, &etat::avancer_l_horloge(&programme, etat), &etat::relire_textes(&programme, etat))
+}
+
 /// Les fichiers qu'une page importe (`commun.holo;pied.holo`), pour qu'on aille les chercher et
 /// qu'on les joigne à son texte avant de le donner au moteur.
 pub fn imports(source: &str) -> String {

@@ -290,6 +290,30 @@ pub fn horloges(source: &str) -> String {
     crate::horloges(source)
 }
 
+/// Les attentes d'une page et si chacune court : `3000:1;5000:0`.
+#[wasm_bindgen]
+pub fn delais(source: &str, etat: &str) -> String {
+    crate::delais(source, etat)
+}
+
+/// La page lit-elle l'heure du visiteur ?
+#[wasm_bindgen]
+pub fn lit_l_heure(source: &str) -> bool {
+    crate::lit_l_heure(source)
+}
+
+/// L'heure de l'appareil du visiteur, donnée au moteur.
+#[wasm_bindgen]
+pub fn regler_maintenant(annee: u32, mois: u32, jour: u32, semaine: u32, heure: u32, minute: u32) {
+    crate::regler_maintenant([annee, mois, jour, semaine, heure, minute].map(u64::from));
+}
+
+/// Une minute a passé : le nouvel état.
+#[wasm_bindgen]
+pub fn avancer_l_horloge(source: &str, etat: &str) -> String {
+    crate::avancer_l_horloge(source, etat)
+}
+
 /// Les fichiers qu'une page importe.
 #[wasm_bindgen]
 pub fn imports(source: &str) -> String {
