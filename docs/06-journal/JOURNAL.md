@@ -6,6 +6,14 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Codex relit les composants ; deux styles importés ne se gênent plus en silence
+
+- Codex a répondu au prompt sur les composants (PR 124, `proposals/GPT5.6/web-assez-utilisable-2026-10-07/`). Il constate que les composants à paramètres existaient déjà, refait le tableau (HoloCode à **74,6 %** pour son public, Svelte 85,4 %), et relève un défaut : les noms de style d'un fichier importé valent pour toute la page, et deux fichiers qui écrivent le même style se gênaient, le premier gagnant en silence.
+- Corrigé (`ADR-050`, correction du jour) : deux fichiers importés qui écrivent le même style sont refusés, avec leurs deux noms. Les noms de style importés restent partagés avec la page, parce que le site de référence s'en sert comme d'un thème commun ; un composant qui ne veut rien partager se style par son nom.
+- Vérifié : 115 tests ; toutes les pages de `exemples/site/` et `exemples/site-reference/` passent `holo check`.
+
+---
+
 ## 2026-10-06 — Un moteur léger, le dessin à part
 
 - Point 4 du comparatif. Fait (`ADR-053`) : une option de compilation `dessin` ; sans elle, le moteur léger lit, fabrique la page et arbitre, sans `wgpu`. La page prend le léger (`/pkg-leger/`) et ne fait venir le dessin (`/pkg/`) que si elle montre des points ou des mondes. L'éditeur prend le léger.

@@ -908,6 +908,8 @@ ArticleCard { border: 1px solid --accent; border-radius: 12px; padding: 12px 16p
 
 Une variable se définit dans le thème (`Page { --accent: … }`) pour valoir partout, ou dans le style d'un composant ou d'un nom pour valoir sur ce bloc et ce qu'il contient.
 
+**Ce qui est partagé.** Les noms de style d'un fichier importé (`.card`) valent pour toute la page, comme un thème ; deux fichiers importés qui écrivent le même style sont refusés. Pour qu'un composant ne partage rien, style-le par son nom : `ArticleCard { … }` ne vise que ses copies.
+
 Ce que le moteur fabrique : du vrai HTML, la racine de chaque copie portant la classe du composant et celles de ses noms de style ; et du vrai CSS. Rien n'est envoyé en JavaScript.
 
 Cette écriture est décidée (`ADR-050`).

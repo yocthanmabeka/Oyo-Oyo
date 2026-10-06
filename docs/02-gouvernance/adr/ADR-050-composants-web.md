@@ -43,6 +43,12 @@ Un morceau (`Part`, `ADR-029`) n'avait ni paramètres, ni règles : on ne pouvai
 - Une valeur de la page est nécessaire par copie qui compte quelque chose ; une liste à champs (point 2 du plan) l'allégera.
 - Les réponses de Gemini et de Codex au prompt du 2026-10-06 seront lues : si elles montrent un défaut, on corrige avant que d'autres pages ne s'en servent.
 
+## Correction du 2026-10-06, après la revue de Codex (PR 124)
+
+Codex a relevé que les noms de style d'un fichier importé (`.card`) valent pour toute la page, et que si deux fichiers importés écrivent le même style, le premier gagnait en silence. Il propose de cacher automatiquement les noms de style d'un composant importé, comme Vue ou Svelte.
+
+Décidé : **deux fichiers importés qui écrivent le même style sont refusés**, avec leurs deux noms ; la page peut toujours réécrire un style importé. Les noms de style d'un fichier importé **restent partagés** avec la page : le site de référence s'en sert comme d'un thème commun (`.carte`, `.prix` dans `commun.holo`), et les cacher le casserait. Un composant qui ne veut rien partager se style par son nom, `ArticleCard { … }`, qui ne vise que ses copies. Si un vrai composant importé a besoin de styles cachés, on y reviendra avec la proposition de Codex.
+
 ## Critères de validation
 
 - Tests du moteur : une copie posée comme un bloc, ses classes, ses règles par copie, son restylage par le nom du composant, un nom de style et une variable ; un composant dans une répétition et dans un fichier importé ; les refus (paramètre oublié, mal écrit, donné deux fois, composant qui se pose lui-même, nom de bloc du langage, plusieurs racines, copies sans nom).
