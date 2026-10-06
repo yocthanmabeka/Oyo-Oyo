@@ -6,6 +6,28 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Les deux films du motion design, identiques point par point
+
+**Ce que Yocthan a relevé**
+
+- « Pourquoi les deux showreels ne se ressemblent pas point par point ? Je t'avais dit de construire exactement le même, ligne par ligne ; seule l'extension devait changer. Tu n'as pas rempli les conditions. »
+
+**Erreur de Claude**
+
+- Il avait compris « tous les curseurs à 100 % » comme « chaque langage à son maximum », et avait donné au film web des particules, un morphing en cœur, un cube et la souris que HoloCode n'a pas. La comparaison n'était donc pas à fonctions égales, ce que Codex demande aussi (`C01`).
+
+**Corrigé**
+
+- `exemples/motion/web/showreel.html` est maintenant le jumeau exact du film HoloCode : les 36 éclats sont relus dans le fichier `.holo`, et tout le reste reprend les mêmes valeurs. Vérifié sur sept images prises aux mêmes instants : identiques.
+- L'ancienne version est gardée, hors comparaison : `showreel-max.html`.
+- Mesures honnêtes : 206 lignes contre 184 ; 14 193 octets contre 21 377 ; 10 Ko téléchargés contre 4 Ko ; 0 ligne de JavaScript contre 7.
+
+**Défaut trouvé en comparant** : quand le moteur arrive dans la page, il la redessine, et le film HoloCode repart de zéro. À corriger.
+
+![Les deux films côte à côte, scènes 1 à 4](images/2026-10-06-motion-jumeaux-1.png)
+
+---
+
 ## 2026-10-06 — Le site de référence de Codex, construit
 
 **Ce que Yocthan a demandé**

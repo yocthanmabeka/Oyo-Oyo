@@ -4,7 +4,8 @@
 // JavaScript, aucune bibliothèque. Le moteur en fait du CSS ; la page bouge même avant que
 // le moteur arrive dans le navigateur (ADR-033, ADR-034).
 //
-// Son jumeau en HTML, CSS et JavaScript : ../web/showreel.html
+// Son jumeau exact en HTML et CSS : ../web/showreel.html (et une version qui va plus loin
+// que HoloCode : ../web/showreel-max.html)
 
 Page(
   title: "Claude — Motion Showreel",
