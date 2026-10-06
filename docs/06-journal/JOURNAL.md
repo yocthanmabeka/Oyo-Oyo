@@ -6,6 +6,13 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Les quatre parties d'ADR-011 décidées ; une page pour l'écouter
+
+- Yocthan : « Personnellement, je suis tes recommandations. » A (rendu par vue) : `ACCEPTÉ` ; B (ponts vers JavaScript et CSS) : `REJETÉ`, raison gardée ; C (deux étages, modules enfermés) : `ACCEPTÉ` pour la direction, construction à faire ; D (HoloIR) : reste `PROPOSITION`.
+- Il demande aussi d'entendre la fiche à voix haute : une page avec un bouton « Écouter » lit tout le fichier, paragraphe par paragraphe, avec la voix française du navigateur.
+
+---
+
 ## 2026-10-06 — ADR-006, 012 et 013 réunies dans ADR-011
 
 - Yocthan : voir ADR-011, 012, 013 et 006 pour savoir ce qu'il y a à décider ; les réunir dans un seul fichier, ADR-011, et supprimer les autres.

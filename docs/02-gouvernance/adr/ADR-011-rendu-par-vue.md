@@ -8,18 +8,18 @@
 
 | Partie | Ce que c'est | Où en est-on | Statut aujourd'hui | Recommandation de Claude |
 |---|---|---|---|---|
-| **A** (ADR-011) | La page à plat en HTML et CSS fabriqués ; la vue en profondeur par le moteur | **Construit et mesuré** : 60 images par seconde sur deux téléphones ; le site léger (8 Ko) ; les deux vues décrites par le même fichier | EXPÉRIMENTATION | **Valider.** Tout ce qui est construit depuis repose dessus. |
-| **B** (ADR-012) | Des ponts vers du JavaScript et du CSS existants (`bridge js`, `bridge css`) | **Jamais construit.** Le moteur lit les mots, mais ne les applique pas. | EXPÉRIMENTATION | **Ne pas valider, ne pas construire pour l'instant.** Un pont fait entrer du code sans garantie, contre la règle « pas de code libre » (ADR-015, ADR-035) ; Codex l'a signalé. À réexaminer seulement si un vrai site en a besoin. |
-| **C** (ADR-013) | Deux étages : HoloCode, et des modules WebAssembly enfermés (mémoire plafonnée, temps limité, droits déclarés) | **Jamais construit**, mais c'est la réponse que Gemini, ChatGPT et Claude ont donnée à la plainte des humains contre l'interdiction du code (le 2026-10-06) | EXPÉRIMENTATION | **Valider la direction**, et la construire plus tard. Codex demande de prouver d'abord qu'on peut arrêter un module qui boucle sans fin. |
+| **A** (ADR-011) | La page à plat en HTML et CSS fabriqués ; la vue en profondeur par le moteur | **Construit et mesuré** : 60 images par seconde sur deux téléphones ; le site léger (8 Ko) ; les deux vues décrites par le même fichier | **ACCEPTÉ** | **Valider.** Tout ce qui est construit depuis repose dessus. |
+| **B** (ADR-012) | Des ponts vers du JavaScript et du CSS existants (`bridge js`, `bridge css`) | **Jamais construit.** Le moteur lit les mots, mais ne les applique pas. | **REJETÉ** | **Ne pas valider, ne pas construire pour l'instant.** Un pont fait entrer du code sans garantie, contre la règle « pas de code libre » (ADR-015, ADR-035) ; Codex l'a signalé. À réexaminer seulement si un vrai site en a besoin. |
+| **C** (ADR-013) | Deux étages : HoloCode, et des modules WebAssembly enfermés (mémoire plafonnée, temps limité, droits déclarés) | **Jamais construit**, mais c'est la réponse que Gemini, ChatGPT et Claude ont donnée à la plainte des humains contre l'interdiction du code (le 2026-10-06) | **ACCEPTÉ** pour la direction ; construction à faire | **Valider la direction**, et la construire plus tard. Codex demande de prouver d'abord qu'on peut arrêter un module qui boucle sans fin. |
 | **D** (ADR-006) | Garder les unités, l'espace et le temps dans un format intermédiaire (HoloIR) | **Rien n'existe** : le moteur lit directement le `.holo` | PROPOSITION | **Laisser en proposition.** La question se posera avec un format binaire du `.holo`. |
 
-Chaque partie garde son statut tant que Yocthan n'en a pas décidé autrement.
+**Décidé par Yocthan le 2026-10-06 : « Personnellement, je suis tes recommandations. »** A est accepté, B est rejeté, la direction de C est acceptée (sa construction reste à faire), D reste une proposition.
 
 ---
 
 ## Partie A — Le rendu : la vue à plat par génération de HTML et CSS, la vue en profondeur par le moteur (ADR-011)
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ — Décidé par Yocthan le 2026-10-06 : « Personnellement, je suis tes recommandations. »
 - Date : 2026-09-21
 - Projets affectés : HoloCompiler, HoloEngine
 - Proposé par : Claude. Validé par Yocthan le 2026-09-21, après lecture. La fusion de la pull request qui introduit cette fiche vaut confirmation.
@@ -64,7 +64,7 @@ Dans les deux cas, le fichier source ne contient ni HTML, ni CSS, ni JavaScript.
 
 ## Partie B — Première version : des ponts vers JavaScript et CSS seulement (ancienne ADR-012)
 
-- Statut : EXPÉRIMENTATION
+- Statut : REJETÉ — Décidé par Yocthan le 2026-10-06 : « Personnellement, je suis tes recommandations. » Raison gardée : un pont fait entrer du code sans garantie, contre ADR-015 et ADR-035 ; les modules enfermés (partie C) répondent au même besoin avec des garanties. À réexaminer seulement si un vrai site ne peut pas s'en passer. Les mots `bridge js` et `bridge css` restent lus par le moteur, sans effet, en attendant d'être retirés.
 - Date : 2026-09-21
 - Projets affectés : HoloCode, HoloCompiler
 - Validation : décidé par Yocthan le 2026-09-21. La fusion de la pull request qui introduit cette fiche vaut confirmation.
@@ -107,7 +107,7 @@ Ce sont des **outils de transition** :
 
 ## Partie C — Deux étages et trois sortes d'import (ancienne ADR-013)
 
-- Statut : EXPÉRIMENTATION
+- Statut : ACCEPTÉ pour la direction — Décidé par Yocthan le 2026-10-06 : « Personnellement, je suis tes recommandations. » La construction des modules enfermés reste à faire ; elle commencera par la preuve demandée par Codex : arrêter un module qui boucle sans fin. Le troisième import (`bridge`) tombe avec la partie B.
 - Date : 2026-09-21
 - Projets affectés : HoloCode, HoloCode-Core, HoloRuntime
 - Proposé par : Claude. Validé par Yocthan le 2026-09-21, après lecture. La fusion de la pull request qui introduit cette fiche vaut confirmation.
