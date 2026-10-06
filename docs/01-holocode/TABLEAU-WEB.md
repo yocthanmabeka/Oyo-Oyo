@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-06). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (290 mots : 224 décidés, 66 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (290 mots : 290 décidés, 0 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
 - **Couverture** : la part de ce que fait l’élément web qu’on obtient en HoloCode aujourd’hui. Estimation de Claude, non mesurée.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,7 +9,7 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 290 mots | 224 décidés, 66 à l’essai |
+| **HoloCode** | 290 mots | 290 décidés, 0 à l’essai |
 | HTML | 82 % de couverture | 47 oui, 6 en partie, 6 non, 3 refusés |
 | CSS | 78 % de couverture | 24 oui, 6 en partie, 2 non, 2 refusés |
 | JavaScript | 48 % de couverture | 11 oui, 12 en partie, 9 non, 1 refusés |
@@ -48,7 +48,7 @@
 | `Quote` | Une citation, et son auteur | `blockquote` | Décidé (ADR-025) |
 | `Code` | Du code montré tel quel | `pre, code` | Décidé (ADR-025) |
 | `List` | Une liste, à puces ou numérotée | `ul, ol, li` | Décidé (ADR-009) |
-| `Table` | Un tableau de données | `table, caption, thead, tbody, tr, th, td` | À l’essai (ADR-038) |
+| `Table` | Un tableau de données | `table, caption, thead, tbody, tr, th, td` | Décidé (ADR-038) |
 
 ## Blocs : les médias
 
@@ -57,7 +57,7 @@
 | `Image` | Une image | `img` | Décidé (ADR-009) |
 | `Sound` | Un son qu'une règle fait entendre | `audio` | Décidé (ADR-031) |
 | `Shape` | Une forme : rond, carré, triangle, losange | `div + CSS, svg` | Décidé (ADR-032) |
-| `Video` | Une vidéo, avec ses boutons, jamais lancée seule | `video controls` | À l’essai (ADR-038) |
+| `Video` | Une vidéo, avec ses boutons, jamais lancée seule | `video controls` | Décidé (ADR-038) |
 
 ## Blocs : la disposition
 
@@ -76,7 +76,7 @@
 | `Button` | Un bouton | `button` | Décidé (ADR-009) |
 | `Input` | Un champ où l'on écrit un nombre ou un texte | `input` | Décidé (ADR-027) |
 | `Checkbox` | Une case à cocher | `input type=checkbox` | Décidé (ADR-027) |
-| `Choice` | Un choix parmi des options : boutons ronds, ou liste avec menu: true | `input radio, select, option` | À l’essai (ADR-038) |
+| `Choice` | Un choix parmi des options : boutons ronds, ou liste avec menu: true | `input radio, select, option` | Décidé (ADR-038) |
 
 ## Blocs : les mondes
 
@@ -135,7 +135,7 @@
 | `data` | Les données du serveur | `fetch` | Décidé (ADR-030) |
 | `zoom, points, relief, portals` | Comment la page se regarde | — | Décidé (ADR-021) |
 | `pixels` | Des sites plantés dans des pixels | — | Décidé (ADR-021) |
-| `lang, description, image` | La langue, la description pour Google, l'image de partage | `html lang, meta description, og:image` | À l’essai (ADR-038) |
+| `lang, description, image` | La langue, la description pour Google, l'image de partage | `html lang, meta description, og:image` | Décidé (ADR-038) |
 
 ## Paramètres : le texte
 
@@ -145,7 +145,7 @@
 | `to` | L'adresse d'un lien | `href` | Décidé (ADR-022) |
 | `by` | L'auteur d'une citation | `cite` | Décidé (ADR-025) |
 | `ordered` | Une liste numérotée | `ol` | Décidé (ADR-009) |
-| `caption, head, rows` | La légende, les titres de colonnes et les lignes d'un tableau | `caption, thead, tbody` | À l’essai (ADR-038) |
+| `caption, head, rows` | La légende, les titres de colonnes et les lignes d'un tableau | `caption, thead, tbody` | Décidé (ADR-038) |
 
 ## Paramètres : les médias
 
@@ -168,8 +168,8 @@
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `value, label, max` | La valeur liée, l'étiquette (obligatoire), le maximum | `value, label, max` | Décidé (ADR-027) |
-| `lines` | Un texte long, sur plusieurs lignes | `textarea` | À l’essai (ADR-038) |
-| `options, menu` | Les options d'un choix ; la liste déroulante | `option, select` | À l’essai (ADR-038) |
+| `lines` | Un texte long, sur plusieurs lignes | `textarea` | Décidé (ADR-038) |
+| `options, menu` | Les options d'un choix ; la liste déroulante | `option, select` | Décidé (ADR-038) |
 
 ## Paramètres : les mondes
 
@@ -274,113 +274,113 @@
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `After` | Une seule fois, plus tard ; sous une condition, part quand elle devient vraie | `setTimeout` | À l’essai (ADR-039) |
+| `After` | Une seule fois, plus tard ; sous une condition, part quand elle devient vraie | `setTimeout` | Décidé (ADR-039) |
 
 ## Paramètres : les règles
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `else` | Ce qu'un If montre quand la condition est fausse | `else` | À l’essai (ADR-039) |
+| `else` | Ce qu'un If montre quand la condition est fausse | `else` | Décidé (ADR-039) |
 
 ## Signaux et capacités
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `hover, hoverEnd` | La souris, le clavier ou le doigt arrive sur un bloc, puis le quitte | `mouseenter, mouseleave, focus, blur` | À l’essai (ADR-039) |
+| `hover, hoverEnd` | La souris, le clavier ou le doigt arrive sur un bloc, puis le quitte | `mouseenter, mouseleave, focus, blur` | Décidé (ADR-039) |
 
 ## Valeurs calculées
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `{year}, {month}, {day}, {weekday}, {hour}, {minute}` | L'heure de l'appareil du visiteur, tenue à jour | `new Date()` | À l’essai (ADR-039) |
+| `{year}, {month}, {day}, {weekday}, {hour}, {minute}` | L'heure de l'appareil du visiteur, tenue à jour | `new Date()` | Décidé (ADR-039) |
 
 ## Blocs : les valeurs
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `Repeat` | Écrire un modèle une fois, le poser pour chaque élément | `for, map, template` | À l’essai (ADR-040) |
-| `Item` | Un élément d'une répétition, et ses champs | `un objet JavaScript` | À l’essai (ADR-040) |
+| `Repeat` | Écrire un modèle une fois, le poser pour chaque élément | `for, map, template` | Décidé (ADR-040) |
+| `Item` | Un élément d'une répétition, et ses champs | `un objet JavaScript` | Décidé (ADR-040) |
 
 ## Paramètres : les valeurs
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `items, key` | Les éléments d'une répétition ; la clé d'un élément | `un tableau, key` | À l’essai (ADR-040) |
+| `items, key` | Les éléments d'une répétition ; la clé d'un élément | `un tableau, key` | Décidé (ADR-040) |
 
 ## Mots-valeurs
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `item` | L'élément en cours, dans le modèle : {item.title}, item.add(1) | `item => …` | À l’essai (ADR-040) |
+| `item` | L'élément en cours, dans le modèle : {item.title}, item.add(1) | `item => …` | Décidé (ADR-040) |
 
 ## Styles
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `line-height, letter-spacing, text-transform, text-decoration` | Le texte soigné | `les mêmes` | À l’essai (ADR-041) |
-| `box-shadow, text-shadow` | Les ombres | `les mêmes` | À l’essai (ADR-041) |
-| `rotate, scale, transition` | Une pose, et la durée du passage d'une allure à l'autre | `rotate, scale, transition` | À l’essai (ADR-041) |
-| `linear-gradient, radial-gradient, url(…)` | Un fond en dégradé ou en image | `background-image` | À l’essai (ADR-041) |
-| `--or (variables)` | Une couleur ou une taille nommée dans le style de la page | `--or, var(--or)` | À l’essai (ADR-041) |
-| `dark, phone` | Le thème sombre ; un écran de téléphone | `@media` | À l’essai (ADR-041) |
+| `line-height, letter-spacing, text-transform, text-decoration` | Le texte soigné | `les mêmes` | Décidé (ADR-041) |
+| `box-shadow, text-shadow` | Les ombres | `les mêmes` | Décidé (ADR-041) |
+| `rotate, scale, transition` | Une pose, et la durée du passage d'une allure à l'autre | `rotate, scale, transition` | Décidé (ADR-041) |
+| `linear-gradient, radial-gradient, url(…)` | Un fond en dégradé ou en image | `background-image` | Décidé (ADR-041) |
+| `--or (variables)` | Une couleur ou une taille nommée dans le style de la page | `--or, var(--or)` | Décidé (ADR-041) |
+| `dark, phone` | Le thème sombre ; un écran de téléphone | `@media` | Décidé (ADR-041) |
 
 ## Blocs : la page
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `Font` | Une police rangée à côté, chargée par la page | `@font-face` | À l’essai (ADR-041) |
+| `Font` | Une police rangée à côté, chargée par la page | `@font-face` | Décidé (ADR-041) |
 
 ## Paramètres : la page
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `fonts, family` | Les polices de la page ; le nom d'une police | `@font-face, font-family` | À l’essai (ADR-041) |
+| `fonts, family` | Les polices de la page ; le nom d'une police | `@font-face, font-family` | Décidé (ADR-041) |
 
 ## Blocs : agir
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `Form` | Un formulaire qu'une règle envoie | `form, fetch POST` | À l’essai (ADR-042) |
-| `Slider` | Une glissière entre deux bornes | `input type=range` | À l’essai (ADR-042) |
-| `Progress` | Une barre de progression | `progress` | À l’essai (ADR-042) |
+| `Form` | Un formulaire qu'une règle envoie | `form, fetch POST` | Décidé (ADR-042) |
+| `Slider` | Une glissière entre deux bornes | `input type=range` | Décidé (ADR-042) |
+| `Progress` | Une barre de progression | `progress` | Décidé (ADR-042) |
 
 ## Blocs : ouvrir et fermer
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `Details` | Un pli qui s'ouvre | `details, summary` | À l’essai (ADR-042) |
-| `Dialog` | Une fenêtre par-dessus la page | `dialog` | À l’essai (ADR-042) |
+| `Details` | Un pli qui s'ouvre | `details, summary` | Décidé (ADR-042) |
+| `Dialog` | Une fenêtre par-dessus la page | `dialog` | Décidé (ADR-042) |
 
 ## Paramètres : les médias
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `caption, phone` | La légende d'une image ; l'image pour un téléphone | `figcaption, picture` | À l’essai (ADR-042) |
+| `caption, phone` | La légende d'une image ; l'image pour un téléphone | `figcaption, picture` | Décidé (ADR-042) |
 
 ## Paramètres : agir
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `type, min, summary, open` | date, time, color ; le minimum d'une glissière ; le résumé d'un pli, ouvert au départ | `type, min, summary, open` | À l’essai (ADR-042) |
+| `type, min, summary, open` | date, time, color ; le minimum d'une glissière ; le résumé d'un pli, ouvert au départ | `type, min, summary, open` | Décidé (ADR-042) |
 
 ## Paramètres : la page
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `icon` | L'image de l'onglet | `link rel=icon` | À l’essai (ADR-042) |
+| `icon` | L'image de l'onglet | `link rel=icon` | Décidé (ADR-042) |
 
 ## Signaux et capacités
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `send, sent, failed` | Envoyer un formulaire ; l'envoi est arrivé, ou non | `fetch, then, catch` | À l’essai (ADR-042) |
-| `open, close` | Ouvrir, fermer une fenêtre | `showModal, close` | À l’essai (ADR-042) |
+| `send, sent, failed` | Envoyer un formulaire ; l'envoi est arrivé, ou non | `fetch, then, catch` | Décidé (ADR-042) |
+| `open, close` | Ouvrir, fermer une fenêtre | `showModal, close` | Décidé (ADR-042) |
 
 ## Le fichier
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `~~barré~~, ==surligné==, ^exposant^, ~indice~` | Les petites marques du texte | `s, mark, sup, sub` | À l’essai (ADR-042) |
+| `~~barré~~, ==surligné==, ^exposant^, ~indice~` | Les petites marques du texte | `s, mark, sup, sub` | Décidé (ADR-042) |
 
 # Partie 2 — HoloCode face à HTML, CSS et JavaScript
 

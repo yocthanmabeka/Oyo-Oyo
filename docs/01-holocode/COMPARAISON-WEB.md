@@ -16,10 +16,10 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `title` | `Page(title:)` | fait |
 | `meta charset` | toujours UTF-8 | fait |
 | `meta viewport` (le zoom) | `Zoom(active:, max:, shrink:)` | fait |
-| `meta description`, image de partage | `Page(description:, image:)` | fait, à l'essai |
-| `html lang` | `Page(lang:)` | fait, à l'essai |
-| `header`, `footer`, `main` | `Header`, `Footer`, `Main` | fait, à l'essai |
-| `nav` | `Nav` | fait, à l'essai |
+| `meta description`, image de partage | `Page(description:, image:)` | fait |
+| `html lang` | `Page(lang:)` | fait |
+| `header`, `footer`, `main` | `Header`, `Footer`, `Main` | fait |
+| `nav` | `Nav` | fait |
 | `aside` | | manque |
 | `section`, `article` | le titre suffit : `H1`, `H2`, `H3` donnent le plan | exprès |
 | `div` | refusé : un bloc dit ce qu'il est (`ADR-009`) | exprès |
@@ -30,15 +30,15 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | HTML | HoloCode | État |
 |---|---|---|
 | `h1`, `h2`, `h3` | `H1`, `H2`, `H3` | fait |
-| `h4`, `h5`, `h6` | `H4`, `H5`, `H6` (correction d'`ADR-020`, 2026-10-06) | fait, à l'essai |
+| `h4`, `h5`, `h6` | `H4`, `H5`, `H6` (correction d'`ADR-020`, 2026-10-06) | fait |
 | `p` | `P`, ou une phrase nue | fait |
 | `strong`, `b` | `**gras**` dans un texte | fait |
 | `em`, `i` | `*italique*` dans un texte | fait |
-| `br` (retour à la ligne) | un texte entre trois guillemets garde ses retours à la ligne | fait, à l'essai |
-| `hr` (trait de séparation) | `Hr()` | fait, à l'essai |
+| `br` (retour à la ligne) | un texte entre trois guillemets garde ses retours à la ligne | fait |
+| `hr` (trait de séparation) | `Hr()` | fait |
 | `u`, `s`, `mark`, `small`, `sub`, `sup` | | manque |
-| `blockquote`, `q`, `cite` (citations) | `Quote("…", by: "…")` | fait, à l'essai |
-| `pre`, `code`, `kbd` (code, texte tel quel) | `Code("…")`, et les accents graves dans une phrase | fait, à l'essai |
+| `blockquote`, `q`, `cite` (citations) | `Quote("…", by: "…")` | fait |
+| `pre`, `code`, `kbd` (code, texte tel quel) | `Code("…")`, et les accents graves dans une phrase | fait |
 | `abbr`, `time`, `address` | | manque |
 
 ### Les listes et les liens
@@ -57,11 +57,11 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | HTML | HoloCode | État |
 |---|---|---|
 | `img` | `Image(source:, weight:)` | fait |
-| `img alt` (le texte pour qui ne voit pas l'image) | `Image(alt:)`, facultatif | fait, à l'essai |
+| `img alt` (le texte pour qui ne voit pas l'image) | `Image(alt:)`, facultatif | fait |
 | `picture`, `source`, `srcset` (plusieurs tailles) | | manque |
 | `figure`, `figcaption` (image et légende) | | manque |
-| `video` | `Video(source:, label:)`, sans lecture automatique | fait, à l'essai |
-| `audio` | `Sound(name:, source:)` et `Ding.play` : un bruit déclenché par une règle ; pas un lecteur | fait, à l'essai |
+| `video` | `Video(source:, label:)`, sans lecture automatique | fait |
+| `audio` | `Sound(name:, source:)` et `Ding.play` : un bruit déclenché par une règle ; pas un lecteur | fait |
 | `canvas`, WebGL | `Point`, `World` | fait |
 | `svg` | comme fichier d'image seulement | en partie |
 | `iframe`, `embed`, `object` | `Point(inside: "fichier.holo")` : on y entre | fait |
@@ -70,7 +70,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 
 | HTML | HoloCode | État |
 |---|---|---|
-| `table`, `tr`, `td`, `th`, `thead`, `tbody`, `caption` | `Table(caption:, head:, rows:)` | fait, à l'essai |
+| `table`, `tr`, `td`, `th`, `thead`, `tbody`, `caption` | `Table(caption:, head:, rows:)` | fait |
 
 ### Les formulaires
 
@@ -78,23 +78,23 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 |---|---|---|
 | `button` | `Button(name:, text:)` | fait |
 | `form` | | manque |
-| `input` : nombre, case à cocher | `Input(value:, label:, max:)`, `Checkbox(value:, label:)` | fait, à l'essai |
-| `input` : texte | `Input(value: buyer, …)` quand la valeur est un texte | fait, à l'essai |
+| `input` : nombre, case à cocher | `Input(value:, label:, max:)`, `Checkbox(value:, label:)` | fait |
+| `input` : texte | `Input(value: buyer, …)` quand la valeur est un texte | fait |
 | `input` : date, bouton radio, fichier… | | manque |
-| `label` | le réglage `label:`, obligatoire | fait, à l'essai |
-| `textarea` | `Input(…, lines: 5)` | fait, à l'essai |
-| `select`, `option`, `input radio` | `Choice(value:, label:, options:)`, `menu: true` | fait, à l'essai |
-| `form` (envoyer) | `Form(name: Contact, …)`, `On(Send.tap, effect: Contact.send)`, `Contact.sent`, `Contact.failed` | fait, à l'essai : vers un fichier du serveur local |
-| `input range` | `Slider(value:, label:, min:, max:)` | fait, à l'essai |
-| `input date`, `time`, `color` | `Input(…, type: date)` | fait, à l'essai |
-| `progress` | `Progress(value:, max:, label:)` | fait, à l'essai |
-| `details`, `summary` | `Details(summary:, children:)` | fait, à l'essai |
-| `dialog` | `Dialog(name:)`, `open`, `close` | fait, à l'essai |
-| `figure`, `figcaption`, `picture` | `Image(caption:, phone:)` | fait, à l'essai |
-| `audio controls` | `Sound(source:, label:)` | fait, à l'essai |
-| `link rel="icon"` | `Page(icon:)` | fait, à l'essai |
-| `s`, `mark`, `sup`, `sub` | `~~…~~`, `==…==`, `^…^`, `~…~` dans un texte | fait, à l'essai |
-| `a href="#…"` vers un endroit de la page | `A(to: "#Horaires")` vers un bloc nommé ; refusé s'il n'existe pas | fait, à l'essai |
+| `label` | le réglage `label:`, obligatoire | fait |
+| `textarea` | `Input(…, lines: 5)` | fait |
+| `select`, `option`, `input radio` | `Choice(value:, label:, options:)`, `menu: true` | fait |
+| `form` (envoyer) | `Form(name: Contact, …)`, `On(Send.tap, effect: Contact.send)`, `Contact.sent`, `Contact.failed` | fait : vers un fichier du serveur local |
+| `input range` | `Slider(value:, label:, min:, max:)` | fait |
+| `input date`, `time`, `color` | `Input(…, type: date)` | fait |
+| `progress` | `Progress(value:, max:, label:)` | fait |
+| `details`, `summary` | `Details(summary:, children:)` | fait |
+| `dialog` | `Dialog(name:)`, `open`, `close` | fait |
+| `figure`, `figcaption`, `picture` | `Image(caption:, phone:)` | fait |
+| `audio controls` | `Sound(source:, label:)` | fait |
+| `link rel="icon"` | `Page(icon:)` | fait |
+| `s`, `mark`, `sup`, `sub` | `~~…~~`, `==…==`, `^…^`, `~…~` dans un texte | fait |
+| `a href="#…"` vers un endroit de la page | `A(to: "#Horaires")` vers un bloc nommé ; refusé s'il n'existe pas | fait |
 | `fieldset`, `legend`, `datalist`, `output`, `progress`, `meter` | | manque |
 
 ### Ce qui s'ouvre et se ferme
@@ -109,32 +109,32 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | HTML | HoloCode | État |
 |---|---|---|
 | `style` | les styles, après la page | fait |
-| `link rel="stylesheet"` | les styles d'un morceau importé : `import "commun.holo"` | fait, à l'essai |
+| `link rel="stylesheet"` | les styles d'un morceau importé : `import "commun.holo"` | fait |
 | `script` | refusé dans un bloc (`ADR-015`) | exprès |
 | `noscript` | sans objet : rien ne dépend d'un script | exprès |
-| `template`, `slot` (morceaux réutilisables) | `Part(name: Menu, …)` et `Use(Menu)` ; un modèle répété avec ses champs : `Repeat` | fait, à l'essai |
+| `template`, `slot` (morceaux réutilisables) | `Part(name: Menu, …)` et `Use(Menu)` ; un modèle répété avec ses champs : `Repeat` | fait |
 
 ## 2. CSS
 
 | CSS | HoloCode | État |
 |---|---|---|
 | Couleurs, fond, police, taille, graisse, italique, alignement | 24 réglages (voir le guide) | fait |
-| `line-height`, `letter-spacing`, `text-transform`, `text-decoration` | les mêmes ; `line-height` sans unité | fait, à l'essai |
+| `line-height`, `letter-spacing`, `text-transform`, `text-decoration` | les mêmes ; `line-height` sans unité | fait |
 | Bordure, coins arrondis, marges, largeur, hauteur, opacité | idem | fait |
 | Sélecteur par balise, par classe | `P { }`, `.card { }` | fait |
 | Sélecteurs composés, cascade, `!important` | refusés (`ADR-017`) | exprès |
 | `display`, `position`, `float` | refusés dans un style : la disposition vient des blocs | exprès |
-| La disposition elle-même : `flex`, `grid`, colonnes | `Row`, `Column`, `Grid`, avec `gap`, `align`, `columns` | fait, à l'essai |
-| `:hover`, `:focus`, `:active` (l'apparence selon l'état) | `hover: { … }`, `focus: { … }`, `active: { … }` dans un style | fait, à l'essai |
-| `position: absolute` pour un badge, une pastille | `Stack(children: [ … ])` et `align:` | fait, à l'essai |
-| Tailles de texte qui suivent le réglage du visiteur (`rem`) | automatique : les `px` d'une taille de texte deviennent des `rem` ; les grands titres rétrécissent sur un petit écran | fait, à l'essai |
-| `transition`, `animation`, `@keyframes` | `enter: Enter(…)`, `loop: Loop(…)`, `Scenes` : d'où il part ou où il va, quand, combien de temps, quel caractère ; lettre à lettre et enfant après enfant sans JavaScript | fait, à l'essai |
-| `@media` (s'adapter à l'écran) | le moteur le fait seul (une ligne passe à la ligne, une grille perd des colonnes) ; et `phone: { … }`, avec `display: none` pour cacher | fait, à l'essai |
-| `prefers-color-scheme` (le thème sombre) | `dark: { … }` dans un style | fait, à l'essai |
-| Variables (`--couleur`) | `Page { --or: #E9B44C; }`, puis `color: --or;` | fait, à l'essai |
-| Dégradés, ombres, images de fond | `linear-gradient`, `radial-gradient`, `box-shadow`, `text-shadow`, `url("fond.jpg")` | fait, à l'essai |
-| `@font-face` (charger une police) | `fonts: [ Font(family:, source:) ]` | fait, à l'essai |
-| `transition`, `transform` 2D en pose fixe | `transition: 0.3s`, `rotate`, `scale` | fait, à l'essai |
+| La disposition elle-même : `flex`, `grid`, colonnes | `Row`, `Column`, `Grid`, avec `gap`, `align`, `columns` | fait |
+| `:hover`, `:focus`, `:active` (l'apparence selon l'état) | `hover: { … }`, `focus: { … }`, `active: { … }` dans un style | fait |
+| `position: absolute` pour un badge, une pastille | `Stack(children: [ … ])` et `align:` | fait |
+| Tailles de texte qui suivent le réglage du visiteur (`rem`) | automatique : les `px` d'une taille de texte deviennent des `rem` ; les grands titres rétrécissent sur un petit écran | fait |
+| `transition`, `animation`, `@keyframes` | `enter: Enter(…)`, `loop: Loop(…)`, `Scenes` : d'où il part ou où il va, quand, combien de temps, quel caractère ; lettre à lettre et enfant après enfant sans JavaScript | fait |
+| `@media` (s'adapter à l'écran) | le moteur le fait seul (une ligne passe à la ligne, une grille perd des colonnes) ; et `phone: { … }`, avec `display: none` pour cacher | fait |
+| `prefers-color-scheme` (le thème sombre) | `dark: { … }` dans un style | fait |
+| Variables (`--couleur`) | `Page { --or: #E9B44C; }`, puis `color: --or;` | fait |
+| Dégradés, ombres, images de fond | `linear-gradient`, `radial-gradient`, `box-shadow`, `text-shadow`, `url("fond.jpg")` | fait |
+| `@font-face` (charger une police) | `fonts: [ Font(family:, source:) ]` | fait |
+| `transition`, `transform` 2D en pose fixe | `transition: 0.3s`, `rotate`, `scale` | fait |
 | `transform` 3D | `Relief(height:, tilt:)` | fait, autrement |
 
 ## 3. JavaScript
@@ -144,20 +144,20 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | Réagir à un clic | `On(Open.tap, effect: ...)` | fait |
 | Changer de page sans recharger (un routeur) | `Point(inside:)`, `enter`, `leave`, le dézoom | fait |
 | L'historique, le bouton « retour » | automatique : chaque site a son adresse | fait |
-| Le clavier | `On(Key.left, effect: …)` : les flèches et l'espace | fait, à l'essai |
-| Survol (`mouseenter`, `mouseleave`) | `On(Carte.hover, …)`, `On(Carte.hoverEnd, …)` : aussi au clavier et au doigt | fait, à l'essai |
+| Le clavier | `On(Key.left, effect: …)` : les flèches et l'espace | fait |
+| Survol (`mouseenter`, `mouseleave`) | `On(Carte.hover, …)`, `On(Carte.hoverEnd, …)` : aussi au clavier et au doigt | fait |
 | Approche, défilement | | manque |
-| `else` | `If(…, children: [ … ], else: [ … ])` | fait, à l'essai |
-| `setTimeout` | `After(3s, effect: …)` ; sous une condition, part quand elle devient vraie | fait, à l'essai |
-| `Date` (la date et l'heure du jour) | `{year}`, `{month}`, `{day}`, `{weekday}`, `{hour}`, `{minute}` | fait, à l'essai ; pas encore de calcul sur les dates |
-| Garder une valeur, l'afficher (un panier) | `State(cart: 0)`, `{cart}`, `cart.add(1)` | fait, à l'essai : des nombres entiers ; avec `Prices`, le moteur calcule `{count}` et `{total}` |
-| Afficher sous condition | `If(cart, is: 0, children: [...])` | fait, à l'essai |
-| Répéter sur une liste (`for`, `map`) | `Repeat(items: [ Item(…) ], children: [ … ])` : une liste écrite dans le fichier | fait, à l'essai ; une liste qui change pendant la visite reste à faire |
-| Chercher des données (`fetch`) | `data: Data(from: "stock.json", every: 30s)` : des valeurs, du même serveur | fait, à l'essai ; pas de liste, pas d'envoi |
-| Durées, minuteries | `Every(1s, effect: …)` ; `Portals(duration:)` | fait, à l'essai |
-| Le hasard (`Math.random`) | la demande `random`, rejouable | fait, à l'essai |
+| `else` | `If(…, children: [ … ], else: [ … ])` | fait |
+| `setTimeout` | `After(3s, effect: …)` ; sous une condition, part quand elle devient vraie | fait |
+| `Date` (la date et l'heure du jour) | `{year}`, `{month}`, `{day}`, `{weekday}`, `{hour}`, `{minute}` | fait ; pas encore de calcul sur les dates |
+| Garder une valeur, l'afficher (un panier) | `State(cart: 0)`, `{cart}`, `cart.add(1)` | fait : des nombres entiers ; avec `Prices`, le moteur calcule `{count}` et `{total}` |
+| Afficher sous condition | `If(cart, is: 0, children: [...])` | fait |
+| Répéter sur une liste (`for`, `map`) | `Repeat(items: [ Item(…) ], children: [ … ])` : une liste écrite dans le fichier | fait ; une liste qui change pendant la visite reste à faire |
+| Chercher des données (`fetch`) | `data: Data(from: "stock.json", every: 30s)` : des valeurs, du même serveur | fait ; pas de liste, pas d'envoi |
+| Durées, minuteries | `Every(1s, effect: …)` ; `Portals(duration:)` | fait |
+| Le hasard (`Math.random`) | la demande `random`, rejouable | fait |
 | Animations écrites par l'auteur | | manque |
-| Garder des données dans le navigateur | `keep: [cart]` | fait, à l'essai |
+| Garder des données dans le navigateur | `keep: [cart]` | fait |
 | Calculer librement | prévu : fonctions pures, modules WebAssembly (`ADR-013`) | manque |
 | Modifier la page à la main (le DOM) | refusé (`ADR-015`) | exprès |
 
@@ -188,13 +188,13 @@ L'avis de Codex (revue du 2026-10-03) : mettre avant la disposition la sécurit�
 
 | Rang | Quoi | Pourquoi d'abord |
 |---|---|---|
-| 1 | La disposition : `Row`, `Column`, `Grid` (fait le 2026-10-04, à l'essai) | Sans elle, pas de vrai site. Yocthan connaît ces mots (Flutter). |
+| 1 | La disposition : `Row`, `Column`, `Grid` (fait le 2026-10-04) | Sans elle, pas de vrai site. Yocthan connaît ces mots (Flutter). |
 | 2 | Le texte qui manque : `Br`, `Hr`, citation, code | Petit, et l'on en a besoin partout |
 | 3 | Le texte de remplacement d'une image (`alt`) | Accessibilité : une image sans texte est invisible pour un aveugle |
-| 4 | L'état et les formulaires : `State` (fait le 2026-10-04, à l'essai), `Input`, `Form` | Le passage de « lire » à « agir » |
+| 4 | L'état et les formulaires : `State` (fait le 2026-10-04), `Input`, `Form` | Le passage de « lire » à « agir » |
 | 5 | Le survol et l'approche : un signal `near` | Le même signal à plat et en profondeur |
 | 6 | Le son et la vidéo : `Audio`, `Video` | Les médias ; le son doit se placer dans l'espace |
 | 7 | Les tableaux : `Table` | Utile, mais moins urgent |
-| 8 | Les transitions et les durées | Fait à l'essai : `Enter`, `Loop`, `Scenes` (`ADR-034`) |
+| 8 | Les transitions et les durées | Fait : `Enter`, `Loop`, `Scenes` (`ADR-034`) |
 | 9 | Les imports : réutiliser un morceau, un fichier de styles | Pour les sites de plus d'une page |
 | 10 | Le deuxième étage : calcul libre en module enfermé | Le plus gros chantier ; il ouvre les applications et les jeux |
