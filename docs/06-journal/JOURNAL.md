@@ -6,6 +6,18 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Les refus face aux avis des humains
+
+**Ce que Yocthan a demandé** : vérifier sur Stack Overflow, Reddit, Twitter et les forums ce que les humains pensent des éléments refusés. Sa règle : si la majorité montre que l'élément manque ou le défend, on lève le refus ; si elle en dit surtout du mal, on le garde.
+
+**Fait** : `proposals/Claude/pourquoi-ces-refus-2026-10/AVIS-DES-HUMAINS.md`, avec ses sources. Trois enquêtes chiffrées (State of CSS 2026, WebAIM 2024, Stack Overflow 2025), des textes d'experts, des discussions de développeurs.
+
+**Résultat selon la règle** : garder les refus de `div`, `section`/`article`, la page modifiée à la main, `position` pour la mise en page, la cascade et `!important`. Lever ceux des repères (`nav`, `header`, `footer`, `main` : 63 % des utilisateurs de lecteurs d'écran s'en servent au moins parfois), de `h4` à `h6`, et de la superposition (en bloc). Assouplir celui de `script` : la plainte contre l'interdiction est forte (AMP abandonné par la plupart des grands éditeurs), mais Claude recommande du code enfermé plutôt que du code libre. Ajouter : des tailles de texte qui suivent le réglage du visiteur.
+
+**Limites dites dans le document** : ce n'est pas un vote mondial ; Twitter n'a pas pu être fouillé directement ; les forums parlent surtout pour des développeurs, pas pour des débutants.
+
+---
+
 ## 2026-10-06 — La réponse de Gemini sur les refus
 
 - Gardée dans `docs/05-discussions/reponses/2026-10-06-gemini-refus.md`, avec la lecture de Claude.
