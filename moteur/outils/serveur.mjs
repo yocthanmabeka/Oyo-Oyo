@@ -129,6 +129,7 @@ async function enregistrerUnFichier(req, res, url) {
   await writeFile(provisoire, texte);
   await rename(provisoire, chemin);
   console.log(`Enregistré par l'éditeur : ${url} (${texte.length} octets)`);
+  annoncerALaPile("liste", {});
   return repondre(res, 204, "");
 }
 // Tous les fichiers .holo servis, pour le panneau « Fichiers » de l'éditeur.
@@ -174,6 +175,87 @@ async function recevoirUnMessage(req, res, url) {
   console.log(`Message reçu : ${url} (${envoi.form}) → messages/${nom}.jsonl`);
   return repondre(res, 204, "");
 }
+// La pile (demandée par Yocthan le 2026-10-06) : tout ce qui s'ouvre dans le navigateur, le plus
+// récent en haut, pour tout voir dans un seul onglet (web/pile.html). La date est celle du dernier
+// commit du fichier ; pour un fichier pas encore versionné, ou changé depuis, celle du disque.
+let lesDatesDeGit = { quand: 0, dates: new Map(), changes: new Set() };
+function datesDeGit() {
+  if (Date.now() - lesDatesDeGit.quand < 30000) return lesDatesDeGit;
+  const dates = new Map();
+  const changes = new Set();
+  try {
+    const git = (...args) => execFileSync("git", ["-C", depot, "-c", "core.quotepath=false", ...args], { encoding: "utf8", maxBuffer: 64e6, timeout: 10000, stdio: ["ignore", "pipe", "ignore"] });
+    let date = "";
+    for (const ligne of git("log", "--format=@%cI", "--name-only", "--", "exemples", "moteur/mondes").split("\n")) {
+      if (ligne.startsWith("@")) date = new Date(ligne.slice(1)).toISOString();
+      else if (ligne && !dates.has(ligne)) dates.set(ligne, date);
+    }
+    for (const ligne of git("status", "--porcelain", "--untracked-files=all", "--", "exemples", "moteur/mondes").split("\n")) {
+      if (ligne.length > 3) changes.add(ligne.slice(3).replace(/^.* -> /, "").replace(/^"|"$/g, ""));
+    }
+  } catch {
+    // Pas de git : la date du disque pour tout.
+  }
+  return (lesDatesDeGit = { quand: Date.now(), dates, changes });
+}
+const SORTES = { lecons: "leçon", jeu: "jeu", site: "site", "site-reference": "site", zoom: "zoom", motion: "mouvement", "boutique-comparee": "comparaison" };
+async function laPile() {
+  const { dates, changes } = datesDeGit();
+  const choses = [];
+  async function parcourir(dossier, prefixe, prefixeGit) {
+    let entrees = [];
+    try { entrees = await readdir(dossier, { withFileTypes: true }); } catch { return; }
+    for (const e of entrees) {
+      if (e.name.startsWith(".") || e.name === "node_modules") continue;
+      const plein = join(dossier, e.name);
+      if (e.isDirectory()) {
+        await parcourir(plein, `${prefixe}${e.name}/`, `${prefixeGit}${e.name}/`);
+        continue;
+      }
+      const genre = extname(e.name);
+      if (genre !== ".holo" && genre !== ".html") continue;
+      const texte = await readFile(plein, "utf8").catch(() => "");
+      const sansCommentaires = texte.replace(/\/\/.*$/gm, "");
+      // Un morceau (Part) ne s'ouvre pas seul : la pile le montre dans l'éditeur.
+      const morceau = genre === ".holo" && /^\s*(import\s[^\n]*\n\s*)*Part\s*\(/.test(sansCommentaires);
+      const titre = genre === ".holo" ? /title:\s*"([^"]*)"/.exec(sansCommentaires)?.[1] : /<title>([^<]*)<\/title>/i.exec(texte)?.[1];
+      const cheminGit = prefixeGit + e.name;
+      const date = dates.has(cheminGit) && !changes.has(cheminGit) ? dates.get(cheminGit) : (await stat(plein)).mtime.toISOString();
+      const sorte = morceau ? "morceau" : genre === ".html" ? "jumeau en HTML" : prefixe.startsWith("/mondes/") ? "monde" : SORTES[prefixe.split("/")[2]] ?? "exemple";
+      choses.push({ chemin: prefixe + e.name, titre: (titre || e.name).trim(), date, sorte, morceau });
+    }
+  }
+  await parcourir(exemples, "/exemples/", "exemples/");
+  await parcourir(mondes, "/mondes/", "moteur/mondes/");
+  return choses.sort((a, b) => b.date.localeCompare(a.date) || a.chemin.localeCompare(b.chemin, "fr"));
+}
+// Les piles ouvertes écoutent le serveur : quand Claude montre une page (outils/montrer.mjs),
+// elles l'ouvrent elles-mêmes, sans nouvel onglet ni nouvelle fenêtre.
+const piles = new Set();
+function ecouterLaPile(req, res) {
+  res.writeHead(200, { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-cache" });
+  res.write("retry: 5000\n\n");
+  piles.add(res);
+  req.on("close", () => piles.delete(res));
+}
+function annoncerALaPile(evenement, donnees) {
+  for (const pile of piles) pile.write(`event: ${evenement}\ndata: ${JSON.stringify(donnees)}\n\n`);
+  return piles.size;
+}
+async function montrerDansLaPile(req, res) {
+  // Seulement depuis ce PC : un autre appareil du Wi-Fi ne pilote pas la pile.
+  if (!/^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(req.socket.remoteAddress ?? "")) return repondre(res, 403, "seul ce PC peut montrer quelque chose dans la pile");
+  let corps = "";
+  for await (const morceau of req) {
+    corps += morceau;
+    if (corps.length > 1024) return repondre(res, 413, "chemin trop long");
+  }
+  const chemin = corps.trim();
+  if (!/^\/(exemples|mondes)\/.+\.(holo|html)$/.test(chemin) || chemin.includes("..")) return repondre(res, 400, "un chemin /exemples/….holo, /mondes/….holo ou /exemples/….html");
+  const vues = annoncerALaPile("montrer", { chemin });
+  return vues ? repondre(res, 200, `montré dans ${vues === 1 ? "la pile ouverte" : `${vues} piles ouvertes`}`) : repondre(res, 409, "aucune pile ouverte");
+}
+
 function repondre(res, code, texte) {
   res.writeHead(code, { "content-type": "text/plain; charset=utf-8" });
   res.end(texte);
@@ -188,6 +270,13 @@ createServer(async (req, res) => {
       return res.end(JSON.stringify(await listerLesHolo()));
     }
     if (url === "/editeur") url = "/editeur.html";
+    if (url === "/pile") url = "/pile.html";
+    if (url === "/pile.json") {
+      res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-cache" });
+      return res.end(JSON.stringify(await laPile()));
+    }
+    if (url === "/pile/ecoute") return ecouterLaPile(req, res);
+    if (url === "/pile/montrer" && req.method === "POST") return await montrerDansLaPile(req, res);
     if (req.method === "POST") {
       if (!url.endsWith(".holo") || !/application\/json/.test(req.headers["content-type"] ?? "")) return repondre(res, 405, "seul un formulaire d'une page .holo envoie ici");
       // Seulement pour une page qui existe, parmi les exemples servis.
@@ -240,6 +329,7 @@ createServer(async (req, res) => {
   console.log(rendeur ? `Pages fabriquées d'avance par : ${rendeur}` : "Pages fabriquées dans le navigateur (pour les fabriquer d'avance : cargo build --release --bin holo)");
   console.log(`Sur ce PC      : http://localhost:${port}`);
   console.log(`L'éditeur      : http://localhost:${port}/editeur?cle=${cleDeLEditeur}   (la clé permet d'enregistrer ; sans elle, on lit et on essaie)`);
+  console.log(`La pile        : http://localhost:${port}/pile?cle=${cleDeLEditeur}   (tout ce qui a été créé, dans un seul onglet)`);
   for (const ip of ips) console.log(`Sur le téléphone (même Wi-Fi) : http://${ip}:${port}`);
   console.log("WebGPU exige une page sécurisée : sur le téléphone, voir « Tester sur le téléphone » dans moteur/README.md.");
 });

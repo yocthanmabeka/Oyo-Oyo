@@ -1,6 +1,7 @@
 # Moteur HoloCode — sprint Big Bang
 
 - L'éditeur (`ADR-046`) : `http://localhost:8080/editeur?cle=…`, l'adresse exacte affichée au démarrage du serveur.
+- **La pile** : `http://localhost:8080/pile` — tout ce qui a été créé, le plus récent en haut, dans un seul onglet ; la page choisie s'ouvre à côté de la liste (sur un téléphone, à sa place). Pour montrer une page sans ouvrir de nouvel onglet : `node outils/montrer.mjs /exemples/lecons/09-zoom-et-points.holo` (la pile ouverte l'affiche ; s'il n'y en a pas, Chrome s'ouvre une fois, sur la pile).
 - Statut : `ACCEPTÉ` — mesuré sur deux téléphones (environ 60 images par seconde) ; « valide tout ce qui est à laisser [à l'essai] si tu n'as pas encore validé » (Yocthan, 2026-10-06)
 - Décisions mises à l'épreuve : `ADR-005` (téléphone, navigateur, 1 Go), `ADR-007` (vue en profondeur), `ADR-008` (même fichier, même résultat), `ADR-009` (format `.holo`), `ADR-010` (moteur Rust, WebAssembly, `wgpu`)
 - Auteur : Claude, à la demande de Yocthan, le 2026-10-03
