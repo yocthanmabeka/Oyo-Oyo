@@ -1,0 +1,63 @@
+// Leçon 70 — Les composants : écrire un bloc une fois, le poser partout, le restyler par le CSS
+//
+// Ce qu'on apprend :
+//   parts: [ Part(…) ]          les composants de la page (ou un fichier importé qui commence par Part)
+//   Part(name: ArticleCard,     le nom du composant, comme un bloc : une majuscule
+//        params: [title, price, qty],   ses paramètres : ce qui change d'une copie à l'autre
+//        children: [ … ],       son contenu : un seul bloc racine, comme un widget Flutter
+//        rules: [ … ])          ses règles, écrites une fois pour chaque copie
+//   ArticleCard(name: Sunrise, title: "Sunrise", …)   une copie, posée comme un bloc ordinaire
+//   {title}, title              un paramètre dans un texte, ou à la place d'une valeur
+//   qty: sunrise                donné par le nom d'une valeur de la page, il la suit :
+//                               {qty} la montre, qty.add(1) la change
+//   name: Sunrise               le nom de la copie : le bouton Add du composant devient AddSunrise
+//   ArticleCard { … }           le style de toutes les copies
+//   ArticleCard.promo(…)        une copie avec une autre allure : .promo { … } ne vise qu'elle
+//   --accent                    une variable que le composant emploie, et que .promo redéfinit
+//
+// À essayer :
+//   Ajoute une quatrième copie, ArticleCard(name: Forest, title: "Forest", price: 9500, qty: forest),
+//   avec la valeur forest dans State. Puis donne-lui .promo, et change --accent dans .promo.
+//
+// (Les styles tout en bas servent aussi à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 70 : les composants",
+  state: State(cart: 0, sunrise: 0, river: 0, night: 0),
+  parts: [
+    Part(
+      name: ArticleCard,
+      params: [title, price, qty],
+      children: [
+        Column(gap: 8px, children: [
+          H2("{title}"),
+          Text("{price:cents} euros"),
+          Text("Dans le panier : {qty}"),
+          Button(name: Add, text: "Ajouter"),
+        ]),
+      ],
+      rules: [ On(Add.tap, effect: [qty.add(1), cart.add(price)]) ],
+    ),
+  ],
+  children: [
+    H1("Les composants"),
+    P("Une carte écrite une fois, posée trois fois. La troisième a une autre allure, par une seule ligne de style."),
+    Grid(columns: 3, children: [
+      ArticleCard(name: Sunrise, title: "Sunrise", price: 12000, qty: sunrise),
+      ArticleCard(name: River, title: "The river", price: 9000, qty: river),
+      ArticleCard.promo(name: Night, title: "Night", price: 6000, qty: night),
+    ]),
+    P("Total : {cart:cents} euros."),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 69 : du code enfermé", to: "69-module-enferme.holo"),
+    ]),
+  ],
+)
+
+Page { --accent: #E9B44C; background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: --accent; font-size: 28px; }
+A { color: #8fd3ff; }
+ArticleCard { border: 1px solid --accent; border-radius: 12px; padding: 12px 16px; hover: { box-shadow: 0 8px 24px #00000066; } }
+.promo { --accent: crimson; background: #2a1020; }

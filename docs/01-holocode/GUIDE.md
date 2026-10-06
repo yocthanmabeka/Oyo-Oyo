@@ -818,6 +818,77 @@ Limites : un morceau n'a ni valeurs ni règles, et n'importe pas d'autres fichie
 
 Cette écriture est décidée (`ADR-029`).
 
+## 6 sexies bis. Les composants : écrire un bloc une fois, le poser partout
+
+Un composant est un bloc qu'on écrit soi-même, une fois, avec des **paramètres**, puis qu'on pose comme n'importe quel bloc, à la manière d'un widget Flutter. Sa différence avec Flutter : son apparence se change **par le CSS**, de l'extérieur, sans toucher au composant. La leçon est `exemples/lecons/70-composants.holo`.
+
+```holo
+Page(
+  title: "Shop",
+  state: State(cart: 0, sunrise: 0, night: 0),
+  parts: [
+    Part(
+      name: ArticleCard,
+      params: [title, price, qty],
+      children: [
+        Column(gap: 8px, children: [
+          H2("{title}"),
+          Text("{price:cents} euros, {qty} in the cart"),
+          Button(name: Add, text: "Add"),
+        ]),
+      ],
+      rules: [ On(Add.tap, effect: [qty.add(1), cart.add(price)]) ],
+    ),
+  ],
+  children: [
+    H1("Shop"),
+    ArticleCard(name: Sunrise, title: "Sunrise", price: 12000, qty: sunrise),
+    ArticleCard.promo(name: Night, title: "Night", price: 6000, qty: night),
+    P("Total: {cart:cents} euros."),
+  ],
+)
+
+Page { --accent: #E9B44C; }
+ArticleCard { border: 1px solid --accent; border-radius: 12px; padding: 12px 16px; }
+.promo { --accent: crimson; }
+```
+
+**Écrire le composant.**
+
+- `parts: [ Part(…) ]` dans la page, ou un fichier importé qui commence par `Part(…)` (§ 6 sexies).
+- `name:` son nom, comme un bloc : une majuscule au début et à chaque mot (`ArticleCard`). Un mot du langage (`Text`, `Button`…) est refusé.
+- `params:` ses paramètres, en minuscules (`title`, `oldPrice`) : ce qui change d'une copie à l'autre. Seize au plus. Un paramètre ne peut pas porter le nom d'une valeur de la page, ni un mot du langage.
+- `children:` son contenu : **un seul bloc racine**, comme le widget que rend Flutter. Pour plusieurs blocs, range-les dans `Column(children: [ … ])`.
+- `rules:` ses règles : elles sont écrites une fois pour chaque copie.
+
+**Employer un paramètre**, dans le composant :
+
+- dans un texte : `"{title}"`, et avec un format pour un nombre : `"{price:cents}"` ;
+- à la place d'une valeur : `Image(source: image, alt: title)` ;
+- donné par le **nom d'une valeur de la page** (`qty: sunrise`), il la suit : `{qty}` montre la valeur, et `qty.add(1)` la change. C'est ainsi qu'un composant agit sur la page : son bouton remplit le panier.
+
+**Poser une copie** : `ArticleCard(name: Sunrise, title: "Sunrise", price: 12000, qty: sunrise)`.
+
+- Tous les paramètres sont donnés, chacun nommé ; un paramètre mal écrit est refusé avec le bon mot.
+- `name:` donne un nom à la copie : le bouton `Add` du composant devient `AddSunrise`, qu'une règle de la page peut écouter (`On(AddSunrise.tap, …)`). Si le composant nomme des blocs, chaque copie doit avoir son nom (une seule peut s'en passer).
+- Un composant peut en poser un autre, mais jamais lui-même ; huit niveaux au plus.
+- Dans une répétition, on lui donne les champs de l'élément : `Repeat(items: [ … ], children: [ ArticleCard(title: item.title, price: item.price, qty: item) ])`.
+
+**Changer son apparence, de l'extérieur.**
+
+| On écrit | Ce qui change |
+|---|---|
+| `ArticleCard { … }` | toutes les copies |
+| `ArticleCard.promo(…)` puis `.promo { … }` | cette copie seulement |
+| `--accent` employé dans le style du composant, puis `.promo { --accent: crimson; }` | une seule valeur, sans réécrire le style |
+| `P.card.big(…)` | plusieurs noms de style sur un bloc (quatre au plus) |
+
+Une variable se définit dans le thème (`Page { --accent: … }`) pour valoir partout, ou dans le style d'un composant ou d'un nom pour valoir sur ce bloc et ce qu'il contient.
+
+Ce que le moteur fabrique : du vrai HTML, la racine de chaque copie portant la classe du composant et celles de ses noms de style ; et du vrai CSS. Rien n'est envoyé en JavaScript.
+
+Cette écriture est décidée (`ADR-050`).
+
 ## 6 septies. Des données venues du serveur : `Data`
 
 Une page peut aller chercher des valeurs dans un fichier rangé à côté d'elle. La leçon est `exemples/lecons/27-donnees.holo`.
@@ -1425,7 +1496,8 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Board` | `children`, `height`, `name` ; ses enfants prennent `x`, `y` et `drag` | Dans `children` |
 | `Input` | `value`, `label`, `max`, `lines`, `type` (`date`, `time`, `color`), `name` | Dans `children` |
 | `Checkbox` | `value`, `label`, `name` | Dans `children` |
-| `Part` | `name`, `children` | À la racine d'un fichier importé |
+| `Part` | `name`, `params`, `children`, `rules` | Dans `parts:` d'une `Page`, ou à la racine d'un fichier importé |
+| un composant (`ArticleCard`) | `name`, et ses paramètres ; des noms de style à l'appel (`ArticleCard.promo`) | Dans `children` |
 | `Use` | le nom d'un morceau importé | Dans `children` |
 | `On` | le signal, puis `effect:` | Dans `rules` |
 | `Every` | le rythme, puis `effect:` | Dans `rules` |
@@ -1469,6 +1541,8 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Changer une valeur | les demandes `add`, `sub`, `set` | fait |
 | Recevoir des valeurs d'un serveur | `data: Data(from: "stock.json", every: 30s)` | fait |
 | Réutiliser un morceau de page et un thème | `import "commun.holo"`, `Part(name:)`, `Use(Menu)` | fait |
+| Un composant à paramètres, restylé par le CSS | `Part(name:, params:, children:, rules:)`, `ArticleCard(…)`, `ArticleCard { }`, `ArticleCard.promo(…)` | fait |
+| Plusieurs noms de style sur un bloc | `P.card.big(…)` | fait |
 | Répéter une règle dans le temps | `Every(1s, effect:)` | fait |
 | Le clavier | `On(Key.left, effect:)` | fait |
 | Agir au moment où une valeur atteint quelque chose | `When(lives, is: 0, effect:)` | fait |
@@ -1529,4 +1603,5 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
 - Les garde-fous de zoom pour un `Point` seul : ils sont encore fixés dans le moteur.
-- Un seul nom de style par bloc ; pas de fichier de styles à part.
+- Pas de fichier de styles à part.
+- Un composant n'a pas d'emplacement pour du contenu donné à l'appel (comme `children` ou `<slot>`) ; ses paramètres sont des textes, des nombres ou des noms.

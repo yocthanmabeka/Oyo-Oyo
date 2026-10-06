@@ -35,8 +35,10 @@ pub struct Argument {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Bloc {
     pub nom: String,
-    /// Le nom de style posé sur le bloc : `card` dans `P.card(...)` (ADR-017).
-    pub style: Option<String>,
+    /// Les noms de style posés sur le bloc : `card` dans `P.card(...)` (ADR-017), plusieurs
+    /// depuis ADR-051 (`P.card.big(...)`). Un nom qui commence par une majuscule est la marque
+    /// d'un composant, posée par le moteur sur la racine de chaque copie (ADR-050).
+    pub styles: Vec<String>,
     pub arguments: Vec<Argument>,
     pub pos: Pos,
 }
@@ -56,6 +58,8 @@ pub struct Programme {
     pub racine: Bloc,
     /// Les styles, écrits comme en CSS après le bloc racine (ADR-017).
     pub styles: Vec<RegleStyle>,
+    /// Les noms des composants du fichier (ADR-050) : un style peut les viser, `ArticleCard { … }`.
+    pub composants: Vec<String>,
 }
 
 /// Ce qu'un style vise : un type de bloc (`P`) ou un nom à point (`.card`). Rien d'autre.
@@ -113,6 +117,9 @@ impl Bloc {
         self.arguments.iter().find(|a| a.nom.as_deref() == Some(nom))
     }
 }
+
+/// Le nombre de noms de style qu'un bloc peut porter, au plus (ADR-051).
+pub const STYLES_PAR_BLOC: usize = 4;
 
 const UNITES: &[&str] = &["mm", "cm", "m", "km", "ms", "s", "min", "h", "B", "KB", "MB", "GB", "px", "deg"];
 
@@ -514,7 +521,7 @@ impl Analyseur {
         if self.courant().mot != Mot::Fin {
             return Err(self.erreur(format!("un seul bloc racine par fichier ; {} trouvé après lui", decrire(&self.courant().mot))));
         }
-        Ok(Programme { imports, racine, styles: Vec::new() })
+        Ok(Programme { imports, racine, styles: Vec::new(), composants: Vec::new() })
     }
 
     fn bloc(&mut self) -> Result<Bloc, Erreur> {
@@ -526,13 +533,19 @@ impl Analyseur {
         // `cart.add(1)` : une demande faite à l'arbitre (ADR-023). Elle commence par une
         // minuscule et porte un point ; elle garde son nom entier. `blocs.rs` vérifie sa place.
         let est_demande = nom.contains('.') && nom.starts_with(|c: char| c.is_ascii_lowercase());
-        // `P.card(...)` : le bloc `P`, avec le style nommé `card` (ADR-017).
-        let (nom, style) = match nom.split_once('.') {
-            Some((bloc, style)) if !est_demande && !bloc.is_empty() && !style.is_empty() => (bloc.to_string(), Some(style.to_string())),
-            _ => (nom, None),
+        // `P.card(...)` : le bloc `P`, avec le style nommé `card` (ADR-017) ; `P.card.big(...)`,
+        // avec deux (ADR-051).
+        let (nom, styles) = match nom.split_once('.') {
+            Some((bloc, styles)) if !est_demande && !bloc.is_empty() && !styles.is_empty() => (bloc.to_string(), styles.split('.').map(str::to_string).collect::<Vec<_>>()),
+            _ => (nom, Vec::new()),
         };
-        if style.as_deref().is_some_and(|s| s.contains('.')) {
-            return Err(Erreur { message: format!("« {nom} » porte plusieurs noms de style : un bloc porte un seul nom de style (ADR-017)"), pos: jeton.pos });
+        if styles.len() > STYLES_PAR_BLOC {
+            return Err(Erreur { message: format!("« {nom} » porte trop de noms de style : {STYLES_PAR_BLOC} au plus"), pos: jeton.pos });
+        }
+        for style in &styles {
+            if style.is_empty() || !style.starts_with(|c: char| c.is_ascii_lowercase()) || !style.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+                return Err(Erreur { message: format!("« .{style} » : un nom de style s'écrit en minuscules, comme « card » ou « big-card » (ADR-037)"), pos: jeton.pos });
+            }
         }
         if !est_demande && (!nom.chars().next().is_some_and(|c| c.is_ascii_uppercase()) || nom.contains('.')) {
             // Une seule écriture par bloc : `h1` n'est pas accepté à côté de `H1` (ADR-020).
@@ -566,7 +579,7 @@ impl Analyseur {
             }
         }
         self.signe(')')?;
-        Ok(Bloc { nom, style, arguments, pos: jeton.pos })
+        Ok(Bloc { nom, styles, arguments, pos: jeton.pos })
     }
 
     fn valeur(&mut self) -> Result<Valeur, Erreur> {
@@ -680,6 +693,7 @@ pub fn lire(source: &str) -> Result<Programme, Erreur> {
     let mut programme = lire_seul(fichiers.next().unwrap_or(""))?;
     let fournis: Vec<(&str, &str)> = fichiers.filter_map(|f| f.split_once(SEPARE_LE_NOM)).collect();
     let mut morceaux: Vec<(String, Vec<Valeur>)> = Vec::new();
+    let mut composants: Vec<crate::composants::Composant> = Vec::new();
     let mut styles_importes = Vec::new();
     for nom in imports_de(source)? {
         let pos = programme.imports.iter().find(|i| i.cible == nom).map_or(programme.racine.pos, |i| i.pos);
@@ -694,19 +708,33 @@ pub fn lire(source: &str) -> Result<Programme, Erreur> {
         if !morceau.imports.is_empty() {
             return Err(refus("un morceau n'importe pas lui-même d'autres fichiers".into()));
         }
-        let (Some(Valeur::Nom(nom_du_morceau)), Some(Valeur::Liste(enfants))) = (morceau.racine.argument("name").map(|a| &a.valeur), morceau.racine.argument("children").map(|a| &a.valeur)) else {
-            return Err(refus("un morceau a un nom et un contenu : Part(name: Menu, children: [ … ])".into()));
-        };
-        if morceau.racine.arguments.len() != 2 {
-            return Err(refus("un morceau n'a que deux réglages : name et children".into()));
+        let composant = crate::composants::lire_part(&morceau.racine).map_err(|e| refus(e.message))?;
+        if morceaux.iter().any(|(connu, _)| *connu == composant.nom) || composants.iter().any(|c: &crate::composants::Composant| c.nom == composant.nom) {
+            return Err(refus(format!("deux morceaux importés s'appellent « {} »", composant.nom)));
         }
-        if morceaux.iter().any(|(connu, _)| connu == nom_du_morceau) {
-            return Err(refus(format!("deux morceaux importés s'appellent « {nom_du_morceau} »")));
+        // Sans paramètres ni règles, un morceau se pose aussi par `Use(Menu)`, avec tous ses blocs.
+        if composant.parametres.is_empty() && composant.regles.is_empty() {
+            morceaux.push((composant.nom.clone(), composant.enfants.clone()));
         }
-        morceaux.push((nom_du_morceau.clone(), enfants.clone()));
+        composants.push(composant);
         styles_importes.extend(morceau.styles);
     }
     poser_les_morceaux(&mut programme.racine, &morceaux)?;
+    // Les composants (ADR-050) : ceux de la page, puis ceux des fichiers importés. Ils sont posés
+    // avant les répétitions, pour qu'un composant puisse être répété.
+    for composant in crate::composants::retirer_les_parts(&mut programme.racine)? {
+        if composants.iter().any(|c| c.nom == composant.nom) {
+            return Err(Erreur { message: format!("deux composants s'appellent « {} »", composant.nom), pos: composant.pos });
+        }
+        composants.push(composant);
+    }
+    crate::composants::poser_site(&mut programme.racine, &composants)?;
+    programme.composants = composants.iter().map(|c| c.nom.clone()).collect();
+    if programme.racine.nom == "Part" {
+        if let Some(Valeur::Nom(nom)) = programme.racine.argument("name").map(|a| &a.valeur) {
+            programme.composants.push(nom.clone());
+        }
+    }
     // Les répétitions sont dépliées à leur tour, comme les morceaux (ADR-040).
     crate::format::regler_langue(match programme.racine.argument("lang").map(|a| &a.valeur) {
         Some(Valeur::Texte(l)) => l,

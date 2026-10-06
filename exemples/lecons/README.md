@@ -77,5 +77,6 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 67 | [Écrire un nombre joliment](67-formats.holo) | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` |
 | 68 | [Une liste qui change pendant la visite](68-liste-qui-change.holo) | `State(taches: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` |
 | 69 | [Du code enfermé : un module](69-module-enferme.holo) | `module "…"`, `Module`, `run`, `done`, `failed` |
+| 70 | [Les composants](70-composants.holo) | `parts`, `Part(params:, rules:)`, `ArticleCard(…)`, `ArticleCard { }`, `ArticleCard.promo(…)` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.

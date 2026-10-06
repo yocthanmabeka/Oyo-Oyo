@@ -135,9 +135,8 @@ fn site_html_brut(programme: &Programme, page: &Bloc, base: &str, titre: &str) -
         _ => echapper(titre),
     };
     // Un monde ouvert en grand prend le thème de la page, puis son propre style.
-    let classes = match (page.nom.as_str(), &page.style) {
-        ("World", Some(style)) => format!("holo-Page holo-monde-ouvert holo-s-{style}"),
-        ("World", None) => "holo-Page holo-monde-ouvert".to_string(),
+    let classes = match page.nom.as_str() {
+        "World" => format!("holo-Page holo-monde-ouvert{}", noms_de_style(page)),
         _ => classes(page),
     };
     // Les valeurs de la page, à leur départ, là où un texte les montre : « {cart} » (ADR-023).
@@ -364,6 +363,7 @@ fn css(programme: &Programme, base: &str) -> String {
         let selecteur = match &regle.cible {
             // Le style d'un monde vaut aussi quand ce monde est ouvert en grand.
             Cible::Type(t) if t == "World" => ".holo-World,.holo-monde-ouvert".to_string(),
+            Cible::Type(t) if programme.composants.contains(t) => format!(".holo-c-{t}"),
             Cible::Type(t) => format!(".holo-{t}"),
             Cible::Nom(n) => format!(".holo-s-{n}"),
         };
@@ -472,10 +472,13 @@ fn coin(mot: &str) -> Option<(&'static str, &'static str)> {
 }
 
 fn classes(bloc: &Bloc) -> String {
-    match &bloc.style {
-        Some(style) => format!("holo-{} holo-s-{style}", bloc.nom),
-        None => format!("holo-{}", bloc.nom),
-    }
+    format!("holo-{}{}", bloc.nom, noms_de_style(bloc))
+}
+
+/// Les classes des noms de style d'un bloc : ` holo-s-card` ; la marque d'un composant (un nom
+/// qui commence par une majuscule, posé par le moteur) : ` holo-c-ArticleCard` (ADR-050).
+fn noms_de_style(bloc: &Bloc) -> String {
+    bloc.styles.iter().map(|s| if s.starts_with(|c: char| c.is_ascii_uppercase()) { format!(" holo-c-{s}") } else { format!(" holo-s-{s}") }).collect()
 }
 
 fn enfants(bloc: &Bloc, sortie: &mut String, mondes: &mut String, base: &str) -> Result<(), Erreur> {
@@ -1777,7 +1780,6 @@ mod tests {
         assert!(!html.contains("scale .15s"), "{html}");
         for (styles, message) in [
             ("P { color: --rouge; }", "« --rouge » n'est définie nulle part"),
-            ("P { --rouge: red; }", "une variable se définit dans le style de la page"),
             ("Page { --rouge: url(x); }", "une couleur ou une taille"),
             ("P { line-height: 24px; }", "un nombre sans unité"),
             ("P { display: none; }", "phone: { display: none; }"),

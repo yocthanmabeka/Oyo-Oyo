@@ -71,11 +71,15 @@ pub fn noms_des_reglages() -> Vec<&'static str> {
 }
 
 /// Les variables (ADR-041) : `--or: #E9B44C;` dans le style de `Page`, puis `color: --or;`
-/// partout. Rend chaque variable et sa valeur (celle du thème clair).
+/// partout. Depuis ADR-050, un composant ou un nom de style peut aussi en définir ou en redéfinir
+/// une (`.promo { --accent: crimson; }`) : elle vaut pour le bloc et ce qu'il contient. Rend
+/// chaque variable et sa première valeur, celle du thème d'abord.
 pub fn variables(programme: &Programme) -> Vec<(String, String)> {
     let mut variables: Vec<(String, String)> = Vec::new();
-    for regle in &programme.styles {
-        if matches!(&regle.cible, Cible::Type(t) if t == "Page" || t == "World") {
+    let mut regles: Vec<_> = programme.styles.iter().collect();
+    regles.sort_by_key(|r| !matches!(&r.cible, Cible::Type(t) if t == "Page" || t == "World"));
+    for regle in regles {
+        {
             for reglage in regle.reglages.iter().chain(regle.etats.iter().flat_map(|(_, r, _)| r.iter())) {
                 if reglage.nom.starts_with("--") && !variables.iter().any(|(n, _)| *n == reglage.nom) {
                     variables.push((reglage.nom.clone(), reglage.valeur.clone()));
@@ -117,9 +121,8 @@ const COULEURS: &[&str] = &[
 pub fn verifier_styles(programme: &Programme) -> Result<(), Erreur> {
     let variables = variables(programme);
     for (i, regle) in programme.styles.iter().enumerate() {
-        let theme = matches!(&regle.cible, Cible::Type(t) if t == "Page" || t == "World");
         if let Cible::Type(nom) = &regle.cible {
-            if !BLOCS.contains(&nom.as_str()) {
+            if !BLOCS.contains(&nom.as_str()) && !programme.composants.contains(nom) {
                 let majuscule = majuscule(nom);
                 let message = if BLOCS.contains(&majuscule.as_str()) {
                     format!("« {nom} » : un type de bloc commence par une majuscule, écris « {majuscule} {{ … }} » (ADR-020)")
@@ -139,7 +142,7 @@ pub fn verifier_styles(programme: &Programme) -> Result<(), Erreur> {
             if regle.reglages[..j].iter().any(|autre| autre.nom == reglage.nom) {
                 return Err(Erreur { message: format!("le réglage « {} » est donné deux fois dans « {} »", reglage.nom, regle.cible), pos: reglage.pos });
             }
-            verifier_reglage(reglage, None, theme, &variables)?;
+            verifier_reglage(reglage, None, &variables)?;
         }
         // Les états (hover, focus, active, dark, phone) : chacun une fois, avec des réglages connus.
         for (k, (etat, reglages, pos)) in regle.etats.iter().enumerate() {
@@ -153,7 +156,7 @@ pub fn verifier_styles(programme: &Programme) -> Result<(), Erreur> {
                 if reglages[..j].iter().any(|autre| autre.nom == reglage.nom) {
                     return Err(Erreur { message: format!("le réglage « {} » est donné deux fois dans l'état « {etat} »", reglage.nom), pos: reglage.pos });
                 }
-                verifier_reglage(reglage, Some(etat), theme, &variables)?;
+                verifier_reglage(reglage, Some(etat), &variables)?;
             }
         }
     }
@@ -162,7 +165,7 @@ pub fn verifier_styles(programme: &Programme) -> Result<(), Erreur> {
 
 /// Chaque nom de style posé sur un bloc (`P.card(...)`) doit être défini.
 fn noms_poses(bloc: &Bloc, programme: &Programme) -> Result<(), Erreur> {
-    if let Some(nom) = &bloc.style {
+    for nom in bloc.styles.iter().filter(|s| s.starts_with(|c: char| c.is_ascii_lowercase())) {
         if !programme.styles.iter().any(|r| r.cible == Cible::Nom(nom.clone())) {
             return Err(Erreur {
                 message: format!("le style « .{nom} » n'est défini nulle part : écris « .{nom} {{ … }} » après le bloc racine"),
@@ -180,14 +183,12 @@ fn noms_poses(bloc: &Bloc, programme: &Programme) -> Result<(), Erreur> {
     bloc.arguments.iter().try_for_each(|a| visiter(&a.valeur, programme))
 }
 
-fn verifier_reglage(reglage: &Reglage, etat: Option<&str>, theme: bool, variables: &[(String, String)]) -> Result<(), Erreur> {
+fn verifier_reglage(reglage: &Reglage, etat: Option<&str>, variables: &[(String, String)]) -> Result<(), Erreur> {
     let refus = |message: String| Err(Erreur { message, pos: reglage.pos });
     let nom = reglage.nom.as_str();
-    // Une variable se définit dans le thème (le style de Page) : une couleur ou une taille.
+    // Une variable : une couleur ou une taille. Définie dans le thème (le style de Page), elle
+    // vaut partout ; dans un composant ou un nom de style, pour ce bloc et son contenu (ADR-050).
     if let Some(reste) = nom.strip_prefix("--") {
-        if !theme {
-            return refus(format!("« {nom} » : une variable se définit dans le style de la page, « Page {{ {nom}: … }} », pour valoir partout"));
-        }
         if reste.is_empty() || !reste.starts_with(|c: char| c.is_ascii_lowercase()) || !reste.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
             return refus(format!("« {nom} » : une variable s'écrit comme en CSS, en minuscules, les mots joints par « - », comme « --or-clair »"));
         }
@@ -485,8 +486,10 @@ mod tests {
     }
 
     #[test]
-    fn un_bloc_ne_porte_qu_un_nom_de_style() {
-        assert!(verifier("Page(children: [ P.card.big(\"x\") ])").unwrap_err().message.contains("un seul nom de style"));
+    fn un_bloc_porte_plusieurs_noms_de_style() {
+        assert!(verifier("Page(children: [ P.card.big(\"x\") ])\n.card { color: red; }\n.big { font-size: 24px; }").is_ok());
+        assert!(verifier("Page(children: [ P.card.big(\"x\") ])\n.card { color: red; }").unwrap_err().message.contains("« .big » n'est défini nulle part"));
+        assert!(verifier("Page(children: [ P.a.b.c.d.e(\"x\") ])").unwrap_err().message.contains("trop de noms de style"));
         assert_eq!(lire("Page(children: [ P.card(\"x\") ])").unwrap().racine.arguments.len(), 1);
     }
 }
