@@ -12,6 +12,8 @@ fn signaux(bloc: &str) -> &'static [&'static str] {
         "Button" | "Point" | "Shape" => &["tap", "hover", "hoverEnd"],
         // Un formulaire dit si son envoi est arrivé, ou non (ADR-042).
         "Form" => &["sent", "failed", "hover", "hoverEnd"],
+        // Un module enfermé dit s'il a rendu son nombre, ou s'il a été arrêté (ADR-045).
+        "Module" => &["done", "failed"],
         // Tout bloc qui se voit peut être survolé (ADR-039) : la souris arrive dessus, le
         // clavier s'y pose, ou le doigt le touche sur un téléphone.
         autre if crate::blocs::BLOCS.contains(&autre) && !INVISIBLES.contains(&autre) => &["hover", "hoverEnd"],
@@ -20,7 +22,7 @@ fn signaux(bloc: &str) -> &'static [&'static str] {
 }
 
 /// Les blocs qui ne se voient pas, ou qui ne sont pas une boîte à l'écran : on ne les survole pas.
-const INVISIBLES: &[&str] = &["Page", "World", "Main", "On", "Every", "When", "After", "State", "Prices", "Data", "Zoom", "Points", "Relief", "Portals", "Part", "Use", "Sound", "Scene", "Enter", "Loop", "If", "Repeat", "Item", "Font"];
+const INVISIBLES: &[&str] = &["Page", "World", "Main", "On", "Every", "When", "After", "State", "Prices", "Data", "Zoom", "Points", "Relief", "Portals", "Part", "Use", "Sound", "Scene", "Enter", "Loop", "If", "Repeat", "Item", "Font", "Module"];
 
 /// Le survol : la souris arrive sur le bloc (`hover`), puis le quitte (`hoverEnd`).
 pub const SURVOL: &[&str] = &["hover", "hoverEnd"];
@@ -35,6 +37,7 @@ fn capacites(bloc: &str) -> &'static [&'static str] {
         // Une fenêtre par-dessus la page, et un formulaire qu'on envoie (ADR-042).
         "Dialog" => &["open", "close"],
         "Form" => &["send"],
+        "Module" => &["run"],
         _ => &[],
     }
 }

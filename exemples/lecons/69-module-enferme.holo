@@ -1,0 +1,69 @@
+// Leçon 69 — Du code enfermé : un module
+//
+// Ce qu'on apprend :
+//   Un module est du code compilé en WebAssembly (écrit en Rust, en C, en Zig…), pour ce que
+//   HoloCode ne fait pas lui-même : un calcul lourd, une physique, une IA. Il tourne dans une
+//   boîte fermée :
+//     module "69-compter.wasm"     en haut du fichier : le risque se lit d'un coup d'œil
+//     Module(name: Somme, source: "69-compter.wasm", input: n, output: total, time: 100ms, memory: 1MB)
+//     On(Calculer.tap, effect: Somme.run)       le lance
+//     On(Somme.done, effect: …)                 il a rendu son nombre (dans total)
+//     On(Somme.failed, effect: …)               il a été arrêté
+//   La boîte : il reçoit un nombre et rend un nombre, rien d'autre (ni réseau, ni page, ni
+//   heure) ; il tourne à part, et la page ne se bloque jamais ; au-delà de son temps, il est
+//   arrêté ; sa mémoire ne grandit pas au-delà de son plafond.
+//   Les trois modules de cette leçon sont dans modules/ (leurs sources en Rust, une dizaine de
+//   lignes chacune).
+//
+// À essayer :
+//   Calcule la somme. Puis lance la boucle sans fin, et touche « La page répond » pendant
+//   qu'elle tourne : le compteur avance. Après deux secondes, la boucle est arrêtée.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+module "69-compter.wasm"
+module "69-boucle.wasm"
+module "69-memoire.wasm"
+
+Page(
+  title: "Leçon 69 : du code enfermé",
+  state: State(n: 100, total: 0, rien: 0, touches: 0, somme: 0, boucle: 0, memoire: 0),
+  modules: [
+    Module(name: Somme, source: "69-compter.wasm", input: n, output: total, time: 100ms, memory: 1MB),
+    Module(name: Boucle, source: "69-boucle.wasm", input: n, output: rien, time: 2s, memory: 1MB),
+    Module(name: Gourmand, source: "69-memoire.wasm", input: n, output: rien, time: 100ms, memory: 1MB),
+  ],
+  children: [
+    H1("Du code enfermé"),
+    Input(value: n, label: "Additionner les nombres de 1 à…", max: 10000),
+    Button(name: Calculer, text: "Calculer la somme"),
+    If(somme, is: 1, children: [ P.ok("Le module a rendu : {total:number}.") ]),
+    Hr(),
+    Button(name: Boucler, text: "Lancer la boucle sans fin"),
+    Button(name: Repond, text: "La page répond ({touches})"),
+    If(boucle, is: 1, children: [ P("La boucle tourne… touche « La page répond ».") ]),
+    If(boucle, is: 2, children: [ P.ok("La boucle a été arrêtée après deux secondes ; la page n'a jamais été bloquée.") ]),
+    Hr(),
+    Button(name: Gaver, text: "Demander 64 Mo de mémoire"),
+    If(memoire, is: 1, children: [ P.ok("Refusé : le module n'a droit qu'à 1 Mo ; il a été arrêté.") ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 68 : une liste qui change", to: "68-liste-qui-change.holo"),
+    ]),
+  ],
+  rules: [
+    On(Calculer.tap, effect: Somme.run),
+    On(Somme.done, effect: somme.set(1)),
+    On(Boucler.tap, effect: [boucle.set(1), Boucle.run]),
+    On(Boucle.failed, effect: boucle.set(2)),
+    On(Repond.tap, effect: touches.add(1)),
+    On(Gaver.tap, effect: Gourmand.run),
+    On(Gourmand.failed, effect: memoire.set(1)),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.ok { color: #7be38f; }

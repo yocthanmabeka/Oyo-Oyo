@@ -38,7 +38,7 @@ Les deux décrivent la même chose : une page de boutique (titres, paragraphes, 
 | `inside: World(children: […])` | Une `<section hidden>` déjà chargée dans la page | |
 | `On(Open.tap, effect: Workshop.enter)` | `addEventListener("click", enter)` et la fonction `enter` | |
 | `On(Back.tap, effect: Workshop.leave)` | `addEventListener("click", leave)` et la fonction `leave` | |
-| `import`, `module`, `bridge js`, `bridge css` | `<link>`, `<script>` | En commentaire dans `boutique.holo` : lus par le moteur, pas encore appliqués |
+| `import`, `module` | `<link>`, `<script>` | En commentaire dans `boutique.holo` : appliqués depuis (leçons 25 et 69) ; `bridge js` et `bridge css` sont refusés (ADR-011, partie B) |
 
 ## Ce que la comparaison montre, sans embellir
 

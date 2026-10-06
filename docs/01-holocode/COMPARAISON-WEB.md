@@ -110,7 +110,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 |---|---|---|
 | `style` | les styles, après la page | fait |
 | `link rel="stylesheet"` | les styles d'un morceau importé : `import "commun.holo"` | fait |
-| `script` | refusé dans un bloc (`ADR-015`) | exprès |
+| `script` | refusé dans un bloc (`ADR-015`) ; du code venu d'ailleurs passe par un module enfermé, `module "calcul.wasm"` (`ADR-045`, à l'essai) | exprès |
 | `noscript` | sans objet : rien ne dépend d'un script | exprès |
 | `template`, `slot` (morceaux réutilisables) | `Part(name: Menu, …)` et `Use(Menu)` ; un modèle répété avec ses champs : `Repeat` | fait |
 

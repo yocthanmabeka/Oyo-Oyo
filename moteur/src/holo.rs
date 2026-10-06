@@ -43,7 +43,8 @@ pub struct Bloc {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Import {
-    /// `import`, `module` ou `bridge js` / `bridge css` (ADR-013, ADR-016).
+    /// `import` (un autre fichier `.holo`) ou `module` (un module enfermé, ADR-045). Les ponts
+    /// `bridge js` / `bridge css` ont été rejetés (ADR-011, partie B) : ils sont refusés.
     pub sorte: String,
     pub cible: String,
     pub pos: Pos,
@@ -492,13 +493,13 @@ impl Analyseur {
                 break;
             }
             let pos = self.courant().pos;
-            let mut sorte = n.clone();
+            let sorte = n.clone();
             self.avancer();
             if sorte == "bridge" {
-                match self.avancer().mot {
-                    Mot::Nom(l) if l == "js" || l == "css" => sorte = format!("bridge {l}"),
-                    _ => return Err(Erreur { message: "« bridge » doit être suivi de « js » ou « css » (ADR-012)".into(), pos }),
-                }
+                return Err(Erreur {
+                    message: "« bridge » est refusé : un pont ferait entrer du code sans garantie (ADR-011, partie B) ; pour du code venu d'ailleurs, un module enfermé : module \"calcul.wasm\" (ADR-045)".into(),
+                    pos,
+                });
             }
             match self.avancer().mot {
                 Mot::Texte(cible) => imports.push(Import { sorte, cible, pos }),

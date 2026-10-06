@@ -39,6 +39,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 67 : écrire un nombre joliment", to: "67-formats.holo"),
+      A("Leçon 69 : du code enfermé →", to: "69-module-enferme.holo"),
     ]),
   ],
   rules: [
