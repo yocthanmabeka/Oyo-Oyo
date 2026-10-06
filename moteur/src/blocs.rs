@@ -12,10 +12,97 @@ pub const TITRE_MAX: u32 = 6;
 
 /// Vérifie tous les blocs d'un fichier : chacun existe, et les titres ne sautent pas de niveau.
 pub fn verifier_blocs(programme: &Programme) -> Result<(), Erreur> {
-    parcourir(&programme.racine, &mut 0)
+    parcourir(&programme.racine, &mut 0, "")
 }
 
-fn parcourir(bloc: &Bloc, dernier_titre: &mut u32) -> Result<(), Erreur> {
+/// Les réglages que chaque bloc accepte. Un réglage inconnu est refusé, jamais avalé en silence
+/// (correction du 2026-10-06 : `Page(Title: …)` passait, et le titre était perdu). Les blocs
+/// absents de cette liste vérifient leurs réglages eux-mêmes (`State`, `Prices`, `Data`,
+/// `Zoom`, `Points`, `Relief`, `Portals`, `Enter`, `Loop`, `Use`).
+const REGLAGES_DES_BLOCS: &[(&str, &[&str])] = &[
+    ("Page", &["name", "title", "children", "pixels", "rules", "state", "prices", "keep", "data", "zoom", "points", "relief", "portals"]),
+    ("World", &["name", "children", "pixels", "rules"]),
+    ("Part", &["name", "children"]),
+    ("Text", &["name"]),
+    ("P", &["name"]),
+    ("H1", &["name"]),
+    ("H2", &["name"]),
+    ("H3", &["name"]),
+    ("H4", &["name"]),
+    ("H5", &["name"]),
+    ("H6", &["name"]),
+    ("A", &["name", "to"]),
+    ("Button", &["name", "text"]),
+    ("Image", &["name", "source", "weight", "alt"]),
+    ("Sound", &["name", "source", "weight"]),
+    ("Shape", &["name", "form", "color", "size"]),
+    ("List", &["name", "children", "ordered"]),
+    ("Hr", &["name"]),
+    ("Quote", &["name", "by"]),
+    ("Code", &["name"]),
+    ("Header", &["name", "children"]),
+    ("Nav", &["name", "children"]),
+    ("Main", &["name", "children"]),
+    ("Footer", &["name", "children"]),
+    ("Row", &["name", "children", "gap", "align"]),
+    ("Column", &["name", "children", "gap", "align"]),
+    ("Grid", &["name", "children", "gap", "columns"]),
+    ("Stack", &["name", "children"]),
+    ("Board", &["name", "children", "height"]),
+    ("Point", &["name", "seed", "brightness", "fragments", "color", "palette", "budget", "inside", "above"]),
+    ("Input", &["name", "value", "label", "max"]),
+    ("Checkbox", &["name", "value", "label"]),
+    ("If", &["name", "is", "not", "over", "under", "children", "rules"]),
+    ("On", &["effect"]),
+    ("Every", &["effect"]),
+    ("When", &["is", "not", "over", "under", "meets", "within", "effect"]),
+    ("Scenes", &["name", "children", "height", "repeat"]),
+    ("Scene", &["name", "children", "for"]),
+];
+
+/// Les blocs qui ne se voient pas : ils ne bougent pas (`enter`, `loop`).
+const SANS_MOUVEMENT: &[&str] = &["Page", "World", "Part", "On", "Every", "When", "Sound", "Scene"];
+
+/// Vérifie les réglages d'un bloc, selon le bloc qui le contient (`parent`).
+fn verifier_reglages(bloc: &Bloc, parent: &str) -> Result<(), Erreur> {
+    let Some((_, permis)) = REGLAGES_DES_BLOCS.iter().find(|(nom, _)| *nom == bloc.nom) else { return Ok(()) };
+    for argument in &bloc.arguments {
+        let Some(nom) = argument.nom.as_deref() else { continue };
+        let mouvement = (nom == "enter" || nom == "loop") && !SANS_MOUVEMENT.contains(&bloc.nom.as_str());
+        let sur_un_plateau = matches!(nom, "x" | "y" | "drag") && parent == "Board";
+        let dans_une_pile = nom == "align" && parent == "Stack";
+        if permis.contains(&nom) || mouvement || sur_un_plateau || dans_une_pile {
+            // Un nom de bloc commence par une majuscule, comme un bloc : ce qu'on touche a une
+            // majuscule, ce qui change (une valeur) n'en a pas.
+            if nom == "name" {
+                if let crate::holo::Valeur::Nom(donne) = &argument.valeur {
+                    if donne.starts_with(|c: char| c.is_ascii_lowercase()) {
+                        let majuscule: String = donne.chars().take(1).map(|c| c.to_ascii_uppercase()).chain(donne.chars().skip(1)).collect();
+                        return Err(Erreur { message: format!("« name: {donne} » : un nom de bloc commence par une majuscule, comme un bloc ; écris « name: {majuscule} »"), pos: argument.pos });
+                    }
+                }
+            }
+            continue;
+        }
+        let message = if matches!(nom, "x" | "y" | "drag") {
+            format!("« {nom}: » place un bloc sur un plateau : mets « {} » dans Board(children: [ … ])", bloc.nom)
+        } else if nom == "align" && bloc.nom != "Row" && bloc.nom != "Column" {
+            format!("« align: » place un bloc posé sur un autre : mets « {} » dans Stack(children: [ … ])", bloc.nom)
+        } else if let Some(bon) = permis.iter().find(|connu| connu.eq_ignore_ascii_case(nom)) {
+            format!("« {nom} » : un paramètre s'écrit en minuscules, écris « {bon} »")
+        } else if nom == "styles" || nom == "style" {
+            "un style s'écrit comme en CSS, après le bloc racine : « P { color: gray; } » (ADR-017)".to_string()
+        } else if bloc.nom == "World" && matches!(nom, "state" | "prices" | "keep" | "data" | "zoom" | "points" | "relief" | "portals" | "title") {
+            format!("« {nom}: » se règle sur la page, pas dans un monde : un monde partage les valeurs et la vue de sa page")
+        } else {
+            format!("« {} » n'a pas de paramètre « {nom} » ; paramètres possibles : {}", bloc.nom, permis.join(", "))
+        };
+        return Err(Erreur { message, pos: argument.pos });
+    }
+    Ok(())
+}
+
+fn parcourir(bloc: &Bloc, dernier_titre: &mut u32, parent: &str) -> Result<(), Erreur> {
     if crate::etat::est_demande(bloc) {
         // `p.card(...)` : un bloc écrit en minuscules, plutôt qu'une demande.
         let (avant, apres) = bloc.nom.split_once('.').unwrap_or((&bloc.nom, ""));
@@ -30,6 +117,7 @@ fn parcourir(bloc: &Bloc, dernier_titre: &mut u32) -> Result<(), Erreur> {
     if !BLOCS.contains(&bloc.nom.as_str()) {
         return Err(Erreur { message: bloc_inconnu(&bloc.nom), pos: bloc.pos });
     }
+    verifier_reglages(bloc, parent)?;
     if let Some(niveau) = niveau_de_titre(&bloc.nom) {
         // Le numéro dit la place dans le plan, jamais la taille : `H3` ne suit pas `H1`.
         if niveau > *dernier_titre + 1 {
@@ -55,16 +143,16 @@ fn parcourir(bloc: &Bloc, dernier_titre: &mut u32) -> Result<(), Erreur> {
         // (une seule, ou plusieurs entre crochets : dans les deux cas, on ne descend pas dedans)
         let demande = matches!(bloc.nom.as_str(), "On" | "Every" | "When") && argument.nom.as_deref() == Some("effect");
         if !demande {
-            visiter(&argument.valeur, plan)?;
+            visiter(&argument.valeur, plan, &bloc.nom)?;
         }
     }
     Ok(())
 }
 
-fn visiter(valeur: &Valeur, dernier_titre: &mut u32) -> Result<(), Erreur> {
+fn visiter(valeur: &Valeur, dernier_titre: &mut u32, parent: &str) -> Result<(), Erreur> {
     match valeur {
-        Valeur::Bloc(bloc) => parcourir(bloc, dernier_titre),
-        Valeur::Liste(elements) => elements.iter().try_for_each(|e| visiter(e, dernier_titre)),
+        Valeur::Bloc(bloc) => parcourir(bloc, dernier_titre, parent),
+        Valeur::Liste(elements) => elements.iter().try_for_each(|e| visiter(e, dernier_titre, parent)),
         _ => Ok(()),
     }
 }
@@ -169,4 +257,23 @@ mod tests {
         verifier("Page(children: [ H1(\"a\"), H2(\"b\"), Point(name: A, seed: 1, inside: World(children: [ H1(\"c\") ])), H3(\"d\") ])").unwrap();
         assert!(verifier("Page(children: [ H1(\"a\"), Point(name: A, seed: 1, inside: World(children: [ H2(\"c\") ])) ])").is_err());
     }
+
+    #[test]
+    fn rien_n_est_avale_en_silence() {
+        for (source, message) in [
+            ("Page(Title: \"a\", children: [ H1(\"a\") ])", "écris « title »"),
+            ("Page(colour: \"a\", children: [])", "n'a pas de paramètre « colour »"),
+            ("Page(children: [ Button(name: buy, text: \"x\") ])", "écris « name: Buy »"),
+            ("Page(children: [ P(\"a\", x: 10, y: 10) ])", "mets « P » dans Board"),
+            ("Page(children: [ P(\"a\", align: top) ])", "mets « P » dans Stack"),
+            ("Page(children: [ Image(source: \"a.png\", Alt: \"x\") ])", "écris « alt »"),
+            ("Page(children: [ H1(\"a\", size: 3) ])", "« H1 » n'a pas de paramètre « size »"),
+        ] {
+            let erreur = verifier(source).unwrap_err();
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
+        // Ce qui est permis selon la place : sur un plateau, dans une pile, en mouvement.
+        verifier("Page(children: [ Board(children: [ Shape(name: S, form: circle, x: 1, y: 2, drag: true) ]), Stack(children: [ P(\"a\"), P(\"b\", align: top) ]), H1(\"c\", enter: Enter(y: 4px)) ])").unwrap();
+    }
+
 }
