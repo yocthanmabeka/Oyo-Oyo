@@ -296,6 +296,12 @@ pub fn delais(source: &str, etat: &str) -> String {
     crate::delais(source, etat)
 }
 
+/// Ce qu'un formulaire envoie au serveur, en JSON.
+#[wasm_bindgen]
+pub fn envoi(source: &str, etat: &str, formulaire: &str) -> String {
+    crate::envoi(source, etat, formulaire)
+}
+
 /// La page lit-elle l'heure du visiteur ?
 #[wasm_bindgen]
 pub fn lit_l_heure(source: &str) -> bool {

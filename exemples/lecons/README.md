@@ -62,5 +62,16 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 52 | [Des couleurs nommées, et le thème sombre](52-variables-et-theme-sombre.holo) | `--or`, `dark:` |
 | 53 | [Sur un téléphone](53-telephone.holo) | `phone:`, `display: none` |
 | 54 | [Sa propre police](54-police.holo) | `fonts`, `Font` |
+| 55 | [Barré, surligné, exposant, indice](55-petits-textes.holo) | `~~…~~`, `==…==`, `^…^`, `~…~` |
+| 56 | [Aller plus bas dans la page](56-aller-plus-bas.holo) | `A(to: "#Horaires")` |
+| 57 | [Une image et sa légende](57-image-et-legende.holo) | `Image(caption:, phone:)` |
+| 58 | [Un lecteur de son](58-lecteur-de-son.holo) | `Sound(label:)` |
+| 59 | [Une glissière](59-glissiere.holo) | `Slider` |
+| 60 | [Une date, une heure, une couleur](60-date-heure-couleur.holo) | `Input(type: date | time | color)` |
+| 61 | [Une barre de progression](61-progression.holo) | `Progress` |
+| 62 | [Des plis qui s'ouvrent](62-plis.holo) | `Details` |
+| 63 | [Une fenêtre par-dessus la page](63-fenetre.holo) | `Dialog`, `open`, `close` |
+| 64 | [Envoyer un message](64-formulaire.holo) | `Form`, `send`, `sent`, `failed` |
+| 65 | [L'icône de l'onglet](65-icone-de-l-onglet.holo) | `Page(icon:)` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.

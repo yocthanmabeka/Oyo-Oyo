@@ -10,6 +10,8 @@ use crate::holo::{Bloc, Erreur, Programme, Valeur};
 fn signaux(bloc: &str) -> &'static [&'static str] {
     match bloc {
         "Button" | "Point" | "Shape" => &["tap", "hover", "hoverEnd"],
+        // Un formulaire dit si son envoi est arrivé, ou non (ADR-042).
+        "Form" => &["sent", "failed", "hover", "hoverEnd"],
         // Tout bloc qui se voit peut être survolé (ADR-039) : la souris arrive dessus, le
         // clavier s'y pose, ou le doigt le touche sur un téléphone.
         autre if crate::blocs::BLOCS.contains(&autre) && !INVISIBLES.contains(&autre) => &["hover", "hoverEnd"],
@@ -30,6 +32,9 @@ fn capacites(bloc: &str) -> &'static [&'static str] {
         "Sound" => &["play"],
         // Ouvrir le carrefour : les portails vers les mondes voisins.
         "Page" => &["portals"],
+        // Une fenêtre par-dessus la page, et un formulaire qu'on envoie (ADR-042).
+        "Dialog" => &["open", "close"],
+        "Form" => &["send"],
         _ => &[],
     }
 }
@@ -102,6 +107,18 @@ pub fn verifier_regles(programme: &Programme) -> Result<(), Erreur> {
         Ok(())
     })?;
     verifier_reperes(&programme.racine)?;
+    // Un lien vers un endroit de la page (ADR-042) vise un bloc qui existe : sur le web, une
+    // ancre mal écrite ne mène nulle part, sans rien dire.
+    pour_chaque_bloc(&programme.racine, &mut |bloc| {
+        if let (true, Some(crate::holo::Argument { valeur: Valeur::Texte(adresse), pos, .. })) = (bloc.nom == "A", bloc.argument("to")) {
+            if let Some(cible) = adresse.strip_prefix('#').filter(|c| !c.is_empty() && !c.contains('/') && !c.starts_with('@')) {
+                if !noms.iter().any(|(connu, _)| *connu == cible) {
+                    return Err(Erreur { message: format!("« to: \"#{cible}\" » : aucun bloc ne s'appelle « {cible} » ; un lien vers un endroit de la page vise le nom d'un bloc, comme H2(\"Horaires\", name: {cible})"), pos: *pos });
+                }
+            }
+        }
+        Ok(())
+    })?;
     let etat = crate::etat::initial(programme)?;
     pour_chaque_bloc(&programme.racine, &mut |bloc| {
         if bloc.nom == "On" {
@@ -314,6 +331,24 @@ fn verifier_budget(point: &Bloc) -> Result<(), Erreur> {
         }),
         _ => Ok(()),
     }
+}
+
+/// Les blocs vers lesquels un lien de la page mène (`A(to: "#Hours")`), sauf les points, dont le
+/// lien ouvre le monde. Ils reçoivent un `id` : le navigateur y descend tout seul.
+pub fn ancres(programme: &Programme) -> Vec<String> {
+    let mut noms: Vec<String> = Vec::new();
+    let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
+        if let (true, Some(Valeur::Texte(adresse))) = (bloc.nom == "A", bloc.argument("to").map(|a| &a.valeur)) {
+            if let Some(cible) = adresse.strip_prefix('#').filter(|c| !c.is_empty() && !c.contains('/') && !c.starts_with('@')) {
+                let point = bloc_nomme(programme, cible).is_some_and(|b| b.nom == "Point");
+                if !point && !noms.iter().any(|n| n == cible) {
+                    noms.push(cible.to_string());
+                }
+            }
+        }
+        Ok(())
+    });
+    noms
 }
 
 /// Les blocs qu'une règle écoute au survol : `On(Card.hover, …)` ou `On(Card.hoverEnd, …)`.

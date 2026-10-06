@@ -176,7 +176,8 @@ fn plafond(programme: &Programme, nom: &str) -> u64 {
         if matches!(bloc.argument("value").map(|a| &a.valeur), Some(Valeur::Nom(valeur)) if valeur == nom) {
             match (bloc.nom.as_str(), bloc.argument("max").map(|a| &a.valeur)) {
                 ("Checkbox", _) => plafond = plafond.min(1),
-                ("Input", Some(Valeur::Entier(max))) => plafond = plafond.min(*max),
+                ("Input" | "Slider", Some(Valeur::Entier(max))) => plafond = plafond.min(*max),
+                ("Slider", None) => plafond = plafond.min(100),
                 _ => {}
             }
         }
@@ -191,6 +192,20 @@ fn plafond(programme: &Programme, nom: &str) -> u64 {
     plafond
 }
 
+/// Le plus petit nombre qu'une glissière laisse choisir (ADR-042) ; 0 sinon.
+fn plancher(programme: &Programme, nom: &str) -> u64 {
+    let mut plancher = 0;
+    let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
+        if bloc.nom == "Slider" && matches!(bloc.argument("value").map(|a| &a.valeur), Some(Valeur::Nom(valeur)) if valeur == nom) {
+            if let Some(Valeur::Entier(min)) = bloc.argument("min").map(|a| &a.valeur) {
+                plancher = plancher.max(*min);
+            }
+        }
+        Ok(())
+    });
+    plancher
+}
+
 /// Le visiteur a écrit dans un champ, ou coché une case. C'est encore l'arbitre qui change la
 /// valeur : seulement une valeur que la page déclare et qu'un champ présente, et jamais
 /// au-delà de son plafond. Un texte qui n'est pas un nombre ne change rien.
@@ -200,15 +215,16 @@ pub fn saisir(programme: &Programme, etat: &Etat, nom: &str, ecrit: &str) -> Eta
     let presentee = {
         let mut trouvee = false;
         let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
-            trouvee |= (bloc.nom == "Input" || bloc.nom == "Checkbox") && matches!(bloc.argument("value").map(|a| &a.valeur), Some(Valeur::Nom(valeur)) if valeur == nom);
+            trouvee |= matches!(bloc.nom.as_str(), "Input" | "Checkbox" | "Slider") && matches!(bloc.argument("value").map(|a| &a.valeur), Some(Valeur::Nom(valeur)) if valeur == nom);
             Ok(())
         });
         trouvee
     };
     let ecrit = ecrit.trim();
     let nombre = if ecrit.is_empty() { Some(0) } else { ecrit.parse::<u64>().ok() };
+    let plancher = plancher(programme, nom);
     if let (true, Some(nombre), Some((_, place))) = (presentee, nombre, etat.iter_mut().find(|(connu, _)| connu == nom)) {
-        *place = nombre.min(plafond(programme, nom));
+        *place = nombre.min(plafond(programme, nom)).max(plancher);
     }
     suites(programme, avant, etat)
 }
@@ -683,8 +699,12 @@ pub fn saisir_texte(programme: &Programme, textes: &Textes, nom: &str, ecrit: &s
     let mut longueur = None;
     let mut lignes = false;
     let mut choix: Option<Vec<String>> = None;
+    let mut sorte: Option<String> = None;
     let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
         let presente = matches!(bloc.argument("value").map(|a| &a.valeur), Some(Valeur::Nom(valeur)) if valeur == nom);
+        if let (true, true, Some(Valeur::Nom(t))) = (bloc.nom == "Input", presente, bloc.argument("type").map(|a| &a.valeur)) {
+            sorte = Some(t.clone());
+        }
         if bloc.nom == "Input" && presente {
             lignes = bloc.argument("lines").is_some();
             longueur = Some(match bloc.argument("max").map(|a| &a.valeur) {
@@ -699,6 +719,20 @@ pub fn saisir_texte(programme: &Programme, textes: &Textes, nom: &str, ecrit: &s
         }
         Ok(())
     });
+    // Une date, une heure, une couleur (ADR-042) : seulement ce que le navigateur sait écrire.
+    if let Some(sorte) = sorte {
+        let chiffres = |t: &str, gabarit: &str| t.len() == gabarit.len() && t.chars().zip(gabarit.chars()).all(|(c, g)| if g == '9' { c.is_ascii_digit() } else { c == g });
+        let correct = ecrit.is_empty()
+            || match sorte.as_str() {
+                "date" => chiffres(ecrit, "9999-99-99"),
+                "time" => chiffres(ecrit, "99:99"),
+                _ => ecrit.len() == 7 && ecrit.starts_with('#') && ecrit[1..].chars().all(|c| c.is_ascii_hexdigit()),
+            };
+        if let (true, Some((_, place))) = (correct, textes.iter_mut().find(|(connu, _)| connu == nom)) {
+            *place = ecrit.to_ascii_lowercase();
+        }
+        return textes;
+    }
     if let Some(options) = choix {
         if let Some((_, place)) = textes.iter_mut().find(|(connu, _)| connu == nom) {
             if ecrit.is_empty() || options.iter().any(|o| o == ecrit) {
@@ -711,6 +745,47 @@ pub fn saisir_texte(programme: &Programme, textes: &Textes, nom: &str, ecrit: &s
         *place = if lignes { propre_sur_plusieurs_lignes(ecrit, longueur) } else { propre(ecrit, longueur) };
     }
     textes
+}
+
+/// Ce qu'un formulaire envoie (ADR-042) : les valeurs que présentent ses champs, en JSON,
+/// `{"form":"Contact","values":{"name":"Ada","size":"M","quantity":2}}`. `None` si aucun
+/// formulaire ne porte ce nom.
+pub fn envoi(programme: &Programme, etat: &Etat, textes: &Textes, formulaire: &str) -> Option<String> {
+    let form = crate::regles::bloc_nomme(programme, formulaire).filter(|b| b.nom == "Form")?;
+    let mut noms: Vec<&str> = Vec::new();
+    let _ = pour_chaque_bloc(form, &mut |bloc| {
+        if matches!(bloc.nom.as_str(), "Input" | "Checkbox" | "Choice" | "Slider") {
+            if let Some(Valeur::Nom(valeur)) = bloc.argument("value").map(|a| &a.valeur) {
+                if !noms.contains(&valeur.as_str()) {
+                    noms.push(valeur);
+                }
+            }
+        }
+        Ok(())
+    });
+    let json = |texte: &str| {
+        let mut sortie = String::from("\"");
+        for c in texte.chars() {
+            match c {
+                '"' => sortie.push_str("\\\""),
+                '\\' => sortie.push_str("\\\\"),
+                '\n' => sortie.push_str("\\n"),
+                c if (c as u32) < 0x20 => sortie.push_str(&format!("\\u{:04x}", c as u32)),
+                c => sortie.push(c),
+            }
+        }
+        sortie.push('"');
+        sortie
+    };
+    let valeurs: Vec<String> = noms
+        .iter()
+        .filter_map(|nom| match (etat.iter().find(|(c, _)| c == nom), textes.iter().find(|(c, _)| c == nom)) {
+            (Some((_, n)), _) => Some(format!("{}:{n}", json(nom))),
+            (_, Some((_, t))) => Some(format!("{}:{}", json(nom), json(t))),
+            _ => None,
+        })
+        .collect();
+    Some(format!("{{\"form\":{},\"values\":{{{}}}}}", json(formulaire), valeurs.join(",")))
 }
 
 /// Pour les conditions, un texte vaut 0 quand il est vide, 1 sinon : `If(buyer, not: "")`.
@@ -1074,7 +1149,7 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
             }
         }
         if bloc.nom == "Input" || bloc.nom == "Checkbox" {
-            let permis: &[&str] = if bloc.nom == "Input" { &["name", "value", "label", "max", "lines"] } else { &["name", "value", "label"] };
+            let permis: &[&str] = if bloc.nom == "Input" { &["name", "value", "label", "max", "lines", "type"] } else { &["name", "value", "label"] };
             let exemple = if bloc.nom == "Input" { "Input(value: quantity, label: \"How many?\")" } else { "Checkbox(value: gift, label: \"Gift wrap\")" };
             for argument in &bloc.arguments {
                 match (argument.nom.as_deref(), &argument.valeur) {
@@ -1099,6 +1174,13 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
                         }
                     }
                     (Some("lines"), _) => return Err(Erreur { message: "« Input(lines: …) » attend un nombre de lignes, de 2 à 20".into(), pos: argument.pos }),
+                    // Une date, une heure, une couleur (ADR-042) : la valeur est un texte.
+                    (Some("type"), Valeur::Nom(t)) if bloc.nom == "Input" && ["date", "time", "color"].contains(&t.as_str()) => {
+                        if !matches!(bloc.argument("value").map(|a| &a.valeur), Some(Valeur::Nom(v)) if est_texte(v)) {
+                            return Err(Erreur { message: format!("« Input(type: {t}) » écrit un texte : sa valeur se déclare ainsi, state: State(arrivee: \"\")"), pos: argument.pos });
+                        }
+                    }
+                    (Some("type"), _) => return Err(Erreur { message: "« Input(type: …) » attend date, time ou color ; un nombre ou un texte se devinent tout seuls".into(), pos: argument.pos }),
                     (Some(mot), _) if permis.contains(&mot) => return Err(Erreur { message: format!("« {}({mot}: …) » est mal écrit : {exemple}", bloc.nom), pos: argument.pos }),
                     (Some(mot), _) => return Err(Erreur { message: format!("« {} » n'a pas de paramètre « {mot} » ; paramètres possibles : {}", bloc.nom, permis.join(", ")), pos: argument.pos }),
                     (None, _) => return Err(Erreur { message: format!("chaque paramètre de « {} » est nommé : {exemple}", bloc.nom), pos: argument.pos }),
@@ -1109,6 +1191,38 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
                 if bloc.argument(requis).is_none() {
                     return Err(Erreur { message: format!("« {} » attend « {requis} » : {exemple}", bloc.nom), pos: bloc.pos });
                 }
+            }
+        }
+        // Une glissière présente un nombre de la page ; une barre de progression le montre (ADR-042).
+        if bloc.nom == "Slider" || bloc.nom == "Progress" {
+            let exemple = if bloc.nom == "Slider" { "Slider(value: volume, label: \"Volume\", min: 0, max: 100)" } else { "Progress(value: lives, max: 3, label: \"Lives\")" };
+            for argument in &bloc.arguments {
+                match (argument.nom.as_deref(), &argument.valeur) {
+                    (Some("name"), _) | (Some("label"), Valeur::Texte(_)) => {}
+                    (Some("value"), Valeur::Nom(valeur)) if HORLOGE.contains(&valeur.as_str()) && bloc.nom == "Slider" => {
+                        return Err(Erreur { message: format!("« Slider(value: {valeur}) » : « {valeur} » est l'heure du visiteur ; on la lit, on ne l'écrit pas"), pos: argument.pos })
+                    }
+                    (Some("value"), Valeur::Nom(valeur)) if a_montrer(programme, &etat).iter().any(|(connu, _)| connu == valeur) => {}
+                    (Some("value"), Valeur::Entier(_)) if bloc.nom == "Progress" => {}
+                    (Some("value"), _) => return Err(Erreur { message: format!("« {}(value: …) » présente un nombre de la page : déclare-le, state: State(volume: 50) ; {exemple}", bloc.nom), pos: argument.pos }),
+                    (Some("min"), Valeur::Entier(_)) if bloc.nom == "Slider" => {}
+                    (Some("max"), Valeur::Entier(max)) if (1..=VALEUR_MAX).contains(max) => {}
+                    (Some(mot @ ("min" | "max")), _) => return Err(Erreur { message: format!("« {}({mot}: …) » attend un nombre entier, de 1 à {VALEUR_MAX} pour max", bloc.nom), pos: argument.pos }),
+                    (Some(mot), _) => return Err(Erreur { message: format!("« {}({mot}: …) » est mal écrit : {exemple}", bloc.nom), pos: argument.pos }),
+                    (None, _) => return Err(Erreur { message: format!("chaque paramètre de « {} » est nommé : {exemple}", bloc.nom), pos: argument.pos }),
+                }
+            }
+            for requis in ["value", "label"] {
+                if bloc.argument(requis).is_none() {
+                    return Err(Erreur { message: format!("« {} » attend « {requis} » : {exemple}", bloc.nom), pos: bloc.pos });
+                }
+            }
+            let entier = |p: &str| match bloc.argument(p).map(|a| &a.valeur) {
+                Some(Valeur::Entier(n)) => Some(*n),
+                _ => None,
+            };
+            if bloc.nom == "Slider" && entier("min").unwrap_or(0) >= entier("max").unwrap_or(100) {
+                return Err(Erreur { message: "« Slider » : min doit être plus petit que max".into(), pos: bloc.pos });
             }
         }
         // Une règle qui guette regarde un nombre : une valeur déclarée ou calculée.

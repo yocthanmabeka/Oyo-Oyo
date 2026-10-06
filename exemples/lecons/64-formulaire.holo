@@ -1,0 +1,46 @@
+// Leçon 64 — Envoyer un message
+//
+// Ce qu'on apprend :
+//   Form(name: Contact, children: [ … ]) : un formulaire ; il envoie les valeurs de ses champs.
+//   On(Envoyer.tap, effect: Contact.send)       l'envoie au serveur d'où vient la page
+//   On(Contact.sent, effect: …)                 l'envoi est arrivé
+//   On(Contact.failed, effect: …)               il n'est pas arrivé (pas de réseau, pas de serveur)
+//   Chez toi, le serveur range chaque message dans le dossier messages/, à la racine du dépôt :
+//   un fichier par page, une ligne par message. Rien ne part ailleurs.
+//
+// À essayer :
+//   Écris ton nom et un message, puis touche « Envoyer ».
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 64 : envoyer un message",
+  state: State(nom: "", message: "", etat: 0),
+  children: [
+    H1("Envoyer un message"),
+    Form(name: Contact, children: [
+      Input(value: nom, label: "Ton nom"),
+      Input(value: message, label: "Ton message", lines: 4),
+      Button(name: Envoyer, text: "Envoyer"),
+    ]),
+    If(etat, is: 1, children: [ P.ok("Merci, ton message est arrivé.") ]),
+    If(etat, is: 2, children: [ P.erreur("Le message n'est pas parti : réessaie plus tard.") ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 63 : une fenêtre par-dessus la page", to: "63-fenetre.holo"),
+      A("Leçon 65 : l'icône de l'onglet →", to: "65-icone-de-l-onglet.holo"),
+    ]),
+  ],
+  rules: [
+    On(Envoyer.tap, effect: Contact.send),
+    On(Contact.sent, effect: etat.set(1)),
+    On(Contact.failed, effect: etat.set(2)),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.ok { color: #7be38f; }
+.erreur { color: #ff8a80; }

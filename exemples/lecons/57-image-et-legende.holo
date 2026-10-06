@@ -1,0 +1,29 @@
+// Leçon 57 — Une image et sa légende
+//
+// Ce qu'on apprend :
+//   Image(source: "grande.jpg", alt: "…", caption: "…")   une légende sous l'image
+//   Image(…, phone: "petite.jpg")   une image plus légère, montrée sur un téléphone :
+//   le navigateur ne télécharge que celle qu'il montre.
+//
+// À essayer :
+//   Rétrécis la fenêtre : l'étoile devient un rond, plus léger.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 57 : une image et sa légende",
+  children: [
+    H1("Une image et sa légende"),
+    Image(source: "etoile.svg", alt: "Une étoile dorée", caption: "L'étoile de l'atelier, peinte en 2026.", phone: "etoile-petite.svg"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 56 : aller plus bas dans la page", to: "56-aller-plus-bas.holo"),
+      A("Leçon 58 : un lecteur de son →", to: "58-lecteur-de-son.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

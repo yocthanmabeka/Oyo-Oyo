@@ -71,6 +71,16 @@ Les noms marqués ⚠ sont contestés (par Codex ou Gemini) et attendent la déc
 | `dark:`, `phone:` dans un style | `@media (prefers-color-scheme: dark)`, `@media (max-width: 640px)` | changé : des états du style, comme `hover:` |
 | `Font(family:, source:)` et `fonts:` | `@font-face` | changé : déclaré sur la page ; toujours `font-display: swap` |
 | `url("fond.jpg")` dans `background` | `background-image`, `background-size`, `background-repeat` | changé : l'image couvre toujours le bloc |
+| `Form`, `send`, `sent`, `failed` | `form`, `fetch(…, { method: "POST" })`, `.then`, `.catch` | changé : une règle envoie, deux signaux répondent ; la page ne recharge jamais |
+| `Dialog`, `open`, `close` | `dialog`, `showModal()`, `close()` | repris, ouvert et fermé par des règles |
+| `Details(summary:)` | `details`, `summary` | repris |
+| `Slider` | `input type="range"` | changé : le mot de Flutter |
+| `Progress` | `progress` | repris, avec une étiquette obligatoire |
+| `type: date`, `time`, `color` dans `Input` | `input type="date"`, `"time"`, `"color"` | repris |
+| `caption:`, `phone:` dans `Image` | `figure`, `figcaption` ; `picture`, `source media` | changé : deux paramètres de l'image |
+| `label:` dans `Sound` | `audio controls` | changé : avec une étiquette, le son devient un lecteur |
+| `icon:` dans `Page` | `link rel="icon"` | changé |
+| `~~…~~`, `==…==`, `^…^`, `~…~` | `s`, `mark`, `sup`, `sub` | changé : écrits dans le texte, comme le gras |
 | `key:` dans `Item` | `key` de React et de Vue | repris : c'est aussi le nom d'une valeur de la page, et il donne leur nom aux blocs de la copie |
 | `year`, `month`, `day`, `weekday`, `hour`, `minute` | `new Date()`, `getFullYear()`, `getMonth() + 1`, `getDay()` | changé : six valeurs qu'on lit, sans objet ni calcul ; le mois va de 1 à 12, la semaine commence le lundi |
 | `Board` | `position: relative` et `absolute` | changé : un bloc, des places de 0 à 100 |

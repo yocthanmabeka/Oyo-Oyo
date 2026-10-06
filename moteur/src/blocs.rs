@@ -4,7 +4,7 @@
 use crate::holo::{Bloc, Erreur, Programme, Valeur};
 
 /// `Text` est du texte sans rôle ; `P`, `H1`, `H2` et `H3` sont un `Text` avec un rôle (ADR-020).
-pub const BLOCS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Part", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop", "H4", "H5", "H6", "Main", "Nav", "Header", "Footer", "Stack", "Video", "Table", "Choice", "After", "Repeat", "Item", "Font"];
+pub const BLOCS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Part", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop", "H4", "H5", "H6", "Main", "Nav", "Header", "Footer", "Stack", "Video", "Table", "Choice", "After", "Repeat", "Item", "Font", "Slider", "Progress", "Details", "Dialog", "Form"];
 
 /// Le titre le plus profond : `H6`, comme en HTML (correction d'ADR-020 du 2026-10-06 ; les
 /// longs documents en ont besoin). Le numéro dit toujours la place dans le plan, jamais la taille.
@@ -20,7 +20,7 @@ pub fn verifier_blocs(programme: &Programme) -> Result<(), Erreur> {
 /// absents de cette liste vérifient leurs réglages eux-mêmes (`State`, `Prices`, `Data`,
 /// `Zoom`, `Points`, `Relief`, `Portals`, `Enter`, `Loop`, `Use`).
 const REGLAGES_DES_BLOCS: &[(&str, &[&str])] = &[
-    ("Page", &["name", "title", "children", "pixels", "rules", "state", "prices", "keep", "data", "zoom", "points", "relief", "portals", "lang", "description", "image", "fonts"]),
+    ("Page", &["name", "title", "children", "pixels", "rules", "state", "prices", "keep", "data", "zoom", "points", "relief", "portals", "lang", "description", "image", "fonts", "icon"]),
     ("World", &["name", "children", "pixels", "rules"]),
     ("Part", &["name", "children"]),
     ("Text", &["name"]),
@@ -33,8 +33,8 @@ const REGLAGES_DES_BLOCS: &[(&str, &[&str])] = &[
     ("H6", &["name"]),
     ("A", &["name", "to"]),
     ("Button", &["name", "text"]),
-    ("Image", &["name", "source", "weight", "alt"]),
-    ("Sound", &["name", "source", "weight"]),
+    ("Image", &["name", "source", "weight", "alt", "phone", "caption"]),
+    ("Sound", &["name", "source", "weight", "label"]),
     ("Shape", &["name", "form", "color", "size"]),
     ("List", &["name", "children", "ordered"]),
     ("Hr", &["name"]),
@@ -50,7 +50,12 @@ const REGLAGES_DES_BLOCS: &[(&str, &[&str])] = &[
     ("Stack", &["name", "children"]),
     ("Board", &["name", "children", "height"]),
     ("Point", &["name", "seed", "brightness", "fragments", "color", "palette", "budget", "inside", "above"]),
-    ("Input", &["name", "value", "label", "max", "lines"]),
+    ("Input", &["name", "value", "label", "max", "lines", "type"]),
+    ("Slider", &["name", "value", "label", "min", "max"]),
+    ("Progress", &["name", "value", "max", "label"]),
+    ("Details", &["name", "summary", "children", "open"]),
+    ("Dialog", &["name", "children"]),
+    ("Form", &["name", "children"]),
     ("Choice", &["name", "value", "label", "options", "menu"]),
     ("Video", &["name", "source", "label", "weight"]),
     ("Table", &["name", "caption", "head", "rows"]),

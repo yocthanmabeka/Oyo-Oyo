@@ -1,0 +1,29 @@
+// Leçon 58 — Un lecteur de son
+//
+// Ce qu'on apprend :
+//   Sound(source: "28-son.wav", label: "…")   avec une étiquette, le son devient un lecteur,
+//   avec ses boutons ; il ne démarre jamais tout seul.
+//   (Sans étiquette, c'est un son qu'une règle fait entendre : voir la leçon 28.)
+//
+// À essayer :
+//   Appuie sur lecture.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 58 : un lecteur de son",
+  children: [
+    H1("Un lecteur de son"),
+    Sound(source: "28-son.wav", label: "Le carillon de l'atelier"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 57 : une image et sa légende", to: "57-image-et-legende.holo"),
+      A("Leçon 59 : une glissière →", to: "59-glissiere.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

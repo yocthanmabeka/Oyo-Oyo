@@ -25,6 +25,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 53 : sur un téléphone", to: "53-telephone.holo"),
+      A("Leçon 55 : barré, surligné, exposant, indice →", to: "55-petits-textes.holo"),
     ]),
   ],
 )

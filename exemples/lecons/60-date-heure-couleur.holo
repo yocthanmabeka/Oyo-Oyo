@@ -1,0 +1,34 @@
+// Leçon 60 — Une date, une heure, une couleur
+//
+// Ce qu'on apprend :
+//   Input(value: jour, label: "…", type: date)    le navigateur montre un calendrier
+//   Input(value: heure, label: "…", type: time)   une heure
+//   Input(value: teinte, label: "…", type: color) une couleur
+//   La valeur est un texte : « 2026-10-06 », « 14:30 », « #e9b44c ». Rien d'autre n'y entre.
+//
+// À essayer :
+//   Choisis un jour, une heure et une couleur.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 60 : une date, une heure, une couleur",
+  state: State(jour: "", heure: "", teinte: ""),
+  children: [
+    H1("Une date, une heure, une couleur"),
+    Input(value: jour, label: "Le jour du rendez-vous", type: date),
+    Input(value: heure, label: "L'heure", type: time),
+    Input(value: teinte, label: "La couleur du cadre", type: color),
+    If(jour, not: "", children: [ Text("Rendez-vous le {jour} à {heure}, cadre {teinte}.") ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 59 : une glissière", to: "59-glissiere.holo"),
+      A("Leçon 61 : une barre de progression →", to: "61-progression.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

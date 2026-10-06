@@ -1,0 +1,37 @@
+// Leçon 56 — Aller plus bas dans la page
+//
+// Ce qu'on apprend :
+//   A("Les horaires", to: "#Horaires") mène au bloc qui porte ce nom : H2("…", name: Horaires).
+//   Le navigateur y descend tout seul, sans attendre le moteur.
+//   Un lien vers un nom qui n'existe pas est refusé (sur le web, il ne mène nulle part sans rien dire).
+//
+// À essayer :
+//   Touche « Les horaires » : la page descend jusqu'au titre.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 56 : aller plus bas dans la page",
+  children: [
+    H1("Aller plus bas dans la page"),
+    A("Les horaires", to: "#Horaires"),
+    P("""
+      L'atelier peint à la main des tableaux de paysages : le soleil sur la rivière,
+      la forêt au matin, les toits sous la neige. Chaque tableau prend une semaine.
+    """),
+    Text.espace(""),
+    H2("Les horaires", name: Horaires),
+    P("Du mardi au samedi, de 9 h à 18 h."),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 55 : barré, surligné, exposant, indice", to: "55-petits-textes.holo"),
+      A("Leçon 57 : une image et sa légende →", to: "57-image-et-legende.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.espace { height: 900px; }

@@ -16,7 +16,7 @@ const BASE: &str = "\
 :where(.holo-Page>main,.holo-Page>header,.holo-Page>footer){display:block;max-width:640px;margin:0 auto;position:relative}\
 :where(.holo-Page>main,.holo-Page>header,.holo-Page>footer,.holo-panneau,.holo-Header,.holo-Footer,.holo-Main)>*{display:block;box-sizing:border-box;margin:0 0 16px 0}\
 :where(.holo-Nav)>*{margin:0}\
-:where(.holo-Stack){display:inline-grid;position:relative;max-width:100%;vertical-align:top}:where(.holo-Stack>:first-child>.holo-Image){width:100%;display:block}:where(.holo-Stack)>*{grid-area:1/1;min-width:0;margin:0}\
+:where(.holo-Stack){display:inline-grid;position:relative;max-width:100%;vertical-align:top}:where(.holo-Stack>:first-child .holo-Image){width:100%;display:block}:where(.holo-Stack)>*{grid-area:1/1;min-width:0;margin:0}\
 :where(.holo-pose){z-index:1;margin:6px}\
 :where(.holo-Button){font:inherit;color:inherit;cursor:pointer;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 12px}\
 :where(.holo-Point){width:64px;height:64px;padding:0;border:0;border-radius:50%;cursor:pointer;\
@@ -51,7 +51,15 @@ grid-template-columns:repeat(auto-fill,minmax(min(100%,max(120px,calc((100% - (v
 transition:left .12s linear,top .12s linear,transform .12s linear}\
 :where(.holo-place[data-drag]){touch-action:none;cursor:grab}.holo-place.holo-glisse{transition:none;cursor:grabbing}\
 @media (prefers-reduced-motion:reduce){.holo-place{transition:none}.holo-Page,.holo-Page *{transition:none!important}}\
-:where(.holo-Sound){display:none}\
+:where(.holo-Sound){display:none}:where(audio.holo-Sound[controls]){display:block;width:100%;max-width:480px}\
+:where(.holo-figure){margin:0 0 16px 0}:where(.holo-figure figcaption){font-size:0.9em;opacity:0.8;margin-top:6px}:where(picture){display:contents}\
+:where(.holo-Slider,.holo-Progress){display:flex;flex-direction:column;gap:4px;align-items:flex-start}:where(.holo-Slider input){width:min(100%,320px);accent-color:currentColor}\
+:where(.holo-Progress progress){width:min(100%,320px);accent-color:currentColor}\
+:where(.holo-Details summary){cursor:pointer;font-weight:bold}:where(.holo-Details[open] summary){margin-bottom:8px}\
+:where(.holo-Dialog){max-width:min(90vw,480px);border:1px solid currentColor;border-radius:12px;padding:16px 20px;color:inherit;background:var(--fond,Canvas)}\
+:where(.holo-Dialog)::backdrop{background:rgba(0,0,0,0.5)}:where(.holo-Dialog>*){margin:0 0 12px 0}:where(.holo-fermer){display:flex;justify-content:flex-end;margin:0}\
+:where(.holo-fermer button){font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;font-size:1.2em;line-height:1}\
+:where(.holo-Form){display:block}:where(.holo-Form>*){display:block;box-sizing:border-box;margin:0 0 16px 0}\
 :where(.holo-Shape){display:block;width:var(--holo-size,48px);height:var(--holo-size,48px);padding:0;border:0;background:var(--holo-color,currentColor)}\
 :where(button.holo-Shape){cursor:pointer}\
 :where(.holo-forme-circle){border-radius:50%}\
@@ -222,6 +230,17 @@ fn site_html_brut(programme: &Programme, page: &Bloc, base: &str, titre: &str) -
     let vivante = if vivante { " data-vivant" } else { "" };
     // Un bloc qu'une règle écoute au survol le dit à la page (ADR-039) : la page légère fait
     // venir le moteur quand la souris arrive dessus.
+    // Un bloc vers lequel un lien de la page mène (ADR-042) reçoit son nom comme `id` : le
+    // navigateur y descend tout seul, sans le moteur.
+    for nom in crate::regles::ancres(programme) {
+        let seul = format!(" data-name=\"{}\"", echapper(&nom));
+        for html in [&mut corps, &mut entete, &mut pied, &mut mondes] {
+            if let Some(place) = html.find(&seul) {
+                html.insert_str(place + seul.len(), &format!(" id=\"{}\"", echapper(&nom)));
+                break;
+            }
+        }
+    }
     // Un bloc qui ne reçoit pas le focus de lui-même (une carte, un texte) le reçoit alors, pour
     // qu'on le survole aussi au clavier, avec Tab.
     for nom in crate::regles::survoles(programme) {
@@ -236,18 +255,23 @@ fn site_html_brut(programme: &Programme, page: &Bloc, base: &str, titre: &str) -
     // La langue, la description et l'image de partage (ADR-038) : le serveur et le moteur les
     // reprennent dans l'en-tête de la page, pour les lecteurs d'écran, Google et les réseaux.
     let mut partage = String::new();
-    for (parametre, attribut) in [("lang", "data-lang"), ("description", "data-description"), ("image", "data-image")] {
+    for (parametre, attribut) in [("lang", "data-lang"), ("description", "data-description"), ("image", "data-image"), ("icon", "data-icon")] {
         match page.argument(parametre).map(|a| &a.valeur) {
             None => {}
             Some(Valeur::Texte(texte)) if parametre == "lang" && est_langue(texte) => partage.push_str(&format!(" {attribut}=\"{}\"", echapper(texte))),
             Some(Valeur::Texte(texte)) if parametre == "description" && texte.chars().count() <= 300 => partage.push_str(&format!(" {attribut}=\"{}\"", echapper(texte))),
             Some(Valeur::Texte(texte)) if parametre == "image" && chemin_sur(texte) => partage.push_str(&format!(" {attribut}=\"{}{}\"", echapper(base), echapper(texte))),
+            // La petite image de l'onglet (ADR-042).
+            Some(Valeur::Texte(texte)) if parametre == "icon" && chemin_sur(texte) && [".png", ".svg", ".ico"].iter().any(|fin| texte.ends_with(fin)) => {
+                partage.push_str(&format!(" {attribut}=\"{}{}\"", echapper(base), echapper(texte)))
+            }
             Some(_) => {
                 let pos = page.argument(parametre).map_or(page.pos, |a| a.pos);
                 return Err(Erreur {
                     message: match parametre {
                         "lang" => "« Page(lang: …) » attend une langue, comme \"fr\", \"en\" ou \"fr-CA\"".into(),
                         "description" => "« Page(description: …) » attend un texte de 300 caractères au plus : ce que Google montre sous le titre".into(),
+                        "icon" => "« Page(icon: …) » attend une petite image rangée à côté du fichier, en .png, .svg ou .ico : celle de l'onglet".into(),
                         _ => "« Page(image: …) » attend une image rangée à côté du fichier, comme \"partage.png\" : celle qu'on voit quand on partage le lien".into(),
                     },
                     pos,
@@ -601,7 +625,22 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
                 Some(Valeur::Texte(texte)) => texte.as_str(),
                 Some(_) => return Err(Erreur { message: "« Image(alt: …) » attend un texte entre guillemets : ce que montre l'image".into(), pos: bloc.pos }),
             };
-            sortie.push_str(&format!("<img class=\"{classes}\"{nom} src=\"{}{}\" alt=\"{}\">", echapper(base), echapper(source), echapper(alt)));
+            let mut image = format!("<img class=\"{classes}\"{nom} src=\"{}{}\" alt=\"{}\">", echapper(base), echapper(source), echapper(alt));
+            // Une image plus légère pour un téléphone (ADR-042) : le navigateur ne télécharge que
+            // celle qu'il montre.
+            match bloc.argument("phone").map(|a| &a.valeur) {
+                None => {}
+                Some(Valeur::Texte(petite)) if chemin_sur(petite) => {
+                    image = format!("<picture><source media=\"(max-width:{LARGEUR_D_AUTEUR}px)\" srcset=\"{}{}\">{image}</picture>", echapper(base), echapper(petite))
+                }
+                Some(_) => return Err(Erreur { message: "« Image(phone: …) » attend une image plus légère, rangée à côté : phone: \"photo-petite.jpg\"".into(), pos: bloc.pos }),
+            }
+            // Une légende, sous l'image.
+            match bloc.argument("caption").map(|a| &a.valeur) {
+                None => sortie.push_str(&image),
+                Some(Valeur::Texte(legende)) => sortie.push_str(&format!("<figure class=\"holo-figure\">{image}<figcaption>{}</figcaption></figure>", markdown(legende))),
+                Some(_) => return Err(Erreur { message: "« Image(caption: …) » attend un texte entre guillemets : la légende".into(), pos: bloc.pos }),
+            }
         }
         "List" => {
             // `ordered: true` : une liste numérotée.
@@ -658,6 +697,13 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
                 sortie.push_str(&format!(
                     "<label class=\"{classes}\"{nom}><span>{}</span><textarea rows=\"{lignes}\" maxlength=\"{max}\" data-bind=\"{valeur}\">{MARQUE}#{valeur}{MARQUE}</textarea></label>",
                     markdown(etiquette)
+                ));
+            } else if let (true, Some(Valeur::Nom(sorte))) = (bloc.nom == "Input", bloc.argument("type").map(|a| &a.valeur)) {
+                // Une date, une heure, une couleur : le navigateur montre son propre choisisseur (ADR-042).
+                sortie.push_str(&format!(
+                    "<label class=\"{classes}\"{nom}><span>{}</span><input type=\"{}\" value=\"{MARQUE}#{valeur}{MARQUE}\" data-bind=\"{valeur}\"></label>",
+                    markdown(etiquette),
+                    echapper(sorte)
                 ));
             } else if bloc.nom == "Input" {
                 let max = match bloc.argument("max").map(|a| &a.valeur) {
@@ -838,7 +884,7 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
             let mut source = None;
             for argument in &bloc.arguments {
                 match (argument.nom.as_deref(), &argument.valeur) {
-                    (Some("name" | "weight"), _) => {}
+                    (Some("name" | "weight"), _) | (Some("label"), Valeur::Texte(_)) => {}
                     (Some("source"), Valeur::Texte(s)) if chemin_sur(s) && [".wav", ".mp3", ".ogg"].iter().any(|fin| s.ends_with(fin)) => source = Some(s),
                     (Some("source"), _) => {
                         return Err(Erreur { message: "« Sound(source: …) » attend un fichier de son rangé à côté du .holo : \"ding.wav\" (.wav, .mp3 ou .ogg)".into(), pos: argument.pos })
@@ -847,8 +893,13 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
                     (None, _) => return Err(Erreur { message: "chaque paramètre de « Sound » est nommé : Sound(name: Ding, source: \"ding.wav\")".into(), pos: argument.pos }),
                 }
             }
+            // Avec une étiquette, le son est un lecteur, avec ses boutons, jamais lancé seul (ADR-042).
+            if let (Some(source), Some(Valeur::Texte(etiquette))) = (source, bloc.argument("label").map(|a| &a.valeur)) {
+                sortie.push_str(&format!("<audio class=\"{classes}\"{nom} controls preload=\"metadata\" src=\"{}{}\" aria-label=\"{}\"></audio>", echapper(base), echapper(source), echapper(etiquette)));
+                return Ok(());
+            }
             let (Some(source), false) = (source, nom.is_empty()) else {
-                return Err(Erreur { message: "un son a un nom, pour qu'une règle puisse le jouer, et un fichier : Sound(name: Ding, source: \"ding.wav\")".into(), pos: bloc.pos });
+                return Err(Erreur { message: "un son a un nom, pour qu'une règle puisse le jouer, et un fichier : Sound(name: Ding, source: \"ding.wav\") ; avec label:, c'est un lecteur".into(), pos: bloc.pos });
             };
             sortie.push_str(&format!("<audio class=\"{classes}\"{nom} preload=\"auto\" src=\"{}{}\"></audio>", echapper(base), echapper(source)));
         }
@@ -889,6 +940,87 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
                 });
             };
             sortie.push_str(&format!("<a class=\"{classes}\"{nom} href=\"{}\">{}</a>", echapper(&adresse), markdown(texte_de(bloc)?)));
+        }
+        // Une glissière : choisir un nombre entre deux bornes (ADR-042).
+        "Slider" => {
+            let (Some(Valeur::Nom(valeur)), Some(Valeur::Texte(etiquette))) = (bloc.argument("value").map(|a| &a.valeur), bloc.argument("label").map(|a| &a.valeur)) else {
+                return Err(Erreur { message: "« Slider » attend « value » et « label »".into(), pos: bloc.pos });
+            };
+            let borne = |p: &str, defaut: u64| match bloc.argument(p).map(|a| &a.valeur) {
+                Some(Valeur::Entier(n)) => *n,
+                _ => defaut,
+            };
+            let valeur = echapper(valeur);
+            sortie.push_str(&format!(
+                "<label class=\"{classes}\"{nom}><span>{}</span><input type=\"range\" min=\"{}\" max=\"{}\" value=\"{MARQUE}#{valeur}{MARQUE}\" data-bind=\"{valeur}\"></label>",
+                markdown(etiquette),
+                borne("min", 0),
+                borne("max", 100)
+            ));
+        }
+        // Une barre de progression : une jauge de vie, un téléchargement (ADR-042).
+        "Progress" => {
+            let Some(Valeur::Texte(etiquette)) = bloc.argument("label").map(|a| &a.valeur) else {
+                return Err(Erreur { message: "« Progress » attend « label » : ce que mesure la barre".into(), pos: bloc.pos });
+            };
+            let max = match bloc.argument("max").map(|a| &a.valeur) {
+                Some(Valeur::Entier(n)) => *n,
+                _ => 100,
+            };
+            let (lien, depart) = match bloc.argument("value").map(|a| &a.valeur) {
+                Some(Valeur::Nom(v)) => (format!(" data-progress=\"{}\"", echapper(v)), format!("{MARQUE}#{}{MARQUE}", echapper(v))),
+                Some(Valeur::Entier(n)) => (String::new(), n.min(&max).to_string()),
+                _ => return Err(Erreur { message: "« Progress » attend « value » : un nombre de la page, ou un nombre".into(), pos: bloc.pos }),
+            };
+            sortie.push_str(&format!("<label class=\"{classes}\"{nom}><span>{}</span><progress max=\"{max}\" value=\"{depart}\"{lien}></progress></label>", markdown(etiquette)));
+        }
+        // Un pli qui s'ouvre : une question, sa réponse (ADR-042). Il marche sans le moteur.
+        "Details" => {
+            let Some(Valeur::Texte(resume)) = bloc.argument("summary").map(|a| &a.valeur) else {
+                return Err(Erreur { message: "« Details » attend « summary » : ce qu'on voit fermé, Details(summary: \"Livrez-vous ?\", children: [ … ])".into(), pos: bloc.pos });
+            };
+            let ouvert = match bloc.argument("open").map(|a| &a.valeur) {
+                None | Some(Valeur::Bool(false)) => "",
+                Some(Valeur::Bool(true)) => " open",
+                Some(_) => return Err(Erreur { message: "« Details(open: …) » attend true ou false".into(), pos: bloc.pos }),
+            };
+            sortie.push_str(&format!("<details class=\"{classes}\"{nom}{ouvert}><summary>{}</summary>", markdown(resume)));
+            enfants(bloc, sortie, mondes, base)?;
+            sortie.push_str("</details>");
+        }
+        // Une fenêtre par-dessus la page (ADR-042) : une règle l'ouvre (Confirm.open) ; la croix,
+        // la touche Échap ou une règle (Confirm.close) la ferment.
+        "Dialog" => {
+            if nom.is_empty() {
+                return Err(Erreur { message: "« Dialog » a un nom, pour qu'une règle l'ouvre : Dialog(name: Confirm, children: [ … ]), puis On(Ask.tap, effect: Confirm.open)".into(), pos: bloc.pos });
+            }
+            sortie.push_str(&format!("<dialog class=\"{classes}\"{nom}><form method=\"dialog\" class=\"holo-fermer\"><button aria-label=\"Fermer\">✕</button></form>"));
+            enfants(bloc, sortie, mondes, base)?;
+            sortie.push_str("</dialog>");
+        }
+        // Un formulaire qu'on envoie (ADR-042) : une règle l'envoie (Contact.send) ; il dit ensuite
+        // si l'envoi est arrivé (Contact.sent) ou non (Contact.failed).
+        "Form" => {
+            if nom.is_empty() {
+                return Err(Erreur { message: "« Form » a un nom, pour qu'une règle l'envoie : Form(name: Contact, children: [ … ]), puis On(Send.tap, effect: Contact.send)".into(), pos: bloc.pos });
+            }
+            if let Some(Valeur::Liste(dedans)) = bloc.argument("children").map(|a| &a.valeur) {
+                let mut imbrique = false;
+                for valeur in dedans {
+                    if let Valeur::Bloc(enfant) = valeur {
+                        let _ = crate::regles::pour_chaque_bloc(enfant, &mut |b| {
+                            imbrique |= b.nom == "Form";
+                            Ok(())
+                        });
+                    }
+                }
+                if imbrique {
+                    return Err(Erreur { message: "un formulaire dans un formulaire n'est pas permis".into(), pos: bloc.pos });
+                }
+            }
+            sortie.push_str(&format!("<form class=\"{classes}\"{nom} novalidate>"));
+            enfants(bloc, sortie, mondes, base)?;
+            sortie.push_str("</form>");
         }
         "Point" => {
             let allure = allure_du_point(bloc)?;
@@ -1095,7 +1227,9 @@ fn markdown(texte: &str) -> String {
     }
     // `code` entre accents graves, puis le gras et l'italique. Dans un texte écrit sur
     // plusieurs lignes (entre trois guillemets), chaque retour à la ligne est gardé.
-    let mut html = alterner(&alterner(&alterner(&echapper(texte), "`", "code"), "**", "strong"), "*", "em").replace('\n', "<br>");
+    let mut html = alterner(&alterner(&alterner(&echapper(texte), "`", "code"), "**", "strong"), "*", "em");
+    // `~~barré~~`, `==surligné==`, `m^2^` et `H~2~O` (ADR-042).
+    html = alterner(&alterner(&alterner(&alterner(&html, "~~", "s"), "==", "mark"), "^", "sup"), "~", "sub").replace('\n', "<br>");
     // `{cart}` : l'endroit où s'affiche une valeur de la page. `site_html` y écrit son départ,
     // la page d'entrée la tient à jour.
     for nom in crate::etat::noms_dans(texte) {
@@ -1451,6 +1585,55 @@ mod tests {
             ("Page(state: State(n: 0), children: [ Choice(value: n, label: \"x\", options: [\"a\", \"b\"]) ])", "un choix présente un texte"),
             ("Page(state: State(t: \"\"), children: [ Choice(value: t, label: \"x\", options: [\"a\"]) ])", "de 2 à 20 textes"),
             ("Page(state: State(t: \"\"), children: [ Choice(value: t, label: \"x\", options: [\"a\", \"a\"]) ])", "le même texte"),
+        ] {
+            let erreur = crate::verifier_page(source).err().or_else(|| crate::vue_a_plat(source, "").err()).unwrap_or_else(|| panic!("accepté : {source}"));
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
+    }
+
+    #[test]
+    fn le_lot_5_le_html_utile_et_le_formulaire() {
+        let source = "Page(icon: \"i.svg\", state: State(taille: 60, vies: 2, jour: \"\", nom: \"Ada\", message: \"\"), children: [ H1(\"a\"), A(\"bas\", to: \"#Bas\"), P(\"~~120~~ ==oui== m^2^ H~2~O\"), Image(source: \"g.jpg\", alt: \"x\", phone: \"p.jpg\", caption: \"Une *légende*\"), Sound(source: \"s.wav\", label: \"Le son\"), Slider(value: taille, label: \"T\", min: 20, max: 120), Input(value: jour, label: \"J\", type: date), Progress(value: vies, max: 3, label: \"Vies\"), Details(summary: \"Q ?\", open: true, children: [ P(\"R\") ]), Dialog(name: Fenetre, children: [ P(\"D\") ]), Form(name: Contact, children: [ Input(value: nom, label: \"N\"), Input(value: message, label: \"M\", lines: 3), Slider(value: taille, label: \"T2\", min: 20, max: 120) ]), H2(\"b\", name: Bas) ])";
+        let html = crate::vue_a_plat(source, "/ex/").unwrap();
+        for attendu in [
+            " data-icon=\"/ex/i.svg\"",
+            "<a class=\"holo-A\" href=\"#Bas\">bas</a>",
+            "<h2 class=\"holo-H2\" data-name=\"Bas\" id=\"Bas\">b</h2>",
+            "<s>120</s> <mark>oui</mark> m<sup>2</sup> H<sub>2</sub>O",
+            "<figure class=\"holo-figure\"><picture><source media=\"(max-width:640px)\" srcset=\"/ex/p.jpg\"><img class=\"holo-Image\" src=\"/ex/g.jpg\" alt=\"x\"></picture><figcaption>Une <em>légende</em></figcaption></figure>",
+            "<audio class=\"holo-Sound\" controls preload=\"metadata\" src=\"/ex/s.wav\" aria-label=\"Le son\"></audio>",
+            "<input type=\"range\" min=\"20\" max=\"120\" value=\"60\" data-bind=\"taille\">",
+            "<input type=\"date\" value=\"\" data-bind=\"jour\">",
+            "<progress max=\"3\" value=\"2\" data-progress=\"vies\"></progress>",
+            "<details class=\"holo-Details\" open><summary>Q ?</summary><p class=\"holo-P\">R</p></details>",
+            "<dialog class=\"holo-Dialog\" data-name=\"Fenetre\"><form method=\"dialog\" class=\"holo-fermer\">",
+            "<form class=\"holo-Form\" data-name=\"Contact\" novalidate>",
+        ] {
+            assert!(html.contains(attendu), "manque : {attendu}\n{html}");
+        }
+        // La glissière reste dans ses bornes ; la date n'accepte qu'une date.
+        let depart = crate::etat_initial(source);
+        assert!(crate::saisir(source, &depart, "taille", "500").starts_with("taille=120;"));
+        assert!(crate::saisir(source, &depart, "taille", "3").starts_with("taille=20;"));
+        assert!(crate::saisir(source, &depart, "jour", "2026-10-06").contains("jour='2026%2D10%2D06"));
+        assert!(!crate::saisir(source, &depart, "jour", "demain").contains("demain"));
+        // Le formulaire envoie les valeurs de ses champs, et seulement elles.
+        let message = crate::saisir(source, &depart, "message", "Bonjour \"toi\"\nà bientôt");
+        assert_eq!(crate::envoi(source, &message, "Contact"), "{\"form\":\"Contact\",\"values\":{\"nom\":\"Ada\",\"message\":\"Bonjour \\\"toi\\\"\\nà bientôt\",\"taille\":60}}");
+        assert_eq!(crate::envoi(source, &message, "Personne"), "");
+        // Les règles : ouvrir, fermer, envoyer ; l'envoi arrivé ou non.
+        crate::verifier_page("Page(state: State(ok: 0), children: [ Button(name: B, text: \"b\"), Dialog(name: D, children: [ P(\"x\") ]), Form(name: F, children: [ P(\"y\") ]) ], rules: [ On(B.tap, effect: [D.open, F.send]), On(F.sent, effect: [ok.set(1), D.close]), On(F.failed, effect: ok.set(2)) ])").unwrap();
+        for (source, message) in [
+            ("Page(children: [ A(\"x\", to: \"#Nulle\") ])", "aucun bloc ne s'appelle « Nulle »"),
+            ("Page(icon: \"i.gif\", children: [])", "en .png, .svg ou .ico"),
+            ("Page(children: [ Image(source: \"a.png\", alt: \"\", caption: 3) ])", "la légende"),
+            ("Page(state: State(t: \"\"), children: [ Slider(value: t, label: \"x\") ])", "présente un nombre de la page"),
+            ("Page(state: State(n: 5), children: [ Slider(value: n, label: \"x\", min: 9, max: 3) ])", "min doit être plus petit que max"),
+            ("Page(state: State(n: 0), children: [ Input(value: n, label: \"x\", type: date) ])", "écrit un texte"),
+            ("Page(state: State(t: \"\"), children: [ Input(value: t, label: \"x\", type: week) ])", "date, time ou color"),
+            ("Page(children: [ Dialog(children: [ P(\"x\") ]) ])", "« Dialog » a un nom"),
+            ("Page(children: [ Form(name: A, children: [ Form(name: B, children: []) ]) ])", "un formulaire dans un formulaire"),
+            ("Page(state: State(n: 0), children: [ Button(name: B, text: \"b\"), Form(name: F, children: []) ], rules: [ On(B.tap, effect: F.open) ])", "un « Form » offre send"),
         ] {
             let erreur = crate::verifier_page(source).err().or_else(|| crate::vue_a_plat(source, "").err()).unwrap_or_else(|| panic!("accepté : {source}"));
             assert!(erreur.message.contains(message), "{source}\n→ {erreur}");

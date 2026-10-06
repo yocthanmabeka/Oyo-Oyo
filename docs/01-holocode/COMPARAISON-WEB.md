@@ -84,6 +84,17 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `label` | le réglage `label:`, obligatoire | fait, à l'essai |
 | `textarea` | `Input(…, lines: 5)` | fait, à l'essai |
 | `select`, `option`, `input radio` | `Choice(value:, label:, options:)`, `menu: true` | fait, à l'essai |
+| `form` (envoyer) | `Form(name: Contact, …)`, `On(Send.tap, effect: Contact.send)`, `Contact.sent`, `Contact.failed` | fait, à l'essai : vers un fichier du serveur local |
+| `input range` | `Slider(value:, label:, min:, max:)` | fait, à l'essai |
+| `input date`, `time`, `color` | `Input(…, type: date)` | fait, à l'essai |
+| `progress` | `Progress(value:, max:, label:)` | fait, à l'essai |
+| `details`, `summary` | `Details(summary:, children:)` | fait, à l'essai |
+| `dialog` | `Dialog(name:)`, `open`, `close` | fait, à l'essai |
+| `figure`, `figcaption`, `picture` | `Image(caption:, phone:)` | fait, à l'essai |
+| `audio controls` | `Sound(source:, label:)` | fait, à l'essai |
+| `link rel="icon"` | `Page(icon:)` | fait, à l'essai |
+| `s`, `mark`, `sup`, `sub` | `~~…~~`, `==…==`, `^…^`, `~…~` dans un texte | fait, à l'essai |
+| `a href="#…"` vers un endroit de la page | `A(to: "#Horaires")` vers un bloc nommé ; refusé s'il n'existe pas | fait, à l'essai |
 | `fieldset`, `legend`, `datalist`, `output`, `progress`, `meter` | | manque |
 
 ### Ce qui s'ouvre et se ferme

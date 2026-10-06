@@ -6,6 +6,22 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Lot 5 : le HTML utile, et envoyer un message
+
+- Fait (`ADR-042`, à l'essai) : `Page(icon:)` ; `~~barré~~`, `==surligné==`, `m^2^`, `H~2~O` ; `A(to: "#Horaires")` vers un bloc nommé (refusé s'il n'existe pas) ; `Image(caption:, phone:)` ; `Sound(label:)`, un lecteur ; `Slider` ; `Input(type: date | time | color)` ; `Progress` ; `Details` ; `Dialog` avec `open` et `close` ; `Form` avec `send`, puis `sent` ou `failed`. Leçons 55 à 65.
+- L'envoi : décision de Yocthan, sur recommandation, le 2026-10-06 : les messages vont dans un fichier de son serveur local. Le serveur d'essai les range dans `messages/` (un fichier par page, une ligne par message, 16 Ko au plus, jamais versionné).
+- Vérifié dans Chrome : les marques du texte ; le lien qui descend sans faire venir le moteur ; l'image légère choisie à 390 pixels de large ; le lecteur de son, à l'arrêt ; la glissière bornée (5 devient 20) ; la date, l'heure et la couleur ; la barre de progression ; les plis, sans moteur ; la fenêtre modale ouverte, puis fermée par « Oui, vider » ; **un vrai message arrivé** : `{"page":"/exemples/lecons/64-formulaire.holo","form":"Contact","values":{"nom":"Yocthan","message":"Bonjour, je voudrais le tableau de la rivière."}}`, et « Merci, ton message est arrivé. » à l'écran ; l'icône dans l'en-tête. 101 tests.
+- Le moteur a refusé un exemple que j'écrivais pour le guide : une valeur appelée `day`, nom réservé depuis le lot 2 à l'heure du visiteur. Renommée `visit`.
+- Couverture estimée après les cinq lots : HTML 82 %, CSS 78 %, JavaScript 48 % ; ensemble 72 % (53 % avant le lot 2, 47 % avant le lot 1) ; 290 mots, dont 66 à l'essai.
+
+![La fenêtre par-dessus la page](images/2026-10-06-lot5-fenetre.png)
+
+**Erreurs en route**
+
+- La glissière semblait ne pas répondre : mon test lisait le nombre avant l'arrivée du moteur (plus de 9 secondes dans le Chrome de test). Vérifiée ensuite : 100, puis 110, puis 20.
+
+---
+
 ## 2026-10-06 — Lot 4 : le CSS utile
 
 - Fait (`ADR-041`, à l'essai) : `line-height` (sans unité), `letter-spacing`, `text-transform`, `text-decoration`, `box-shadow`, `text-shadow`, `rotate`, `scale`, `transition` ; `background` en dégradé ou en image (`url("fond.jpg")`, qui couvre toujours le bloc) ; les variables (`Page { --or: … }`, puis `color: --or;`) ; deux états de style, `dark:` et `phone:` (avec `display: none` seulement là) ; sa propre police, `fonts: [ Font(family:, source:) ]`, toujours affichée avec `font-display: swap`. Leçons 50 à 54. Le serveur sait maintenant servir les polices et les images `.png`, `.jpg`, `.webp`.

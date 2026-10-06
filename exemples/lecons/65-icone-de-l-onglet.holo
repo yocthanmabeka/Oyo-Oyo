@@ -1,0 +1,28 @@
+// Leçon 65 — L'icône de l'onglet
+//
+// Ce qu'on apprend :
+//   Page(icon: "etoile.svg") : la petite image qu'on voit dans l'onglet du navigateur et dans
+//   les favoris. Une image rangée à côté, en .png, .svg ou .ico.
+//
+// À essayer :
+//   Regarde l'onglet de cette page : l'étoile y est.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 65 : l'icône de l'onglet",
+  icon: "etoile.svg",
+  children: [
+    H1("L'icône de l'onglet"),
+    P("Regarde l'onglet : l'étoile de l'atelier y est."),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 64 : envoyer un message", to: "64-formulaire.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
