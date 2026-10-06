@@ -56,5 +56,6 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 46 | [Sinon](46-sinon.holo) | `If(…, else: [ … ])` |
 | 47 | [Une seule fois, plus tard](47-plus-tard.holo) | `After` |
 | 48 | [L'heure du visiteur](48-heure.holo) | `year`, `month`, `day`, `weekday`, `hour`, `minute` |
+| 49 | [Écrire une carte une fois, la répéter](49-repeter.holo) | `Repeat`, `Item`, `item` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.

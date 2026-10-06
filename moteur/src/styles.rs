@@ -243,6 +243,7 @@ mod tests {
             include_str!("../../exemples/lecons/46-sinon.holo"),
             include_str!("../../exemples/lecons/47-plus-tard.holo"),
             include_str!("../../exemples/lecons/48-heure.holo"),
+            include_str!("../../exemples/lecons/49-repeter.holo"),
         ];
         for lecon in lecons {
             crate::verifier_page(lecon).unwrap();
@@ -255,7 +256,7 @@ mod tests {
         for (reglage, _) in REGLAGES {
             assert!(source.contains(&format!("{reglage}:")), "le réglage « {reglage} » manque dans l'exemple");
         }
-        for mot in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave", "state:", "prices:", "{count}", "{total}", ".add(", ".sub(", ".set(", "gap:", "align:", "columns:", "alt:", "is:", "over:", "by:", ".random(", "x:", "y:", "keep:", "value:", "label:", "max:", "Key.left", "meets:", "drag:", "data:", "from:", ".play", "form:", "enter:", "loop:", "letters:", "each:", "repeat:", "ease:", "rotate:", "flip:", "tilt:", "blur:", "hue:", "round:", "scale:", "opacity:", "hover:", "focus:", "active:", "topRight", ".hover", ".hoverEnd", "else:", "{year}", "{month}", "{day}", "weekday", "{hour}", "{minute}"] {
+        for mot in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave", "state:", "prices:", "{count}", "{total}", ".add(", ".sub(", ".set(", "gap:", "align:", "columns:", "alt:", "is:", "over:", "by:", ".random(", "x:", "y:", "keep:", "value:", "label:", "max:", "Key.left", "meets:", "drag:", "data:", "from:", ".play", "form:", "enter:", "loop:", "letters:", "each:", "repeat:", "ease:", "rotate:", "flip:", "tilt:", "blur:", "hue:", "round:", "scale:", "opacity:", "hover:", "focus:", "active:", "topRight", ".hover", ".hoverEnd", "else:", "{year}", "{month}", "{day}", "weekday", "{hour}", "{minute}", "items:", "key:", "{item.", "item.add("] {
             assert!(source.contains(mot), "« {mot} » manque dans l'exemple");
         }
     }

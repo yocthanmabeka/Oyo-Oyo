@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-06). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (246 mots : 224 décidés, 22 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (251 mots : 224 décidés, 27 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
 - **Couverture** : la part de ce que fait l’élément web qu’on obtient en HoloCode aujourd’hui. Estimation de Claude, non mesurée.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,11 +9,11 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 246 mots | 224 décidés, 22 à l’essai |
-| HTML | 63 % de couverture | 33 oui, 10 en partie, 16 non, 3 refusés |
+| **HoloCode** | 251 mots | 224 décidés, 27 à l’essai |
+| HTML | 64 % de couverture | 34 oui, 9 en partie, 16 non, 3 refusés |
 | CSS | 53 % de couverture | 14 oui, 9 en partie, 9 non, 2 refusés |
-| JavaScript | 41 % de couverture | 9 oui, 11 en partie, 12 non, 1 refusés |
-| HTML, CSS, JS ensemble | 55 % de couverture | 56 oui, 30 en partie, 37 non, 6 refusés |
+| JavaScript | 45 % de couverture | 10 oui, 12 en partie, 10 non, 1 refusés |
+| HTML, CSS, JS ensemble | 56 % de couverture | 58 oui, 30 en partie, 35 non, 6 refusés |
 
 # Partie 1 — Les mots de HoloCode
 
@@ -294,6 +294,25 @@
 |---|---|---|---|
 | `{year}, {month}, {day}, {weekday}, {hour}, {minute}` | L'heure de l'appareil du visiteur, tenue à jour | `new Date()` | À l’essai (ADR-039) |
 
+## Blocs : les valeurs
+
+| Mot HoloCode | Ce qu’il fait | Sur le web | État |
+|---|---|---|---|
+| `Repeat` | Écrire un modèle une fois, le poser pour chaque élément | `for, map, template` | À l’essai (ADR-040) |
+| `Item` | Un élément d'une répétition, et ses champs | `un objet JavaScript` | À l’essai (ADR-040) |
+
+## Paramètres : les valeurs
+
+| Mot HoloCode | Ce qu’il fait | Sur le web | État |
+|---|---|---|---|
+| `items, key` | Les éléments d'une répétition ; la clé d'un élément | `un tableau, key` | À l’essai (ADR-040) |
+
+## Mots-valeurs
+
+| Mot HoloCode | Ce qu’il fait | Sur le web | État |
+|---|---|---|---|
+| `item` | L'élément en cours, dans le modèle : {item.title}, item.add(1) | `item => …` | À l’essai (ADR-040) |
+
 # Partie 2 — HoloCode face à HTML, CSS et JavaScript
 
 ## HTML — Structure de la page
@@ -395,7 +414,7 @@
 | `styles après la page` | `style` | les styles | Oui | 100 % | Déjà là | — |
 | `import "commun.holo"` | `link stylesheet` | un fichier de styles partagé | En partie | 70 % | Déjà là | Les styles viennent avec un morceau ; pas de fichier de styles seul. |
 | — | `script` | du code dans la page | Refusé exprès | — | Non | Refusé (ADR-015) : aucun code libre, pour la sécurité. |
-| `Part et Use` | `template, slot` | un morceau réutilisable | En partie | 60 % | Oui, utile | Pas encore de morceau avec des paramètres (une carte produit réutilisée). |
+| `Part et Use ; Repeat pour un modèle à champs` | `template, slot` | un morceau réutilisable | Oui | 85 % | Déjà là | Repeat ajouté le 2026-10-06 (ADR-040). Pas encore de Use(Card, title: …). |
 | `les repères, et quelques attributs ajoutés par le moteur` | `attributs aria, tabindex` | l'accessibilité fine | En partie | 45 % | Oui, en priorité | En vue points, un lecteur d'écran ne voit toujours rien. |
 
 ## CSS — Couleurs et texte
@@ -470,8 +489,8 @@
 | `State(…)` | `variables` | garder une valeur | En partie | 70 % | Déjà là | Nombres entiers et textes ; pas de décimaux. |
 | `add, sub, set, random` | `calcul (+ − × ÷)` | calculer | En partie | 30 % | Oui, utile | Pas de multiplication ni de division (sauf le total d'un panier). |
 | `If(…, else: […]), When(…)` | `if, else` | décider | Oui | 100 % | Déjà là | Le « sinon » ajouté le 2026-10-06 (ADR-039). |
-| — | `tableaux, objets` | des listes de valeurs | Non | 0 % | Oui, en priorité | Sans liste, douze produits s'écrivent un par un. |
-| — | `for, map` | répéter pour chaque élément | Non | 0 % | Oui, en priorité | Va avec les listes. |
+| `Repeat(items: [ Item(…) ])` | `tableaux, objets` | des listes de valeurs | En partie | 50 % | Oui, utile | Une liste écrite dans le fichier (ADR-040) ; une liste qui change pendant la visite reste à faire. |
+| `Repeat(items:, children:, rules:)` | `for, map` | répéter pour chaque élément | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-040) : déplié à la lecture, la page reste du HTML ordinaire. |
 | — | `fonctions` | du calcul réutilisable | Non | 0 % | Plus tard | Prévu : des fonctions pures enfermées (ADR-013). |
 | `{nom} dans un texte` | `texte (majuscules, longueur, découper)` | travailler un texte | En partie | 20 % | Plus tard | — |
 | `random, rejouable` | `Math.random` | le hasard | Oui | 90 % | Déjà là | Mieux pour un jeu : la même partie se rejoue. |

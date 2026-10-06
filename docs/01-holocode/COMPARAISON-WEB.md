@@ -101,7 +101,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `link rel="stylesheet"` | les styles d'un morceau importé : `import "commun.holo"` | fait, à l'essai |
 | `script` | refusé dans un bloc (`ADR-015`) | exprès |
 | `noscript` | sans objet : rien ne dépend d'un script | exprès |
-| `template`, `slot` (morceaux réutilisables) | `Part(name: Menu, …)` et `Use(Menu)` ; sans paramètres | fait, à l'essai |
+| `template`, `slot` (morceaux réutilisables) | `Part(name: Menu, …)` et `Use(Menu)` ; un modèle répété avec ses champs : `Repeat` | fait, à l'essai |
 
 ## 2. CSS
 
@@ -138,7 +138,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `Date` (la date et l'heure du jour) | `{year}`, `{month}`, `{day}`, `{weekday}`, `{hour}`, `{minute}` | fait, à l'essai ; pas encore de calcul sur les dates |
 | Garder une valeur, l'afficher (un panier) | `State(cart: 0)`, `{cart}`, `cart.add(1)` | fait, à l'essai : des nombres entiers ; avec `Prices`, le moteur calcule `{count}` et `{total}` |
 | Afficher sous condition | `If(cart, is: 0, children: [...])` | fait, à l'essai |
-| Répéter sur une liste | | manque : il faut d'abord des valeurs qui soient des listes |
+| Répéter sur une liste (`for`, `map`) | `Repeat(items: [ Item(…) ], children: [ … ])` : une liste écrite dans le fichier | fait, à l'essai ; une liste qui change pendant la visite reste à faire |
 | Chercher des données (`fetch`) | `data: Data(from: "stock.json", every: 30s)` : des valeurs, du même serveur | fait, à l'essai ; pas de liste, pas d'envoi |
 | Durées, minuteries | `Every(1s, effect: …)` ; `Portals(duration:)` | fait, à l'essai |
 | Le hasard (`Math.random`) | la demande `random`, rejouable | fait, à l'essai |

@@ -6,6 +6,21 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Lot 3 : écrire une carte une fois, la répéter
+
+- Fait (`ADR-040`, à l'essai) : `Repeat(items: [ Item(…) ], children: [ … ], rules: [ … ])`. Dans le modèle, `item` désigne l'élément : `{item.title}`, `item.image`, `{item}`, `item.add(1)`. Un bloc nommé reçoit le nom de son élément (`Add` → `AddSunrise`) ; les règles du modèle sont écrites une fois par élément. Déplié à la lecture, comme `Use` : la page fabriquée d'avance est du HTML ordinaire. Leçon 49.
+- Vérifié dans Chrome : trois cartes écrites une fois, chacune son bouton ; après trois ajouts, « Panier : 3 tableau(x), 330 € ». 99 tests.
+- Couverture : `for, map` à 90 %, `template` à 85 %, les listes de valeurs à 50 % (une liste qui change pendant la visite reste à faire).
+
+![Trois cartes écrites une fois](images/2026-10-06-lot3-repeter.png)
+
+**Erreurs en route**
+
+- Mon test oubliait un `H1` avant les `H2` : le langage l'a refusé, à raison.
+- La première vérification dans Chrome cliquait avant l'arrivée du moteur (8 secondes dans le Chrome de test, sans carte graphique) : fausse alerte ; l'arbitre, appelé directement dans la page, répondait juste.
+
+---
+
 ## 2026-10-06 — Lot 2 : le survol qui agit, le « sinon », plus tard, l'heure du visiteur
 
 - Yocthan : « tu travailles sur le lot 2 jusqu'au lot 5… je suis tes recommandations. » Le lot 2 est fait (`ADR-039`, à l'essai) ; la page pour écouter ADR-011 est en ligne : https://claude.ai/artifact/28bt9BUqNTg7Bfq1DDm5kc
