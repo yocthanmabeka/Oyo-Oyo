@@ -20,8 +20,8 @@ Rangés du plus proche de JavaScript au plus proche de HoloCode.
 | **React** (et Next.js) | Des composants écrits en JSX, du HTML dans le code | Le plus utilisé de loin |
 | **Angular** | Le cadre complet de Google, pour les grandes équipes | Le plus « entreprise » |
 | **Vue** | Des composants en un fichier : modèle, code, style | Réputé le plus doux à apprendre des quatre grands |
-| **Svelte** | Un compilateur : on écrit presque du HTML | Le plus admiré des frameworks (Stack Overflow 2025) |
-| **SolidJS** | Comme React à l'œil, mais ne redessine que ce qui change | Le plus satisfaisant depuis cinq ans (State of JS) |
+| **Svelte** | Un compilateur : on écrit presque du HTML | Parmi les plus admirés (Stack Overflow 2026 : 59 %, SvelteKit 64 %) |
+| **SolidJS** | Comme React à l'œil, mais ne redessine que ce qui change | Très bien placé en satisfaction (State of JS 2025) |
 | **Astro** | Des sites de contenu qui n'envoient presque pas de JavaScript | Le méta-framework préféré (State of JS 2025) |
 | **Elm** | Un langage pur, sans erreur à l'exécution | L'inventeur de l'« arbitre » que HoloCode a repris |
 | **Flutter** (Dart) | Des widgets, un arbre de blocs, une seule base pour téléphone et web | Ce que Yocthan maîtrise ; HoloCode écrit ses noms comme lui (`ADR-037`) |
@@ -313,22 +313,24 @@ HoloCode n'est pas le plus court : Svelte et Vue font moins de lignes. Mais c'es
 
 ## 3. L'avis des gens, en pourcentage
 
-Chiffres d'extraits de recherche, non vérifiés sur les pages officielles. « Admiré » : parmi ceux qui l'utilisent, la part qui veut continuer (Stack Overflow 2025, environ 49 000 réponses). « Satisfaction » : la même idée chez State of JS 2025 (environ 12 000 réponses, publiée début 2026). Stack Overflow 2026 est sortie le jour même (2026-10-06) ; ses chiffres par framework n'étaient pas encore repris.
+**Corrigé le 2026-10-06 avec les pages officielles lues par Codex** (PR 124, § 14) : la colonne « Admiré (SO 2026) » est vérifiée ; les autres viennent d'extraits de recherche et restent à vérifier. Une erreur du premier jet : en 2025, le framework web le plus admiré de Stack Overflow était Phoenix (environ 79 %), pas Svelte.
 
-| | Admiré (SO 2025) | Satisfaction (State of JS 2025) | Utilisé |
-|---|---|---|---|
-| TypeScript | ~58 % (un seul extrait) | — (77 % du code JavaScript est en TypeScript) | 49 % des pros (SO) |
-| React | 52 % | 79 % | 85 % (State of JS) |
-| Next.js | 46 % (60 % en 2024) | 55 % (68 % en 2024 : la plus forte baisse) | 59 % |
-| Angular | 45 % | 65 % | 50 % |
-| Vue | 51 % | 75 % | 51 % |
-| Svelte | **62 %** (1er des frameworks) | 81 à 86 % ; SvelteKit 91 % | 27 % |
-| SolidJS | non trouvé | **90 %** (1er depuis cinq ans) | 10 % |
-| Astro | non trouvé | **94 %** (1er des méta-frameworks) | 29 % |
-| Elm | non trouvé | non trouvé | — |
-| Flutter / Dart | non trouvé | — | Dart : 6 % (SO) |
-| htmx (repère) | ~73 % (édition incertaine) | — | 3 à 5 % |
-| HoloCode | — | — | 0 en dehors du projet |
+Chiffres d'extraits de recherche, non vérifiés sur les pages officielles, sauf la première colonne. « Admiré » : parmi ceux qui l'utilisent, la part qui veut continuer (Stack Overflow 2025, environ 49 000 réponses). « Satisfaction » : la même idée chez State of JS 2025 (environ 12 000 réponses, publiée début 2026). Stack Overflow 2026 est sortie le jour même (2026-10-06) ; ses chiffres par framework n'étaient pas encore repris.
+
+| | **Admiré (SO 2026, vérifié)** | Admiré (SO 2025, extrait) | Satisfaction (State of JS 2025, extrait) | Utilisé (SO 2026, vérifié) |
+|---|---|---|---|---|
+| TypeScript | — | ~58 % | — (77 % du code JavaScript est en TypeScript) | — |
+| React | 46,7 % | 52 % | 79 % | 41,5 % |
+| Next.js | — | 46 % | 55 % (68 % en 2024 : la plus forte baisse) | — |
+| Angular | 42,1 % | 45 % | 65 % | 16,0 % |
+| Vue | 47,2 % | 51 % | 75 % | 17,2 % |
+| Svelte | **59,4 %** (SvelteKit 64,4 %) | 62 % | 81 à 86 % | 7,8 % |
+| SolidJS | 55,5 % | non trouvé | 90 % (non vérifié) | 1,5 % |
+| Astro | 58,8 % | non trouvé | 94 % (non vérifié) | 6,2 % |
+| Elm | non trouvé | non trouvé | non trouvé | — |
+| Flutter / Dart | non trouvé | — | — | — |
+| htmx (repère) | 55,9 % | ~73 % (édition incertaine) | — | 5,4 % |
+| HoloCode | — | — | — | 0 en dehors du projet |
 
 Ce que les gens disent, en bref :
 
@@ -337,7 +339,7 @@ Ce que les gens disent, en bref :
 - **Next.js** : très complet ; mais « une complexité devenue absurde », trop de changements, la dépendance à Vercel.
 - **Angular** : modernisé (signals) ; mais lourd, la satisfaction la plus basse des quatre grands.
 - **Vue** : doux à apprendre ; moins d'emplois que React.
-- **Svelte** : simple et admiré ; écosystème plus petit, migration vers Svelte 5.
+- **Svelte** : simple et très admiré (le premier des grands, mais derrière Phoenix en 2025) ; écosystème plus petit, migration vers Svelte 5.
 - **SolidJS** : le plus satisfaisant, le plus rapide ; peu utilisé, peu de bibliothèques.
 - **Astro** : très peu de JavaScript, idéal pour les sites de contenu ; moins fait pour les applis très interactives.
 - **Elm** : jamais d'erreur à l'exécution ; un écosystème qui stagne.
@@ -466,4 +468,21 @@ Pour un développeur professionnel : **58 % → 70 %**.
 **À combien de l'excellence ?** 78,5 / 82 = **96 % du meilleur** pour son public, au lieu de 85 % le matin. J'avais annoncé environ 81 % avec ces six points ; le résultat est plus bas, surtout parce que le moteur léger pèse encore 149 Ko et que l'essai humain au lecteur d'écran n'est pas fait. Ces notes restent le jugement de Claude ; Codex, avant les listes à champs, donnait déjà 74,6 % à HoloCode.
 
 **Ce qui reste avant la 3D, par ordre d'effet** : l'essai humain au lecteur d'écran (Yocthan, sur le Flip) ; l'essai avec cinq débutants (la seule mesure qui compte vraiment) ; l'envoi vers un vrai serveur et les comptes ; un emplacement pour du contenu dans un composant ; un moteur d'exécution plus léger encore.
+
+## 11. Les trois avis, côte à côte
+
+| | Claude (matin) | Gemini (matin) | Codex (avec les composants) | Claude (soir, après les six points) |
+|---|---|---|---|---|
+| Svelte | 82 | 83,0 | 85,4 | 82 |
+| Vue | 77 | 77,5 | 80,0 | 77 |
+| Astro | 73 | 80,5 | 76,8 | 73 |
+| SolidJS | 72 | 72,0 | 74,5 | 72 |
+| React | 71 | 65,5 | 70,3 | 71 |
+| Flutter | 70 | 63,0 | 71,7 | 70 |
+| Angular | 67 | 59,0 | 68,3 | 67 |
+| Elm | 62 | 62,8 | 65,8 | 62 |
+| TypeScript | 59 | 58,0 | 58,8 | 59 |
+| **HoloCode** | **70** | **68,5** | **74,6** | **78,5** |
+
+Les trois s'accordent : Svelte en tête ; HoloCode premier sur la facilité et la concision, dernier sur l'entraide. Les réponses : Gemini dans `docs/05-discussions/reponses/2026-10-06-gemini-composants-et-comparatif.md`, Codex dans `proposals/GPT5.6/web-assez-utilisable-2026-10-07/`.
 
