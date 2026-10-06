@@ -6,6 +6,21 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Lot 7 : une liste qui change pendant la visite
+
+- Fait (`ADR-044`, à l'essai) : `State(taches: [])` ; `taches.push(tache)`, `taches.remove(item)` (la ligne touchée), `taches.clear()` ; `tache.set("")` ; `Repeat(over: taches, …)`, une ligne par élément, redessinée par le moteur quand la liste change ; `{taches}` et `If(taches, is: 0)` ; `keep:` garde la liste. Leçon 68. Nouveau module du moteur : `listes.rs`.
+- Vérifié dans Chrome : trois ajouts (un texte d'espaces refusé), le champ vidé, la ligne du milieu retirée, « Rien à faire. Bravo ! » après « Tout effacer », la liste retrouvée après avoir rechargé la page. Un texte piégé, `Livrer <b>{tache}</b>`, reste du texte. 104 tests.
+
+![La liste de tâches](images/2026-10-06-lot7-liste.png)
+
+**Erreurs en route**
+
+- Après un rechargement, la liste gardée était bien relue, mais la page fabriquée d'avance montrait encore l'ancienne : le moteur ne redessinait les listes qu'à un changement. Corrigé : il les redessine aussi à son arrivée.
+- La leçon écrivait `border-bottom`, que HoloCode n'a pas : le moteur l'a refusé ; remplacé par `border`.
+- Deux anciens tests attendaient des messages devenus plus précis (une valeur peut maintenant être une liste ; « a » est un texte) : mis à jour.
+
+---
+
 ## 2026-10-06 — Lot 6 : multiplier, diviser, et écrire un nombre joliment
 
 - Yocthan : « Oui, travaille sur ce qui reste. » Fait (`ADR-043`, à l'essai) : les demandes `mul` et `div` ; les formats `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}`, `{month:name}`, et `{item.price:cents}` dans une répétition ; la langue de la page choisit les séparateurs et les noms. Leçons 66 et 67. Nouveau module du moteur : `format.rs`.

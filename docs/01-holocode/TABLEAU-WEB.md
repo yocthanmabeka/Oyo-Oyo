@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-06). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (297 mots : 290 décidés, 7 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (301 mots : 290 décidés, 11 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
 - **Couverture** : la part de ce que fait l’élément web qu’on obtient en HoloCode aujourd’hui. Estimation de Claude, non mesurée.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,11 +9,11 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 297 mots | 290 décidés, 7 à l’essai |
+| **HoloCode** | 301 mots | 290 décidés, 11 à l’essai |
 | HTML | 82 % de couverture | 47 oui, 6 en partie, 6 non, 3 refusés |
 | CSS | 78 % de couverture | 24 oui, 6 en partie, 2 non, 2 refusés |
-| JavaScript | 52 % de couverture | 13 oui, 11 en partie, 8 non, 1 refusés |
-| HTML, CSS, JS ensemble | 73 % de couverture | 84 oui, 23 en partie, 16 non, 6 refusés |
+| JavaScript | 53 % de couverture | 14 oui, 10 en partie, 8 non, 1 refusés |
+| HTML, CSS, JS ensemble | 74 % de couverture | 85 oui, 22 en partie, 16 non, 6 refusés |
 
 # Partie 1 — Les mots de HoloCode
 
@@ -394,6 +394,18 @@
 |---|---|---|---|
 | `{n:00}, {n:number}, {n:cents}, {weekday:name}, {month:name}` | Écrire un nombre joliment, dans la langue de la page | `padStart, Intl` | À l’essai (ADR-043) |
 
+## Demandes
+
+| Mot HoloCode | Ce qu’il fait | Sur le web | État |
+|---|---|---|---|
+| `push, remove, clear` | Ajouter à une liste, retirer la ligne touchée, tout vider | `push, splice, length = 0` | À l’essai (ADR-044) |
+
+## Paramètres : les valeurs
+
+| Mot HoloCode | Ce qu’il fait | Sur le web | État |
+|---|---|---|---|
+| `over` | La liste qui change, montrée ligne par ligne : Repeat(over: tasks) | `map, innerHTML` | À l’essai (ADR-044) |
+
 # Partie 2 — HoloCode face à HTML, CSS et JavaScript
 
 ## HTML — Structure de la page
@@ -570,7 +582,7 @@
 | `State(…)` | `variables` | garder une valeur | En partie | 70 % | Déjà là | Nombres entiers et textes ; pas de décimaux. |
 | `add, sub, mul, div, set, random` | `calcul (+ − × ÷)` | calculer | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-043, à l'essai). En nombres entiers ; pas de pourcentage ni de racine. |
 | `If(…, else: […]), When(…)` | `if, else` | décider | Oui | 100 % | Déjà là | Le « sinon » ajouté le 2026-10-06 (ADR-039). |
-| `Repeat(items: [ Item(…) ])` | `tableaux, objets` | des listes de valeurs | En partie | 50 % | Oui, utile | Une liste écrite dans le fichier (ADR-040) ; une liste qui change pendant la visite reste à faire. |
+| `Repeat(items:) ; State(tasks: []), push, remove, clear` | `tableaux, objets` | des listes de valeurs | Oui | 75 % | Déjà là | Une liste écrite dans le fichier (ADR-040) ; une liste de textes qui change pendant la visite (ADR-044, à l'essai). Pas encore d'éléments à champs. |
 | `Repeat(items:, children:, rules:)` | `for, map` | répéter pour chaque élément | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-040) : déplié à la lecture, la page reste du HTML ordinaire. |
 | — | `fonctions` | du calcul réutilisable | Non | 0 % | Plus tard | Prévu : des fonctions pures enfermées (ADR-013). |
 | `{nom} dans un texte` | `texte (majuscules, longueur, découper)` | travailler un texte | En partie | 20 % | Plus tard | — |

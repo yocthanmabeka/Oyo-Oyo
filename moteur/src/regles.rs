@@ -120,9 +120,15 @@ pub fn verifier_regles(programme: &Programme) -> Result<(), Erreur> {
         Ok(())
     })?;
     let etat = crate::etat::initial(programme)?;
+    // Une répétition dynamique montre une liste qui existe (ADR-044).
+    for (repetition, liste) in crate::listes::repetitions(programme) {
+        if !crate::listes::est_liste(programme, &liste) {
+            return Err(Erreur { message: format!("« Repeat(over: {liste}) » : aucune liste ne s'appelle « {liste} » ; déclare-la, state: State({liste}: [])"), pos: repetition.pos });
+        }
+    }
     pour_chaque_bloc(&programme.racine, &mut |bloc| {
         if bloc.nom == "On" {
-            verifier_regle(bloc, &noms, &etat)?;
+            verifier_regle(bloc, &noms, &etat, programme)?;
         }
         // Des règles sous condition : If(lives, over: 0, rules: [ … ]). Seules les règles de temps
         // et les règles qui guettent s'y rangent : une règle « On » répond à un geste, et c'est
@@ -149,13 +155,13 @@ pub fn verifier_regles(programme: &Programme) -> Result<(), Erreur> {
             } else {
                 crate::etat::condition(bloc)?;
             }
-            verifier_effets(bloc, &noms, &etat, false)?;
+            verifier_effets(bloc, &noms, &etat, false, programme)?;
         }
         // Une règle de temps : un rythme, et une ou plusieurs demandes faites à l'arbitre (ADR-026).
         // Une seule fois, plus tard : After(3s, effect: …) (ADR-039).
         if bloc.nom == "Every" || bloc.nom == "After" {
             crate::etat::rythme(bloc)?;
-            verifier_effets(bloc, &noms, &etat, false)?;
+            verifier_effets(bloc, &noms, &etat, false, programme)?;
         }
         if bloc.nom == "Point" {
             verifier_budget(bloc)?;
@@ -211,7 +217,7 @@ fn nom_et_mot<'a>(bloc: &'a Bloc, valeur: Option<&'a Valeur>, quoi: &str) -> Res
     .ok_or_else(|| Erreur { message: format!("une règle s'écrit « On(Open.tap, effect: Workshop.enter) » : {quoi} manque ou est mal écrit"), pos: bloc.pos })
 }
 
-fn verifier_regle(regle: &Bloc, noms: &[(&str, &str)], etat: &crate::etat::Etat) -> Result<(), Erreur> {
+fn verifier_regle(regle: &Bloc, noms: &[(&str, &str)], etat: &crate::etat::Etat, programme: &Programme) -> Result<(), Erreur> {
     let signal = regle.arguments.iter().find(|a| a.nom.is_none()).map(|a| &a.valeur);
     let (source, mot) = nom_et_mot(regle, signal, "le signal")?;
     let type_de = |nom: &str| noms.iter().find(|(connu, _)| *connu == nom).map(|(_, bloc)| *bloc);
@@ -229,7 +235,7 @@ fn verifier_regle(regle: &Bloc, noms: &[(&str, &str)], etat: &crate::etat::Etat)
     }
     // Un survol ne fait que changer des valeurs ou jouer un son : on n'emmène pas le visiteur
     // ailleurs parce que sa souris est passée par là.
-    verifier_effets(regle, noms, etat, !SURVOL.contains(&mot))
+    verifier_effets(regle, noms, etat, !SURVOL.contains(&mot), programme)
 }
 
 /// Les effets d'une règle : un seul, ou plusieurs entre crochets.
@@ -243,7 +249,7 @@ fn effets_de(regle: &Bloc) -> Vec<&Valeur> {
 
 /// Vérifie les effets d'une règle. Un effet est une demande faite à l'arbitre (`cart.add(1)`,
 /// ADR-023) ou, pour une règle `On`, une capacité demandée à un bloc (`Workshop.enter`).
-fn verifier_effets(regle: &Bloc, noms: &[(&str, &str)], etat: &crate::etat::Etat, capacites_permises: bool) -> Result<(), Erreur> {
+fn verifier_effets(regle: &Bloc, noms: &[(&str, &str)], etat: &crate::etat::Etat, capacites_permises: bool, programme: &Programme) -> Result<(), Erreur> {
     let type_de = |nom: &str| noms.iter().find(|(connu, _)| *connu == nom).map(|(_, bloc)| *bloc);
     let attend_une_demande = || Erreur { message: format!("« {} » attend une demande : {}(…, effect: score.add(1))", regle.nom, regle.nom), pos: regle.pos };
     let effets = effets_de(regle);
@@ -252,6 +258,11 @@ fn verifier_effets(regle: &Bloc, noms: &[(&str, &str)], etat: &crate::etat::Etat
     }
     for effet in effets {
         match effet {
+            // Une demande faite à une liste ou à un texte (ADR-044).
+            Valeur::Bloc(demande) if crate::etat::est_demande(demande) && crate::listes::concerne(demande, programme) => {
+                let ligne = crate::listes::regles_de_ligne(programme).into_iter().find(|(b, _)| std::ptr::eq(*b, regle)).map(|(_, l)| l);
+                crate::listes::verifier_demande(demande, programme, regle, ligne.as_deref())?;
+            }
             Valeur::Bloc(demande) if crate::etat::est_demande(demande) => {
                 crate::etat::demande(demande, etat)?;
             }
@@ -372,6 +383,7 @@ pub fn survoles(programme: &Programme) -> Vec<String> {
 /// Les effets demandés par un signal, dans l'ordre où les règles sont écrites.
 /// `Open.tap` → [`Workshop.enter`]. Toucher un point demande d'y entrer, sans règle à écrire.
 pub fn effets(programme: &Programme, signal: &str) -> Vec<String> {
+    let signal = crate::listes::signal_et_ligne(signal).0;
     let mut effets = Vec::new();
     let _ = pour_chaque_bloc(&programme.racine, &mut |bloc| {
         if bloc.nom == "On" {

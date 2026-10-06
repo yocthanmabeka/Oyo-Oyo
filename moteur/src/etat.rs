@@ -160,7 +160,7 @@ pub fn gardees(programme: &Programme) -> Result<Vec<String>, Erreur> {
     for nom in noms {
         match nom {
             Valeur::Nom(nom) if HORLOGE.contains(&nom.as_str()) => return Err(erreur(format!("« keep » : « {nom} » est l'heure du visiteur, elle ne se garde pas"))),
-            Valeur::Nom(nom) if declarees.iter().any(|(connu, _)| connu == nom) || textes.iter().any(|(connu, _)| connu == nom) => gardees.push(nom.clone()),
+            Valeur::Nom(nom) if declarees.iter().any(|(connu, _)| connu == nom) || textes.iter().any(|(connu, _)| connu == nom) || crate::listes::est_liste(programme, nom) => gardees.push(nom.clone()),
             Valeur::Nom(nom) => return Err(erreur(format!("« keep » : aucune valeur ne s'appelle « {nom} » ; on ne garde que des valeurs déclarées dans « State »"))),
             _ => return Err(erreur("« keep » attend des noms de valeurs : keep: [cart]".into())),
         }
@@ -1005,9 +1005,14 @@ fn initial_sans_prix(programme: &Programme) -> Result<Etat, Erreur> {
             (Some(nom), Valeur::Entier(depart)) => (nom, Some(*depart)),
             (Some(nom), Valeur::Texte(texte)) if texte.chars().count() <= TEXTE_MAX => (nom, None),
             (Some(nom), Valeur::Texte(_)) => return Err(Erreur { message: format!("« {nom} » : un texte fait au plus {TEXTE_MAX} caractères"), pos: argument.pos }),
+            // Une liste de textes (ADR-044) : State(tasks: []).
+            (Some(nom), Valeur::Liste(_)) => {
+                crate::listes::verifier_declaration(argument)?;
+                (nom, None)
+            }
             _ => {
                 return Err(Erreur {
-                    message: "une valeur se déclare par son nom et son départ, un nombre entier ou un texte : State(cart: 0, buyer: \"\")".into(),
+                    message: "une valeur se déclare par son nom et son départ, un nombre entier, un texte ou une liste : State(cart: 0, buyer: \"\", tasks: [])".into(),
                     pos: argument.pos,
                 })
             }
@@ -1106,7 +1111,9 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
     // Ce qu'un texte peut montrer : les valeurs déclarées, nombres et textes, et celles que le
     // moteur calcule.
     let textes = textes_initiaux(programme);
-    let montrables = avec_textes(&a_montrer(programme, &etat), &textes);
+    let mut montrables = avec_textes(&a_montrer(programme, &etat), &textes);
+    montrables.extend(crate::listes::comptes(&crate::listes::initiales(programme)));
+    let modeles = crate::listes::dans_un_modele(programme);
     let est_texte = |nom: &str| textes.iter().any(|(connu, _)| connu == nom);
     let declare = bloc_d_etat(programme)?;
     let prix_declares = match programme.racine.argument("prices").map(|a| &a.valeur) {
@@ -1158,6 +1165,9 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
                     (Some("name"), _) | (Some("label"), Valeur::Texte(_)) => {}
                     (Some("value"), Valeur::Nom(valeur)) if HORLOGE.contains(&valeur.as_str()) => {
                         return Err(Erreur { message: format!("« {}(value: {valeur}) » : « {valeur} » est l'heure du visiteur ; on la lit, on ne l'écrit pas", bloc.nom), pos: argument.pos })
+                    }
+                    (Some("value"), Valeur::Nom(valeur)) if crate::listes::est_liste(programme, valeur) => {
+                        return Err(Erreur { message: format!("« {}(value: {valeur}) » : « {valeur} » est une liste ; un champ présente un texte qu'on ajoute ensuite, {valeur}.push(task)", bloc.nom), pos: argument.pos })
                     }
                     (Some("value"), Valeur::Nom(valeur)) if etat.iter().any(|(connu, _)| connu == valeur) => {}
                     // Un champ peut présenter un texte ; une case, non.
@@ -1268,6 +1278,7 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
                 }
             }
         }
+        let dans_un_modele = modeles.contains(&(bloc as *const Bloc));
         let verifier_texte = |texte: &str, pos| {
             for (nom, format) in crate::format::formats_dans(texte) {
                 if !crate::format::est_format(format) {
@@ -1280,6 +1291,11 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
                     return Err(Erreur { message: format!("« {{{nom}:{format}}} » : « {nom} » est un texte ; un format s'applique à un nombre"), pos });
                 }
             }
+            if dans_un_modele && texte.contains("{item.") {
+                return Err(Erreur { message: "dans les lignes d'une liste, « {item} » est le texte de l'élément ; il n'a pas de champs".into(), pos });
+            }
+            let texte = if dans_un_modele { texte.replace("{item}", "") } else { texte.to_string() };
+            let texte = texte.as_str();
             if texte.contains("{item.") || texte.contains("{item}") {
                 return Err(Erreur { message: "« {item…} » montre un champ de l'élément : il n'a de sens que dans une répétition, Repeat(items: [ … ], children: [ … ])".into(), pos });
             }
@@ -2048,7 +2064,7 @@ mod tests {
             ("Page(state: State(a: \"\"), children: [ If(a, is: \"oui\", children: []) ])", "attend un nombre entier"),
             ("Page(state: State(a: \"\"), children: [ Checkbox(value: a, label: \"x\") ])", "une case attend un nombre"),
             ("Page(state: State(a: \"\", a: 0))", "déclarée deux fois"),
-            ("Page(state: State(a: \"\"), children: [ Button(name: B, text: \"x\") ], rules: [ On(B.tap, effect: a.add(1)) ])", "aucune valeur ne s'appelle « a »"),
+            ("Page(state: State(a: \"\"), children: [ Button(name: B, text: \"x\") ], rules: [ On(B.tap, effect: a.add(1)) ])", "« a » est un texte"),
         ] {
             let erreur = page(source).unwrap_err();
             assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
@@ -2167,7 +2183,7 @@ mod tests {
             ("Page(state: State(appleX: 0), children: [ Text(\"{apple_x}\") ])", "écris « {appleX} »"),
             ("Page(children: [ Button(name: Less_sunrise, text: \"-\") ])", "écris « name: LessSunrise »"),
             ("Page(children: [ Stack(children: [ P(\"a\"), P(\"b\", align: top_right) ]) ])", "écris « topRight »"),
-            ("Page(state: State(cart: 1.5))", "un nombre entier ou un texte"),
+            ("Page(state: State(cart: 1.5))", "un nombre entier, un texte ou une liste"),
             ("Page(state: State(cart: 0, cart: 1))", "déclarée deux fois"),
             ("Page(state: State(cart: 5000000000))", "de 0 à 1000000000"),
             ("Page(state: 4)", "un bloc « State(...) »"),

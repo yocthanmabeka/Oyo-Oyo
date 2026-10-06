@@ -179,7 +179,9 @@
       const survole = evenement.pointerType === "touch" && evenement.target.closest("[data-hover]");
       if (survole) attente.push(`${survole.dataset.name}.touch`);
       if (bloc) {
-        attente.push(bloc.dataset.name);
+        // Dans la ligne d'une liste, le toucher garde sa ligne (ADR-044).
+        const ligne = bloc.closest("[data-rang]")?.dataset.rang;
+        attente.push(ligne === undefined ? bloc.dataset.name : `${bloc.dataset.name}@${ligne}`);
         bloc.classList.add("holo-attend");
         racine.setAttribute("aria-busy", "true");
       }

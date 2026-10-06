@@ -18,6 +18,7 @@ pub mod etat;
 pub mod format;
 pub mod graine;
 pub mod holo;
+pub mod listes;
 pub mod mosaique;
 pub mod mouvement;
 pub mod navigation;
@@ -81,12 +82,12 @@ pub fn effets(source: &str, signal: &str) -> Vec<String> {
 
 /// L'état entier, tel qu'il voyage entre le moteur et la page : les nombres, ce que le moteur
 /// calcule, puis les textes. `cart=2;count=2;total=240;buyer='Ada`.
-fn ecrire_tout(programme: &Programme, nombres: &etat::Etat, textes: &etat::Textes) -> String {
+fn ecrire_tout(programme: &Programme, nombres: &etat::Etat, textes: &etat::Textes, listes: &listes::Listes) -> String {
     // Les sons demandés par une règle de temps ou une règle qui guette suivent l'état, sous le
     // nom « ! » : ce n'est pas une valeur, la page le lit et le retire.
     let capacites = etat::capacites_demandees();
     let sons = if capacites.is_empty() { String::new() } else { format!("!={}", capacites.join(",")) };
-    [etat::ecrire(&etat::a_montrer(programme, nombres)), etat::ecrire_textes(textes), sons].into_iter().filter(|morceau| !morceau.is_empty()).collect::<Vec<_>>().join(";")
+    [etat::ecrire(&etat::a_montrer(programme, nombres)), etat::ecrire_textes(textes), listes::ecrire(listes), sons].into_iter().filter(|morceau| !morceau.is_empty()).collect::<Vec<_>>().join(";")
 }
 
 /// Les valeurs d'une page à leur départ, écrites `cart=0;likes=3`, suivies de celles que le
@@ -94,7 +95,7 @@ fn ecrire_tout(programme: &Programme, nombres: &etat::Etat, textes: &etat::Texte
 pub fn etat_initial(source: &str) -> String {
     let Ok(programme) = verifier_page(source) else { return String::new() };
     etat::capacites_demandees();
-    ecrire_tout(&programme, &etat::initial(&programme).unwrap_or_default(), &etat::textes_initiaux(&programme))
+    ecrire_tout(&programme, &etat::initial(&programme).unwrap_or_default(), &etat::textes_initiaux(&programme), &listes::initiales(&programme))
 }
 
 /// L'arbitre : ce que deviennent les valeurs d'une page quand un signal est émis. L'état
@@ -102,7 +103,12 @@ pub fn etat_initial(source: &str) -> String {
 pub fn arbitrer(source: &str, etat: &str, signal: &str) -> String {
     let Ok(programme) = verifier_page(source) else { return String::new() };
     etat::capacites_demandees();
-    ecrire_tout(&programme, &etat::arbitrer(&programme, &etat::relire(&programme, etat), signal), &etat::relire_textes(&programme, etat))
+    // Un geste d'une ligne (`Done.tap@2`) : les nombres changent comme pour `Done.tap` ; les
+    // listes et les textes savent de quelle ligne il vient (ADR-044).
+    let base = listes::signal_et_ligne(signal).0;
+    let nombres = etat::arbitrer(&programme, &etat::relire(&programme, etat), base);
+    let (textes, listes) = listes::arbitrer(&programme, &nombres, &etat::relire_textes(&programme, etat), &listes::relire(&programme, etat), signal);
+    ecrire_tout(&programme, &nombres, &textes, &listes)
 }
 
 /// Les horloges d'une page, une par règle `Every` : son rythme en millisecondes et la valeur
@@ -142,7 +148,7 @@ pub fn regler_maintenant(valeurs: [u64; 6]) {
 pub fn avancer_l_horloge(source: &str, etat: &str) -> String {
     let Ok(programme) = verifier_page(source) else { return String::new() };
     etat::capacites_demandees();
-    ecrire_tout(&programme, &etat::avancer_l_horloge(&programme, etat), &etat::relire_textes(&programme, etat))
+    ecrire_tout(&programme, &etat::avancer_l_horloge(&programme, etat), &etat::relire_textes(&programme, etat), &listes::relire(&programme, etat))
 }
 
 /// Les fichiers qu'une page importe (`commun.holo;pied.holo`), pour qu'on aille les chercher et
@@ -156,8 +162,15 @@ pub fn touches(source: &str) -> String {
     verifier_page(source).map(|programme| etat::touches(&programme).join(";")).unwrap_or_default()
 }
 
+/// Les lignes d'une liste pour cet état (ADR-044) : la page les pose à la place des anciennes.
+pub fn liste_html(source: &str, base: &str, etat: &str, nom: &str) -> String {
+    let Ok(programme) = verifier_page(source) else { return String::new() };
+    plat::lignes_de_liste(&programme, base, &etat::relire(&programme, etat), &etat::relire_textes(&programme, etat), &listes::relire(&programme, etat), nom)
+}
+
 /// Les valeurs qu'un signal fait changer (`time;score`) : leurs horloges repartent de zéro.
 pub fn touchees(source: &str, signal: &str) -> String {
+    let signal = listes::signal_et_ligne(signal).0;
     verifier_page(source).map(|programme| etat::touchees(&programme, signal).join(";")).unwrap_or_default()
 }
 
@@ -167,9 +180,9 @@ pub fn saisir(source: &str, etat: &str, nom: &str, ecrit: &str) -> String {
     etat::capacites_demandees();
     let (nombres, textes) = (etat::relire(&programme, etat), etat::relire_textes(&programme, etat));
     if textes.iter().any(|(connu, _)| connu == nom) {
-        ecrire_tout(&programme, &nombres, &etat::saisir_texte(&programme, &textes, nom, ecrit))
+        ecrire_tout(&programme, &nombres, &etat::saisir_texte(&programme, &textes, nom, ecrit), &listes::relire(&programme, etat))
     } else {
-        ecrire_tout(&programme, &etat::saisir(&programme, &nombres, nom, ecrit), &textes)
+        ecrire_tout(&programme, &etat::saisir(&programme, &nombres, nom, ecrit), &textes, &listes::relire(&programme, etat))
     }
 }
 
@@ -184,14 +197,14 @@ pub fn recevoir(source: &str, etat: &str, json: &str) -> String {
     let Ok(programme) = verifier_page(source) else { return String::new() };
     etat::capacites_demandees();
     let (nombres, textes) = etat::recevoir(&programme, &etat::relire(&programme, etat), &etat::relire_textes(&programme, etat), json);
-    ecrire_tout(&programme, &nombres, &textes)
+    ecrire_tout(&programme, &nombres, &textes, &listes::relire(&programme, etat))
 }
 
 /// Le visiteur fait glisser un bloc d'un plateau : l'arbitre rend le nouvel état.
 pub fn glisser(source: &str, etat: &str, nom: &str, x: u32, y: u32) -> String {
     let Ok(programme) = verifier_page(source) else { return String::new() };
     etat::capacites_demandees();
-    ecrire_tout(&programme, &etat::glisser(&programme, &etat::relire(&programme, etat), nom, u64::from(x), u64::from(y)), &etat::relire_textes(&programme, etat))
+    ecrire_tout(&programme, &etat::glisser(&programme, &etat::relire(&programme, etat), nom, u64::from(x), u64::from(y)), &etat::relire_textes(&programme, etat), &listes::relire(&programme, etat))
 }
 
 /// Ce que la page garde d'une visite à l'autre (`keep:`), tiré de cet état : `cart=2;buyer='Ada`.
@@ -200,7 +213,8 @@ pub fn a_garder(source: &str, etat: &str) -> String {
     let gardees = etat::gardees(&programme).unwrap_or_default();
     let nombres: etat::Etat = etat::relire(&programme, etat).into_iter().filter(|(nom, _)| gardees.contains(nom)).collect();
     let textes: etat::Textes = etat::relire_textes(&programme, etat).into_iter().filter(|(nom, _)| gardees.contains(nom)).collect();
-    [etat::ecrire(&nombres), etat::ecrire_textes(&textes)].into_iter().filter(|morceau| !morceau.is_empty()).collect::<Vec<_>>().join(";")
+    let listes: listes::Listes = listes::relire(&programme, etat).into_iter().filter(|(nom, _)| gardees.contains(nom)).collect();
+    [etat::ecrire(&nombres), etat::ecrire_textes(&textes), listes::ecrire(&listes)].into_iter().filter(|morceau| !morceau.is_empty()).collect::<Vec<_>>().join(";")
 }
 
 /// L'état de départ d'une page, avec ce qu'elle avait gardé d'une visite précédente.
@@ -213,14 +227,17 @@ pub fn reprendre(source: &str, garde: &str) -> String {
         let repris = relus.iter().find(|(connu, _)| *connu == nom && gardees.contains(&nom)).map(|(_, texte)| texte.clone());
         (nom, repris.unwrap_or(depart))
     }).collect();
-    ecrire_tout(&programme, &etat::reprendre(&programme, garde), &textes)
+    // Seules les listes que la page dit garder sont reprises (ADR-044).
+    let listes: listes::Listes = listes::relire(&programme, garde).into_iter().map(|(nom, elements)| if gardees.contains(&nom) { (nom, elements) } else { (nom.clone(), listes::initiales(&programme).into_iter().find(|(n, _)| *n == nom).map(|(_, e)| e).unwrap_or_default()) }).collect();
+    ecrire_tout(&programme, &etat::reprendre(&programme, garde), &textes, &listes)
 }
 
 /// Les conditions d'une page (`If`), avec leur réponse pour cet état : `count|is=0:1;total|over=299:0`.
 pub fn conditions(source: &str, etat: &str) -> String {
     match verifier_page(source) {
         Ok(programme) => {
-            let montrees = etat::avec_textes(&etat::a_montrer(&programme, &etat::relire(&programme, etat)), &etat::relire_textes(&programme, etat));
+            let mut montrees = etat::avec_textes(&etat::a_montrer(&programme, &etat::relire(&programme, etat)), &etat::relire_textes(&programme, etat));
+            montrees.extend(listes::comptes(&listes::relire(&programme, etat)));
             etat::conditions(&programme, &montrees).iter().map(|(cle, vraie)| format!("{cle}:{}", u8::from(*vraie))).collect::<Vec<_>>().join(";")
         }
         Err(_) => String::new(),

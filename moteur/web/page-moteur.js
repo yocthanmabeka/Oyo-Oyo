@@ -2,7 +2,7 @@
 // a besoin ou tout de suite si la page est vivante (ADR-033). Il charge le moteur en Rust,
 // compilé en WebAssembly, et prend la page en main.
   import init, {
-    pause, vue_a_plat, effets, etat_initial, arbitrer, envoi, formater, delais, lit_l_heure, regler_maintenant, avancer_l_horloge, conditions, horloges, touchees, touches, imports, donnees, recevoir, saisir, glisser, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
+    pause, vue_a_plat, effets, etat_initial, arbitrer, envoi, formater, liste_html, delais, lit_l_heure, regler_maintenant, avancer_l_horloge, conditions, horloges, touchees, touches, imports, donnees, recevoir, saisir, glisser, a_garder, reprendre, demarrer, changer_de_monde, mondes_voisins, demarrer_mosaique, poser_mosaique, retirer_mosaique, mosaique_camera, mosaique_tourner,
     mosaique_pivoter, mosaique_de_face, mosaique_sous, reglages_de_vue, reveiller, images_dessinees,
   } from "/pkg/holo_moteur.js";
   window.__holoPause = pause;
@@ -306,9 +306,22 @@
       suivreLHeure();
     }, (60 - d.getSeconds()) * 1000 - d.getMilliseconds() + 50);
   }
+  // Les listes qui changent pendant la visite (ADR-044) : quand une liste change, le moteur
+  // fabrique ses lignes à nouveau, et la page les pose à la place des anciennes.
+  function redessinerLesListes() {
+    const ecrit = etats.get(chemin) ?? "";
+    for (const conteneur of racine.querySelectorAll("[data-liste]")) {
+      const nom = conteneur.dataset.liste;
+      const morceau = ecrit.split(";").find((m) => m.startsWith(`${nom}=[`)) ?? "";
+      if (conteneur.dataset.vu === morceau) continue;
+      conteneur.dataset.vu = morceau;
+      conteneur.innerHTML = liste_html(source, base, ecrit, nom);
+    }
+  }
   // Un nouvel état : la page le montre, le garde, et regarde quelles attentes courent.
   function changerLEtat(apres) {
     etats.set(chemin, apres);
+    redessinerLesListes();
     montrerLesValeurs();
     placerLesPixels();
     garder();
@@ -344,7 +357,8 @@
   // Écrit les valeurs de la page là où ses textes les montrent : « {cart} ».
   function montrerLesValeurs(ou = racine, ecrit = etats.get(chemin) ?? "", texteDuFichier = source) {
     // Un texte voyage codé, précédé d'une apostrophe : buyer='Zo%C3%A9. Un nombre, tel quel.
-    const lisible = (valeur) => (valeur.startsWith("'") ? decodeURIComponent(valeur.slice(1)) : valeur);
+    // Une liste voyage entre crochets : elle se montre par son nombre d'éléments (ADR-044).
+    const lisible = (valeur) => (valeur.startsWith("'") ? decodeURIComponent(valeur.slice(1)) : valeur.startsWith("[") ? String(valeur.slice(1, -1).split(",").filter(Boolean).length) : valeur);
     const valeurs = new Map(ecrit.split(";").filter(Boolean).map((morceau) => {
       const coupe = morceau.indexOf("=");
       return [morceau.slice(0, coupe), lisible(morceau.slice(coupe + 1))];
@@ -422,6 +436,8 @@
     survoles.clear();
     if (reprendre) adopterLesSaisies();
     else racine.innerHTML = vue_a_plat(source, base, site);
+    // Une liste gardée d'une visite précédente n'est pas celle que le serveur a fabriquée (ADR-044).
+    redessinerLesListes();
     montrerLesValeurs();
     cadre = racine.querySelector(".holo-Page");
     page = cadre.querySelector("main");
@@ -1133,7 +1149,9 @@
       }
       const bloc = evenement.target.closest("[data-name]");
       if (!bloc) return;
-      emettre(`${bloc.dataset.name}.tap`);
+      // Un bouton dans la ligne d'une liste dit de quelle ligne il vient : Done.tap@2 (ADR-044).
+      const ligne = bloc.closest("[data-rang]")?.dataset.rang;
+      emettre(ligne === undefined ? `${bloc.dataset.name}.tap` : `${bloc.dataset.name}.tap@${ligne}`);
     });
     // Faire glisser un bloc d'un plateau (drag: true), au doigt ou à la souris. La page dit à
     // l'arbitre où est le doigt, de 0 à 100 ; c'est lui qui change les valeurs.
@@ -1191,7 +1209,8 @@
     for (const attendu of touchersEnAttente.splice(0)) {
       const [nom, geste = "tap"] = attendu.split(".");
       if (geste === "tap") {
-        emettre(`${nom}.tap`);
+        const [seul, ligne] = nom.split("@");
+        emettre(ligne === undefined ? `${seul}.tap` : `${seul}.tap@${ligne}`);
         continue;
       }
       // Un survol à la souris ou au clavier est rejoué s'il dure encore ; au doigt, le toucher survole.
