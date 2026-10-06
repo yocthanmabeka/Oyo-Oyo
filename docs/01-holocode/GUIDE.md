@@ -324,6 +324,7 @@ Ce que le moteur refuse, alors que le CSS le laisse passer :
 - un réglage de disposition (`display`, `position`, `float`) : un style ne dit que l'apparence (seule exception : `display: none` dans `phone:`) ;
 - une hauteur de ligne en pixels (elle ne suivrait pas le texte grossi), une variable jamais définie, une image de fond hors du dossier ;
 - un sélecteur composé (`.card P { ... }`).
+- un texte trop peu contrasté sur son fond, quand le même style donne les deux couleurs : il faut 4,5 pour 1 au moins (3 pour 1 pour un grand texte), pour qu'il soit lu par tous (`ADR-055`).
 
 ## 6. Un point, son monde, et les règles
 

@@ -32,7 +32,7 @@ Page(
 )
 
 Image { width: 200px; height: 200px; border-radius: 16px; }
-.pastille { background: #E4572E; color: white; border-radius: 999px; padding: 4px 12px; font-size: 14px; font-weight: bold; }
+.pastille { background: #B83A1F; color: white; border-radius: 999px; padding: 4px 12px; font-size: 14px; font-weight: bold; }
 
 Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
 H1 { color: #E9B44C; font-size: 28px; }

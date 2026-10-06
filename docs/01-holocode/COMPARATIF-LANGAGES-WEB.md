@@ -442,3 +442,28 @@ Pour que le web soit « assez utilisable » : pouvoir faire **le site d'un artis
 1. Faire passer ces six points **avant** le premier chantier de la 3D (`ADR-049`) ?
 2. Dans quel ordre ? Proposition : 1 (morceaux à paramètres), 2 (listes à champs), 4 (moteur allégé), puis 3, 5, 6.
 3. Demander à Codex et à Gemini de remplir le même tableau, pour voir l'écart avec celui de Claude ?
+
+## 10. Le soir du 2026-10-06 : après les six points
+
+Yocthan a validé les six points et donné son feu vert ; ils sont construits et fusionnés : les composants (`ADR-050`), les listes à champs (`ADR-051`), la place qui reste et un thème partagé (`ADR-052`), un moteur léger (`ADR-053`), les outils de l'auteur (`ADR-054`), l'accessibilité vérifiée (`ADR-055`). Codex a relu les composants entre-temps (PR 124) ; sa remarque sur les styles importés est corrigée.
+
+| Critère | Poids | HoloCode le matin | **HoloCode le soir** | Pourquoi |
+|---|---|---|---|---|
+| Facile pour un débutant | 20 | 95 | **93** | Toujours aucun code ; mais quelques mots de plus (`parts`, `params`, `grow`). |
+| Court à écrire | 10 | 95 | **95** | |
+| Erreurs attrapées tôt, bien expliquées | 10 | 90 | **92** | Le contraste refusé ; deux styles importés en conflit refusés. |
+| Les valeurs qui changent | 10 | 70 | **82** | Des listes à champs, remplies par un geste ou par le serveur. |
+| Les composants réutilisables | 10 | 45 | **80** | Paramètres, posés comme un bloc, restylés par le CSS ; pas encore d'emplacement pour du contenu (`slot`). |
+| Accessibilité et vrai HTML par défaut | 10 | 80 | **90** | 0 défaut axe-core sur 72 pages dans quatre modes ; l'essai humain reste à faire. |
+| Rapidité et poids | 10 | 60 | **70** | Une page qui bouge : 149 Ko au lieu de 626 ; l'objectif de 100 Ko n'est pas atteint. |
+| Ce qu'on peut construire | 10 | 45 | **60** | Un catalogue venu du serveur, un panier par composants ; toujours pas de comptes ni d'envoi vers un vrai serveur. |
+| Les outils | 5 | 35 | **55** | `?valeurs`, `holo fmt`, `holo essai` ; pas de débogueur. |
+| Les bibliothèques, l'entraide | 5 | 5 | **5** | Rien n'a changé : cela vient avec des utilisateurs. |
+| **Total** | 100 | **70 %** | **78,5 %** | Svelte : 82 %. |
+
+Pour un développeur professionnel : **58 % → 70 %**.
+
+**À combien de l'excellence ?** 78,5 / 82 = **96 % du meilleur** pour son public, au lieu de 85 % le matin. J'avais annoncé environ 81 % avec ces six points ; le résultat est plus bas, surtout parce que le moteur léger pèse encore 149 Ko et que l'essai humain au lecteur d'écran n'est pas fait. Ces notes restent le jugement de Claude ; Codex, avant les listes à champs, donnait déjà 74,6 % à HoloCode.
+
+**Ce qui reste avant la 3D, par ordre d'effet** : l'essai humain au lecteur d'écran (Yocthan, sur le Flip) ; l'essai avec cinq débutants (la seule mesure qui compte vraiment) ; l'envoi vers un vrai serveur et les comptes ; un emplacement pour du contenu dans un composant ; un moteur d'exécution plus léger encore.
+

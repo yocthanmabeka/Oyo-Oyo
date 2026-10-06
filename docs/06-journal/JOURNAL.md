@@ -6,6 +6,20 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — L'accessibilité vérifiée ; les six points sont faits
+
+- Point 6 du comparatif. Fait (`ADR-055`) : axe-core passé sur toutes les leçons et tous les sites d'exemple, dans Chrome. Avant : 69 leçons sur 70 sans défaut ; trois défauts de contraste (le badge de la boutique, la pastille de la leçon 38, les liens de la leçon 52 en thème clair) et la page des mondes (zoom interdit, ni repère ni titre). Tout est corrigé : **0 défaut sur 72 pages**, en thème clair et sombre, à 1000 et 390 pixels.
+- Le moteur refuse maintenant un texte trop peu contrasté quand le même style donne les deux couleurs (4,5 pour 1, ou 3 pour 1 en grand). Il a trouvé les deux badges ; il ne pouvait pas voir les liens de la leçon 52 (deux styles différents) : c'est l'audit qui les a trouvés.
+- Écrits : `moteur/outils/accessibilite.mjs` (l'audit) ; `docs/01-holocode/ESSAI-LECTEUR-D-ECRAN.md` (le protocole de l'essai humain, au TalkBack, à faire par Yocthan).
+- Le comparatif est mis à jour (§ 10) : HoloCode passe de **70 % à 78,5 %** pour son public, selon Claude (Svelte 82 %).
+
+**Erreurs en route**
+
+- Mon contrôle de contraste lisait la valeur claire d'une variable redéfinie dans le thème sombre : faux refus de l'exemple du guide. Corrigé.
+- En arrêtant le serveur d'essai, ma commande a encore arrêté le terminal qui la lançait.
+
+---
+
 ## 2026-10-06 — Les outils de l'auteur
 
 - Point 5 du comparatif. Fait (`ADR-054`) : `?valeurs` dans l'adresse montre les valeurs de la page à chaque geste ; `holo fmt` remet un fichier en forme (seuls les blancs changent) ; `holo essai page.holo page.essai` joue des gestes écrits et vérifie les valeurs (`tap`, `signal`, `type`, `receive`, `expect`).

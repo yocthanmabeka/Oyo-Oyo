@@ -117,6 +117,89 @@ const COULEURS: &[&str] = &[
     "turquoise", "salmon", "coral", "crimson", "khaki", "lavender", "tan",
 ];
 
+/// La couleur d'une valeur, en rouge, vert, bleu (0 à 255) : une couleur nommée, `#abc`,
+/// `#aabbcc`, ou une variable qui en porte une. `None` pour ce qui n'est pas une couleur pleine
+/// (un dégradé, une image, `transparent`, une couleur à demi transparente).
+fn rvb(valeur: &str, variables: &[(String, String)]) -> Option<[f64; 3]> {
+    let valeur = valeur.trim();
+    if valeur.starts_with("--") {
+        let (_, v) = variables.iter().find(|(n, _)| n == valeur)?;
+        return if v.starts_with("--") { None } else { rvb(v, variables) };
+    }
+    if let Some(hexa) = valeur.strip_prefix('#') {
+        let octet = |a: &str| u8::from_str_radix(a, 16).ok().map(f64::from);
+        return match hexa.len() {
+            3 => Some([octet(&hexa[0..1].repeat(2))?, octet(&hexa[1..2].repeat(2))?, octet(&hexa[2..3].repeat(2))?]),
+            6 => Some([octet(&hexa[0..2])?, octet(&hexa[2..4])?, octet(&hexa[4..6])?]),
+            8 if hexa[6..8].eq_ignore_ascii_case("ff") => Some([octet(&hexa[0..2])?, octet(&hexa[2..4])?, octet(&hexa[4..6])?]),
+            _ => None,
+        };
+    }
+    const NOMMEES: &[(&str, u32)] = &[
+        ("black", 0x000000), ("white", 0xffffff), ("gray", 0x808080), ("silver", 0xc0c0c0), ("red", 0xff0000), ("maroon", 0x800000),
+        ("orange", 0xffa500), ("gold", 0xffd700), ("yellow", 0xffff00), ("olive", 0x808000), ("green", 0x008000), ("lime", 0x00ff00),
+        ("teal", 0x008080), ("aqua", 0x00ffff), ("cyan", 0x00ffff), ("blue", 0x0000ff), ("navy", 0x000080), ("purple", 0x800080),
+        ("magenta", 0xff00ff), ("fuchsia", 0xff00ff), ("pink", 0xffc0cb), ("brown", 0xa52a2a), ("beige", 0xf5f5dc), ("ivory", 0xfffff0),
+        ("indigo", 0x4b0082), ("violet", 0xee82ee), ("turquoise", 0x40e0d0), ("salmon", 0xfa8072), ("coral", 0xff7f50),
+        ("crimson", 0xdc143c), ("khaki", 0xf0e68c), ("lavender", 0xe6e6fa), ("tan", 0xd2b48c),
+    ];
+    let (_, code) = NOMMEES.iter().find(|(n, _)| *n == valeur)?;
+    Some([f64::from((code >> 16) & 0xff), f64::from((code >> 8) & 0xff), f64::from(code & 0xff)])
+}
+
+/// Le contraste de deux couleurs, de 1 à 21, comme le calcule le WCAG.
+fn contraste(a: [f64; 3], b: [f64; 3]) -> f64 {
+    let luminance = |c: [f64; 3]| {
+        let l = |v: f64| {
+            let v = v / 255.0;
+            if v <= 0.040_45 { v / 12.92 } else { ((v + 0.055) / 1.055).powf(2.4) }
+        };
+        0.2126 * l(c[0]) + 0.7152 * l(c[1]) + 0.0722 * l(c[2])
+    };
+    let (la, lb) = (luminance(a), luminance(b));
+    (la.max(lb) + 0.05) / (la.min(lb) + 0.05)
+}
+
+/// Un style qui donne à la fois la couleur du texte et celle du fond doit pouvoir être lu par
+/// tous : 4,5 pour 1 au moins, 3 pour 1 pour un grand texte (24px, ou 19px en gras), comme le
+/// demande le WCAG (ADR-055). Vérifié pour le style, et pour chacun de ses états.
+fn verifier_contraste(regle: &crate::holo::RegleStyle, variables: &[(String, String)]) -> Result<(), Erreur> {
+    let valeur = |reglages: &[Reglage], nom: &str| reglages.iter().find(|r| r.nom == nom).map(|r| r.valeur.clone());
+    let mut cas: Vec<(Option<&str>, Vec<Reglage>, crate::holo::Pos)> = vec![(None, regle.reglages.clone(), regle.pos)];
+    for (etat, reglages, pos) in &regle.etats {
+        let mut melange = regle.reglages.clone();
+        melange.retain(|r| !reglages.iter().any(|e| e.nom == r.nom));
+        melange.extend(reglages.iter().cloned());
+        cas.push((Some(etat.as_str()), melange, *pos));
+    }
+    for (etat, reglages, pos) in cas {
+        let (Some(texte), Some(fond)) = (valeur(&reglages, "color"), valeur(&reglages, "background")) else { continue };
+        // Une variable redéfinie dans ce style ou cet état (`dark: { --ink: #F5F5F5; }`) y vaut d'abord.
+        let mut locales: Vec<(String, String)> = reglages.iter().filter(|r| r.nom.starts_with("--")).map(|r| (r.nom.clone(), r.valeur.clone())).collect();
+        locales.extend(variables.iter().cloned());
+        let (Some(t), Some(f)) = (rvb(&texte, &locales), rvb(&fond, &locales)) else { continue };
+        let taille = valeur(&reglages, "font-size").and_then(|v| v.strip_suffix("px").and_then(|n| n.trim().parse::<f64>().ok())).unwrap_or(16.0);
+        let gras = valeur(&reglages, "font-weight").is_some_and(|v| v == "bold");
+        let grand = taille >= 24.0 || (gras && taille >= 19.0);
+        let seuil = if grand { 3.0 } else { 4.5 };
+        let vu = contraste(t, f);
+        if vu + 1e-9 < seuil {
+            let ou = etat.map_or(String::new(), |e| format!(", dans l'état « {e} »"));
+            let ecrit = |x: f64| format!("{:.1}", (x * 10.0).floor() / 10.0).replace('.', ",");
+            return Err(Erreur {
+                message: format!(
+                    "« {} »{ou} : le texte « {texte} » sur le fond « {fond} » a un contraste de {} pour 1 ; il faut {} pour 1 au moins pour qu'il soit lu par tous (WCAG) : fonce le fond ou éclaircis le texte, ou l'inverse",
+                    regle.cible,
+                    ecrit(vu),
+                    if grand { "3" } else { "4,5" }
+                ),
+                pos,
+            });
+        }
+    }
+    Ok(())
+}
+
 /// Vérifie les règles de style d'un fichier et les noms de style posés sur les blocs.
 pub fn verifier_styles(programme: &Programme) -> Result<(), Erreur> {
     let variables = variables(programme);
@@ -144,6 +227,7 @@ pub fn verifier_styles(programme: &Programme) -> Result<(), Erreur> {
             }
             verifier_reglage(reglage, None, &variables)?;
         }
+        verifier_contraste(regle, &variables)?;
         // Les états (hover, focus, active, dark, phone) : chacun une fois, avec des réglages connus.
         for (k, (etat, reglages, pos)) in regle.etats.iter().enumerate() {
             if regle.etats[..k].iter().any(|(autre, ..)| autre == etat) {
@@ -483,6 +567,24 @@ mod tests {
         // Un fichier sans style reste valable, et un style qui ne sert pas n'est pas une erreur.
         verifier("Point(name: A, seed: 1)").unwrap();
         verifier("Point(name: A, seed: 1)\n.card { color: gray; }").unwrap();
+    }
+
+    #[test]
+    fn un_texte_trop_peu_contraste_est_refuse() {
+        let page = |styles: &str| format!("Page(children: [ H1(\"x\"), P.card(\"y\") ])\n{styles}");
+        // Refusé : blanc sur orange vif, en petit.
+        let erreur = verifier(&page(".card { color: white; background: #E4572E; }")).unwrap_err();
+        assert!(erreur.message.contains("contraste de 3,6 pour 1 ; il faut 4,5"), "{erreur}");
+        // Accepté : le même en grand texte (3 pour 1 suffit), ou un fond plus sombre.
+        assert!(verifier(&page(".card { color: white; background: #E4572E; font-size: 24px; }")).is_ok());
+        assert!(verifier(&page(".card { color: white; background: #B83A1F; }")).is_ok());
+        // Une variable, et un état sombre qui redéfinit la sienne.
+        assert!(verifier(&page("Page { --ink: #777777; }\n.card { color: --ink; background: #888888; }")).unwrap_err().message.contains(".card"));
+        assert!(verifier(&page("Page { --ink: #1a1a2e; background: white; color: --ink; dark: { --ink: #F5F5F5; background: #101020; } }\n.card { padding: 4px; }")).is_ok());
+        let erreur = verifier(&page(".card { color: navy; background: white; hover: { background: blue; } }")).unwrap_err();
+        assert!(erreur.message.contains("dans l'état « hover »"), "{erreur}");
+        // Un dégradé, une image, une couleur à demi transparente : non mesurés.
+        assert!(verifier(&page(".card { color: white; background: linear-gradient(white, #eeeeee); }")).is_ok());
     }
 
     #[test]
