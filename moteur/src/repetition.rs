@@ -51,7 +51,7 @@ fn deplier_valeur(valeur: &mut Valeur, regles: &mut Vec<Valeur>, compte: &mut us
     match valeur {
         // Le monde d'un point est un autre site : ses règles restent chez lui.
         Valeur::Bloc(bloc) if bloc.nom == "World" => deplier_site(bloc, compte),
-        Valeur::Bloc(bloc) if bloc.nom == "Repeat" => {
+        Valeur::Bloc(bloc) if bloc.nom == "Repeat" && bloc.argument("over").is_none() => {
             Err(Erreur { message: "une répétition se pose parmi des blocs : children: [ Repeat(items: [ … ], children: [ … ]) ]".into(), pos: bloc.pos })
         }
         Valeur::Bloc(bloc) => bloc.arguments.iter_mut().try_for_each(|a| deplier_valeur(&mut a.valeur, regles, compte)),
@@ -59,7 +59,8 @@ fn deplier_valeur(valeur: &mut Valeur, regles: &mut Vec<Valeur>, compte: &mut us
             let mut poses = Vec::with_capacity(elements.len());
             for mut element in std::mem::take(elements) {
                 match element {
-                    Valeur::Bloc(repetition) if repetition.nom == "Repeat" => {
+                    // Une répétition dynamique (`over:`) reste telle quelle : la page la redessine (ADR-044).
+                    Valeur::Bloc(repetition) if repetition.nom == "Repeat" && repetition.argument("over").is_none() => {
                         let (enfants, regles_de_la_repetition) = deplier_repetition(&repetition)?;
                         for mut enfant in enfants {
                             deplier_valeur(&mut enfant, regles, compte)?;

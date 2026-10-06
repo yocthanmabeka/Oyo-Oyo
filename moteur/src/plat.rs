@@ -59,7 +59,7 @@ transition:left .12s linear,top .12s linear,transform .12s linear}\
 :where(.holo-Dialog){max-width:min(90vw,480px);border:1px solid currentColor;border-radius:12px;padding:16px 20px;color:inherit;background:var(--fond,Canvas)}\
 :where(.holo-Dialog)::backdrop{background:rgba(0,0,0,0.5)}:where(.holo-Dialog>*){margin:0 0 12px 0}:where(.holo-fermer){display:flex;justify-content:flex-end;margin:0}\
 :where(.holo-fermer button){font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;font-size:1.2em;line-height:1}\
-:where(.holo-Form){display:block}:where(.holo-Form>*){display:block;box-sizing:border-box;margin:0 0 16px 0}\
+:where(.holo-Liste,.holo-ligne){display:contents}:where(.holo-Form){display:block}:where(.holo-Form>*){display:block;box-sizing:border-box;margin:0 0 16px 0}\
 :where(.holo-Shape){display:block;width:var(--holo-size,48px);height:var(--holo-size,48px);padding:0;border:0;background:var(--holo-color,currentColor)}\
 :where(button.holo-Shape){cursor:pointer}\
 :where(.holo-forme-circle){border-radius:50%}\
@@ -101,6 +101,8 @@ pub fn site_html(programme: &Programme, page: &Bloc, base: &str, titre: &str) ->
 }
 
 fn site_html_brut(programme: &Programme, page: &Bloc, base: &str, titre: &str) -> Result<String, Erreur> {
+    // Les listes, à leur départ : les lignes de `Repeat(over:)` sont fabriquées d'après elles.
+    crate::listes::mettre_en_cours(crate::listes::initiales(programme));
     if page.nom != "Page" && page.nom != "World" {
         return Err(Erreur { message: format!("la vue à plat affiche une « Page » ; ce fichier commence par « {} »", page.nom), pos: page.pos });
     }
@@ -140,63 +142,15 @@ fn site_html_brut(programme: &Programme, page: &Bloc, base: &str, titre: &str) -
     };
     // Les valeurs de la page, à leur départ, là où un texte les montre : « {cart} » (ADR-023).
     let depart = crate::etat::initial(programme).unwrap_or_default();
-    let montrees = crate::etat::a_montrer(programme, &depart);
+    let mut montrees = crate::etat::a_montrer(programme, &depart);
+    // Une liste montre son nombre d'éléments, et une condition le compare (ADR-044).
+    montrees.extend(crate::listes::comptes(&crate::listes::en_cours()));
     // Les conditions, à leur départ : ce qui est faux est caché dès le premier affichage (ADR-025).
     // La réponse vient de `etat::conditions`, comme après chaque changement : une condition
     // n'est décidée qu'à un seul endroit.
     let textes = crate::etat::textes_initiaux(programme);
     let reponses = crate::etat::conditions(programme, &crate::etat::avec_textes(&montrees, &textes));
-    let texte_de_depart = |nom: &str| textes.iter().find(|(connu, _)| connu == nom).map(|(_, texte)| texte.as_str());
-    let conditions = |html: String| -> String {
-        let mut sortie = String::with_capacity(html.len());
-        for (rang, morceau) in html.split(MARQUE).enumerate() {
-            if rang % 2 == 0 {
-                sortie.push_str(morceau);
-            } else if let Some(champ) = morceau.strip_prefix('!') {
-                // Un champ : de texte ou de nombre, selon la valeur qu'il présente.
-                let (nom, max) = champ.split_once('|').unwrap_or((champ, ""));
-                if texte_de_depart(nom).is_some() {
-                    let longueur = max.parse::<usize>().map_or(crate::etat::TEXTE_COURANT, |m| m.min(crate::etat::TEXTE_MAX));
-                    sortie.push_str(&format!(" type=\"text\" maxlength=\"{longueur}\""));
-                } else {
-                    sortie.push_str(" type=\"number\" inputmode=\"numeric\" min=\"0\"");
-                    if !max.is_empty() {
-                        sortie.push_str(&format!(" max=\"{max}\""));
-                    }
-                }
-            } else if let Some(choix) = morceau.strip_prefix('=') {
-                // Un choix : l'option cochée (ou choisie) au départ est celle de la valeur.
-                let mut parts = choix.splitn(3, '|');
-                let (attribut, nom, option) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""), parts.next().unwrap_or(""));
-                if texte_de_depart(nom).is_some_and(|t| echapper(t) == option && !t.is_empty()) {
-                    sortie.push_str(&format!(" {attribut}"));
-                }
-            } else if let Some(nom) = morceau.strip_prefix('#') {
-                // Un champ : la valeur de départ, telle quelle.
-                match texte_de_depart(nom) {
-                    Some(texte) => sortie.push_str(&echapper(texte)),
-                    None => sortie.push_str(&montrees.iter().find(|(connu, _)| connu == nom).map_or(0, |(_, v)| *v).to_string()),
-                }
-            } else if let Some(nom) = morceau.strip_prefix('?') {
-                // Une case : cochée au départ si la valeur n'est pas zéro.
-                if montrees.iter().any(|(connu, v)| connu == nom && *v > 0) {
-                    sortie.push_str(" checked");
-                }
-            } else if let Some(nom) = morceau.strip_prefix('@') {
-                // La place d'un bloc sur un plateau : la valeur de départ, de 0 à 100.
-                let valeur = montrees.iter().find(|(connu, _)| connu == nom).map_or(0, |(_, v)| *v);
-                sortie.push_str(&valeur.min(100).to_string());
-            } else if let Some(cle) = morceau.strip_prefix('^') {
-                // Le « sinon » d'une condition : caché quand elle est vraie (ADR-039).
-                if reponses.iter().any(|(connue, vraie)| connue == cle && *vraie) {
-                    sortie.push_str(" hidden");
-                }
-            } else if !reponses.iter().any(|(cle, vraie)| cle == morceau && *vraie) {
-                sortie.push_str(" hidden");
-            }
-        }
-        sortie
-    };
+    let conditions = |html: String| remplir_marques(html, &montrees, &textes, &reponses);
     corps = conditions(corps);
     mondes = conditions(mondes);
     entete = conditions(entete);
@@ -293,6 +247,62 @@ fn site_html_brut(programme: &Programme, page: &Bloc, base: &str, titre: &str) -
         polices(&programme.racine, base)?,
         css(programme, base)
     ))
+}
+
+/// Remplit les marques laissées dans le HTML en cours de fabrication : la condition d'un `If`,
+/// le genre et la valeur d'un champ, une case cochée, une place sur un plateau.
+fn remplir_marques(html: String, montrees: &crate::etat::Etat, textes: &crate::etat::Textes, reponses: &[(String, bool)]) -> String {
+    let texte_de_depart = |nom: &str| textes.iter().find(|(connu, _)| connu == nom).map(|(_, texte)| texte.as_str());
+    {
+        let mut sortie = String::with_capacity(html.len());
+        for (rang, morceau) in html.split(MARQUE).enumerate() {
+            if rang % 2 == 0 {
+                sortie.push_str(morceau);
+            } else if let Some(champ) = morceau.strip_prefix('!') {
+                // Un champ : de texte ou de nombre, selon la valeur qu'il présente.
+                let (nom, max) = champ.split_once('|').unwrap_or((champ, ""));
+                if texte_de_depart(nom).is_some() {
+                    let longueur = max.parse::<usize>().map_or(crate::etat::TEXTE_COURANT, |m| m.min(crate::etat::TEXTE_MAX));
+                    sortie.push_str(&format!(" type=\"text\" maxlength=\"{longueur}\""));
+                } else {
+                    sortie.push_str(" type=\"number\" inputmode=\"numeric\" min=\"0\"");
+                    if !max.is_empty() {
+                        sortie.push_str(&format!(" max=\"{max}\""));
+                    }
+                }
+            } else if let Some(choix) = morceau.strip_prefix('=') {
+                // Un choix : l'option cochée (ou choisie) au départ est celle de la valeur.
+                let mut parts = choix.splitn(3, '|');
+                let (attribut, nom, option) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""), parts.next().unwrap_or(""));
+                if texte_de_depart(nom).is_some_and(|t| echapper(t) == option && !t.is_empty()) {
+                    sortie.push_str(&format!(" {attribut}"));
+                }
+            } else if let Some(nom) = morceau.strip_prefix('#') {
+                // Un champ : la valeur de départ, telle quelle.
+                match texte_de_depart(nom) {
+                    Some(texte) => sortie.push_str(&echapper(texte)),
+                    None => sortie.push_str(&montrees.iter().find(|(connu, _)| connu == nom).map_or(0, |(_, v)| *v).to_string()),
+                }
+            } else if let Some(nom) = morceau.strip_prefix('?') {
+                // Une case : cochée au départ si la valeur n'est pas zéro.
+                if montrees.iter().any(|(connu, v)| connu == nom && *v > 0) {
+                    sortie.push_str(" checked");
+                }
+            } else if let Some(nom) = morceau.strip_prefix('@') {
+                // La place d'un bloc sur un plateau : la valeur de départ, de 0 à 100.
+                let valeur = montrees.iter().find(|(connu, _)| connu == nom).map_or(0, |(_, v)| *v);
+                sortie.push_str(&valeur.min(100).to_string());
+            } else if let Some(cle) = morceau.strip_prefix('^') {
+                // Le « sinon » d'une condition : caché quand elle est vraie (ADR-039).
+                if reponses.iter().any(|(connue, vraie)| connue == cle && *vraie) {
+                    sortie.push_str(" hidden");
+                }
+            } else if !reponses.iter().any(|(cle, vraie)| cle == morceau && *vraie) {
+                sortie.push_str(" hidden");
+            }
+        }
+        sortie
+    }
 }
 
 /// Le CSS des styles du fichier. Le thème d'abord, puis les types, puis les styles nommés :
@@ -950,6 +960,16 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
             };
             sortie.push_str(&format!("<a class=\"{classes}\"{nom} href=\"{}\">{}</a>", echapper(&adresse), markdown(texte_de(bloc)?)));
         }
+        // Une liste qui change pendant la visite (ADR-044) : une ligne par élément ; la page les
+        // redessine quand la liste change.
+        "Repeat" => {
+            let Some(Valeur::Nom(liste)) = bloc.argument("over").map(|a| &a.valeur) else {
+                return Err(Erreur { message: "« Repeat » a été déplié à la lecture ; ici, il attend « over: » : Repeat(over: tasks, children: [ … ])".into(), pos: bloc.pos });
+            };
+            sortie.push_str(&format!("<div class=\"holo-Liste\" data-liste=\"{}\">", echapper(liste)));
+            sortie.push_str(&lignes(bloc, liste, base)?);
+            sortie.push_str("</div>");
+        }
         // Une glissière : choisir un nombre entre deux bornes (ADR-042).
         "Slider" => {
             let (Some(Valeur::Nom(valeur)), Some(Valeur::Texte(etiquette))) = (bloc.argument("value").map(|a| &a.valeur), bloc.argument("label").map(|a| &a.valeur)) else {
@@ -1054,6 +1074,60 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
         autre => return Err(Erreur { message: format!("« {autre} » ne se place pas dans « children »"), pos: bloc.pos }),
     }
     Ok(())
+}
+
+/// Le caractère qui tient la place de l'élément d'une ligne pendant la fabrication. Il ne peut
+/// pas venir d'un texte du visiteur : un texte saisi est nettoyé de ses caractères invisibles.
+const ELEMENT: char = '\u{2}';
+
+/// Les lignes d'une répétition dynamique, pour les éléments en cours de sa liste. Le texte de
+/// l'élément est posé après la fabrication, échappé : ce qu'un visiteur a écrit ne devient jamais
+/// une balise, ni du gras, ni une valeur montrée.
+fn lignes(repetition: &Bloc, liste: &str, base: &str) -> Result<String, Erreur> {
+    for argument in &repetition.arguments {
+        match argument.nom.as_deref() {
+            Some("over" | "children" | "rules" | "name") => {}
+            Some(autre) => return Err(Erreur { message: format!("« Repeat(over: …) » n'a pas de paramètre « {autre} » ; paramètres possibles : over, children, rules"), pos: argument.pos }),
+            None => return Err(Erreur { message: "chaque paramètre de « Repeat » est nommé : Repeat(over: tasks, children: [ … ])".into(), pos: argument.pos }),
+        }
+    }
+    let Some(Valeur::Liste(modele)) = repetition.argument("children").map(|a| &a.valeur) else {
+        return Err(Erreur { message: "« Repeat(over: …) » attend « children » : le modèle d'une ligne".into(), pos: repetition.pos });
+    };
+    let listes = crate::listes::en_cours();
+    let Some((_, elements)) = listes.iter().find(|(nom, _)| nom == liste) else {
+        return Err(Erreur { message: format!("« Repeat(over: {liste}) » : aucune liste ne s'appelle « {liste} » ; déclare-la, state: State({liste}: [])"), pos: repetition.pos });
+    };
+    fn marquer(valeur: &mut Valeur) {
+        match valeur {
+            Valeur::Texte(t) => *t = t.replace("{item}", &ELEMENT.to_string()),
+            Valeur::Liste(l) => l.iter_mut().for_each(marquer),
+            Valeur::Bloc(b) => b.arguments.iter_mut().for_each(|a| marquer(&mut a.valeur)),
+            _ => {}
+        }
+    }
+    let mut sortie = String::new();
+    let mut mondes = String::new();
+    for (rang, element) in elements.iter().enumerate() {
+        let mut ligne = String::new();
+        for valeur in modele {
+            let mut copie = valeur.clone();
+            marquer(&mut copie);
+            rendre(&copie, &mut ligne, &mut mondes, base, repetition)?;
+        }
+        sortie.push_str(&format!("<div class=\"holo-ligne\" data-rang=\"{rang}\">{}</div>", ligne.replace(ELEMENT, &echapper(element))));
+    }
+    Ok(sortie)
+}
+
+/// Les lignes d'une liste pour cet état : la page les pose à la place des anciennes (ADR-044).
+pub fn lignes_de_liste(programme: &Programme, base: &str, nombres: &crate::etat::Etat, textes: &crate::etat::Textes, listes: &crate::listes::Listes, nom: &str) -> String {
+    crate::listes::mettre_en_cours(listes.clone());
+    let Some((repetition, _)) = crate::listes::repetitions(programme).into_iter().find(|(_, l)| l == nom) else { return String::new() };
+    let mut montrees = crate::etat::a_montrer(programme, nombres);
+    montrees.extend(crate::listes::comptes(listes));
+    let reponses = crate::etat::conditions(programme, &crate::etat::avec_textes(&montrees, textes));
+    lignes(repetition, nom, base).map(|html| remplir_marques(html, &montrees, textes, &reponses)).unwrap_or_default()
 }
 
 /// La place d'un bloc sur un plateau, le long d'un axe : un nombre de 0 à 100 écrit dans le

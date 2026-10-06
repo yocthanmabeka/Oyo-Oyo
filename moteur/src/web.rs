@@ -296,6 +296,12 @@ pub fn delais(source: &str, etat: &str) -> String {
     crate::delais(source, etat)
 }
 
+/// Les lignes d'une liste pour cet état.
+#[wasm_bindgen]
+pub fn liste_html(source: &str, base: &str, etat: &str, nom: &str) -> String {
+    crate::liste_html(source, base, etat, nom)
+}
+
 /// Ce qu'un formulaire envoie au serveur, en JSON.
 #[wasm_bindgen]
 pub fn envoi(source: &str, etat: &str, formulaire: &str) -> String {

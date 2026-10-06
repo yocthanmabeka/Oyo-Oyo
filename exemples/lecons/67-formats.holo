@@ -28,6 +28,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 66 : multiplier, diviser", to: "66-calculer.holo"),
+      A("Leçon 68 : une liste qui change →", to: "68-liste-qui-change.holo"),
     ]),
   ],
   rules: [ On(Visiteurs.tap, effect: visites.add(1000)) ],

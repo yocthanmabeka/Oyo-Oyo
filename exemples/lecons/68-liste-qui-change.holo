@@ -1,0 +1,53 @@
+// Leçon 68 — Une liste qui change pendant la visite
+//
+// Ce qu'on apprend :
+//   State(taches: [])   une liste de textes, vide au départ (cent éléments au plus)
+//   taches.push(tache)  ajoute le texte écrit dans le champ ; un texte vide n'est pas ajouté
+//   tache.set("")       vide le champ
+//   taches.clear()      vide la liste
+//   Repeat(over: taches, children: [ … ]) montre une ligne par élément ; dans la ligne,
+//   {item} est le texte de l'élément. Ses règles répondent au bouton de la ligne touchée :
+//   On(Fait.tap, effect: taches.remove(item)) retire cette ligne-là.
+//   {taches} montre le nombre d'éléments, et If(taches, is: 0, …) le compare.
+//   keep: [taches] garde la liste d'une visite à l'autre.
+//   Une liste ne change que par un geste du visiteur.
+//
+// À essayer :
+//   Ajoute trois tâches, retire celle du milieu, puis recharge la page : la liste est restée.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 68 : une liste qui change",
+  state: State(tache: "", taches: ["Encadrer le tableau de la rivière"]),
+  keep: [taches],
+  children: [
+    H1("Une liste qui change"),
+    Row(gap: 8px, children: [
+      Input(value: tache, label: "Une tâche"),
+      Button(name: Ajouter, text: "Ajouter"),
+    ]),
+    If(taches, is: 0,
+      children: [ P("Rien à faire. Bravo !") ],
+      else: [ P("{taches} tâche(s) à faire :") ],
+    ),
+    Repeat(over: taches, children: [
+      Row.ligne(gap: 8px, children: [ Text("{item}"), Button(name: Fait, text: "Fait") ]),
+    ], rules: [ On(Fait.tap, effect: taches.remove(item)) ]),
+    Button(name: Vider, text: "Tout effacer"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 67 : écrire un nombre joliment", to: "67-formats.holo"),
+    ]),
+  ],
+  rules: [
+    On(Ajouter.tap, effect: [taches.push(tache), tache.set("")]),
+    On(Vider.tap, effect: taches.clear()),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.ligne { border: 1px solid #2a2a4e; border-radius: 8px; padding: 6px 10px; }

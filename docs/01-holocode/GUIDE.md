@@ -1102,6 +1102,33 @@ Page(
 
 Ces ajouts sont à l'essai (`ADR-043`). Les leçons sont `66-calculer.holo` et `67-formats.holo`.
 
+## 6 septendecies. Une liste qui change pendant la visite
+
+```holo
+Page(
+  title: "Wish list",
+  state: State(wish: "", wishes: []),
+  keep: [wishes],
+  children: [
+    H1("Wish list"),
+    Input(value: wish, label: "A wish"),
+    Button(name: Add, text: "Add"),
+    If(wishes, is: 0, children: [ P("Nothing yet.") ], else: [ P("{wishes} wishes:") ]),
+    Repeat(over: wishes, children: [
+      Row(children: [ Text("{item}"), Button(name: Remove, text: "Remove") ]),
+    ], rules: [ On(Remove.tap, effect: wishes.remove(item)) ]),
+  ],
+  rules: [ On(Add.tap, effect: [wishes.push(wish), wish.set("")]) ],
+)
+```
+
+- **`State(wishes: [])`** : une liste de textes, cent au plus.
+- **`wishes.push(wish)`** ajoute le texte d'une valeur ; **`wishes.remove(item)`** retire l'élément de la ligne touchée ; **`wishes.clear()`** vide tout. Une liste ne change que par un geste.
+- **`wish.set("")`** vide un texte.
+- **`Repeat(over: wishes, …)`** : une ligne par élément ; `{item}` est son texte. `{wishes}` montre le nombre ; `If(wishes, is: 0)` le compare ; `keep:` la garde.
+
+Ces ajouts sont à l'essai (`ADR-044`). La leçon est `68-liste-qui-change.holo`.
+
 ## 6 undecies. Les repères, la superposition, le survol, le texte qui grandit
 
 **Les repères.** Une personne aveugle saute d'un repère à l'autre avec son lecteur d'écran. Rien ne change à l'œil.
@@ -1376,6 +1403,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Repeat` | `items`, `children`, `rules` | Dans `children` |
 | `Font` | `family`, `source` | Dans `fonts:` d'une `Page` |
 | `Item` | `key`, et les champs de l'élément | Dans `items` d'un `Repeat` |
+| `Repeat(over:)` | `over` (une liste de la page), `children`, `rules` | Dans `children` |
 | `When` | le nom d'une valeur, puis `is`, `not`, `over`, `under` ; ou le nom d'un bloc, puis `meets` et `within` ; et `effect:` | Dans `rules` |
 | `State` | les valeurs et leur départ : `cart: 0` | Dans `state:` d'une `Page` |
 | `Data` | `from`, `every` | Dans `data:` d'une `Page` |
@@ -1450,6 +1478,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Envoyer un formulaire | `Form(name:)`, `Contact.send`, `sent`, `failed` | fait |
 | Multiplier, diviser | les demandes `mul`, `div` | fait, à l'essai |
 | Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait, à l'essai |
+| Une liste qui change pendant la visite | `State(tasks: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` | fait, à l'essai |
 | Une fenêtre, un pli, une glissière, une barre | `Dialog`, `Details`, `Slider`, `Progress` | fait |
 | Réagir au zoom par une règle (« quand on zoome, alors… ») | aucun | à faire |
 | Ranger côte à côte, l'un sous l'autre, en grille | `Row`, `Column`, `Grid` | fait |
@@ -1461,7 +1490,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 
 ## 11. Ce qui n'existe pas encore
 
-- `module`, `bridge js`, `bridge css` : le moteur les lit mais ne les applique pas. Des valeurs qui soient des listes (une liste qui change pendant la visite).
+- `module`, `bridge js`, `bridge css` : le moteur les lit mais ne les applique pas. Des listes d'éléments à champs ; une liste reçue du serveur.
 - Pour la disposition : pas de largeur par élément, pas d'élément qui prend la place restante.
 - Les données venues d'un autre serveur ; l'envoi d'un fichier ; les comptes.
 - Pour les valeurs : des nombres entiers et des textes. Pas de liste, pas d'autre calcul que le nombre et le total d'un panier.
