@@ -6,6 +6,29 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Le site de référence de Codex, construit
+
+**Ce que Yocthan a demandé**
+
+- « Construis le site d'après les conditions de Codex et lance-le sur Chrome. » Le cahier des charges est la PR 79 de Codex (`proposals/GPT5.6/site-reference-2026-10-06/`), encore ouverte : Claude ne l'a pas fusionnée.
+
+**Fait**
+
+- « L'atelier des mondes », dans `exemples/site-reference/` : accueil (page témoin, ordinaire), catalogue de douze créations, fiche, panier et atelier (le même panier à plat et dans le monde ; un jardin dans un autre fichier ; un monde planté dans un pixel ; points, relief, carrefour), journal, disponibilité (`Data`), jeu (pause, reprise, meilleur score gardé, `within`), galerie animée. Menu et pied de page en morceaux importés. Aucun mot ajouté au langage.
+- Premier passage de la recette, sur PC seulement : `exemples/site-reference/RECETTE-2026-10-06.md`. Le parcours du panier donne `(3,330)`, `(2,210)`, `(0,0)`, `(0,0)` ; l'accueil pèse 8 Ko sans le moteur.
+
+**Erreurs en route**
+
+- Un fichier ne peut contenir qu'un seul morceau (`Part`) : le pied de page a dû aller dans son propre fichier, `pied.holo`.
+- Les premiers essais automatiques disaient que rien ne marchait : huit Chrome lancés en même temps, et des lectures faites 350 ms après le premier toucher, avant l'arrivée du moteur. Relancés un par un, en attendant le moteur : tout passe.
+
+**Pas fait** : les mesures sur téléphone, les essais avec des débutants, le verdict de Yocthan, et les quatre extensions (formulaire envoyé, listes, objets pleins, jeu à plusieurs), qui restent bloquées.
+
+![L'accueil du site de référence](images/2026-10-06-site-reference-accueil.png)
+![Le panier sur un écran de téléphone](images/2026-10-06-site-reference-panier-telephone.png)
+
+---
+
 ## 2026-10-04 — Le mouvement en HoloCode, et le duel du motion design
 
 **Ce que Yocthan a demandé**

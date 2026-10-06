@@ -1,0 +1,44 @@
+// L'accueil de « L'atelier des mondes ».
+//
+// Une page ordinaire : ni points, ni relief, ni mouvement. Elle s'ouvre sans le moteur (8 à
+// 10 Ko) et reste un site normal quel que soit le zoom. C'est la page témoin du site.
+// « Explorer l'atelier » est un choix visible : on y entre si on le veut.
+
+import "commun.holo"
+import "pied.holo"
+
+Page(
+  name: Accueil,
+  title: "L'atelier des mondes",
+  children: [
+    Use(Menu),
+    H1("L'atelier des mondes"),
+    P.promesse("Des tableaux faits à la main, et les mondes où ils sont exposés."),
+    H2("Trois créations"),
+    Grid(columns: 3, gap: 16px, children: [
+      Column.carte(gap: 6px, children: [
+        Image(source: "lever.svg", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu", weight: 1KB),
+        P("Lever sur le fleuve"),
+        Text.prix("120 euros"),
+        A("Lire son histoire", to: "fiche.holo"),
+      ]),
+      Column.carte(gap: 6px, children: [
+        Image(source: "porte.svg", alt: "Une porte bleue dans un mur couleur sable", weight: 1KB),
+        P("La porte bleue"),
+        Text.prix("90 euros"),
+        A("La mettre au panier", to: "panier.holo"),
+      ]),
+      Column.carte(gap: 6px, children: [
+        Image(source: "marche.svg", alt: "Des étals rouges et jaunes sous un ciel clair", weight: 1KB),
+        P("Jour de marché"),
+        Text.prix("50 euros"),
+        A("La mettre au panier", to: "panier.holo"),
+      ]),
+    ]),
+    Row(gap: 16px, children: [
+      A("Voir les douze créations", to: "catalogue.holo"),
+      A("Explorer l'atelier", to: "panier.holo#Atelier"),
+    ]),
+    Use(Pied),
+  ],
+)

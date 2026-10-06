@@ -1,0 +1,36 @@
+// La fiche d'une création : un texte long, des titres, une liste, une citation.
+
+import "commun.holo"
+import "pied.holo"
+
+Page(
+  name: Fiche,
+  title: "Lever sur le fleuve — L'atelier des mondes",
+  children: [
+    Use(Menu),
+    H1("Lever sur le fleuve"),
+    Image(source: "lever.svg", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu", weight: 1KB),
+    Text.prix("120 euros"),
+
+    H2("L'histoire"),
+    "Ce tableau a été peint **en une seule matinée**, au bord du fleuve, entre six et neuf heures. Le soleil montait plus vite que le pinceau : il a fallu choisir *ce qu'on garde* et ce qu'on laisse.",
+    "Le jaune vient d'un pigment ancien, broyé à la main. Le bleu du fleuve est posé en trois couches, de la plus sombre à la plus claire, pour que l'eau paraisse profonde.",
+
+    H2("Ce qu'il faut savoir"),
+    List(children: [
+      "Huile sur toile, 40 × 25 cm.",
+      "Signé au dos, avec la date.",
+      "Livré emballé, avec une carte qui raconte le lieu.",
+    ]),
+
+    H3("Ce qu'en dit une cliente"),
+    Quote("Je le regarde chaque matin en buvant mon café. Il fait lever le jour une deuxième fois.", by: "Une cliente, à Lyon"),
+
+    Hr(),
+    Row(gap: 16px, children: [
+      A("Le mettre au panier", to: "panier.holo"),
+      A("Le voir exposé dans l'atelier", to: "panier.holo#Atelier"),
+    ]),
+    Use(Pied),
+  ],
+)

@@ -1,0 +1,36 @@
+// La galerie animée : trois scènes qui présentent l'atelier. Une entrée lettre à lettre, une
+// boucle discrète, des enfants qui arrivent l'un après l'autre. Qui demande moins de
+// mouvement voit la dernière scène, arrêtée. Ces mouvements ne demandent pas le moteur.
+
+import "commun.holo"
+import "pied.holo"
+
+Page(
+  name: Galerie,
+  title: "Galerie — L'atelier des mondes",
+  children: [
+    Use(Menu),
+    Scenes(height: 420px, repeat: forever, children: [
+      Scene(for: 4s, children: [
+        H1.grand("L'atelier des mondes", enter: Enter(y: 40px, opacity: 0, blur: 8px, letters: 0.04s, for: 0.9s, ease: spring)),
+        Text.discret("Des tableaux, et les mondes où ils vivent.", enter: Enter(opacity: 0, y: 12px, at: 1.2s)),
+      ]),
+      Scene(for: 4.5s, children: [
+        Row(gap: 16px, align: center, enter: Enter(y: 50px, opacity: 0, each: 0.18s, ease: back), children: [
+          Image(source: "lever.svg", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu", weight: 1KB),
+          Image(source: "porte.svg", alt: "Une porte bleue dans un mur couleur sable", weight: 1KB),
+          Image(source: "marche.svg", alt: "Des étals rouges et jaunes sous un ciel clair", weight: 1KB),
+        ]),
+        Text.discret("Trois créations, peintes à la main.", enter: Enter(opacity: 0, at: 1s)),
+      ]),
+      Scene(for: 4.5s, children: [
+        Shape(form: circle, color: "#E9B44C", size: 80px, enter: Enter(scale: 0, ease: back), loop: Loop(scale: 1.15, for: 0.9s)),
+        H2("Entrez dans l'atelier", enter: Enter(opacity: 0, y: 20px, at: 0.5s)),
+        A("Explorer l'atelier", to: "panier.holo#Atelier"),
+      ]),
+    ]),
+    Use(Pied),
+  ],
+)
+
+.grand { font-size: 42px; text-align: center; }

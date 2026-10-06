@@ -1,0 +1,37 @@
+// Ce qui reste en stock : trois nombres lus dans stock.json, sur le même serveur, toutes les
+// cinq secondes. La page garde la dernière valeur utilisable si la lecture échoue. Rien
+// n'est réservé : c'est une simple lecture.
+
+import "commun.holo"
+import "pied.holo"
+
+Page(
+  name: Disponibilite,
+  title: "Disponibilité — L'atelier des mondes",
+  state: State(lever: 0, porte: 0, marche: 0, maj: ""),
+  data: Data(from: "stock.json", every: 5s),
+  children: [
+    Use(Menu),
+    H1("Ce qui reste"),
+    Grid(columns: 3, gap: 14px, children: [
+      Column.carte(gap: 4px, align: center, children: [
+        P("Lever sur le fleuve"),
+        Text.prix("{lever} en stock"),
+        If(lever, is: 0, children: [ Text.discret("Épuisé pour l'instant.") ]),
+      ]),
+      Column.carte(gap: 4px, align: center, children: [
+        P("La porte bleue"),
+        Text.prix("{porte} en stock"),
+        If(porte, is: 0, children: [ Text.discret("Épuisé pour l'instant.") ]),
+      ]),
+      Column.carte(gap: 4px, align: center, children: [
+        P("Jour de marché"),
+        Text.prix("{marche} en stock"),
+        If(marche, is: 0, children: [ Text.discret("Épuisé pour l'instant.") ]),
+      ]),
+    ]),
+    If(maj, not: "", children: [ Text.discret("Mis à jour : {maj}.") ]),
+    If(maj, is: "", children: [ Text.discret("Lecture du stock…") ]),
+    Use(Pied),
+  ],
+)

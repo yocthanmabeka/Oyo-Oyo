@@ -1,0 +1,25 @@
+// Le jardin : le lieu voisin de l'atelier, écrit dans un autre fichier. On y arrive par le
+// point vert de l'atelier ; le point doré ramène au panier.
+
+import "commun.holo"
+import "pied.holo"
+
+Page(
+  name: Jardin,
+  title: "Le jardin — L'atelier des mondes",
+  points: Points(after: 3),
+  children: [
+    Use(Menu),
+    H1("Le jardin"),
+    "C'est ici qu'on fait sécher les grandes toiles, à l'ombre du tilleul.",
+    Image(source: "verger.svg", alt: "Des pommiers verts alignés sur une colline", weight: 1KB),
+    Button.action(name: Rentrer, text: "Revenir à l'atelier"),
+    Point(name: Retour, seed: 42, color: "#E9B44C", inside: "panier.holo"),
+    Use(Pied),
+  ],
+  rules: [
+    On(Rentrer.tap, effect: Retour.enter),
+  ],
+)
+
+Page { background: #eef6e8; }

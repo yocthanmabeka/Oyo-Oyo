@@ -1,0 +1,76 @@
+// Le jeu de l'atelier : rattraper les pommes du verger. Démarrer, mettre en pause, reprendre ;
+// au clavier (flèches) ou en faisant glisser le panier ; le meilleur score est gardé.
+
+import "commun.holo"
+import "pied.holo"
+
+Page(
+  name: Verger,
+  title: "Jeu — L'atelier des mondes",
+
+  state: State(
+    phase: 0,       // 0 : pas de partie ; 1 : on joue ; 2 : en pause
+    lives: 0,
+    score: 0,
+    best: 0,
+    near: 0,        // les pommes passées près du panier
+    basket: 50,
+    apple_x: 50,
+    apple_y: 0,
+  ),
+  keep: [best],
+
+  children: [
+    Use(Menu),
+    H1("Rattraper les pommes"),
+    Sound(name: Pop, source: "pop.wav"),
+    Sound(name: Lost, source: "perdu.wav"),
+
+    If(phase, is: 0, children: [
+      "Une pomme tombe. Placez le panier dessous : flèches du clavier, ou faites-le glisser.",
+      If(score, over: 0, children: [ P("Partie finie. Votre score : **{score}**.") ]),
+      Text.discret("Meilleur score : {best}"),
+      Button.action(name: Play, text: "Jouer"),
+    ]),
+
+    If(phase, over: 0, children: [
+      Row(gap: 12px, align: between, children: [
+        Text("Score : {score}"),
+        Text("Vies : {lives}"),
+        Text("Meilleur : {best}"),
+      ]),
+      Board(height: 360px, children: [
+        Shape(name: Apple, form: circle, color: "#C2462B", size: 44px, x: apple_x, y: apple_y),
+        Shape(name: Basket, form: square, color: "#8a3b12", size: 64px, x: basket, y: 96, drag: true),
+      ]),
+      Row(gap: 12px, align: between, children: [
+        If(phase, is: 1, children: [ Button(name: Pause, text: "Pause") ]),
+        If(phase, is: 2, children: [ Button(name: Reprendre, text: "Reprendre") ]),
+        Text.discret("Pommes passées près du panier : {near}"),
+      ]),
+    ]),
+    Use(Pied),
+  ],
+
+  rules: [
+    On(Play.tap, effect: [phase.set(1), score.set(0), lives.set(3), near.set(0), apple_x.set(50), apple_y.set(0), basket.set(50)]),
+    On(Pause.tap, effect: phase.set(2)),
+    On(Reprendre.tap, effect: phase.set(1)),
+    On(Key.left, effect: basket.sub(8)),
+    On(Key.right, effect: basket.add(8)),
+
+    // Les règles du jeu ne valent que pendant la partie, pas en pause.
+    If(phase, is: 1, rules: [
+      Every(100ms, effect: apple_y.add(3)),
+      When(Basket, meets: Apple, effect: [score.add(1), apple_x.random(100), apple_y.set(0), Pop.play]),
+      // within : juger sur l'écart des places (à 14 près sur chaque axe), sans regarder la taille.
+      When(Basket, meets: Apple, within: 14, effect: near.add(1)),
+      When(apple_y, over: 99, effect: [lives.sub(1), apple_x.random(100), apple_y.set(0), Lost.play]),
+    ]),
+
+    When(lives, is: 0, effect: phase.set(0)),
+    When(score, over: best, effect: best.set(score)),
+  ],
+)
+
+Board { background: #fffaf3; border: 1px solid #e3d5c3; border-radius: 16px; }
