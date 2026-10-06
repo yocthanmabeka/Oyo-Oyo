@@ -4,8 +4,10 @@ Demandé par Yocthan le 2026-10-03 : un même exemple écrit en HoloCode et dans
 
 | | Fichiers | Lignes utiles (sans les lignes vides ni les commentaires) |
 |---|---|---|
-| HoloCode | [`boutique.holo`](boutique.holo) | 77 |
-| Web | [`web/index.html`](web/index.html), [`web/style.css`](web/style.css), [`web/script.js`](web/script.js) | 178 (36 + 61 + 81) |
+| HoloCode | [`boutique.holo`](boutique.holo) | 176 |
+| Web | [`web/index.html`](web/index.html), [`web/style.css`](web/style.css), [`web/script.js`](web/script.js) | 348 (90 + 103 + 155) |
+
+Compte du 2026-10-06 (lignes non vides, sans les lignes de commentaire). Les deux versions sont identiques à l'écran, vérifié par captures côte à côte sur ordinateur et sur téléphone.
 
 Les deux décrivent la même chose : une page de boutique (titres, paragraphes, image, liste, bouton), un point lumineux, et le monde dans lequel on entre par ce point, avec ses six points nés du morcellement.
 
@@ -86,3 +88,34 @@ Ce que cela dit, sans détour :
 - **La comparaison n'est pas complète** : la version web n'a ni points, ni rotation, ni carrefour. Pour les avoir, il faudrait une bibliothèque 3D (Three.js pèse autour de 170 Ko compressé, à vérifier) et beaucoup de code.
 
 Ce qui n'est pas mesuré : un site écrit avec React, Vue ou Svelte (il faudrait les installer, ce qui demande l'accord de Yocthan) ; le téléphone ; une page bien plus grande ; la vitesse des interactions.
+
+
+## Mise à jour du 2026-10-06 : repères, survol, pastille, titres, texte qui grandit
+
+Les deux versions ont reçu les mêmes ajouts, et restent identiques à l'écran (captures côte à côte, ordinateur et téléphone) :
+
+| Ajout | HoloCode | HTML, CSS, JavaScript |
+|---|---|---|
+| En-tête et menu, pied de page | `Header(…)`, `Nav(…)`, `Footer(…)` | `<header>`, `<nav>`, `<footer>`, et une règle CSS pour leur largeur |
+| Pastille « New » sur le tableau | `Stack(children: [ Image(…), Text.badge("New", align: top_right) ])` | un conteneur en grille, `grid-area`, `align-self`, `justify-self`, `z-index` |
+| Survol, clavier, appui | `Button { hover: { … } focus: { … } active: { … } }` | `@media (hover: hover) { button:hover { … } }`, `:focus-visible`, `:active`, `transition` |
+| Titre de niveau 4 | `H4("Weekdays")` | `<h4>` |
+| Texte qui suit le réglage du visiteur | rien à écrire : le moteur change les `px` en `rem` et `clamp()` | `font-size: 1rem`, `clamp(1.5rem, 5vw, 2rem)` à écrire à la main |
+
+**Mesuré dans Chrome (PC, cache vide, trois essais chacun)** :
+
+| | `boutique.holo` | `web/` |
+|---|---|---|
+| Téléchargé à l'ouverture | **9 Ko**, sans le moteur | 8 Ko |
+| Fichiers demandés | 3 | 5 |
+| Premier affichage | 340 à 604 ms | 332 à 568 ms |
+| Éléments dans la page | 122 | 97 |
+| Lignes utiles écrites par l'auteur | **176**, dans 1 fichier | 348, dans 3 fichiers |
+
+Ce que cela dit :
+
+- **Le poids est maintenant le même** : depuis le site léger (`ADR-033`), la boutique HoloCode ne télécharge plus le moteur pour être lue (579 Ko le 2026-10-04, 9 Ko aujourd'hui). Le moteur n'arrive qu'au premier bouton touché.
+- **Le premier affichage est le même**, aux variations près d'un essai à l'autre.
+- **L'auteur écrit environ deux fois moins**, dans un seul fichier, sans JavaScript.
+- **HoloCode met plus d'éléments dans la page** (122 contre 97) : le moteur enveloppe certains blocs (la pastille, les marques des valeurs).
+- **Une erreur faite en écrivant la version web**, qui montre le défaut que HoloCode évite : une règle CSS ajoutée pour les marges était plus « forte » que celles de la grille, du menu et de la pastille, et les écrasait. La grille passait à une colonne, la pastille tombait sous l'image. Il a fallu `:where()` pour l'affaiblir. En HoloCode, ce conflit ne peut pas arriver : un style ne vise qu'un type de bloc ou un nom.
