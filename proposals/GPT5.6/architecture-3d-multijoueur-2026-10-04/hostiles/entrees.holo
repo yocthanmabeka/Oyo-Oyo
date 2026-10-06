@@ -1,0 +1,30 @@
+// Fixture locale : aucune connexion, aucun serveur de jeu.
+Page(
+  name: Probes,
+  state: State(score: 0, x: 90, y: 50, field: 0, live: 0),
+  data: Data(from: "stock.json"),
+  children: [
+    Button(name: Add, text: "Add"),
+    Button(name: Reset, text: "Reset"),
+    Button(name: Move, text: "Move"),
+    Sound(name: Ding, source: "ding.wav"),
+    If(live, over: 0, children: [
+      Button(name: Hidden, text: "Hidden"),
+      Input(value: field, label: "Hidden field", max: 10),
+    ]),
+    Board(height: 320px, children: [
+      Shape(name: A, form: square, size: 40px, x: x, y: y, drag: true),
+      Shape(name: B, form: square, size: 40px, x: 50, y: 50),
+    ]),
+  ],
+  rules: [
+    On(Add.tap, effect: score.add(1)),
+    On(Reset.tap, effect: score.set(0)),
+    On(Move.tap, effect: x.set(60)),
+    On(Hidden.tap, effect: score.add(5)),
+    Every(1s, effect: score.add(1)),
+    Every(1s, effect: x.random(100)),
+    Every(1s, effect: Ding.play),
+    When(A, meets: B, effect: score.add(10)),
+  ],
+)
