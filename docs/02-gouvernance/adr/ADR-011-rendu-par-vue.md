@@ -15,11 +15,14 @@
 
 **Décidé par Yocthan le 2026-10-06 : « Personnellement, je suis tes recommandations. »** A est accepté, B est rejeté, la direction de C est acceptée (sa construction reste à faire), D reste une proposition.
 
+**Précisé le même jour, après ses questions sur ce que le web offre gratuitement et sur HoloIR, et confirmé par Yocthan (« on fait comme tu l'as dit »)** : la vue à plat reste du vrai HTML, **même dans le navigateur propre au projet** ; la vue en profondeur recevra un jour une couche invisible pour les lecteurs d'écran. B, C et D restent comme décidé.
+
 ---
 
 ## Partie A — Le rendu : la vue à plat par génération de HTML et CSS, la vue en profondeur par le moteur (ADR-011)
 
 - Statut : ACCEPTÉ — Décidé par Yocthan le 2026-10-06 : « Personnellement, je suis tes recommandations. »
+- Précision acceptée le 2026-10-06 (voir « Ce que le navigateur offre gratuitement », plus bas) — Décidé par Yocthan le 2026-10-06 : « Bon, premièrement, tu travailles sur le lot 2 jusqu'au lot 5. Et ensuite, tu valides les différentes parties qu'on vient de voir. A, B, C et D. […] je suis des recommandations. Donc, du coup, on fait comme tu l'as dit. »
 - Date : 2026-09-21
 - Projets affectés : HoloCompiler, HoloEngine
 - Proposé par : Claude. Validé par Yocthan le 2026-09-21, après lecture. La fusion de la pull request qui introduit cette fiche vaut confirmation.
@@ -39,7 +42,19 @@ Utiliser les deux routes, une par vue (`ADR-007`) :
 - **vue à plat** : traduction en HTML et CSS générés ;
 - **vue en profondeur** : moteur Rust en WebAssembly (`ADR-010`).
 
-Dans les deux cas, le fichier source ne contient ni HTML, ni CSS, ni JavaScript. Dans le navigateur propre au projet, le moteur assure les deux vues et il n'y a plus aucun HTML.
+Dans les deux cas, le fichier source ne contient ni HTML, ni CSS, ni JavaScript.
+
+~~Dans le navigateur propre au projet, le moteur assure les deux vues et il n'y a plus aucun HTML.~~ Remplacé le 2026-10-06 : **dans le navigateur propre au projet aussi, la vue à plat reste du vrai HTML.**
+
+### Ce que le navigateur offre gratuitement (précision du 2026-10-06)
+
+Le navigateur ne connaît que ce qu'il a construit lui-même. Une page en vrai HTML lui dit « ceci est un mot, ceci est un bouton » : il offre alors, sans rien coder, la sélection du texte, la recherche (Ctrl+F), la traduction, la lecture par un lecteur d'écran, le remplissage des formulaires et la lecture par les moteurs de recherche. Une page dessinée par le moteur n'est, pour lui, qu'une image : il ne peut plus rien offrir, et il faudrait tout refaire à la main, plus lourd et moins bien (Flutter Web pose pour cela une couche invisible de HTML derrière son dessin).
+
+D'où trois conséquences, acceptées par Yocthan :
+
+1. **La vue à plat reste du vrai HTML, partout**, y compris dans le futur navigateur propre au projet. On ne perd pas les cadeaux du navigateur sans rien gagner en échange.
+2. **La vue en profondeur**, dessinée par le moteur, recevra un jour **une couche invisible** décrivant ce qu'on voit (comme Flutter), pour qu'une personne aveugle puisse aussi parcourir un monde. À faire ; pas encore commencé.
+3. Ce qui se construit pour la vue à plat (`ADR-033` à `ADR-042`) continue de passer par du HTML et du CSS fabriqués, jamais par un dessin.
 
 ### Alternatives étudiées
 
@@ -50,7 +65,7 @@ Dans les deux cas, le fichier source ne contient ni HTML, ni CSS, ni JavaScript.
 ### Conséquences
 
 - Positives : la vue à plat est légère, lisible partout, y compris sur un téléphone ancien, et trouvable par un moteur de recherche.
-- Négatives et risques : deux rendus à garder cohérents ; le passage d'une vue à l'autre doit être fluide, c'est là que l'idée se joue.
+- Négatives et risques : deux rendus à garder cohérents ; le passage d'une vue à l'autre doit être fluide, c'est là que l'idée se joue. Le futur navigateur propre au projet devra savoir afficher du HTML (précision du 2026-10-06).
 
 ### Critères de validation
 
