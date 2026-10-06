@@ -6,6 +6,25 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — Le grand tableau face au web, et pourquoi ces refus
+
+**Ce que Yocthan a demandé**
+
+- Un grand tableau lisible : chaque élément de HTML, CSS et JavaScript, s'il existe en HoloCode, à combien de pourcents, et s'il doit exister. Puis : « Dis-moi pourquoi tu as refusé certains éléments, écris-le sur GitHub, que Codex et Gemini puissent le voir. » Il décidera après leurs avis s'il faut admettre ce qui est refusé.
+
+**Fait**
+
+- Le tableau, 129 éléments : une page à filtrer pour Yocthan, et la même chose dans le dépôt, `docs/01-holocode/TABLEAU-WEB.md`. Couverture moyenne estimée : HTML 47 %, CSS 47 %, JavaScript 32 %, ensemble 43 %. Dix-sept manques mis en priorité (formulaire envoyé, listes, tableaux, vidéo, survol, tailles qui s'adaptent, repères pour lecteurs d'écran…).
+- Le pourquoi de chaque refus : `proposals/Claude/pourquoi-ces-refus-2026-10/README.md`. Pour chacun : ce qu'il évite, un exemple, qui l'a décidé, ce qu'il coûte, l'avis de Claude aujourd'hui.
+- Deux prompts : `docs/05-discussions/prompts/2026-10-06-gemini-refus.md` (tout est dedans) et `2026-10-06-codex-refus.md`.
+
+**Erreurs de Claude, trouvées en écrivant le pourquoi**
+
+- Le tableau classait `h4` à `h6` « refusés exprès » ; la fiche `ADR-020` dit « on en ajoutera si un vrai besoin apparaît ». Corrigé : « pas encore ».
+- Le refus de `section` et `article` n'a jamais été décidé par Yocthan : c'est un jugement de Claude. Le tableau l'attribuait à `ADR-009`. Corrigé, et Claude propose maintenant d'admettre les repères (`nav`, `header`, `footer`, `aside`) pour les lecteurs d'écran.
+
+---
+
 ## 2026-10-06 — La page qui attend le moteur (suggestions de Codex)
 
 **Ce que Yocthan a demandé** : « Travaille sur ce qu'a suggéré Codex. » Claude a pris dans ses deux revues ce qui ne demande aucune décision de Yocthan : les cas E02, E03 et F14 de la recette du site de référence.
