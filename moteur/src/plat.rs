@@ -31,6 +31,7 @@ box-sizing:border-box;background:rgba(0,0,0,0.6);pointer-events:auto}\
 :where(.holo-Grid){display:grid;gap:var(--holo-gap,16px);\
 grid-template-columns:repeat(auto-fill,minmax(min(100%,max(120px,calc((100% - (var(--holo-columns,2) - 1)*var(--holo-gap,16px))/var(--holo-columns,2)))),1fr))}\
 :where(.holo-Row,.holo-Column,.holo-Grid)>*{margin:0;box-sizing:border-box;min-width:0}\
+:where(.holo-grandit){display:flex;flex-direction:column;min-width:0}:where(.holo-grandit)>*{flex:1 1 auto;margin:0}.holo-grandit :is(input,textarea,select){width:100%;box-sizing:border-box}:where(.holo-grandit .holo-Input){align-items:stretch}\
 :where(.holo-Row,.holo-Column,.holo-Grid)>.holo-If>*{margin:0}:where(.holo-If[hidden]){display:none}\
 :where(.holo-Input){display:flex;flex-direction:column;gap:4px;align-items:flex-start}\
 :where(.holo-Input input){font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 10px;width:120px}\
@@ -510,6 +511,22 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
         };
         rendre(&Valeur::Bloc(reste), &mut dedans, mondes, base, parent)?;
         crate::mouvement::envelopper(&mouvements, dedans, enfants, sortie);
+        return Ok(());
+    }
+    // Un bloc rangé dans Row ou Column qui prend la place qui reste, comme Expanded en Flutter
+    // (ADR-052) : `grow: 1`, ou plus pour en prendre une plus grande part.
+    if let Some(argument) = bloc.argument("grow") {
+        if parent.nom != "Row" && parent.nom != "Column" {
+            return Err(Erreur { message: format!("« grow: » fait grandir un bloc rangé dans Row ou Column : mets « {} » dans Row(children: [ … ])", bloc.nom), pos: argument.pos });
+        }
+        let Valeur::Entier(part @ 1..=12) = argument.valeur else {
+            return Err(Erreur { message: "« grow: » attend un nombre entier de 1 à 12 : la part de la place qui reste".into(), pos: argument.pos });
+        };
+        let mut reste = bloc.clone();
+        reste.arguments.retain(|a| a.nom.as_deref() != Some("grow"));
+        sortie.push_str(&format!("<div class=\"holo-grandit\" style=\"flex:{part} 1 0\">"));
+        rendre(&Valeur::Bloc(reste), sortie, mondes, base, parent)?;
+        sortie.push_str("</div>");
         return Ok(());
     }
     let classes = classes(bloc);
@@ -1479,6 +1496,29 @@ mod tests {
             let erreur = page(source).unwrap_err();
             assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
         }
+    }
+
+    #[test]
+    fn un_bloc_qui_grandit_et_un_fichier_de_styles() {
+        let source = "Page(children: [ Row(children: [ Input(value: q, label: \"Search\", grow: 1), Button(name: Go, text: \"Go\") ]) ], state: State(q: \"\"))";
+        let html = page(source).unwrap();
+        assert!(html.contains("<div class=\"holo-grandit\" style=\"flex:1 1 0\"><label class=\"holo-Input\""), "{html}");
+        crate::verifier_page(source).unwrap();
+        for (source, message) in [
+            ("Page(children: [ P(\"x\", grow: 1) ])", "rangé dans Row ou Column"),
+            ("Page(children: [ Row(children: [ P(\"x\", grow: 20) ]) ])", "de 1 à 12"),
+        ] {
+            let erreur = crate::verifier_page(source).unwrap_err();
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
+        // Un fichier qui ne contient que des styles s'importe comme un thème.
+        let theme = "Page { --gold: #E9B44C; background: #101020; }\nH1 { color: --gold; }";
+        let page_source = format!("import \"theme.holo\"\nPage(children: [ H1(\"a\") ]){}theme.holo{}{theme}", crate::holo::FICHIER_SUIVANT, crate::holo::SEPARE_LE_NOM);
+        let html = page(&page_source).unwrap();
+        assert!(html.contains(".holo-H1{color:var(--gold);}"), "{html}");
+        crate::verifier_page(&page_source).unwrap();
+        assert_eq!(crate::verifier_texte(theme), "ok : un fichier de styles, à importer dans une page");
+        assert!(crate::verifier_texte("H1 { colour: red; }").contains("colour"));
     }
 
     #[test]

@@ -700,7 +700,17 @@ pub fn lire(source: &str) -> Result<Programme, Erreur> {
         let Some((_, texte)) = fournis.iter().find(|(fourni, _)| *fourni == nom) else {
             return Err(Erreur { message: format!("le fichier importé « {nom} » n'a pas été trouvé à côté de celui-ci"), pos });
         };
-        let morceau = lire_seul(texte).map_err(|e| Erreur { message: format!("dans « {nom} », ligne {} : {}", e.pos.ligne, e.message), pos })?;
+        // Un fichier qui ne contient que des styles (ADR-052) : un thème partagé par les pages.
+        let morceau = match lire_seul(texte) {
+            Ok(morceau) => morceau,
+            Err(e) => match lire_seul(&format!("Part(name: HoloStyles, children: []) {texte}")) {
+                Ok(styles) if !styles.styles.is_empty() && styles.imports.is_empty() => {
+                    styles_importes.extend(styles.styles);
+                    continue;
+                }
+                _ => return Err(Erreur { message: format!("dans « {nom} », ligne {} : {}", e.pos.ligne, e.message), pos }),
+            },
+        };
         let refus = |message: String| Erreur { message: format!("« {nom} » : {message}"), pos };
         if morceau.racine.nom != "Part" {
             return Err(refus(format!("un fichier importé est un morceau, il commence par « Part(name: Menu, children: [ … ]) » ; celui-ci commence par « {} »", morceau.racine.nom)));

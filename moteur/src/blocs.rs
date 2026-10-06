@@ -87,7 +87,8 @@ fn verifier_reglages(bloc: &Bloc, parent: &str) -> Result<(), Erreur> {
         let mouvement = (nom == "enter" || nom == "loop") && !SANS_MOUVEMENT.contains(&bloc.nom.as_str());
         let sur_un_plateau = matches!(nom, "x" | "y" | "drag") && parent == "Board";
         let dans_une_pile = nom == "align" && parent == "Stack";
-        if permis.contains(&nom) || mouvement || sur_un_plateau || dans_une_pile {
+        let dans_une_rangee = nom == "grow" && (parent == "Row" || parent == "Column");
+        if permis.contains(&nom) || mouvement || sur_un_plateau || dans_une_pile || dans_une_rangee {
             // Un nom de bloc commence par une majuscule, comme un bloc : ce qu'on touche a une
             // majuscule, ce qui change (une valeur) n'en a pas.
             if nom == "name" {
@@ -101,7 +102,9 @@ fn verifier_reglages(bloc: &Bloc, parent: &str) -> Result<(), Erreur> {
             }
             continue;
         }
-        let message = if matches!(nom, "x" | "y" | "drag") {
+        let message = if nom == "grow" {
+            format!("« grow: » fait grandir un bloc rangé dans Row ou Column : mets « {} » dans Row(children: [ … ])", bloc.nom)
+        } else if matches!(nom, "x" | "y" | "drag") {
             format!("« {nom}: » place un bloc sur un plateau : mets « {} » dans Board(children: [ … ])", bloc.nom)
         } else if nom == "align" && bloc.nom != "Row" && bloc.nom != "Column" {
             format!("« align: » place un bloc posé sur un autre : mets « {} » dans Stack(children: [ … ])", bloc.nom)

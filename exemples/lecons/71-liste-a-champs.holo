@@ -45,6 +45,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 70 : les composants", to: "70-composants.holo"),
+      A("Leçon 72 : la place qui reste, et un thème partagé →", to: "72-place-et-theme.holo"),
     ]),
   ],
   rules: [

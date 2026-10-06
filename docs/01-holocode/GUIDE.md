@@ -202,6 +202,25 @@ Page(
 
 Cette écriture est décidée (`ADR-024`).
 
+### La place qui reste : `grow`
+
+Dans `Row` ou `Column`, un bloc qui porte **`grow: 1`** prend la place qui reste, comme `Expanded` en Flutter. Avec `grow: 2` à côté d'un `grow: 1`, il en prend deux parts. Un bloc sans `grow` garde sa taille. Un champ de saisie qui grandit s'étire jusqu'au bout.
+
+```holo
+Page(
+  state: State(search: ""),
+  children: [
+    H1("Shop"),
+    Row(gap: 8px, children: [
+      Input(value: search, label: "Search", grow: 1),
+      Button(name: Go, text: "Go"),
+    ]),
+  ],
+)
+```
+
+Pour une largeur précise, le style `width` : `.narrow { width: 80px; }`. La leçon est `72-place-et-theme.holo` ; cette écriture est décidée (`ADR-052`).
+
 ## 5. Les styles
 
 Les styles s'écrivent comme en CSS, **après** le bloc racine.
@@ -234,6 +253,10 @@ Un style vise deux choses, pas plus :
 - un **nom à point** : `.card { ... }` touche les blocs marqués, qu'on marque en écrivant `P.card(...)`.
 
 Le style de `Page` est le thème : son contenu le reprend. Priorité, du plus faible au plus fort : thème, type, nom.
+
+**Un fichier de styles à part** (`ADR-052`) : un fichier `.holo` qui ne contient que des styles est un thème, partagé par toutes les pages du site. Une page le prend par `import "theme.holo"`, en haut du fichier ; si elle écrit le même style, c'est le sien qui reste.
+
+**Plusieurs noms de style** sur un bloc : `Text.title.muted("…")`, quatre au plus (`ADR-050`). Un nom de style s'écrit en minuscules.
 
 Réglages connus :
 
@@ -1520,7 +1543,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Button` | `name`, `text` | Dans `children` |
 | `Point` | `name`, `seed`, `brightness`, `fragments`, `color`, `palette`, `budget`, `inside` ; `above` quand il est planté dans un pixel | Dans `children` ou `pixels`, ou à la racine |
 | `World` | `children`, `pixels`, `rules` | Dans `inside:` d'un `Point` |
-| `Row`, `Column` | `children`, `gap`, `align`, `name` | Dans `children` |
+| `Row`, `Column` | `children`, `gap`, `align`, `name` ; leurs enfants prennent `grow` | Dans `children` |
 | `Grid` | `children`, `gap`, `columns`, `name` | Dans `children` |
 | `Board` | `children`, `height`, `name` ; ses enfants prennent `x`, `y` et `drag` | Dans `children` |
 | `Input` | `value`, `label`, `max`, `lines`, `type` (`date`, `time`, `color`), `name` | Dans `children` |
@@ -1619,6 +1642,8 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Réagir au zoom par une règle (« quand on zoome, alors… ») | aucun | à faire |
 | Ranger côte à côte, l'un sous l'autre, en grille | `Row`, `Column`, `Grid` | fait |
 | L'écart et le placement | `gap:`, `align:`, `columns:` | fait |
+| La place qui reste | `grow:` dans `Row` ou `Column` | fait |
+| Un thème partagé par les pages | un fichier de styles seuls, `import "theme.holo"` | fait |
 | Réutiliser un morceau de fichier (les imports) | `import` est lu, pas appliqué | à faire |
 | Le personnage | aucun | à faire |
 
@@ -1627,11 +1652,9 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 ## 11. Ce qui n'existe pas encore
 
 - Un module n'échange encore qu'un nombre contre un nombre.
-- Pour la disposition : pas de largeur par élément, pas d'élément qui prend la place restante.
 - Les données venues d'un autre serveur ; l'envoi d'un fichier ; les comptes.
 - Pour les valeurs : des nombres entiers, des textes et des listes ; pas de nombre à virgule (les prix s'écrivent en centimes, `{price:cents}`). Pas de condition sur un champ dans une ligne (`If(item.done, …)`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
 - Les garde-fous de zoom pour un `Point` seul : ils sont encore fixés dans le moteur.
-- Pas de fichier de styles à part.
 - Un composant n'a pas d'emplacement pour du contenu donné à l'appel (comme `children` ou `<slot>`) ; ses paramètres sont des textes, des nombres ou des noms.

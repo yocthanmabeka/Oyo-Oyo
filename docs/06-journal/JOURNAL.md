@@ -6,6 +6,22 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-06 — La place qui reste, et un thème partagé
+
+- Point 3 du comparatif. Fait (`ADR-052`) : `grow:` sur un bloc rangé dans `Row` ou `Column` (comme `Expanded` en Flutter, de 1 à 12 parts) ; un fichier qui ne contient que des styles s'importe comme un thème (`import "theme.holo"`). Les noms de style multiples étaient déjà là avec les composants.
+- Leçon 72 (`72-place-et-theme.holo`, avec son thème `72-theme.holo`) ; guide § 4 bis et § 5.
+- Vérifié : 114 tests ; la leçon 72 dans Chrome, sur PC et en largeur de téléphone (390 pixels).
+
+![La leçon 72 : le champ qui prend la place qui reste, une part, deux parts](images/2026-10-06-place-et-theme.png)
+
+**Erreurs en route**
+
+- La pull request des listes à champs (122) est d'abord tombée en rouge sur GitHub : j'avais écrit l'exemple du guide après avoir lancé les tests, et il commençait par un `H2` sans `H1`. Corrigé, puis fusionnée au vert. Leçon retenue : relancer les tests après chaque retouche du guide.
+- Le champ qui grandit restait à 280 pixels : une règle CSS du champ passait devant la mienne. Corrigé.
+- Le moteur vérifiait les réglages d'un champ de saisie avant de voir `grow:`, et le refusait. Corrigé.
+
+---
+
 ## 2026-10-06 — Les listes à champs, aussi reçues du serveur
 
 - Point 2 du comparatif, avec le feu vert de Yocthan. Fait (`ADR-051`) : `State(articles: [ Item(title: "Sunrise", price: 12000) ])`, `{item.title}` et `{item.price:cents}` dans les lignes, `articles.push(Item(title: name, price: price))`, et `Data` qui remplit une liste depuis un tableau JSON (objets ou textes).

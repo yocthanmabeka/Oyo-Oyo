@@ -1,0 +1,41 @@
+// Leçon 72 — La place qui reste, et un thème partagé
+//
+// Ce qu'on apprend :
+//   grow: 1                 dans Row ou Column, le bloc prend la place qui reste, comme Expanded en Flutter
+//   grow: 2                 il en prend deux parts quand un voisin en prend une
+//   import "72-theme.holo"  un fichier qui ne contient que des styles : le thème, écrit une fois,
+//                           partagé par toutes les pages du site
+//   Text.titre.discret(…)   plusieurs noms de style sur un même bloc
+//   un style « width » donne sa largeur à un bloc : .etroit { width: 80px; }
+//
+// À essayer :
+//   Mets grow: 2 sur le champ de recherche, puis grow: 1 sur le bouton : regarde les parts changer.
+//   Ouvre 72-theme.holo et change --accent : la page change, sans toucher à ce fichier.
+
+import "72-theme.holo"
+
+Page(
+  title: "Leçon 72 : la place qui reste",
+  state: State(recherche: ""),
+  children: [
+    H1("La place qui reste"),
+    Row.barre(gap: 8px, children: [
+      Text.etroit("Chercher :"),
+      Input(value: recherche, label: "Un tableau", grow: 1),
+      Button(name: Chercher, text: "Chercher"),
+    ]),
+    Row(gap: 8px, children: [
+      Text.barre("Une part", grow: 1),
+      Text.barre("Deux parts", grow: 2),
+      Text.barre("Sa taille"),
+    ]),
+    Text.titre.discret("Ce texte porte deux noms de style : titre et discret."),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 71 : une liste à champs", to: "71-liste-a-champs.holo"),
+    ]),
+  ],
+)
+
+.etroit { width: 80px; }
