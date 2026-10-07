@@ -2,7 +2,7 @@
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-07). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
 - D’abord **tous les mots de HoloCode** (341 mots : 336 décidés, 5 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
-- **Couverture** : la part de ce que fait l’élément web qu’on obtient en HoloCode aujourd’hui. Estimation de Claude, non mesurée.
+- **Existe ?** : le jugement de Claude, élément par élément (oui, en partie, non) ; ce n’est pas une mesure. Le tableau ne donne pas de pourcentage : aucune méthode reproductible ne mesure la part d’un élément du web qu’on obtient en HoloCode (consigne de Yocthan du 2026-10-07). Les comptes se refont en comptant les lignes.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
 ## Résumé
@@ -10,10 +10,10 @@
 | | Mesure | Détail |
 |---|---|---|
 | **HoloCode** | 341 mots | 336 décidés, 5 à l’essai |
-| HTML | 84 % de couverture | 49 oui, 5 en partie, 5 non, 3 refusés |
-| CSS | 80 % de couverture | 25 oui, 5 en partie, 2 non, 2 refusés |
-| JavaScript | 59 % de couverture | 15 oui, 11 en partie, 6 non, 1 refusés |
-| HTML, CSS, JS ensemble | 77 % de couverture | 89 oui, 21 en partie, 13 non, 6 refusés |
+| HTML | 62 éléments | 49 oui, 5 en partie, 5 non, 3 refusés |
+| CSS | 34 éléments | 25 oui, 5 en partie, 2 non, 2 refusés |
+| JavaScript | 34 éléments | 15 oui, 11 en partie, 6 non, 1 refusés, 1 sans objet |
+| HTML, CSS, JS ensemble | 130 éléments | 89 oui, 21 en partie, 13 non, 6 refusés, 1 sans objet |
 
 # Partie 1 — Les mots de HoloCode
 
@@ -450,220 +450,220 @@
 
 ## HTML — Structure de la page
 
-| En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
-|---|---|---|---|---|---|---|
-| `Page(…)` | `html, head, body, main` | la page entière | Oui | 100 % | Déjà là | Une page HoloCode est un seul bloc Page. |
-| `Page(title:)` | `title` | le titre de l'onglet | Oui | 100 % | Déjà là | — |
-| `toujours UTF-8` | `meta charset` | l'encodage | Oui | 100 % | Déjà là | Rien à écrire. |
-| `Zoom(active:, max:)` | `meta viewport` | le zoom sur téléphone | Oui | 100 % | Déjà là | Fait autrement : le zoom est au cœur de HoloCode. |
-| `Page(description:, image:)` | `meta description, image de partage` | ce que montrent Google et les réseaux | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
-| `Page(icon:)` | `link rel=icon` | la petite image de l'onglet | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
-| `Page(lang:)` | `lang` | la langue de la page | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
-| `Header, Footer, Main` | `header, footer, main` | en-tête, pied, contenu principal | Oui | 100 % | Déjà là | Ajoutés le 2026-10-06 (ADR-036). |
-| `Nav` | `nav` | le menu de navigation | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-036). |
-| — | `aside` | un encadré à part | Non | 0 % | Plus tard | — |
-| `les titres H1 à H3` | `section, article` | des parties de page | Refusé exprès | — | Non | Jugement de Claude, sans décision : les titres donnent déjà le plan. Soumis à Codex et Gemini. |
-| — | `div` | une boîte sans sens | Refusé exprès | — | Non | Refusé par Yocthan (ADR-009) : chaque bloc dit ce qu'il est. |
-| `Text` | `span` | un bout de texte | Oui | 100 % | Déjà là | — |
+| En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
+|---|---|---|---|---|---|
+| `Page(…)` | `html, head, body, main` | la page entière | Oui | Déjà là | Une page HoloCode est un seul bloc Page. |
+| `Page(title:)` | `title` | le titre de l'onglet | Oui | Déjà là | — |
+| `toujours UTF-8` | `meta charset` | l'encodage | Oui | Déjà là | Rien à écrire. |
+| `Zoom(active:, max:)` | `meta viewport` | le zoom sur téléphone | Oui | Déjà là | Fait autrement : le zoom est au cœur de HoloCode. |
+| `Page(description:, image:)` | `meta description, image de partage` | ce que montrent Google et les réseaux | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
+| `Page(icon:)` | `link rel=icon` | la petite image de l'onglet | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
+| `Page(lang:)` | `lang` | la langue de la page | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
+| `Header, Footer, Main` | `header, footer, main` | en-tête, pied, contenu principal | Oui | Déjà là | Ajoutés le 2026-10-06 (ADR-036). |
+| `Nav` | `nav` | le menu de navigation | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-036). |
+| — | `aside` | un encadré à part | Non | Plus tard | — |
+| `les titres H1 à H3` | `section, article` | des parties de page | Refusé exprès | Non | Jugement de Claude, sans décision : les titres donnent déjà le plan. Soumis à Codex et Gemini. |
+| — | `div` | une boîte sans sens | Refusé exprès | Non | Refusé par Yocthan (ADR-009) : chaque bloc dit ce qu'il est. |
+| `Text` | `span` | un bout de texte | Oui | Déjà là | — |
 
 ## HTML — Texte
 
-| En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
-|---|---|---|---|---|---|---|
-| `H1, H2, H3` | `h1, h2, h3` | les titres | Oui | 100 % | Déjà là | — |
-| `H4, H5, H6` | `h4, h5, h6` | titres plus profonds | Oui | 100 % | Déjà là | Ajoutés le 2026-10-06 (correction d'ADR-020). |
-| `P, ou une phrase seule` | `p` | un paragraphe | Oui | 100 % | Déjà là | — |
-| `**gras**` | `strong, b` | le gras | Oui | 100 % | Déjà là | — |
-| `*italique*` | `em, i` | l'italique | Oui | 100 % | Déjà là | — |
-| `texte entre trois guillemets` | `br` | retour à la ligne | Oui | 100 % | Déjà là | — |
-| `Hr()` | `hr` | un trait de séparation | Oui | 100 % | Déjà là | — |
-| `Quote("…", by:)` | `blockquote, q, cite` | les citations | En partie | 80 % | Déjà là | Pas de citation courte au milieu d'une phrase. |
-| `Code("…"), `accents graves`` | `pre, code, kbd` | du code montré tel quel | Oui | 90 % | Déjà là | — |
-| `~~barré~~, ==surligné==` | `u, s, mark` | souligné, barré, surligné | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-042). Pas de souligné, exprès : il ressemble à un lien. |
-| `m^2^, H~2~O ; petit par le style` | `small, sub, sup` | petit, indice, exposant | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
-| — | `abbr, time, address` | sigle, date, adresse | Non | 0 % | Plus tard | — |
+| En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
+|---|---|---|---|---|---|
+| `H1, H2, H3` | `h1, h2, h3` | les titres | Oui | Déjà là | — |
+| `H4, H5, H6` | `h4, h5, h6` | titres plus profonds | Oui | Déjà là | Ajoutés le 2026-10-06 (correction d'ADR-020). |
+| `P, ou une phrase seule` | `p` | un paragraphe | Oui | Déjà là | — |
+| `**gras**` | `strong, b` | le gras | Oui | Déjà là | — |
+| `*italique*` | `em, i` | l'italique | Oui | Déjà là | — |
+| `texte entre trois guillemets` | `br` | retour à la ligne | Oui | Déjà là | — |
+| `Hr()` | `hr` | un trait de séparation | Oui | Déjà là | — |
+| `Quote("…", by:)` | `blockquote, q, cite` | les citations | En partie | Déjà là | Pas de citation courte au milieu d'une phrase. |
+| `Code("…"), `accents graves`` | `pre, code, kbd` | du code montré tel quel | Oui | Déjà là | — |
+| `~~barré~~, ==surligné==` | `u, s, mark` | souligné, barré, surligné | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). Pas de souligné, exprès : il ressemble à un lien. |
+| `m^2^, H~2~O ; petit par le style` | `small, sub, sup` | petit, indice, exposant | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
+| — | `abbr, time, address` | sigle, date, adresse | Non | Plus tard | — |
 
 ## HTML — Listes et liens
 
-| En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
-|---|---|---|---|---|---|---|
-| `List(children:)` | `ul, li` | liste à puces | Oui | 100 % | Déjà là | — |
-| `List(ordered: true)` | `ol` | liste numérotée | Oui | 100 % | Déjà là | — |
-| — | `dl, dt, dd` | liste de définitions | Non | 0 % | Plus tard | Un glossaire, une fiche technique. |
-| `A("…", to:)` | `a href` | un lien | Oui | 100 % | Déjà là | — |
-| `A(to: "#Horaires")` | `a vers un endroit de la page` | sauter plus bas dans la page | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-042). Un nom qui n'existe pas est refusé. |
-| — | `a target, download` | nouvel onglet, télécharger | Non | 0 % | Plus tard | — |
+| En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
+|---|---|---|---|---|---|
+| `List(children:)` | `ul, li` | liste à puces | Oui | Déjà là | — |
+| `List(ordered: true)` | `ol` | liste numérotée | Oui | Déjà là | — |
+| — | `dl, dt, dd` | liste de définitions | Non | Plus tard | Un glossaire, une fiche technique. |
+| `A("…", to:)` | `a href` | un lien | Oui | Déjà là | — |
+| `A(to: "#Horaires")` | `a vers un endroit de la page` | sauter plus bas dans la page | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). Un nom qui n'existe pas est refusé. |
+| — | `a target, download` | nouvel onglet, télécharger | Non | Plus tard | — |
 
 ## HTML — Images et médias
 
-| En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
-|---|---|---|---|---|---|---|
-| `Image(source:)` | `img` | une image | Oui | 100 % | Déjà là | — |
-| `Image(alt:), obligatoire` | `img alt` | le texte pour qui ne voit pas | Oui | 100 % | Déjà là | Obligatoire depuis le 2026-10-06 ; alt: "" pour un décor (ADR-038). |
-| `Image(phone: "petite.jpg")` | `picture, srcset` | une image plus légère sur téléphone | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-042). Un seul seuil, celui de la page. |
-| `Image(caption:)` | `figure, figcaption` | une image et sa légende | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
-| `Video(source:, label:)` | `video` | une vidéo | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-038). Pas encore de sous-titres. |
-| `Sound(…) et .play ; Sound(label:) pour un lecteur` | `audio` | un son, un lecteur | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
-| `Point, World, Shape` | `canvas, WebGL` | un dessin libre, de la 3D | En partie | 40 % | Oui, utile | Des points et quatre formes ; pas de dessin libre ni de modèles 3D. |
-| `comme fichier d'image` | `svg dans la page` | un dessin vectoriel | En partie | 30 % | Plus tard | — |
-| `Point(inside: "x.holo")` | `iframe, embed, object` | une page dans la page | En partie | 60 % | Déjà là | On entre dans un autre fichier HoloCode ; pas dans un autre site. |
+| En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
+|---|---|---|---|---|---|
+| `Image(source:)` | `img` | une image | Oui | Déjà là | — |
+| `Image(alt:), obligatoire` | `img alt` | le texte pour qui ne voit pas | Oui | Déjà là | Obligatoire depuis le 2026-10-06 ; alt: "" pour un décor (ADR-038). |
+| `Image(phone: "petite.jpg")` | `picture, srcset` | une image plus légère sur téléphone | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). Un seul seuil, celui de la page. |
+| `Image(caption:)` | `figure, figcaption` | une image et sa légende | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
+| `Video(source:, label:)` | `video` | une vidéo | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). Pas encore de sous-titres. |
+| `Sound(…) et .play ; Sound(label:) pour un lecteur` | `audio` | un son, un lecteur | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
+| `Point, World, Shape` | `canvas, WebGL` | un dessin libre, de la 3D | En partie | Oui, utile | Des points et quatre formes ; pas de dessin libre ni de modèles 3D. |
+| `comme fichier d'image` | `svg dans la page` | un dessin vectoriel | En partie | Plus tard | — |
+| `Point(inside: "x.holo")` | `iframe, embed, object` | une page dans la page | En partie | Déjà là | On entre dans un autre fichier HoloCode ; pas dans un autre site. |
 
 ## HTML — Tableaux
 
-| En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
-|---|---|---|---|---|---|---|
-| `Table(caption:, head:, rows:)` | `table, tr, td, th, caption` | un tableau de données | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-038). Pas de case sur deux colonnes. |
+| En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
+|---|---|---|---|---|---|
+| `Table(caption:, head:, rows:)` | `table, tr, td, th, caption` | un tableau de données | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). Pas de case sur deux colonnes. |
 
 ## HTML — Formulaires
 
-| En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
-|---|---|---|---|---|---|---|
-| `Button(name:, text:)` | `button` | un bouton | Oui | 100 % | Déjà là | — |
-| `Form(name:), Contact.send, sent, failed` | `form (envoyer)` | envoyer des réponses à un serveur | Oui | 90 % | Déjà là | Vers le serveur local (décision de Yocthan), un fichier compris (ADR-042, ADR-059). |
-| `Input(value:, label:, max:)` | `input texte, nombre` | un champ | Oui | 100 % | Déjà là | — |
-| `Checkbox(value:, label:)` | `input checkbox` | une case à cocher | Oui | 100 % | Déjà là | — |
-| `Choice(value:, label:, options:)` | `input radio` | un choix parmi plusieurs | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
-| `Slider(value:, label:, min:, max:)` | `input range` | un curseur à glisser | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
-| `Input(type: date | time | color)` | `input date, heure, couleur` | choisir une date, une couleur | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
-| `Input(type: file, accept:, max:) dans un Form` | `input email, mot de passe, fichier` | adresse, secret, envoi de fichier | En partie | 35 % | Déjà là | Le fichier : ajouté le 2026-10-07 (ADR-059). Le courriel et le mot de passe viendront avec des comptes. |
-| `label: (obligatoire)` | `label` | le nom d'un champ | Oui | 100 % | Déjà là | Mieux que HTML : impossible de l'oublier. |
-| `Input(…, lines: 5)` | `textarea` | un texte long | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
-| `Choice(…, menu: true)` | `select, option` | une liste déroulante | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
-| — | `fieldset, legend, datalist` | regrouper, suggérer | Non | 0 % | Plus tard | — |
-| `{valeur}, {total}` | `output` | afficher un résultat | Oui | 90 % | Déjà là | — |
-| `Progress(value:, max:, label:)` | `progress, meter` | une barre de progression | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-042). Pas de meter (zones bonne, moyenne, mauvaise). |
+| En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
+|---|---|---|---|---|---|
+| `Button(name:, text:)` | `button` | un bouton | Oui | Déjà là | — |
+| `Form(name:), Contact.send, sent, failed` | `form (envoyer)` | envoyer des réponses à un serveur | Oui | Déjà là | Vers le serveur local (décision de Yocthan), un fichier compris (ADR-042, ADR-059). |
+| `Input(value:, label:, max:)` | `input texte, nombre` | un champ | Oui | Déjà là | — |
+| `Checkbox(value:, label:)` | `input checkbox` | une case à cocher | Oui | Déjà là | — |
+| `Choice(value:, label:, options:)` | `input radio` | un choix parmi plusieurs | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
+| `Slider(value:, label:, min:, max:)` | `input range` | un curseur à glisser | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
+| `Input(type: date | time | color)` | `input date, heure, couleur` | choisir une date, une couleur | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
+| `Input(type: file, accept:, max:) dans un Form` | `input email, mot de passe, fichier` | adresse, secret, envoi de fichier | En partie | Déjà là | Le fichier : ajouté le 2026-10-07 (ADR-059). Le courriel et le mot de passe viendront avec des comptes. |
+| `label: (obligatoire)` | `label` | le nom d'un champ | Oui | Déjà là | Mieux que HTML : impossible de l'oublier. |
+| `Input(…, lines: 5)` | `textarea` | un texte long | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
+| `Choice(…, menu: true)` | `select, option` | une liste déroulante | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
+| — | `fieldset, legend, datalist` | regrouper, suggérer | Non | Plus tard | — |
+| `{valeur}, {total}` | `output` | afficher un résultat | Oui | Déjà là | — |
+| `Progress(value:, max:, label:)` | `progress, meter` | une barre de progression | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). Pas de meter (zones bonne, moyenne, mauvaise). |
 
 ## HTML — Ouvrir et fermer
 
-| En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
-|---|---|---|---|---|---|---|
-| `Details(summary:, children:)` | `details, summary` | un pli qui s'ouvre | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
-| `Dialog(name:), open, close` | `dialog` | une fenêtre par-dessus | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
+| En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
+|---|---|---|---|---|---|
+| `Details(summary:, children:)` | `details, summary` | un pli qui s'ouvre | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
+| `Dialog(name:), open, close` | `dialog` | une fenêtre par-dessus | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
 
 ## HTML — Code
 
-| En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
-|---|---|---|---|---|---|---|
-| `styles après la page` | `style` | les styles | Oui | 100 % | Déjà là | — |
-| `import "theme.holo"` | `link stylesheet` | un fichier de styles partagé | Oui | 95 % | Déjà là | Un fichier de styles seuls est un thème ; la page garde les siens (ADR-052). |
-| — | `script` | du code dans la page | Refusé exprès | — | Non | Refusé (ADR-015) : aucun code libre, pour la sécurité. |
-| `Component(params:, emits:, children), Use ; Repeat` | `template, slot` | un morceau réutilisable | Oui | 95 % | Déjà là | Des composants à paramètres, valeurs par défaut, signaux et emplacement (ADR-050, ADR-056, ADR-058). |
-| `les repères, les étiquettes obligatoires ; la vue points lue au lecteur d'écran` | `attributs aria, tabindex` | l'accessibilité fine | Oui | 80 % | Déjà là | En vue points, la page reste dessous, lisible, et « Vue points » est annoncé (ADR-061) ; le contraste trop faible est refusé, un audit vérifie chaque leçon (ADR-055). |
+| En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
+|---|---|---|---|---|---|
+| `styles après la page` | `style` | les styles | Oui | Déjà là | — |
+| `import "theme.holo"` | `link stylesheet` | un fichier de styles partagé | Oui | Déjà là | Un fichier de styles seuls est un thème ; la page garde les siens (ADR-052). |
+| — | `script` | du code dans la page | Refusé exprès | Non | Refusé (ADR-015) : aucun code libre, pour la sécurité. |
+| `Component(params:, emits:, children), Use ; Repeat` | `template, slot` | un morceau réutilisable | Oui | Déjà là | Des composants à paramètres, valeurs par défaut, signaux et emplacement (ADR-050, ADR-056, ADR-058). |
+| `les repères, les étiquettes obligatoires ; la vue points lue au lecteur d'écran` | `attributs aria, tabindex` | l'accessibilité fine | Oui | Déjà là | En vue points, la page reste dessous, lisible, et « Vue points » est annoncé (ADR-061) ; le contraste trop faible est refusé, un audit vérifie chaque leçon (ADR-055). |
 
 ## CSS — Couleurs et texte
 
-| En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
-|---|---|---|---|---|---|---|
-| `color, background` | `color, background-color` | couleur du texte et du fond | Oui | 100 % | Déjà là | — |
-| `font-family, font-size (en px)` | `font-family, font-size` | la police et sa taille | Oui | 90 % | Déjà là | — |
-| `font-weight, font-style` | `font-weight, font-style` | gras, italique | Oui | 100 % | Déjà là | — |
-| `text-align` | `text-align` | l'alignement | Oui | 100 % | Déjà là | — |
-| `line-height (sans unité), letter-spacing` | `line-height, letter-spacing` | l'interligne, l'espacement | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
-| `text-transform, text-decoration` | `text-transform, text-decoration` | majuscules, souligné | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
-| `Page(fonts: [ Font(family:, source:) ])` | `@font-face` | charger sa propre police | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). Toujours font-display: swap ; une graisse par fichier. |
-| `linear-gradient, radial-gradient, url("fond.jpg")` | `dégradés, image de fond` | fond en dégradé ou en image | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). L'image couvre toujours le bloc. |
-| `box-shadow, text-shadow` | `box-shadow, text-shadow` | les ombres | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
-| `Page { --or: … } puis color: --or` | `variables (--couleur)` | une couleur nommée, réutilisée | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). Une variable inconnue est refusée. |
-| `dark: { … } dans un style` | `prefers-color-scheme` | le mode sombre | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
+| En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
+|---|---|---|---|---|---|
+| `color, background` | `color, background-color` | couleur du texte et du fond | Oui | Déjà là | — |
+| `font-family, font-size (en px)` | `font-family, font-size` | la police et sa taille | Oui | Déjà là | — |
+| `font-weight, font-style` | `font-weight, font-style` | gras, italique | Oui | Déjà là | — |
+| `text-align` | `text-align` | l'alignement | Oui | Déjà là | — |
+| `line-height (sans unité), letter-spacing` | `line-height, letter-spacing` | l'interligne, l'espacement | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
+| `text-transform, text-decoration` | `text-transform, text-decoration` | majuscules, souligné | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
+| `Page(fonts: [ Font(family:, source:) ])` | `@font-face` | charger sa propre police | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). Toujours font-display: swap ; une graisse par fichier. |
+| `linear-gradient, radial-gradient, url("fond.jpg")` | `dégradés, image de fond` | fond en dégradé ou en image | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). L'image couvre toujours le bloc. |
+| `box-shadow, text-shadow` | `box-shadow, text-shadow` | les ombres | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
+| `Page { --or: … } puis color: --or` | `variables (--couleur)` | une couleur nommée, réutilisée | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). Une variable inconnue est refusée. |
+| `dark: { … } dans un style` | `prefers-color-scheme` | le mode sombre | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
 
 ## CSS — Boîtes
 
-| En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
-|---|---|---|---|---|---|---|
-| `margin, padding` | `margin, padding` | les marges | Oui | 100 % | Déjà là | — |
-| `width, height, max-width` | `width, height, max-width` | les tailles | Oui | 80 % | Déjà là | Pas de min-width ni max-height. |
-| `border, border-radius` | `border, border-radius` | bordure et coins arrondis | Oui | 100 % | Déjà là | — |
-| `opacity` | `opacity` | la transparence | Oui | 100 % | Déjà là | — |
-| — | `overflow` | ce qui dépasse | Non | 0 % | Plus tard | — |
-| — | `cursor` | la forme du curseur | Non | 0 % | Plus tard | — |
-| `px et % ; le navigateur reçoit des rem ; height: screen` | `unités %, rem, vw, clamp` | des tailles qui s'adaptent à l'écran | Oui | 85 % | Déjà là | Le texte, les marges, les largeurs, les coins suivent le réglage du visiteur ; height: screen remplit l'écran sans le défaut de 100vh (ADR-061). |
+| En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
+|---|---|---|---|---|---|
+| `margin, padding` | `margin, padding` | les marges | Oui | Déjà là | — |
+| `width, height, max-width` | `width, height, max-width` | les tailles | Oui | Déjà là | Pas de min-width ni max-height. |
+| `border, border-radius` | `border, border-radius` | bordure et coins arrondis | Oui | Déjà là | — |
+| `opacity` | `opacity` | la transparence | Oui | Déjà là | — |
+| — | `overflow` | ce qui dépasse | Non | Plus tard | — |
+| — | `cursor` | la forme du curseur | Non | Plus tard | — |
+| `px et % ; le navigateur reçoit des rem ; height: screen` | `unités %, rem, vw, clamp` | des tailles qui s'adaptent à l'écran | Oui | Déjà là | Le texte, les marges, les largeurs, les coins suivent le réglage du visiteur ; height: screen remplit l'écran sans le défaut de 100vh (ADR-061). |
 
 ## CSS — Disposition
 
-| En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
-|---|---|---|---|---|---|---|
-| — | `display, position, float, z-index` | placer à la main | Refusé exprès | — | Non | Refusé (ADR-017) : la disposition vient des blocs. |
-| `Row, Column (gap, align, grow)` | `flexbox (en ligne, en colonne)` | côte à côte, l'un sous l'autre | Oui | 95 % | Déjà là | grow: prend la place qui reste (ADR-052). |
-| `Grid(columns:, gap:)` | `grid` | une grille | En partie | 70 % | Déjà là | Pas de zones nommées ni de case sur deux colonnes. |
-| `automatique, et phone: { … }` | `@media (s'adapter à l'écran)` | changer selon la taille | Oui | 85 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). Un seul seuil : celui de la page. |
-| `Board (automatique)` | `aspect-ratio` | garder des proportions | En partie | 30 % | Plus tard | — |
-| `Stack et align:` | `position: absolute (badge, pastille)` | poser un bloc sur un autre | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-036). Pas encore de bulle attachée à un bloc. |
-| `P { }, .carte { }` | `sélecteurs par balise et par nom` | viser des blocs | Oui | 100 % | Déjà là | — |
-| — | `sélecteurs composés, cascade, !important` | viser finement, forcer | Refusé exprès | — | Non | Refusé (ADR-017) : source de conflits sans fin en CSS. |
+| En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
+|---|---|---|---|---|---|
+| — | `display, position, float, z-index` | placer à la main | Refusé exprès | Non | Refusé (ADR-017) : la disposition vient des blocs. |
+| `Row, Column (gap, align, grow)` | `flexbox (en ligne, en colonne)` | côte à côte, l'un sous l'autre | Oui | Déjà là | grow: prend la place qui reste (ADR-052). |
+| `Grid(columns:, gap:)` | `grid` | une grille | En partie | Déjà là | Pas de zones nommées ni de case sur deux colonnes. |
+| `automatique, et phone: { … }` | `@media (s'adapter à l'écran)` | changer selon la taille | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). Un seul seuil : celui de la page. |
+| `Board (automatique)` | `aspect-ratio` | garder des proportions | En partie | Plus tard | — |
+| `Stack et align:` | `position: absolute (badge, pastille)` | poser un bloc sur un autre | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-036). Pas encore de bulle attachée à un bloc. |
+| `P { }, .carte { }` | `sélecteurs par balise et par nom` | viser des blocs | Oui | Déjà là | — |
+| — | `sélecteurs composés, cascade, !important` | viser finement, forcer | Refusé exprès | Non | Refusé (ADR-017) : source de conflits sans fin en CSS. |
 
 ## CSS — États et mouvement
 
-| En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
-|---|---|---|---|---|---|---|
-| `hover:, focus:, active: dans un style` | `hover, focus, active` | l'apparence au survol, au clic | Oui | 100 % | Déjà là | Ajoutés le 2026-10-06 (ADR-036). |
-| `transition: 0.3s ; automatique au survol` | `transition` | passer en douceur d'un état à l'autre | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
-| `Enter, Loop, Scenes` | `animation, @keyframes` | une animation | Oui | 75 % | Déjà là | Dix propriétés et sept courbes ; pas d'étapes intermédiaires libres. |
-| `rotate, scale ; x, y dans Enter et Loop` | `transform 2D` | déplacer, tourner, grandir | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). Pas de déplacement fixe : la place vient des blocs. |
-| `Relief(tilt:), flip, tilt` | `transform 3D, perspective` | la profondeur | En partie | 50 % | Déjà là | Fait autrement : la page entière tourne. |
-| `blur, hue dans Enter et Loop` | `filter (flou, couleurs)` | flouter, teinter | En partie | 30 % | Plus tard | — |
-| `Shape(form:) : quatre formes` | `clip-path` | découper une forme | En partie | 20 % | Plus tard | — |
-| `automatique` | `prefers-reduced-motion` | moins de mouvement | Oui | 100 % | Déjà là | Mieux que CSS : on n'a rien à écrire. |
+| En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
+|---|---|---|---|---|---|
+| `hover:, focus:, active: dans un style` | `hover, focus, active` | l'apparence au survol, au clic | Oui | Déjà là | Ajoutés le 2026-10-06 (ADR-036). |
+| `transition: 0.3s ; automatique au survol` | `transition` | passer en douceur d'un état à l'autre | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
+| `Enter, Loop, Scenes` | `animation, @keyframes` | une animation | Oui | Déjà là | Dix propriétés et sept courbes ; pas d'étapes intermédiaires libres. |
+| `rotate, scale ; x, y dans Enter et Loop` | `transform 2D` | déplacer, tourner, grandir | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). Pas de déplacement fixe : la place vient des blocs. |
+| `Relief(tilt:), flip, tilt` | `transform 3D, perspective` | la profondeur | En partie | Déjà là | Fait autrement : la page entière tourne. |
+| `blur, hue dans Enter et Loop` | `filter (flou, couleurs)` | flouter, teinter | En partie | Plus tard | — |
+| `Shape(form:) : quatre formes` | `clip-path` | découper une forme | En partie | Plus tard | — |
+| `automatique` | `prefers-reduced-motion` | moins de mouvement | Oui | Déjà là | Mieux que CSS : on n'a rien à écrire. |
 
 ## JavaScript — Gestes
 
-| En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
-|---|---|---|---|---|---|---|
-| `On(Nom.tap, effect:)` | `clic` | réagir à un toucher | Oui | 100 % | Déjà là | — |
-| `On(Key.left…), Key.enter, Key.escape, Key.a … Key.z, Key.digit0 … Key.digit9` | `clavier` | réagir aux touches | Oui | 85 % | Déjà là | Toutes les touches utiles ; jamais Tab ; les touches à une lettre se coupent dans le menu (ADR-061). |
-| `On(Carte.hover), On(Carte.hoverEnd)` | `survol, approche (mouseenter)` | quand la souris passe dessus | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-039) : à la souris, au clavier et au doigt. L'approche d'un personnage, en profondeur, reste à faire. |
-| `Enter(…, inView: true)` | `défilement (scroll)` | réagir quand on descend | En partie | 50 % | Déjà là | Apparaître en arrivant à l'écran (ADR-061). Pas encore la position du défilement comme valeur. |
-| `drag: true sur un plateau` | `glisser-déposer` | faire glisser | En partie | 50 % | Déjà là | Sur un plateau seulement. |
-| `le zoom du moteur` | `pincer, zoomer` | le zoom à deux doigts | Oui | 100 % | Déjà là | Le cœur du métavers. |
+| En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
+|---|---|---|---|---|---|
+| `On(Nom.tap, effect:)` | `clic` | réagir à un toucher | Oui | Déjà là | — |
+| `On(Key.left…), Key.enter, Key.escape, Key.a … Key.z, Key.digit0 … Key.digit9` | `clavier` | réagir aux touches | Oui | Déjà là | Toutes les touches utiles ; jamais Tab ; les touches à une lettre se coupent dans le menu (ADR-061). |
+| `On(Carte.hover), On(Carte.hoverEnd)` | `survol, approche (mouseenter)` | quand la souris passe dessus | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-039) : à la souris, au clavier et au doigt. L'approche d'un personnage, en profondeur, reste à faire. |
+| `Enter(…, inView: true)` | `défilement (scroll)` | réagir quand on descend | En partie | Déjà là | Apparaître en arrivant à l'écran (ADR-061). Pas encore la position du défilement comme valeur. |
+| `drag: true sur un plateau` | `glisser-déposer` | faire glisser | En partie | Déjà là | Sur un plateau seulement. |
+| `le zoom du moteur` | `pincer, zoomer` | le zoom à deux doigts | Oui | Déjà là | Le cœur du métavers. |
 
 ## JavaScript — Données et calcul
 
-| En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
-|---|---|---|---|---|---|---|
-| `State(…)` | `variables` | garder une valeur | En partie | 80 % | Déjà là | Nombres entiers, textes, listes (à champs) ; pas de nombre à virgule. |
-| `add, sub, mul, div, set, random` | `calcul (+ − × ÷)` | calculer | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-043). En nombres entiers ; pas de pourcentage ni de racine. |
-| `If(…, else: […]), When(…) ; un texte : If(size, is: "L")` | `if, else` | décider | Oui | 100 % | Déjà là | Le « sinon » ajouté le 2026-10-06 (ADR-039) ; comparer des textes, If(size, is: "L") et When(answer, is: "Paris"), le 2026-10-07 (ADR-063, à valider). |
-| `State(articles: [ Item(…) ]), push(Item(…)), item.done.set(1)` | `tableaux, objets` | des listes de valeurs | Oui | 90 % | Déjà là | Des listes à champs, qui changent pendant la visite (ADR-044, ADR-051, ADR-057). |
-| `Repeat(items:, children:, rules:) ; Filter(…) pour chercher, filtrer, trier` | `for, map` | répéter pour chaque élément | Oui | 90 % | Déjà là | Déplié à la lecture (ADR-040) ; des listes calculées pour chercher, filtrer, trier et montrer plus (ADR-062). |
-| `Module(…) : du code WebAssembly enfermé` | `fonctions` | du calcul réutilisable | En partie | 40 % | Déjà là | Ajouté le 2026-10-06 (ADR-045) : un nombre en entrée, un nombre en sortie, arrêté s'il dure trop. |
-| `{nom} dans un texte` | `texte (majuscules, longueur, découper)` | travailler un texte | En partie | 20 % | Plus tard | — |
-| `random, rejouable` | `Math.random` | le hasard | Oui | 90 % | Déjà là | Mieux pour un jeu : la même partie se rejoue. |
-| `{weekday:name} {day} {month:name} {year}, {hour} h {minute:00}` | `Date` | la date et l'heure du jour | En partie | 80 % | Déjà là | ADR-039 et ADR-043. Pas encore de calcul sur les dates (un compte à rebours). |
-| `{n:number}, {n:cents}, {minute:00}, {weekday:name}` | `Intl (formats)` | 1 234,50 €, dates en français | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-043). Langue de la page ; noms en français et en anglais. |
+| En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
+|---|---|---|---|---|---|
+| `State(…)` | `variables` | garder une valeur | En partie | Déjà là | Nombres entiers, textes, listes (à champs) ; pas de nombre à virgule. |
+| `add, sub, mul, div, set, random` | `calcul (+ − × ÷)` | calculer | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-043). En nombres entiers ; pas de pourcentage ni de racine. |
+| `If(…, else: […]), When(…) ; un texte : If(size, is: "L")` | `if, else` | décider | Oui | Déjà là | Le « sinon » ajouté le 2026-10-06 (ADR-039) ; comparer des textes, If(size, is: "L") et When(answer, is: "Paris"), le 2026-10-07 (ADR-063, à valider). |
+| `State(articles: [ Item(…) ]), push(Item(…)), item.done.set(1)` | `tableaux, objets` | des listes de valeurs | Oui | Déjà là | Des listes à champs, qui changent pendant la visite (ADR-044, ADR-051, ADR-057). |
+| `Repeat(items:, children:, rules:) ; Filter(…) pour chercher, filtrer, trier` | `for, map` | répéter pour chaque élément | Oui | Déjà là | Déplié à la lecture (ADR-040) ; des listes calculées pour chercher, filtrer, trier et montrer plus (ADR-062). |
+| `Module(…) : du code WebAssembly enfermé` | `fonctions` | du calcul réutilisable | En partie | Déjà là | Ajouté le 2026-10-06 (ADR-045) : un nombre en entrée, un nombre en sortie, arrêté s'il dure trop. |
+| `{nom} dans un texte` | `texte (majuscules, longueur, découper)` | travailler un texte | En partie | Plus tard | — |
+| `random, rejouable` | `Math.random` | le hasard | Oui | Déjà là | Mieux pour un jeu : la même partie se rejoue. |
+| `{weekday:name} {day} {month:name} {year}, {hour} h {minute:00}` | `Date` | la date et l'heure du jour | En partie | Déjà là | ADR-039 et ADR-043. Pas encore de calcul sur les dates (un compte à rebours). |
+| `{n:number}, {n:cents}, {minute:00}, {weekday:name}` | `Intl (formats)` | 1 234,50 €, dates en français | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-043). Langue de la page ; noms en français et en anglais. |
 
 ## JavaScript — Temps
 
-| En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
-|---|---|---|---|---|---|---|
-| `Every(1s, effect:)` | `setInterval` | répéter toutes les N secondes | Oui | 90 % | Déjà là | — |
-| `After(3s, effect: …)` | `setTimeout` | une seule fois, plus tard | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-039) ; sous une condition, l'attente part quand elle devient vraie. |
-| `le moteur` | `requestAnimationFrame` | dessiner image par image | Sans objet | — | Non | Le moteur s'en charge. |
+| En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
+|---|---|---|---|---|---|
+| `Every(1s, effect:)` | `setInterval` | répéter toutes les N secondes | Oui | Déjà là | — |
+| `After(3s, effect: …)` | `setTimeout` | une seule fois, plus tard | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-039) ; sous une condition, l'attente part quand elle devient vraie. |
+| `le moteur` | `requestAnimationFrame` | dessiner image par image | Sans objet | Non | Le moteur s'en charge. |
 
 ## JavaScript — Réseau et mémoire
 
-| En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
-|---|---|---|---|---|---|---|
-| `Data(from:, every:)` | `fetch (lire)` | lire des données d'un serveur | En partie | 65 % | Déjà là | Des valeurs et des listes d'objets JSON (ADR-051) ; seulement le serveur d'où vient la page. |
-| `Contact.send` | `fetch (envoyer)` | envoyer au serveur | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-042). Les valeurs d'un formulaire, au serveur d'où vient la page. |
-| — | `WebSocket` | parler en direct avec un serveur | Non | 0 % | Plus tard | Pour le jeu à plusieurs, après votre validation locale. |
-| `keep: [panier]` | `localStorage` | garder dans le navigateur | Oui | 80 % | Déjà là | — |
-| — | `cookies, sessionStorage` | se souvenir le temps d'une visite | Non | 0 % | Plus tard | — |
-| — | `service worker (hors ligne)` | marcher sans réseau | Non | 0 % | Plus tard | — |
+| En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
+|---|---|---|---|---|---|
+| `Data(from:, every:)` | `fetch (lire)` | lire des données d'un serveur | En partie | Déjà là | Des valeurs et des listes d'objets JSON (ADR-051) ; seulement le serveur d'où vient la page. |
+| `Contact.send` | `fetch (envoyer)` | envoyer au serveur | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). Les valeurs d'un formulaire, au serveur d'où vient la page. |
+| — | `WebSocket` | parler en direct avec un serveur | Non | Plus tard | Pour le jeu à plusieurs, après votre validation locale. |
+| `keep: [panier]` | `localStorage` | garder dans le navigateur | Oui | Déjà là | — |
+| — | `cookies, sessionStorage` | se souvenir le temps d'une visite | Non | Plus tard | — |
+| — | `service worker (hors ligne)` | marcher sans réseau | Non | Plus tard | — |
 
 ## JavaScript — Page et navigation
 
-| En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
-|---|---|---|---|---|---|---|
-| — | `modifier la page (DOM)` | changer la page à la main | Refusé exprès | — | Non | Refusé (ADR-015) : c'est le moteur qui change la page. |
-| `Point(inside:), enter, leave` | `routeur, historique` | changer de page sans recharger | Oui | 100 % | Déjà là | Chaque monde a son adresse ; « retour » marche. |
-| `import "commun.holo"` | `import de modules` | découper son code | En partie | 60 % | Déjà là | — |
+| En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
+|---|---|---|---|---|---|
+| — | `modifier la page (DOM)` | changer la page à la main | Refusé exprès | Non | Refusé (ADR-015) : c'est le moteur qui change la page. |
+| `Point(inside:), enter, leave` | `routeur, historique` | changer de page sans recharger | Oui | Déjà là | Chaque monde a son adresse ; « retour » marche. |
+| `import "commun.holo"` | `import de modules` | découper son code | En partie | Déjà là | — |
 
 ## JavaScript — Médias et appareil
 
-| En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
-|---|---|---|---|---|---|---|
-| `Sound(volume:, loop:), play, stop` | `Web Audio` | jouer, régler un son | En partie | 55 % | Déjà là | Volume, boucle, arrêt (ADR-061). Pas de mélange ni d'effets. |
-| `Shape` | `Canvas 2D` | dessiner librement | En partie | 10 % | Plus tard | — |
-| `le moteur dessine des points` | `WebGL, WebGPU` | la 3D | En partie | 30 % | Oui, utile | Pas encore d'objets pleins : l'essai de la chaise. |
-| — | `géolocalisation, caméra, vibration` | l'appareil du visiteur | Non | 0 % | Plus tard | — |
-| — | `presse-papiers, partage` | copier, partager | Non | 0 % | Plus tard | — |
-| — | `paiement, comptes` | payer, se connecter | Non | 0 % | Plus tard | Bien plus tard, et jamais sans un serveur sûr. |
+| En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
+|---|---|---|---|---|---|
+| `Sound(volume:, loop:), play, stop` | `Web Audio` | jouer, régler un son | En partie | Déjà là | Volume, boucle, arrêt (ADR-061). Pas de mélange ni d'effets. |
+| `Shape` | `Canvas 2D` | dessiner librement | En partie | Plus tard | — |
+| `le moteur dessine des points` | `WebGL, WebGPU` | la 3D | En partie | Oui, utile | Pas encore d'objets pleins : l'essai de la chaise. |
+| — | `géolocalisation, caméra, vibration` | l'appareil du visiteur | Non | Plus tard | — |
+| — | `presse-papiers, partage` | copier, partager | Non | Plus tard | — |
+| — | `paiement, comptes` | payer, se connecter | Non | Plus tard | Bien plus tard, et jamais sans un serveur sûr. |
