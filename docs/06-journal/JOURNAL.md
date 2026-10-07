@@ -6,6 +6,14 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — La réponse de Gemini sur « tout le web »
+
+- Collée par Yocthan, rangée dans `docs/05-discussions/reponses/2026-10-07-gemini-tout-le-web.md`, avec la lecture de Claude. Gemini propose 8 lots (environ 24 séances) avant la 3D : données et texte (chercher, trier, centimes), formulaires vérifiés, grands écrans (au-delà de 640 px), serveur et valeurs partagées, comptes chez soi, détails du HTML, modules qui échangent du texte, dessin vectoriel et hors-ligne. Il juge le plan serveur et comptes « excellent ».
+- Vérifié dans le moteur : les manques qu'il cite sont réels (la largeur de 640 px aussi).
+- Reconnu : la traduction en anglais (`ADR-060`) avait cassé le pincement sur téléphone (`event.touches` traduit par erreur) et les modules ; la session du PC l'a réparé (PR 141). Une recherche de toutes les propriétés du navigateur renommées n'en trouve pas d'autre.
+
+---
+
 ## 2026-10-07 — Le bon prompt pour Codex et Gemini : tout le web, avant le métavers
 
 - Yocthan avait redit son but : « le code doit d'abord faire tout ce que les HTML CSS JavaScript savent faire et ensuite faire le métaverse ». Or le prompt préparé le même jour par l'autre session proposait de déclarer le web fini avec ce qui existe (l'option A). Yocthan : « c'est mieux que tu crées le bon prompt que je vais passer à Codex et à Gemini ».
