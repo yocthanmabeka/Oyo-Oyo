@@ -258,6 +258,7 @@ pub fn check_styles(program: &Program) -> Result<(), Error> {
             check_setting(setting, None, &variables)?;
         }
         check_contrast(rule, &variables)?;
+        check_parity(rule, program)?;
         // Les états (hover, focus, active, dark, phone) : chacun une fois, avec des réglages connus.
         for (k, (state, settings, pos)) in rule.states.iter().enumerate() {
             if rule.states[..k].iter().any(|(other, ..)| other == state) {
@@ -275,6 +276,64 @@ pub fn check_styles(program: &Program) -> Result<(), Error> {
         }
     }
     placed_names(&program.root, program)
+}
+
+/// Les blocs qui agissent : on les touche, on y écrit, ils mènent ailleurs ou se jouent.
+const ACTING: &[&str] = &["Button", "A", "Input", "Checkbox", "Choice", "Slider", "Form", "Point", "Details", "Video", "Board"];
+
+/// La parité (règle de Yocthan du 2026-10-07, ADR-069) : ce qui existe sur un appareil existe sur
+/// l'autre. `display: none` dans `phone:`, `computer:` ou `narrow:` ne cache donc que ce qui se
+/// lit (une phrase, une image) ; jamais ce qui agit : un bloc d'`ACTING`, ou un bloc qu'une règle
+/// écoute (`On(Card.tap, …)`), ni ce qui en contient un.
+fn check_parity(rule: &crate::holo::StyleRule, program: &Program) -> Result<(), Error> {
+    let mut listened: Vec<&str> = Vec::new();
+    let _ = crate::rules::for_each_block(&program.root, &mut |block| {
+        if block.name == "On" {
+            if let Some(Value::Name(signal)) = block.arguments.iter().find(|a| a.name.is_none()).map(|a| &a.value) {
+                if let Some((name, _)) = signal.split_once('.').filter(|(name, _)| *name != "Key") {
+                    listened.push(name);
+                }
+            }
+        }
+        Ok(())
+    });
+    let acting = |block: &Block| ACTING.contains(&block.name.as_str()) || crate::rules::name_of(block).is_some_and(|n| listened.contains(&n));
+    for (state, settings, pos) in &rule.states {
+        if !["phone", "computer", "narrow"].contains(&state.as_str()) || !settings.iter().any(|s| s.name == "display" && s.value == "none") {
+            continue;
+        }
+        let mut found: Option<String> = None;
+        let _ = crate::rules::for_each_block(&program.root, &mut |block| {
+            let carries = match &rule.target {
+                Target::Type(t) => &block.name == t,
+                Target::Name(n) => block.styles.iter().any(|s| s == n),
+            };
+            if carries && found.is_none() {
+                let _ = crate::rules::for_each_block(block, &mut |inner| {
+                    if found.is_none() && acting(inner) {
+                        found = Some(inner.name.clone());
+                    }
+                    Ok(())
+                });
+            }
+            Ok(())
+        });
+        if let Some(what) = found {
+            let place = match state.as_str() {
+                "phone" => "sur un téléphone",
+                "computer" => "sur un ordinateur",
+                _ => "dans une case étroite",
+            };
+            return Err(Error {
+                message: format!(
+                    "« {} » : « display: none » dans « {state}: » cacherait « {what} » {place} seulement ; ce qui agit (un bouton, un lien, un champ, un formulaire, un bloc qu'une règle écoute) existe sur tous les appareils (règle de parité, ADR-069) : cache plutôt ce qui ne fait que se lire, ou change son allure",
+                    rule.target
+                ),
+                pos: *pos,
+            });
+        }
+    }
+    Ok(())
 }
 
 /// Chaque nom de style posé sur un bloc (`P.card(...)`) doit être défini.
@@ -682,6 +741,17 @@ mod tests {
         assert!(check(&page(".box { cursor: url(\"viseur.jpg\"); }")).unwrap_err().message.contains(".cur"));
         assert!(check(&page(".box { computer: { display: flex; } }")).unwrap_err().message.contains("ne prend que « none »"));
         assert!(check(&page(".box { wide: { color: red; } }")).unwrap_err().message.contains("computer"));
+    }
+
+    #[test]
+    fn what_acts_exists_on_every_device() {
+        // La parité (ADR-069) : une phrase peut se cacher sur un seul appareil, pas ce qui agit.
+        let src = |styles: &str| format!("Page(children: [ P.note(\"x\"), Button(name: Buy, text: \"Buy\"), Column.menu(children: [ A(\"Home\", to: \"a.holo\") ]), Text.card(name: Card, text: \"y\") ], rules: [ On(Card.tap, effect: Card.hover) ])\n{styles}");
+        assert!(check(&src(".note { phone: { display: none; } }\n.menu { color: red; }\n.card { color: red; }")).is_ok());
+        let refused = |styles: &str| check(&src(styles)).unwrap_err().message;
+        assert!(refused("Button { phone: { display: none; } }\n.note { color: red; }\n.menu { color: red; }\n.card { color: red; }").contains("cacherait « Button » sur un téléphone"));
+        assert!(refused(".menu { computer: { display: none; } }\n.note { color: red; }\n.card { color: red; }").contains("cacherait « A » sur un ordinateur"));
+        assert!(refused(".card { narrow: { display: none; } }\n.note { color: red; }\n.menu { color: red; }").contains("dans une case étroite"));
     }
 
     #[test]

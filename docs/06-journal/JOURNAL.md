@@ -6,6 +6,15 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — La parité : ce qui agit ne se cache pas sur un seul appareil ; les choix du lot 5
+
+- Décidé par Yocthan (« Refuser pour ce qui agit ») : `display: none` dans `phone:`, `computer:` ou `narrow:` cache une phrase ou une image, jamais un bouton, un lien, un champ, un formulaire ou un bloc qu'une règle écoute. Le moteur le refuse, avec le bloc et l'appareil où il manquerait (`ADR-069`).
+- Décidé par Yocthan pour le lot 5 : `holo serve` en Rust avec deux bibliothèques éprouvées, `tiny_http` et `rusqlite` (SQLite comprise dans `holo.exe`, rien d'autre à installer) ; les adresses comme `/profil/123` par le nom du fichier, `profil/{id}.holo`. Noté dans `proposals/Claude/tout-le-web-2026-10/SYNTHESE.md`.
+- Réservé dans le tableau « Qui fait quoi » pour les lots 5 à 7 : `ADR-078` à `ADR-085`, leçons 100 à 109.
+- Exécuté : `cargo test --release` → 144 tests passent (un nouveau : `what_acts_exists_on_every_device`).
+
+---
+
 ## 2026-10-07 — Lot 4 : la mise en page (téléphone, ordinateur, la place, ce qui dépasse, les proportions, le curseur, justifié, décrocher)
 
 - Fait (`ADR-069`, PROPOSITION), dans l'ordre demandé par Yocthan :
