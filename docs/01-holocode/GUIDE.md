@@ -813,7 +813,7 @@ Page(
 - Un texte ne change que par un champ : il n'y a pas de demande pour lui.
 - Ce que le visiteur écrit ne devient jamais du code : la page le montre lettre pour lettre.
 
-Limites : pas de liste de choix, pas d'envoi à un serveur ; ce qui est gardé reste sur cet appareil.
+Limite : ce qui est gardé reste sur cet appareil. (Une liste de choix : `Choice`, `ADR-038` ; un envoi au serveur : `Form`, `ADR-042`.)
 
 Cette écriture est décidée (`ADR-027`).
 
@@ -997,6 +997,7 @@ Le fichier `stock.json` :
 |---|---|---|
 | `Data(from:)` | Le fichier de données, rangé à côté de la page. | un fichier `.json` |
 | `Data(every:)` | À quel rythme la page le redemande. Sans lui : une seule fois, à l'ouverture. | 1s à 3600s |
+| `Data(name:)` | Un nom, pour que les règles sachent si les données sont arrivées. | un nom de bloc : `Shop` |
 
 - Chaque nom du fichier remplit la valeur de `State` du même nom : un nombre entier dans un nombre, un texte dans un texte.
 - Ce qui ne correspond à rien est laissé de côté. Un fichier mal écrit ne change rien, et la page garde ses valeurs.
@@ -1006,6 +1007,34 @@ Le fichier `stock.json` :
 Une liste se reçoit aussi : un tableau d'objets remplit une liste à champs (§ 6 septendecies, `ADR-051`). Limite : la page n'envoie rien au serveur, sauf par un formulaire (`Form`).
 
 Cette écriture est décidée (`ADR-030`).
+
+**Arrivées, ou pas.** Des données qui ont un nom disent ce qui leur est arrivé, et se relisent :
+
+```holo
+Page(
+  title: "Shop news",
+  state: State(loading: 1, broken: 0, news: ""),
+  data: Data(name: Shop, from: "shop.json"),
+  children: [
+    If(loading, is: 1, children: [ "Loading…" ]),
+    If(broken, is: 1, children: [ "The news did not arrive.", Button(name: Retry, text: "Try again") ]),
+    Text("{news}"),
+  ],
+  rules: [
+    On(Shop.done, effect: [loading.set(0), broken.set(0)]),
+    On(Shop.failed, effect: [loading.set(0), broken.set(1)]),
+    On(Retry.tap, effect: [loading.set(1), broken.set(0), Shop.refresh]),
+  ],
+)
+```
+
+- `Shop.done` : les données sont arrivées et rangées dans les valeurs.
+- `Shop.failed` : elles ne sont pas arrivées, faute de réseau, sur une erreur du serveur, ou parce que le fichier est trop gros (plus de 64 Ko), illisible (autre chose qu'un objet JSON) ou trop lent (plus de 10 secondes).
+- `Shop.refresh` les relit. Une seule lecture à la fois : pendant une lecture, la lecture en cours répondra. Une seconde au moins entre deux lectures : une demande trop proche attend son tour, elle n'est pas perdue.
+- « Loading… » est une valeur de la page, à 1 au départ, que les deux signaux remettent à 0.
+- Sans `name`, rien ne change : la page lit ses données sans rien dire.
+
+Cette écriture est proposée (`ADR-064`) et attend la validation de Yocthan. La leçon est `84-donnees-arrivees-ou-pas.holo`.
 
 ## 6 octies. Un son : `Sound`
 
@@ -1713,7 +1742,7 @@ Toutes les limites, telles que le moteur les applique (chacune refusée avec un 
 | `Repeat(items:)` | 200 éléments ; 20 000 blocs une fois déplié |
 | Les composants | 16 paramètres ; 8 composants l'un dans l'autre ; 2 000 copies |
 | Le temps | `Every` et `After` : de 100 ms à 3 600 s ; `Data(every:)` : de 1 s à 3 600 s |
-| Les données reçues (`Data`) | 64 Ko : au-delà, elles sont refusées, et la lecture s'arrête dès qu'elles dépassent |
+| Les données reçues (`Data`) | 64 Ko : au-delà, elles sont refusées, et la lecture s'arrête dès qu'elles dépassent ; 10 secondes pour arriver ; une lecture à la fois, une seconde au moins entre deux (`ADR-064`) |
 | Les modules | 8 par page ; un fichier de 4 Mo, refusé dès qu'il dépasse ; un temps de 10 ms à 5 s ; une mémoire de 64 Ko à 16 Mo |
 | Un fichier envoyé par un formulaire | 10 Mo au plus (`max:` de 1 KB à 10 MB) |
 | La vue points | 200 000 points à l'écran |
@@ -1780,7 +1809,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Repeat(over:)` | `over` (une liste de la page), `children`, `rules` | Dans `children` |
 | `When` | le nom d'une valeur, puis `is`, `not`, `over`, `under` ; ou le nom d'un bloc, puis `meets` et `within` ; et `effect:` | Dans `rules` |
 | `State` | les valeurs et leur départ : `cart: 0` | Dans `state:` d'une `Page` |
-| `Data` | `from`, `every` | Dans `data:` d'une `Page` |
+| `Data` | `name`, `from`, `every` | Dans `data:` d'une `Page` |
 | `Prices` | le prix de chaque article : `sunrise: 120` | Dans `prices:` d'une `Page` |
 | `Zoom`, `Points`, `Relief`, `Portals` | voir la partie 7 | Dans `zoom:`, `points:`, `relief:`, `portals:` d'une `Page` |
 
@@ -1874,9 +1903,8 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 ## 11. Ce qui n'existe pas encore
 
 - Un module n'échange encore qu'un nombre contre un nombre.
-- Les données venues d'un autre serveur ; l'envoi d'un fichier ; les comptes.
-- Pour les valeurs : des nombres entiers, des textes et des listes ; pas de nombre à virgule (les prix s'écrivent en centimes, `{price:cents}`). Pas de condition sur un champ dans une ligne (`If(item.done, …)`).
+- Les données venues d'un autre serveur ; les comptes ; la page fabriquée par le serveur avec ses données (elle part des valeurs de départ, puis les données arrivent dans le navigateur).
+- Pour les valeurs : des nombres entiers, des textes et des listes ; pas de nombre à virgule (les prix s'écrivent en centimes, `{price:cents}`), pas de calcul sur les dates, pas de clé choisie par l'auteur pour une ligne.
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
 - Les garde-fous de zoom pour un `Point` seul : ils sont encore fixés dans le moteur.
-- Un composant n'a pas d'emplacement pour du contenu donné à l'appel (comme `children` ou `<slot>`) ; ses paramètres sont des textes, des nombres ou des noms.

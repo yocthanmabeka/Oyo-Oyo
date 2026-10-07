@@ -157,7 +157,7 @@ pub fn vocabulary() -> String {
     let others: [(&str, &[&str]); 10] = [
         ("Repeat", &["items", "over", "children", "rules"]),
         ("Item", &["key"]),
-        ("Data", &["from", "every"]),
+        ("Data", &["name", "from", "every"]),
         ("Enter", MOVEMENT),
         ("Loop", &cycle),
         ("Zoom", &["active", "max", "shrink", "levels", "speed"]),
@@ -182,7 +182,7 @@ pub fn vocabulary() -> String {
         list(holo::STATES),
         list(&["add", "sub", "set", "random", "mul", "div", "push", "remove", "clear"]),
         list(&["tap", "hover", "hoverEnd", "sent", "failed", "done"]),
-        list(&["enter", "leave", "play", "stop", "portals", "open", "close", "send", "run"]),
+        list(&["enter", "leave", "play", "stop", "portals", "open", "close", "send", "run", "refresh"]),
         list(state::KEYPRESSES),
         list(&[
             "true", "false", "item", "circle", "square", "triangle", "diamond", "start", "center", "end", "between", "topLeft", "top", "topRight", "left", "right", "bottomLeft", "bottom",
@@ -353,10 +353,12 @@ pub fn input(source: &str, state: &str, name: &str, written: &str) -> String {
     }
 }
 
-/// D'où viennent les données de la page, et à quel rythme : `stock.json|30000` (0 : une seule
-/// fois). Vide si la page n'en demande pas.
+/// D'où viennent les données de la page, à quel rythme, et leur nom : `stock.json|30000|Stock`
+/// (0 : une seule fois ; sans nom, rien après la seconde barre). Vide si la page n'en demande pas.
 pub fn data(source: &str) -> String {
-    check_page(source).ok().and_then(|program| state::data_source(&program).ok().flatten()).map(|(file, rhythm)| format!("{file}|{rhythm}")).unwrap_or_default()
+    let Ok(program) = check_page(source) else { return String::new() };
+    let name = state::data_name(&program).unwrap_or_default();
+    state::data_source(&program).ok().flatten().map(|(file, rhythm)| format!("{file}|{rhythm}|{name}")).unwrap_or_default()
 }
 
 /// Les données viennent d'arriver du serveur : l'arbitre les range et rend le nouvel état.

@@ -291,32 +291,70 @@
     }
     return new Blob(chunks).arrayBuffer();
   }
-  async function loadData(file, for_) {
+  // Les données de la page (ADR-030) : 64 Ko au plus, en 10 secondes au plus, une lecture à la
+  // fois. Avec un nom, Data(name: Stock, …), la page dit ce qui s'est passé (ADR-064) :
+  // Stock.done quand elles sont arrivées et rangées ; Stock.failed sans réseau, sur une erreur du
+  // serveur, ou quand elles sont trop grosses, illisibles ou trop lentes. Sans nom, rien n'est dit.
+  let dataReading = false;
+  let dataLast = 0;
+  async function loadData(file, for_, name) {
+    if (dataReading) return;
+    dataReading = true;
+    dataLast = Date.now();
+    let arrived = false;
+    const stop = new AbortController();
+    const late = setTimeout(() => stop.abort(), 10000);
     try {
       const discreet = fromElsewhere(for_) ? { credentials: "omit", referrerPolicy: "no-referrer" } : {};
-      const response = await fetch(folderOf(for_) + file, { cache: "no-store", headers: { accept: "application/json" }, ...discreet });
-      if (!response.ok || for_ !== path) return; // on a changé de fichier entre-temps
+      const response = await fetch(folderOf(for_) + file, { cache: "no-store", headers: { accept: "application/json" }, signal: stop.signal, ...discreet });
       // Des données de 64 Ko au plus (DATA_BYTES dans le moteur) : au-delà, elles sont refusées.
-      const buffer = await readCapped(response, 65536);
-      if (!buffer) return;
-      const json = new TextDecoder().decode(buffer);
-      const before = states.get(path) ?? "";
-      const after = store(receive(source, before, json));
-      if (after && after !== before && for_ === path) changeState(after);
-    } catch { /* serveur muet : la page garde ses valeurs */ }
+      const buffer = response.ok ? await readCapped(response, 65536) : null;
+      if (buffer && for_ === path) { // on a pu changer de fichier entre-temps
+        const json = new TextDecoder().decode(buffer);
+        // Un objet JSON, `{ "stock": 4 }` : autre chose ne se lit pas.
+        const read = JSON.parse(json);
+        if (read && typeof read === "object" && !Array.isArray(read)) {
+          const before = states.get(path) ?? "";
+          const after = store(receive(source, before, json));
+          if (after && after !== before) changeState(after);
+          arrived = true;
+        }
+      }
+    } catch { /* pas de réseau, trop lent, ou illisible : la page garde ses valeurs */ }
+    clearTimeout(late);
+    dataReading = false;
+    if (name && for_ === path) emit(`${name}.${arrived ? "done" : "failed"}`);
   }
   function setData() {
     clearInterval(refresh);
-    const [file, rhythm] = data(source).split("|");
+    clearTimeout(dataLater);
+    dataLater = 0;
+    const [file, rhythm, name] = data(source).split("|");
     if (!file) return;
     const for_ = path;
-    loadData(file, for_);
+    loadData(file, for_, name);
     if (Number(rhythm) > 0) {
       refresh = setInterval(() => {
         if (for_ !== path) clearInterval(refresh);
-        else if (!document.hidden) loadData(file, for_);
+        else if (!document.hidden) loadData(file, for_, name);
       }, Number(rhythm));
     }
+  }
+  // Relire les données à la demande, On(Retry.tap, effect: Stock.refresh) (ADR-064). Pendant
+  // une lecture, la demande est sans objet : la lecture en cours répondra (done ou failed). Une
+  // seconde au moins entre deux lectures, même si une règle redemande à chaque échec : une
+  // demande trop proche attend son tour, elle n'est pas perdue (sinon « Chargement… » resterait).
+  let dataLater = 0;
+  function refreshData(name) {
+    const [file, , dataName] = data(source).split("|");
+    if (!file || dataName !== name || dataReading || dataLater) return;
+    const wait = dataLast + 1000 - Date.now();
+    if (wait <= 0) return loadData(file, path, name);
+    const for_ = path;
+    dataLater = setTimeout(() => {
+      dataLater = 0;
+      if (for_ === path) loadData(file, for_, name);
+    }, wait);
   }
 
   function setClocks() {
@@ -1272,6 +1310,8 @@
       submit(name);
     } else if (capability === "run") {
       execute(name);
+    } else if (capability === "refresh") {
+      refreshData(name);
     } else if (capability === "portals") {
       // La page demande son carrefour : On(Map.tap, effect: Shop.portals).
       openCrossroads();

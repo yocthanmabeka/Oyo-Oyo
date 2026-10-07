@@ -70,6 +70,8 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     ("Scene", &["name", "children", "for"]),
     ("Font", &["family", "source"]),
     ("Module", &["name", "source", "input", "output", "time", "memory"]),
+    // Les données de la page (ADR-030) ; leur nom, que les règles écoutent (ADR-064).
+    ("Data", &["name", "from", "every"]),
 ];
 
 /// Les réglages de chaque bloc, pour l'éditeur (ADR-046) : il propose ceux du bloc où l'on écrit.

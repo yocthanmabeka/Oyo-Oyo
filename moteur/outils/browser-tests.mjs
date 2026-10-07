@@ -91,12 +91,15 @@ async function startChrome() {
   let n = 0;
   const waiting = new Map();
   const errors = [];
+  // Ce que Chrome annonce de lui-même (une demande retenue, par exemple), pour un essai qui l'écoute.
+  const listeners = new Map();
   ws.onmessage = (m) => {
     const r = JSON.parse(m.data);
     if (r.method === "Runtime.exceptionThrown") {
       const d = r.params.exceptionDetails;
       errors.push((d.exception?.description ?? d.text ?? "erreur").split("\n")[0]);
     }
+    if (r.method) listeners.get(r.method)?.(r.params);
     waiting.get(r.id)?.(r);
   };
   const send = (method, params = {}) => new Promise((ok) => { waiting.set(++n, ok); ws.send(JSON.stringify({ id: n, method, params })); });
@@ -106,6 +109,10 @@ async function startChrome() {
   return {
     send,
     errors,
+    on(method, handler) {
+      if (handler) listeners.set(method, handler);
+      else listeners.delete(method);
+    },
     stop() {
       ws.close();
       chrome.kill();
@@ -314,6 +321,54 @@ const tests = [
     const same = await p.until(`${has("Les deux sont pareils.")} && !${has("différents")}`);
     const ok = start && large && lower && bravo && differ && same;
     return [ok, `départ « Taille M. » : ${start} ; L : ${large} ; « paris » refusé : ${lower} ; « Paris » → Bravo et 1 : ${bravo} ; e-mails différents : ${differ} ; pareils : ${same}`];
+  }],
+  ["des données disent « arrivées » ou « échec », et se relisent (Data)", async (p, b) => {
+    await p.open("/exemples/.essais-navigateur/donnees-nommees.holo");
+    const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;
+    const arrived = await p.until(`${has("lectures 1 ; échecs 0")} && document.querySelectorAll(".holo-line").length === 3 && !${has("Chargement")}`);
+    // Les réponses du serveur, imitées par Chrome lui-même (son domaine Fetch) : un fichier
+    // absent, illisible, trop gros, ou qui ne vient jamais.
+    let mode = "";
+    const json = [{ name: "content-type", value: "application/json" }];
+    const body = (text) => Buffer.from(text).toString("base64");
+    b.on("Fetch.requestPaused", ({ requestId }) => {
+      if (mode === "absent") b.send("Fetch.fulfillRequest", { requestId, responseCode: 404, body: body("absent") });
+      else if (mode === "illisible") b.send("Fetch.fulfillRequest", { requestId, responseCode: 200, responseHeaders: json, body: body("{ pas du json") });
+      else if (mode === "trop gros") b.send("Fetch.fulfillRequest", { requestId, responseCode: 200, responseHeaders: json, body: body(JSON.stringify({ articles: [], note: "x".repeat(70000) })) });
+      else if (mode === "trop lent") { /* aucune réponse : la page abandonne après 10 secondes */ }
+      else b.send("Fetch.continueRequest", { requestId });
+    });
+    await b.send("Fetch.enable", { patterns: [{ urlPattern: "*donnees-petites.json*" }] });
+    const seen = [];
+    // « absent » deux fois de suite : la seconde demande, trop proche, attend son tour (une
+    // lecture par seconde au plus) ; elle n'est pas perdue. « trop lent » : une seconde demande
+    // pendant la lecture est sans objet, la lecture en cours répondra.
+    for (const [m, fails, twice] of [["absent", 2, "tout de suite"], ["illisible", 3], ["trop gros", 4], ["trop lent", 5, "pendant la lecture"]]) {
+      mode = m;
+      await pause(1100);
+      await p.click('[data-name="Again"]');
+      const started = Date.now();
+      if (twice) {
+        await pause(twice === "tout de suite" ? 100 : 1200);
+        await p.click('[data-name="Again"]');
+      }
+      const failed = await p.until(`${has(`échecs ${fails}`)} && !${has("Chargement")}`, m === "trop lent" ? 20000 : 6000);
+      seen.push(`${m}${twice ? `, deux demandes (${twice})` : ""} → échecs ${fails} : ${failed}${m === "trop lent" ? ` (après ${((Date.now() - started) / 1000).toFixed(1)} s)` : ""}`);
+    }
+    await pause(1500);
+    const noExtra = await p.value(`!${has("échecs 6")}`);
+    seen.push(`pas de lecture en trop : ${noExtra}`);
+    mode = "";
+    await pause(1100);
+    await p.click('[data-name="Again"]');
+    const back = await p.until(has("lectures 2 ; échecs 5"));
+    await b.send("Fetch.disable");
+    b.on("Fetch.requestPaused", null);
+    // La leçon 84 : les nouvelles arrivent, « Chargement… » disparaît.
+    await p.open("/exemples/lecons/84-donnees-arrivees-ou-pas.holo");
+    const lesson = await p.until(`${has("42 visiteurs aujourd'hui.")} && !${has("Chargement")}`);
+    const ok = arrived && seen.every((s) => s.endsWith("true") || s.includes("true (après")) && back && lesson;
+    return [ok, `arrivées : ${arrived} ; ${seen.join(" ; ")} ; relues ensuite : ${back} ; leçon 84 : ${lesson}`];
   }],
   ["un formulaire envoie son message", async (p) => {
     await p.open("/exemples/lecons/64-formulaire.holo");

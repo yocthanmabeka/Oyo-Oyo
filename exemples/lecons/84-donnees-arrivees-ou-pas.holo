@@ -1,0 +1,53 @@
+// Leçon 84 — Des données qui arrivent, ou pas
+//
+// Ce qu'on apprend :
+//   Des données qui ont un nom disent ce qui leur est arrivé :
+//     data: Data(name: Shop, from: "84-boutique.json"),
+//     On(Shop.done, effect: …)      elles sont arrivées, et rangées dans les valeurs
+//     On(Shop.failed, effect: …)    elles ne sont pas arrivées : pas de réseau, une erreur du
+//                                   serveur, un fichier trop gros (plus de 64 Ko), illisible,
+//                                   ou trop lent (plus de 10 secondes)
+//   On les redemande par une règle : On(Retry.tap, effect: Shop.refresh). Une seule lecture à
+//   la fois, et pas plus d'une par seconde.
+//   « Chargement… » : une valeur à 1 au départ, remise à 0 quand la réponse vient.
+//
+// À essayer :
+//   La page s'ouvre : « Chargement… », puis les nouvelles de la boutique. Touche « Relire ».
+//   Pour voir l'échec, écris un autre nom de fichier dans « from », comme "absent.json" :
+//   « Les nouvelles ne sont pas arrivées. », et un bouton « Réessayer ».
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 84 : des données qui arrivent, ou pas",
+  state: State(loading: 1, broken: 0, reads: 0, news: "", visitors: 0),
+  data: Data(name: Shop, from: "84-boutique.json"),
+  children: [
+    H1("La boutique"),
+    If(loading, is: 1, children: [ P("Chargement…") ]),
+    If(broken, is: 1, children: [
+      P("Les nouvelles ne sont pas arrivées."),
+      Button(name: Retry, text: "Réessayer"),
+    ]),
+    If(reads, over: 0, children: [
+      P("{news}"),
+      P("{visitors} visiteurs aujourd'hui."),
+      Button(name: Again, text: "Relire"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 83 : comparer des textes", to: "83-comparer-des-textes.holo"),
+    ]),
+  ],
+  rules: [
+    On(Shop.done, effect: [loading.set(0), broken.set(0), reads.add(1)]),
+    On(Shop.failed, effect: [loading.set(0), broken.set(1)]),
+    On(Retry.tap, effect: [loading.set(1), broken.set(0), Shop.refresh]),
+    On(Again.tap, effect: Shop.refresh),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

@@ -836,9 +836,15 @@ mod tests {
         let lines = crate::list_html(source, "", &received, "articles");
         assert!(lines.contains("Forest : 45,00 euros") && lines.contains("src=\"f.png\"") && !lines.contains("secret"), "{lines}");
         assert_eq!(lines.matches("data-rank").count(), 1);
-        // Une image venue du serveur reste dans le dossier de la page.
-        let trap = crate::receive(source, &start_value, r#"{"articles": [ {"title": "x", "price": 1, "image": "javascript:alert(1)"} ]}"#);
-        assert!(!crate::list_html(source, "", &trap, "articles").contains("javascript"));
+        // Une image venue du serveur reste dans le dossier de la page. Une image refusée, ou
+        // absente, ne retire que l'image : la ligne garde son texte (avant : toute la liste
+        // disparaissait, défaut D10).
+        let trap = crate::receive(source, &start_value, r#"{"articles": [ {"title": "Trap", "price": 1, "image": "javascript:alert(1)"}, {"title": "Up", "price": 2, "image": "../x.svg"}, {"title": "None", "price": 3}, {"title": "Fine", "price": 4, "image": "fine.png"} ]}"#);
+        let lines = crate::list_html(source, "", &trap, "articles");
+        assert!(!lines.contains("javascript") && !lines.contains("x.svg"), "{lines}");
+        assert_eq!(lines.matches("data-rank").count(), 4, "{lines}");
+        assert!(lines.contains("class=\"holo-Text\">Trap</div>") && lines.contains("Trap : 0,01 euros"), "{lines}");
+        assert!(lines.contains("src=\"fine.png\" alt=\"Fine\""), "{lines}");
     }
 
     #[test]

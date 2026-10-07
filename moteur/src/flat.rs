@@ -1203,8 +1203,40 @@ fn lines(repeat: &Block, list: &str, base: &str) -> Result<String, Error> {
                 }
             }
             Value::List(l) => l.iter_mut().for_each(|v| mark_rows(v, fields, shown_ones)),
-            Value::Block(b) => b.arguments.iter_mut().for_each(|a| mark_rows(&mut a.value, fields, shown_ones)),
+            // Une image dont le fichier vient de l'élément, mais qu'on ne peut pas montrer (hors du
+            // dossier de la page, ou absent) : la ligne garde le texte de remplacement de l'image,
+            // au lieu de disparaître avec toute la liste (défaut D10 de l'exploration #82).
+            Value::Block(b) if b.name == "Image" && refused_by_element(b, "source", fields) => {
+                let alt = match b.argument("alt").map(|a| &a.value) {
+                    Some(Value::Text(t)) => t.clone(),
+                    _ => String::new(),
+                };
+                let pos = b.pos;
+                *value = Value::Block(Block { name: "Text".into(), styles: Vec::new(), arguments: vec![crate::holo::Argument { name: None, value: Value::Text(alt), pos }], pos });
+                mark_rows(value, fields, shown_ones);
+            }
+            Value::Block(b) => {
+                // Une image légère pour le téléphone, ou un texte de remplacement, qui manquent à
+                // l'élément : l'image se montre sans eux.
+                if b.name == "Image" {
+                    if refused_by_element(b, "phone", fields) {
+                        b.arguments.retain(|a| a.name.as_deref() != Some("phone"));
+                    }
+                    if let Some(a) = b.arguments.iter_mut().find(|a| a.name.as_deref() == Some("alt") && matches!(&a.value, Value::Name(n) if n.starts_with("item.") && !fields.iter().any(|(c, _)| Some(c.as_str()) == n.strip_prefix("item.")))) {
+                        a.value = Value::Text(String::new());
+                    }
+                }
+                b.arguments.iter_mut().for_each(|a| mark_rows(&mut a.value, fields, shown_ones))
+            }
             _ => {}
+        }
+    }
+    /// Le fichier d'une image, pris dans un champ de l'élément (`source: item.image`), est-il
+    /// absent ou hors du dossier de la page ?
+    fn refused_by_element(image: &Block, parameter: &str, fields: &[(String, String)]) -> bool {
+        match image.argument(parameter).map(|a| &a.value) {
+            Some(Value::Name(n)) => n.strip_prefix("item.").is_some_and(|field| fields.iter().find(|(c, _)| c == field).is_none_or(|(_, v)| !path_on(v))),
+            _ => false,
         }
     }
     let mut output = String::new();

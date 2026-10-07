@@ -322,13 +322,30 @@ pub fn data_source(program: &Program) -> Result<Option<(String, u64)>, Error> {
                 rhythm = ms.round() as u64;
             }
             (Some("every"), _) => return Err(Error { message: "« Data(every: …) » attend une durée, de 1s à 3600s".into(), pos: argument.pos }),
-            (Some(word), _) => return Err(Error { message: format!("« Data » n'a pas de paramètre « {word} » ; paramètres possibles : from, every"), pos: argument.pos }),
+            // Un nom, pour que les règles sachent si les données sont arrivées (ADR-064).
+            (Some("name"), Value::Name(_)) => {}
+            (Some("name"), _) => return Err(Error { message: "« Data(name: …) » attend un nom de bloc, comme name: Stock ; les règles écoutent alors Stock.done et Stock.failed".into(), pos: argument.pos }),
+            (Some(word), _) => return Err(Error { message: format!("« Data » n'a pas de paramètre « {word} » ; paramètres possibles : name, from, every"), pos: argument.pos }),
             (None, _) => return Err(Error { message: "chaque paramètre de « Data » est nommé : Data(from: \"stock.json\")".into(), pos: argument.pos }),
         }
     }
     match file {
         Some(file) => Ok(Some((file, rhythm))),
         None => Err(Error { message: "« Data » attend « from » : Data(from: \"stock.json\")".into(), pos: block.pos }),
+    }
+}
+
+/// Le nom des données de la page, `Data(name: Stock, …)` : les règles écoutent `Stock.done` et
+/// `Stock.failed`, et demandent `Stock.refresh` (ADR-064). Sans nom, la page lit ses données
+/// sans rien dire.
+pub fn data_name(program: &Program) -> Option<String> {
+    data_source(program).ok().flatten()?;
+    match program.root.argument("data").map(|a| &a.value) {
+        Some(Value::Block(block)) => match block.argument("name").map(|a| &a.value) {
+            Some(Value::Name(name)) => Some(name.clone()),
+            _ => None,
+        },
+        _ => None,
     }
 }
 
@@ -2075,7 +2092,27 @@ mod tests {
 )";
         let program = page(source).unwrap();
         assert_eq!(data_source(&program).unwrap(), Some(("stock.json".to_string(), 30_000)));
-        assert_eq!(crate::data(source), "stock.json|30000");
+        assert_eq!(crate::data(source), "stock.json|30000|");
+        // Avec un nom (ADR-064), les règles écoutent Stock.done et Stock.failed, et demandent Stock.refresh.
+        let named = source.replace("Data(from:", "Data(name: Stock, from:").replace(
+            "rules: [ When(stock, is: 0, effect: alerte.set(1)) ]",
+            "rules: [ When(stock, is: 0, effect: alerte.set(1)), On(Stock.done, effect: ouvert.set(1)), On(Stock.failed, effect: alerte.set(2)), On(Stock.failed, effect: Stock.refresh) ]",
+        );
+        assert_eq!(crate::data(&named), "stock.json|30000|Stock");
+        let start = crate::initial_state(&named);
+        assert!(crate::arbitrate(&named, &start, "Stock.done").contains("ouvert=1"));
+        assert!(crate::arbitrate(&named, &start, "Stock.failed").contains("alerte=2"));
+        assert_eq!(crate::effects(&named, "Stock.failed"), ["Stock.refresh"]);
+        for (wrong, message) in [
+            ("Data(name: \"Stock\", from:", "« Data(name: …) » attend un nom de bloc"),
+            ("Data(name: stock, from:", "majuscule"),
+            ("Data(colour: red, from:", "paramètres possibles : name, from, every"),
+        ] {
+            let error = page(&named.replace("Data(name: Stock, from:", wrong)).unwrap_err();
+            assert!(error.message.contains(message), "{wrong}\n→ {error}");
+        }
+        let error = page(&named.replace("Stock.refresh", "Stock.run")).unwrap_err();
+        assert!(error.message.contains("refresh"), "{error}");
         // Un nombre va dans un nombre, un texte dans un texte ; le reste est laissé de côté.
         let start_value = crate::initial_state(source);
         let received = crate::receive(source, &start_value, r#"{ "stock": 4, "message": "Ouvert \"aujourd'hui\"", "ouvert": true, "cart": 99, "inconnu": 7, "prix": 3.5, "liste": [1, {"a": "}"}], "rien": null, "stock2": -1 }"#);
