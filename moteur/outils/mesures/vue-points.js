@@ -3,7 +3,7 @@
   const attendre = () => new Promise(requestAnimationFrame);
   const t0 = performance.now();
   document.getElementById("points").click();
-  while (!document.body.classList.contains("en-points")) {
+  while (!document.body.classList.contains("in-points")) {
     await attendre();
     if (performance.now() - t0 > 20000) return "la vue points n'a pas démarré en 20 s";
   }
@@ -21,7 +21,7 @@
     pire = Math.max(pire, t - avant);
     avant = t;
     images++;
-    const texte = document.getElementById("etat").textContent;
+    const texte = document.getElementById("status").textContent;
     const n = Number((texte.match(/^([\d\s  ]+) points à l'écran/) || [])[1]?.replace(/[^\d]/g, "") || 0);
     maxPoints = Math.max(maxPoints, n);
   }
@@ -32,7 +32,7 @@
     images_par_seconde_pendant_le_zoom: Math.round((images / 6) * 10) / 10,
     pire_image_ms: Math.round(pire * 10) / 10,
     plus_grand_nombre_de_points_a_l_ecran: maxPoints,
-    etat_final: document.getElementById("etat").textContent,
+    etat_final: document.getElementById("status").textContent,
     backend: window.__holo?.backend ?? null,
     tas_js_Mo: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1e5) / 10 : null,
   }, null, 1);

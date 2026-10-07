@@ -12,14 +12,20 @@
 // Rend « OK » ou « RATÉ » par essai, et un code de sortie 1 s'il y a un raté.
 
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const engine = fileURLToPath(new URL("..", import.meta.url));
 const repo = resolve(engine, "..");
-const only = process.argv[2] ?? "";
+// `--telephone` : le Chrome du téléphone de Yocthan, par le câble. Avant :
+//   adb reverse tcp:8080 tcp:8080 ; adb forward tcp:9222 localabstract:chrome_devtools_remote ;
+//   adb shell am start -a android.intent.action.VIEW -d http://localhost:8080/stack com.android.chrome
+// Les pages viennent alors du serveur 8080 du PC (le code de main), et l'outil ne pilote que
+// l'onglet ouvert sur localhost:8080 : jamais les autres onglets du téléphone.
+const phone = process.argv.includes("--telephone");
+const only = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? "";
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function findChrome() {
@@ -38,6 +44,11 @@ function findChrome() {
 
 // Le serveur d'essai, sur un port libre ; on attend qu'il annonce son adresse.
 async function startServer() {
+  if (phone) {
+    const reached = await fetch("http://localhost:8080/exemples/lecons/01-page.holo").then((r) => r.ok, () => false);
+    if (!reached) throw new Error("le serveur 8080 du PC ne répond pas : node outils/server.mjs, avec PORT=8080");
+    return { base: "http://localhost:8080", stop() {} };
+  }
   const port = 18000 + Math.floor(Math.random() * 2000);
   const env = { ...process.env, PORT: String(port) };
   delete env.HOLO_KEY;
@@ -77,8 +88,18 @@ async function launchChrome() {
   return { chrome, profile, target, said: said.trim() || "(rien)" };
 }
 
+// Le Chrome du téléphone : l'onglet ouvert sur localhost:8080 (par adb shell am start).
+async function connectPhone() {
+  const tabs = await (await fetch("http://127.0.0.1:9222/json")).json().catch(() => []);
+  const target = tabs.find((t) => t.type === "page" && t.url.startsWith("http://localhost:8080/"));
+  if (!target) throw new Error("aucun onglet sur localhost:8080 dans le Chrome du téléphone : adb shell am start -a android.intent.action.VIEW -d http://localhost:8080/stack com.android.chrome");
+  const version = await (await fetch("http://127.0.0.1:9222/json/version")).json();
+  console.log(`Le téléphone : ${version.Browser} (${version["User-Agent"]})`);
+  return { target };
+}
+
 async function startChrome() {
-  let launched = await launchChrome();
+  let launched = phone ? await connectPhone() : await launchChrome();
   // Sur une machine de GitHub qui vient de démarrer, Chrome tarde parfois : un second essai.
   if (!launched.target) {
     console.log(`Chrome ne répond pas ; second essai. Ce qu'il a dit : ${launched.said}`);
@@ -115,6 +136,8 @@ async function startChrome() {
     },
     stop() {
       ws.close();
+      // Le Chrome du téléphone reste ouvert : on ne fait que s'en détacher.
+      if (!chrome) return;
       chrome.kill();
       // Chrome garde son dossier un instant après s'être arrêté.
       setTimeout(() => { try { rmSync(profile, { recursive: true, force: true }); } catch { /* tant pis */ } }, 1500);
@@ -188,8 +211,13 @@ const tests = [
       const title = await p.value("document.title");
       if (b.errors.length) faults.push(`${file} : ${b.errors.join(" | ")}`);
       else if (!title || title === "HoloCode") faults.push(`${file} : pas de titre`);
+      // Sur un téléphone, une page ne déborde pas de l'écran (on ne glisse pas de côté).
+      else if (phone) {
+        const [wide, screen] = await p.value("[document.documentElement.scrollWidth, innerWidth]");
+        if (wide > screen + 1) faults.push(`${file} : déborde (${wide} px pour un écran de ${screen} px)`);
+      }
     }
-    return [faults.length === 0, faults.length ? faults.join("\n      ") : `${lessons().length} leçons`];
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : `${lessons().length} leçons${phone ? ", aucune ne déborde de l'écran" : ""}`];
   }],
   ["le moteur arrive au premier geste", async (p) => {
     await p.open("/exemples/lecons/01-page.holo");
@@ -198,8 +226,10 @@ const tests = [
     return [ok, ok ? "les outils s'ouvrent" : "les outils ne s'ouvrent pas"];
   }],
   ["pincer à deux doigts grossit la page (pinch)", async (p, b) => {
-    await b.send("Emulation.setDeviceMetricsOverride", { width: 400, height: 800, deviceScaleFactor: 2, mobile: true });
-    await b.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+    if (!phone) {
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 400, height: 800, deviceScaleFactor: 2, mobile: true });
+      await b.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+    }
     try {
       await p.open("/exemples/lecons/09-zoom-et-points.holo");
       const fingers = (gap) => [{ x: 200 - gap, y: 300, id: 1 }, { x: 200 + gap, y: 300, id: 2 }];
@@ -213,8 +243,10 @@ const tests = [
       }
       return [zoomed && b.errors.length === 0, zoomed ? (b.errors.length ? b.errors.join(" | ") : "la page grossit") : `aucun zoom ; ${b.errors.join(" | ") || "aucune erreur"}`];
     } finally {
-      await b.send("Emulation.setTouchEmulationEnabled", { enabled: false });
-      await b.send("Emulation.clearDeviceMetricsOverride");
+      if (!phone) {
+        await b.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+        await b.send("Emulation.clearDeviceMetricsOverride");
+      }
     }
   }],
   ["un module enfermé rend son nombre", async (p) => {
@@ -745,6 +777,60 @@ const tests = [
     return [inPoints && heading && !heading.ignored && announced, `vue points : ${inPoints} ; titre lisible : ${Boolean(heading && !heading.ignored)} ; « Vue points » annoncé : ${announced}`];
   }],
 ];
+
+// Les essais propres au téléphone : seulement avec --telephone.
+const capturesFolder = join(repo, "proposals", "Claude", "telephone-2026-10-07", "captures");
+if (phone) tests.push(
+  ["téléphone : temps de chargement, sans cache", async (p, b) => {
+    await b.send("Network.enable");
+    await b.send("Network.setCacheDisabled", { cacheDisabled: true });
+    const seen = [];
+    try {
+      for (const path of ["/exemples/lecons/01-page.holo", "/exemples/site-reference/accueil.holo", "/exemples/lecons/84-donnees-arrivees-ou-pas.holo", "/mondes/big-bang.holo"]) {
+        await p.open(path, 2500);
+        const [ready, loaded, bytes] = await p.value(`(() => { const n = performance.getEntriesByType("navigation")[0]; const all = [n, ...performance.getEntriesByType("resource")]; return [Math.round(n.domContentLoadedEventEnd), Math.round(n.loadEventEnd), all.reduce((s, e) => s + (e.transferSize || 0), 0)]; })()`);
+        seen.push(`${path.split("/").pop()} : prête ${ready} ms, chargée ${loaded} ms, ${(bytes / 1000).toFixed(1)} Ko`);
+      }
+    } finally {
+      await b.send("Network.setCacheDisabled", { cacheDisabled: false });
+    }
+    return [true, seen.join(" ; ")];
+  }],
+  ["téléphone : une lettre tapée, la liste refaite (leçon 82)", async (p) => {
+    await p.open("/exemples/lecons/82-chercher-filtrer-trier.holo");
+    await p.until(`window.__holoStarted && document.querySelectorAll(".holo-line").length > 0`);
+    const times = [];
+    for (const letters of ["r", "ri", "riv", "", "h", "hu"]) {
+      times.push(await p.value(`(() => { const i = document.querySelector('input[data-bind="search"]'); const t0 = performance.now(); i.value = ${JSON.stringify(letters)}; i.dispatchEvent(new Event("input", { bubbles: true })); return Math.round((performance.now() - t0) * 10) / 10; })()`));
+    }
+    const worst = Math.max(...times);
+    return [worst < 50, `${times.join(", ")} ms ; la plus lente : ${worst} ms (cible : moins de 50 ms)`];
+  }],
+  ["téléphone : le champ à virgule et le champ date (leçons 86, 87)", async (p, b) => {
+    await p.open("/exemples/lecons/86-nombres-a-virgule.holo");
+    await p.until("window.__holoStarted");
+    const attributes = await p.value(`(() => { const i = document.querySelector('input[data-bind="price"]'); return [i.type, i.inputMode, i.step, i.value].join(" "); })()`);
+    // La virgule, comme sur un clavier français : Chrome la prend-il dans un champ de nombre ?
+    await p.value(`(() => { const i = document.querySelector('input[data-bind="price"]'); i.focus(); i.select(); })()`);
+    await b.send("Input.insertText", { text: "9,99" });
+    await pause(400);
+    const comma = await p.value(`[document.querySelector('input[data-bind="price"]').value, (document.getElementById("page").innerText.match(/Prix : [^€]*€/) ?? ["?"])[0]]`);
+    await p.open("/exemples/lecons/87-des-dates.holo");
+    await p.until("window.__holoStarted");
+    const date = await p.value(`(() => { const i = document.querySelector('input[data-bind="arrival"]'); return [i.type, i.min].join(" "); })()`);
+    return [attributes.startsWith("number decimal 0.01") && date.startsWith("date "), `champ à virgule : ${attributes} ; « 9,99 » écrit → champ « ${comma[0]} », page « ${comma[1]} » ; champ date : ${date}`];
+  }],
+  ["téléphone : des captures", async (p, b) => {
+    mkdirSync(capturesFolder, { recursive: true });
+    const pages = ["01-page", "53-telephone", "80-tailles-qui-suivent", "82-chercher-filtrer-trier", "84-donnees-arrivees-ou-pas", "85-une-cle-pour-chaque-element", "86-nombres-a-virgule", "87-des-dates"];
+    for (const name of pages) {
+      await p.open(`/exemples/lecons/${name}.holo`, 2500);
+      const shot = await b.send("Page.captureScreenshot", { format: "png" });
+      writeFileSync(join(capturesFolder, `${name}.png`), Buffer.from(shot.result.data, "base64"));
+    }
+    return [true, `${pages.length} captures dans proposals/Claude/telephone-2026-10-07/captures/`];
+  }],
+);
 
 const server = await startServer();
 const browser = await startChrome();
