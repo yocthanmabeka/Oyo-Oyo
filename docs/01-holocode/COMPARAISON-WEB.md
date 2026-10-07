@@ -156,6 +156,8 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `Date` (la date et l'heure du jour) | `{year}`, `{month}`, `{day}`, `{weekday}`, `{hour}`, `{minute}` | fait ; pas encore de calcul sur les dates |
 | Garder une valeur, l'afficher (un panier) | `State(cart: 0)`, `{cart}`, `cart.add(1)` | fait : des nombres entiers ; avec `Prices`, le moteur calcule `{count}` et `{total}` |
 | Afficher sous condition | `If(cart, is: 0, children: [...])` | fait |
+| Une clé stable par ligne (`key` de React), le focus gardé quand la liste change | `Repeat(over: tasks, key: id, …)` ; le clavier suit la ligne, rien à écrire | fait (`ADR-065`, à valider) |
+| Pagination : le total avant de couper, « 4 sur 6 » | `Filter(…, limit: shown, total: matching)`, `{matching}`, `If(shown, under: matching, …)` | fait (`ADR-065`, à valider) |
 | Dire « chargement » et « échec », réessayer (`fetch`, `response.ok`, `AbortController`) | `Data(name: Shop, …)`, `On(Shop.done, …)`, `On(Shop.failed, …)`, `Shop.refresh` | fait (`ADR-064`, à valider) ; 10 secondes au plus ; une lecture à la fois |
 | Comparer des textes (`size === "L"`, `a !== b`) | `If(size, is: "L")`, `If(again, not: email)`, `When(answer, is: "Paris", effect: …)` | fait (`ADR-063`, à valider) ; à la lettre près ; plus grand et plus petit : pour les nombres |
 | Répéter sur une liste (`for`, `map`) | `Repeat(items: [ Item(…) ], children: [ … ])` : une liste écrite dans le fichier ; `Repeat(over: tasks, …)` : une liste qui change pendant la visite | fait  |

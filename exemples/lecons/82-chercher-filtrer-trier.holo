@@ -7,9 +7,12 @@
 //              contains: search, in: [title],      cherche un mot dans le titre
 //              field: kind, is: chosen,            garde une seule sorte
 //              sortBy: price, reverse: true,       trie par prix, du plus cher au moins cher
-//              limit: shown),                      n'en montre que « shown »
+//              limit: shown,                       n'en montre que « shown »
+//              total: matching),                   combien sont trouvées avant de couper
 //     ]
-//   On la montre comme une liste : Repeat(over: found, …), et {found} est son nombre d'éléments.
+//   On la montre comme une liste : Repeat(over: found, …), et {found} est son nombre d'éléments ;
+//   {matching}, le nombre trouvé avant de couper : « 4 sur 6 ». « Montrer plus » se cache quand
+//   tout est montré : If(shown, under: matching, …).
 //   empty: "…" dans Repeat dit ce qu'on écrit quand il n'y a rien.
 //   Une valeur vide ne filtre pas : un champ de recherche vide montre tout. Les majuscules et
 //   les accents ne comptent pas : « ELAN » trouve « Élan ». La liste calculée ne se change pas
@@ -33,18 +36,18 @@ Page(
     Item(title: "Orage", kind: "huile", price: 150),
   ]),
   computed: [
-    Filter(name: found, from: articles, contains: search, in: [title], field: kind, is: chosen, sortBy: price, reverse: true, limit: shown),
+    Filter(name: found, from: articles, contains: search, in: [title], field: kind, is: chosen, sortBy: price, reverse: true, limit: shown, total: matching),
   ],
   children: [
     H1("Chercher, filtrer, trier"),
     Input(value: search, label: "Chercher un titre"),
     Choice(value: chosen, label: "Sorte", options: [ "huile", "aquarelle", "encre" ]),
     Button(name: Toutes, text: "Toutes les sortes"),
-    P("{found} œuvre(s), de la plus chère à la moins chère :"),
+    P("{found} œuvre(s) sur {matching}, de la plus chère à la moins chère :"),
     Repeat(over: found, empty: "Aucune œuvre ne correspond.", children: [
       Row.oeuvre(gap: 12px, align: between, children: [ Text("{item.title}"), Text("{item.price} €") ]),
     ]),
-    Button(name: Plus, text: "Montrer plus"),
+    If(shown, under: matching, children: [ Button(name: Plus, text: "Montrer plus") ]),
 
     Hr(),
     Row(gap: 16px, align: between, children: [

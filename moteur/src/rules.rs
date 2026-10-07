@@ -132,6 +132,18 @@ pub fn check_rules(program: &Program) -> Result<(), Error> {
         if !crate::lists::is_list(program, &list) {
             return Err(Error { message: format!("« Repeat(over: {list}) » : aucune liste ne s'appelle « {list} » ; déclare-la, state: State({list}: [])"), pos: repeat.pos });
         }
+        // La clé choisie, key: id : un champ des éléments de la liste.
+        if let Some(crate::holo::Argument { value: Value::Name(field), pos, .. }) = repeat.argument("key") {
+            match crate::lists::kind(program, &list) {
+                Some(crate::lists::Kind::Records(fields)) if !fields.contains(field) => {
+                    return Err(Error { message: format!("« Repeat(key: {field}) » : les éléments de « {list} » n'ont pas de champ « {field} » ; champs : {}", fields.join(", ")), pos: *pos });
+                }
+                Some(crate::lists::Kind::Texts) => {
+                    return Err(Error { message: format!("« Repeat(key: …) » choisit un champ ; les éléments de « {list} » sont des textes : chacun est déjà sa propre clé"), pos: *pos });
+                }
+                _ => {}
+            }
+        }
     }
     for_each_block(&program.root, &mut |block| {
         if block.name == "On" {

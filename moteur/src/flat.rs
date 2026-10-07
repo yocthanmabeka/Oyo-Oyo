@@ -117,7 +117,7 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
         None => (crate::state::initial(program).unwrap_or_default(), crate::state::initial_texts(program), crate::lists::initial(program)),
     };
     // Les lignes de `Repeat(over:)` sont fabriquées d'après les listes, et les listes calculées.
-    let computed = crate::computed::apply(program, &start_value, &texts, &lists);
+    let (computed, totals) = crate::computed::apply_with_totals(program, &start_value, &texts, &lists);
     lists.extend(computed);
     crate::lists::set_running(lists);
     if page.name != "Page" && page.name != "World" {
@@ -158,6 +158,7 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
     };
     // Les valeurs de la page, à leur départ, là où un texte les montre : « {cart} » (ADR-023).
     let mut shown = crate::state::to_show(program, &start_value);
+    shown.extend(totals);
     // Une liste montre son nombre d'éléments, et une condition le compare (ADR-044).
     shown.extend(crate::lists::counts(&crate::lists::running()));
     // Les conditions, à leur départ : ce qui est faux est caché dès le premier affichage (ADR-025).
@@ -1036,7 +1037,9 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
             let Some(Value::Name(list)) = block.argument("over").map(|a| &a.value) else {
                 return Err(Error { message: "« Repeat » a été déplié à la lecture ; ici, il attend « over: » : Repeat(over: tasks, children: [ … ])".into(), pos: block.pos });
             };
-            output.push_str(&format!("<div class=\"holo-Lines\" data-list=\"{}\">", escape(list)));
+            // Où elle est écrite dans le fichier : deux répétitions d'une même liste se redessinent
+            // chacune avec son propre modèle (avant : la seconde recevait les lignes de la première).
+            output.push_str(&format!("<div class=\"holo-Lines\" data-list=\"{}\" data-repeat=\"{}:{}\">", escape(list), block.pos.line, block.pos.column));
             output.push_str(&lines(block, list, base)?);
             output.push_str("</div>");
         }
@@ -1159,10 +1162,13 @@ fn lines(repeat: &Block, list: &str, base: &str) -> Result<String, Error> {
     for argument in &repeat.arguments {
         match argument.name.as_deref() {
             Some("over" | "children" | "rules" | "name") => {}
+            // La clé choisie par l'auteur : un champ de l'élément, key: id (lot 2 du web).
+            Some("key") if matches!(argument.value, Value::Name(_)) => {}
+            Some("key") => return Err(Error { message: "« Repeat(key: …) » attend le nom d'un champ des éléments, comme key: id".into(), pos: argument.pos }),
             // Ce qui s'écrit quand la liste est vide (lot 2 du web) : « Aucun résultat ».
             Some("empty") if matches!(argument.value, Value::Text(_)) => {}
             Some("empty") => return Err(Error { message: "« Repeat(empty: …) » attend un texte entre guillemets : empty: \"Aucun résultat\"".into(), pos: argument.pos }),
-            Some(other) => return Err(Error { message: format!("« Repeat(over: …) » n'a pas de paramètre « {other} » ; paramètres possibles : over, children, rules"), pos: argument.pos }),
+            Some(other) => return Err(Error { message: format!("« Repeat(over: …) » n'a pas de paramètre « {other} » ; paramètres possibles : over, key, empty, children, rules"), pos: argument.pos }),
             None => return Err(Error { message: "chaque paramètre de « Repeat » est nommé : Repeat(over: tasks, children: [ … ])".into(), pos: argument.pos }),
         }
     }
@@ -1278,9 +1284,22 @@ fn lines(repeat: &Block, list: &str, base: &str) -> Result<String, Error> {
         // La clé de la ligne (ADR-057) : la même pour le même élément, d'un état à l'autre. La page
         // garde telle quelle une ligne dont la clé et le contenu n'ont pas changé : le champ où
         // l'on écrit, un pli ouvert, le focus restent où ils sont.
-        let already = elements[..rank].iter().filter(|e| *e == element).count();
-        let key = element.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, o| (h ^ u64::from(o)).wrapping_mul(0x0100_0000_01b3));
-        output.push_str(&format!("<div class=\"holo-line\" data-rank=\"{rank}\" data-key=\"{key:x}-{already}\">{line}</div>"));
+        // Avec `key: id`, la clé est ce champ : elle reste la même quand le reste de l'élément change,
+        // et la page garde la ligne (le focus avec) ; elle commence par « k: ».
+        let key = match repeat.argument("key").map(|a| &a.value) {
+            Some(Value::Name(field)) => {
+                let of = |e: &String| crate::lists::fields(e).into_iter().find(|(c, _)| c == field).map(|(_, v)| v).unwrap_or_default();
+                let value = of(element);
+                let already = elements[..rank].iter().filter(|e| of(e) == value).count();
+                format!("k:{}-{already}", escape(&value))
+            }
+            _ => {
+                let already = elements[..rank].iter().filter(|e| *e == element).count();
+                let hash = element.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, o| (h ^ u64::from(o)).wrapping_mul(0x0100_0000_01b3));
+                format!("{hash:x}-{already}")
+            }
+        };
+        output.push_str(&format!("<div class=\"holo-line\" data-rank=\"{rank}\" data-key=\"{key}\">{line}</div>"));
     }
     // Une liste vide dit ce qu'on a écrit dans `empty:` (lot 2 du web) ; un lecteur d'écran
     // l'annonce quand il apparaît, après une recherche qui ne trouve rien.
@@ -1295,8 +1314,12 @@ fn lines(repeat: &Block, list: &str, base: &str) -> Result<String, Error> {
 /// Les lignes d'une liste pour cet état : la page les pose à la place des anciennes (ADR-044).
 pub fn list_lines(program: &Program, base: &str, numbers: &crate::state::State, texts: &crate::state::Texts, lists: &crate::lists::Lists, name: &str) -> String {
     crate::lists::set_running(lists.clone());
-    let Some((repeat, _)) = crate::lists::repeats(program).into_iter().find(|(_, l)| l == name) else { return String::new() };
+    // `tasks@12:5` : la répétition de « tasks » écrite ligne 12, colonne 5 ; `tasks` seul : la première.
+    let (name, place) = name.split_once('@').map_or((name, None), |(n, p)| (n, Some(p)));
+    let written_at = |repeat: &Block| place.is_none_or(|p| p == format!("{}:{}", repeat.pos.line, repeat.pos.column));
+    let Some((repeat, _)) = crate::lists::repeats(program).into_iter().find(|(r, l)| l == name && written_at(r)) else { return String::new() };
     let mut shown = crate::state::to_show(program, numbers);
+    shown.extend(crate::computed::totals(program, numbers, texts, lists));
     shown.extend(crate::lists::counts(lists));
     let responses = crate::state::conditions(program, &shown, texts);
     lines(repeat, name, base).map(|html| fill_marks(html, &shown, texts, &responses)).unwrap_or_default()

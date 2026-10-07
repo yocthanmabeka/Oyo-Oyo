@@ -1221,8 +1221,10 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
     let texts = initial_texts(program);
     let mut showable = with_texts(&to_show(program, &state), &texts);
     showable.extend(crate::lists::counts(&crate::lists::initial(program)));
-    // Le nombre d'éléments d'une liste calculée se montre aussi : « {found} résultat(s) ».
+    // Le nombre d'éléments d'une liste calculée se montre aussi : « {found} résultat(s) » ; et son
+    // total avant de couper, « sur {matching} ».
     showable.extend(crate::computed::names(program).into_iter().map(|name| (name, 0)));
+    showable.extend(crate::computed::total_names(program).into_iter().map(|name| (name, 0)));
     let models = crate::lists::models_and_lists(program);
     let is_text = |name: &str| texts.iter().any(|(known, _)| known == name);
     let declare = state_block(program)?;
@@ -1374,7 +1376,8 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
         // valeur de texte), un nombre à un nombre (écrit, ou une autre valeur de nombre).
         let compares = (block.name == "If" && crate::lists::element_subject(block).is_none()) || (block.name == "When" && block.argument("meets").is_none());
         if let (true, Some(Argument { value: Value::Name(value), .. })) = (compares, block.arguments.first()) {
-            let numbers = to_show(program, &state);
+            let mut numbers = to_show(program, &state);
+            numbers.extend(crate::computed::total_names(program).into_iter().map(|name| (name, 0)));
             let is_number = |name: &str| numbers.iter().any(|(known, _)| known == name);
             let sort = |name: &str| if is_text(name) { "un texte" } else { "un nombre" };
             for argument in &block.arguments[1..] {

@@ -38,6 +38,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 83 : comparer des textes", to: "83-comparer-des-textes.holo"),
+      A("Leçon 85 : une clé pour chaque élément →", to: "85-une-cle-pour-chaque-element.holo"),
     ]),
   ],
   rules: [

@@ -422,7 +422,9 @@
       const chunk = written.split(";").find((m) => m.startsWith(`${name}=[`)) ?? "";
       if (container.dataset.seen === chunk) continue;
       container.dataset.seen = chunk;
-      placeLines(container, list_html(source, base, written, name));
+      // Chaque répétition dit où elle est écrite (`tasks@12:5`) : deux répétitions d'une même
+      // liste se redessinent chacune avec son modèle.
+      placeLines(container, list_html(source, base, written, container.dataset.repeat ? `${name}@${container.dataset.repeat}` : name));
       window.__holoWatchEntrances?.(container);
     }
   }
@@ -434,6 +436,16 @@
   function placeLines(container, html) {
     const model = document.createElement("template");
     model.innerHTML = html;
+    // Le focus du clavier (lot 2 du web) : si la ligne où il est doit être refaite, il passe au
+    // même bouton (même nom, même place) de la nouvelle ligne. Celle-ci est retrouvée par sa
+    // clé quand l'auteur l'a choisie (`key: id`, une clé en « k: »), sinon par son rang.
+    const focused = document.activeElement;
+    const focusLine = focused && container.contains(focused) ? focused.closest(".holo-line") : null;
+    const twin = (line) => {
+      const same = (e) => e.tagName === focused.tagName && (e.dataset.name ?? "") === (focused.dataset.name ?? "");
+      const index = [...focusLine.querySelectorAll(focused.tagName)].filter(same).indexOf(focused);
+      return [...line.querySelectorAll(focused.tagName)].filter(same)[index];
+    };
     const oldOnes = new Map([...container.children].filter((l) => l.dataset.key).map((l) => [l.dataset.key, l]));
     const lines = [...model.content.children].map((newOne) => {
       const oldOne = oldOnes.get(newOne.dataset.key);
@@ -452,6 +464,13 @@
       if (container.children[rank] !== line) container.insertBefore(line, container.children[rank] ?? null);
     });
     while (container.children.length > lines.length) container.lastElementChild.remove();
+    // Une ligne retirée : le focus passe à la ligne qui prend sa place (ou à la dernière).
+    if (focusLine && !focusLine.isConnected && lines.length) {
+      const key = focusLine.dataset.key ?? "";
+      const again = (key.startsWith("k:") && lines.find((l) => l.dataset.key === key)) || lines[Math.min(Number(focusLine.dataset.rank), lines.length - 1)];
+      // Le même bouton, ou, s'il n'y est plus (« Fait » devenu « Rouvrir »), le premier de la ligne.
+      (twin(again) ?? again.querySelector("button, a[href], input, select, textarea, summary"))?.focus({ preventScroll: true });
+    }
   }
   // Un nouvel état : la page le montre, le garde, et regarde quelles attentes courent.
   function changeState(after) {

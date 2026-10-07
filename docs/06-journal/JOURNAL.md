@@ -6,6 +6,30 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Lot 2, cinquième partie : les lignes d'une liste (une clé, le clavier gardé, le total)
+
+- Fait (`ADR-065`, PROPOSITION : Yocthan n'a pas encore validé) :
+  - `Repeat(over: tasks, key: id)` : une ligne reconnue par un champ de son élément ;
+  - le clavier reste quand une ligne est refaite, et suit la ligne si elle change de place ;
+  - `Filter(…, limit: shown, total: matching)` : « 4 sur 6 », et « Montrer plus » se cache quand tout est montré.
+- Trois défauts, chacun d'abord constaté par une sonde sur le moteur de `main`, puis corrigés :
+  - deux `Repeat(over:)` sur la même liste : après un changement, la seconde recevait les lignes de la première (« B: Pain » devenait « A: Pain ») ;
+  - **un défaut de mon lot 2a** : une règle de ligne d'une liste calculée (`item.done.set(1)` sur `ordered`) était acceptée mais ne changeait rien. Elle change maintenant l'élément d'origine, et `tasks.remove(item)` est permis depuis ces lignes ;
+  - le focus perdu dans une ligne refaite (relevé par l'exploration #82).
+- Leçon 85 ; la leçon 82 montre le total. Trois essais de plus dans Chrome.
+- Exécuté :
+  - `cargo test --release` → 135 tests passent (4 nouveaux) ;
+  - le moteur léger fait 510 701 octets (505 168 avant ce lot) ;
+  - vérifié dans les deux sens : sans la reprise du clavier, l'essai de la leçon 85 rate ; remise, il passe.
+
+**Erreurs en route**
+
+- Encore une page d'essai sans champ pour `search` : la saisie était ignorée, et mon compte attendu était faux (« ri » ne trouve qu'une œuvre).
+- Ma page d'essai mettait `gap` dans un style : HoloCode le refuse, à juste titre (`ADR-017`).
+- Mon essai cherchait `.a .holo-line`, mais un style `.a` devient une classe préfixée dans la page. Il prend maintenant les deux listes dans l'ordre.
+
+---
+
 ## 2026-10-07 — Lot 2, quatrième partie : la page du serveur arrive avec ses données
 
 - Fait (`ADR-064`) : `holo html` lit le fichier de `Data(from:)` rangé à côté du `.holo`, 64 Ko au plus. L'arbitre le range comme dans le navigateur, puis `Shop.done`, et la page est fabriquée à partir de là. Un robot de recherche, ou un visiteur dont le moteur tarde, voit les données tout de suite. Le serveur de démonstration n'a rien eu à changer : il appelle déjà `holo html`.

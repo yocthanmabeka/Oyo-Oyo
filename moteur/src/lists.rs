@@ -625,6 +625,8 @@ pub fn check_request(request: &Block, program: &Program, rule: &Block, in_line: 
             ("push", _) => Err(error(format!("« {value}.push » attend un texte de la page, ou un texte entre guillemets : {value}.push(task)"))),
             ("remove", [Argument { name: None, value: Value::Name(item), .. }]) if item == "item" => match in_line {
                 Some(list) if list == value => Ok(()),
+                // Dans la répétition d'une liste calculée : on retire l'élément de sa source.
+                Some(list) if crate::computed::is_computed(program, list) && crate::computed::source_of(program, list).as_deref() == Some(value) => Ok(()),
                 _ => Err(error(format!("« {value}.remove(item) » s'écrit dans les règles de Repeat(over: {value}, …) : il retire l'élément de la ligne touchée"))),
             },
             ("remove", _) => Err(error(format!("« {value}.remove » retire l'élément d'une ligne : {value}.remove(item), dans Repeat(over: {value}, rules: [ … ])"))),
@@ -661,6 +663,9 @@ pub fn arbitrate(program: &Program, numbers: &State, texts: &Texts, lists: &List
     let (base, line) = signal_and_line(signal);
     let (mut texts, mut lists) = (texts.clone(), lists.clone());
     let of_line = line_rules(program);
+    // Une règle écrite dans la répétition d'une liste calculée : la ligne touchée est un élément de
+    // la liste calculée, une copie d'un élément de sa source (lot 2 du web).
+    let computed = crate::computed::apply(program, numbers, &texts, &lists);
     let _ = for_each_block(&program.root, &mut |rule| {
         if rule.name != "On" || !matches!(rule.arguments.iter().find(|a| a.name.is_none()).map(|a| &a.value), Some(Value::Name(s)) if s == base) {
             return Ok(());
@@ -671,7 +676,21 @@ pub fn arbitrate(program: &Program, numbers: &State, texts: &Texts, lists: &List
             return Ok(());
         }
         let element = match (&line_list, line) {
-            (Some(list), Some(rank)) => lists.iter().find(|(n, _)| n == list).and_then(|(_, e)| e.get(rank).cloned()),
+            (Some(list), Some(rank)) => lists.iter().chain(computed.iter()).find(|(n, _)| n == list).and_then(|(_, e)| e.get(rank).cloned()),
+            _ => None,
+        };
+        // Là où vit l'élément touché : sa liste déclarée, et son rang. Pour une liste calculée, sa
+        // source, au rang de l'élément identique (autant d'identiques avant lui) : `item.done.set(1)`
+        // et `tasks.remove(item)` changent l'élément d'origine (avant : rien ne changeait).
+        let home: Option<(String, usize)> = match (&line_list, line, &element) {
+            (Some(list), Some(rank), _) if !computed.iter().any(|(n, _)| n == list) => Some((list.clone(), rank)),
+            (Some(list), Some(rank), Some(touched)) => {
+                let before = computed.iter().find(|(n, _)| n == list).map_or(0, |(_, shown)| shown[..rank.min(shown.len())].iter().filter(|e| *e == touched).count());
+                crate::computed::source_of(program, list).and_then(|source| {
+                    let index = lists.iter().find(|(n, _)| *n == source)?.1.iter().enumerate().filter(|(_, e)| *e == touched).nth(before)?.0;
+                    Some((source, index))
+                })
+            }
             _ => None,
         };
         for request in crate::state::requests_of(rule) {
@@ -685,7 +704,8 @@ pub fn arbitrate(program: &Program, numbers: &State, texts: &Texts, lists: &List
             };
             // `item.done.set(1)` : le champ de l'élément de la ligne touchée (ADR-057).
             if value == "item" {
-                if let (Some(list), Some(rank), Some((field, operation))) = (&line_list, line, verb.split_once('.')) {
+                if let (Some((list, rank)), Some((field, operation))) = (&home, verb.split_once('.')) {
+                    let rank = *rank;
                     let new_text = match argument {
                         Some(Value::Name(n)) => read_text(n, &texts).or_else(|| numbers.iter().find(|(c, _)| c == n).map(|(_, v)| v.to_string())),
                         _ => None,
@@ -743,9 +763,9 @@ pub fn arbitrate(program: &Program, numbers: &State, texts: &Texts, lists: &List
                         }
                     }
                     ("remove", _) => {
-                        if let (Some(rank), true) = (line, line_list.as_deref() == Some(value)) {
-                            if rank < elements.len() {
-                                elements.remove(rank);
+                        if let Some((list, rank)) = &home {
+                            if list == value && *rank < elements.len() {
+                                elements.remove(*rank);
                             }
                         }
                     }
@@ -784,7 +804,7 @@ mod tests {
         assert_eq!(crate::arbitrate(source, &after, "Empty.tap"), "task=';tasks=[]");
         // La page fabriquée montre une ligne par élément ; le compte, et la condition.
         let html = crate::flat_view(source, "").unwrap();
-        assert!(html.contains("<div class=\"holo-Lines\" data-list=\"tasks\"><div class=\"holo-line\" data-rank=\"0\" data-key=\"") && html.contains("-0\"><div class=\"holo-Row\" style=\"\"><div class=\"holo-Text\">Pain</div><button type=\"button\" class=\"holo-Button\" data-name=\"Done\">x</button></div></div></div>"), "{html}");
+        assert!(html.contains("<div class=\"holo-Lines\" data-list=\"tasks\" data-repeat=\"") && html.contains("\"><div class=\"holo-line\" data-rank=\"0\" data-key=\"") && html.contains("-0\"><div class=\"holo-Row\" style=\"\"><div class=\"holo-Text\">Pain</div><button type=\"button\" class=\"holo-Button\" data-name=\"Done\">x</button></div></div></div>"), "{html}");
         // La clé d'un élément ne change pas quand un autre élément est retiré avant lui.
         let key_of = |state: &str, text: &str| crate::list_html(source, "", state, "tasks").split("data-key=\"").skip(1).find(|l| l.contains(text)).map(|l| l[..l.find('"').unwrap()].to_string());
         assert_eq!(key_of(&after, "Lait"), key_of(&crate::arbitrate(source, &after, "Done.tap@0"), "Lait"));
@@ -807,6 +827,59 @@ mod tests {
             let error = crate::check_page(source).err().or_else(|| crate::flat_view(source, "").err()).unwrap_or_else(|| panic!("accepté : {source}"));
             assert!(error.message.contains(message), "{source}\n→ {error}");
         }
+    }
+
+    #[test]
+    fn two_repeats_of_one_list_keep_their_own_lines() {
+        // Avant : après un changement, la seconde répétition recevait les lignes de la première.
+        let source = "Page(
+  state: State(tasks: [\"Pain\", \"Lait\"]),
+  children: [
+    Repeat(over: tasks, children: [ Text(\"A: {item}\") ]),
+    Repeat(over: tasks, children: [ Text(\"B: {item}\") ]),
+  ],
+)";
+        let html = crate::flat_view(source, "").unwrap();
+        assert!(html.contains(r#"data-list="tasks" data-repeat="4:5">"#) && html.contains(r#"data-list="tasks" data-repeat="5:5">"#), "{html}");
+        let state = crate::initial_state(source);
+        let first = crate::list_html(source, "", &state, "tasks@4:5");
+        let second = crate::list_html(source, "", &state, "tasks@5:5");
+        assert!(first.contains("A: Pain") && !first.contains("B:"), "{first}");
+        assert!(second.contains("B: Pain") && second.contains("B: Lait") && !second.contains("A:"), "{second}");
+        // Sans place, la première, comme avant.
+        assert_eq!(crate::list_html(source, "", &state, "tasks"), first);
+    }
+
+    #[test]
+    fn a_chosen_key_stays_when_the_element_changes() {
+        // `key: id` : la clé de la ligne est ce champ ; elle reste quand un autre champ change.
+        let source = r#"Page(
+  state: State(tasks: [ Item(id: "t1", title: "Pain", done: 0), Item(id: "t2", title: "Lait", done: 0) ]),
+  children: [
+    Repeat(over: tasks, key: id, children: [ Text("{item.title}"), Button(name: Done, text: "Fait") ],
+           rules: [ On(Done.tap, effect: item.done.set(1)) ]),
+  ],
+)"#;
+        let start = crate::initial_state(source);
+        let before = crate::list_html(source, "", &start, "tasks");
+        assert!(before.contains(r#"data-rank="0" data-key="k:t1-0""#) && before.contains(r#"data-rank="1" data-key="k:t2-0""#), "{before}");
+        let after = crate::list_html(source, "", &crate::arbitrate(source, &start, "Done.tap@0"), "tasks");
+        assert!(after.contains(r#"data-key="k:t1-0""#), "{after}");
+        // Sans clé choisie, la clé suit le contenu : elle change avec lui.
+        let plain = source.replace("key: id, ", "");
+        let (a, b) = (crate::list_html(&plain, "", &start, "tasks"), crate::list_html(&plain, "", &crate::arbitrate(&plain, &start, "Done.tap@0"), "tasks"));
+        let key = |html: &str| html.split("data-key=\"").nth(1).unwrap().split('"').next().unwrap().to_string();
+        assert_ne!(key(&a), key(&b));
+        // Les refus : un champ qui n'existe pas, une liste de textes, autre chose qu'un nom.
+        for (wrong, message) in [
+            ("key: ref,", "n'ont pas de champ « ref »"),
+            ("key: \"id\",", "attend le nom d'un champ"),
+        ] {
+            let error = crate::check_page(&source.replace("key: id,", wrong)).unwrap_err();
+            assert!(error.message.contains(message), "{wrong}\n→ {error}");
+        }
+        let texts = "Page(state: State(tasks: [\"Pain\"]), children: [ Repeat(over: tasks, key: title, children: [ Text(\"{item}\") ]) ])";
+        assert!(crate::check_page(texts).unwrap_err().message.contains("sont des textes"));
     }
 
     #[test]
