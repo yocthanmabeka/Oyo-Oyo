@@ -100,9 +100,8 @@ pub fn condition(block: &Block) -> Result<(&str, Vec<(&str, Term<'_>)>), Error> 
             // Un texte se compare à un texte (ADR-063) : If(size, is: "M"), If(buyer, not: "")
             // (rempli). Plus grand, plus petit : seulement des nombres.
             (Some(word @ ("is" | "not")), Value::Text(text)) => comparisons.push((if word == "is" { "is" } else { "not" }, Term::Text(text.as_str()))),
-            (Some(word @ ("over" | "under")), Value::Text(_)) => {
-                return Err(Error { message: format!("« {word} » compare des nombres ; un texte se compare par is (égal) ou not (différent) : {}({value}, is: \"…\")", block.name), pos: argument.pos })
-            }
+            // Plus tard, plus tôt : seulement deux dates (ADR-067), vérifié avec la page.
+            (Some(word @ ("over" | "under")), Value::Text(text)) => comparisons.push((word, Term::Text(text.as_str()))),
             // Un nombre à virgule (ADR-066) : If(price, over: 9.99).
             (Some(word), Value::Number { value: number, unit: None, places }) if COMPARISONS.contains(&word) && (1..=PLACES_MAX).contains(&u32::from(*places)) && *number >= 0.0 => {
                 let places = u32::from(*places);
@@ -164,6 +163,11 @@ pub fn holds(program: &Program, value: &str, comparisons: &[(&str, Term<'_>)], n
             match (*word, other) {
                 ("is", Some(other)) => text == other,
                 ("not", Some(other)) => text != other,
+                // Deux dates : plus tard, plus tôt (ADR-067). Une date vide ne compare rien.
+                ("over" | "under", Some(other)) => match (crate::dates::days(text), crate::dates::days(other)) {
+                    (Some(a), Some(b)) => if *word == "over" { a > b } else { a < b },
+                    _ => false,
+                },
                 _ => false,
             }
         });
@@ -233,7 +237,7 @@ pub fn kept_values(program: &Program) -> Result<Vec<String>, Error> {
     let mut kept_values = Vec::new();
     for name in names {
         match name {
-            Value::Name(name) if CLOCK.contains(&name.as_str()) => return Err(error(format!("« keep » : « {name} » est l'heure du visiteur, elle ne se garde pas"))),
+            Value::Name(name) if CLOCK.contains(&name.as_str()) || name == crate::dates::TODAY => return Err(error(format!("« keep » : « {name} » est l'heure du visiteur, elle ne se garde pas"))),
             Value::Name(name) if crate::computed::is_computed(program, name) => return Err(error(format!("« keep » : « {name} » est une liste calculée ; elle se refait d'après sa source, garde plutôt la source"))),
             Value::Name(name) if declared.iter().any(|(known, _)| known == name) || texts.iter().any(|(known, _)| known == name) || crate::lists::is_list(program, name) => kept_values.push(name.clone()),
             Value::Name(name) => return Err(error(format!("« keep » : aucune valeur ne s'appelle « {name} » ; on ne garde que des valeurs déclarées dans « State »"))),
@@ -356,11 +360,13 @@ fn round_div(a: u128, b: u128) -> u64 {
 
 /// Le plus petit nombre qu'une glissière laisse choisir (ADR-042) ; 0 sinon.
 fn floor(program: &Program, name: &str) -> u64 {
+    let places = places(program, name);
     let mut floor = 0;
     let _ = for_each_block(&program.root, &mut |block| {
-        if block.name == "Slider" && matches!(block.argument("value").map(|a| &a.value), Some(Value::Name(value)) if value == name) {
-            if let Some(Value::Integer(min)) = block.argument("min").map(|a| &a.value) {
-                floor = floor.max(*min);
+        if matches!(block.name.as_str(), "Slider" | "Input") && matches!(block.argument("value").map(|a| &a.value), Some(Value::Name(value)) if value == name) {
+            // Le min d'une glissière, ou d'un champ de nombre, à l'échelle de la valeur (ADR-066).
+            if let Some(min) = block.argument("min").and_then(|a| literal_units(&a.value, places)) {
+                floor = floor.max(min);
             }
         }
         Ok(())
@@ -820,14 +826,22 @@ pub const TEXT_LONG: usize = 1000;
 
 /// Les textes déclarés par la page, à leur départ.
 pub fn initial_texts(program: &Program) -> Texts {
-    let Ok(Some(block)) = state_block(program) else { return Vec::new() };
-    block.arguments
-        .iter()
-        .filter_map(|a| match (&a.name, &a.value) {
-            (Some(name), Value::Text(text)) => Some((name.clone(), text.clone())),
-            _ => None,
-        })
-        .collect()
+    let mut texts: Texts = match state_block(program) {
+        Ok(Some(block)) => block
+            .arguments
+            .iter()
+            .filter_map(|a| match (&a.name, &a.value) {
+                (Some(name), Value::Text(text)) => Some((name.clone(), text.clone())),
+                _ => None,
+            })
+            .collect(),
+        _ => Vec::new(),
+    };
+    // La date du jour (ADR-067), quand la page la lit : un texte que le moteur donne, toujours frais.
+    if crate::dates::uses_today(program) && !texts.iter().any(|(name, _)| name == crate::dates::TODAY) {
+        texts.push((crate::dates::TODAY.to_string(), crate::dates::today()));
+    }
+    texts
 }
 
 /// Les champs montrés dans un texte : `{item.title}`, `{item.price:cents}` → (title, None), (price, Some(cents)).
@@ -899,6 +913,10 @@ pub fn reread_texts(program: &Program, written: &str) -> Texts {
     let mut texts = initial_texts(program);
     for chunk in written.split(';') {
         if let Some((name, code)) = chunk.split_once("='") {
+            // La date du jour ne se relit pas : le moteur la redonne.
+            if name == crate::dates::TODAY {
+                continue;
+            }
             if let (Some((_, place)), Some(text)) = (texts.iter_mut().find(|(known, _)| known == name), decode(code)) {
                 // Les retours à la ligne d'un texte long (Input(lines:)) sont gardés ; les autres
                 // caractères invisibles, non.
@@ -970,7 +988,8 @@ pub fn input_text(program: &Program, texts: &Texts, name: &str, written: &str) -
         let digits = |t: &str, template: &str| t.len() == template.len() && t.chars().zip(template.chars()).all(|(c, g)| if g == '9' { c.is_ascii_digit() } else { c == g });
         let correct = written.is_empty()
             || match kind.as_str() {
-                "date" => digits(written, "9999-99-99"),
+                // Un vrai jour du calendrier, entre `min` et `max` s'ils sont donnés (ADR-067).
+                "date" => crate::dates::days(written).is_some() && date_within(program, name, written),
                 "time" => digits(written, "99:99"),
                 _ => written.len() == 7 && written.starts_with('#') && written[1..].chars().all(|c| c.is_ascii_hexdigit()),
             };
@@ -991,6 +1010,24 @@ pub fn input_text(program: &Program, texts: &Texts, name: &str, written: &str) -
         *place = if lines { clean_multiline(written, length) } else { clean(written, length) };
     }
     texts
+}
+
+/// Une date saisie est-elle entre les bornes de son champ, `Input(type: date, min: today) ?
+fn date_within(program: &Program, name: &str, written: &str) -> bool {
+    let mut within = true;
+    let _ = for_each_block(&program.root, &mut |block| {
+        if block.name == "Input" && matches!(block.argument("value").map(|a| &a.value), Some(Value::Name(v)) if v == name) {
+            let day = crate::dates::days(written);
+            if let (Some(min), Some(day)) = (crate::dates::bound(block.argument("min").map(|a| &a.value)).and_then(|m| crate::dates::days(&m)), day) {
+                within &= day >= min;
+            }
+            if let (Some(max), Some(day)) = (crate::dates::bound(block.argument("max").map(|a| &a.value)).and_then(|m| crate::dates::days(&m)), day) {
+                within &= day <= max;
+            }
+        }
+        Ok(())
+    });
+    within
 }
 
 /// Ce qu'un formulaire envoie (ADR-042) : les valeurs que présentent ses champs, en JSON,
@@ -1224,7 +1261,8 @@ fn clock_read(program: &Program) -> Vec<&'static str> {
 
 /// Le fichier lit-il l'heure ? La page la tient alors à jour, minute après minute.
 pub fn reads_time(program: &Program) -> bool {
-    !clock_read(program).is_empty()
+    // La date du jour aussi : la page la tient à jour, et passe minuit (ADR-067).
+    !clock_read(program).is_empty() || crate::dates::uses_today(program)
 }
 
 /// Une minute a passé : l'heure écrite dans l'état devient l'heure donnée au moteur, et les
@@ -1233,14 +1271,22 @@ pub fn advance_clock(program: &Program, written: &str) -> State {
     let now = reread(program, written);
     let texts = reread_texts(program, written);
     let mut before = now.clone();
+    // La date d'avant (ADR-067) : celle écrite dans l'état, pour qu'une règle qui guette
+    // « today » se déclenche à minuit.
+    let mut texts_before = texts.clone();
     for chunk in written.split(';') {
         if let Some((name, value)) = chunk.split_once('=') {
             if let (true, Some((_, place)), Ok(value)) = (CLOCK.contains(&name), before.iter_mut().find(|(known, _)| known == name), value.parse::<u64>()) {
                 *place = value;
             }
+            if let (Some(code), Some((_, place))) = (value.strip_prefix('\'').filter(|_| name == crate::dates::TODAY), texts_before.iter_mut().find(|(known, _)| known == crate::dates::TODAY)) {
+                if let Some(old) = decode(code) {
+                    *place = old;
+                }
+            }
         }
     }
-    suites(program, before, &texts, now, &texts)
+    suites(program, before, &texts_before, now, &texts)
 }
 
 fn initial_without_prices(program: &Program) -> Result<State, Error> {
@@ -1282,6 +1328,9 @@ fn initial_without_prices(program: &Program) -> Result<State, Error> {
         }
         if CLOCK.contains(&name.as_str()) {
             return Err(Error { message: format!("« {name} » est l'heure du visiteur, donnée par le moteur ; choisis un autre nom pour ta valeur (ADR-039)"), pos: argument.pos });
+        }
+        if name == crate::dates::TODAY {
+            return Err(Error { message: "« today » est la date du jour, donnée par le moteur ; choisis un autre nom pour ta valeur (ADR-067)".into(), pos: argument.pos });
         }
         if block.arguments.iter().filter(|a| a.name.as_deref() == Some(name.as_str())).count() > 1 {
             return Err(Error { message: format!("la valeur « {name} » est déclarée deux fois"), pos: argument.pos });
@@ -1336,7 +1385,7 @@ pub fn request<'a>(program: &Program, block: &'a Block, state: &State) -> Result
     match block.arguments.as_slice() {
         // La quantité peut être une autre valeur de la page : best.set(score). Ajouter, retirer ou
         // donner une valeur qui a plus de chiffres après la virgule en perdrait (ADR-066).
-        [Argument { name: None, value: Value::Name(other), .. }] if state.iter().any(|(known, _)| known == other) => {
+        [Argument { name: None, value: Value::Name(other), .. }] if state.iter().any(|(known, _)| known == other) || crate::computed::days_names(program).contains(other) => {
             let other_places = self::places(program, other);
             if !matches!(verb, "mul" | "div") && other_places > places {
                 let sort = if places == 0 { "un nombre entier".to_string() } else { format!("un nombre à {places} chiffre(s) après la virgule") };
@@ -1415,6 +1464,7 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
     // total avant de couper, « sur {matching} ».
     showable.extend(crate::computed::names(program).into_iter().map(|name| (name, 0)));
     showable.extend(crate::computed::total_names(program).into_iter().map(|name| (name, 0)));
+    showable.extend(crate::computed::days_names(program).into_iter().map(|name| (name, 0)));
     let models = crate::lists::models_and_lists(program);
     let is_text = |name: &str| texts.iter().any(|(known, _)| known == name);
     let declare = state_block(program)?;
@@ -1460,7 +1510,7 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
             }
         }
         if block.name == "Input" || block.name == "Checkbox" {
-            let allowed: &[&str] = if block.name == "Input" { &["name", "value", "label", "max", "lines", "type", "accept"] } else { &["name", "value", "label"] };
+            let allowed: &[&str] = if block.name == "Input" { &["name", "value", "label", "min", "max", "lines", "type", "accept"] } else { &["name", "value", "label"] };
             let example = if block.name == "Input" { "Input(value: quantity, label: \"How many?\")" } else { "Checkbox(value: gift, label: \"Gift wrap\")" };
             for argument in &block.arguments {
                 match (argument.name.as_deref(), &argument.value) {
@@ -1483,6 +1533,28 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                     // Un fichier (ADR-059) : sa taille et ses sortes sont vérifiées dans fichiers.rs.
                     (Some("max" | "accept"), _) if crate::files::is_file(block) => {}
                     (Some("accept"), _) => return Err(Error { message: "« accept: » ne sert qu'à un champ de fichier, Input(type: file, …)".into(), pos: argument.pos }),
+                    // Le plus petit nombre d'un champ de nombre : Input(value: quantity, min: 1).
+                    (Some("min"), bound) if block.name == "Input" && block.argument("type").is_none() && matches!(block.argument("value").map(|a| &a.value), Some(Value::Name(v)) if state.iter().any(|(known, _)| known == v)) => {
+                        let Some(Value::Name(v)) = block.argument("value").map(|a| &a.value) else { continue };
+                        let places = places(program, v);
+                        let max = block.argument("max").and_then(|a| literal_units(&a.value, places));
+                        match literal_units(bound, places) {
+                            Some(min) if max.is_none_or(|max| min < max) => {}
+                            Some(_) => return Err(Error { message: "« Input » : min doit être plus petit que max".into(), pos: argument.pos }),
+                            None => return Err(Error { message: format!("« Input(min: …) » attend un nombre de 0 à {VALUE_MAX}, avec au plus {places} chiffre(s) après la virgule"), pos: argument.pos }),
+                        }
+                    }
+                    // Un nombre à virgule a un plafond à virgule : Input(value: price, max: 99.99).
+                    (Some("max"), bound @ Value::Number { .. }) if block.name == "Input" && matches!(block.argument("value").map(|a| &a.value), Some(Value::Name(v)) if places(program, v) > 0 && literal_units(bound, places(program, v)).is_some()) => {}
+                    // Les bornes d'un champ date (ADR-067) : today, ou une date « AAAA-MM-JJ ».
+                    (Some("min" | "max"), bound) if matches!(block.argument("type").map(|a| &a.value), Some(Value::Name(t)) if t == "date") => {
+                        if crate::dates::bound(Some(bound)).is_none() {
+                            return Err(Error { message: "« Input(type: date, min: …) » attend today, ou une date « AAAA-MM-JJ » : min: today, max: \"2026-12-31\"".into(), pos: argument.pos });
+                        }
+                    }
+                    (Some("min"), _) if block.name == "Input" => {
+                        return Err(Error { message: "« Input(min: …) » borne un nombre, ou une date (type: date) ; la longueur d'un texte viendra avec les formulaires".into(), pos: argument.pos });
+                    }
                     (Some("max"), Value::Integer(max)) if block.name == "Input" && *max <= VALUE_MAX => {}
                     // Un texte long : de 2 à 20 lignes visibles, pour une valeur qui est un texte.
                     (Some("lines"), Value::Integer(n)) if block.name == "Input" && (2..=20).contains(n) => {
@@ -1577,6 +1649,7 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
         if let (true, Some(Argument { value: Value::Name(value), .. })) = (compares, block.arguments.first()) {
             let mut numbers = to_show(program, &state);
             numbers.extend(crate::computed::total_names(program).into_iter().map(|name| (name, 0)));
+            numbers.extend(crate::computed::days_names(program).into_iter().map(|name| (name, 0)));
             let is_number = |name: &str| numbers.iter().any(|(known, _)| known == name);
             let sort = |name: &str| if is_text(name) { "un texte" } else { "un nombre" };
             for argument in &block.arguments[1..] {
@@ -1597,8 +1670,12 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                     Value::Name(other) if is_text(other) != is_text(value) => {
                         return error(format!("« {value} » est {} et « {other} » {} : on compare deux nombres, ou deux textes", sort(value), sort(other)))
                     }
-                    Value::Name(_) if is_text(value) && matches!(word, "over" | "under") => {
-                        return error(format!("« {word} » compare des nombres ; un texte se compare par is (égal) ou not (différent) : {}({value}, is: \"…\")", block.name))
+                    // Plus tard, plus tôt : entre deux dates seulement (ADR-067).
+                    Value::Name(other) if is_text(value) && matches!(word, "over" | "under") && !(crate::dates::is_date(program, value) && crate::dates::is_date(program, other)) => {
+                        return error(format!("« {word} » compare des nombres, ou deux dates ; un texte se compare par is (égal) ou not (différent) : {}({value}, is: \"…\")", block.name))
+                    }
+                    Value::Text(text) if matches!(word, "over" | "under") && !(crate::dates::is_date(program, value) && crate::dates::days(text).is_some()) => {
+                        return error(format!("« {word} » compare des nombres, ou une date à une date « AAAA-MM-JJ » : {}({value}, under: today)", block.name))
                     }
                     _ => {}
                 }
@@ -1616,6 +1693,13 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
         let in_model = model_list.is_some();
         let check_text = |text: &str, pos| {
             for (name, format) in crate::format::formats_in(text) {
+                // Une date se montre dans la langue de la page (ADR-067).
+                if crate::dates::is_date(program, name) {
+                    if !crate::dates::FORMATS.contains(&format) {
+                        return Err(Error { message: format!("« {{{name}:{format}}} » : « {name} » est une date ; formats possibles : date (7 octobre 2026), weekday (mercredi)"), pos });
+                    }
+                    continue;
+                }
                 if !crate::format::is_format(format) {
                     return Err(Error { message: format!("« {{{name}:{format}}} » : format inconnu ; formats possibles : 00 (zéros devant), number (1 234), cents (12,50), name (le nom du jour ou du mois)"), pos });
                 }
@@ -1711,7 +1795,7 @@ pub fn arbitrate(program: &Program, state: &State, texts: &Texts, signal: &str) 
         };
         if concerned && force {
             for effect in requests_of(block) {
-                apply(program, &mut state, effect, seed, &mut draws);
+                apply(program, &mut state, texts, effect, seed, &mut draws);
             }
             // Les capacités d'une règle « On » sont appliquées par la page (elle connaît le
             // geste) ; celles d'une règle de temps sont notées ici.
@@ -1793,7 +1877,7 @@ fn watch(program: &Program, before_change: State, texts_before: &Texts, state: &
             let seen = |state: &State, texts: &Texts| in_force(program, block, state, texts) && watches(program, block, state, texts);
             if block.name == "When" && !seen(&before, texts_before) && seen(&photo, texts) {
                 for effect in requests_of(block) {
-                    apply(program, state, effect, seed, draws);
+                    apply(program, state, texts, effect, seed, draws);
                     triggered = true;
                 }
                 record_capabilities(block);
@@ -1811,14 +1895,15 @@ fn watch(program: &Program, before_change: State, texts_before: &Texts, state: &
 
 /// Fait ce qu'une demande demande : `cart.add(1)`. Une valeur ne descend pas sous 0 et ne
 /// dépasse pas son plafond.
-fn apply(program: &Program, state: &mut State, effect: &Block, seed: u64, draws: &mut u64) {
+fn apply(program: &Program, state: &mut State, texts: &Texts, effect: &Block, seed: u64, draws: &mut u64) {
     let Ok(d) = request(program, effect, state) else { return };
     let places = places(program, d.value);
     // Une autre valeur, lue maintenant : à notre échelle pour add, sub, set ; à la sienne pour un
     // facteur (ADR-066).
     let (quantity, factor_places) = match d.since {
         Some(other) => {
-            let units = state.iter().find(|(known, _)| known == other).map_or(0, |(_, v)| *v);
+            // Une valeur de la page, ou un nombre de jours calculé d'après les dates (ADR-067).
+            let units = state.iter().find(|(known, _)| known == other).map(|(_, v)| *v).or_else(|| crate::computed::days_values(program, texts).into_iter().find(|(known, _)| known == other).map(|(_, v)| v)).unwrap_or(0);
             let other_places = self::places(program, other);
             if matches!(d.verb, "mul" | "div") { (units, other_places) } else { (rescale(units, other_places, places), 0) }
         }
@@ -2429,6 +2514,131 @@ mod tests {
     }
 
     #[test]
+    fn dates_are_compared_shifted_and_shown() {
+        // ADR-067 : « today », les comparaisons dans le temps, add et sub en jours, les bornes
+        // d'un champ date, l'affichage dans la langue de la page.
+        set_now([2026, 10, 7, 3, 9, 5]);
+        let source = r#"Page(
+  lang: "fr",
+  state: State(arrival: "", due: "2026-10-01", late: 0, name: ""),
+  children: [
+    P("Aujourd'hui : {today:date} ({today:weekday}, {today})"),
+    Input(value: arrival, label: "Arrivée", type: date, min: today),
+    If(arrival, under: today, children: [ "Dans le passé." ]),
+    If(arrival, over: due, children: [ "Après l'échéance." ]),
+    P("Échéance : {due:date}"),
+    Button(name: Later, text: "Plus tard"),
+    Button(name: Back, text: "Plus tôt"),
+    Button(name: Now, text: "Aujourd'hui"),
+  ],
+  rules: [
+    On(Later.tap, effect: due.add(7)),
+    On(Back.tap, effect: due.sub(30)),
+    On(Now.tap, effect: due.set(today)),
+    When(due, under: today, effect: late.set(1)),
+  ],
+)"#;
+        let program = page(source).unwrap();
+        let start = crate::initial_state(source);
+        let text_of = |state: &str, name: &str| reread_texts(&program, state).into_iter().find(|(n, _)| n == name).map(|(_, t)| t).unwrap_or_default();
+        assert_eq!(text_of(&start, "today"), "2026-10-07");
+        let html = crate::flat_view(source, "").unwrap();
+        assert!(html.contains(r#"<span data-state="today" data-format="date">7 octobre 2026</span> (<span data-state="today" data-format="weekday">mercredi</span>, <span data-state="today">2026-10-07</span>)"#), "{html}");
+        assert!(html.contains(r#"<input type="date" min="2026-10-07" value="" data-bind="arrival">"#), "{html}");
+        assert!(html.contains(r#"<span data-state="due" data-format="date">1er octobre 2026</span>"#), "{html}");
+        // Une date vide ne compare rien.
+        assert_eq!(crate::conditions(source, &start), "arrival|under=today:0;arrival|over=due:0");
+        // Une date avant « min » est refusée ; un jour qui n'existe pas aussi ; une bonne date est prise.
+        assert_eq!(text_of(&crate::input(source, &start, "arrival", "2026-10-06"), "arrival"), "");
+        assert_eq!(text_of(&crate::input(source, &start, "arrival", "2026-02-30"), "arrival"), "");
+        let arrived = crate::input(source, &start, "arrival", "2026-10-08");
+        assert_eq!(text_of(&arrived, "arrival"), "2026-10-08");
+        assert_eq!(crate::conditions(source, &arrived), "arrival|under=today:0;arrival|over=due:1");
+        // Avancer de 7 jours, puis revenir à aujourd'hui.
+        let later = crate::arbitrate(source, &start, "Later.tap");
+        assert_eq!(text_of(&later, "due"), "2026-10-08");
+        assert_eq!(text_of(&crate::arbitrate(source, &later, "Now.tap"), "due"), "2026-10-07");
+        // La règle qui guette : au moment où l'échéance passe avant aujourd'hui.
+        assert!(later.contains("late=0"));
+        assert!(crate::arbitrate(source, &later, "Back.tap").contains("late=1"), "{later}");
+        // Minuit : la date du jour change, et une règle qui guette « today » se déclenche.
+        let midnight = source.replace("When(due, under: today, effect: late.set(1))", "When(today, is: \"2026-10-08\", effect: late.set(1))");
+        let yesterday = crate::initial_state(&midnight);
+        set_now([2026, 10, 8, 4, 0, 0]);
+        let advanced = crate::advance_clock(&midnight, &yesterday);
+        assert!(text_of(&advanced, "today") == "2026-10-08" && advanced.contains("late=1"), "{advanced}");
+        set_now([2026, 10, 7, 3, 9, 5]);
+        // Les refus, avec leur raison.
+        for (wrong, message) in [
+            ("state: State(arrival: \"\", due: \"2026-10-01\", late: 0, name: \"\")", "state: State(today: \"\", arrival: \"\", due: \"2026-10-01\", late: 0, name: \"\")"),
+            ("If(arrival, over: due,", "If(name, over: \"2026-10-07\","),
+            ("If(arrival, under: today,", "If(arrival, over: late,"),
+            ("On(Later.tap, effect: due.add(7))", "On(Later.tap, effect: name.add(7))"),
+            ("type: date, min: today", "type: date, min: \"hier\""),
+            ("{due:date}", "{due:00}"),
+            ("lang: \"fr\",", "lang: \"fr\", keep: [today],"),
+        ] {
+            let error = page(&source.replace(wrong, message)).unwrap_err();
+            let expected = match message {
+                m if m.contains("today: \"\"") => "« today » est la date du jour",
+                m if m.contains("If(name") => "compare des nombres, ou une date",
+                m if m.contains("over: late") => "« arrival » est un texte et « late » un nombre",
+                m if m.contains("name.add") => "« name » est un texte : on demande seulement",
+                m if m.contains("hier") => "attend today, ou une date",
+                m if m.contains("due:00") => "est une date ; formats possibles",
+                _ => "elle ne se garde pas",
+            };
+            assert!(error.message.contains(expected), "{message}\n→ {error}");
+        }
+    }
+
+    #[test]
+    fn days_between_two_dates_count_nights() {
+        // ADR-067 : une réservation. Days compte les nuits ; le total les multiplie.
+        set_now([2026, 10, 7, 3, 9, 5]);
+        let source = r#"Page(
+  state: State(arrival: "", departure: "", price: 80.00, total: 0.00),
+  computed: [ Days(name: nights, from: arrival, to: departure), Days(name: wait, from: today, to: arrival) ],
+  children: [
+    Input(value: arrival, label: "Arrivée", type: date, min: today),
+    Input(value: departure, label: "Départ", type: date, min: today),
+    P("{nights} nuit(s), dans {wait} jour(s) : {total} €"),
+    If(nights, over: 6, children: [ "Une semaine ou plus." ]),
+    Button(name: Book, text: "Calculer"),
+  ],
+  rules: [ On(Book.tap, effect: [total.set(price), total.mul(nights)]) ],
+)"#;
+        let start = crate::initial_state(source);
+        assert!(start.contains("nights=0") && start.contains("wait=0"), "{start}");
+        let chosen = crate::input(source, &crate::input(source, &start, "arrival", "2026-10-10"), "departure", "2026-10-17");
+        assert!(chosen.contains("nights=7") && chosen.contains("wait=3"), "{chosen}");
+        assert_eq!(crate::conditions(source, &chosen), "nights|over=6:1");
+        let booked = crate::arbitrate(source, &chosen, "Book.tap");
+        assert!(booked.contains("total=56000"), "{booked}");
+        let html = crate::flat_view(source, "").unwrap();
+        assert!(html.contains(r#"<span data-state="nights">0</span> nuit(s)"#), "{html}");
+        // Un départ avant l'arrivée : 0 nuit (pas encore de nombre négatif).
+        let backwards = crate::input(source, &crate::input(source, &start, "arrival", "2026-10-17"), "departure", "2026-10-10");
+        assert!(backwards.contains("nights=0"), "{backwards}");
+        // Les refus.
+        for (wrong, expected) in [
+            ("Days(name: nights, from: arrival,", "Days(name: nights, from: price,"),
+            ("Days(name: nights,", "Days(name: price,"),
+            ("Days(name: nights,", "Days(name: Nights,"),
+            ("to: departure)", "to: departure, every: 1)"),
+        ] {
+            let error = page(&source.replace(wrong, expected)).unwrap_err();
+            let message = match expected {
+                e if e.contains("from: price") => "« price » n'est pas une date",
+                e if e.contains("name: price") => "déjà le nom d'une valeur",
+                e if e.contains("Nights") => "en minuscules",
+                _ => "n'a pas de paramètre « every »",
+            };
+            assert!(error.message.contains(message), "{expected}\n→ {error}");
+        }
+    }
+
+    #[test]
     fn decimals_are_kept_exact() {
         // ADR-066 : 12.50 garde deux chiffres après la virgule, et se calcule sans erreur d'arrondi.
         let source = r#"Page(
@@ -2559,7 +2769,7 @@ mod tests {
         assert_eq!(score(&crate::arbitrate(source, &picked, "Pick.tap")), "3", "déjà « Paris » : rien ne devient vrai");
         // Les refus : pas de mélange, et plus grand ou plus petit pour les nombres seulement.
         for (wrong, message) in [
-            ("If(size, over: \"M\", children: [])", "« over » compare des nombres ; un texte se compare par is (égal) ou not (différent)"),
+            ("If(size, over: \"M\", children: [])", "« over » compare des nombres, ou une date à une date"),
             ("If(size, is: 3, children: [])", "« size » est un texte : on le compare à un texte entre guillemets"),
             ("If(size, is: nobody, children: [])", "aucun texte ne s'appelle « nobody »"),
             ("If(size, under: answer, children: [])", "« under » compare des nombres"),
@@ -2680,7 +2890,8 @@ mod tests {
             ("Page(state: State(a: 0), children: [ Input(value: a) ])", "attend « label »"),
             ("Page(state: State(a: 0), children: [ Input(label: \"x\") ])", "attend « value »"),
             ("Page(state: State(a: 0), children: [ Input(value: b, label: \"x\") ])", "aucune valeur ne s'appelle « b »"),
-            ("Page(state: State(a: 0), children: [ Input(value: a, label: \"x\", min: 2) ])", "n'a pas de paramètre « min »"),
+            ("Page(state: State(a: \"\"), children: [ Input(value: a, label: \"x\", min: 2) ])", "la longueur d'un texte viendra avec les formulaires"),
+            ("Page(state: State(a: 0), children: [ Input(value: a, label: \"x\", min: 5, max: 3) ])", "min doit être plus petit que max"),
             ("Page(state: State(a: 0), children: [ Checkbox(value: a, label: \"x\", max: 2) ])", "n'a pas de paramètre « max »"),
             ("Page(state: State(a: 0), children: [ Input(value: a, label: 3) ])", "est mal écrit"),
             ("Page(state: State(a: 0), prices: Prices(a: 1), children: [ Input(value: total, label: \"x\") ])", "aucune valeur ne s'appelle « total »"),

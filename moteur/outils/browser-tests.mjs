@@ -443,6 +443,28 @@ const tests = [
     const ok = start && fifty && tip && price;
     return [ok, `départ « 12,50 » : ${start} ; ×4 = 50,00 et livraison offerte : ${fifty} ; +10 % = 55,00 : ${tip} ; prix 9,99 : ${price}`];
   }],
+  ["des dates : aujourd'hui, une semaine, des nuits (Days)", async (p) => {
+    await p.open("/exemples/lecons/87-des-dates.holo");
+    const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;
+    // Les dates de l'essai, d'après l'horloge de la machine : aujourd'hui, et dans trois jours.
+    const iso = (shift) => { const d = new Date(); d.setDate(d.getDate() + shift); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-"); };
+    const french = (shift) => { const d = new Date(); d.setDate(d.getDate() + shift); return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric" }).format(d).replace(/^1 /, "1er "); };
+    const weekday = (shift) => { const d = new Date(); d.setDate(d.getDate() + shift); return new Intl.DateTimeFormat("fr-FR", { weekday: "long" }).format(d); };
+    const choose = (bind, day) => p.value(`(() => { const i = document.querySelector('input[data-bind="${bind}"]'); i.value = "${day}"; i.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+    const today = await p.until(has(`Nous sommes le ${french(0)}.`));
+    await choose("arrival", iso(3));
+    const arrival = await p.until(has(`Arrivée le ${weekday(3)} ${french(3)}.`));
+    await p.click('[data-name="Week"]');
+    const week = await p.until(`${has("7 nuit(s) à 80,00 € la nuit.")} && document.querySelector('input[data-bind="departure"]').value === "${iso(10)}"`);
+    await p.click('[data-name="Compute"]');
+    const price = await p.until(has("Prix du séjour : 560,00 €."));
+    // Une arrivée hier : refusée (min: today), l'arrivée choisie reste.
+    await choose("arrival", iso(-1));
+    await pause(400);
+    const refused = await p.value(`${has(`Arrivée le ${weekday(3)} ${french(3)}.`)} && document.querySelector('input[data-bind="arrival"]').value === "${iso(3)}"`);
+    const ok = today && arrival && week && price && refused;
+    return [ok, `aujourd'hui « ${french(0)} » : ${today} ; arrivée ${iso(3)} : ${arrival} ; une semaine → 7 nuits : ${week} ; 560,00 € : ${price} ; hier refusé : ${refused}`];
+  }],
   ["un formulaire envoie son message", async (p) => {
     await p.open("/exemples/lecons/64-formulaire.holo");
     await p.type("#page input", "Ada");

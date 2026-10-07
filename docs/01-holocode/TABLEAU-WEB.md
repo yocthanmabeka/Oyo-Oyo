@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-07). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (348 mots : 336 décidés, 12 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (353 mots : 336 décidés, 17 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
 - **Existe ?** : le jugement de Claude, élément par élément (oui, en partie, non) ; ce n’est pas une mesure. Le tableau ne donne pas de pourcentage : aucune méthode reproductible ne mesure la part d’un élément du web qu’on obtient en HoloCode (consigne de Yocthan du 2026-10-07). Les comptes se refont en comptant les lignes.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,7 +9,7 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 348 mots | 336 décidés, 12 à l’essai |
+| **HoloCode** | 353 mots | 336 décidés, 17 à l’essai |
 | HTML | 62 éléments | 49 oui, 5 en partie, 5 non, 3 refusés |
 | CSS | 34 éléments | 25 oui, 5 en partie, 2 non, 2 refusés |
 | JavaScript | 34 éléments | 15 oui, 11 en partie, 6 non, 1 refusés, 1 sans objet |
@@ -422,6 +422,7 @@
 | `name (dans Data), Shop.done, Shop.failed, Shop.refresh` | Des données qui disent « arrivées » ou « échec », et se relisent ; 10 secondes au plus | `fetch, response.ok, AbortController` | À l’essai (ADR-064) |
 | `key (dans Repeat(over:)), total (dans Filter)` | Une clé choisie pour chaque ligne, le clavier gardé ; le nombre trouvé avant de couper | `key de React, filtered.length` | À l’essai (ADR-065) |
 | `12.50 (une valeur à virgule)` | Un nombre à virgule exact, ses chiffres fixés à la déclaration ; montré dans la langue de la page | `Number, toFixed, Intl.NumberFormat` | À l’essai (ADR-066) |
+| `today, Days(name:, from:, to:), {d:date}, {d:weekday}, min (dans Input)` | Les dates : le jour même, compter les jours, les montrer dans la langue de la page, borner un champ | `new Date(), toLocaleDateString, min` | À l’essai (ADR-067) |
 
 ## Blocs : les règles
 

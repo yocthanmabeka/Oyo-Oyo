@@ -5,7 +5,7 @@
   // dessin (les points, les mondes, la vue points) est un second moteur, chargé seulement quand
   // la page s'en sert : une page qui ne fait que bouger ne le télécharge jamais.
   import init, {
-    flat_view, effects, initial_state, arbitrate, submission, format_value, list_html, module_info, module_finished, delays, reads_time, set_now, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
+    flat_view, effects, initial_state, arbitrate, submission, format_value, format_date, list_html, module_info, module_finished, delays, reads_time, set_now, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
   } from "/pkg-light/holo_engine.js";
   let drawing = null;
   let drawingLoading = null;
@@ -557,7 +557,9 @@
     for (const place of or_.querySelectorAll("[data-state]")) {
       if (!values.has(place.dataset.state)) continue;
       const value = values.get(place.dataset.state);
-      place.textContent = place.dataset.format ? format_value(place.dataset.state, Number(value), place.dataset.format, language) : value;
+      // Une date se montre dans la langue de la page (ADR-067) ; un nombre, avec son format.
+      const format = place.dataset.format;
+      place.textContent = !format ? value : format === "date" || format === "weekday" ? format_date(value, format, language) : format_value(place.dataset.state, Number(value), format, language);
     }
     // Un champ et une case montrent leur valeur ; on ne récrit pas le champ où l'on est en train d'écrire.
     for (const field of or_.querySelectorAll("[data-bind]")) {

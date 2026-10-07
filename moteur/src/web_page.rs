@@ -131,6 +131,12 @@ pub fn format_value(name: &str, value: f64, format: &str, language: &str) -> Str
     crate::format_value(name, value.max(0.0) as u64, format, language)
 }
 
+/// Une date « 2026-10-07 » dans la langue de la page : « 7 octobre 2026 », « mercredi » (ADR-067).
+#[wasm_bindgen]
+pub fn format_date(text: &str, format: &str, language: &str) -> String {
+    crate::dates::format(text, format, language)
+}
+
 /// La page lit-elle l'heure du visiteur ?
 #[wasm_bindgen]
 pub fn reads_time(source: &str) -> bool {

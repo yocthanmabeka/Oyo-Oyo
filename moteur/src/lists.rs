@@ -638,6 +638,10 @@ pub fn check_request(request: &Block, program: &Program, rule: &Block, in_line: 
         match (verb, request.arguments.as_slice()) {
             ("set", [Argument { name: None, value: Value::Text(t), .. }]) if t.chars().count() <= crate::state::TEXT_MAX => Ok(()),
             ("set", [Argument { name: None, value: Value::Name(other), .. }]) if is_text(other) || (other == "item" && in_line.is_some()) => Ok(()),
+            // Une date avance ou recule de jours entiers : due.add(7), due.sub(1) (ADR-067).
+            ("add" | "sub", [Argument { name: None, value: Value::Integer(n), .. }]) if crate::dates::is_date(program, value) && *n <= 3_660_000 => Ok(()),
+            ("add" | "sub", _) if crate::dates::is_date(program, value) => Err(error(format!("« {value}.{verb} » ajoute ou retire des jours à une date : {value}.{verb}(7)"))),
+            _ if crate::dates::is_date(program, value) => Err(error(format!("« {value} » est une date : on demande {value}.set(today), {value}.set(\"2026-12-24\"), {value}.add(7) ou {value}.sub(1)"))),
             _ => Err(error(format!("« {value} » est un texte : on demande seulement « {value}.set(\"\") », ou « {value}.set(autreTexte) »"))),
         }
     } else {
@@ -780,6 +784,14 @@ pub fn arbitrate(program: &Program, numbers: &State, texts: &Texts, lists: &List
                 };
                 if let (Some(new_one), Some((_, place))) = (new_one, texts.iter_mut().find(|(n, _)| n == value)) {
                     *place = new_one.chars().filter(|c| *c == '\n' || !c.is_control()).take(crate::state::TEXT_MAX).collect();
+                }
+            } else if let (true, Some(Value::Integer(n))) = (verb == "add" || verb == "sub", argument) {
+                // Une date avance ou recule de jours entiers (ADR-067) ; une date vide ne bouge pas.
+                let shift = if verb == "add" { *n as i64 } else { -(*n as i64) };
+                if let Some((_, place)) = texts.iter_mut().find(|(n, _)| n == value) {
+                    if let Some(moved) = crate::dates::shifted(place, shift) {
+                        *place = moved;
+                    }
                 }
             }
         }

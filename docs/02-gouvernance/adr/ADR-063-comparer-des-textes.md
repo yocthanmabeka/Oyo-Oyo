@@ -45,3 +45,7 @@ Défauts du web évités : en JavaScript, `"1" == 1` est vrai et `"10" < "9"` au
 
 - Tests du moteur : `a_text_is_compared_to_a_text` (égal, différent, deux valeurs, les signes dans le nom, la règle qui guette au clavier et par un geste, les six refus) ; `rules_under_a_text_condition` (horloge et attente sous une condition sur un texte) ; `the_count_of_a_computed_list_is_compared_after_a_change`.
 - Dans Chrome, la leçon 83 : « L » montre son message ; « paris » ne compte pas, « Paris » donne « Bravo ! » et 1 ; deux e-mails différents, puis pareils.
+
+## Suite
+
+- 2026-10-07 : `over` et `under` servent aussi à deux dates, `If(arrival, under: today)` (`ADR-067`, proposition). Pour les autres textes, rien ne change.

@@ -153,7 +153,8 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | Approche, position du défilement | | manque |
 | `else` | `If(…, children: [ … ], else: [ … ])` | fait |
 | `setTimeout` | `After(3s, effect: …)` ; sous une condition, part quand elle devient vraie | fait |
-| `Date` (la date et l'heure du jour) | `{year}`, `{month}`, `{day}`, `{weekday}`, `{hour}`, `{minute}` | fait ; pas encore de calcul sur les dates |
+| `Date` (la date et l'heure du jour) | `{year}`, `{month}`, `{day}`, `{weekday}`, `{hour}`, `{minute}` ; `today`, `{arrival:date}` | fait |
+| Calculer avec des dates (`new Date`, `setDate`, une différence) | `If(arrival, under: today)`, `due.add(7)`, `Days(name: nights, from: arrival, to: departure)` | fait (`ADR-067`, à valider) ; une heure seule ne se compare pas encore |
 | Garder une valeur, l'afficher (un panier) | `State(cart: 0)`, `{cart}`, `cart.add(1)` | fait : des nombres entiers ; avec `Prices`, le moteur calcule `{count}` et `{total}` |
 | Afficher sous condition | `If(cart, is: 0, children: [...])` | fait |
 | Des nombres à virgule (`Number`, `toFixed`, `Intl.NumberFormat`) | `State(price: 12.50)`, `{price}`, `sum.mul(1.1)`, `If(sum, over: 49.99)` | fait (`ADR-066`, à valider) : exacts ; pas encore de nombre négatif |

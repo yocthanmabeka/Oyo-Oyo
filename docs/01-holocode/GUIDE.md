@@ -1419,6 +1419,41 @@ Page(
 
 Cette écriture est décidée (`ADR-045`). La leçon est `69-module-enferme.holo` ; ses trois modules, dans `exemples/lecons/modules/`.
 
+## 6 quatervicies. Des dates
+
+```holo
+Page(
+  title: "Booking",
+  state: State(arrival: "", departure: "", price: 80.00, total: 0.00),
+  computed: [ Days(name: nights, from: arrival, to: departure) ],
+  children: [
+    P("Today is {today:date}."),
+    Input(value: arrival, label: "Arrival", type: date, min: today),
+    Input(value: departure, label: "Departure", type: date, min: today),
+    Button(name: Week, text: "One week"),
+    If(departure, over: arrival, children: [
+      P("{nights} night(s), arriving on {arrival:weekday} {arrival:date}."),
+      Button(name: Compute, text: "Price"),
+    ]),
+    If(total, over: 0, children: [ P("Total: {total} €") ]),
+  ],
+  rules: [
+    On(Week.tap, effect: [departure.set(arrival), departure.add(7)]),
+    On(Compute.tap, effect: [total.set(price), total.mul(nights)]),
+  ],
+)
+```
+
+- **Une date est un texte « AAAA-MM-JJ »**, celui que donne un champ date. Une valeur est une date quand c'est `today`, quand un `Input(type: date)` la présente, ou quand elle est déclarée avec une date, `State(due: "2026-12-24")`.
+- **`today`** est la date du jour, donnée par l'appareil du visiteur ; la page la tient à jour, et passe minuit.
+- **`{arrival:date}`** la montre dans la langue de la page, « 10 octobre 2026 » ; **`{arrival:weekday}`**, « samedi ».
+- **Deux dates se comparent dans le temps** : `If(departure, over: arrival)`, `If(arrival, under: today)`, `If(arrival, over: "2026-12-24")`. Une date vide ne compare rien.
+- **Une date avance ou recule de jours** : `due.add(7)`, `due.sub(1)`, `due.set(today)`.
+- **`Days(name: nights, from: arrival, to: departure)`**, dans `computed: [ … ]`, compte les jours entre deux dates : `{nights}`, `If(nights, over: 6)`, `total.mul(nights)`. Il vaut 0 si une date manque, ou si le départ vient avant l'arrivée.
+- **Le champ date a des bornes** : `min: today`, `max: "2026-12-31"`. Le navigateur grise les autres jours ; le moteur les refuse, comme un jour qui n'existe pas (« 2026-02-30 »). `min:` vaut aussi pour un champ de nombre : `Input(value: quantity, label: "…", min: 1)`.
+
+Cette écriture est proposée (`ADR-067`) et attend la validation de Yocthan. La leçon est `87-des-dates.holo`.
+
 ## 6 tervicies. Des nombres à virgule
 
 ```holo
@@ -1974,7 +2009,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 
 - Un module n'échange encore qu'un nombre contre un nombre.
 - Les données venues d'un autre serveur ; les comptes.
-- Pour les valeurs : pas de nombre négatif ; pas de calcul sur les dates ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
+- Pour les valeurs : pas de nombre négatif ; une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
 - Les garde-fous de zoom pour un `Point` seul : ils sont encore fixés dans le moteur.

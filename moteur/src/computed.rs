@@ -74,7 +74,40 @@ fn read(block: &Block) -> Filter {
 
 /// Les listes calculées de la page.
 pub fn filters(program: &Program) -> Vec<Filter> {
-    blocks(program).into_iter().map(read).collect()
+    blocks(program).into_iter().filter(|b| b.name == "Filter").map(read).collect()
+}
+
+/// Les réglages de `Days` (ADR-067).
+pub const DAYS_PARAMS: &[&str] = &["name", "from", "to"];
+
+/// Les `Days` de la page : (nom, date de départ, date d'arrivée).
+fn days_blocks(program: &Program) -> Vec<(String, String, String)> {
+    let name = |block: &Block, param: &str| match block.argument(param).map(|a| &a.value) {
+        Some(Value::Name(n)) => n.clone(),
+        _ => String::new(),
+    };
+    blocks(program).into_iter().filter(|b| b.name == "Days").map(|b| (name(b, "name"), name(b, "from"), name(b, "to"))).collect()
+}
+
+/// Le nom des nombres de jours, `Days(name: nights, …)`.
+pub fn days_names(program: &Program) -> Vec<String> {
+    days_blocks(program).into_iter().map(|(name, _, _)| name).collect()
+}
+
+/// Les nombres de jours, d'après les dates de la page : de `from` à `to`, 0 si l'une manque, ou si
+/// `to` vient avant `from` (pas encore de nombre négatif).
+pub fn days_values(program: &Program, texts: &Texts) -> State {
+    let date = |name: &str| texts.iter().find(|(n, _)| n == name).and_then(|(_, t)| crate::dates::days(t));
+    days_blocks(program)
+        .into_iter()
+        .map(|(name, from, to)| {
+            let count = match (date(&from), date(&to)) {
+                (Some(a), Some(b)) if b > a => (b - a) as u64,
+                _ => 0,
+            };
+            (name, count)
+        })
+        .collect()
 }
 
 /// Le nom des listes calculées.
@@ -115,11 +148,38 @@ pub fn check(program: &Program) -> Result<(), Error> {
     let mut known: Vec<String> = Vec::new();
     for item in items {
         let Value::Block(block) = item else {
-            return Err(Error { message: "« computed » ne contient que des « Filter(…) »".into(), pos: argument.pos });
+            return Err(Error { message: "« computed » ne contient que des « Filter(…) » et des « Days(…) »".into(), pos: argument.pos });
         };
         let error = |message: String| Err(Error { message, pos: block.pos });
+        // Les jours entre deux dates (ADR-067) : Days(name: nights, from: arrival, to: departure).
+        if block.name == "Days" {
+            for a in &block.arguments {
+                match a.name.as_deref() {
+                    Some(n) if DAYS_PARAMS.contains(&n) => {}
+                    Some(n) => return Err(Error { message: format!("« Days » n'a pas de paramètre « {n} » ; paramètres possibles : {}", DAYS_PARAMS.join(", ")), pos: a.pos }),
+                    None => return Err(Error { message: "chaque paramètre de « Days » est nommé : Days(name: nights, from: arrival, to: departure)".into(), pos: a.pos }),
+                }
+            }
+            let name = match block.argument("name").map(|a| &a.value) {
+                Some(Value::Name(n)) if n.starts_with(|c: char| c.is_ascii_lowercase()) => n.clone(),
+                _ => return error("« Days » attend « name », le nom du nombre de jours, en minuscules : Days(name: nights, from: arrival, to: departure)".into()),
+            };
+            let taken = numbers.iter().any(|(n, _)| *n == name) || texts.iter().any(|(n, _)| *n == name) || crate::lists::initial(program).iter().any(|(n, _)| *n == name) || known.contains(&name);
+            if taken {
+                return error(format!("« {name} » est déjà le nom d'une valeur : un nombre de jours a son propre nom"));
+            }
+            for param in ["from", "to"] {
+                match block.argument(param).map(|a| &a.value) {
+                    Some(Value::Name(date)) if crate::dates::is_date(program, date) => {}
+                    Some(Value::Name(other)) => return error(format!("« Days({param}: {other}) » : « {other} » n'est pas une date ; une date est today, un champ Input(type: date), ou un texte déclaré « AAAA-MM-JJ »")),
+                    _ => return error(format!("« Days » attend « {param} », une date : Days(name: {name}, from: arrival, to: departure)")),
+                }
+            }
+            known.push(name);
+            continue;
+        }
         if block.name != "Filter" {
-            return error(format!("« computed » ne contient que des « Filter(…) », pas « {} »", block.name));
+            return error(format!("« computed » ne contient que des « Filter(…) » et des « Days(…) », pas « {} »", block.name));
         }
         for a in &block.arguments {
             match a.name.as_deref() {

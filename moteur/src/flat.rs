@@ -161,6 +161,7 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
     // Les valeurs de la page, à leur départ, là où un texte les montre : « {cart} » (ADR-023).
     let mut shown = crate::state::to_show(program, &start_value);
     shown.extend(totals);
+    shown.extend(crate::computed::days_values(program, &texts));
     // Une liste montre son nombre d'éléments, et une condition le compare (ADR-044).
     shown.extend(crate::lists::counts(&crate::lists::running()));
     // Les conditions, à leur départ : ce qui est faux est caché dès le premier affichage (ADR-025).
@@ -172,13 +173,24 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
     worlds = conditions(worlds);
     header = conditions(header);
     footer = conditions(footer);
-    // Les textes, à leur départ, là où un texte les montre.
+    // Les textes, à leur départ, là où un texte les montre ; une date aussi avec son format
+    // (ADR-067) : `{arrival:date}` → « 7 octobre 2026 », dans la langue de la page.
+    let page_language = match program.root.argument("lang").map(|a| &a.value) {
+        Some(Value::Text(l)) => l.as_str(),
+        _ => "fr",
+    };
     for (name, text) in &texts {
-        let (empty, full_one) = (format!("<span data-state=\"{name}\"></span>"), format!("<span data-state=\"{name}\">{}</span>", escape(text)));
-        body = body.replace(&empty, &full_one);
-        worlds = worlds.replace(&empty, &full_one);
-        header = header.replace(&empty, &full_one);
-        footer = footer.replace(&empty, &full_one);
+        let mut places = vec![(format!("<span data-state=\"{name}\"></span>"), format!("<span data-state=\"{name}\">{}</span>", escape(text)))];
+        for format in crate::dates::FORMATS {
+            let opening = format!("<span data-state=\"{name}\" data-format=\"{format}\">");
+            places.push((format!("{opening}</span>"), format!("{opening}{}</span>", escape(&crate::dates::format(text, format, page_language)))));
+        }
+        for (empty, full_one) in &places {
+            body = body.replace(empty, full_one);
+            worlds = worlds.replace(empty, full_one);
+            header = header.replace(empty, full_one);
+            footer = footer.replace(empty, full_one);
+        }
     }
     // Les valeurs à format, à leur départ, dans la langue de la page.
     let language = match program.root.argument("lang").map(|a| &a.value) {
@@ -277,19 +289,22 @@ fn fill_marks(html: String, shown: &crate::state::State, texts: &crate::state::T
                 output.push_str(chunk);
             } else if let Some(field) = chunk.strip_prefix('!') {
                 // Un champ : de texte ou de nombre, selon la valeur qu'il présente.
-                let (name, max) = field.split_once('|').unwrap_or((field, ""));
+                let mut parts = field.splitn(3, '|');
+                let (name, max, min) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""), parts.next().unwrap_or(""));
+                // Le plus petit nombre permis : 0, ou `min:` (lot 2 du web).
+                let min = if min.is_empty() { "0" } else { min };
                 if start_text(name).is_some() {
                     let length = max.parse::<usize>().map_or(crate::state::TEXT_SHORT, |m| m.min(crate::state::TEXT_MAX));
                     output.push_str(&format!(" type=\"text\" maxlength=\"{length}\""));
                 } else if crate::format::decimal_places(name) > 0 {
                     // Un nombre à virgule (ADR-066) : le clavier décimal, et un pas de 0,01.
                     let places = crate::format::decimal_places(name);
-                    output.push_str(&format!(" type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"{}\" data-places=\"{places}\"", crate::state::format_decimal(1, places)));
+                    output.push_str(&format!(" type=\"number\" inputmode=\"decimal\" min=\"{min}\" step=\"{}\" data-places=\"{places}\"", crate::state::format_decimal(1, places)));
                     if !max.is_empty() {
                         output.push_str(&format!(" max=\"{max}\""));
                     }
                 } else {
-                    output.push_str(" type=\"number\" inputmode=\"numeric\" min=\"0\"");
+                    output.push_str(&format!(" type=\"number\" inputmode=\"numeric\" min=\"{min}\""));
                     if !max.is_empty() {
                         output.push_str(&format!(" max=\"{max}\""));
                     }
@@ -794,18 +809,30 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
                 ));
             } else if let (true, Some(Value::Name(kind))) = (block.name == "Input", block.argument("type").map(|a| &a.value)) {
                 // Une date, une heure, une couleur : le navigateur montre son propre choisisseur (ADR-042).
+                // Une date a ses bornes : `min: today`, `max: "2026-12-31"` (ADR-067).
+                let mut bounds = String::new();
+                if kind == "date" {
+                    for bound in ["min", "max"] {
+                        if let Some(day) = crate::dates::bound(block.argument(bound).map(|a| &a.value)) {
+                            bounds.push_str(&format!(" {bound}=\"{day}\""));
+                        }
+                    }
+                }
                 output.push_str(&format!(
-                    "<label class=\"{classes}\"{name}><span>{}</span><input type=\"{}\" value=\"{MARK}#{value}{MARK}\" data-bind=\"{value}\"></label>",
+                    "<label class=\"{classes}\"{name}><span>{}</span><input type=\"{}\"{bounds} value=\"{MARK}#{value}{MARK}\" data-bind=\"{value}\"></label>",
                     markdown(label),
                     escape(kind)
                 ));
             } else if block.name == "Input" {
-                let max = match block.argument("max").map(|a| &a.value) {
-                    Some(Value::Integer(max)) => max.to_string(),
+                // Les bornes d'un champ de nombre, écrites comme dans le fichier : 99.99, 1.
+                let written = |param: &str| match block.argument(param).map(|a| &a.value) {
+                    Some(Value::Integer(n)) => n.to_string(),
+                    Some(Value::Number { value, unit: None, places }) => format!("{value:.prec$}", prec = *places as usize),
                     _ => String::new(),
                 };
+                let (max, min) = (written("max"), written("min"));
                 output.push_str(&format!(
-                    "<label class=\"{classes}\"{name}><span>{}</span><input{MARK}!{value}|{max}{MARK} value=\"{MARK}#{value}{MARK}\" data-bind=\"{value}\"></label>",
+                    "<label class=\"{classes}\"{name}><span>{}</span><input{MARK}!{value}|{max}|{min}{MARK} value=\"{MARK}#{value}{MARK}\" data-bind=\"{value}\"></label>",
                     markdown(label)
                 ));
             } else {
@@ -1333,6 +1360,7 @@ pub fn list_lines(program: &Program, base: &str, numbers: &crate::state::State, 
     let Some((repeat, _)) = crate::lists::repeats(program).into_iter().find(|(r, l)| l == name && written_at(r)) else { return String::new() };
     let mut shown = crate::state::to_show(program, numbers);
     shown.extend(crate::computed::totals(program, numbers, texts, lists));
+    shown.extend(crate::computed::days_values(program, texts));
     shown.extend(crate::lists::counts(lists));
     let responses = crate::state::conditions(program, &shown, texts);
     lines(repeat, name, base).map(|html| fill_marks(html, &shown, texts, &responses)).unwrap_or_default()
