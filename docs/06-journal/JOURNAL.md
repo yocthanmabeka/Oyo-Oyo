@@ -6,6 +6,14 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Holoverse de 1970 à 2026 : l'avis de Gemini
+
+- Codex a proposé (PR #153) un monde qui existe sans son dessin, visitable d'un terminal de 1978 au téléphone de 2026, et demandé l'avis de Claude et de Gemini.
+- Claude a écrit le prompt pour Gemini (`docs/05-discussions/prompts/2026-10-07-gemini-metavers-tous-materiels.md`) ; Gemini a répondu (`docs/05-discussions/reponses/2026-10-07-gemini-metavers-tous-materiels.md`) : d'accord sur la séparation du monde et du dessin, et sur un parcours sans JavaScript d'abord ; contre le travail sur les vieilles machines ; tout cela après le web et la 3D.
+- Proposé par Claude, à décider : un critère de plus au lot 5, « la boutique marche avec JavaScript coupé ».
+
+---
+
 ## 2026-10-07 — Lot 8 du web : un encadré, des liens, des sous-titres, l'impression
 
 - Pris par la session du nuage, selon le tableau « Qui fait quoi ».
