@@ -6,6 +6,18 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Lot 8 du web : un encadré, des liens, des sous-titres, l'impression
+
+- Pris par la session du nuage, selon le tableau « Qui fait quoi ».
+- Fait (`ADR-073`) : `Aside` ; `A(newTab: true)` (avec `noopener` et « (s'ouvre dans un nouvel onglet) » lu par le lecteur d'écran) ; `A(download: true)`, seulement pour un fichier rangé à côté ; `Video(captions: "film.vtt")` ; les images après la première viennent en approchant (`loading="lazy"`) ; l'état `print:` dans un style, et à l'impression le moteur cache ses outils et écrit l'adresse des liens du web. Leçons 95 et 96.
+- Pas fait : l'historique à l'intérieur d'une page (il attend le premier vrai serveur, lot 5).
+- Raté puis corrigé : dans la leçon 95, les deux liens du menu étaient collés (un `Nav` ne sépare pas ses liens : ils vont dans un `Row`) ; le texte de remplacement de la seconde image décrivait une étoile dorée alors que l'image est un disque bleu.
+- Vérifié : tous les tests du moteur ; dans Chrome, le téléchargement (« 95-programme.txt »), le nouvel onglet, la page vue à l'impression, la piste de sous-titres (« captions », en français, deux répliques) ; l'audit axe-core, 90 leçons et le site de référence, 0 défaut, en clair et en sombre sur téléphone.
+
+![La leçon 95 vue à l'impression : sans menu, l'adresse du lien écrite à côté](images/2026-10-07-lot8-article-sur-papier.png)
+
+---
+
 ## 2026-10-07 — Deux sessions, un lot chacune
 
 - Yocthan veut aller vite sans que les deux sessions se contredisent. Proposé et accepté (« Vas-y, commence ») : la session du PC prend le lot 4 (mise en page), la session du nuage le lot 8 (le HTML et les médias qui manquent) ; ensuite, une seule session pour les lots 5 à 7, l'autre pour le lot 9.
