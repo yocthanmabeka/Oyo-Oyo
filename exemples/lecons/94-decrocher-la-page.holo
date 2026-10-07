@@ -1,4 +1,4 @@
-// Leçon 95 — Décrocher la page
+// Leçon 94 — Décrocher la page
 //
 // Ce qu'on apprend :
 //   Sans rien écrire, quand on zoome (pincer à deux doigts, ou Ctrl + molette), c'est le
@@ -15,7 +15,7 @@
 // (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
 
 Page(
-  title: "Leçon 95 : décrocher la page",
+  title: "Leçon 94 : décrocher la page",
   zoom: Zoom(detach: true),
   children: [
     H1("Décrocher la page"),
@@ -23,7 +23,7 @@ Page(
 
     Hr(),
     Row(gap: 16px, align: between, children: [
-      A("← Leçon 94 : le texte justifié", to: "94-texte-justifie.holo"),
+      A("← Leçon 93 : le texte justifié", to: "93-texte-justifie.holo"),
     ]),
   ],
 )

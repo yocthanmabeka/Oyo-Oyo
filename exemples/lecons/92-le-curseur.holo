@@ -1,9 +1,10 @@
-// Leçon 93 — Le curseur
+// Leçon 92 — Le curseur
 //
 // Ce qu'on apprend :
 //     cursor: pointer        la main : « on peut toucher » (déjà là sur les boutons et les liens)
 //     cursor: help           une aide ; aussi not-allowed, grab, grabbing, zoom-in, zoom-out,
-//                            crosshair, text, move, wait, progress, default, auto, none
+//                            crosshair, text, move, wait, progress, default, auto, none,
+//                            copy, alias, no-drop, cell, context-menu, vertical-text, all-scroll
 //     cursor: url("viseur.svg")   un curseur dessiné, rangé à côté du fichier (.png, .svg, .cur)
 //   (En CSS, un curseur dessiné sans forme de secours est ignoré en entier. Ici, le moteur
 //   l'ajoute.)
@@ -15,7 +16,7 @@
 // (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
 
 Page(
-  title: "Leçon 93 : le curseur",
+  title: "Leçon 92 : le curseur",
   children: [
     H1("Le curseur"),
     Grid(columns: 3, gap: 12px, children: [
@@ -29,8 +30,8 @@ Page(
 
     Hr(),
     Row(gap: 16px, align: between, children: [
-      A("← Leçon 92 : garder des proportions", to: "92-garder-des-proportions.holo"),
-      A("Leçon 94 : le texte justifié →", to: "94-texte-justifie.holo"),
+      A("← Leçon 91 : garder des proportions", to: "91-garder-des-proportions.holo"),
+      A("Leçon 93 : le texte justifié →", to: "93-texte-justifie.holo"),
     ]),
   ],
 )

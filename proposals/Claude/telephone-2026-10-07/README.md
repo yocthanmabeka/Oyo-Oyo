@@ -11,7 +11,7 @@ Le 2026-10-07 au soir, Yocthan a essayé avec ses doigts les leçons 1 à 88, un
 
 | Leçon | Ce qui marche | Ce qui ne va pas | Suite |
 |---|---|---|---|
-| 7 — un point et son monde | les zooms | **la page quitte sa place quand on zoome**, et cela peut gêner des visiteurs | Décidé par Yocthan : comme pour tourner. **Construit dans le lot 4** : la page reste accrochée, le zoom est celui du navigateur ; `Zoom(detach: true)` offre « Décrocher / Accrocher » (leçon 95). Détail plus bas. |
+| 7 — un point et son monde | les zooms | **la page quitte sa place quand on zoome**, et cela peut gêner des visiteurs | Décidé par Yocthan : comme pour tourner. **Construit dans le lot 4** : la page reste accrochée, le zoom est celui du navigateur ; `Zoom(detach: true)` offre « Décrocher / Accrocher » (leçon 94). Détail plus bas. |
 | 26 — le Big Bang | — | **sur le téléphone, rien ne mène à une autre leçon** : le Big Bang est un point seul, sans lien. Sur l'ordinateur, Yocthan passe par la pile (`/stack`). | Ce soir, la leçon 27 lui a été ouverte par le câble. **Construit dans le lot 4** : en haut de chaque monde, « Les leçons » et « La pile », et « Leçon 27 → » quand le monde est la leçon 26 ; au doigt comme à la souris. |
 | 48 — l'heure | les heures et les minutes | **ni secondes ni millisecondes** | Expliqué : l'heure est donnée chaque minute, pour la batterie. **Proposé pour le lot 7** : `{second}`, chaque seconde, seulement si la page l'affiche ; les millisecondes par un bloc chronomètre (démarrer, arrêter, remettre à zéro) que la page dessine au rythme de l'écran, le moteur ne recevant que le temps final. |
 | 54 — sa propre police | — | Yocthan voudrait **toutes les polices libres, par défaut** | Expliqué : toutes, ce sont des milliers de polices, des gigaoctets, ou un service extérieur ; ce n'est pas raisonnable. Aujourd'hui, n'importe quelle police libre marche en rangeant son fichier à côté de la page. **Proposé pour le lot 7** : une trentaine de polices libres (licences vérifiées, toutes les écritures), gardées sur notre serveur, chargées seulement quand une page les nomme : `Font(family: "Inter")`. |
@@ -48,7 +48,7 @@ L'avis de Claude :
 - sans rien écrire, pincer à deux doigts (ou Ctrl + molette) fait le zoom du navigateur, comme sur n'importe quel site : la page grossit sur place ;
 - `zoom: Zoom(detach: true)` met « Décrocher » dans le menu ☰ : la page se détache de l'écran comme une feuille, et le zoom l'approche ; « Accrocher » la remet à sa place, à sa taille ;
 - le moteur ne grossit lui-même la page que si le fichier le demande (la vue points, `Zoom(shrink:)`, `Zoom(active: false)`) ou si le visiteur l'a décrochée ;
-- la leçon 95, « Décrocher la page », l'enseigne.
+- la leçon 94, « Décrocher la page », l'enseigne.
 
 **Pas encore construit** : la pile de feuilles et le passage au métavers, qui attendent la 3D principale.
 
@@ -79,7 +79,7 @@ Pour comparer, la mesure du 2026-10-04 sur ce même téléphone (détail dans `m
 
 ## Défauts et dettes
 
-- **La page quitte sa place au zoom** (leçon 7) : lot 4, construit (leçon 95).
+- **La page quitte sa place au zoom** (leçon 7) : lot 4, construit (leçon 94).
 - **Les touches ne marchent pas au doigt** (leçon 77) : lot 4, construit.
 - **Les leçons 35 et 81 ne parlaient que du Narrateur de Windows** : lot 4, construit.
 - **La fenêtre fermée couvrait les liens** (leçon 63) : corrigé et fusionné (PR 160).
@@ -87,5 +87,5 @@ Pour comparer, la mesure du 2026-10-04 sur ce même téléphone (détail dans `m
 - **Ni secondes ni millisecondes** (leçon 48) : proposé pour le lot 7.
 - **Pas de polices libres prêtes à l'emploi** (leçon 54) : proposé pour le lot 7.
 - **Rien de mesuré par le câble** : la suite `--telephone` est prête, à relancer avec le téléphone branché.
-- **Le lot 4 n'a pas encore été vu au doigt** (leçons 7, 26, 35, 77, 81, 89 à 95) : à revoir sur le téléphone.
+- **Le lot 4 n'a pas encore été vu au doigt** (leçons 7, 26, 35, 77, 81, 89 à 94) : à revoir sur le téléphone.
 - **Cacher un bouton sur un seul appareil** (leçon 89) contredirait la parité : à trancher.

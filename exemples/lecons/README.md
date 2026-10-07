@@ -84,7 +84,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 74 | [Un champ dans une ligne](74-champ-dans-une-ligne.holo) | `If(item.done, …)`, `item.done.set(1)`, les lignes gardées |
 | 75 | [Le contenu d'un composant](75-contenu-d-un-composant.holo) | `params: [title, children]`, `children` posé seul, `Encadre(children: [ … ])` |
 | 76 | [Envoyer un fichier](76-envoyer-un-fichier.holo) | `Input(type: file, accept: image, max: 2MB)` dans un `Form` |
-| 77 | [Toutes les touches utiles du clavier](77-toutes-les-touches.holo) | `Key.enter`, `Key.escape`, `Key.a` à `Key.z`, `Key.digit0` à `Key.digit9` |
+| 77 | [Toutes les touches utiles du clavier](77-toutes-les-touches.holo) | `Key.enter`, `Key.escape`, `Key.a` à `Key.z`, `Key.digit0` à `Key.digit9` ; sur un téléphone, les touches à l'écran (rien à écrire) |
 | 78 | [Apparaître en descendant](78-apparaitre-en-descendant.holo) | `Enter(…, inView: true)` |
 | 79 | [Régler un son](79-regler-un-son.holo) | `Sound(volume:, loop:)`, `stop` |
 | 80 | [Des tailles qui suivent le visiteur](80-tailles-qui-suivent.holo) | les pixels écrits en rem, `height: screen` |
@@ -92,10 +92,16 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 82 | [Chercher, filtrer, trier, montrer plus](82-chercher-filtrer-trier.holo) | `computed: [ Filter(…, total: matching) ]`, `Repeat(over: found, empty:)`, `{found} sur {matching}` |
 | 83 | [Comparer des textes](83-comparer-des-textes.holo) | `If(size, is: "L")`, `If(again, is: email)`, `When(answer, is: "Paris", …)` |
 | 84 | [Des données qui arrivent, ou pas](84-donnees-arrivees-ou-pas.holo) | `Data(name: Shop, …)`, `On(Shop.done, …)`, `On(Shop.failed, …)`, `Shop.refresh` |
-| 88 | [Un formulaire qui vérifie](88-un-formulaire-qui-verifie.holo) | `required: true`, `type: email`, `min:`, les messages sous les champs, Entrée, un envoi, 15 secondes |
-| 87 | [Des dates](87-des-dates.holo) | `today`, `{arrival:date}`, `If(departure, over: arrival)`, `departure.add(7)`, `Days(…)`, `Input(type: date, min: today)` |
-| 86 | [Des nombres à virgule](86-nombres-a-virgule.holo) | `State(price: 12.50)`, `{price}`, `sum.mul(1.1)`, `If(sum, over: 49.99)` |
 | 85 | [Une clé pour chaque élément](85-une-cle-pour-chaque-element.holo) | `Repeat(over: ordered, key: id)`, le clavier gardé, une ligne d'une liste calculée qui change sa source |
+| 86 | [Des nombres à virgule](86-nombres-a-virgule.holo) | `State(price: 12.50)`, `{price}`, `sum.mul(1.1)`, `If(sum, over: 49.99)` |
+| 87 | [Des dates](87-des-dates.holo) | `today`, `{arrival:date}`, `If(departure, over: arrival)`, `departure.add(7)`, `Days(…)`, `Input(type: date, min: today)` |
+| 88 | [Un formulaire qui vérifie](88-un-formulaire-qui-verifie.holo) | `required: true`, `type: email`, `min:`, les messages sous les champs, Entrée, un envoi, 15 secondes |
+| 89 | [L'écran et la place](89-telephone-et-ordinateur.holo) | `phone:`, `computer:`, `Page { max-width: 960px; }`, `narrow:`, `display: none` |
+| 90 | [Ce qui dépasse](90-ce-qui-depasse.holo) | `line-clamp`, `max-height`, `min-height`, `min-width`, `overflow`, `white-space`, le mot trop long qui passe à la ligne |
+| 91 | [Garder des proportions](91-garder-des-proportions.holo) | `aspect-ratio`, `object-fit`, `object-position` |
+| 92 | [Le curseur](92-le-curseur.holo) | `cursor`, `url("viseur.svg")` |
+| 93 | [Le texte justifié](93-texte-justifie.holo) | `text-align: justify` |
+| 94 | [Décrocher la page](94-decrocher-la-page.holo) | `Zoom(detach: true)`, « Décrocher », « Accrocher » |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 

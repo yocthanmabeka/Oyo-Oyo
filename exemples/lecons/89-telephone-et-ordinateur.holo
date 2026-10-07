@@ -1,4 +1,4 @@
-// Leçon 89 — Sur un téléphone, sur un ordinateur
+// Leçon 89 — L'écran et la place : un téléphone, un ordinateur, une case
 //
 // Ce qu'on apprend :
 //   Sans rien écrire, une page s'adapte déjà à l'écran : le texte passe à la ligne, une grille
@@ -8,41 +8,56 @@
 //     computer: { … }   sur un ordinateur : un écran de 1024px de large ou plus
 //   La page fait 640px de large au plus, pour qu'un texte se lise bien. Sur un ordinateur, on
 //   peut l'élargir : Page { computer: { max-width: 960px; } }.
-//   « display: none » cache un bloc, mais seulement dans phone: ou computer: (la disposition
-//   vient des blocs, ADR-017).
+//   Et selon la place que reçoit le bloc, quel que soit l'écran :
+//     narrow: { … }     dans une case de grille de moins de 320px
+//   Dans une grille de trois colonnes, chaque case est étroite, même sur un ordinateur : une
+//   carte bien faite se range n'importe où. (En CSS, il faut déclarer un conteneur à la main, et
+//   une case ne peut pas se mesurer elle-même. Ici, rien à déclarer : le moteur mesure chaque
+//   case de grille.)
+//   « display: none » cache un bloc, mais seulement dans phone:, computer: ou narrow: (la
+//   disposition vient des blocs, ADR-017).
 //
 // À essayer :
 //   Sur l'ordinateur, rétrécis la fenêtre : sous 1024px, la page redevient étroite et le
 //   bandeau change ; sous 640px, c'est l'allure du téléphone. Ouvre la même page sur ton
-//   téléphone.
+//   téléphone. Plus bas, la même carte, seule sur sa ligne, puis trois fois côte à côte : dans
+//   les cases étroites, son titre rapetisse et sa phrase se cache.
 //
 // (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
 
 Page(
-  title: "Leçon 89 : sur un téléphone, sur un ordinateur",
+  title: "Leçon 89 : l'écran et la place",
   children: [
-    H1("Sur un téléphone, sur un ordinateur"),
+    H1("L'écran et la place"),
     P.bandeau("Ce bandeau change d'allure selon l'écran."),
     P.grand("Cette phrase se cache sur un téléphone : la place y est comptée."),
     P.petit("Cette phrase se cache sur un ordinateur : là, la page s'est élargie."),
+
+    H2("Selon la place"),
+    Grid(columns: 1, gap: 16px, children: [
+      Column.carte(gap: 8px, children: [ H3("Une grande case"), P.detail("Ici, la carte a toute la place : on lit tout.") ]),
+    ]),
     Grid(columns: 3, gap: 16px, children: [
-      P.case("Une case"),
-      P.case("Deux cases"),
-      P.case("Trois cases"),
+      Column.carte(gap: 8px, children: [ H3("Petite"), P.detail("Cette phrase se cache dans une case étroite.") ]),
+      Column.carte(gap: 8px, children: [ H3("Petite"), P.detail("Cette phrase se cache dans une case étroite.") ]),
+      Column.carte(gap: 8px, children: [ H3("Petite"), P.detail("Cette phrase se cache dans une case étroite.") ]),
     ]),
 
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 88 : un formulaire qui vérifie", to: "88-un-formulaire-qui-verifie.holo"),
-      A("Leçon 90 : selon la place →", to: "90-selon-la-place.holo"),
+      A("Leçon 90 : ce qui dépasse →", to: "90-ce-qui-depasse.holo"),
     ]),
   ],
 )
 
 Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; computer: { max-width: 960px; } }
 H1 { color: #E9B44C; font-size: 28px; }
+H2 { color: #E9B44C; font-size: 22px; }
 A { color: #8fd3ff; }
 .bandeau { background: #1d3557; padding: 16px; border-radius: 8px; phone: { font-size: 14px; padding: 8px; } computer: { font-size: 22px; padding: 24px; } }
 .grand { color: #E9B44C; phone: { display: none; } }
 .petit { color: #8fd3ff; computer: { display: none; } }
-.case { background: #22223a; padding: 16px; border-radius: 8px; }
+H3 { color: #E9B44C; font-size: 20px; margin: 0; narrow: { font-size: 16px; } }
+.carte { background: #22223a; padding: 16px; border-radius: 8px; narrow: { padding: 8px; } }
+.detail { margin: 0; narrow: { display: none; } }

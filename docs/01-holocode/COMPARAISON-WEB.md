@@ -15,7 +15,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `html`, `head`, `body`, `main` | `Page(...)` | fait |
 | `title` | `Page(title:)` | fait |
 | `meta charset` | toujours UTF-8 | fait |
-| `meta viewport` (le zoom) | `Zoom(active:, max:, shrink:)` | fait |
+| `meta viewport` (le zoom) | `Zoom(active:, max:, shrink:, detach:)` | fait |
 | `meta description`, image de partage | `Page(description:, image:)` | fait |
 | `html lang` | `Page(lang:)` | fait |
 | `header`, `footer`, `main` | `Header`, `Footer`, `Main` | fait |
@@ -131,7 +131,13 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | Tailles de texte qui suivent le réglage du visiteur (`rem`) | automatique : les `px` d'une taille de texte deviennent des `rem` ; les grands titres rétrécissent sur un petit écran | fait |
 | Autres tailles qui suivent le visiteur (`rem`) ; toute la hauteur de l'écran (`100vh`, `100dvh`) | automatique : les `px` des marges, largeurs, hauteurs, coins et écarts deviennent des `rem` ; `height: screen` | fait (`ADR-061`) |
 | `transition`, `animation`, `@keyframes` | `enter: Enter(…)`, `loop: Loop(…)`, `Scenes` : d'où il part ou où il va, quand, combien de temps, quel caractère ; lettre à lettre et enfant après enfant sans JavaScript | fait |
-| `@media` (s'adapter à l'écran) | le moteur le fait seul (une ligne passe à la ligne, une grille perd des colonnes) ; et `phone: { … }`, avec `display: none` pour cacher | fait |
+| `@media` (s'adapter à l'écran) | le moteur le fait seul (une ligne passe à la ligne, une grille perd des colonnes) ; et `phone: { … }`, `computer: { … }` (1024px ou plus), avec `display: none` pour cacher ; `Page { max-width: 960px; }` élargit la page | fait (`computer:` : `ADR-069`, à valider) |
+| `@container` (selon la place d'un bloc) | `narrow: { … }` : la case de `Grid` fait moins de 320px ; la page la mesure, rien à déclarer | fait (`ADR-069`, à valider) ; pas encore les cases de `Row` et de `Column` |
+| `min-width`, `min-height`, `max-height` | les mêmes, en px ou en % | fait (`ADR-069`, à valider) |
+| `overflow`, `white-space`, et les « … » (`text-overflow`, `-webkit-line-clamp`) | `overflow: auto`, `white-space: nowrap`, `line-clamp: 3` ; un mot trop long passe à la ligne sans rien écrire | fait (`ADR-069`, à valider) ; `text-overflow` refusé : il ne fait rien seul |
+| `aspect-ratio`, `object-fit`, `object-position` | les mêmes ; une image est `cover` sans rien écrire, jamais déformée | fait (`ADR-069`, à valider) |
+| `cursor` | 15 formes, ou `url("viseur.svg")`, avec la forme de secours ajoutée par le moteur | fait (`ADR-069`, à valider) ; pas les formes d'étirement |
+| `text-align: justify`, `hyphens` | `text-align: justify` ; les mots se coupent seuls, dans la langue de la page | fait (`ADR-069`, à valider) |
 | `prefers-color-scheme` (le thème sombre) | `dark: { … }` dans un style | fait |
 | Variables (`--couleur`) | `Page { --or: #E9B44C; }`, puis `color: --or;` | fait |
 | Dégradés, ombres, images de fond | `linear-gradient`, `radial-gradient`, `box-shadow`, `text-shadow`, `url("fond.jpg")` | fait |
@@ -147,6 +153,8 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | Changer de page sans recharger (un routeur) | `Point(inside:)`, `enter`, `leave`, le dézoom | fait |
 | L'historique, le bouton « retour » | automatique : chaque site a son adresse | fait |
 | Le clavier | `On(Key.left, effect: …)` : les flèches, l'espace, Entrée, Échap, les lettres, les chiffres ; jamais Tab ; les touches à une lettre se coupent dans le menu | fait (`ADR-061`) |
+| Jouer au doigt une page faite pour le clavier (des boutons à l'écran, écrits à la main) | rien à écrire : sur un écran tactile sans souris, les touches que la page écoute s'affichent en bas | fait (`ADR-069`, à valider) ; une rangée, pas une croix |
+| Le zoom (pincer, Ctrl + molette) | celui du navigateur, sans rien écrire : la page grossit sur place ; `Zoom(detach: true)` : « Décrocher », et le zoom approche la page comme une feuille | fait (`ADR-069`, à valider) |
 | Survol (`mouseenter`, `mouseleave`) | `On(Carte.hover, …)`, `On(Carte.hoverEnd, …)` : aussi au clavier et au doigt | fait |
 | Chercher, filtrer, trier, montrer plus (`filter`, `sort`, `slice`) | `computed: [ Filter(name: found, from: articles, contains: search, sortBy: price, limit: shown) ]`, `Repeat(over: found, empty: "…")` | fait (`ADR-062`) |
 | Défilement : apparaître quand on arrive dessus | `Enter(…, inView: true)` | fait (`ADR-061`) |

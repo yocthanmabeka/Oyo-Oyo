@@ -81,7 +81,7 @@ const SETTINGS: &[(&str, Shape)] = &[
     ("overflow", Shape::Word(OVERFLOW)),
     ("overflow-x", Shape::Word(OVERFLOW)),
     ("overflow-y", Shape::Word(OVERFLOW)),
-    ("white-space", Shape::Word(&["normal", "nowrap", "pre-line"])),
+    ("white-space", Shape::Word(&["normal", "nowrap", "pre-line", "pre-wrap"])),
     ("line-clamp", Shape::Count(1, 20)),
     ("cursor", Shape::Cursor),
 ];
@@ -90,7 +90,10 @@ const OVERFLOW: &[&str] = &["visible", "hidden", "auto", "scroll"];
 
 /// Les formes de curseur du web, sauf celles des bords qu'on étire (`ew-resize`…), qui
 /// n'ont rien à étirer sans disposition à la main (ADR-017).
-const CURSORS: &[&str] = &["auto", "default", "pointer", "text", "move", "grab", "grabbing", "not-allowed", "help", "wait", "progress", "crosshair", "zoom-in", "zoom-out", "none"];
+const CURSORS: &[&str] = &[
+    "auto", "default", "pointer", "text", "move", "grab", "grabbing", "not-allowed", "help", "wait", "progress", "crosshair", "zoom-in", "zoom-out", "none",
+    "copy", "alias", "no-drop", "cell", "context-menu", "vertical-text", "all-scroll",
+];
 
 /// Les noms des réglages d'un style, pour l'éditeur (ADR-046).
 pub fn setting_names() -> Vec<&'static str> {
@@ -322,6 +325,10 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
     // seul ne fait rien. Ici, un seul (ADR-069).
     if name == "text-overflow" {
         return refusal("« text-overflow » ne fait rien seul ; écris « line-clamp: 1 » : une seule ligne, et « … » à la fin (ou « line-clamp: 3 » : trois lignes)".into());
+    }
+    // Un texte qui ne passe jamais à la ligne déborde de l'écran d'un téléphone (ADR-069).
+    if name == "white-space" && setting.value == "pre" {
+        return refusal("« white-space: pre » ne passe jamais à la ligne : sur un téléphone, le texte sort de l'écran ; écris « pre-wrap » : les espaces et les retours à la ligne sont gardés, et la ligne passe quand il le faut".into());
     }
     if LAYOUT.contains(&name) {
         return refusal(format!(
@@ -571,12 +578,11 @@ mod tests {
             include_str!("../../exemples/lecons/87-des-dates.holo"),
             // La mise en page (ADR-069).
             include_str!("../../exemples/lecons/89-telephone-et-ordinateur.holo"),
-            include_str!("../../exemples/lecons/90-selon-la-place.holo"),
-            include_str!("../../exemples/lecons/91-ce-qui-depasse.holo"),
-            include_str!("../../exemples/lecons/92-garder-des-proportions.holo"),
-            include_str!("../../exemples/lecons/93-le-curseur.holo"),
-            include_str!("../../exemples/lecons/94-texte-justifie.holo"),
-            include_str!("../../exemples/lecons/95-decrocher-la-page.holo"),
+            include_str!("../../exemples/lecons/90-ce-qui-depasse.holo"),
+            include_str!("../../exemples/lecons/91-garder-des-proportions.holo"),
+            include_str!("../../exemples/lecons/92-le-curseur.holo"),
+            include_str!("../../exemples/lecons/93-texte-justifie.holo"),
+            include_str!("../../exemples/lecons/94-decrocher-la-page.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();
@@ -665,6 +671,8 @@ mod tests {
         assert!(check(&page(".box { computer: { font-size: 22px; display: none; } narrow: { padding: 8px; display: none; } }")).is_ok());
         // Refusé, avec le bon mot.
         assert!(check(&page(".box { text-overflow: ellipsis; }")).unwrap_err().message.contains("line-clamp: 1"));
+        assert!(check(&page(".box { white-space: pre; }")).unwrap_err().message.contains("pre-wrap"));
+        assert!(check(&page(".box { white-space: pre-wrap; cursor: copy; }")).is_ok());
         assert!(check(&page(".box { aspect-ratio: 16:9; }")).unwrap_err().message.contains("16/9"));
         assert!(check(&page(".box { line-clamp: 0; }")).unwrap_err().message.contains("nombre de lignes"));
         assert!(check(&page(".box { cursor: hand; }")).unwrap_err().message.contains("pointer"));

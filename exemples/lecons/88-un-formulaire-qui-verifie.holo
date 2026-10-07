@@ -35,6 +35,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 87 : des dates", to: "87-des-dates.holo"),
+      A("Leçon 89 : l'écran et la place →", to: "89-telephone-et-ordinateur.holo"),
     ]),
   ],
   rules: [

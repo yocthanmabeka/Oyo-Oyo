@@ -1,4 +1,4 @@
-// Leçon 94 — Le texte justifié
+// Leçon 93 — Le texte justifié
 //
 // Ce qu'on apprend :
 //     text-align: justify   le texte touche les deux bords, comme dans un livre
@@ -12,7 +12,7 @@
 // (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
 
 Page(
-  title: "Leçon 94 : le texte justifié",
+  title: "Leçon 93 : le texte justifié",
   children: [
     H1("Le texte justifié"),
     P.livre("L'atelier ouvre ses portes chaque matin. On y apprend à préparer les couleurs, à tendre une toile, à choisir un pinceau et à regarder longtemps avant de commencer. Les visiteurs repartent souvent avec une petite peinture, et toujours avec l'envie de revenir."),
@@ -21,8 +21,8 @@ Page(
 
     Hr(),
     Row(gap: 16px, align: between, children: [
-      A("← Leçon 93 : le curseur", to: "93-le-curseur.holo"),
-      A("Leçon 95 : décrocher la page →", to: "95-decrocher-la-page.holo"),
+      A("← Leçon 92 : le curseur", to: "92-le-curseur.holo"),
+      A("Leçon 94 : décrocher la page →", to: "94-decrocher-la-page.holo"),
     ]),
   ],
 )

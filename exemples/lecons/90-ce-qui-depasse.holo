@@ -1,4 +1,4 @@
-// Leçon 91 — Ce qui dépasse
+// Leçon 90 — Ce qui dépasse
 //
 // Ce qu'on apprend :
 //   Sans rien écrire, un mot trop long (une adresse, un nom de fichier) passe à la ligne au
@@ -10,7 +10,7 @@
 //     overflow: hidden     ce qui dépasse est coupé ; aussi visible (le départ), auto, scroll,
 //                          et overflow-x, overflow-y pour un seul sens
 //     white-space: nowrap  ne jamais passer à la ligne, comme un prix ; pre-line : garder les
-//                          retours à la ligne écrits dans le texte
+//                          retours à la ligne écrits dans le texte ; pre-wrap : aussi les espaces
 //     min-height, min-width : une taille au moins
 //   (En CSS, les « … » demandent trois ou quatre réglages ensemble, et text-overflow seul ne
 //   fait rien. Ici, un seul réglage.)
@@ -22,7 +22,7 @@
 // (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
 
 Page(
-  title: "Leçon 91 : ce qui dépasse",
+  title: "Leçon 90 : ce qui dépasse",
   children: [
     H1("Ce qui dépasse"),
     P("Un mot très long : anticonstitutionnellementanticonstitutionnellementanticonstitutionnellement."),
@@ -33,8 +33,8 @@ Page(
 
     Hr(),
     Row(gap: 16px, align: between, children: [
-      A("← Leçon 90 : selon la place", to: "90-selon-la-place.holo"),
-      A("Leçon 92 : garder des proportions →", to: "92-garder-des-proportions.holo"),
+      A("← Leçon 89 : l'écran et la place", to: "89-telephone-et-ordinateur.holo"),
+      A("Leçon 91 : garder des proportions →", to: "91-garder-des-proportions.holo"),
     ]),
   ],
 )

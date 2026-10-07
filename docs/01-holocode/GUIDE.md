@@ -1419,6 +1419,65 @@ Page(
 
 Cette écriture est décidée (`ADR-045`). La leçon est `69-module-enferme.holo` ; ses trois modules, dans `exemples/lecons/modules/`.
 
+## 6 sexvicies. La mise en page : téléphone, ordinateur, la place, ce qui dépasse, les proportions, le curseur, justifié, décrocher
+
+```holo
+Page(
+  title: "Workshop",
+  children: [
+    H1("The workshop"),
+    P.banner("Open every morning."),
+    Grid(columns: 3, gap: 16px, children: [
+      Column.card(gap: 8px, children: [ H2("Paint"), P.detail("Colours, canvas, brushes.") ]),
+      Column.card(gap: 8px, children: [ H2("Draw"), P.detail("Pencils and paper.") ]),
+      Column.card(gap: 8px, children: [ H2("Look"), P.detail("Take your time.") ]),
+    ]),
+  ],
+)
+
+Page { padding: 24px 16px; computer: { max-width: 960px; } }
+H2 { font-size: 22px; narrow: { font-size: 16px; } }
+.banner { padding: 16px; phone: { font-size: 14px; padding: 8px; } computer: { font-size: 22px; } }
+.card { padding: 16px; narrow: { padding: 8px; } }
+.detail { narrow: { display: none; } }
+```
+
+- **`phone: { … }`** vaut sur un écran plus étroit que la page (640px) ; **`computer: { … }`**, sur un écran de 1024px ou plus. `Page { max-width: 960px; }`, ou la même chose dans `computer:`, élargit la page (640px sans rien écrire).
+- **`narrow: { … }`** vaut quand la case de `Grid` où se trouve le bloc fait moins de 320px, quel que soit l'écran : c'est la place du bloc qui compte. Rien à déclarer : la page mesure chaque case.
+- **`display: none`** cache un bloc, dans `phone:`, `computer:` et `narrow:` seulement.
+
+```holo
+Page(
+  title: "Gallery",
+  zoom: Zoom(detach: true),
+  children: [
+    H1("Gallery"),
+    P.summary("A long summary: the workshop, its tools, its colours, its hours and the way to get there. Three lines are enough; a screen reader reads it all."),
+    P.box("A box of 120 pixels at most. What does not fit scrolls, with a finger or the wheel."),
+    P.price("12,345.00 €"),
+    Image.square(source: "landscape.svg", alt: "Green hills under a yellow sun"),
+    P.book("The workshop opens every morning. You learn to prepare colours, to stretch a canvas, and to look for a long time before you start."),
+  ],
+)
+
+.summary { line-clamp: 3; }
+.box { max-height: 120px; overflow: auto; }
+.price { white-space: nowrap; }
+.square { width: 160px; aspect-ratio: 1; object-position: left; cursor: zoom-in; }
+.book { text-align: justify; }
+```
+
+- **Un mot trop long passe à la ligne**, sans rien écrire : la page ne déborde pas sur un téléphone.
+- **`line-clamp: 3`** arrête le texte après 3 lignes, avec « … » ; un lecteur d'écran lit tout. `text-overflow` est refusé : seul, il ne fait rien.
+- **`max-height`**, **`min-height`**, **`min-width`** : en px ou en %. **`overflow`** (et `overflow-x`, `overflow-y`) : `visible`, `hidden`, `auto` (on fait défiler), `scroll`. **`white-space`** : `normal`, `nowrap` (jamais à la ligne, comme un prix), `pre-line` (les retours à la ligne écrits sont gardés), `pre-wrap` (les espaces aussi) ; `pre` est refusé : il ne passe jamais à la ligne, et le texte sort de l'écran d'un téléphone.
+- **`aspect-ratio: 16/9`**, ou `1` pour un carré, garde des proportions. **Une image n'est jamais déformée** : sans rien écrire, elle remplit son cadre, coupée sur les bords (`object-fit: cover`) ; `contain` la montre en entier ; seul `fill` la déforme. **`object-position: left`** dit ce qu'on garde.
+- **`cursor:`** `pointer`, `help`, `grab`, `zoom-in`… (22 formes), ou une image rangée à côté, `url("viseur.svg")`. Au doigt, il n'y a pas de curseur : ce n'est qu'une indication.
+- **`text-align: justify`** : le texte touche les deux bords, et les mots se coupent en fin de ligne, dans la langue de la page.
+- **Le zoom** : sans rien écrire, pincer ou Ctrl + molette grossit la page sur place, comme pour tout site. **`zoom: Zoom(detach: true)`** ajoute au menu ☰ « Décrocher » : la page se détache comme une feuille, et le zoom l'approche ; « Accrocher » la remet à sa place (voir la partie 7).
+- **Les touches à l'écran** : sur un téléphone, une page qui écoute des touches (`On(Key.left, …)`, `On(Key.p, …)`) les montre en bas de l'écran, et le doigt fait ce que fait le clavier. Rien à écrire.
+
+Cette écriture est proposée (`ADR-069`) et attend la validation de Yocthan. Les leçons vont de `89-telephone-et-ordinateur.holo` à `94-decrocher-la-page.holo` ; les touches à l'écran sont dans `77-toutes-les-touches.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo
@@ -1742,12 +1801,13 @@ Cette écriture est décidée (`ADR-034`). Les leçons sont `32-entrer.holo`, `3
 
 Quand le visiteur zoome sur la page (Ctrl + molette, ou pincer), elle grossit d'abord comme n'importe quel site : le texte reste du texte, on le lit, on le sélectionne, on le copie. Au-delà du grossissement fixé par `Points(after:)`, chaque pixel devient un point lumineux, qui se morcelle ensuite. Dès que la page est grossie, glisser la déplace, dans tous les sens ; c'est le même geste avant et après le passage aux points. Quand il tourne la page, elle prend du relief. Ces trois blocs règlent cela.
 
-**Ce qui met la page en 3D s'active.** Sans rien écrire, une page est un site ordinaire : on peut la grossir pour mieux lire, et rien d'autre ne se passe.
+**Ce qui met la page en 3D s'active.** Sans rien écrire, une page est un site ordinaire : on peut la grossir pour mieux lire, et rien d'autre ne se passe. C'est alors le navigateur qui la grossit, sur place : elle reste accrochée (`ADR-069`).
 
 | Pour avoir | L'auteur écrit |
 |---|---|
 | les pixels qui deviennent des points au zoom | `points: Points()` (ou un site planté dans un pixel, avec `pixels:`) |
 | la page qui tourne, et son relief | `relief: Relief(tilt: 360deg)`, en plus de `points:` |
+| la page qui se décroche, comme une feuille, quand on zoome | `zoom: Zoom(detach: true)` : le bouton « Décrocher » du menu ☰ |
 
 `relief:` sans `points:` est refusé : le relief est celui des points. Dans `Points()` et `Relief()`, chaque réglage est facultatif : sans lui, il prend la valeur ci-dessous.
 
@@ -1788,6 +1848,7 @@ Page(
 | `Zoom(shrink:)` | `true` : dézoomer réduit la page jusqu'à un seul point. `false` : la page reste entière. | `true`, `false` |
 | `Zoom(levels:)` | Combien de sites peuvent s'emboîter, au plus. | 1 à 16 |
 | `Zoom(speed:)` | La vitesse du zoom à la molette. `1` : la vitesse ordinaire ; `2` : deux fois plus vite. Au doigt, la page suit toujours l'écartement des doigts. | 0.25 à 4 |
+| `Zoom(detach:)` | `true` : le menu ☰ offre « Décrocher » ; la page se détache comme une feuille, et le zoom l'approche ; « Accrocher » la remet à sa place. Refusé avec les points, `shrink: true` ou `active: false`, qui gardent le zoom au moteur. Proposé (`ADR-069`), à valider par Yocthan. | `true`, `false` |
 | `Points(after:)` | Jusqu'à ce grossissement, la page reste un site ordinaire. Jamais moins de 2 : tout visiteur peut au moins doubler la taille du texte. | 2 à 16 |
 | `Points(size:)` | La taille où un pixel devient un point. | 2px à 32px |
 | `Points(fragment:)` | La taille où un point se morcelle. | 8px à 400px, au moins `size` × `divisions` |

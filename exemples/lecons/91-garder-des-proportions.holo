@@ -1,4 +1,4 @@
-// Leçon 92 — Garder des proportions
+// Leçon 91 — Garder des proportions
 //
 // Ce qu'on apprend :
 //     aspect-ratio: 16/9     le bloc garde ces proportions (largeur / hauteur), quelle que
@@ -17,7 +17,7 @@
 // (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
 
 Page(
-  title: "Leçon 92 : garder des proportions",
+  title: "Leçon 91 : garder des proportions",
   children: [
     H1("Garder des proportions"),
     Row(gap: 16px, children: [
@@ -29,8 +29,8 @@ Page(
 
     Hr(),
     Row(gap: 16px, align: between, children: [
-      A("← Leçon 91 : ce qui dépasse", to: "91-ce-qui-depasse.holo"),
-      A("Leçon 93 : le curseur →", to: "93-le-curseur.holo"),
+      A("← Leçon 90 : ce qui dépasse", to: "90-ce-qui-depasse.holo"),
+      A("Leçon 92 : le curseur →", to: "92-le-curseur.holo"),
     ]),
   ],
 )
