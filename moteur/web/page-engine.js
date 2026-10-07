@@ -869,26 +869,28 @@
   // Au doigt : pincer la page. Le geste commencé sur la page continue sans lever les doigts
   // quand ses pixels deviennent des points, et dans l'autre sens quand on revient.
   let pinch = null; // l'écartement des deux doigts au dernier mouvement
-  const twoFingers = (keypresses) => ({
-    gap: Math.hypot(keypresses[0].clientX - keypresses[1].clientX, keypresses[0].clientY - keypresses[1].clientY),
-    x: (keypresses[0].clientX + keypresses[1].clientX) / 2,
-    y: (keypresses[0].clientY + keypresses[1].clientY) / 2,
+  // `touches` : les doigts posés sur l'écran (le nom du navigateur ; ce ne sont pas des touches
+  // du clavier : la traduction en anglais l'avait confondu, et le pincement ne marchait plus).
+  const twoFingers = (touches) => ({
+    gap: Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY),
+    x: (touches[0].clientX + touches[1].clientX) / 2,
+    y: (touches[0].clientY + touches[1].clientY) / 2,
   });
   addEventListener("touchstart", (event) => {
     // Un pincement commencé sur la zone de dessin est suivi par le moteur lui-même.
-    const onPage = event.keypresses.length === 2 && !inPoints && !inWorld && crossroads.hidden;
-    pinch = onPage ? twoFingers(event.keypresses).gap : null;
+    const onPage = event.touches.length === 2 && !inPoints && !inWorld && crossroads.hidden;
+    pinch = onPage ? twoFingers(event.touches).gap : null;
   }, { capture: true, passive: true });
   addEventListener("touchmove", (event) => {
-    if (pinch === null || event.keypresses.length !== 2) return;
+    if (pinch === null || event.touches.length !== 2) return;
     event.preventDefault(); // ni le zoom ni le défilement du navigateur pendant qu'on pince
-    const { gap, x, y } = twoFingers(event.keypresses);
+    const { gap, x, y } = twoFingers(event.touches);
     if (Math.abs(gap / pinch - 1) < 0.015) return; // un tremblement n'est pas un pincement
     zoomIn(gap / pinch, x, y);
     pinch = gap;
   }, { capture: true, passive: false });
   for (const end of ["touchend", "touchcancel"]) {
-    addEventListener(end, (event) => { if (event.keypresses.length < 2) pinch = null; }, { capture: true, passive: true });
+    addEventListener(end, (event) => { if (event.touches.length < 2) pinch = null; }, { capture: true, passive: true });
   }
 
   // ---------------------------------------------------------------- le carrefour
@@ -1170,16 +1172,18 @@
   // bloque jamais. Il ne reçoit que sa mémoire, plafonnée (elle ne peut pas grandir au-delà), et
   // un nombre ; il n'a ni réseau, ni page, ni heure : un module qui demande autre chose ne
   // démarre pas. Son temps court à partir du moment où il commence ; au-delà, le fil est arrêté.
-  const SANDBOX_CODE = `onmessage = async ({ data: { octets, entree, pages } }) => {
+  // Les noms des messages sont les mêmes des deux côtés (la traduction en anglais avait oublié
+  // ce texte : la boîte attendait encore « octets », « entree », et aucun module ne marchait plus).
+  const SANDBOX_CODE = `onmessage = async ({ data: { bytes, entry, pages } }) => {
     try {
       const memory = new WebAssembly.Memory({ initial: pages, maximum: pages });
-      const { instance } = await WebAssembly.instantiate(octets, { env: { memory } });
+      const { instance } = await WebAssembly.instantiate(bytes, { env: { memory } });
       if (typeof instance.exports.run !== "function") throw new Error("le module n'offre pas run");
-      postMessage({ debut: true });
-      const sortie = instance.exports.run(entree >>> 0);
-      postMessage({ ok: true, sortie: sortie >>> 0 });
+      postMessage({ start: true });
+      const output = instance.exports.run(entry >>> 0);
+      postMessage({ ok: true, output: output >>> 0 });
     } catch (e) {
-      postMessage({ ok: false, raison: String((e && e.message) || e) });
+      postMessage({ ok: false, reason: String((e && e.message) || e) });
     }
   };`;
   const runningModules = new Set();
@@ -1362,9 +1366,9 @@
     root.addEventListener("click", (event) => {
       if (fingerTouch) {
         // Au doigt : toucher un bloc le survole, toucher ailleurs le quitte.
-        const keypresses = hoversOf(event.target).map((block) => block.dataset.name);
-        for (const name of [...hoveredOnes]) if (!keypresses.includes(name)) hoverOver(name, false);
-        for (const name of keypresses) hoverOver(name, true);
+        const touched = hoversOf(event.target).map((block) => block.dataset.name);
+        for (const name of [...hoveredOnes]) if (!touched.includes(name)) hoverOver(name, false);
+        for (const name of touched) hoverOver(name, true);
       }
       const block = event.target.closest("[data-name]");
       if (!block) return;

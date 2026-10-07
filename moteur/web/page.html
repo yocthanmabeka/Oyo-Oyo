@@ -216,7 +216,7 @@
     const openMenu = () => { window.__holoMenuRequested = true; load(); };
     // Zoomer à la molette : la page à elle, pas le navigateur ; le moteur arrive pour la suite.
     const zoom = (event) => { if (event.ctrlKey) { event.preventDefault(); load(); } };
-    const pinchZoom = (event) => { if (event.keypresses.length > 1) load(); };
+    const pinchZoom = (event) => { if (event.touches.length > 1) load(); };
     // La souris arrive sur un bloc qu'une règle écoute au survol, ou le clavier s'y pose (ADR-039) :
     // le moteur arrive, et le survol est rejoué s'il dure encore.
     const hover = (event) => {
