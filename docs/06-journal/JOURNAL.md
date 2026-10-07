@@ -6,6 +6,19 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Deux pannes de la traduction en anglais, réparées
+
+- Trouvées par l'exploration de l'issue #82, vérifiées avant d'être dites. La traduction du code (`ADR-060`) avait :
+  - changé `event.touches` (les doigts posés sur l'écran, un nom du navigateur) en `event.keypresses`, qui n'existe pas, à six endroits : **sur un téléphone, on ne pouvait plus zoomer du tout**, ni pour lire plus gros, ni pour entrer dans les points ;
+  - traduit la page, mais pas le petit programme de la boîte des modules, écrit dans un texte : la boîte attendait encore `octets` et `entree`, la page envoyait `bytes` et `entry` ; **aucun module ne marchait plus** (la leçon 69 rendait 0).
+- Réparé. Vérifié dans Chrome sans fenêtre, sur `main` puis sur la réparation : le pincement à deux doigts donnait quatre erreurs et aucun zoom, il grossit maintenant la page jusqu'aux points, sans erreur ; le module de la leçon 69 échouait (« Argument 0 must be a buffer source »), il rend maintenant 5 050.
+
+**Pourquoi personne ne l'a vu**
+
+- Les tests de GitHub lancent le moteur en Rust et les prototypes en Python, mais aucune page dans un navigateur. Les essais dans Chrome de la traduction, et les miens pour le lot 9, n'ont touché ni au doigt ni aux modules. Il faudra un essai dans un navigateur à chaque PR qui touche `moteur/web/` (à proposer à part).
+
+---
+
 ## 2026-10-07 — Un prompt pour Codex et Gemini : comment finir la partie web
 
 - Yocthan : « que tu demandes les avis des GPT et des Gemini par rapport à tout ça via un prompt […] je n'arrive pas vraiment à comprendre complètement […] j'aimerais qu'on termine vraiment la partie web aujourd'hui, parce que ça a pris trop de temps. »
