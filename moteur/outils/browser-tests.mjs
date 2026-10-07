@@ -256,6 +256,24 @@ const tests = [
       rmSync(big, { force: true });
     }
   }],
+  ["chercher, filtrer, trier et montrer plus (Filter)", async (p) => {
+    await p.open("/exemples/lecons/82-chercher-filtrer-trier.holo");
+    const titles = () => p.value(`[...document.querySelectorAll(".holo-line")].map((l) => l.innerText.split(String.fromCharCode(10))[0].trim()).join(" | ")`);
+    const start = await titles();
+    await p.type("#page input[type=text], #page input:not([type])", "RI");
+    const searched = await p.until(`document.querySelectorAll(".holo-line").length === 2`);
+    const afterSearch = await titles();
+    await p.value(`(() => { const i = document.querySelector("#page input:not([type=radio])"); i.value = ""; i.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+    await p.click('input[type=radio][value="huile"]');
+    const filtered = await p.until(`document.querySelectorAll(".holo-line").length === 3`);
+    await p.click('[data-name="Toutes"]');
+    await p.click('[data-name="Plus"]');
+    const more = await p.until(`document.querySelectorAll(".holo-line").length === 6`);
+    await p.type("#page input:not([type=radio])", "zzz");
+    const empty = await p.until(`document.querySelector(".holo-empty")?.textContent === "Aucune œuvre ne correspond."`);
+    const ok = start === "Le phare | Orage | Élan du matin | La rivière" && searched && afterSearch === "La rivière | Rizières" && filtered && more && empty;
+    return [ok, `départ : ${start} ; « RI » : ${afterSearch} ; huile : ${filtered} ; montrer plus : ${more} ; « zzz » vide : ${empty}`];
+  }],
   ["un formulaire envoie son message", async (p) => {
     await p.open("/exemples/lecons/64-formulaire.holo");
     await p.type("#page input", "Ada");

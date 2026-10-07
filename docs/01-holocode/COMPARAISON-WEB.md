@@ -148,6 +148,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | L'historique, le bouton « retour » | automatique : chaque site a son adresse | fait |
 | Le clavier | `On(Key.left, effect: …)` : les flèches, l'espace, Entrée, Échap, les lettres, les chiffres ; jamais Tab ; les touches à une lettre se coupent dans le menu | fait (`ADR-061`) |
 | Survol (`mouseenter`, `mouseleave`) | `On(Carte.hover, …)`, `On(Carte.hoverEnd, …)` : aussi au clavier et au doigt | fait |
+| Chercher, filtrer, trier, montrer plus (`filter`, `sort`, `slice`) | `computed: [ Filter(name: found, from: articles, contains: search, sortBy: price, limit: shown) ]`, `Repeat(over: found, empty: "…")` | fait (`ADR-062`) |
 | Défilement : apparaître quand on arrive dessus | `Enter(…, inView: true)` | fait (`ADR-061`) |
 | Approche, position du défilement | | manque |
 | `else` | `If(…, children: [ … ], else: [ … ])` | fait |

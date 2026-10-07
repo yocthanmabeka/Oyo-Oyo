@@ -1,0 +1,63 @@
+// Leçon 82 — Chercher, filtrer, trier, montrer plus
+//
+// Ce qu'on apprend :
+//   Une liste calculée se fait d'une autre, et se refait à chaque changement :
+//     computed: [
+//       Filter(name: found, from: articles,
+//              contains: search, in: [title],      cherche un mot dans le titre
+//              field: kind, is: chosen,            garde une seule sorte
+//              sortBy: price, reverse: true,       trie par prix, du plus cher au moins cher
+//              limit: shown),                      n'en montre que « shown »
+//     ]
+//   On la montre comme une liste : Repeat(over: found, …), et {found} est son nombre d'éléments.
+//   empty: "…" dans Repeat dit ce qu'on écrit quand il n'y a rien.
+//   Une valeur vide ne filtre pas : un champ de recherche vide montre tout. Les majuscules et
+//   les accents ne comptent pas : « ELAN » trouve « Élan ». La liste calculée ne se change pas
+//   par une demande ; on change sa source.
+//
+// À essayer :
+//   Écris « ri » dans le champ ; choisis « huile », puis « Toutes les sortes » ; touche
+//   « Montrer plus ». Écris « zzz » :
+//   « Aucune œuvre ne correspond. »
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 82 : chercher, filtrer, trier",
+  state: State(search: "", chosen: "", shown: 4, articles: [
+    Item(title: "Élan du matin", kind: "huile", price: 120),
+    Item(title: "La rivière", kind: "aquarelle", price: 90),
+    Item(title: "Nuit d'encre", kind: "encre", price: 60),
+    Item(title: "Le phare", kind: "huile", price: 200),
+    Item(title: "Rizières", kind: "aquarelle", price: 75),
+    Item(title: "Orage", kind: "huile", price: 150),
+  ]),
+  computed: [
+    Filter(name: found, from: articles, contains: search, in: [title], field: kind, is: chosen, sortBy: price, reverse: true, limit: shown),
+  ],
+  children: [
+    H1("Chercher, filtrer, trier"),
+    Input(value: search, label: "Chercher un titre"),
+    Choice(value: chosen, label: "Sorte", options: [ "huile", "aquarelle", "encre" ]),
+    Button(name: Toutes, text: "Toutes les sortes"),
+    P("{found} œuvre(s), de la plus chère à la moins chère :"),
+    Repeat(over: found, empty: "Aucune œuvre ne correspond.", children: [
+      Row.oeuvre(gap: 12px, align: between, children: [ Text("{item.title}"), Text("{item.price} €") ]),
+    ]),
+    Button(name: Plus, text: "Montrer plus"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 81 : la vue points se lit aussi", to: "81-vue-points-et-lecteur-d-ecran.holo"),
+    ]),
+  ],
+  rules: [
+    On(Plus.tap, effect: shown.add(4)),
+    On(Toutes.tap, effect: chosen.set("")),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.oeuvre { background: #1a1a2e; border-radius: 8px; padding: 6px 12px; }

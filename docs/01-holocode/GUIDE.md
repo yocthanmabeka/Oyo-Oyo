@@ -1389,6 +1389,37 @@ Page(
 
 Cette écriture est décidée (`ADR-045`). La leçon est `69-module-enferme.holo` ; ses trois modules, dans `exemples/lecons/modules/`.
 
+## 6 vicies. Chercher, filtrer, trier : les listes calculées
+
+```holo
+Page(
+  title: "Gallery",
+  state: State(search: "", chosen: "", shown: 4, works: [
+    Item(title: "Sunrise", kind: "oil", price: 120),
+    Item(title: "The river", kind: "watercolour", price: 90),
+  ]),
+  computed: [
+    Filter(name: found, from: works, contains: search, in: [title], field: kind, is: chosen, sortBy: price, reverse: true, limit: shown),
+  ],
+  children: [
+    Input(value: search, label: "Search"),
+    P("{found} work(s)"),
+    Repeat(over: found, empty: "Nothing matches.", children: [ Text("{item.title}") ]),
+    Button(name: More, text: "Show more"),
+  ],
+  rules: [ On(More.tap, effect: shown.add(4)) ],
+)
+```
+
+- **Une liste calculée** se déclare dans `computed: [ … ]` : `Filter(name: found, from: works, …)`. Elle se refait d'après sa source à chaque changement, et se montre comme une liste : `Repeat(over: found)`, `{found}` pour son nombre d'éléments.
+- `contains: search` cherche la valeur de texte `search` dans les champs `in: [title]` (dans tous, si `in` manque), sans majuscules ni accents : « ELAN » trouve « Élan ».
+- `field: kind, is: chosen` ne garde que les éléments dont le champ vaut cette valeur. `sortBy: price` trie (des nombres comme des nombres) ; `reverse: true`, du plus grand au plus petit. `limit: shown` n'en montre que `shown` : une règle l'augmente pour « montrer plus ».
+- **Une valeur vide ne filtre pas** : un champ de recherche vide montre tout.
+- `Repeat(empty: "…")` dit ce qu'on écrit quand la liste est vide ; un lecteur d'écran l'annonce.
+- Une liste calculée ne se change pas par une demande, et ne se garde pas : on change ou on garde sa source.
+
+L'écriture `Filter`, `computed`, `contains`, `in`, `sortBy`, `limit`, `empty` est choisie par Yocthan (`ADR-062`) ; `field`, `is` et `reverse` attendent sa validation. La leçon est `82-chercher-filtrer-trier.holo`.
+
 ## 6 undevicies. La fin du web : toutes les touches, apparaître en descendant, le son réglé, des tailles qui suivent le visiteur
 
 ```holo

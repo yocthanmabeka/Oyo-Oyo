@@ -24,6 +24,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 80 : des tailles qui suivent le visiteur", to: "80-tailles-qui-suivent.holo"),
+      A("Leçon 82 : chercher, filtrer, trier →", to: "82-chercher-filtrer-trier.holo"),
     ]),
   ],
 )

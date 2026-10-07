@@ -103,7 +103,10 @@ pub fn site_html(program: &Program, page: &Block, base: &str, title: &str) -> Re
 
 fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str) -> Result<String, Error> {
     // Les listes, à leur départ : les lignes de `Repeat(over:)` sont fabriquées d'après elles.
-    crate::lists::set_running(crate::lists::initial(program));
+    let mut lists = crate::lists::initial(program);
+    let computed = crate::computed::apply(program, &crate::state::initial(program).unwrap_or_default(), &crate::state::initial_texts(program), &lists);
+    lists.extend(computed);
+    crate::lists::set_running(lists);
     if page.name != "Page" && page.name != "World" {
         return Err(Error { message: format!("la vue à plat affiche une « Page » ; ce fichier commence par « {} »", page.name), pos: page.pos });
     }
@@ -1145,6 +1148,9 @@ fn lines(repeat: &Block, list: &str, base: &str) -> Result<String, Error> {
     for argument in &repeat.arguments {
         match argument.name.as_deref() {
             Some("over" | "children" | "rules" | "name") => {}
+            // Ce qui s'écrit quand la liste est vide (lot 2 du web) : « Aucun résultat ».
+            Some("empty") if matches!(argument.value, Value::Text(_)) => {}
+            Some("empty") => return Err(Error { message: "« Repeat(empty: …) » attend un texte entre guillemets : empty: \"Aucun résultat\"".into(), pos: argument.pos }),
             Some(other) => return Err(Error { message: format!("« Repeat(over: …) » n'a pas de paramètre « {other} » ; paramètres possibles : over, children, rules"), pos: argument.pos }),
             None => return Err(Error { message: "chaque paramètre de « Repeat » est nommé : Repeat(over: tasks, children: [ … ])".into(), pos: argument.pos }),
         }
@@ -1232,6 +1238,13 @@ fn lines(repeat: &Block, list: &str, base: &str) -> Result<String, Error> {
         let already = elements[..rank].iter().filter(|e| *e == element).count();
         let key = element.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, o| (h ^ u64::from(o)).wrapping_mul(0x0100_0000_01b3));
         output.push_str(&format!("<div class=\"holo-line\" data-rank=\"{rank}\" data-key=\"{key:x}-{already}\">{line}</div>"));
+    }
+    // Une liste vide dit ce qu'on a écrit dans `empty:` (lot 2 du web) ; un lecteur d'écran
+    // l'annonce quand il apparaît, après une recherche qui ne trouve rien.
+    if elements.is_empty() {
+        if let Some(Value::Text(empty)) = repeat.argument("empty").map(|a| &a.value) {
+            output.push_str(&format!("<p class=\"holo-empty\" role=\"status\">{}</p>", escape(empty)));
+        }
     }
     Ok(output)
 }

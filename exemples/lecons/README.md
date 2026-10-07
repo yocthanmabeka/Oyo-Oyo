@@ -89,6 +89,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 79 | [Régler un son](79-regler-un-son.holo) | `Sound(volume:, loop:)`, `stop` |
 | 80 | [Des tailles qui suivent le visiteur](80-tailles-qui-suivent.holo) | les pixels écrits en rem, `height: screen` |
 | 81 | [La vue points se lit aussi](81-vue-points-et-lecteur-d-ecran.holo) | le lecteur d'écran en vue points (rien à écrire) |
+| 82 | [Chercher, filtrer, trier, montrer plus](82-chercher-filtrer-trier.holo) | `computed: [ Filter(…) ]`, `Repeat(over: found, empty:)`, `{found}` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 

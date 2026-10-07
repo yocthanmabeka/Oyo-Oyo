@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-07). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (333 mots : tous décidés), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (339 mots : 336 décidés, 3 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
 - **Couverture** : la part de ce que fait l’élément web qu’on obtient en HoloCode aujourd’hui. Estimation de Claude, non mesurée.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,7 +9,7 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 333 mots | tous décidés |
+| **HoloCode** | 339 mots | 336 décidés, 3 à l’essai |
 | HTML | 84 % de couverture | 49 oui, 5 en partie, 5 non, 3 refusés |
 | CSS | 80 % de couverture | 25 oui, 5 en partie, 2 non, 2 refusés |
 | JavaScript | 59 % de couverture | 15 oui, 11 en partie, 6 non, 1 refusés |
@@ -415,6 +415,9 @@
 | `over` | La liste qui change, montrée ligne par ligne : Repeat(over: tasks) | `map, innerHTML` | Décidé (ADR-044) |
 | `onAdd:, emit:` | Brancher un signal d'un composant ; l'émettre dans sa règle | `addEventListener, dispatchEvent` | Décidé (ADR-056) |
 | `Item (dans State), item.title` | Les éléments à champs d'une liste, et leurs champs dans une ligne | `objets JavaScript` | Décidé (ADR-051) |
+| `computed, Filter(name:, from:, contains:, in:, sortBy:, limit:)` | Une liste calculée : chercher, trier, montrer plus (l'écriture A, choisie par Yocthan) | `filter, sort, slice` | Décidé (ADR-062) |
+| `field, is, reverse (dans Filter)` | Garder une sorte d'éléments ; trier du plus grand au plus petit | `filter, reverse` | À l’essai (ADR-062) |
+| `empty (dans Repeat)` | Ce qu'on écrit quand une liste est vide | `if (list.length === 0)` | Décidé (ADR-062) |
 
 ## Blocs : les règles
 
@@ -619,7 +622,7 @@
 | `add, sub, mul, div, set, random` | `calcul (+ − × ÷)` | calculer | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-043). En nombres entiers ; pas de pourcentage ni de racine. |
 | `If(…, else: […]), When(…)` | `if, else` | décider | Oui | 100 % | Déjà là | Le « sinon » ajouté le 2026-10-06 (ADR-039). |
 | `State(articles: [ Item(…) ]), push(Item(…)), item.done.set(1)` | `tableaux, objets` | des listes de valeurs | Oui | 90 % | Déjà là | Des listes à champs, qui changent pendant la visite (ADR-044, ADR-051, ADR-057). |
-| `Repeat(items:, children:, rules:)` | `for, map` | répéter pour chaque élément | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-040) : déplié à la lecture, la page reste du HTML ordinaire. |
+| `Repeat(items:, children:, rules:) ; Filter(…) pour chercher, filtrer, trier` | `for, map` | répéter pour chaque élément | Oui | 90 % | Déjà là | Déplié à la lecture (ADR-040) ; des listes calculées pour chercher, filtrer, trier et montrer plus (ADR-062). |
 | `Module(…) : du code WebAssembly enfermé` | `fonctions` | du calcul réutilisable | En partie | 40 % | Déjà là | Ajouté le 2026-10-06 (ADR-045) : un nombre en entrée, un nombre en sortie, arrêté s'il dure trop. |
 | `{nom} dans un texte` | `texte (majuscules, longueur, découper)` | travailler un texte | En partie | 20 % | Plus tard | — |
 | `random, rejouable` | `Math.random` | le hasard | Oui | 90 % | Déjà là | Mieux pour un jeu : la même partie se rejoue. |
