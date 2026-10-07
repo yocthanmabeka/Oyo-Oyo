@@ -1,5 +1,7 @@
 # Prompt pour Codex (GPT) et Gemini — finir la partie web : serveur, valeurs partagées, comptes
 
+> **Remplacé le même jour** par [`2026-10-07-codex-gemini-tout-le-web.md`](2026-10-07-codex-gemini-tout-le-web.md), à la demande de Yocthan : ce prompt-ci proposait de déclarer le web fini avec ce qui existe, alors que son but est que HoloCode sache d'abord faire tout ce que HTML, CSS et JavaScript savent faire.
+
 - Écrit par Claude le 2026-10-07, à la demande de Yocthan : « que tu demandes les avis des GPT et des Gemini par rapport à tout ça via un prompt. Parce que j'ai carrément aucune idée et aussi je n'arrive pas vraiment à comprendre complètement […] qu'il voie et qu'il valide qu'est-ce qu'on peut faire […] j'aimerais qu'on termine vraiment la partie web aujourd'hui, parce que ça a pris trop de temps. »
 - Le même texte pour les deux. Gemini n'a pas accès au dépôt : tout ce qu'il faut est dans le texte.
 - Les réponses iront dans `docs/05-discussions/reponses/`.

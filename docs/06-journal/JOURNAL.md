@@ -6,6 +6,17 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Le bon prompt pour Codex et Gemini : tout le web, avant le métavers
+
+- Yocthan avait redit son but : « le code doit d'abord faire tout ce que les HTML CSS JavaScript savent faire et ensuite faire le métaverse ». Or le prompt préparé le même jour par l'autre session proposait de déclarer le web fini avec ce qui existe (l'option A). Yocthan : « c'est mieux que tu crées le bon prompt que je vais passer à Codex et à Gemini ».
+- Écrit : `docs/05-discussions/prompts/2026-10-07-codex-gemini-tout-le-web.md`. Il part du but et de la règle « une mécanique, jamais une capacité » ; il liste toutes les dettes du web, vérifiées dans le code, en sept familles (données et calcul, formulaires, serveur et réseau, mise en page, HTML, médias, dessin et appareil) ; il reprend la proposition de serveur « chez soi d'abord » ; il demande des lots classés, le moyen de chaque capacité sans code libre, et ce qui peut attendre ou être refusé. L'ancien prompt porte une note : remplacé.
+
+**Erreur en route**
+
+- Le matin même, j'avais dit à Yocthan « le web de base est fini » ; il m'a repris. Ce but est maintenant dans ma mémoire, et le prompt le met en tête.
+
+---
+
 ## 2026-10-07 — Deux pannes de la traduction en anglais, réparées
 
 - Trouvées par l'exploration de l'issue #82, vérifiées avant d'être dites. La traduction du code (`ADR-060`) avait :
