@@ -457,6 +457,8 @@
       if (champ.type === "checkbox") champ.checked = valeurs.get(champ.dataset.bind) !== "0";
       // Un choix en boutons ronds : celui dont l'option est la valeur est coché (ADR-038).
       else if (champ.type === "radio") champ.checked = champ.value === valeurs.get(champ.dataset.bind);
+      // Un fichier choisi ne se récrit pas ; une règle peut seulement le vider : photo.set("").
+      else if (champ.type === "file") { if (valeurs.get(champ.dataset.bind) === "") champ.value = ""; }
       else if (champ !== document.activeElement) champ.value = valeurs.get(champ.dataset.bind);
     }
     // Une barre de progression suit sa valeur : Progress(value: lives) (ADR-042).
@@ -557,7 +559,7 @@
       if (champ.type === "radio" && !champ.checked) continue;
       const change = champ.type === "checkbox" || champ.type === "radio" ? champ.checked !== champ.defaultChecked : champ.value !== champ.defaultValue;
       if (!change) continue;
-      const ecrit = champ.type === "checkbox" ? (champ.checked ? "1" : "0") : champ.value;
+      const ecrit = champ.type === "checkbox" ? (champ.checked ? "1" : "0") : champ.type === "file" ? fichierPermis(champ) : champ.value;
       etats.set(chemin, ranger(saisir(source, etats.get(chemin) ?? "", champ.dataset.bind, ecrit)));
     }
   }
@@ -1082,12 +1084,42 @@
     envoisEnCours.add(formulaire);
     const pour = chemin;
     let arrive = false;
+    // Avec des fichiers (ADR-059), l'envoi part en plusieurs morceaux : les valeurs, puis chaque fichier.
+    const fichiers = [...(racine.querySelector(`form[data-name="${CSS.escape(formulaire)}"]`)?.querySelectorAll("input[type=file]") ?? [])].filter((champ) => champ.files?.[0]);
+    let demande = { method: "POST", headers: { "content-type": "application/json" }, body: corps };
+    if (fichiers.length) {
+      const morceaux = new FormData();
+      morceaux.append("envoi", corps);
+      for (const champ of fichiers) morceaux.append(champ.dataset.bind, champ.files[0], champ.files[0].name);
+      demande = { method: "POST", body: morceaux };
+    }
     try {
-      const reponse = await fetch(chemin, { method: "POST", headers: { "content-type": "application/json" }, body: corps });
+      const reponse = await fetch(chemin, demande);
       arrive = reponse.ok;
     } catch { /* pas de réseau, ou pas de serveur pour recevoir */ }
     envoisEnCours.delete(formulaire);
     if (pour === chemin) emettre(`${formulaire}.${arrive ? "sent" : "failed"}`);
+  }
+
+  // Un fichier choisi (ADR-059) : la page vérifie sa sorte et sa taille tout de suite, et le dit
+  // avec le message du navigateur ; un fichier refusé est retiré. Le serveur vérifie à nouveau.
+  function fichierPermis(champ) {
+    const fichier = champ.files?.[0];
+    if (!fichier) return "";
+    const enFrancais = (document.documentElement.lang || "fr").startsWith("fr");
+    const max = Number(champ.dataset.max);
+    const sortes = champ.accept.split(",");
+    let refus = "";
+    if (!sortes.includes(fichier.type)) refus = enFrancais ? "Ce fichier n'est pas d'une sorte acceptée ici." : "This kind of file is not accepted here.";
+    else if (fichier.size > max) {
+      const taille = max >= 1e6 ? `${max / 1e6} ${enFrancais ? "Mo" : "MB"}` : `${max / 1e3} ${enFrancais ? "Ko" : "KB"}`;
+      refus = enFrancais ? `Ce fichier est trop lourd : ${taille} au plus.` : `This file is too large: ${taille} at most.`;
+    }
+    champ.setCustomValidity(refus);
+    if (!refus) return fichier.name;
+    champ.value = "";
+    champ.reportValidity();
+    return "";
   }
 
   // Un module enfermé (ADR-011 partie C, ADR-045). Il tourne dans un fil à part : la page ne se
@@ -1340,7 +1372,7 @@
     racine.addEventListener("input", (evenement) => {
       const champ = evenement.target.closest("[data-bind]");
       if (!champ) return;
-      const ecrit = champ.type === "checkbox" ? (champ.checked ? "1" : "0") : champ.value;
+      const ecrit = champ.type === "checkbox" ? (champ.checked ? "1" : "0") : champ.type === "file" ? fichierPermis(champ) : champ.value;
       changerLEtat(ranger(saisir(source, etats.get(chemin) ?? "", champ.dataset.bind, ecrit)));
     });
     // En quittant un champ, il montre la valeur que l'arbitre a retenue (bornée).

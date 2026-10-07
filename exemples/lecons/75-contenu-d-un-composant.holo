@@ -46,6 +46,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 74 : un champ dans une ligne", to: "74-champ-dans-une-ligne.holo"),
+      A("Leçon 76 : envoyer un fichier →", to: "76-envoyer-un-fichier.holo"),
     ]),
   ],
   rules: [

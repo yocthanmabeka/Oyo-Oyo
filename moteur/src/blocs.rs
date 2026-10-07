@@ -50,7 +50,7 @@ const REGLAGES_DES_BLOCS: &[(&str, &[&str])] = &[
     ("Stack", &["name", "children"]),
     ("Board", &["name", "children", "height"]),
     ("Point", &["name", "seed", "brightness", "fragments", "color", "palette", "budget", "inside", "above"]),
-    ("Input", &["name", "value", "label", "max", "lines", "type"]),
+    ("Input", &["name", "value", "label", "max", "lines", "type", "accept"]),
     ("Slider", &["name", "value", "label", "min", "max"]),
     ("Progress", &["name", "value", "max", "label"]),
     ("Details", &["name", "summary", "children", "open"]),

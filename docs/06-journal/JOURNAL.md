@@ -6,6 +6,24 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Un serveur et des comptes, proposés
+
+- Yocthan demande si les langages issus de JavaScript passent par Node.js pour le serveur et les comptes. Réponse : oui, presque toujours, avec deux programmes à garder d'accord.
+- Écrit, en proposition : `proposals/Claude/serveur-et-comptes-2026-10-07.md`. Un serveur en Rust (`holo serve`) qui fait tourner le même arbitre que la page ; puis des valeurs partagées, des comptes sans mot de passe (clés d'accès), le direct à plusieurs. Quatre questions attendent Yocthan ; rien n'est construit.
+
+---
+
+## 2026-10-07 — Envoyer un fichier
+
+- Yocthan : « L'envoi d'un fichier […] travaille aussi sur ça. »
+- Fait (`ADR-059`) : `Input(type: file, value: photo, label: "…", accept: image, max: 2MB)` dans un `Form`. La valeur est le nom du fichier choisi. La page refuse tout de suite un fichier d'une autre sorte ou trop lourd ; le serveur demande au moteur ce que la page permet (`holo fichiers`), lit la sorte dans les premiers octets, et range le fichier dans `messages/fichiers/` sous un nom tiré au hasard.
+- Corrigé au passage : dans un formulaire, l'étiquette d'un champ était sur la même ligne que lui (la leçon 64 aussi) ; elle est maintenant au-dessus, comme hors d'un formulaire.
+- Vérifié : tous les tests du moteur ; dans Chrome, un fichier texte et une image de 2,1 Mo refusés, une vraie image envoyée et rangée ; au serveur, sans la page : faux PNG 415, trop lourd 413, champ inconnu 400, chemin dans le nom ignoré ; l'audit axe-core, 76 leçons et le site de référence, 0 défaut.
+
+![La leçon 76 : une image choisie, prête à partir](images/2026-10-07-envoyer-un-fichier.png)
+
+---
+
 ## 2026-10-07 — Un emplacement pour du contenu dans un composant
 
 - Yocthan : « un emplacement pour contenu dans un composant. Oui […] dans Flutter, il y avait children […] et child ».
