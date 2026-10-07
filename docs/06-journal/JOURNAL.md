@@ -6,6 +6,16 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Le grand tableau sans pourcentages
+
+- La consigne du 2026-10-07 dit : pas de pourcentage de couverture sans méthode de calcul reproductible. Le grand tableau en publiait : « 84 % » pour HTML, « 77 % » pour l'ensemble, et un pourcentage par élément. C'étaient mes estimations, élément par élément, puis leur moyenne : aucune méthode ne les mesurait.
+- Fait : les pourcentages sont retirés, de la page en ligne et de `docs/01-holocode/TABLEAU-WEB.md`, et même des données de la page. Restent le jugement par élément (oui, en partie, non, refusé, sans objet) et les comptes, qui se refont en comptant les lignes.
+- Le résumé compte maintenant aussi l'élément « sans objet » : 130 éléments sur 130. L'ancien résumé n'en additionnait que 129.
+- Exécuté : le générateur refait le fichier → 341 mots, 336 décidés ; la page s'ouvre dans Chrome sans fenêtre, et le résumé donne 62 éléments HTML, 34 CSS, 34 JavaScript, 130 en tout ; aucune colonne « Couverture ».
+- Pas touché : le comparatif des langages (`COMPARATIF-LANGAGES-WEB.md`) note chaque langage sur 100, avec des poids écrits ; ce n'est pas une couverture, mais c'est aussi un jugement de Claude. À Yocthan de dire s'il le garde.
+
+---
+
 ## 2026-10-07 — Lot 2, deuxième partie : comparer des textes
 
 - Fait (`ADR-063`, PROPOSITION : Yocthan n'a pas encore validé) : un texte se compare à un texte, `If(size, is: "L")`, `If(size, not: "M")`, ou à une autre valeur de texte, `If(again, is: email)`. Une règle qui guette peut regarder un texte : `When(answer, is: "Paris", effect: score.add(1))`, au moment où le visiteur l'écrit ou où une règle le change. À la lettre près. Pas de mélange texte et nombre ; `over` et `under` pour les nombres seulement ; chaque refus dit pourquoi.
