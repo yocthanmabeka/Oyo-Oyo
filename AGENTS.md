@@ -14,16 +14,24 @@ Si tu n'as pas accès à GitHub (c'est le cas de Gemini), demande à Yocthan le 
 
 ## Qui fait quoi (deux sessions Claude en même temps)
 
-Décidé par Yocthan le 2026-10-07 (« Vas-y, commence […] il faut qu'on aille rapidement ») : les deux sessions se partagent les lots du web (`proposals/Claude/tout-le-web-2026-10/SYNTHESE.md`). **Avant de commencer un travail, lis ce tableau ; inscris-y ton lot avant d'écrire du code ; prends tes numéros de décision et de leçon dans ta réserve.**
+Décidé par Yocthan le 2026-10-07 (« Vas-y, commence […] il faut qu'on aille rapidement ») : les deux sessions se partagent les lots du web (`proposals/Claude/tout-le-web-2026-10/SYNTHESE.md`). **Avant de commencer un travail, relis ce tableau sur `origin/main` ; ne travaille que sur une ligne qui te nomme ; prends tes numéros de décision et de leçon dans ta réserve.**
 
 | Lot | Session | Branches | Décisions réservées | Leçons réservées | État |
 |---|---|---|---|---|---|
 | 4 — mise en page d'ordinateur et de téléphone | la session du PC de Yocthan | `langage/lot4-mise-en-page` | ADR-069 à ADR-072 (069 pris) | 89 à 94 (toutes prises) | fait (`ADR-069`, PR 164 et 166) |
 | 8 — le HTML et les médias qui manquent | la session du nuage | `langage/lot8-…` | ADR-073 (utilisée) | 95, 96 (utilisées) | fait (`ADR-073`) ; l'historique dans une page attend le lot 5 |
-| 5, 6, 7 — serveur, valeurs partagées, comptes | la session du nuage | `serveur/lot5-…`, `serveur/lot6-…`, `serveur/lot7-…` | ADR-074 (utilisée) à ADR-077, puis ADR-078 à ADR-085 | 97 à 99, puis 100 à 109 | lot 5 en cours : `holo serve` et les boutons sans JavaScript (`ADR-074`), les formulaires `Form` avec ou sans JavaScript et `holo messages` (`ADR-075`), les sauvegardes (`ADR-076`) ; reste les adresses `profil/{id}.holo`, dont l'écriture est à décider avec Yocthan |
-| 9 — les capacités larges | la session du PC de Yocthan | `langage/lot9-…` | ADR-086 à ADR-092 | 110 à 119 | à faire |
+| 5, 6, 7 — serveur, valeurs partagées, comptes | la session du PC de Yocthan | `langage/lot5-…`, `langage/lot6-…`, `langage/lot7-…` | ADR-078 à ADR-085 ; et `ADR-074` (sur `main`), `ADR-075`, `ADR-076` (PR 168 et 169), écrites par la session du nuage | 100 à 109 | lot 5 en cours. **À lire d'abord** : la passation de la session du nuage, `proposals/Claude/passation-lot5-2026-10-07.md` (la PR 167 est sur `main` ; les PR 168 et 169 sont ouvertes, à toi de les analyser, les reprendre, les changer ou les fermer) |
+| 9 — les capacités larges | la session du nuage | `langage/lot9-…` | ADR-077, puis ADR-086 à ADR-092 | 97 à 99, puis 110 à 119 | en cours |
 
-Le 2026-10-07, les deux sessions ont inscrit les lots 5 à 7 à quelques minutes d'écart ; la session du nuage avait déjà construit `holo serve`. Tranché par Claude, Yocthan l'ayant laissé décider (« continue sur le lot 5 ») : le nuage garde 5 à 7, le PC prend le lot 9. **Si tu es la session du PC et que tu as commencé un serveur, arrête-le ; reprends le lot 9.**
+Le 2026-10-07, les deux sessions ont inscrit les lots 5 à 7 à quelques minutes d'écart. **Décidé par Yocthan** : la session du PC, inscrite la première sur `main` (PR 166), garde les lots 5 à 7 et analyse ce que la session du nuage avait déjà construit ; la session du nuage prend le lot 9, auquel personne n'avait touché (« vu que c'est lui qui avait commencé, qu'il puisse analyser tes informations, ensuite qu'il les scanne, et que toi tu fasses le lot auquel il n'a pas encore touché »).
+
+**Pour ne plus s'entremêler** (Yocthan, le même soir : « que vous ne puissiez plus vous entremêler entre les lots ; que chacun puisse avoir un lot différent ») :
+
+1. **Seul Yocthan donne un lot**, à une session nommée : « la session du PC » ou « la session du nuage ». Plus jamais « la première libre » ni « l'autre session » : c'est ce qui a fait prendre les lots 5 à 7 aux deux sessions le même soir.
+2. **Avant d'écrire du code**, relire ce tableau sur `origin/main` (`git fetch origin main`, puis `git show origin/main:AGENTS.md`), jamais sa copie locale. Si la ligne ne te nomme pas, tu ne commences pas.
+3. **Changer ce tableau** (prendre, rendre, échanger un lot) se fait par une petite PR de coordination, sans code, fusionnée avant tout code. Si elle est en conflit, l'autre session l'a changé avant : relire, ne pas forcer.
+4. **Une session qui a fini ses lots ne prend rien d'elle-même** : elle le dit à Yocthan, qui écrit la suite ici.
+5. **Si deux sessions touchent le même lot par erreur**, celle dont la ligne est arrivée la première sur `main` le garde ; l'autre s'arrête, ne fusionne plus rien de ce lot, et laisse son travail en PR ouverte avec une note de passation.
 
 Règles : relire `main` avant chaque travail, et fusionner `main` dans sa branche avant de demander la fusion ; des petites PR, fusionnées vite ; ne pas toucher au lot de l'autre ; un défaut trouvé dans le lot de l'autre se note dans le journal, sans le corriger soi-même.
 
