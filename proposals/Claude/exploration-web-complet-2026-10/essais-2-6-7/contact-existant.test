@@ -1,0 +1,15 @@
+// L'attente, l'échec, puis la réussite, sans serveur : holo test simule les signaux.
+type name "Ada"
+type message "Hello"
+tap Send
+expect sending = 1
+signal Contact.failed
+expect sending = 0
+expect failed = 1
+expect name = "Ada"
+tap Send
+expect failed = 0
+signal Contact.sent
+expect sent = 1
+expect name = ""
+expect message = ""

@@ -1,0 +1,22 @@
+// Le contournement d'aujourd'hui : filtrer par catégorie avec des nombres et des If écrits.
+Page(
+  title: "Catalogue",
+  state: State(cat: 0, articles: [ Item(title: "Lever sur le fleuve", cat: 1), Item(title: "La porte bleue", cat: 2), Item(title: "Le fleuve gelé", cat: 1) ]),
+  children: [
+    H1("Catalogue"),
+    Row(children: [
+      Button(name: All, text: "Tout"),
+      Button(name: Rivers, text: "Fleuves"),
+      Button(name: Doors, text: "Portes"),
+    ]),
+    Repeat(over: articles, children: [
+      If(item.cat, is: 1, children: [ If(cat, not: 2, children: [ P("{item.title}") ]) ]),
+      If(item.cat, is: 2, children: [ If(cat, not: 1, children: [ P("{item.title}") ]) ]),
+    ]),
+  ],
+  rules: [
+    On(All.tap, effect: cat.set(0)),
+    On(Rivers.tap, effect: cat.set(1)),
+    On(Doors.tap, effect: cat.set(2)),
+  ],
+)

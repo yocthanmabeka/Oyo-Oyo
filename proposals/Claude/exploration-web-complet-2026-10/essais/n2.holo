@@ -1,0 +1,21 @@
+Page(
+  title: "Catalogue",
+  state: State(search: "", cart: 0, articles: [ Item(title: "", price: 0, image: "vide.svg", cat: 0) ]),
+  data: Data(from: "c.json"),
+  children: [
+    H1("Catalogue"),
+    Input(value: search, label: "Chercher"),
+    P("{articles} créations, {cart:cents} euros au panier"),
+    Grid(columns: 3, children: [
+      Repeat(over: articles, children: [
+        Column(children: [
+          Image(source: item.image, alt: "{item.title}"),
+          H2("{item.title}"),
+          Text("{item.price:cents} euros"),
+          If(item.cat, is: 1, children: [ Text("Fleuve") ], else: [ Text("Autre") ]),
+          Button(name: Add, text: "Ajouter"),
+        ]),
+      ], rules: [ On(Add.tap, effect: cart.add(1)) ]),
+    ]),
+  ],
+)

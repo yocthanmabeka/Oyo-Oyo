@@ -1,0 +1,32 @@
+// Le même panier avec l'écriture d'aujourd'hui (main, 2026-10-07). Le total de Prices ne peut
+// pas servir dans un calcul (« vat.set(total) » est refusé) : l'auteur tient lui-même un total
+// hors taxe, à chaque geste, et calcule la TVA par un bouton, arrondie vers le bas.
+Page(
+  title: "Panier",
+  lang: "fr",
+  state: State(barque: 1, phare: 1, ht: 12999, vat: 0, ttc: 0),
+  keep: [barque, phare, ht],
+  children: [
+    H1("Votre panier"),
+    Row(gap: 8px, children: [
+      Text("La barque, 19,99 € HT : {barque}"),
+      If(barque, over: 0, children: [ Button(name: LessBarque, text: "Un de moins") ]),
+      Button(name: MoreBarque, text: "Un de plus"),
+    ]),
+    Row(gap: 8px, children: [
+      Text("Le phare, 110,00 € HT : {phare}"),
+      If(phare, over: 0, children: [ Button(name: LessPhare, text: "Un de moins") ]),
+      Button(name: MorePhare, text: "Un de plus"),
+    ]),
+    P("{ht:cents} € HT."),
+    Button(name: Vat, text: "Calculer la TVA"),
+    P("TVA {vat:cents} €, total {ttc:cents} € TTC."),
+  ],
+  rules: [
+    On(MoreBarque.tap, effect: [barque.add(1), ht.add(1999)]),
+    On(MorePhare.tap, effect: [phare.add(1), ht.add(11000)]),
+    On(LessBarque.tap, effect: [barque.sub(1), ht.sub(1999)]),
+    On(LessPhare.tap, effect: [phare.sub(1), ht.sub(11000)]),
+    On(Vat.tap, effect: [vat.set(ht), vat.mul(20), vat.div(100), ttc.set(ht), ttc.add(vat)]),
+  ],
+)

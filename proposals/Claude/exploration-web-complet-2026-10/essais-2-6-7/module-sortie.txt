@@ -1,0 +1,3 @@
+document.querySelector("[data-name=Calculer]").click(); "touché" → touché
+JSON.stringify({modules: window.__holoModules ?? null, texte: [...document.querySelectorAll(".holo-P")].map((p) => p.textContent).join(" | ").slice(0, 300)}) → {"modules":[{"name":"Somme","ok":false,"raison":"WebAssembly.instantiate(): Argument 0 must be a buffer source or a WebAssembly.Module object"}],"texte":"Le module a rendu : 0. | La boucle tourne… touche « La page répond ». | La boucle a été arrêtée après deux secondes ; la page n'a jamais été bloquée. | Refusé : le module n'a droit qu'à 1 Mo ; il a été arrêté."}
+capture écrite : essais-2-6-7/module-69.png

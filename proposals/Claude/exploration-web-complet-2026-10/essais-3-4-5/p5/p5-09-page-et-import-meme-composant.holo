@@ -1,0 +1,3 @@
+import "a.holo"
+
+Page(title: "Page et import", components: [ Component(name: Card, params: [x], children: [ P("{x}") ]) ], children: [ H1("x"), Card(x: "Un") ])

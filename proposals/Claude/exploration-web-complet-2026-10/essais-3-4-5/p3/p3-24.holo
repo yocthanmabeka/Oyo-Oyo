@@ -1,0 +1,2 @@
+Page(children: [ P.c("x") ])
+.c { color: #8a3b1280; }

@@ -1,0 +1,43 @@
+// Le catalogue, réécrit avec un composant et une répétition (essai d'exploration, hors dépôt).
+
+import "commun.holo"
+import "pied.holo"
+
+Page(
+  name: Catalogue,
+  title: "Catalogue — L'atelier des mondes",
+  components: [
+    Component(name: Oeuvre, params: [image, alt, title, price, link: "panier.holo", action: "La mettre au panier"], children: [
+      Column.carte(gap: 6px, children: [
+        Image(source: image, alt: alt, weight: 1KB),
+        P("{title}"),
+        Text.prix("{price} euros"),
+        A("{action}", to: link),
+      ]),
+    ]),
+  ],
+  children: [
+    Use(Menu),
+    H1("Le catalogue"),
+    "Douze tableaux, peints un à un. Les prix sont en euros.",
+    Grid(columns: 3, gap: 16px, children: [
+      Repeat(items: [
+        Item(key: lever, image: "lever.svg", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu", title: "Lever sur le fleuve", price: 120),
+        Item(key: porte, image: "porte.svg", alt: "Une porte bleue dans un mur couleur sable", title: "La porte bleue", price: 90),
+        Item(key: marche, image: "marche.svg", alt: "Des étals rouges et jaunes sous un ciel clair", title: "Jour de marché", price: 50),
+        Item(key: verger, image: "verger.svg", alt: "Des pommiers verts alignés sur une colline", title: "Le verger", price: 70),
+        Item(key: phare, image: "phare.svg", alt: "Un phare blanc sur une mer de nuit", title: "Le phare", price: 110),
+        Item(key: dune, image: "dune.svg", alt: "Des dunes ocre sous un ciel pâle", title: "Dunes", price: 60),
+        Item(key: orage, image: "orage.svg", alt: "Des nuages violets au-dessus d'un champ", title: "Avant l'orage", price: 95),
+        Item(key: jardin, image: "jardin.svg", alt: "Une serre bleutée pleine de plantes", title: "Le jardin d'hiver", price: 80),
+        Item(key: atelier, image: "atelier.svg", alt: "Un chevalet dans un atelier brun et clair", title: "L'atelier", price: 130),
+        Item(key: nuit, image: "nuit.svg", alt: "Un ciel noir semé d'étoiles jaunes", title: "Nuit d'août", price: 100),
+        Item(key: barque, image: "barque.svg", alt: "Une barque sombre sur un lac doré", title: "La barque", price: 75),
+        Item(key: graine, image: "graine.svg", alt: "Une graine verte qui germe sur fond crème", title: "La graine", price: 40),
+      ], children: [
+        Oeuvre(image: item.image, alt: item.alt, title: item.title, price: item.price),
+      ]),
+    ]),
+    Use(Pied),
+  ],
+)

@@ -1,0 +1,6 @@
+Leçon 63, après Entrée sur « Vider le panier » : fenêtre ouverte ? → true
+Leçon 63 : nœuds « dialog » de l'arbre d'accessibilité → [{"role":"dialog","nom":"","ignore":false}]
+Leçon 63, focus pendant que la fenêtre est ouverte → button « ✕ »
+Leçon 63, nom du bouton de fermeture → Fermer
+Leçon 63, après Échap : fenêtre ouverte ? → false ; focus → button[Demander] « Vider le panier »
+Leçon 7, après l'entrée dans le monde : titre → Atelier ; adresse → #Atelier ; focus → body « :where(.holo-Page){min-height:100vh;box- » ; annonce → ""

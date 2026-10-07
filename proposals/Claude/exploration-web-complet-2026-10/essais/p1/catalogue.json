@@ -1,0 +1,14 @@
+{ "articles": [
+  { "id": "lever", "title": "Lever sur le fleuve", "theme": "Eau", "price": 12000, "image": "lever.svg", "alt": "Un soleil jaune se lève au-dessus d'un fleuve bleu" },
+  { "id": "porte", "title": "La porte bleue", "theme": "Ville", "price": 9000, "image": "porte.svg", "alt": "Une porte bleue dans un mur couleur sable" },
+  { "id": "marche", "title": "Jour de marché", "theme": "Ville", "price": 5000, "image": "marche.svg", "alt": "Des étals rouges et jaunes sous un ciel clair" },
+  { "id": "verger", "title": "Le verger", "theme": "Terre", "price": 7000, "image": "verger.svg", "alt": "Des pommiers verts alignés sur une colline" },
+  { "id": "phare", "title": "Le phare", "theme": "Eau", "price": 11000, "image": "phare.svg", "alt": "Un phare blanc sur une mer de nuit" },
+  { "id": "dune", "title": "Dunes", "theme": "Terre", "price": 6000, "image": "dune.svg", "alt": "Des dunes ocre sous un ciel pâle" },
+  { "id": "orage", "title": "Avant l'orage", "theme": "Ciel", "price": 9500, "image": "orage.svg", "alt": "Des nuages violets au-dessus d'un champ" },
+  { "id": "jardin", "title": "Le jardin d'hiver", "theme": "Terre", "price": 8000, "image": "jardin.svg", "alt": "Une serre bleutée pleine de plantes" },
+  { "id": "atelier", "title": "L'atelier", "theme": "Ville", "price": 13000, "image": "atelier.svg", "alt": "Un chevalet dans un atelier brun et clair" },
+  { "id": "nuit", "title": "Nuit d'août", "theme": "Ciel", "price": 10000, "image": "nuit.svg", "alt": "Un ciel noir semé d'étoiles jaunes" },
+  { "id": "barque", "title": "La barque", "theme": "Eau", "price": 7500, "image": "barque.svg", "alt": "Une barque sombre sur un lac doré" },
+  { "id": "graine", "title": "La graine", "theme": "Terre", "price": 4000, "image": "graine.svg", "alt": "Une graine verte qui germe sur fond crème" }
+] }

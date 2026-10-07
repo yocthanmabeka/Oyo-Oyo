@@ -1,0 +1,4 @@
+type qty "3"
+expect line = 5997
+type qty "4"
+expect line = 7996

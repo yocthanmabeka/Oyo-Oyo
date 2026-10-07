@@ -1,0 +1,119 @@
+{
+ "proposedImages": 12,
+ "propose-telephone": {
+  "atOpen": {
+   "imagesDemandees": 12,
+   "octetsImages": 158340,
+   "octetsMedia": 0,
+   "octetsTotal": 166591,
+   "moteurDemande": false
+  },
+  "layout": {
+   "largeurEcran": 390,
+   "largeurPage": 390,
+   "cls": 0,
+   "images": [
+    {
+     "affichee": "155x87",
+     "choisie": "photo-01-640.webp"
+    },
+    {
+     "affichee": "155x121",
+     "choisie": "photo-02-640.webp"
+    },
+    {
+     "affichee": "155x87",
+     "choisie": "photo-03-640.webp"
+    }
+   ]
+  },
+  "afterScroll": {
+   "imagesDemandees": 12,
+   "octetsImages": 158340,
+   "octetsMedia": 0,
+   "octetsTotal": 166591,
+   "moteurDemande": false
+  },
+  "exceptions": []
+ },
+ "propose-pc": {
+  "atOpen": {
+   "imagesDemandees": 12,
+   "octetsImages": 65939,
+   "octetsMedia": 0,
+   "octetsTotal": 73990,
+   "moteurDemande": false
+  },
+  "layout": {
+   "largeurEcran": 1280,
+   "largeurPage": 1280,
+   "cls": 0,
+   "images": [
+    {
+     "affichee": "187x105",
+     "choisie": "photo-01-320.webp"
+    },
+    {
+     "affichee": "187x145",
+     "choisie": "photo-02-320.webp"
+    },
+    {
+     "affichee": "187x105",
+     "choisie": "photo-03-320.webp"
+    }
+   ]
+  },
+  "afterScroll": {
+   "imagesDemandees": 12,
+   "octetsImages": 65939,
+   "octetsMedia": 0,
+   "octetsTotal": 73990,
+   "moteurDemande": false
+  },
+  "exceptions": []
+ },
+ "grande-image-telephone": {
+  "atOpen": {
+   "imagesDemandees": 13,
+   "octetsImages": 248058,
+   "octetsMedia": 0,
+   "octetsTotal": 256147,
+   "moteurDemande": false
+  },
+  "layout": {
+   "largeurEcran": 1280,
+   "largeurPage": 1280,
+   "cls": 0,
+   "images": [
+    {
+     "affichee": "1280x720",
+     "choisie": "photo-01.png"
+    }
+   ]
+  },
+  "afterScroll": null,
+  "exceptions": []
+ },
+ "grande-image-corrigee-telephone": {
+  "atOpen": {
+   "imagesDemandees": 1,
+   "octetsImages": 248058,
+   "octetsMedia": 0,
+   "octetsTotal": 255535,
+   "moteurDemande": false
+  },
+  "layout": {
+   "largeurEcran": 390,
+   "largeurPage": 390,
+   "cls": 0,
+   "images": [
+    {
+     "affichee": "390x219",
+     "choisie": "photo-01.png"
+    }
+   ]
+  },
+  "afterScroll": null,
+  "exceptions": []
+ }
+}

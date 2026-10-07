@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Galerie</title>
+<style>
+  :root { --spring: linear(0,.009,.035 2.1%,.141,.281 6.7%,.723 12.9%,.938 16.7%,1.017,1.077,1.121,1.149 24.3%,1.159,1.163,1.161,1.154 29.9%,1.129 32.8%,1.051 39.6%,1.017 43.1%,.991,.977 51%,.974 53.8%,.975 57.1%,.997 69.8%,1.003 76.9%,1.004 83.8%,1); }
+  main { max-width: 640px; margin: 0 auto; }
+  img { max-width: 100%; height: auto; }
+  .lecteur { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .mot { display: inline-block; white-space: nowrap; }
+  .lettre { display: inline-block; animation: titre .8s var(--spring) calc(var(--i) * .04s) both; }
+  @keyframes titre { from { opacity: 0; translate: 0 40px; } }
+  #poussiere { display: block; width: 100%; height: 240px; }
+  .forme { width: 80px; height: 80px; background: #E9B44C; animation: etoile 1.2s cubic-bezier(.65,0,.35,1) infinite alternate both; }
+  .coeur { display: block; width: 120px; height: 120px; }
+  .pile { display: inline-grid; } .pile > * { grid-area: 1 / 1; }
+  .disque { width: 200px; height: 200px; border-radius: 50%; background: #FFFFFF22; }
+  .lune { width: 16px; height: 16px; border-radius: 50%; background: #4ECDC4; offset-rotate: 0deg;
+    offset-path: path("M 100 0 A 100 100 0 1 1 100 200 A 100 100 0 1 1 100 0");
+    animation: tour 4s linear infinite both; }
+  @keyframes tour { from { offset-distance: 0%; } to { offset-distance: 100%; } }
+  .penche { display: block; transition: translate .2s, transform .2s;
+    translate: calc(var(--px, 0) * 12px) calc(var(--py, 0) * 8px);
+    transform: perspective(800px) rotateX(calc(var(--py, 0) * 6deg)) rotateY(calc(var(--px, 0) * 8deg)); }
+  .defile { animation: arrive linear both; animation-timeline: view(); animation-range: entry 0% cover 40%; }
+  @keyframes arrive { from { opacity: 0; translate: 0 80px; } }
+  @media (prefers-reduced-motion: reduce) {
+    .lettre, .forme, .lune, .defile { animation: none !important; }
+    .penche { translate: none; transform: none; transition: none; }
+    #poussiere { display: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="titre">L'atelier des mondes</h1>
+  <canvas id="poussiere" aria-hidden="true"></canvas>
+  <div class="forme" aria-hidden="true"></div>
+  <svg class="coeur" viewBox="0 0 100 100" aria-hidden="true">
+    <path d="M 50 90 C 20 65 0 45 0 25 C 0 5 25 -5 50 20 C 75 -5 100 5 100 25 C 100 45 80 65 50 90 Z" fill="#F472B6"/>
+  </svg>
+  <div class="pile" aria-hidden="true"><div class="disque"></div><div class="lune"></div></div>
+  <img class="penche" src="lever.svg" alt="Un soleil jaune se lève au-dessus d'un fleuve bleu">
+  <p class="defile">Le texte arrive au rythme du défilement.</p>
+</main>
+<script>
+  const calme = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // 1. Le titre, lettre par lettre ; le lecteur d'écran lit le titre entier.
+  const titre = document.getElementById("titre");
+  const texte = titre.textContent;
+  let rang = 0;
+  titre.innerHTML = `<span class="lecteur">${texte}</span><span aria-hidden="true">` + texte.split(" ")
+    .map((mot) => `<span class="mot">${[...mot].map((l) => `<span class="lettre" style="--i:${rang++}">${l}</span>`).join("")}</span>`)
+    .join(" ") + "</span>";
+  // 2. Le rond qui devient une étoile : deux polygones de 32 sommets.
+  const anneau = (point) => Array.from({ length: 32 }, (_, k) => point(k))
+    .map(([x, y]) => `${(50 + 50 * x).toFixed(2)}% ${(50 + 50 * y).toFixed(2)}%`).join(", ");
+  const rond = anneau((k) => { const a = (k / 32) * 2 * Math.PI - Math.PI / 2; return [Math.cos(a), Math.sin(a)]; });
+  const pointes = Array.from({ length: 10 }, (_, k) => { const a = (k / 10) * 2 * Math.PI - Math.PI / 2, r = k % 2 ? 0.45 : 1; return [r * Math.cos(a), r * Math.sin(a)]; });
+  const etoile = anneau((k) => { const t = (k / 32) * 10, n = Math.floor(t), f = t - n, a = pointes[n], b = pointes[(n + 1) % 10];
+    return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; });
+  document.head.insertAdjacentHTML("beforeend", `<style>.forme{clip-path:polygon(${rond})}@keyframes etoile{to{clip-path:polygon(${etoile});rotate:72deg}}</style>`);
+  // 3. La poussière : 120 grains tirés de la graine 7 ; leur place vient du temps écoulé (une formule), pas d'un calcul pas à pas.
+  if (!calme) {
+    const toile = document.getElementById("poussiere"), ctx = toile.getContext("2d");
+    const ratio = Math.min(devicePixelRatio || 1, 2), L = toile.clientWidth, H = 240;
+    toile.width = L * ratio; toile.height = H * ratio; ctx.scale(ratio, ratio);
+    let graine = 7;
+    const hasard = () => (graine = (graine * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const grains = Array.from({ length: 120 }, (_, k) => { const a = hasard() * 2 * Math.PI, v = 300 * (0.3 + 0.7 * hasard());
+      return { vx: Math.cos(a) * v, vy: Math.sin(a) * v, couleur: ["#E9B44C", "#FFE9A8"][k % 2] }; });
+    let debut = null;
+    const image = (t) => {
+      debut ??= t;
+      const s = (t - debut) / 1000;
+      ctx.clearRect(0, 0, L, H);
+      if (s > 2) return;
+      ctx.globalAlpha = 1 - s / 2;
+      for (const g of grains) { ctx.fillStyle = g.couleur; ctx.fillRect(L / 2 + g.vx * s, H / 2 + g.vy * s + 100 * s * s, 3, 3); }
+      requestAnimationFrame(image);
+    };
+    requestAnimationFrame(image);
+  }
+  // 4. L'image penche vers le pointeur ; au doigt, seulement pendant qu'il touche l'écran.
+  const penche = document.querySelector(".penche");
+  if (!calme) {
+    addEventListener("pointermove", (e) => {
+      if (e.pointerType === "touch" && e.buttons === 0) return;
+      penche.style.setProperty("--px", ((e.clientX / innerWidth) * 2 - 1).toFixed(3));
+      penche.style.setProperty("--py", ((e.clientY / innerHeight) * 2 - 1).toFixed(3));
+    });
+    const repos = () => { penche.style.removeProperty("--px"); penche.style.removeProperty("--py"); };
+    document.documentElement.addEventListener("pointerleave", repos);
+    addEventListener("pointerup", (e) => { if (e.pointerType === "touch") repos(); });
+  }
+</script>
+</body>
+</html>

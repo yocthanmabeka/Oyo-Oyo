@@ -1,0 +1,14 @@
+Page(
+  title: "Galerie",
+  lang: "fr",
+  children: [
+    H1("L'atelier des mondes", enter: Enter(y: 40px, opacity: 0, letters: 0.04s, ease: spring)),
+    Shape(form: circle, color: "#E9B44C", size: 80px,
+      loop: Loop(round: 0, rotate: 72deg, for: 1.2s)),
+    Stack(children: [
+      Shape(form: circle, color: "#4ECDC4", size: 16px, align: top),
+    ]),
+    Image(source: "lever.svg", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu"),
+    P("Le texte arrive quand on descend jusqu'à lui.", enter: Enter(y: 80px, opacity: 0, inView: true)),
+  ],
+)

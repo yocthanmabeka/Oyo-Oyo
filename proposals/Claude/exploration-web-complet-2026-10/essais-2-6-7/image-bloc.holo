@@ -1,0 +1,1 @@
+Page(title: "a", image: Image(source: "x.png", alt: "y"), children: [ H1("a") ])

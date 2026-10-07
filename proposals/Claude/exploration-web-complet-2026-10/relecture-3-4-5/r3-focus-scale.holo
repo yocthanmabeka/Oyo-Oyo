@@ -1,0 +1,3 @@
+Page(title: "Agrandir", children: [ Button.action(name: Un, text: "Ajouter") ])
+
+.action { background: #8a3b12; color: #fffaf3; focus: { scale: 1.06; } }

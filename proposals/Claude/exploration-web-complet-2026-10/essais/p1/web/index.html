@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Catalogue</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="catalogue.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Le catalogue</h1>
+    <label class="field"><span>Chercher une création</span><input id="search" type="text" maxlength="80"></label>
+    <div class="row">
+      <fieldset><legend>Thème</legend>
+        <label><input type="radio" name="theme" value="Eau"><span>Eau</span></label>
+        <label><input type="radio" name="theme" value="Terre"><span>Terre</span></label>
+        <label><input type="radio" name="theme" value="Ville"><span>Ville</span></label>
+        <label><input type="radio" name="theme" value="Ciel"><span>Ciel</span></label>
+      </fieldset>
+      <button id="all" type="button">Tous les thèmes</button>
+    </div>
+    <p id="count" role="status">0 créations sur 0. Panier : 0 (0,00 €).</p>
+    <div id="failed" hidden><p>Le catalogue n'a pas pu être chargé.</p><button id="retry" type="button">Réessayer</button></div>
+    <div id="grid" class="grid"></div>
+    <p id="empty" hidden>Aucune création ne correspond.</p>
+    <button id="more" type="button" hidden>Afficher six de plus</button>
+  </main>
+</body>
+</html>

@@ -1,0 +1,76 @@
+## Résultat attendu
+
+**Claude, Yocthan te demande d'explorer les dix pistes proposées par Codex ci-dessous pour permettre à HoloCode de construire un excellent site web.** Cette issue transmet sa demande du 2026-10-06.
+
+Rends une exploration comparative en français, en phrases simples, par une pull request. Pour chaque piste :
+
+1. Vérifie ce que le moteur sait déjà faire au moment où tu prends la tâche. Signale les documents en retard et les fonctions déjà présentes.
+2. Compare au moins deux options de conception ou d'écriture, avec les équivalents HTML/CSS/JavaScript et, quand utile, Flutter. Applique ADR-016 aux noms proposés.
+3. Donne un petit exemple d'auteur, les dépendances entre les ajouts, les avantages, les défauts et les limites. Sépare langage, moteur, enveloppe navigateur et services serveur.
+4. Estime le coût dans le moteur, le poids transféré et le travail de réalisation. Marque chaque estimation comme telle ; mesure ce qui peut l'être avec un prototype isolé.
+5. Propose une recette qui puisse échouer et un ordre de travail. L'accessibilité, le déterminisme et les budgets doivent accompagner chaque ajout.
+
+Commence par **listes de données → formulaires → design précis**. Examine aussi les ajouts qui combleraient le duel de motion design : répétition, particules, chemins vectoriels et réactions au doigt. Compare les options avant de modifier le langage ; Yocthan reste seul à valider les décisions.
+
+- Discussions sources : `HC-011`, `HC-013`, et demande de Yocthan dans cette issue.
+- Décisions concernées : notamment `ADR-005`, `ADR-009`, `ADR-013`, `ADR-015` à `ADR-018`, `ADR-023`, `ADR-024`, `ADR-027`, `ADR-029`, `ADR-030`, `ADR-033`, `ADR-034`.
+- Statut proposé de la contribution à rendre : **EXPLORATION**. Les noms et les priorités ci-dessous sont des avis, pas des décisions.
+- Contexte : [PR 79 — site de référence et recette](https://github.com/yocthanmabeka/Metaverse/pull/79) ; [PR 74 — modèles 3D, arbitre et noms](https://github.com/yocthanmabeka/Metaverse/pull/74).
+
+## Chemins réservés
+
+`proposals/Claude/exploration-web-complet-2026-10/` : rapport, exemples, éventuels prototypes isolés et preuves.
+
+Cette tâche porte sur l'exploration. Les modifications du moteur feront l'objet de contributions distinctes selon les choix retenus. Aucun statut de décision ne doit être changé. Les propositions de mise à jour du guide, des leçons, de `NOMS.md`, de `COMPARAISON-WEB.md` et du journal doivent être listées dans le rapport.
+
+## Preuve exigée
+
+- Un tableau pour les dix pistes : état vérifié, options comparées, recommandation, coût estimé ou mesuré, objection, expérience requise.
+- Un scénario concret par piste, relié aux tâches du site de référence. Les équivalents web doivent faire les mêmes choses pour que la comparaison soit honnête.
+- Pour les prototypes exécutés : commandes, versions, commit, sorties et cas positifs/négatifs. Pour ce qui n'est pas exécuté : l'écrire explicitement.
+- Pour une affirmation de légèreté ou de fluidité : octets réellement transférés et protocole ; les mesures de téléphone doivent venir d'un vrai appareil, avec modèle, navigateur et mode graphique. Un résultat de PC ne les remplace pas.
+- Une liste finale classée des travaux, avec les dépendances et ce qui doit être décidé avant l'implémentation.
+
+## Pour qui
+
+**Claude** (`ia:claude`). Signale en commentaire la prise de la tâche et vérifie les réservations avant de commencer.
+
+## Texte de Codex transmis par Yocthan
+
+L'avis qui suit a été rédigé après lecture de la base `a142a4c9b90282f680bbbf3dd5c30ed83a23ca12`. Il ne constitue pas un nouvel audit du moteur. Lors de cette publication, `main` est à `54d0460f8fec9245635934d6b9ca438972e8ccff` : vérifie les évolutions avant de conclure qu'un manque est encore présent.
+
+---
+
+**Pour égaler un excellent site en HTML/CSS/JavaScript, HoloCode doit gagner en précision visuelle, en traitement des données et en interactions.** Ajouter des animations seules ne suffira pas.
+
+J’ai relu le dépôt actuel. Les grilles, le panier local, les champs simples, les imports et les animations existent déjà. Voici les ajouts que je recommande ; leur écriture reste à discuter.
+
+| Priorité | À ajouter ou compléter | Ce que cela permettrait |
+|---|---|---|
+| **1** | **Données structurées et répétition** : listes, objets, identifiants stables, filtrage, tri, pagination. | Afficher un catalogue reçu du serveur, rechercher un produit, montrer des résultats sans recopier chaque fiche. |
+| **2** | **Formulaires complets** : choix, texte long, dates, fichiers, validation, envoi, attente, erreur et confirmation. | Envoyer un message, une inscription ou une commande. Aujourd’hui, saisir une valeur locale ne l’envoie pas. |
+| **3** | **Design plus précis** : dégradés, ombres, typographie, couleurs partagées, états de survol/focus, dimensions souples. | Reproduire une identité visuelle professionnelle plutôt que seulement une disposition générale. |
+| **4** | **Adaptation à l’espace disponible** : proportions des colonnes, éléments qui occupent la place restante, variantes selon la largeur du conteneur. | Composer des pages différentes sur téléphone et ordinateur, avec un contrôle plus fin que le repli automatique actuel. |
+| **5** | **Composants avec paramètres** : contenu, apparence et actions personnalisables ; état propre à chaque instance. | Réutiliser une carte de produit ou un formulaire sans duplication ni collision de noms. `Part` et `Use` constituent déjà le départ. |
+| **6** | **Interactions riches** : changement de champ, soumission, focus, survol, défilement ; menus, accordéons et fenêtres de dialogue. | Construire une interface qui répond précisément au visiteur, au doigt comme au clavier. |
+| **7** | **Structure et publication** : navigation identifiable, tableaux, légendes, description de page, image de partage, adresses partageables. | Faire un site accessible, compréhensible par les moteurs de recherche et correctement présenté lorsqu’on partage son lien. |
+| **8** | **Médias complets** : images adaptées à l’écran, vidéo avec sous-titres, lecteur audio. | Présenter des contenus riches sans envoyer systématiquement les fichiers les plus lourds. |
+| **9** | **Graphismes avancés** : chemins vectoriels, transformation des formes, particules, mouvement lié au défilement ou au pointeur, objets 3D pleins. | Rivaliser avec les démonstrations visuelles les plus ambitieuses. |
+| **10** | **Calculs purs et extensions encadrées** : valeurs calculées, dates, montants exacts, modules spécialisés. | Couvrir les comportements particuliers qu’une collection de blocs prédéfinis ne peut pas tous prévoir. |
+
+L’accessibilité doit accompagner **chaque ajout** : libellés, clavier, focus, annonces d’erreur et réduction des mouvements. Elle ne vient pas après le design. Les [tutoriels du W3C](https://www.w3.org/WAI/tutorials/) donnent les comportements de référence.
+
+Pour l’adaptation fine, les [requêtes de conteneur CSS](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Containment/Container_queries) constituent un bon modèle à comparer : un composant s’adapte à la place qu’il reçoit.
+
+**Les comptes, paiements et commandes demandent aussi un serveur.** Le langage peut décrire la demande et afficher sa réponse ; le serveur doit vérifier les droits, valider les données et enregistrer le résultat. C’est également le fonctionnement des [formulaires web](https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Forms/Sending_and_retrieving_form_data).
+
+Pour ton duel de motion design, les ajouts les plus directs seraient **la répétition, les particules, les chemins vectoriels et les réactions au doigt**. Le [comparatif actuel](https://github.com/yocthanmabeka/Metaverse/blob/a142a4c9b90282f680bbbf3dd5c30ed83a23ca12/exemples/motion/README.md) montre précisément ces écarts.
+
+Je commencerais par **listes de données → formulaires → design précis**, avec l’accessibilité dès le départ. Pour préserver la légèreté, les fonctions coûteuses devront être chargées seulement lorsqu’elles servent. Ces recommandations viennent de la lecture du code et des documents ; elles ne sont pas encore des capacités implémentées ou mesurées.
+
+Prise par Claude le 2026-10-07, à la demande de Yocthan (« commence le point 1 »). Réservation vérifiée : `proposals/Claude/exploration-web-complet-2026-10/` est libre, aucune branche ne la touche.
+
+Base relue : `main` à `7a48def`. Beaucoup a changé depuis le texte de Codex (lots 1 à 9, composants, listes à champs, envoi de fichier, `ADR-038` à `ADR-061`) : l'état de chaque piste sera vérifié dans le code avant de conclure qu'un manque est encore présent.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+

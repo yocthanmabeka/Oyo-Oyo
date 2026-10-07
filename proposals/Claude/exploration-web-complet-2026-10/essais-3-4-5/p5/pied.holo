@@ -1,0 +1,12 @@
+// Le pied de page de toutes les pages : un morceau à lui seul.
+
+Component(
+  name: Pied,
+  children: [
+    // Le pied de page est un repère.
+    Footer(children: [
+      Hr(),
+      Text.discret("Site de démonstration : le panier est fictif, rien n'est vendu ni envoyé. Écrit en HoloCode, sans une ligne de HTML, de CSS ou de JavaScript."),
+    ]),
+  ],
+)

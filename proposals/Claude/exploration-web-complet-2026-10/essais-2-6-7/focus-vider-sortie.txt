@@ -1,0 +1,3 @@
+Après « + » : texte du panier → 1 créations · 120 euros
+Focus avant « Vider le panier » → button[Vider]
+Après « Vider le panier » : bouton visible ? → false ; focus → body

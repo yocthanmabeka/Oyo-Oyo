@@ -1,0 +1,1 @@
+Page(title: "x", state: State(chosen: "", articles: [ Item(title: "Lever", price: 100), Item(title: "Barque", price: 200) ]), children: [ H1("x"), P("{chosen}"), Repeat(over: articles, children: [ Button(name: Pick, text: "{item.title}") ], rules: [ On(Pick.tap, effect: chosen.set(item)) ]) ])

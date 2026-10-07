@@ -1,0 +1,14 @@
+Page(
+  title: "Échap et fenêtre",
+  state: State(n: 0),
+  children: [
+    H1("Échap et fenêtre"),
+    Text("Échap compté : {n}"),
+    Button(name: Ouvrir, text: "Ouvrir"),
+    Dialog(name: Fenetre, children: [ H2("Une fenêtre"), P("Échap devrait la fermer.") ]),
+  ],
+  rules: [
+    On(Ouvrir.tap, effect: Fenetre.open),
+    On(Key.escape, effect: n.add(1)),
+  ],
+)

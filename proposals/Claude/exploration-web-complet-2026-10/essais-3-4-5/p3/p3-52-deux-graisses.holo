@@ -1,0 +1,7 @@
+Page(
+  title: "Deux graisses",
+  fonts: [ Font(family: "Carlito", source: "carlito.woff2"), Font(family: "Carlito", source: "carlito-bold.woff2") ],
+  children: [ H1("Titre en gras"), P("Texte normal") ],
+)
+
+Page { font-family: Carlito, Georgia, serif; }

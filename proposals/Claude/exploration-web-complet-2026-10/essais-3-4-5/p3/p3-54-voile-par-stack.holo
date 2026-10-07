@@ -1,0 +1,9 @@
+Page(title: "Voile", children: [
+  Stack(children: [
+    Image(source: "lever.svg", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu"),
+    Column.voile(align: center, children: [ H1.surimage("L'atelier des mondes") ]),
+  ]),
+])
+
+.voile { width: 100%; height: 100%; margin: 0; background: linear-gradient(#2a2118cc, #2a211800); }
+.surimage { color: #fffaf3; }

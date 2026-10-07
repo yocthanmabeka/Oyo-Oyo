@@ -1,0 +1,17 @@
+// TVA à 20 % sur 19,99 € : 399,8 centimes ; le calcul arrondit vers le bas.
+tap Vat
+expect vat = 399
+// La ligne ne suit pas la quantité tant qu'on n'a pas touché « Ligne ».
+type qty "3"
+expect qty = 3
+expect line = 0
+tap Line
+expect line = 5997
+type qty "4"
+expect line = 5997
+// Un solde de 5 € moins 8 € : la valeur s'arrête à 0, pas à -3 €.
+tap Refund
+expect balance = 0
+// Une date choisie est un texte.
+type arrival "2026-10-10"
+expect arrival = "2026-10-10"

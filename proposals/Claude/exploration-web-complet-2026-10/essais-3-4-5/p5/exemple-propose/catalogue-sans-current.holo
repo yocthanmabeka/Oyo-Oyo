@@ -1,0 +1,15 @@
+import "oeuvre.holo"
+
+Page(
+  title: "Catalogue",
+  children: [
+    Nav(children: [ Row(gap: 16px, children: [ A("Accueil", to: "accueil.holo"), A("Catalogue", to: "catalogue.holo") ]) ]),
+    H1.titre("Catalogue"),
+    Grid(columns: 2, gap: 16px, children: [
+      Oeuvre(name: Lever, image: "lever.svg", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu", title: "Lever sur le fleuve", price: 120, isNew: true),
+      Oeuvre(name: Porte, image: "porte.svg", alt: "Une porte bleue dans un mur couleur sable", title: "La porte bleue", price: 90),
+    ]),
+  ],
+)
+
+.titre { font-size: 40px; }

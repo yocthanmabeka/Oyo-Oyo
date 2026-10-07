@@ -1,0 +1,1 @@
+Page(title: "x", state: State(a: 1), prices: Prices(a: 1999), children: [ H1("x"), P("{count} : {total:cents}"), Button(name: B, text: "b") ], rules: [ On(B.tap, effect: a.add(1)) ])

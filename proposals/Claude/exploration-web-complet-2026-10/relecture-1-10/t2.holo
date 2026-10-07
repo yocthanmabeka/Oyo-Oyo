@@ -1,0 +1,1 @@
+Page(title: "x", state: State(cart: 0), children: [ H1("x"), Repeat(items: [ Item(title: "a", price: 100), Item(title: "b", price: 200) ], children: [ Button(name: Add, text: "+") ], rules: [ On(Add.tap, effect: cart.add(item.price)) ]) ])

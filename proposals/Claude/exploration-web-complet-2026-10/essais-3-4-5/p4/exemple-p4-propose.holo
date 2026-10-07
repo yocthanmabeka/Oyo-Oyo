@@ -1,0 +1,24 @@
+Page(
+  title: "Lever sur le fleuve",
+  children: [
+    Column.bandeau(children: [ H1("Lever sur le fleuve") ]),
+    Row(gap: 24px, columnBelow: 560px, valign: top, children: [
+      Column(grow: 1, children: [ Image.photo(source: "lever.jpg", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu") ]),
+      Column(grow: 2, gap: 8px, children: [
+        Text.prix("120 euros"),
+        "Peint en une seule matinée, au bord du fleuve.",
+        A("Le mettre au panier", to: "panier.holo"),
+      ]),
+    ]),
+    H2("Dans la même série"),
+    Grid(columns: 4, columnWidth: 200px, gap: 16px, children: [
+      P.carte("Le phare"), P.carte("La barque"), P.carte("Dunes"), P.carte("Le verger"),
+    ]),
+  ],
+)
+
+Page { max-width: 1100px; background: #f7f2ea; color: #2a2118; }
+.bandeau { width: screen; background: #2a2118; color: #fffaf3; padding: 32px 16px; }
+.photo { width: 100%; border-radius: 14px; }
+.prix { font-weight: bold; }
+.carte { background: #fffaf3; padding: 12px; border-radius: 14px; }

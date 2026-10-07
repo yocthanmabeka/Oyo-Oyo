@@ -1,0 +1,22 @@
+// Le panier qui calcule seul : écriture PROPOSÉE (EXPLORATION, rien n'est décidé).
+// Chaque ligne marquée « proposé » n'existe pas dans le moteur (main, 2026-10-07).
+Page(
+  title: "Panier",
+  lang: "fr",
+  state: State(cart: [
+    Item(id: "barque", title: "La barque", price: 1999, qty: 1),
+    Item(id: "phare", title: "Le phare", price: 11000, qty: 1),
+  ]),
+  keep: [cart],
+  children: [
+    H1("Votre panier"),
+    Repeat(over: cart, children: [
+      Row(gap: 8px, children: [
+        Text("{item.title}, {item.price:cents} € HT : {item.qty}"),
+        If(item.qty, over: 0, children: [ Button(name: Less, text: "Un de moins") ]),
+        Button(name: More, text: "Un de plus"),
+      ]),
+    ], rules: [ On(Less.tap, effect: item.qty.sub(1)), On(More.tap, effect: item.qty.add(1)) ]),
+    P("{cart} lignes."),
+  ],
+)

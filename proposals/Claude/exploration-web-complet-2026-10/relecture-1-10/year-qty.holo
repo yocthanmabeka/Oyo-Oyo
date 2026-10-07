@@ -1,0 +1,1 @@
+Page(title: "x", state: State(best: 0, w: 0, h: 0), children: [ H1("x"), P("{best} {w} {h}"), Button(name: B, text: "b") ], rules: [ On(B.tap, effect: [best.set(year), w.set(weekday), h.set(hour)]) ])

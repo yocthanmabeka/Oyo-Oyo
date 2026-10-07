@@ -1,0 +1,129 @@
+P2-01 attente, erreur, confirmation avec l'écriture existante
+  → ok
+
+P2-02 champ obligatoire : required
+  → ligne 1, colonne 123 : « Input » n'a pas de paramètre « required » ; paramètres possibles : name, value, label, max, lines, type, accept
+
+P2-03 courriel : type email
+  → ligne 1, colonne 125 : « Input(type: …) » attend date, time, color ou file ; un nombre ou un texte se devinent tout seuls
+
+P2-04 longueur minimale : min sur un texte
+  → ligne 1, colonne 123 : « Input » n'a pas de paramètre « min » ; paramètres possibles : name, value, label, max, lines, type, accept
+
+P2-05 aide sous un champ : hint
+  → ligne 1, colonne 123 : « Input » n'a pas de paramètre « hint » ; paramètres possibles : name, value, label, max, lines, type, accept
+
+P2-06 signal submit (Entrée dans le formulaire)
+  → ligne 1, colonne 138 : signal inconnu « submit » : un « Form » émet sent, failed, hover, hoverEnd
+
+P2-07 Key.enter qui envoie (accepté, mais ignoré dans un champ)
+  → ok
+
+P2-08 une valeur du panier dans l envoi : Form(send:)
+  → ligne 1, colonne 86 : « Form » n'a pas de paramètre « send » ; paramètres possibles : name, children
+
+P2-09 une liste dans un formulaire : Repeat(over:) dans Form
+  → ok
+
+P2-10 vider le formulaire : F.reset
+  → ligne 1, colonne 174 : capacité inconnue « reset » : un « Form » offre send
+
+P2-11 Choice requis sans valeur : options vides
+  → ligne 1, colonne 124 : « Choice(options: …) » attend de 2 à 20 textes entre guillemets : options: ["S", "M", "L"]
+
+P2-12 date bornée : Input(type: date, min:)
+  → ligne 1, colonne 132 : « Input » n'a pas de paramètre « min » ; paramètres possibles : name, value, label, max, lines, type, accept
+
+P2-13 deux conditions ensemble (ET) par des If emboîtés
+  → ok
+
+P2-14 When sur un texte qui devient vide
+  → ligne 1, colonne 118 : « When(name, …) » : aucun nombre ne s'appelle « name » ; déclare-le sur la page, state: State(name: 0)
+
+P6-01 changement de champ : On(Size.change)
+  → ligne 1, colonne 143 : signal inconnu « change » : un « Choice » émet hover, hoverEnd
+
+P6-02 réagir à une valeur choisie : When(size, is: "M")
+  → ligne 1, colonne 151 : « If(size, is: …) » attend un nombre entier, ou le nom d'une autre valeur
+
+P6-03 focus seul : On(Name.focus)
+  → ligne 1, colonne 134 : signal inconnu « focus » : un « Input » émet hover, hoverEnd
+
+P6-04 survol d un champ : On(NameField.hover)
+  → ok
+
+P6-05 ouvrir un pli par une règle : Faq.open
+  → ligne 1, colonne 140 : capacité inconnue « open » : un « Details » offre rien
+
+P6-06 la fenêtre fermée : On(Thanks.closed)
+  → ligne 1, colonne 115 : signal inconnu « closed » : un « Dialog » émet hover, hoverEnd
+
+P6-07 un menu qui s ouvre : Button + If + Escape
+  → ok
+
+P6-08 basculer une valeur : menu.toggle
+  → ligne 1, colonne 113 : « menu.toggle » s'écrit avec sa quantité, entre parenthèses : menu.toggle(1)
+
+P6-09 basculer par deux boutons dans un If/else
+  → ok
+
+P6-10 un accordéon exclusif : Details(group:)
+  → ligne 1, colonne 62 : « Details » n'a pas de paramètre « group » ; paramètres possibles : name, summary, children, open
+
+P6-11 défilement : On(Page.scroll)
+  → ligne 1, colonne 84 : signal inconnu « scroll » : un « Page » émet rien
+
+P6-12 donner le focus : NameField.focus comme capacité
+  → ligne 1, colonne 156 : capacité inconnue « focus » : un « Input » offre rien
+
+P6-13 bouton désactivé : Button(disabled:)
+  → ligne 1, colonne 68 : « Button » n'a pas de paramètre « disabled » ; paramètres possibles : name, text
+
+P6-14 survol qui ouvre une fenêtre (refusé exprès)
+  → ligne 1, colonne 119 : un survol change des valeurs ou joue un son ; « D.open » demande que le visiteur touche : On(…tap, effect: D.open)
+
+P7-01 nom d un menu : Nav(label:)
+  → ligne 1, colonne 43 : « Nav » n'a pas de paramètre « label » ; paramètres possibles : name, children
+
+P7-02 page en cours : A(current: true)
+  → ligne 1, colonne 82 : « A » n'a pas de paramètre « current » ; paramètres possibles : name, to
+
+P7-03 adresse canonique : Page(url:)
+  → ligne 1, colonne 18 : « Page » n'a pas de paramètre « url » ; paramètres possibles : name, title, children, pixels, rules, state, prices, keep, data, zoom, points, relief, portals, lang, description, image, fonts, icon, modules, components
+
+P7-04 image de partage en SVG (acceptée)
+  → ok
+
+P7-05 texte de l image de partage : Page(imageAlt:)
+  → ligne 1, colonne 38 : « Page » n'a pas de paramètre « imageAlt » ; paramètres possibles : name, title, children, pixels, rules, state, prices, keep, data, zoom, points, relief, portals, lang, description, image, fonts, icon, modules, components
+
+P7-06 en-tête de ligne d un tableau : Table(rowHead:)
+  → ligne 1, colonne 83 : « Table » n'a pas de paramètre « rowHead » ; paramètres possibles : name, caption, head, rows
+
+P7-07 tableau rempli par une liste : Repeat dans Table
+  → ligne 1, colonne 139 : une ligne de « Table » s'écrit entre crochets : ["Lundi", "9 h – 18 h"]
+
+P7-08 encadré : Aside
+  → ligne 1, colonne 39 : bloc inconnu « Aside »
+
+P7-09 deux Nav dans la page (accepté, sans nom)
+  → ok
+
+P7-10 une valeur dans un tableau (accepté)
+  → ok
+
+P7-11 description trop longue (refus attendu)
+  → ligne 1, colonne 18 : « Page(description: …) » attend un texte de 300 caractères au plus : ce que Google montre sous le titre
+
+P7-12 lien externe nouvel onglet : A(newTab:)
+  → ligne 1, colonne 81 : « A » n'a pas de paramètre « newTab » ; paramètres possibles : name, to
+
+P7-13 titre de page vide (accepté ?)
+  → ok
+
+P7-14 page sans titre (accepté ?)
+  → ok
+
+P7-15 page sans H1 (accepté ?)
+  → ok
+

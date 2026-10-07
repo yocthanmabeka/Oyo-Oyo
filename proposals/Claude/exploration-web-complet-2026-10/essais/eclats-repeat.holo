@@ -1,0 +1,17 @@
+Page(
+  title: "Eclats",
+  children: [
+    Board(height: 360px, children: [
+      Repeat(items: [
+        Item(form: diamond, color: "#E9B44C", size: 14px, x: 96, y: 50, dx: -270px, dy: 0px, at: 1.400s, beat: 0.50s),
+        Item(form: circle, color: "#FF6B6B", size: 10px, x: 83, y: 58, dx: -195px, dy: -27px, at: 1.415s, beat: 0.65s),
+        Item(form: circle, color: "#4ECDC4", size: 8px, x: 69, y: 60, dx: -115px, dy: -34px, at: 1.430s, beat: 0.80s),
+      ], children: [
+        Shape(form: item.form, color: item.color, size: item.size, x: item.x, y: item.y,
+          enter: Enter(x: item.dx, y: item.dy, scale: 0, opacity: 0, at: item.at, for: 1.1s, ease: out),
+          loop: Loop(scale: 1.6, for: item.beat)),
+      ]),
+      Point(name: Core, color: "#FFE9A8", x: 50, y: 50, enter: Enter(scale: 0, opacity: 0, for: 0.9s, ease: back), loop: Loop(scale: 1.5, for: 0.35s)),
+    ]),
+  ],
+)

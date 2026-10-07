@@ -1,0 +1,3 @@
+Page(children: [ H1.t("x") ])
+Page { --titre: 40px; }
+.t { font-size: --titre; }

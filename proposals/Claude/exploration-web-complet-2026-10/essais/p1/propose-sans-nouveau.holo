@@ -1,0 +1,39 @@
+// Le catalogue avec l'écriture PROPOSÉE (EXPLORATION, rien n'est décidé).
+// Chaque ligne marquée « proposé » n'existe pas dans le moteur (main, 2026-10-07).
+Page(
+  title: "Catalogue",
+  lang: "fr",
+  state: State(
+    search: "", theme: "", more: 6, failed: 0,
+    articles: [ Item(id: "", title: "", theme: "", price: 0, image: "vide.svg", alt: "") ],
+    cart: [ Item(id: "", title: "", price: 0) ],
+  ),
+  keep: [cart],
+  data: Data(from: "catalogue.json"),                       // proposé : name
+  children: [
+    H1("Le catalogue"),
+    Input(value: search, label: "Chercher une création"),
+    Row(gap: 8px, children: [
+      Choice(value: theme, label: "Thème", options: ["Eau", "Terre", "Ville", "Ciel"]),
+      Button(name: AllThemes, text: "Tous les thèmes"),
+    ]),
+    P("{articles} créations. Panier : {cart}."), // proposé : Status
+    If(failed, is: 1, children: [ P("Le catalogue n'a pas pu être chargé."), Button(name: Retry, text: "Réessayer") ]),
+    Grid(columns: 3, gap: 16px, children: [
+      Repeat(over: articles, children: [                          // proposé : limit
+        Column(gap: 6px, children: [
+          Image(source: item.image, alt: "{item.alt}"),
+          H2("{item.title}"),
+          Text("{item.price:cents} €"),
+          Button(name: Add, text: "Ajouter au panier"),
+        ]),
+      ]),
+    ]),
+    If(articles, over: more, children: [ Button(name: More, text: "Afficher six de plus") ]),
+  ],
+  rules: [
+    On(More.tap, effect: more.add(6)),
+    On(AllThemes.tap, effect: theme.set("")),
+    On(Retry.tap, effect: failed.set(0)),
+  ],
+)

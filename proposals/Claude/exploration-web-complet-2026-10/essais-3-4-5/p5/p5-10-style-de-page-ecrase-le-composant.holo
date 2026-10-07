@@ -1,0 +1,5 @@
+import "a.holo"
+
+Page(title: "Collision de style", children: [ H1.titre("Titre de la page"), Card(title: "Carte") ])
+
+.titre { font-size: 40px; color: #101020; }

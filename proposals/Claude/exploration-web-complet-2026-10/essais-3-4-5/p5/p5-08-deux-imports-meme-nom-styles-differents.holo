@@ -1,0 +1,4 @@
+import "a.holo"
+import "c.holo"
+
+Page(title: "Deux Card", children: [ H1("x"), Card(title: "Un") ])

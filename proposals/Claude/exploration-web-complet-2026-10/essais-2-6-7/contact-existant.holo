@@ -1,0 +1,22 @@
+// Piste 2 — le formulaire de contact avec l'écriture d'aujourd'hui (7a48def) :
+// l'attente, l'erreur et la confirmation tiennent dans trois valeurs et trois règles.
+Page(
+  title: "Contact",
+  lang: "en",
+  state: State(name: "", message: "", sending: 0, sent: 0, failed: 0),
+  children: [
+    H1("Contact"),
+    Form(name: Contact, children: [
+      Input(value: name, label: "Your name", max: 60),
+      Input(value: message, label: "Your message", lines: 4),
+      If(sending, is: 0, children: [ Button(name: Send, text: "Send") ], else: [ Text("Sending…") ]),
+    ]),
+    If(sent, is: 1, children: [ P("Thank you, your message arrived.") ]),
+    If(failed, is: 1, children: [ P("Your message did not leave. Try again.") ]),
+  ],
+  rules: [
+    On(Send.tap, effect: [sending.set(1), failed.set(0), Contact.send]),
+    On(Contact.sent, effect: [sending.set(0), sent.set(1), name.set(""), message.set("")]),
+    On(Contact.failed, effect: [sending.set(0), failed.set(1)]),
+  ],
+)

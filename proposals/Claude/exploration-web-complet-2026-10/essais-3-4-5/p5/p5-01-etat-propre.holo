@@ -1,0 +1,9 @@
+Page(
+  title: "État propre",
+  components: [
+    Component(name: Counter, params: [label], state: State(n: 0), children: [
+      Row(children: [ Text("{label} : {n}"), Button(name: Plus, text: "+") ]),
+    ], rules: [ On(Plus.tap, effect: n.add(1)) ]),
+  ],
+  children: [ Counter(name: A, label: "Pommes"), Counter(name: B, label: "Poires") ],
+)

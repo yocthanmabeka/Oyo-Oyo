@@ -1,0 +1,25 @@
+Page(
+  title: "Lever sur le fleuve — L'atelier des mondes",
+  lang: "fr",
+  description: "Huile sur toile peinte en une matinée au bord du fleuve. Deux formats, dès 60 euros.",
+  image: Image(source: "lever-partage.png", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu"),  // proposé : image: Image(…)
+  state: State(format: "Grand", formats: [ Item(title: "Petit", size: "20 × 12 cm", price: 6000) ]),
+  query: [format],                                                                                        // proposé : query
+  data: Data(from: "formats.json"),
+  children: [
+    Header(children: [
+      Text("L'atelier des mondes"),
+      Nav(label: "Menu principal", children: [                                                            // proposé : label
+        List(children: [ A("Accueil", to: "accueil.holo"), A("Catalogue", to: "catalogue.holo"), A("Lever sur le fleuve", to: "fiche.holo") ]),
+      ]),
+    ]),
+    Main(children: [
+      H1("Lever sur le fleuve"),
+      Image(source: "lever.svg", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu", caption: "Peint en une matinée, en mai."),
+      Table(caption: "Les formats", head: ["Format", "Taille", "Prix"], rowHeads: true,                     // proposé : rowHeads
+        over: formats, cells: ["{item.title}", "{item.size}", "{item.price:cents} €"]),                  // proposé : over, cells
+      Choice(value: format, label: "Votre format", options: ["Petit", "Grand"]),
+    ]),
+    Footer(children: [ Nav(label: "Informations", children: [ A("Mentions légales", to: "mentions.holo") ]) ]),
+  ],
+)

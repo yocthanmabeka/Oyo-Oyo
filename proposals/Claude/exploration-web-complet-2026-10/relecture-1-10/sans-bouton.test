@@ -1,0 +1,6 @@
+tap MoreBarque
+tap MoreBarque
+expect units = 4
+expect ht = 16997
+expect vat = 3399
+expect ttc = 20396

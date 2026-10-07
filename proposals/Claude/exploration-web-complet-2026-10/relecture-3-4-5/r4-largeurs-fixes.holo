@@ -1,0 +1,10 @@
+Page(title: "Fiche", children: [
+  H1("Lever sur le fleuve"),
+  Row(gap: 24px, children: [
+    Column.photo(children: [ Image(source: "lever.svg", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu") ]),
+    Column.texte(gap: 8px, children: [ Text("120 euros"), "Peint en une seule matinée, au bord du fleuve, entre six et neuf heures du matin.", A("Le mettre au panier", to: "panier.holo") ]),
+  ]),
+])
+
+.photo { width: 240px; }
+.texte { width: 360px; }

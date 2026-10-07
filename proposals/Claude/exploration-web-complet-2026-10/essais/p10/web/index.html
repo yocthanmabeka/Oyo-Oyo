@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panier</title>
+  <style>
+    main { max-width: 40rem; margin: 0 auto; padding: 1rem; font-family: system-ui, sans-serif; }
+    .row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    button:focus-visible { outline: 3px solid; outline-offset: 2px; }
+  </style>
+  <script type="module" src="panier.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Votre panier</h1>
+    <div id="lines"></div>
+    <p id="status" role="status"></p>
+    <p id="delivery"></p>
+  </main>
+</body>
+</html>

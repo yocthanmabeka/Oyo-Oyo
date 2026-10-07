@@ -1,0 +1,1 @@
+Page(title: "x", state: State(n: 0, tasks: [ "a" ]), children: [ H1("x") ], rules: [ When(tasks, over: 1, effect: n.add(1)) ])

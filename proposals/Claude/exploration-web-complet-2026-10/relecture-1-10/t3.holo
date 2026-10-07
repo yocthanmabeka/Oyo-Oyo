@@ -1,0 +1,1 @@
+Page(title: "x", state: State(articles: [ Item(title: "a", price: 100) ]), prices: Prices(articles: 100), children: [ H1("x"), P("{total}") ])

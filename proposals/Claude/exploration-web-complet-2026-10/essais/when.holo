@@ -1,0 +1,1 @@
+Page(title: "x", state: State(qty: 0, line: 0), children: [ H1("x"), Input(value: qty, label: "Q", max: 99) ], rules: [ When(qty, over: 0, effect: [line.set(1999), line.mul(qty)]) ])

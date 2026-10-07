@@ -1,0 +1,10 @@
+Page(
+  title: "Deux compteurs",
+  state: State(pommes: 0, poires: 0),
+  components: [
+    Component(name: Counter, params: [label, n], children: [
+      Row(children: [ Text("{label} : {n}"), Button(name: Plus, text: "+") ]),
+    ], rules: [ On(Plus.tap, effect: n.add(1)) ]),
+  ],
+  children: [ Counter(name: A, label: "Pommes", n: pommes), Counter(name: B, label: "Poires", n: poires) ],
+)

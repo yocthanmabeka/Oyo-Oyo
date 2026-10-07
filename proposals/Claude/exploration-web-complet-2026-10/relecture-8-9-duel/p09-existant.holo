@@ -1,0 +1,17 @@
+Page(
+  title: "Galerie",
+  lang: "fr",
+  children: [
+    H1("L'atelier des mondes", enter: Enter(y: 40px, opacity: 0, letters: 0.04s, ease: spring)),
+    Shape(form: circle, color: "#E9B44C", size: 80px,
+      loop: Loop(rotate: 72deg, for: 1.2s)),
+    Stack(children: [
+      Shape(form: circle, color: "#FFFFFF22", size: 200px),
+      Shape(form: circle, color: "#4ECDC4", size: 16px),
+    ]),
+    Image(source: "lever.svg", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu",
+      loop: Loop(x: 12px, y: 8px, flip: 8deg, tilt: 6deg)),
+    P("Le texte arrive au rythme du défilement.",
+      enter: Enter(y: 80px, opacity: 0)),
+  ],
+)

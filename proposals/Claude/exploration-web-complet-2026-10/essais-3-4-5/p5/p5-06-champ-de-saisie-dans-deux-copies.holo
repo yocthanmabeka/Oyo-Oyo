@@ -1,0 +1,10 @@
+Page(
+  title: "Deux champs",
+  state: State(a: "", b: ""),
+  components: [
+    Component(name: Field, params: [label, v], children: [
+      Column(children: [ Input(value: v, label: label), Text("Écrit : {v}") ]),
+    ]),
+  ],
+  children: [ Field(label: "Nom", v: a), Field(label: "Ville", v: b) ],
+)

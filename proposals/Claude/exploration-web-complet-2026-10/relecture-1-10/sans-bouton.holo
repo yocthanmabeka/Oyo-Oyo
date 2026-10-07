@@ -1,0 +1,16 @@
+// Le panier d'aujourd'hui, recalculé à chaque geste sans bouton « Calculer » : chaque règle refait la TVA.
+Page(
+  title: "Panier",
+  lang: "fr",
+  state: State(barque: 1, phare: 1, units: 2, ht: 12999, vat: 2599, ttc: 15598),
+  children: [
+    H1("Votre panier"),
+    Row(gap: 8px, children: [ Text("La barque : {barque}"), Button(name: MoreBarque, text: "Un de plus") ]),
+    Row(gap: 8px, children: [ Text("Le phare : {phare}"), Button(name: MorePhare, text: "Un de plus") ]),
+    P("{units} créations : {ht:cents} € HT, TVA {vat:cents} €, total {ttc:cents} € TTC."),
+  ],
+  rules: [
+    On(MoreBarque.tap, effect: [barque.add(1), units.add(1), ht.add(1999), vat.set(ht), vat.mul(20), vat.div(100), ttc.set(ht), ttc.add(vat)]),
+    On(MorePhare.tap, effect: [phare.add(1), units.add(1), ht.add(11000), vat.set(ht), vat.mul(20), vat.div(100), ttc.set(ht), ttc.add(vat)]),
+  ],
+)

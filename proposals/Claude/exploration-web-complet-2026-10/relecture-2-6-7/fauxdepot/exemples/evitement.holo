@@ -1,0 +1,7 @@
+Page(
+  title: "Lien d'évitement",
+  children: [
+    Header(children: [ A("Aller au contenu", to: "#Content"), Nav(children: [ A("Accueil", to: "evitement.holo") ]) ]),
+    Main(name: Content, children: [ H1("Le contenu"), P("Le texte de la page.") ]),
+  ],
+)

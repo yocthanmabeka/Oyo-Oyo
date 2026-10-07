@@ -1,0 +1,2 @@
+Page(children: [ P.titre-oeuvre("x") ])
+.titre-oeuvre { color: #8a3b12; }

@@ -1,0 +1,15 @@
+Page(
+  title: "Bandeaux",
+  children: [
+    Header(children: [ Text("L'atelier des mondes") ]),
+    Column.hero(children: [ H1("Des tableaux faits à la main"), P("Et les mondes où ils sont exposés.") ]),
+    Grid(columns: 4, gap: 16px, children: [ P.carte("Un"), P.carte("Deux"), P.carte("Trois"), P.carte("Quatre") ]),
+    Footer(children: [ Text("Fait en HoloCode") ]),
+  ],
+)
+
+Page { background: #f7f2ea; color: #2a2118; }
+Header { background: #2a2118; color: #fffaf3; padding: 12px 16px; }
+Footer { background: #2a2118; color: #fffaf3; padding: 12px 16px; }
+.hero { background: linear-gradient(135deg, #8a3b12, #c2462b); color: #fffaf3; padding: 48px 24px; }
+.carte { background: #fffaf3; padding: 12px; }

@@ -1,0 +1,37 @@
+Page(
+  title: "Questions — L'atelier des mondes",
+  lang: "fr",
+  state: State(size: "", note: 0, asked: 0),
+  keep: [asked],
+  children: [
+    Header(children: [
+      Row(gap: 12px, align: between, children: [
+        Text("L'atelier des mondes"),
+        Button(name: MenuButton, text: "Menu", toggles: SiteMenu),                  // proposé : toggles
+      ]),
+      Popover(name: SiteMenu, children: [                                          // proposé : Popover
+        Nav(label: "Menu principal", children: [                                   // proposé : label (piste 7)
+          List(children: [ A("Accueil", to: "accueil.holo"), A("Catalogue", to: "catalogue.holo"), A("Panier", to: "panier.holo") ]),
+        ]),
+      ]),
+    ]),
+    H1("Questions"),
+    Details(summary: "Livrez-vous à l'étranger ?", group: faq, children: [ P("Oui, partout en Europe, en cinq jours.") ]),   // proposé : group
+    Details(summary: "Les tableaux sont-ils encadrés ?", group: faq, children: [ P("Oui, d'un cadre en chêne.") ]),   // proposé : group
+    Choice(value: size, label: "Format", options: ["Petit", "Grand"]),
+    If(note, is: 1, announce: true, children: [ P("Le grand format part en caisse de bois.") ]),   // proposé : announce
+    If(asked, is: 0, children: [ Button(name: Ask, text: "Recevoir les nouveautés") ]),
+    Dialog(name: News, children: [
+      H2("Les nouveautés"),                                                         // proposé : devient le nom de la fenêtre
+      P("Un courriel par mois, pas plus. Écrivez-nous depuis la page Contact."),
+      Button(name: Ok, text: "D'accord"),
+    ]),
+  ],
+  rules: [
+    When(size, is: "Grand", effect: note.set(1)),                                  // proposé : When sur un texte
+    When(size, is: "Petit", effect: note.set(0)),                                  // proposé : When sur un texte
+    On(Ask.tap, effect: News.open),
+    On(Ok.tap, effect: News.close),
+    On(News.closed, effect: asked.set(1)),                                         // proposé : closed
+  ],
+)

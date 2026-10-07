@@ -1,0 +1,30 @@
+// Le panier qui calcule seul : écriture PROPOSÉE (EXPLORATION, rien n'est décidé).
+// Chaque ligne marquée « proposé » n'existe pas dans le moteur (main, 2026-10-07).
+Page(
+  title: "Panier",
+  lang: "fr",
+  state: State(cart: [
+    Item(id: "barque", title: "La barque", price: 1999, qty: 1),
+    Item(id: "phare", title: "Le phare", price: 11000, qty: 1),
+  ]),
+  keep: [cart],
+  computed: Computed(                                     // proposé
+    units: Sum(cart, of: item.qty),                       // proposé
+    subtotal: Sum(cart, of: item.price, times: item.qty), // proposé : hors taxe, en centimes
+    vat: Percent(20, of: subtotal),                       // proposé : au centime le plus proche
+    total: Sum(subtotal, vat),                            // proposé
+    delivery: AddDays(today, 3),                          // proposé : une date
+  ),
+  children: [
+    H1("Votre panier"),
+    Repeat(over: cart, children: [
+      Row(gap: 8px, children: [
+        Text("{item.title}, {item.price:cents} € HT : {item.qty}"),
+        If(item.qty, over: 0, children: [ Button(name: Less, text: "Un de moins") ]),
+        Button(name: More, text: "Un de plus"),
+      ]),
+    ], rules: [ On(Less.tap, effect: item.qty.sub(1)), On(More.tap, effect: item.qty.add(1)) ]),
+    Status("{units} créations : {subtotal:cents} € HT, TVA {vat:cents} €, total {total:cents} € TTC."), // proposé
+    P("Livraison prévue le {delivery:date}."),            // proposé : le format date
+  ],
+)

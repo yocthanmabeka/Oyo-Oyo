@@ -1,0 +1,2 @@
+Page(children: [ P.c("x") ])
+.c { color: rgba(0, 0, 0, 0.5); }

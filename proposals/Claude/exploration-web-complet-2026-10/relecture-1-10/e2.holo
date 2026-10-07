@@ -1,0 +1,1 @@
+Page(title: "x", state: State(cat: "", articles: [ Item(title: "a", cat: "x") ]), children: [ H1("x"), Repeat(over: articles, children: [ If(item.cat, is: cat, children: [ P("{item.title}") ]) ]) ])

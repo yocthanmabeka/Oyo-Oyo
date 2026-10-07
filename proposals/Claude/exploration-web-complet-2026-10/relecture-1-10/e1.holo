@@ -1,0 +1,1 @@
+Page(title: "x", state: State(size: ""), children: [ H1("x"), Choice(value: size, label: "Taille", options: ["S", "M"]), If(size, is: "M", children: [ P("M") ]) ])

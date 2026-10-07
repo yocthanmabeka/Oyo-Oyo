@@ -1,0 +1,48 @@
+// Ce que toutes les pages de « L'atelier des mondes » ont en commun : le menu et le thème.
+// Le pied de page est dans pied.holo (un morceau par fichier). Ce fichier n'est pas une page : c'est un composant (Component) que les pages
+// importent. Changer le menu ici le change partout.
+
+Component(
+  name: Menu,
+  children: [
+    // L'en-tête et le menu sont des repères : un lecteur d'écran y saute directement.
+    Header(children: [
+      Row(gap: 12px, align: between, children: [
+        Text.marque("L'atelier des mondes"),
+        Nav(children: [ Row(gap: 14px, children: [
+          A("Accueil", to: "accueil.holo"),
+          A("Catalogue", to: "catalogue.holo"),
+          A("Panier", to: "panier.holo"),
+          A("Journal", to: "journal.holo"),
+          A("Galerie", to: "galerie.holo"),
+          A("Jeu", to: "jeu.holo"),
+          A("Disponibilité", to: "disponibilite.holo"),
+        ]) ]),
+      ]),
+      Hr(),
+    ]),
+  ],
+)
+
+Page { background: #f7f2ea; color: #2a2118; font-family: Georgia, serif; padding: 20px 16px; }
+H1 { color: #8a3b12; font-size: 34px; }
+H2 { color: #8a3b12; font-size: 24px; }
+H3 { color: #5c4a3a; font-size: 18px; }
+A { color: #8a3b12; }
+Button { color: #2a2118; }
+.marque { font-weight: bold; font-size: 18px; color: #8a3b12; }
+.discret { font-size: 14px; opacity: 0.75; }
+.carte { background: #fffaf3; border: 1px solid #e3d5c3; border-radius: 14px; padding: 12px; }
+.prix { font-weight: bold; color: #8a3b12; }
+.promesse { font-size: 20px; }
+.action {
+  background: #8a3b12;
+  color: #fffaf3;
+  border-radius: 999px;
+  padding: 10px 22px;
+  font-weight: bold;
+  hover: { background: #a5481a; }
+  focus: { border: 3px solid #2a2118; }
+  active: { opacity: 0.8; }
+}
+.pastille { background: #c2462b; color: #fffaf3; border-radius: 999px; padding: 3px 10px; font-size: 13px; font-weight: bold; }

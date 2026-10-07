@@ -1,0 +1,4 @@
+tap B
+expect best = 2026
+expect w = 4
+expect h = 0

@@ -1,0 +1,4 @@
+Page(title: "Sombre", children: [ Button.cta(name: Go, text: "Aller") ])
+
+Page { --accent: #8a3b12; --texte-bouton: #fffaf3; dark: { --accent: #e9b44c; --texte-bouton: #e9b44c; } }
+.cta { background: --accent; color: --texte-bouton; }

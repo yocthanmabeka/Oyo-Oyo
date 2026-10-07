@@ -1,0 +1,49 @@
+// L'exemple de la piste 3, sans ce qui est proposé : ce qui reste doit passer aujourd'hui.
+Page(
+  title: "L'atelier des mondes",
+  lang: "fr",
+  fonts: [
+    Font(family: "Carlito", source: "carlito.woff2"),
+  ],
+  children: [
+    Column.hero(gap: 16px, children: [
+      H1("L'atelier des mondes"),
+      P("Des tableaux faits à la main."),
+      A.action("Voir le catalogue", to: "catalogue.holo"),
+    ]),
+    Grid(columns: 2, gap: 16px, children: [
+      Column.carte(gap: 6px, children: [
+        Image.vignette(source: "lever.jpg", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu"),
+        P("Lever sur le fleuve"),
+        Text.prix("120 euros"),
+      ]),
+      Column.carte(gap: 6px, children: [
+        Image.vignette(source: "porte.jpg", alt: "Une porte bleue dans un mur couleur sable"),
+        P("La porte bleue"),
+        Text.prix("90 euros"),
+      ]),
+    ]),
+  ],
+)
+
+Page {
+  --encre: #2a2118; --fond: #f7f2ea; --carte: #fffaf3;
+  --brun: #8a3b12; --brun-survol: #a5481a; --sur-brun: #fffaf3;
+  --rythme: 8px;
+  background: --fond; color: --encre; font-family: Carlito, Georgia, serif;
+  dark: { --encre: #f5efe6; --fond: #1d1712; --brun: #e9b44c; --brun-survol: #ffd27a; --sur-brun: #1d1712; }
+}
+H1 { font-size: 40px; font-weight: bold; }
+.hero {
+  background: linear-gradient(#2a2118b3, #2a2118b3);
+  color: #fffaf3; padding: 48px 24px; border-radius: 16px;
+}
+.carte { background: --carte; border-radius: 14px; padding: --rythme; box-shadow: 0 4px 12px #2a211833; }
+.vignette { border-radius: 14px; }
+.prix { font-weight: bold; }
+.action {
+  background: --brun; color: --sur-brun; border-radius: 999px; padding: 10px 22px;
+  transition: 0.2s;
+  hover: { background: --brun-survol; }
+  focus: { border: 3px solid --encre; }
+}
