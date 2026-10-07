@@ -75,11 +75,22 @@ L'exemple de la leçon 75 : Ada touche « Réserver » sous Sunrise. Aujourd'hui
 | Étape | Ce qu'on gagne | Écriture proposée (à discuter) | Séances |
 |---|---|---|---|
 | **1. `holo serve`** | Le serveur d'essai devient un vrai serveur en Rust, sur ton PC d'abord : pages, formulaires, fichiers | rien de nouveau pour l'auteur | 2 |
-| **2. Des valeurs partagées** | Un tableau réservé une seule fois, un livre d'or, des « j'aime » vus par tous | `State(likes: 0, shared: [likes])` ; le serveur garde `likes` et arbitre les gestes de tous | 2 à 3 |
-| **3. Des comptes, gérés par ton serveur** | Chacun a ses valeurs : son panier, ses tableaux, sa progression | `Page(account: optional)` ; `{account.name}` ; `If(account, …)` ; `State(cart: 0, mine: [cart])` | 3 à 4 |
+| **2. Des valeurs partagées** | Un tableau réservé une seule fois, un livre d'or, des « j'aime » vus par tous | `Page(state: State(likes: 0), shared: [likes])`, comme `keep:` ; le serveur garde `likes` et arbitre les gestes de tous | 2 à 3 |
+| **3. Des comptes, gérés par ton serveur** | Chacun a ses valeurs : son panier, ses tableaux, sa progression | `Page(account: optional, mine: [cart])` ; `{account.name}` ; `If(account, …)` | 3 à 4 |
 | **4. En direct, à plusieurs** | Voir les autres bouger : le pont vers le métaverse à plusieurs (`PLAN-3D.md`) | les valeurs partagées arrivent d'elles-mêmes, sans recharger | 3 |
 
 Chaque étape aurait sa leçon, son ADR, ses tests, comme d'habitude.
+
+## Pour commencer : des valeurs partagées restreintes
+
+Les remarques de Codex du 2026-10-04 (`proposals/GPT5.6/architecture-3d-multijoueur-2026-10-04/`) disent ce qu'un visiteur malhonnête pourrait envoyer à un serveur qui ferait confiance au navigateur. Pour commencer sans adapter tout l'arbitre, l'étape 2 serait restreinte :
+
+1. **Sur le PC et le Wi-Fi de la maison seulement** ; pas encore pour Internet.
+2. Une valeur partagée ne change que par un geste (`On(Reserver.tap, …)`), jamais par le temps (`Every`, `After`), le hasard, le clavier ou une rencontre sur un plateau.
+3. Une règle qui change une valeur partagée ne lit que des valeurs partagées et le geste, et ne change que des valeurs partagées. Le moteur refuse le reste à la vérification, avec le bon mot.
+4. Le serveur donne un numéro à chaque geste, l'applique une seule fois, dans l'ordre d'arrivée, avec le même arbitre ; il ne reçoit jamais de valeurs, seulement des gestes.
+5. Les autres visiteurs reçoivent la nouvelle valeur dans la seconde, sans recharger (le serveur la leur envoie).
+6. Les valeurs partagées sont gardées dans un fichier du dossier du site.
 
 ## Les comptes, gérés par ton propre serveur
 

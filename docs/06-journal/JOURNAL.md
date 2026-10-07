@@ -6,6 +6,15 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Un prompt pour Codex et Gemini : comment finir la partie web
+
+- Yocthan : « que tu demandes les avis des GPT et des Gemini par rapport à tout ça via un prompt […] je n'arrive pas vraiment à comprendre complètement […] j'aimerais qu'on termine vraiment la partie web aujourd'hui, parce que ça a pris trop de temps. »
+- Écrit : `docs/05-discussions/prompts/2026-10-07-codex-gemini-fin-du-web.md`, le même texte pour les deux, lisible sans le dépôt. Il rappelle ce que le web sait faire, ce qui manque (valeurs partagées, comptes, direct, vrai serveur), la règle « chez soi d'abord », la proposition résumée, et ce que Codex et Gemini avaient dit le 2026-10-04 sur le jeu à plusieurs. Il propose trois façons de finir (A : avec ce qui existe ; B : avec `holo serve` et des valeurs partagées restreintes, sur le PC seulement ; C : tout avant) et pose sept questions.
+- Ajouté à la proposition : les six restrictions des valeurs partagées pour commencer ; `shared:` et `mine:` s'écrivent dans `Page`, comme `keep:`.
+- Vérifié avant d'écrire les chiffres du prompt : 124 tests ; 81 leçons et le site de référence, 0 défaut d'accessibilité, en clair et en sombre sur téléphone ; le moteur léger, 157 Ko transférés.
+
+---
+
 ## 2026-10-07 — Chez soi d'abord : la règle de Yocthan dans la proposition serveur et comptes
 
 - Yocthan demande si HoloCode permet de tout faire d'abord sur son propre ordinateur, sans passer par Google, Apple, Microsoft ou un autre prestataire, comme avec Django ; il veut que l'auteur reste libre, comme dans l'open source. Il demande aussi ce que veut dire « partagé ».
