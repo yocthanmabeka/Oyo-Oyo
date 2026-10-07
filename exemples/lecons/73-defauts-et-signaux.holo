@@ -45,6 +45,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 72 : la place qui reste", to: "72-place-et-theme.holo"),
+      A("Leçon 74 : un champ dans une ligne →", to: "74-champ-dans-une-ligne.holo"),
     ]),
   ],
 )

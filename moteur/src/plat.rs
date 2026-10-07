@@ -1172,9 +1172,14 @@ fn lignes(repetition: &Bloc, liste: &str, base: &str) -> Result<String, Erreur> 
         let mut montres = Vec::new();
         let mut ligne = String::new();
         for valeur in modele {
-            let mut copie = valeur.clone();
+            let mut copie = Valeur::Liste(vec![valeur.clone()]);
+            crate::listes::choisir_selon_l_element(&mut copie, &champs, element);
             marquer(&mut copie, &champs, &mut montres);
-            rendre(&copie, &mut ligne, &mut mondes, base, repetition)?;
+            if let Valeur::Liste(choisis) = &copie {
+                for choisi in choisis {
+                    rendre(choisi, &mut ligne, &mut mondes, base, repetition)?;
+                }
+            }
         }
         let mut ligne = ligne.replace(ELEMENT, &echapper(&crate::listes::texte_de(element)));
         for (i, (nom, format)) in montres.iter().enumerate() {
@@ -1185,7 +1190,12 @@ fn lignes(repetition: &Bloc, liste: &str, base: &str) -> Result<String, Erreur> 
             };
             ligne = ligne.replace(&format!("{CHAMP}{i}{CHAMP}"), &echapper(&montre));
         }
-        sortie.push_str(&format!("<div class=\"holo-ligne\" data-rang=\"{rang}\">{ligne}</div>"));
+        // La clé de la ligne (ADR-057) : la même pour le même élément, d'un état à l'autre. La page
+        // garde telle quelle une ligne dont la clé et le contenu n'ont pas changé : le champ où
+        // l'on écrit, un pli ouvert, le focus restent où ils sont.
+        let deja = elements[..rang].iter().filter(|e| *e == element).count();
+        let cle = element.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, o| (h ^ u64::from(o)).wrapping_mul(0x0100_0000_01b3));
+        sortie.push_str(&format!("<div class=\"holo-ligne\" data-rang=\"{rang}\" data-cle=\"{cle:x}-{deja}\">{ligne}</div>"));
     }
     Ok(sortie)
 }

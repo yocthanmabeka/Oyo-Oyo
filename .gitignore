@@ -17,3 +17,4 @@ target/
 messages/
 # Les anciennes versions des fichiers écrits par l'éditeur (ADR-046) : jamais versionnées.
 editeur-sauvegardes/
+node_modules/

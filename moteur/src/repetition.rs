@@ -174,12 +174,33 @@ fn deplier_repetition(repetition: &Bloc) -> Result<(Vec<Valeur>, Vec<Valeur>), E
     let mut enfants = Vec::new();
     let mut regles_depliees = Vec::new();
     for element in &lus {
-        for valeur in modele {
+        // Les `If(item.champ, …)` choisissent leur branche d'après l'élément (ADR-057).
+        let champs: Vec<(String, String)> = element
+            .champs
+            .iter()
+            .map(|(n, v)| {
+                let texte = match v {
+                    Valeur::Texte(t) => t.clone(),
+                    Valeur::Entier(e) => e.to_string(),
+                    Valeur::Nom(m) => m.clone(),
+                    Valeur::Bool(b) => u8::from(*b).to_string(),
+                    Valeur::Nombre { valeur, .. } => valeur.to_string(),
+                    _ => String::new(),
+                };
+                (n.to_string(), texte)
+            })
+            .collect();
+        let mut modele_choisi = Valeur::Liste(modele.clone());
+        crate::listes::choisir_selon_l_element(&mut modele_choisi, &champs, "");
+        let mut regles_choisies = Valeur::Liste(regles.clone());
+        crate::listes::choisir_selon_l_element(&mut regles_choisies, &champs, "");
+        let (Valeur::Liste(modele_choisi), Valeur::Liste(regles_choisies)) = (modele_choisi, regles_choisies) else { unreachable!() };
+        for valeur in &modele_choisi {
             let mut copie = valeur.clone();
             remplacer(&mut copie, element, &noms, repetition.pos)?;
             enfants.push(copie);
         }
-        for valeur in &regles {
+        for valeur in &regles_choisies {
             let mut copie = valeur.clone();
             remplacer(&mut copie, element, &noms, repetition.pos)?;
             regles_depliees.push(copie);

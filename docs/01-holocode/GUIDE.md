@@ -1280,6 +1280,34 @@ Page(
 
 Cette écriture est décidée (`ADR-051`).
 
+### Un champ dans une ligne : montrer selon lui, le changer depuis la ligne
+
+```holo
+Page(
+  title: "Tasks",
+  state: State(tasks: [ Item(title: "Frame the painting", done: 0), Item(title: "Deliver Sunrise", done: 1) ]),
+  children: [
+    H1("Tasks"),
+    Repeat(over: tasks, children: [
+      Column(children: [
+        If(item.done, is: 1, children: [ Text("✓ {item.title}") ], else: [ Text("{item.title}") ]),
+        If(item.done, is: 1, children: [ Button(name: Undo, text: "Undo") ], else: [ Button(name: Done, text: "Done") ]),
+        Details(summary: "Details", children: [ P("Added by hand.") ]),
+      ]),
+    ], rules: [
+      On(Done.tap, effect: item.done.set(1)),
+      On(Undo.tap, effect: item.done.set(0)),
+    ]),
+  ],
+)
+```
+
+- **`If(item.done, is: 1, …)`** dans une ligne : on montre l'un ou l'autre selon un champ de l'élément. Un nombre se compare avec `is`, `not`, `over`, `under` ; un texte avec `is` et `not` (`If(item.state, is: "late")`). Le champ doit exister.
+- **`item.done.set(1)`** dans les règles de la ligne change ce champ de l'élément touché ; **`item.likes.add(1)`** et **`.sub(1)`** pour un nombre ; `set` prend aussi un texte ou le nom d'une valeur de la page.
+- **Les lignes qui n'ont pas changé restent telles quelles.** Chaque ligne a une clé tirée de son contenu ; quand la liste change, la page ne remplace que les lignes nouvelles ou changées. Un pli ouvert, un champ où l'on écrit, le focus restent où ils sont.
+
+Cette écriture est décidée (`ADR-057`). La leçon est `74-champ-dans-une-ligne.holo`.
+
 ## 6 duodevicies. Du code enfermé : un module
 
 Pour ce que HoloCode ne fait pas lui-même (un calcul lourd, une physique, une IA), un module compilé en WebAssembly, écrit en Rust, en C ou en Zig, tourne dans une boîte fermée.

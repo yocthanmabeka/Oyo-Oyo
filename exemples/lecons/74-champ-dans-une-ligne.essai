@@ -1,0 +1,7 @@
+// L'essai de la leçon 74 : marquer, défaire, ajouter, retirer.
+tap Fait
+expect taches = 2
+type tache "Vernir le cadre"
+tap Ajouter
+expect taches = 3
+expect tache = ""
