@@ -85,6 +85,104 @@ fn est_nom_de_champ(nom: &str) -> bool {
     nom.starts_with(|c: char| c.is_ascii_lowercase()) && nom.chars().all(|c| c.is_ascii_alphanumeric()) && nom.len() <= 40 && nom != "key"
 }
 
+/// Dans une ligne, `If(item.done, is: 1, children: [ … ], else: [ … ])` choisit ce qu'il montre
+/// d'après le champ de l'élément ; `If(item, is: "…")` d'après le texte d'un élément de texte
+/// (ADR-057). Les `If` qui regardent l'élément sont remplacés par la branche choisie : le reste du
+/// moteur ne voit que des blocs ordinaires. Un champ se compare à un nombre (`is`, `not`, `over`,
+/// `under`) ou à un texte (`is`, `not`).
+pub fn choisir_selon_l_element(valeur: &mut Valeur, champs: &[(String, String)], texte: &str) {
+    match valeur {
+        Valeur::Liste(elements) => {
+            let mut poses = Vec::with_capacity(elements.len());
+            for mut element in std::mem::take(elements) {
+                if let Valeur::Bloc(bloc) = &element {
+                    if let Some(choisis) = branche_de_l_element(bloc, champs, texte) {
+                        for mut choisi in choisis {
+                            choisir_selon_l_element(&mut choisi, champs, texte);
+                            poses.push(choisi);
+                        }
+                        continue;
+                    }
+                }
+                choisir_selon_l_element(&mut element, champs, texte);
+                poses.push(element);
+            }
+            *elements = poses;
+        }
+        Valeur::Bloc(bloc) => bloc.arguments.iter_mut().for_each(|a| choisir_selon_l_element(&mut a.valeur, champs, texte)),
+        _ => {}
+    }
+}
+
+/// Le sujet d'un `If` qui regarde l'élément : `item` ou `item.done`.
+pub fn sujet_de_l_element(bloc: &Bloc) -> Option<&str> {
+    if bloc.nom != "If" {
+        return None;
+    }
+    match bloc.arguments.first() {
+        Some(Argument { nom: None, valeur: Valeur::Nom(sujet), .. }) if sujet == "item" || sujet.starts_with("item.") => Some(sujet),
+        _ => None,
+    }
+}
+
+fn branche_de_l_element(bloc: &Bloc, champs: &[(String, String)], texte: &str) -> Option<Vec<Valeur>> {
+    let sujet = sujet_de_l_element(bloc)?;
+    let brut = match sujet.strip_prefix("item.") {
+        Some(champ) => champs.iter().find(|(c, _)| c == champ).map(|(_, v)| v.clone()).unwrap_or_default(),
+        None => texte_de(texte),
+    };
+    let nombre = brut.parse::<u64>().ok();
+    let vrai = bloc.arguments[1..].iter().all(|a| match (a.nom.as_deref(), &a.valeur) {
+        (Some("is"), Valeur::Entier(n)) => nombre == Some(*n),
+        (Some("not"), Valeur::Entier(n)) => nombre != Some(*n),
+        (Some("over"), Valeur::Entier(n)) => nombre.is_some_and(|v| v > *n),
+        (Some("under"), Valeur::Entier(n)) => nombre.is_some_and(|v| v < *n),
+        (Some("is"), Valeur::Texte(t)) => brut == *t,
+        (Some("not"), Valeur::Texte(t)) => brut != *t,
+        _ => true,
+    });
+    let liste = |nom: &str| match bloc.argument(nom).map(|a| &a.valeur) {
+        Some(Valeur::Liste(l)) => l.clone(),
+        _ => Vec::new(),
+    };
+    Some(if vrai {
+        if bloc.argument("rules").is_some() { liste("rules") } else { liste("children") }
+    } else {
+        liste("else")
+    })
+}
+
+/// Vérifie un `If` qui regarde l'élément d'une ligne : le champ existe, les comparaisons sont
+/// bien écrites.
+pub fn verifier_si_de_l_element(bloc: &Bloc, programme: &Programme, liste: Option<&str>) -> Result<(), Erreur> {
+    let Some(sujet) = sujet_de_l_element(bloc) else { return Ok(()) };
+    let erreur = |message: String| Err(Erreur { message, pos: bloc.pos });
+    let Some(liste) = liste else {
+        return erreur(format!("« If({sujet}, …) » regarde l'élément d'une ligne : il s'écrit dans Repeat(…, children: [ … ])"));
+    };
+    if let Some(champ) = sujet.strip_prefix("item.") {
+        match sorte(programme, liste) {
+            Some(Sorte::Textes) => return erreur(format!("les éléments de « {liste} » sont des textes, sans champs : If(item, is: \"…\")")),
+            Some(Sorte::Fiches(champs)) if !champs.iter().any(|c| c == champ) => return erreur(format!("les éléments de « {liste} » n'ont pas de champ « {champ} » ; champs : {}", champs.join(", "))),
+            _ => {}
+        }
+    }
+    let mut comparaisons = 0;
+    for a in &bloc.arguments[1..] {
+        match (a.nom.as_deref(), &a.valeur) {
+            (Some("children" | "else" | "rules" | "name"), _) => {}
+            (Some("is" | "not"), Valeur::Entier(_) | Valeur::Texte(_)) | (Some("over" | "under"), Valeur::Entier(_)) => comparaisons += 1,
+            (Some(mot @ ("is" | "not" | "over" | "under")), _) => return erreur(format!("« If({sujet}, {mot}: …) » attend un nombre entier{}", if matches!(mot, "is" | "not") { ", ou un texte entre guillemets" } else { "" })),
+            (Some(mot), _) => return erreur(format!("« If » n'a pas de paramètre « {mot} » ; paramètres possibles : is, not, over, under, children, else")),
+            (None, _) => return erreur(format!("« If({sujet}, …) » : chaque comparaison est nommée, is: 1")),
+        }
+    }
+    if comparaisons == 0 {
+        return erreur(format!("« If({sujet}, …) » attend une comparaison : If({sujet}, is: 1, children: [ … ])"));
+    }
+    Ok(())
+}
+
 /// La sorte d'une liste, d'après sa déclaration.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Sorte {
@@ -465,6 +563,27 @@ pub fn verifier_demande(demande: &Bloc, programme: &Programme, regle: &Bloc, dan
     }
     let textes = crate::etat::textes_initiaux(programme);
     let est_texte = |n: &str| textes.iter().any(|(connu, _)| connu == n);
+    // `item.done.set(1)` : changer un champ de l'élément de la ligne touchée (ADR-057).
+    if valeur == "item" {
+        let Some(liste) = dans_une_ligne else {
+            return Err(erreur(format!("« item.{verbe} » change l'élément d'une ligne : il s'écrit dans les règles de Repeat(over: …)")));
+        };
+        let Some((champ, operation)) = verbe.split_once('.') else {
+            return Err(erreur("pour changer un champ de l'élément : item.done.set(1), item.likes.add(1)".into()));
+        };
+        match sorte(programme, liste) {
+            Some(Sorte::Textes) => return Err(erreur(format!("les éléments de « {liste} » sont des textes, sans champs"))),
+            Some(Sorte::Fiches(champs)) if !champs.iter().any(|c| c == champ) => return Err(erreur(format!("les éléments de « {liste} » n'ont pas de champ « {champ} » ; champs : {}", champs.join(", ")))),
+            _ => {}
+        }
+        let nombres = crate::etat::initial(programme).unwrap_or_default();
+        return match (operation, demande.arguments.as_slice()) {
+            ("set", [Argument { nom: None, valeur: Valeur::Entier(_) | Valeur::Texte(_), .. }]) => Ok(()),
+            ("set", [Argument { nom: None, valeur: Valeur::Nom(n), .. }]) if est_texte(n) || nombres.iter().any(|(c, _)| c == n) => Ok(()),
+            ("add" | "sub", [Argument { nom: None, valeur: Valeur::Entier(_), .. }]) => Ok(()),
+            _ => Err(erreur(format!("« item.{champ}.{operation} » : on demande set (un nombre, un texte, ou une valeur de la page), add ou sub (un nombre entier)"))),
+        };
+    }
     if est_liste(programme, valeur) {
         let la_sorte = sorte(programme, valeur).unwrap_or(Sorte::Libre);
         let nombres = crate::etat::initial(programme).unwrap_or_default();
@@ -514,7 +633,7 @@ pub fn verifier_demande(demande: &Bloc, programme: &Programme, regle: &Bloc, dan
 
 /// Est-ce une demande faite à une liste ou à un texte ?
 pub fn concerne(demande: &Bloc, programme: &Programme) -> bool {
-    demande.nom.split_once('.').is_some_and(|(valeur, _)| est_liste(programme, valeur) || crate::etat::textes_initiaux(programme).iter().any(|(t, _)| t == valeur))
+    demande.nom.split_once('.').is_some_and(|(valeur, _)| valeur == "item" || est_liste(programme, valeur) || crate::etat::textes_initiaux(programme).iter().any(|(t, _)| t == valeur))
 }
 
 /// Le signal d'une ligne : `Done.tap@2` → (`Done.tap`, Some(2)).
@@ -552,6 +671,36 @@ pub fn arbitrer(programme: &Programme, nombres: &Etat, textes: &Textes, listes: 
                 }
                 textes.iter().find(|(n, _)| n == nom).map(|(_, t)| t.clone())
             };
+            // `item.done.set(1)` : le champ de l'élément de la ligne touchée (ADR-057).
+            if valeur == "item" {
+                if let (Some(liste), Some(rang), Some((champ, operation))) = (&liste_de_ligne, ligne, verbe.split_once('.')) {
+                    let nouveau_texte = match argument {
+                        Some(Valeur::Nom(n)) => lire_texte(n, &textes).or_else(|| nombres.iter().find(|(c, _)| c == n).map(|(_, v)| v.to_string())),
+                        _ => None,
+                    };
+                    if let Some((_, elements)) = listes.iter_mut().find(|(n, _)| n == liste) {
+                        if let Some(element) = elements.get_mut(rang) {
+                            let mut champs_de = champs(element);
+                            if !champs_de.iter().any(|(c, _)| c == champ) {
+                                champs_de.push((champ.to_string(), String::new()));
+                            }
+                            if let Some((_, v)) = champs_de.iter_mut().find(|(c, _)| c == champ) {
+                                let present = v.parse::<u64>().unwrap_or(0);
+                                *v = match (operation, argument) {
+                                    ("set", Some(Valeur::Entier(n))) => n.to_string(),
+                                    ("set", Some(Valeur::Texte(t))) => t.clone(),
+                                    ("set", Some(Valeur::Nom(_))) => nouveau_texte.unwrap_or_default(),
+                                    ("add", Some(Valeur::Entier(n))) => present.saturating_add(*n).min(crate::etat::VALEUR_MAX).to_string(),
+                                    ("sub", Some(Valeur::Entier(n))) => present.saturating_sub(*n).to_string(),
+                                    _ => v.clone(),
+                                };
+                            }
+                            *element = fiche(&champs_de);
+                        }
+                    }
+                }
+                continue;
+            }
             if let Some((_, elements)) = listes.iter_mut().find(|(n, _)| n == valeur) {
                 match (verbe, argument) {
                     ("push", Some(Valeur::Nom(t))) => {
@@ -623,7 +772,10 @@ mod tests {
         assert_eq!(crate::arbitrer(source, &apres, "Empty.tap"), "task=';tasks=[]");
         // La page fabriquée montre une ligne par élément ; le compte, et la condition.
         let html = crate::vue_a_plat(source, "").unwrap();
-        assert!(html.contains("<div class=\"holo-Liste\" data-liste=\"tasks\"><div class=\"holo-ligne\" data-rang=\"0\"><div class=\"holo-Row\" style=\"\"><div class=\"holo-Text\">Pain</div><button type=\"button\" class=\"holo-Button\" data-name=\"Done\">x</button></div></div></div>"), "{html}");
+        assert!(html.contains("<div class=\"holo-Liste\" data-liste=\"tasks\"><div class=\"holo-ligne\" data-rang=\"0\" data-cle=\"") && html.contains("-0\"><div class=\"holo-Row\" style=\"\"><div class=\"holo-Text\">Pain</div><button type=\"button\" class=\"holo-Button\" data-name=\"Done\">x</button></div></div></div>"), "{html}");
+        // La clé d'un élément ne change pas quand un autre élément est retiré avant lui.
+        let cle_de = |etat: &str, texte: &str| crate::liste_html(source, "", etat, "tasks").split("data-cle=\"").skip(1).find(|l| l.contains(texte)).map(|l| l[..l.find('"').unwrap()].to_string());
+        assert_eq!(cle_de(&apres, "Lait"), cle_de(&crate::arbitrer(source, &apres, "Done.tap@0"), "Lait"));
         assert!(html.contains("<span data-state=\"tasks\">1</span> tâche(s)"), "{html}");
         assert_eq!(crate::liste_html(source, "", &apres, "tasks").matches("data-rang").count(), 2);
         // Un texte saisi par le visiteur ne devient jamais une balise, ni une valeur montrée.
@@ -701,6 +853,43 @@ mod tests {
             ("Page(state: State(l: [ Item(a: 1) ]), children: [ Button(name: B, text: \"b\") ], rules: [ On(B.tap, effect: l.push(\"x\")) ])", "l.push(Item"),
             ("Page(state: State(l: [ Item(a: 1) ]), children: [ Button(name: B, text: \"b\") ], rules: [ On(B.tap, effect: l.push(Item(b: 2))) ])", "ont les champs a"),
             ("Page(state: State(l: [ \"x\" ]), children: [ Button(name: B, text: \"b\") ], rules: [ On(B.tap, effect: l.push(Item(a: 2))) ])", "attend un texte"),
+        ] {
+            let erreur = crate::verifier_page(source).err().or_else(|| crate::vue_a_plat(source, "").err()).unwrap_or_else(|| panic!("accepté : {source}"));
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
+    }
+
+    #[test]
+    fn une_condition_et_un_changement_sur_un_champ_de_la_ligne() {
+        let source = r#"Page(
+  state: State(tasks: [ Item(title: "Pain", done: 0), Item(title: "Lait", done: 1) ]),
+  children: [
+    H1("Tasks"),
+    Repeat(over: tasks, children: [
+      Row(children: [
+        If(item.done, is: 1, children: [ Text.fait("{item.title} ✓") ], else: [ Text("{item.title}") ]),
+        Button(name: Done, text: "Done"),
+      ]),
+    ], rules: [ On(Done.tap, effect: item.done.set(1)) ]),
+  ],
+)
+.fait { opacity: 0.6; }"#;
+        crate::verifier_page(source).unwrap();
+        let depart = crate::etat_initial(source);
+        let lignes = crate::liste_html(source, "", &depart, "tasks");
+        assert!(lignes.contains(">Pain</div>") && lignes.contains("holo-s-fait\">Lait ✓</div>"), "{lignes}");
+        let apres = crate::arbitrer(source, &depart, "Done.tap@0");
+        let lignes = crate::liste_html(source, "", &apres, "tasks");
+        assert!(lignes.contains("holo-s-fait\">Pain ✓</div>"), "{lignes}");
+        // Dans une répétition fixe aussi.
+        let fixe = "Page(children: [ H1(\"x\"), Repeat(items: [ Item(t: \"a\", n: 3), Item(t: \"b\", n: 0) ], children: [ If(item.n, over: 0, children: [ P(\"{item.t} en stock\") ], else: [ P(\"{item.t} épuisé\") ]) ]) ])";
+        let html = crate::vue_a_plat(fixe, "").unwrap();
+        assert!(html.contains("a en stock") && html.contains("b épuisé"), "{html}");
+        for (source, message) in [
+            ("Page(state: State(l: [ Item(a: 1) ]), children: [ Repeat(over: l, children: [ If(item.b, is: 1, children: [ P(\"x\") ]) ]) ])", "pas de champ « b »"),
+            ("Page(children: [ If(item.a, is: 1, children: [ P(\"x\") ]) ])", "dans Repeat"),
+            ("Page(state: State(l: [ Item(a: 1) ]), children: [ Repeat(over: l, children: [ Button(name: B, text: \"b\") ], rules: [ On(B.tap, effect: item.z.set(1)) ]) ])", "pas de champ « z »"),
+            ("Page(state: State(l: [ Item(a: 1) ]), children: [ Repeat(over: l, children: [ Button(name: B, text: \"b\") ], rules: [ On(B.tap, effect: item.a.mul(2)) ]) ])", "on demande set"),
         ] {
             let erreur = crate::verifier_page(source).err().or_else(|| crate::vue_a_plat(source, "").err()).unwrap_or_else(|| panic!("accepté : {source}"));
             assert!(erreur.message.contains(message), "{source}\n→ {erreur}");

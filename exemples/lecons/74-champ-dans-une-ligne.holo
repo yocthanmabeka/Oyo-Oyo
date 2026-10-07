@@ -1,0 +1,60 @@
+// Leçon 74 — Un champ dans une ligne : montrer selon lui, le changer depuis la ligne
+//
+// Ce qu'on apprend :
+//   If(item.done, is: 1, children: [ … ], else: [ … ])
+//                              dans une ligne, montrer selon un champ de l'élément ;
+//                              on compare à un nombre (is, not, over, under) ou à un texte (is, not)
+//   item.done.set(1)           dans les règles de la ligne : changer un champ de l'élément touché
+//   item.done.set(0), item.likes.add(1)
+//   Les lignes qui n'ont pas changé restent telles quelles : un pli ouvert le reste
+//
+// À essayer :
+//   Ouvre le pli « Détails » de la première tâche, puis marque la deuxième comme faite :
+//   le pli de la première reste ouvert. Ouvre aussi la page avec ?valeurs.
+
+Page(
+  title: "Leçon 74 : un champ dans une ligne",
+  state: State(tache: "", taches: [ Item(title: "Encadrer le tableau", done: 0), Item(title: "Livrer Sunrise", done: 1) ]),
+  keep: [taches],
+  children: [
+    H1("Un champ dans une ligne"),
+    Repeat(over: taches, children: [
+      Column.ligne(gap: 6px, children: [
+        If(item.done, is: 1,
+          children: [ Text.fait("✓ {item.title}") ],
+          else: [ Text("{item.title}") ],
+        ),
+        Row(gap: 8px, children: [
+          If(item.done, is: 1,
+            children: [ Button(name: Refaire, text: "À refaire") ],
+            else: [ Button(name: Fait, text: "Fait") ],
+          ),
+          Button(name: Retirer, text: "Retirer"),
+        ]),
+        Details(summary: "Détails", children: [ P("Ajoutée à la main, ou gardée d'une visite précédente.") ]),
+      ]),
+    ], rules: [
+      On(Fait.tap, effect: item.done.set(1)),
+      On(Refaire.tap, effect: item.done.set(0)),
+      On(Retirer.tap, effect: taches.remove(item)),
+    ]),
+    Row(gap: 8px, children: [
+      Input(value: tache, label: "Une tâche", grow: 1),
+      Button(name: Ajouter, text: "Ajouter"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 73 : valeurs par défaut et signaux", to: "73-defauts-et-signaux.holo"),
+    ]),
+  ],
+  rules: [
+    On(Ajouter.tap, effect: [taches.push(Item(title: tache, done: 0)), tache.set("")]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.ligne { border: 1px solid #2a2a4e; border-radius: 8px; padding: 8px 12px; margin: 0 0 8px; }
+.fait { opacity: 0.75; text-decoration: line-through; }

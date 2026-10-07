@@ -6,6 +6,17 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Un champ dans une ligne, et des lignes qui restent en place
+
+- Yocthan : « travaille sur une condition sur un champ dans une ligne des listes. Les clés stables des listes, ok. »
+- Fait (`ADR-057`) : `If(item.done, is: 1, children:, else:)` dans les lignes d'un `Repeat(over:)` (nombre : `is`, `not`, `over`, `under` ; texte : `is`, `not`) ; `item.done.set(1)`, `item.likes.add(1)` dans les règles de la ligne ; chaque ligne porte une clé tirée de son contenu, et la page ne remplace que les lignes nouvelles ou changées.
+- Raté puis corrigé : la première version comparait le HTML du moment ; un pli ouvert y ajoute `open`, et la ligne était refaite. La page compare maintenant au HTML que le moteur avait fabriqué.
+- Vérifié : tous les tests du moteur ; la leçon 74 et son essai écrit ; dans Chrome, le pli ouvert de la première tâche reste ouvert (le même nœud) quand on change la deuxième ; l'audit axe-core, 74 pages, 0 défaut, en clair et en sombre sur téléphone.
+
+![La leçon 74 : le pli de la première tâche est resté ouvert](images/2026-10-07-champ-dans-une-ligne.png)
+
+---
+
 ## 2026-10-07 — Le planning de la 3D, proposé
 
 - Écrit : `docs/04-roadmap/PLAN-3D.md`, en proposition. Douze étapes, de la profondeur à la chaise mesurée sur le Flip 3, puis les mots du langage choisis après la chaise ; environ 15 séances. Une contrainte dite d'emblée : sans carte graphique dans le nuage, Claude ne voit pas l'image ; l'étape 0 essaie de lever cette limite.

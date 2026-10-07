@@ -1282,8 +1282,11 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
                 return Err(Erreur { message: format!("« When({valeur}, …) » : aucun nombre ne s'appelle « {valeur} » ; déclare-le sur la page, state: State({valeur}: 0)"), pos: bloc.pos });
             }
         }
-        // Une condition regarde une valeur que la page déclare, ou que le moteur calcule.
-        if bloc.nom == "If" {
+        // Une condition qui regarde l'élément d'une ligne (ADR-057) : vérifiée à part.
+        if crate::listes::sujet_de_l_element(bloc).is_some() {
+            let liste = modeles.iter().find(|(b, _)| std::ptr::eq(*b, bloc)).map(|(_, l)| l.as_str());
+            crate::listes::verifier_si_de_l_element(bloc, programme, liste)?;
+        } else if bloc.nom == "If" {
             let (valeur, _) = condition(bloc)?;
             if !montrables.iter().any(|(connu, _)| connu == valeur) {
                 return Err(Erreur { message: format!("« If({valeur}, …) » : aucune valeur ne s'appelle « {valeur} » ; déclare-la sur la page, state: State({valeur}: 0)"), pos: bloc.pos });

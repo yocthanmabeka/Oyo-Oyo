@@ -334,8 +334,35 @@
       const morceau = ecrit.split(";").find((m) => m.startsWith(`${nom}=[`)) ?? "";
       if (conteneur.dataset.vu === morceau) continue;
       conteneur.dataset.vu = morceau;
-      conteneur.innerHTML = liste_html(source, base, ecrit, nom);
+      poserLesLignes(conteneur, liste_html(source, base, ecrit, nom));
     }
+  }
+  // Pose les nouvelles lignes d'une liste en gardant, telles quelles, celles dont la clé et le
+  // contenu n'ont pas changé (ADR-057) : le champ où l'on écrit, un pli ouvert, le focus restent.
+  // On compare au HTML que le moteur avait fabriqué, pas à celui du moment : un pli ouvert
+  // ajoute « open » à sa ligne sans qu'elle ait changé.
+  const fabriquees = new WeakMap();
+  function poserLesLignes(conteneur, html) {
+    const modele = document.createElement("template");
+    modele.innerHTML = html;
+    const anciennes = new Map([...conteneur.children].filter((l) => l.dataset.cle).map((l) => [l.dataset.cle, l]));
+    const lignes = [...modele.content.children].map((nouvelle) => {
+      const ancienne = anciennes.get(nouvelle.dataset.cle);
+      const avant = ancienne && (fabriquees.get(ancienne) ?? ancienne.innerHTML);
+      if (avant === nouvelle.innerHTML) {
+        anciennes.delete(nouvelle.dataset.cle);
+        ancienne.dataset.rang = nouvelle.dataset.rang; // le rang sert aux gestes : Done.tap@2
+        fabriquees.set(ancienne, avant);
+        return ancienne;
+      }
+      fabriquees.set(nouvelle, nouvelle.innerHTML);
+      return nouvelle;
+    });
+    // On ne touche pas aux lignes déjà à leur place : déplacer un nœud lui ferait perdre le focus.
+    lignes.forEach((ligne, rang) => {
+      if (conteneur.children[rang] !== ligne) conteneur.insertBefore(ligne, conteneur.children[rang] ?? null);
+    });
+    while (conteneur.children.length > lignes.length) conteneur.lastElementChild.remove();
   }
   // Un nouvel état : la page le montre, le garde, et regarde quelles attentes courent.
   function changerLEtat(apres) {
