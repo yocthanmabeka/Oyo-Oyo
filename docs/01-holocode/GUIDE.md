@@ -1224,6 +1224,34 @@ Page(
 
 Ces ajouts sont décidés (`ADR-042`). Les leçons sont `55-petits-textes.holo` à `65-icone-de-l-onglet.holo`.
 
+### Envoyer un fichier
+
+```holo
+Page(
+  title: "Apply",
+  state: State(name: "", photo: "", done: 0),
+  children: [
+    H1("Apply"),
+    Form(name: Application, children: [
+      Input(value: name, label: "Your name"),
+      Input(type: file, value: photo, label: "A photo of your painting", accept: image, max: 2MB),
+      If(photo, not: "", children: [ P("Chosen: {photo}") ]),
+      Button(name: Send, text: "Send"),
+    ]),
+    If(done, is: 1, children: [ P("Thank you, it arrived.") ]),
+  ],
+  rules: [ On(Send.tap, effect: Application.send), On(Application.sent, effect: [done.set(1), photo.set("")]) ],
+)
+```
+
+- **`Input(type: file, value:, label:, accept:, max:)`**, dans un `Form` seulement, quatre au plus par formulaire.
+- **`accept:`** est obligatoire : `image` (PNG, JPEG, WebP, GIF), `pdf`, ou `[image, pdf]`. **`max:`** de `1KB` à `10MB` ; `2MB` si on ne l'écrit pas.
+- **La valeur est un texte** : le nom du fichier choisi, `""` sinon. `{photo}` le montre ; `photo.set("")` vide le champ.
+- **La page vérifie tout de suite** la sorte et la taille, et le dit avec le message du navigateur ; un fichier refusé est retiré.
+- **Le serveur vérifie tout à nouveau** : il demande au moteur ce que la page permet, lit la sorte dans les premiers octets du fichier (jamais dans son nom), et range le fichier dans `messages/fichiers/`, sous un nom tiré au hasard. Le message garde le nom donné par le visiteur, le chemin et la taille.
+
+Cette écriture est décidée (`ADR-059`). La leçon est `76-envoyer-un-fichier.holo`.
+
 ## 6 sedecies. Multiplier, diviser, et écrire un nombre joliment
 
 ```holo

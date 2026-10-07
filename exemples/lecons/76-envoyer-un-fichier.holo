@@ -1,0 +1,52 @@
+// Leçon 76 — Envoyer un fichier
+//
+// Ce qu'on apprend :
+//   Input(type: file, value: photo, label: "…", accept: image, max: 2MB)
+//                               un champ qui choisit un fichier, dans un formulaire
+//   accept: image               PNG, JPEG, WebP ou GIF ; accept: pdf ; accept: [image, pdf]
+//   max: 2MB                    de 1KB à 10MB ; 2MB si on ne l'écrit pas
+//   {photo}, If(photo, not: "") la valeur est le nom du fichier choisi, "" sinon
+//   photo.set("")               une règle peut vider le champ
+//   La page dit tout de suite qu'un fichier est trop lourd ou d'une autre sorte. Chez toi, le
+//   serveur vérifie tout à nouveau, la sorte d'après le contenu du fichier, et le range dans
+//   messages/fichiers/, sous un nom tiré au hasard. Un fichier ne part que par un formulaire.
+//
+// À essayer :
+//   Choisis une image, écris ton nom, puis touche « Envoyer ».
+//   Choisis un fichier qui n'est pas une image : la page le refuse.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 76 : envoyer un fichier",
+  state: State(nom: "", photo: "", etat: 0),
+  children: [
+    H1("Envoyer un fichier"),
+    P("Montre-nous ton tableau : on te répond sous trois jours."),
+    Form(name: Candidature, children: [
+      Input(value: nom, label: "Ton nom"),
+      Input(type: file, value: photo, label: "Une photo de ton tableau (2 Mo au plus)", accept: image, max: 2MB),
+      If(photo, not: "", children: [ P.choisi("Choisie : {photo}") ]),
+      Button(name: Envoyer, text: "Envoyer"),
+    ]),
+    If(etat, is: 1, children: [ P.ok("Merci, ta photo est arrivée.") ]),
+    If(etat, is: 2, children: [ P.erreur("L'envoi n'est pas parti : réessaie plus tard.") ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 75 : le contenu d'un composant", to: "75-contenu-d-un-composant.holo"),
+    ]),
+  ],
+  rules: [
+    On(Envoyer.tap, effect: Candidature.send),
+    On(Candidature.sent, effect: [etat.set(1), photo.set("")]),
+    On(Candidature.failed, effect: etat.set(2)),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.choisi { color: #c9c9e0; }
+.ok { color: #7be38f; }
+.erreur { color: #ff8a80; }

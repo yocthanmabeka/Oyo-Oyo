@@ -1,0 +1,4 @@
+// L'essai de la leçon 76 : le nom du fichier choisi devient la valeur photo ; une règle la vide.
+expect photo = ""
+type photo "sunrise.png"
+expect photo = "sunrise.png"

@@ -155,24 +155,106 @@ async function listerLesHolo() {
 const messages = join(depot, "messages");
 const MESSAGE_MAX = 16384;
 const MESSAGES_PAR_PAGE_MAX = 5_000_000;
-async function recevoirUnMessage(req, res, url) {
+// Les fichiers envoyés par un formulaire (ADR-059) : rangés dans messages/fichiers/<page>/, sous
+// un nom tiré au hasard ; le nom donné par le visiteur n'est gardé que dans le message. La sorte
+// est lue dans les premiers octets du fichier, jamais dans son nom.
+const ENVOI_AVEC_FICHIERS_MAX = 4 * 10_000_000 + 65536;
+const FICHIERS_PAR_PAGE_MAX = 500_000_000;
+const SIGNATURES = [
+  ["image", "png", (o) => o.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))],
+  ["image", "jpg", (o) => o[0] === 0xff && o[1] === 0xd8 && o[2] === 0xff],
+  ["image", "gif", (o) => ["GIF87a", "GIF89a"].includes(o.subarray(0, 6).toString("latin1"))],
+  ["image", "webp", (o) => o.subarray(0, 4).toString("latin1") === "RIFF" && o.subarray(8, 12).toString("latin1") === "WEBP"],
+  ["pdf", "pdf", (o) => o.subarray(0, 5).toString("latin1") === "%PDF-"],
+];
+// Lit un envoi en plusieurs morceaux (multipart/form-data) : [{ nom, octets }], ou null s'il est mal formé.
+function lireLesMorceaux(corps, entete) {
+  const limite = /boundary=(?:"([^"]+)"|([^;]+))/i.exec(entete);
+  if (!limite) return null;
+  const separateur = Buffer.from(`--${limite[1] ?? limite[2]}`);
+  const morceaux = [];
+  let debut = corps.indexOf(separateur);
+  if (debut < 0) return null;
+  while (true) {
+    debut += separateur.length;
+    if (corps.subarray(debut, debut + 2).toString() === "--") return morceaux;
+    const fin = corps.indexOf(separateur, debut);
+    if (fin < 0) return null;
+    const morceau = corps.subarray(debut + 2, fin - 2); // sans le retour à la ligne de part et d'autre
+    const coupe = morceau.indexOf("\r\n\r\n");
+    if (coupe < 0) return null;
+    const entetes = morceau.subarray(0, coupe).toString("utf8");
+    const nom = /name="([^"]*)"/i.exec(entetes)?.[1];
+    if (!nom) return null;
+    morceaux.push({ nom, octets: morceau.subarray(coupe + 4) });
+    if (morceaux.length > 64) return null;
+    debut = fin;
+  }
+}
+async function tailleDuDossier(dossier) {
+  let total = 0;
+  for (const e of await readdir(dossier, { withFileTypes: true }).catch(() => [])) if (e.isFile()) total += (await stat(join(dossier, e.name))).size;
+  return total;
+}
+async function recevoirUnMessage(req, res, url, pageHolo) {
+  const enMorceaux = /^multipart\/form-data/i.test(req.headers["content-type"] ?? "");
   const morceaux = [];
   let taille = 0;
   for await (const morceau of req) {
     taille += morceau.length;
-    if (taille > MESSAGE_MAX) return repondre(res, 413, "message trop long");
+    if (taille > (enMorceaux ? ENVOI_AVEC_FICHIERS_MAX : MESSAGE_MAX)) return repondre(res, 413, "message trop long");
     morceaux.push(morceau);
   }
+  let corps = Buffer.concat(morceaux);
+  let fichiersRecus = [];
+  if (enMorceaux) {
+    const parts = lireLesMorceaux(corps, req.headers["content-type"]);
+    const valeurs = parts?.find((p) => p.nom === "envoi");
+    if (!valeurs || valeurs.octets.length > MESSAGE_MAX) return repondre(res, 400, "message mal formé");
+    corps = valeurs.octets;
+    fichiersRecus = parts.filter((p) => p !== valeurs && p.octets.length);
+  }
   let envoi;
-  try { envoi = JSON.parse(Buffer.concat(morceaux).toString("utf8")); } catch { return repondre(res, 400, "message illisible"); }
+  try { envoi = JSON.parse(corps.toString("utf8")); } catch { return repondre(res, 400, "message illisible"); }
   if (typeof envoi?.form !== "string" || typeof envoi.values !== "object" || envoi.values === null || Array.isArray(envoi.values)) return repondre(res, 400, "message mal formé");
   const nom = url.replace(/^\/+/, "").replace(/\.holo$/, "").replace(/[^A-Za-z0-9_-]+/g, "_");
+  if (fichiersRecus.length) {
+    // Ce que la page permet, demandé au moteur : jamais à ce que dit le navigateur.
+    if (!rendeur) return repondre(res, 501, "le moteur n'est pas construit : ce serveur ne reçoit pas de fichiers");
+    let permis;
+    try {
+      permis = execFileSync(rendeur, ["fichiers", pageHolo], { encoding: "utf8", timeout: 5000 }).split("\n").filter(Boolean).map((l) => l.split("|"));
+    } catch { return repondre(res, 400, "page refusée par le moteur"); }
+    const dossier = join(messages, "fichiers", nom);
+    let place = FICHIERS_PAR_PAGE_MAX - (await tailleDuDossier(dossier));
+    const vus = new Set();
+    const ranges = [];
+    for (const { nom: champ, octets } of fichiersRecus) {
+      const regle = permis.find(([formulaire, valeur]) => formulaire === envoi.form && valeur === champ);
+      if (!regle || vus.has(champ)) return repondre(res, 400, `aucun champ de fichier « ${champ} » dans ce formulaire`);
+      vus.add(champ);
+      const [, , sortes, max] = regle;
+      if (octets.length > Number(max)) return repondre(res, 413, "fichier trop lourd");
+      const sorte = SIGNATURES.find(([s, , reconnait]) => sortes.split(",").includes(s) && reconnait(octets));
+      if (!sorte) return repondre(res, 415, "sorte de fichier refusée");
+      place -= octets.length;
+      if (place < 0) return repondre(res, 507, "trop de fichiers gardés pour cette page");
+      ranges.push({ champ, octets, extension: sorte[1] });
+    }
+    // Tout est vérifié : on range.
+    await mkdir(dossier, { recursive: true });
+    for (const { champ, octets, extension } of ranges) {
+      const fichier = `${Date.now()}-${randomBytes(6).toString("hex")}.${extension}`;
+      await writeFile(join(dossier, fichier), octets);
+      envoi.values[champ] = { nom: String(envoi.values[champ] ?? "").slice(0, 120), fichier: `fichiers/${nom}/${fichier}`, taille: octets.length };
+    }
+  }
   const fichierDesMessages = join(messages, `${nom}.jsonl`);
   await mkdir(messages, { recursive: true });
   const deja = await stat(fichierDesMessages).then((s) => s.size, () => 0);
   if (deja > MESSAGES_PAR_PAGE_MAX) return repondre(res, 507, "trop de messages gardés pour cette page");
   await appendFile(fichierDesMessages, JSON.stringify({ recu: new Date().toISOString(), page: url, form: envoi.form, values: envoi.values }) + "\n");
-  console.log(`Message reçu : ${url} (${envoi.form}) → messages/${nom}.jsonl`);
+  console.log(`Message reçu : ${url} (${envoi.form}) → messages/${nom}.jsonl${fichiersRecus.length ? `, ${fichiersRecus.length} fichier(s)` : ""}`);
   return repondre(res, 204, "");
 }
 // La pile (demandée par Yocthan le 2026-10-06) : tout ce qui s'ouvre dans le navigateur, le plus
@@ -278,11 +360,11 @@ createServer(async (req, res) => {
     if (url === "/pile/ecoute") return ecouterLaPile(req, res);
     if (url === "/pile/montrer" && req.method === "POST") return await montrerDansLaPile(req, res);
     if (req.method === "POST") {
-      if (!url.endsWith(".holo") || !/application\/json/.test(req.headers["content-type"] ?? "")) return repondre(res, 405, "seul un formulaire d'une page .holo envoie ici");
+      if (!url.endsWith(".holo") || !/application\/json|multipart\/form-data/.test(req.headers["content-type"] ?? "")) return repondre(res, 405, "seul un formulaire d'une page .holo envoie ici");
       // Seulement pour une page qui existe, parmi les exemples servis.
       const pageHolo = url.startsWith("/exemples/") ? join(exemples, normalize(url.slice("/exemples/".length))) : "";
       if (!pageHolo.startsWith(exemples) || !existsSync(pageHolo)) return repondre(res, 404, "page introuvable");
-      return await recevoirUnMessage(req, res, url);
+      return await recevoirUnMessage(req, res, url, pageHolo);
     }
     // Le retard ne compte qu'une fois, sur la première pièce du moteur.
     if (url === "/page-moteur.js" && modeMoteur === "lent") await new Promise((r) => setTimeout(r, Number(retardMoteur) || 5000));

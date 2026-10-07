@@ -35,7 +35,7 @@ grid-template-columns:repeat(auto-fill,minmax(min(100%,max(120px,calc((100% - (v
 :where(.holo-Row,.holo-Column,.holo-Grid)>.holo-If>*{margin:0}:where(.holo-If[hidden]){display:none}\
 :where(.holo-Input){display:flex;flex-direction:column;gap:4px;align-items:flex-start}\
 :where(.holo-Input input){font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 10px;width:120px}\
-:where(.holo-Input input[type=text]){width:min(100%,280px);box-sizing:border-box}\
+:where(.holo-Input input[type=text]){width:min(100%,280px);box-sizing:border-box}:where(.holo-Input input[type=file]){width:min(100%,360px);box-sizing:border-box}\
 :where(.holo-Checkbox){display:flex;align-items:center;gap:8px;cursor:pointer}\
 :where(.holo-Checkbox input){width:18px;height:18px;margin:0;accent-color:currentColor}\
 :where(.holo-Input textarea){font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 10px;width:min(100%,480px);box-sizing:border-box;resize:vertical}\
@@ -60,7 +60,7 @@ transition:left .12s linear,top .12s linear,transform .12s linear}\
 :where(.holo-Dialog){max-width:min(90vw,480px);border:1px solid currentColor;border-radius:12px;padding:16px 20px;color:inherit;background:var(--fond,Canvas)}\
 :where(.holo-Dialog)::backdrop{background:rgba(0,0,0,0.5)}:where(.holo-Dialog>*){margin:0 0 12px 0}:where(.holo-fermer){display:flex;justify-content:flex-end;margin:0}\
 :where(.holo-fermer button){font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;font-size:1.2em;line-height:1}\
-:where(.holo-Liste,.holo-ligne){display:contents}:where(.holo-Form){display:block}:where(.holo-Form>*){display:block;box-sizing:border-box;margin:0 0 16px 0}\
+:where(.holo-Liste,.holo-ligne){display:contents}:where(.holo-Form){display:block}:where(.holo-Form>*){box-sizing:border-box;margin:0 0 16px 0}:where(.holo-Form>:not(.holo-Input)){display:block}\
 :where(.holo-Shape){display:block;width:var(--holo-size,48px);height:var(--holo-size,48px);padding:0;border:0;background:var(--holo-color,currentColor)}\
 :where(button.holo-Shape){cursor:pointer}\
 :where(.holo-forme-circle){border-radius:50%}\
@@ -736,6 +736,15 @@ fn rendre(valeur: &Valeur, sortie: &mut String, mondes: &mut String, base: &str,
                 sortie.push_str(&format!(
                     "<label class=\"{classes}\"{nom}><span>{}</span><textarea rows=\"{lignes}\" maxlength=\"{max}\" data-bind=\"{valeur}\">{MARQUE}#{valeur}{MARQUE}</textarea></label>",
                     markdown(etiquette)
+                ));
+            } else if crate::fichiers::est_un_fichier(bloc) {
+                // Un fichier (ADR-059) : la page vérifie sa sorte et sa taille avant l'envoi.
+                let sortes = crate::fichiers::sortes(bloc)?;
+                let max = crate::fichiers::taille_max(bloc)?;
+                sortie.push_str(&format!(
+                    "<label class=\"{classes}\"{nom}><span>{}</span><input type=\"file\" accept=\"{}\" data-max=\"{max}\" data-bind=\"{valeur}\"></label>",
+                    markdown(etiquette),
+                    crate::fichiers::accept_html(&sortes)
                 ));
             } else if let (true, Some(Valeur::Nom(sorte))) = (bloc.nom == "Input", bloc.argument("type").map(|a| &a.valeur)) {
                 // Une date, une heure, une couleur : le navigateur montre son propre choisisseur (ADR-042).
@@ -1847,7 +1856,7 @@ mod tests {
             ("Page(state: State(t: \"\"), children: [ Slider(value: t, label: \"x\") ])", "présente un nombre de la page"),
             ("Page(state: State(n: 5), children: [ Slider(value: n, label: \"x\", min: 9, max: 3) ])", "min doit être plus petit que max"),
             ("Page(state: State(n: 0), children: [ Input(value: n, label: \"x\", type: date) ])", "écrit un texte"),
-            ("Page(state: State(t: \"\"), children: [ Input(value: t, label: \"x\", type: week) ])", "date, time ou color"),
+            ("Page(state: State(t: \"\"), children: [ Input(value: t, label: \"x\", type: week) ])", "date, time, color ou file"),
             ("Page(children: [ Dialog(children: [ P(\"x\") ]) ])", "« Dialog » a un nom"),
             ("Page(children: [ Form(name: A, children: [ Form(name: B, children: []) ]) ])", "un formulaire dans un formulaire"),
             ("Page(state: State(n: 0), children: [ Button(name: B, text: \"b\"), Form(name: F, children: []) ], rules: [ On(B.tap, effect: F.open) ])", "un « Form » offre send"),

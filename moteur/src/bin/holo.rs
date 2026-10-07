@@ -81,8 +81,8 @@ fn main() -> ExitCode {
         [commande, fichier, dossier] => (commande.as_str(), fichier, dossier.as_str()),
         _ => ("", &String::new(), ""),
     };
-    if commande != "check" && commande != "html" {
-        eprintln!("usage : holo check fichier.holo | holo check - [dossier] | holo html fichier.holo [dossier] | holo fmt fichier.holo | holo essai page.holo page.essai | holo vocabulaire");
+    if commande != "check" && commande != "html" && commande != "fichiers" {
+        eprintln!("usage : holo check fichier.holo | holo check - [dossier] | holo html fichier.holo [dossier] | holo fichiers page.holo | holo fmt fichier.holo | holo essai page.holo page.essai | holo vocabulaire");
         return ExitCode::from(2);
     }
     // `-` : le texte arrive par l'entrée standard, tel qu'il est dans l'éditeur (ADR-046).
@@ -135,6 +135,8 @@ fn main() -> ExitCode {
     }
     let resultat = match commande {
         "check" => holo_moteur::verifier_page(&source).map(|_| "ok".to_string()),
+        // Pour le serveur : les fichiers qu'un formulaire de la page peut envoyer (ADR-059).
+        "fichiers" => holo_moteur::fichiers_pour_le_serveur(&source),
         _ => holo_moteur::vue_a_plat(&source, dossier),
     };
     match resultat {

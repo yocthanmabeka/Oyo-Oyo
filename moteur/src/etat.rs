@@ -756,6 +756,14 @@ pub fn saisir_texte(programme: &Programme, textes: &Textes, nom: &str, ecrit: &s
         Ok(())
     });
     // Une date, une heure, une couleur (ADR-042) : seulement ce que le navigateur sait écrire.
+    // Un fichier (ADR-059) : on garde son nom seul, sans le dossier, et pas trop long.
+    if sorte.as_deref() == Some("file") {
+        let seul = ecrit.rsplit(['/', '\\']).next().unwrap_or_default();
+        if let Some((_, place)) = textes.iter_mut().find(|(connu, _)| connu == nom) {
+            *place = propre(seul, 120);
+        }
+        return textes;
+    }
     if let Some(sorte) = sorte {
         let chiffres = |t: &str, gabarit: &str| t.len() == gabarit.len() && t.chars().zip(gabarit.chars()).all(|(c, g)| if g == '9' { c.is_ascii_digit() } else { c == g });
         let correct = ecrit.is_empty()
@@ -1194,7 +1202,7 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
             }
         }
         if bloc.nom == "Input" || bloc.nom == "Checkbox" {
-            let permis: &[&str] = if bloc.nom == "Input" { &["name", "value", "label", "max", "lines", "type"] } else { &["name", "value", "label"] };
+            let permis: &[&str] = if bloc.nom == "Input" { &["name", "value", "label", "max", "lines", "type", "accept"] } else { &["name", "value", "label"] };
             let exemple = if bloc.nom == "Input" { "Input(value: quantity, label: \"How many?\")" } else { "Checkbox(value: gift, label: \"Gift wrap\")" };
             for argument in &bloc.arguments {
                 match (argument.nom.as_deref(), &argument.valeur) {
@@ -1214,6 +1222,9 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
                     (Some("value"), Valeur::Nom(valeur)) => {
                         return Err(Erreur { message: format!("« {}(value: {valeur}) » : aucune valeur ne s'appelle « {valeur} » ; déclare-la sur la page, state: State({valeur}: 0)", bloc.nom), pos: argument.pos })
                     }
+                    // Un fichier (ADR-059) : sa taille et ses sortes sont vérifiées dans fichiers.rs.
+                    (Some("max" | "accept"), _) if crate::fichiers::est_un_fichier(bloc) => {}
+                    (Some("accept"), _) => return Err(Erreur { message: "« accept: » ne sert qu'à un champ de fichier, Input(type: file, …)".into(), pos: argument.pos }),
                     (Some("max"), Valeur::Entier(max)) if bloc.nom == "Input" && *max <= VALEUR_MAX => {}
                     // Un texte long : de 2 à 20 lignes visibles, pour une valeur qui est un texte.
                     (Some("lines"), Valeur::Entier(n)) if bloc.nom == "Input" && (2..=20).contains(n) => {
@@ -1223,12 +1234,12 @@ pub fn verifier_etat(programme: &Programme) -> Result<Etat, Erreur> {
                     }
                     (Some("lines"), _) => return Err(Erreur { message: "« Input(lines: …) » attend un nombre de lignes, de 2 à 20".into(), pos: argument.pos }),
                     // Une date, une heure, une couleur (ADR-042) : la valeur est un texte.
-                    (Some("type"), Valeur::Nom(t)) if bloc.nom == "Input" && ["date", "time", "color"].contains(&t.as_str()) => {
+                    (Some("type"), Valeur::Nom(t)) if bloc.nom == "Input" && ["date", "time", "color", "file"].contains(&t.as_str()) => {
                         if !matches!(bloc.argument("value").map(|a| &a.valeur), Some(Valeur::Nom(v)) if est_texte(v)) {
                             return Err(Erreur { message: format!("« Input(type: {t}) » écrit un texte : sa valeur se déclare ainsi, state: State(arrivee: \"\")"), pos: argument.pos });
                         }
                     }
-                    (Some("type"), _) => return Err(Erreur { message: "« Input(type: …) » attend date, time ou color ; un nombre ou un texte se devinent tout seuls".into(), pos: argument.pos }),
+                    (Some("type"), _) => return Err(Erreur { message: "« Input(type: …) » attend date, time, color ou file ; un nombre ou un texte se devinent tout seuls".into(), pos: argument.pos }),
                     // `grow:` range le bloc dans Row ou Column (ADR-052) ; sa place est vérifiée ailleurs.
                     (Some("grow"), _) => {}
                     (Some(mot), _) if permis.contains(&mot) => return Err(Erreur { message: format!("« {}({mot}: …) » est mal écrit : {exemple}", bloc.nom), pos: argument.pos }),

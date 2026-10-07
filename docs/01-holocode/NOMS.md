@@ -84,6 +84,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Slider` | `input type="range"` | changé : le mot de Flutter |
 | `Progress` | `progress` | repris, avec une étiquette obligatoire |
 | `type: date`, `time`, `color` dans `Input` | `input type="date"`, `"time"`, `"color"` | repris |
+| `type: file`, `accept: image`, `max: 2MB` dans `Input` | `input type="file" accept="image/png,…"`, `FormData` | changé : des sortes nommées, une taille, vérifiées par la page et par le serveur |
 | `caption:`, `phone:` dans `Image` | `figure`, `figcaption` ; `picture`, `source media` | changé : deux paramètres de l'image |
 | `label:` dans `Sound` | `audio controls` | changé : avec une étiquette, le son devient un lecteur |
 | `icon:` dans `Page` | `link rel="icon"` | changé |

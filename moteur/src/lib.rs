@@ -16,6 +16,7 @@
 pub mod blocs;
 pub mod composants;
 pub mod etat;
+pub mod fichiers;
 pub mod format;
 pub mod graine;
 pub mod holo;
@@ -61,6 +62,8 @@ pub fn verifier_page(source: &str) -> Result<Programme, Erreur> {
     vue::reglages(&programme)?;
     // Les modules enfermés, et leur annonce en haut du fichier (ADR-045).
     modules::modules(&programme, &etat::initial(&programme)?)?;
+    // Les fichiers qu'un formulaire envoie (ADR-059).
+    fichiers::fichiers(&programme)?;
     // Ce que l'affichage refuserait (une adresse en `javascript:`, une image hors du dossier)
     // est refusé dès la vérification : on fabrique la page à blanc (revue Codex, B-11).
     if programme.racine.nom == "Page" {
@@ -237,6 +240,11 @@ pub fn delais(source: &str, etat: &str) -> String {
 pub fn envoi(source: &str, etat: &str, formulaire: &str) -> String {
     let Ok(programme) = verifier_page(source) else { return String::new() };
     etat::envoi(&programme, &etat::relire(&programme, etat), &etat::relire_textes(&programme, etat), formulaire).unwrap_or_default()
+}
+
+/// Pour le serveur : les champs de fichier de la page, une ligne chacun (ADR-059).
+pub fn fichiers_pour_le_serveur(source: &str) -> Result<String, Erreur> {
+    fichiers::pour_le_serveur(&verifier_page(source)?)
 }
 
 /// Une valeur écrite avec son format (ADR-043) : `formater("minute", 5, "00", "fr")` → `05`.
