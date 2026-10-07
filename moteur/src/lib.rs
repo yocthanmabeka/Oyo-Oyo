@@ -292,6 +292,24 @@ pub fn submission(source: &str, state: &str, form_name: &str) -> String {
     state::submission(&program, &state::reread(&program, state), &state::reread_texts(&program, state), form_name).unwrap_or_default()
 }
 
+/// Ce qui ne va pas dans un formulaire avant de l'envoyer, une ligne par champ : `name|Ce champ est
+/// obligatoire.` (ADR-068). Vide : il peut partir.
+pub fn form_errors(source: &str, state: &str, form_name: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    state::form_errors(&program, &state::reread(&program, state), &state::reread_texts(&program, state), form_name)
+        .into_iter()
+        .map(|(field, message)| format!("{field}|{message}"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Pour le serveur : ce qu'un formulaire a envoyé est-il bon ? Une ligne par erreur ; vide s'il
+/// l'est (ADR-068).
+pub fn check_submission(source: &str, json: &str) -> Result<String, Error> {
+    let program = check_page(source)?;
+    Ok(state::check_submission(&program, json).into_iter().map(|(field, message)| format!("{field}|{message}")).collect::<Vec<_>>().join("\n"))
+}
+
 /// Pour le serveur : les champs de fichier de la page, une ligne chacun (ADR-059).
 pub fn files_for_server(source: &str) -> Result<String, Error> {
     files::for_server(&check_page(source)?)
