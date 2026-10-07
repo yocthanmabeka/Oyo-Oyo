@@ -3,9 +3,10 @@
 - Auteur : GPT-5.6, pour Yocthan Mabeka
 - Date : 2026-10-07
 - Source examinée : `main` au commit `9df3b2b99972949fd31a47e994111a9ef60b5bea`
-- Discussions sources : prompt du 2026-10-07 sur « tout le web », revue `web-assez-utilisable-2026-10-07`, proposition serveur et comptes de Claude
+- Discussions sources : `HC-013` (le web devient le métavers) et `HC-007` (moteur et exécution) ; prompt du 2026-10-07 sur « tout le web », revue `web-assez-utilisable-2026-10-07`, proposition serveur et comptes de Claude
 - Décisions concernées : `ADR-005`, `ADR-008`, `ADR-013`, `ADR-015`, `ADR-033`, `ADR-035`, `ADR-045`, `ADR-048`, `ADR-053`, `ADR-055`, `ADR-059`, `ADR-061`
-- Statut proposé : **PROPOSITION / REVUE**
+- Statut proposé : **PROPOSITION**
+- Type de document : revue critique
 - Aucun statut de décision n'est changé.
 
 ## 1. Peut-on atteindre « tout le web » sans code libre ?
