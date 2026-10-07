@@ -1,0 +1,20 @@
+// Une page d'essai (moteur/outils/browser-tests.mjs), pas une leçon : des données qui ont un nom
+// disent si elles sont arrivées (Feed.done) ou non (Feed.failed), et se relisent (Feed.refresh).
+// L'essai imite les réponses du serveur : absent, illisible, trop gros, trop lent.
+
+Page(
+  title: "Essai : des données nommées",
+  state: State(loading: 1, reads: 0, fails: 0, articles: [ Item(title: "Au départ", price: 0) ]),
+  data: Data(name: Feed, from: "donnees-petites.json"),
+  children: [
+    If(loading, is: 1, children: [ P("Chargement…") ]),
+    P("lectures {reads} ; échecs {fails}"),
+    Repeat(over: articles, children: [ Text("{item.title}") ]),
+    Button(name: Again, text: "Relire"),
+  ],
+  rules: [
+    On(Feed.done, effect: [loading.set(0), reads.add(1)]),
+    On(Feed.failed, effect: [loading.set(0), fails.add(1)]),
+    On(Again.tap, effect: [loading.set(1), Feed.refresh]),
+  ],
+)

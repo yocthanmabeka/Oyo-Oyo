@@ -14,6 +14,8 @@ fn signals(block: &str) -> &'static [&'static str] {
         "Form" => &["sent", "failed", "hover", "hoverEnd"],
         // Un module enfermé dit s'il a rendu son nombre, ou s'il a été arrêté (ADR-045).
         "Module" => &["done", "failed"],
+        // Les données de la page disent si elles sont arrivées, ou non (ADR-064).
+        "Data" => &["done", "failed"],
         // Tout bloc qui se voit peut être survolé (ADR-039) : la souris arrive dessus, le
         // clavier s'y pose, ou le doigt le touche sur un téléphone.
         other if crate::blocks::BLOCKS.contains(&other) && !INVISIBLE.contains(&other) => &["hover", "hoverEnd"],
@@ -38,6 +40,8 @@ fn capabilities(block: &str) -> &'static [&'static str] {
         "Dialog" => &["open", "close"],
         "Form" => &["send"],
         "Module" => &["run"],
+        // Relire les données : On(Retry.tap, effect: Stock.refresh) (ADR-064).
+        "Data" => &["refresh"],
         _ => &[],
     }
 }

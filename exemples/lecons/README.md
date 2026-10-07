@@ -91,6 +91,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 81 | [La vue points se lit aussi](81-vue-points-et-lecteur-d-ecran.holo) | le lecteur d'écran en vue points (rien à écrire) |
 | 82 | [Chercher, filtrer, trier, montrer plus](82-chercher-filtrer-trier.holo) | `computed: [ Filter(…) ]`, `Repeat(over: found, empty:)`, `{found}` |
 | 83 | [Comparer des textes](83-comparer-des-textes.holo) | `If(size, is: "L")`, `If(again, is: email)`, `When(answer, is: "Paris", …)` |
+| 84 | [Des données qui arrivent, ou pas](84-donnees-arrivees-ou-pas.holo) | `Data(name: Shop, …)`, `On(Shop.done, …)`, `On(Shop.failed, …)`, `Shop.refresh` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 

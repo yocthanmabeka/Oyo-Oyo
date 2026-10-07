@@ -41,6 +41,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 82 : chercher, filtrer, trier", to: "82-chercher-filtrer-trier.holo"),
+      A("Leçon 84 : des données qui arrivent, ou pas →", to: "84-donnees-arrivees-ou-pas.holo"),
     ]),
   ],
   rules: [

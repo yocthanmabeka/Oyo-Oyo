@@ -6,6 +6,30 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Lot 2, troisième partie : des données qui disent « arrivées » ou « échec »
+
+- Fait (`ADR-064`, PROPOSITION : Yocthan n'a pas encore validé) :
+  - `data: Data(name: Shop, from: "shop.json")` ;
+  - `On(Shop.done, …)` quand les données sont arrivées, `On(Shop.failed, …)` quand elles ne sont pas arrivées (pas de réseau, une erreur du serveur, un fichier trop gros, illisible, ou plus de 10 secondes) ;
+  - `On(Retry.tap, effect: Shop.refresh)` pour les relire ;
+  - les mêmes mots que pour un module ou un formulaire.
+- La page lit une seule fois à la fois, et laisse une seconde au moins entre deux lectures.
+- Corrigé : le défaut D10 de l'exploration. Une seule image reçue hors du dossier (`../x.svg`, `javascript:…`), ou absente, effaçait toute la liste. Elle ne retire plus que l'image ; la ligne garde son texte de remplacement.
+- Corrigé dans le guide : la section « Ce qui n'existe pas encore » annonçait comme absents l'envoi d'un fichier, la condition sur un champ dans une ligne et l'emplacement d'un composant, construits depuis `ADR-057` à `ADR-059`. Une autre phrase niait la liste de choix et l'envoi au serveur.
+- Leçon 84. Un essai de plus dans Chrome : il imite le serveur par Chrome lui-même (son domaine Fetch), sans rien installer.
+- Exécuté :
+  - `cargo test --release` → 130 tests passent ;
+  - `node outils/browser-tests.mjs` → 84 leçons ouvertes sans erreur, et les 17 essais passent, en 139 secondes ;
+  - le délai de 10 secondes est mesuré à 10,0 s.
+
+**Erreurs en route**
+
+- Ma première règle de relecture jetait une demande faite moins d'une seconde après la précédente. Avec `loading.set(1)` dans la même règle, « Chargement… » serait resté affiché pour toujours. Je l'ai vu en écrivant l'essai des deux demandes rapprochées, avant de l'annoncer. Une demande trop proche attend maintenant son tour.
+- `Data(name: stock)`, en minuscules, n'était pas refusé avec la règle des noms (`ADR-037`) : `Data` manquait à la table des réglages des blocs. Il y est.
+- Deux fautes dans mes essais : `Text` s'écrit `<div>` dans une colonne, pas `<span>` ; la réponse de `data()` a maintenant une troisième case.
+
+---
+
 ## 2026-10-07 — Le grand tableau sans pourcentages
 
 - La consigne du 2026-10-07 dit : pas de pourcentage de couverture sans méthode de calcul reproductible. Le grand tableau en publiait : « 84 % » pour HTML, « 77 % » pour l'ensemble, et un pourcentage par élément. C'étaient mes estimations, élément par élément, puis leur moyenne : aucune méthode ne les mesurait.
