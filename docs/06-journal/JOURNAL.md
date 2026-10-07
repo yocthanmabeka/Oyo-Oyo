@@ -17,6 +17,14 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 **Erreur en route**
 
 - Les relecteurs ont laissé dans leur dossier de travail 265 Mo de profils Chrome temporaires : seuls les petits fichiers de preuve (1,7 Mo) sont versionnés.
+## 2026-10-07 — Échap ferme de nouveau une fenêtre
+
+- Trouvé par la relecture de l'issue #82 : depuis le lot 9 (`ADR-061`), quand une page écoute la touche Échap (`On(Key.escape, …)`), Échap ne fermait plus une fenêtre ouverte (`Dialog`) : mon code prenait la touche pour la règle de la page.
+- Réparé : une fenêtre ouverte garde le clavier pour elle (Échap la ferme, Tab reste dedans). Vérifié dans Chrome sans fenêtre, sur une page qui a une fenêtre et une règle sur Échap : avant, la fenêtre restait ouverte ; après, elle se ferme, et Échap hors de la fenêtre déclenche toujours la règle.
+
+**Erreur en route**
+
+- C'était mon erreur, dans le lot 9 : mes essais du clavier ne faisaient pas ouvrir de fenêtre.
 
 ---
 
