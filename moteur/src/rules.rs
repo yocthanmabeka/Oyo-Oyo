@@ -31,7 +31,7 @@ fn capabilities(block: &str) -> &'static [&'static str] {
     match block {
         "Point" => &["enter", "leave"],
         // Jouer un son : On(Star.tap, effect: Ding.play).
-        "Sound" => &["play"],
+        "Sound" => &["play", "stop"],
         // Ouvrir le carrefour : les portails vers les mondes voisins.
         "Page" => &["portals"],
         // Une fenêtre par-dessus la page, et un formulaire qu'on envoie (ADR-042).
@@ -228,7 +228,15 @@ fn check_rule(rule: &Block, names: &[(&str, &str)], state: &crate::state::State,
     // « Key » est le clavier du visiteur : On(Key.left, effect: basket.sub(8)).
     if source == "Key" && type_of(source).is_none() {
         if !crate::state::KEYPRESSES.contains(&word) {
-            return Err(Error { message: format!("touche inconnue « {word} » : le clavier donne {}", crate::state::KEYPRESSES.join(", ")), pos: rule.pos });
+            let lower = word.to_lowercase();
+            let message = if crate::state::KEYPRESSES.contains(&lower.as_str()) {
+                format!("une touche s'écrit en minuscules : écris « {lower} »")
+            } else if lower == "tab" {
+                "Tab sert à passer d'un bouton à l'autre : une page ne la prend jamais".to_string()
+            } else {
+                format!("touche inconnue « {word} » : le clavier donne left, right, up, down, space, enter, escape, les lettres de a à z et les chiffres de digit0 à digit9")
+            };
+            return Err(Error { message, pos: rule.pos });
         }
     } else {
         let type_source = type_of(source).ok_or_else(|| unknown(source))?;
@@ -286,13 +294,13 @@ fn check_effects(rule: &Block, names: &[(&str, &str)], state: &crate::state::Sta
             // peut pas emmener le visiteur ailleurs sans qu'il ait rien touché.
             Value::Name(_) => {
                 let (target, capability) = name_and_word(rule, Some(effect), "l'effet")?;
-                if (type_of(target) != Some("Sound") || capability != "play") && rule.name == "On" {
+                if (type_of(target) != Some("Sound") || !matches!(capability, "play" | "stop")) && rule.name == "On" {
                     return Err(Error {
                         message: format!("un survol change des valeurs ou joue un son ; « {target}.{capability} » demande que le visiteur touche : On(…tap, effect: {target}.{capability})"),
                         pos: rule.pos,
                     });
                 }
-                if type_of(target) != Some("Sound") || capability != "play" {
+                if type_of(target) != Some("Sound") || !matches!(capability, "play" | "stop") {
                     return Err(Error {
                         message: format!("« {} » : en dehors d'une demande, seule la lecture d'un son est permise ici (Ding.play) ; « {target}.{capability} » demande un geste du visiteur, dans une règle « On »", rule.name),
                         pos: rule.pos,

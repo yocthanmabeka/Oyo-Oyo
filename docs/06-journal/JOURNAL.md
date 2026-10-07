@@ -6,6 +6,32 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Lot 9 : la fin du web
+
+- Yocthan, sur les manques du grand tableau : « Le seul manque en priorité […] si tu le fais, tu me dis quand est-ce que je veux le voir » ; « Plus de touches du clavier. Faire apparaître un bloc quand on descend. Régler un son. Bref, oui, oui. Ça, il faut le faire » ; « tu valides déjà le tout ».
+- Fait et décidé (`ADR-061`) :
+  - **Toutes les touches utiles** : `Key.enter`, `Key.escape`, les lettres `Key.a` à `Key.z` (celles écrites sur la touche), les chiffres `Key.digit0` à `Key.digit9` (par leur place : un clavier français marche sans Maj). Jamais Tab. Le menu ☰ offre « Touches à une lettre », pour les couper (la dictée vocale, WCAG 2.1.4).
+  - **Apparaître en descendant** : `Enter(…, inView: true)`, guetté par la page légère, sans écouter le défilement ; sans JavaScript ou avec « moins de mouvement », tout se voit d'emblée.
+  - **Le son réglé** : `volume:` de 0 à 1, `loop: true`, et `stop`.
+  - **Des tailles qui suivent le visiteur** : l'auteur écrit des pixels, le navigateur reçoit des `rem` (marges, largeurs, hauteurs, coins, écarts) ; `height: screen` remplit l'écran sans le défaut de `100vh` sur un téléphone.
+  - **La vue points se lit au lecteur d'écran** : la page reste sous les points, invisible mais lisible ; « Vue points » et « Vue web » sont annoncés ; Tab ramène la vue web.
+- Leçons 77 à 81. Le grand tableau, remis à jour aussi pour les ajouts de la nuit (`ADR-050` à `ADR-059`, que la session du cloud n'y avait pas portés) : 333 mots, tous décidés ; il ne reste que deux manques « utiles », tous deux pour la 3D (dessiner des objets pleins).
+- Vérifié dans Chrome sans fenêtre, d'abord sur l'ancien code, puis sur le code en anglais (voir plus bas).
+- Pour l'entendre : ouvrir la leçon 81 dans la pile, lancer le Narrateur de Windows (Ctrl + Windows + Entrée), zoomer jusqu'aux points : il dit « Vue points » et lit toujours le texte.
+
+![La leçon 78 : la carte arrivée à l'écran est entrée](images/2026-10-07-lot9-apparaitre.png)
+
+![La leçon 81 en vue points : le lecteur d'écran lit toujours la page](images/2026-10-07-lot9-vue-points-lue.png)
+
+**Erreurs en route**
+
+- Pendant que je construisais ce lot, une autre session (dans le cloud) a fusionné dix-neuf PR, dont le passage de tout le code en anglais (`ADR-060`) et une décision qui prenait déjà le numéro `ADR-048`. Ma première PR (137) ne pouvait plus fusionner : j'ai repris le lot sur le nouveau code, sous le numéro `ADR-061`, avec les leçons 77 à 81 (70 à 76 étaient prises). Je n'avais pas regardé `main` avant de commencer : désormais, je le relis avant chaque lot.
+- J'avais écrit le volume en pourcentage (`volume: 40%`) : le langage n'accepte pas `%` dans un paramètre de bloc. Choisi plutôt de 0 à 1, comme l'opacité.
+- Mon premier essai attendait qu'une seule carte entre ; en centrant la première, la deuxième était aussi à l'écran, et elle est entrée elle aussi, comme il se doit : l'erreur était dans mon test.
+- La construction du moteur web est lente sur ce PC (jusqu'à seize minutes) ; le script `build.ps1`, lancé avec ses messages redirigés, s'arrête sur les messages de cargo : j'ai lancé les mêmes étapes à la main.
+
+---
+
 ## 2026-10-07 — Tout le code du moteur passe en anglais
 
 - Yocthan : « le code doit être 100 % en anglais, bien sûr. […] le commentaire, tu le mets en français pour que je comprenne ». Puis : « Oui, fais comme je le dis. »

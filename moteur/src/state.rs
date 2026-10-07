@@ -1662,8 +1662,15 @@ fn watches(program: &Program, rule: &Block, state: &State) -> bool {
     })
 }
 
-/// Les touches du clavier que les règles du fichier écoutent : `On(Key.left, …)`.
-pub const KEYPRESSES: &[&str] = &["left", "right", "up", "down", "space"];
+/// Les touches du clavier que les règles du fichier écoutent : `On(Key.left, …)`. Les flèches,
+/// l'espace, Entrée et Échap ; les lettres, celles écrites sur la touche ; les chiffres, de la
+/// rangée du haut ou du pavé numérique, avec ou sans Maj (ADR-061). Jamais Tab : elle sert à
+/// passer d'un bouton à l'autre.
+pub const KEYPRESSES: &[&str] = &[
+    "left", "right", "up", "down", "space", "enter", "escape",
+    "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+    "digit0", "digit1", "digit2", "digit3", "digit4", "digit5", "digit6", "digit7", "digit8", "digit9",
+];
 
 pub fn keypresses(program: &Program) -> Vec<String> {
     let mut keypresses = Vec::new();
@@ -1929,7 +1936,9 @@ mod tests {
             ("Page(state: State(a: 0), children: [ Board(children: [ Point(name: A, seed: 1, x: 1, y: 1) ]) ], rules: [ When(A, meets: 3, effect: a.add(1)) ])", "une rencontre s'écrit"),
             ("Page(state: State(a: 0), children: [ Board(children: [ Point(name: A, seed: 1, x: 1, y: 1) ]), P(name: B, \"x\") ], rules: [ When(A, meets: B, effect: a.add(1)) ])", "« B » n'est pas posé sur un plateau"),
             ("Page(state: State(a: 0), children: [ Board(children: [ Point(name: A, seed: 1, x: 1, y: 1), Point(name: B, seed: 2, x: 2, y: 2) ]) ], rules: [ When(A, meets: B, within: 500, effect: a.add(1)) ])", "de 1 à 100"),
-            ("Page(state: State(a: 0), children: [ Button(name: B, text: \"x\") ], rules: [ On(Key.enter, effect: a.add(1)) ])", "le clavier donne"),
+            ("Page(state: State(a: 0), children: [ Button(name: B, text: \"x\") ], rules: [ On(Key.home, effect: a.add(1)) ])", "le clavier donne"),
+            ("Page(state: State(a: 0), children: [ Button(name: B, text: \"x\") ], rules: [ On(Key.A, effect: a.add(1)) ])", "écris « a »"),
+            ("Page(state: State(a: 0), children: [ Button(name: B, text: \"x\") ], rules: [ On(Key.tab, effect: a.add(1)) ])", "Tab sert à passer d'un bouton à l'autre"),
         ] {
             let error = page(source).unwrap_err();
             assert!(error.message.contains(message), "{source}\n→ {error}");
@@ -2052,8 +2061,10 @@ mod tests {
             ("Page(children: [ Sound(name: D, source: \"https://x.example/a.wav\") ])", "un fichier de son rangé à côté"),
             ("Page(children: [ Sound(name: D, source: \"a.exe\") ])", "un fichier de son rangé à côté"),
             ("Page(children: [ Sound(source: \"a.wav\") ])", "un son a un nom"),
-            ("Page(children: [ Sound(name: D, source: \"a.wav\", loop: true) ])", "n'a pas de paramètre « loop »"),
-            ("Page(children: [ Sound(name: D, source: \"a.wav\"), Button(name: B, text: \"x\") ], rules: [ On(B.tap, effect: D.stop) ])", "capacité inconnue « stop »"),
+            ("Page(children: [ Sound(name: D, source: \"a.wav\", loop: yes) ])", "true ou false"),
+            ("Page(children: [ Sound(name: D, source: \"a.wav\", volume: 1.5) ])", "de 0 (muet) à 1"),
+            ("Page(children: [ Sound(name: D, source: \"a.wav\", volume: 40px) ])", "de 0 (muet) à 1"),
+            ("Page(children: [ Sound(name: D, source: \"a.wav\"), Button(name: B, text: \"x\") ], rules: [ On(B.tap, effect: D.pause) ])", "capacité inconnue « pause »"),
             ("Page(state: State(n: 0), children: [ Point(name: P, seed: 1, inside: World(children: [])) ], rules: [ Every(1s, effect: P.enter) ])", "demande un geste du visiteur"),
             ("Page(state: State(n: 0), children: [ Point(name: P, seed: 1, inside: World(children: [])) ], rules: [ When(n, is: 1, effect: [n.set(0), P.enter]) ])", "demande un geste du visiteur"),
         ] {

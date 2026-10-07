@@ -48,7 +48,11 @@
   #views{display:flex;flex-direction:column;gap:8px}
   #views button,#commands button{text-align:left;padding:8px 12px;border:1px solid #888;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;
     font:14px system-ui,sans-serif;cursor:pointer}
-  #commands button[aria-pressed="true"]{border-color:#E9B44C;color:#E9B44C}
+  #commands button[aria-pressed="true"],#views button[aria-pressed="true"]{border-color:#E9B44C;color:#E9B44C}
+  /* Lu par un lecteur d'écran, invisible à l'écran (ADR-061). */
+  .for-reader{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  /* Vue points : la page reste dessous, invisible mais lisible par un lecteur d'écran (ADR-061). */
+  .under-points{opacity:0;pointer-events:none}
 
   /* Un monde calculé, ouvert en profondeur. */
   .in-world canvas{display:block}
@@ -111,8 +115,8 @@
   #outage[hidden]{display:none}
   #outage button{padding:6px 12px;border-radius:6px;border:1px solid #ffd6d6;background:none;color:inherit;font:inherit;cursor:pointer}
 </style>
-</head><body><canvas id="area"></canvas><div id="page"></div>
-<img id="image" alt=""><div id="status"></div>
+</head><body><canvas id="area" aria-hidden="true"></canvas><div id="page"></div>
+<img id="image" alt=""><div id="status"></div><div id="announcement" class="for-reader" role="status" aria-live="polite"></div>
 <div id="crossroads" hidden></div>
 <div id="outage" hidden role="alert"><span>Le moteur n'a pas pu démarrer. La page se lit, mais les boutons ne répondent pas : rien n'a été ajouté ni envoyé.</span><button type="button">Réessayer</button></div>
 <div id="origin" hidden><span></span><button type="button">Revenir</button></div>
@@ -139,6 +143,25 @@
   (() => {
     const root = document.getElementById("page");
     const toggle = document.getElementById("toggle");
+    // Ce qui entre quand on le voit (Enter(inView: true), ADR-061) : son mouvement attend que le
+    // bloc arrive à l'écran. Sans JavaScript, rien n'attend : tout se voit d'emblée.
+    document.documentElement.classList.add("holo-js");
+    const watcher = "IntersectionObserver" in window && new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        entry.target.classList.add("holo-seen");
+        watcher.unobserve(entry.target);
+      }
+    }, { rootMargin: "0px 0px -10% 0px" });
+    // Aussi après chaque morceau de page fabriqué par le moteur. Et le volume des sons (ADR-061).
+    window.__holoWatchEntrances = (inside = root) => {
+      for (const block of inside.querySelectorAll(".holo-in-view:not(.holo-seen)")) {
+        if (watcher) watcher.observe(block);
+        else block.classList.add("holo-seen");
+      }
+      for (const sound of inside.querySelectorAll("audio[data-volume]")) sound.volume = Number(sound.dataset.volume);
+    };
+    window.__holoWatchEntrances();
     const waiting = (window.__holoWaiting = []);
     const outage = document.getElementById("outage");
     let request = false;

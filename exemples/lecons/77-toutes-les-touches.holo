@@ -1,0 +1,46 @@
+// Leçon 77 — Toutes les touches utiles du clavier
+//
+// Ce qu'on apprend :
+//   En plus des flèches et de l'espace (leçon 21) : enter, escape, les lettres de a à z et les
+//   chiffres de digit0 à digit9.
+//     On(Key.p, effect: compte.add(1))         une lettre : celle écrite sur la touche
+//     On(Key.digit5, effect: compte.add(5))    un chiffre : rangée du haut ou pavé numérique,
+//                                              avec ou sans Maj
+//     On(Key.escape, effect: compte.set(0))    Échap
+//   Jamais Tab : elle sert à passer d'un bouton à l'autre.
+//   Une page qui écoute des lettres ou des chiffres ajoute au menu ☰ « Touches à une lettre » :
+//   le visiteur peut les couper (un logiciel de dictée pourrait les taper sans le vouloir).
+//
+// À essayer :
+//   Appuie sur P, M, 5, Entrée, Échap. Puis ouvre le menu ☰ et coupe « Touches à une lettre » :
+//   P, M et 5 ne font plus rien ; Entrée et Échap marchent toujours.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 77 : toutes les touches",
+  state: State(compte: 0),
+  children: [
+    H1("Toutes les touches"),
+    P("**P** ajoute 1, **M** enlève 1, **5** ajoute 5, **Entrée** ajoute 10, **Échap** remet à zéro."),
+    P.grand("{compte}"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 76 : envoyer un fichier", to: "76-envoyer-un-fichier.holo"),
+      A("Leçon 78 : apparaître en descendant →", to: "78-apparaitre-en-descendant.holo"),
+    ]),
+  ],
+  rules: [
+    On(Key.p, effect: compte.add(1)),
+    On(Key.m, effect: compte.sub(1)),
+    On(Key.digit5, effect: compte.add(5)),
+    On(Key.enter, effect: compte.add(10)),
+    On(Key.escape, effect: compte.set(0)),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.grand { font-size: 64px; color: #E9B44C; }

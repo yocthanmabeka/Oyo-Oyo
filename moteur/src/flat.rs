@@ -26,10 +26,10 @@ background:radial-gradient(circle,white 0%,var(--holo-color,white) 35%,transpare
 :where(.holo-panel){position:absolute;z-index:1;left:0;right:0;bottom:0;max-height:46vh;overflow:auto;padding:16px max(16px,calc(50% - 320px));\
 box-sizing:border-box;background:rgba(0,0,0,0.6);pointer-events:auto}\
 :where(.holo-If){display:contents}:where(.holo-If)>*{display:block;box-sizing:border-box;margin:0 0 16px 0}\
-:where(.holo-Row){display:flex;flex-wrap:wrap;align-items:center;gap:var(--holo-gap,16px);justify-content:var(--holo-align,flex-start)}\
-:where(.holo-Column){display:flex;flex-direction:column;gap:var(--holo-gap,16px);align-items:var(--holo-align,stretch)}\
-:where(.holo-Grid){display:grid;gap:var(--holo-gap,16px);\
-grid-template-columns:repeat(auto-fill,minmax(min(100%,max(120px,calc((100% - (var(--holo-columns,2) - 1)*var(--holo-gap,16px))/var(--holo-columns,2)))),1fr))}\
+:where(.holo-Row){display:flex;flex-wrap:wrap;align-items:center;gap:var(--holo-gap,1rem);justify-content:var(--holo-align,flex-start)}\
+:where(.holo-Column){display:flex;flex-direction:column;gap:var(--holo-gap,1rem);align-items:var(--holo-align,stretch)}\
+:where(.holo-Grid){display:grid;gap:var(--holo-gap,1rem);\
+grid-template-columns:repeat(auto-fill,minmax(min(100%,max(7.5rem,calc((100% - (var(--holo-columns,2) - 1)*var(--holo-gap,1rem))/var(--holo-columns,2)))),1fr))}\
 :where(.holo-Row,.holo-Column,.holo-Grid)>*{margin:0;box-sizing:border-box;min-width:0}\
 :where(.holo-grow){display:flex;flex-direction:column;min-width:0}:where(.holo-grow)>*{flex:1 1 auto;margin:0}.holo-grow :is(input,textarea,select){width:100%;box-sizing:border-box}:where(.holo-grow .holo-Input){align-items:stretch}\
 :where(.holo-Row,.holo-Column,.holo-Grid)>.holo-If>*{margin:0}:where(.holo-If[hidden]){display:none}\
@@ -419,6 +419,16 @@ fn css_value(setting: &crate::holo::Setting, base: &str) -> String {
     if setting.name == "transition" && value != "none" {
         return ["background", "color", "border-color", "opacity", "box-shadow", "scale", "rotate", "letter-spacing"].iter().map(|p| format!("{p} {value}")).collect::<Vec<_>>().join(",");
     }
+    // Une taille écrite en pixels suit le réglage « texte plus grand » du visiteur, comme le texte
+    // (ADR-061) : 16px = 1rem. Les traits, les ombres et l'écart entre les lettres restent en pixels.
+    if setting.name == "height" && value == "screen" {
+        // Tout l'écran, au moins : la hauteur visible sur un téléphone (sans la barre d'adresse,
+        // le défaut de 100vh), et le bloc grandit si son contenu est plus long.
+        return "auto;min-height:100vh;min-height:100dvh".into();
+    }
+    if ["padding", "margin", "width", "max-width", "height", "border-radius"].contains(&setting.name.as_str()) {
+        return value.split(' ').map(to_rem).collect::<Vec<_>>().join(" ");
+    }
     if setting.name != "font-size" {
         return value;
     }
@@ -428,6 +438,15 @@ fn css_value(setting: &crate::holo::Setting, base: &str) -> String {
         return format!("{}rem", rounded(rem));
     }
     format!("clamp(1.5rem,{}vw,{}rem)", rounded(px * 100.0 / AUTHOR_WIDTH), rounded(rem))
+}
+
+/// `24px` → `1.5rem` ; le reste ne change pas.
+fn to_rem(word: &str) -> String {
+    match word.strip_suffix("px").and_then(|n| n.parse::<f64>().ok()) {
+        Some(px) if px == 0.0 => "0".to_string(),
+        Some(px) => format!("{}rem", rounded(px / 16.0)),
+        None => word.to_string(),
+    }
 }
 
 fn rounded(n: f64) -> String {
@@ -930,26 +949,34 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
         // Un son, qu'une règle fait entendre : Ding.play. Il ne se voit pas.
         "Sound" => {
             let mut source = None;
+            // Le volume et la boucle (ADR-061) : `volume: 0.4`, `loop: true`.
+            let mut settings = String::new();
             for argument in &block.arguments {
                 match (argument.name.as_deref(), &argument.value) {
                     (Some("name" | "weight"), _) | (Some("label"), Value::Text(_)) => {}
+                    (Some("volume"), Value::Number { value, unit: None }) if (0.0..=1.0).contains(value) => settings.push_str(&format!(" data-volume=\"{value}\"")),
+                    (Some("volume"), Value::Integer(i)) if *i <= 1 => settings.push_str(&format!(" data-volume=\"{i}\"")),
+                    (Some("volume"), _) => return Err(Error { message: "« Sound(volume: …) » attend un nombre de 0 (muet) à 1 (le plus fort), comme l'opacité : volume: 0.4".into(), pos: argument.pos }),
+                    (Some("loop"), Value::Bool(true)) => settings.push_str(" loop"),
+                    (Some("loop"), Value::Bool(false)) => {}
+                    (Some("loop"), _) => return Err(Error { message: "« Sound(loop: …) » attend true ou false ; un son qui boucle s'arrête par « Rain.stop »".into(), pos: argument.pos }),
                     (Some("source"), Value::Text(s)) if path_on(s) && [".wav", ".mp3", ".ogg"].iter().any(|end| s.ends_with(end)) => source = Some(s),
                     (Some("source"), _) => {
                         return Err(Error { message: "« Sound(source: …) » attend un fichier de son rangé à côté du .holo : \"ding.wav\" (.wav, .mp3 ou .ogg)".into(), pos: argument.pos })
                     }
-                    (Some(other), _) => return Err(Error { message: format!("« Sound » n'a pas de paramètre « {other} » ; paramètres possibles : name, source, weight"), pos: argument.pos }),
+                    (Some(other), _) => return Err(Error { message: format!("« Sound » n'a pas de paramètre « {other} » ; paramètres possibles : name, source, label, volume, loop, weight"), pos: argument.pos }),
                     (None, _) => return Err(Error { message: "chaque paramètre de « Sound » est nommé : Sound(name: Ding, source: \"ding.wav\")".into(), pos: argument.pos }),
                 }
             }
             // Avec une étiquette, le son est un lecteur, avec ses boutons, jamais lancé seul (ADR-042).
             if let (Some(source), Some(Value::Text(label))) = (source, block.argument("label").map(|a| &a.value)) {
-                output.push_str(&format!("<audio class=\"{classes}\"{name} controls preload=\"metadata\" src=\"{}{}\" aria-label=\"{}\"></audio>", escape(base), escape(source), escape(label)));
+                output.push_str(&format!("<audio class=\"{classes}\"{name} controls preload=\"metadata\" src=\"{}{}\" aria-label=\"{}\"{settings}></audio>", escape(base), escape(source), escape(label)));
                 return Ok(());
             }
             let (Some(source), false) = (source, name.is_empty()) else {
                 return Err(Error { message: "un son a un nom, pour qu'une règle puisse le jouer, et un fichier : Sound(name: Ding, source: \"ding.wav\") ; avec label:, c'est un lecteur".into(), pos: block.pos });
             };
-            output.push_str(&format!("<audio class=\"{classes}\"{name} preload=\"auto\" src=\"{}{}\"></audio>", escape(base), escape(source)));
+            output.push_str(&format!("<audio class=\"{classes}\"{name} preload=\"auto\" src=\"{}{}\"{settings}></audio>", escape(base), escape(source)));
         }
         // Un trait de séparation.
         "Hr" => {
@@ -1243,7 +1270,7 @@ fn layout(block: &Block) -> Result<String, Error> {
         match (argument.name.as_deref(), &argument.value) {
             (Some("name" | "children"), _) => {}
             (Some("gap"), value) => match value {
-                Value::Number { value, unit: Some(unit) } if unit == "px" && (0.0..=64.0).contains(value) => style.push_str(&format!("--holo-gap:{value}px;")),
+                Value::Number { value, unit: Some(unit) } if unit == "px" && (0.0..=64.0).contains(value) => style.push_str(&format!("--holo-gap:{};", to_rem(&format!("{value}px")))),
                 _ => return Err(error("une taille entre 0px et 64px")),
             },
             (Some("columns"), value) if block.name == "Grid" => match value {
@@ -1444,7 +1471,8 @@ mod tests {
             "data-name=\"Workshop\" aria-label=\"Workshop\" style=\"--holo-color:#E9B44C;--holo-brightness:0.8;\"",
             "<section class=\"holo-World\" data-world=\"Workshop\" hidden><div class=\"holo-panel\"><h1 class=\"holo-H1\">The workshop</h1>",
             "data-name=\"Back\">Back to the shop</button>",
-            ".holo-s-card{background:#1a1a2e;border:1px solid #E9B44C;border-radius:12px;padding:8px 16px;}",
+            // Les tailles suivent le texte du visiteur (ADR-061) ; le trait reste en pixels.
+            ".holo-s-card{background:#1a1a2e;border:1px solid #E9B44C;border-radius:0.75rem;padding:0.5rem 1rem;}",
         ] {
             assert!(html.contains(expected), "manque : {expected}\n{html}");
         }
@@ -1541,12 +1569,28 @@ mod tests {
     }
 
     #[test]
+    fn lot_9_sizes_sound_and_entrance_in_view() {
+        // Les tailles en pixels deviennent des rem ; « screen » remplit l'écran, au moins.
+        let html = page("Page(children: [ P.bloc(\"x\") ])\n\n.bloc { padding: 0 24px; max-width: 480px; height: screen; border: 2px solid red; }").unwrap();
+        assert!(html.contains(".holo-s-bloc{padding:0 1.5rem;max-width:30rem;height:auto;min-height:100vh;min-height:100dvh;border:2px solid red;}"), "{html}");
+        // Le son : son volume, sa boucle.
+        let html = page("Page(children: [ Sound(name: Rain, source: \"pluie.mp3\", volume: 0.4, loop: true) ])").unwrap();
+        assert!(html.contains("src=\"pluie.mp3\" data-volume=\"0.4\" loop></audio>"), "{html}");
+        // Une entrée qui attend d'être vue.
+        let html = page("Page(children: [ P(\"x\", enter: Enter(y: 40px, opacity: 0, inView: true)) ])").unwrap();
+        assert!(html.contains("<div class=\"holo-animated holo-in-view hm"), "{html}");
+        assert!(html.contains(".holo-js .holo-in-view:not(.holo-seen)"), "{html}");
+        let error = page("Page(children: [ P(\"x\", loop: Loop(scale: 1.1, inView: true)) ])").unwrap_err();
+        assert!(error.message.contains("inView"), "{error}");
+    }
+
+    #[test]
     fn layout_arranges_side_by_side_in_column_and_in_grid() {
         let html = page(
             "Page(children: [ Row(gap: 8px, align: between, children: [ H1(\"Shop\"), Button(name: Menu, text: \"Menu\") ]), Grid(columns: 3, children: [ \"a\", Column(align: center, children: [ P(\"b\"), P(\"c\") ]) ]) ])",
         )
         .unwrap();
-        assert!(html.contains("<div class=\"holo-Row\" style=\"--holo-gap:8px;--holo-align:space-between;\"><h1 class=\"holo-H1\">Shop</h1><button"), "{html}");
+        assert!(html.contains("<div class=\"holo-Row\" style=\"--holo-gap:0.5rem;--holo-align:space-between;\"><h1 class=\"holo-H1\">Shop</h1><button"), "{html}");
         assert!(html.contains("<div class=\"holo-Grid\" style=\"--holo-columns:3;\"><p class=\"holo-P\">a</p><div class=\"holo-Column\" style=\"--holo-align:center;\">"), "{html}");
         // Un bouton rangé dans une ligne reste un bouton : sa règle le trouve.
         assert!(html.contains("data-name=\"Menu\""));

@@ -233,6 +233,32 @@
   // cachée, en vue points et devant le carrefour : rien ne tourne pour rien.
   const hoveredOnes = new Set(); // les blocs survolés en ce moment (ADR-039)
   let listenedKeys = []; // les touches que les règles du fichier écoutent : On(Key.left, …)
+  // Les touches à une lettre ou à un chiffre peuvent gêner un logiciel de dictée : le visiteur
+  // peut les couper dans le menu (WCAG 2.1.4, ADR-061). Son choix est gardé dans ce navigateur.
+  let lettersAllowed = true;
+  try { lettersAllowed = localStorage.getItem("holo:shortcuts") !== "off"; } catch { /* stockage refusé */ }
+  const isSingleCharacter = (keypress) => /^([a-z]|digit\d)$/.test(keypress);
+  function setShortcutsButton() {
+    let button = document.getElementById("shortcuts");
+    if (!listenedKeys.some(isSingleCharacter)) {
+      button?.remove();
+      return;
+    }
+    if (!button) {
+      button = document.createElement("button");
+      button.id = "shortcuts";
+      button.type = "button";
+      button.textContent = "Touches à une lettre";
+      button.title = "Les lettres et les chiffres que cette page écoute ; à couper pour un logiciel de dictée";
+      button.addEventListener("click", () => {
+        lettersAllowed = !lettersAllowed;
+        button.setAttribute("aria-pressed", String(lettersAllowed));
+        try { localStorage.setItem("holo:shortcuts", lettersAllowed ? "on" : "off"); } catch { /* stockage refusé */ }
+      });
+      document.getElementById("views")?.append(button);
+    }
+    button.setAttribute("aria-pressed", String(lettersAllowed));
+  }
   let beats = []; // une horloge par règle Every : { ms, valeur, minuterie }
   function launch(clock, rank) {
     clearInterval(clock.timer);
@@ -277,6 +303,7 @@
     setDelays();
     followTime();
     listenedKeys = keypresses(source).split(";").filter(Boolean);
+    setShortcutsButton();
     beats.forEach((clock) => clearInterval(clock.timer));
     beats = clocks(source).split(";").filter(Boolean).map((chunk) => {
       const [ms, values] = chunk.split(":");
@@ -335,6 +362,7 @@
       if (container.dataset.seen === chunk) continue;
       container.dataset.seen = chunk;
       placeLines(container, list_html(source, base, written, name));
+      window.__holoWatchEntrances?.(container);
     }
   }
   // Pose les nouvelles lignes d'une liste en gardant, telles quelles, celles dont la clé et le
@@ -523,6 +551,7 @@
     // Une liste gardée d'une visite précédente n'est pas celle que le serveur a fabriquée (ADR-044).
     redrawLists();
     showValues();
+    window.__holoWatchEntrances?.();
     frame = root.querySelector(".holo-Page");
     page = frame.querySelector("main");
     document.title = frame.dataset.title || "HoloCode";
@@ -754,7 +783,10 @@
         place_mosaic(colors, pixels.width, pixels.height, source, sharpZoom);
         pause(false);
       }
-      page.style.visibility = "hidden";
+      // La page reste sous les points, invisible mais lisible : un lecteur d'écran la lit
+      // encore (ADR-061). Tab la fait revenir.
+      page.classList.add("under-points");
+      announce("Vue points : la page est devenue des points. Son texte reste lisible au lecteur d'écran ; Tab ramène la vue web.");
       pointsButton.textContent = "Vue web";
       inPoints = true;
       hasLeftRest = false;
@@ -776,8 +808,20 @@
     // L'image de la page et les repères ne servent plus : on rend la mémoire (B-10).
     image.removeAttribute("src");
     plantedPixels = [];
-    page.style.visibility = "";
+    page.classList.remove("under-points");
+    announce("Vue web.");
   }
+
+  // Ce que le lecteur d'écran annonce : le passage d'une vue à l'autre (ADR-061).
+  function announce(text) {
+    const announcement = document.getElementById("announcement");
+    if (!announcement) return;
+    announcement.textContent = "";
+    setTimeout(() => { announcement.textContent = text; }, 50);
+  }
+  // Le clavier arrive sur la page pendant la vue points : la vue web revient, pour qu'on voie
+  // où l'on est.
+  root.addEventListener("focusin", () => { if (inPoints) exitPoints(); });
 
   // Un pincement arrive comme une molette avec Ctrl, par petits pas : on les grossit.
   const zoomStep = (event) => event.deltaY * (Math.abs(event.deltaY) < 50 ? 6 : 1);
@@ -1181,13 +1225,15 @@
     if (capability === "enter" && containedSites().some((s) => s.name === name)) {
       // Le signal vient-il du point lui-même, ou d'un bouton qui y mène ?
       enterInto(name, signal === `${name}.tap`);
-    } else if (capability === "play") {
-      // Faire entendre un son. Un navigateur ne joue un son qu'après un premier geste du
-      // visiteur : avant, il refuse, et la page continue sans lui.
+    } else if (capability === "play" || capability === "stop") {
+      // Faire entendre un son, ou l'arrêter (ADR-061). Un navigateur ne joue un son qu'après un
+      // premier geste du visiteur : avant, il refuse, et la page continue sans lui.
       const sound = root.querySelector(`audio[data-name="${CSS.escape(name)}"]`);
       if (sound) {
+        if (sound.dataset.volume) sound.volume = Number(sound.dataset.volume);
+        sound.pause();
         sound.currentTime = 0;
-        sound.play().catch(() => {});
+        if (capability === "play") sound.play().catch(() => {});
       }
     } else if (capability === "open" || capability === "close") {
       // Une fenêtre par-dessus la page (ADR-042) : Confirm.open, Confirm.close.
@@ -1356,11 +1402,21 @@
     }
     // Le clavier : une touche que le fichier écoute devient un signal, comme un toucher. Les
     // autres touches gardent leur rôle (défiler, écrire), et rien n'est pris à un champ où l'on écrit.
-    const keyName = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down", " ": "space" };
+    // Les lettres : celles écrites sur la touche ; les chiffres : la rangée du haut ou le pavé
+    // numérique, avec ou sans Maj (ADR-061). Sur un bouton, l'espace et Entrée le touchent.
+    const keyName = (event) => {
+      const named = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down", " ": "space", Enter: "enter", Escape: "escape" };
+      if (named[event.key]) return named[event.key];
+      const digit = /^(?:Digit|Numpad)(\d)$/.exec(event.code);
+      if (digit) return `digit${digit[1]}`;
+      return /^[a-z]$/i.test(event.key) ? event.key.toLowerCase() : null;
+    };
     addEventListener("keydown", (event) => {
-      const keypress = keyName[event.key];
+      const keypress = keyName(event);
       if (!keypress || !listenedKeys.includes(keypress) || event.ctrlKey || event.altKey || event.metaKey) return;
-      if (event.target.closest?.("input, textarea, select, button") || inPoints || inWorld || !crossroads.hidden) return;
+      if (isSingleCharacter(keypress) && !lettersAllowed) return;
+      const activates = keypress === "space" || keypress === "enter";
+      if (event.target.closest?.(activates ? "input, textarea, select, button" : "input, textarea, select") || inPoints || inWorld || !crossroads.hidden) return;
       event.preventDefault();
       emit(`Key.${keypress}`);
     });

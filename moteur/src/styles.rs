@@ -311,6 +311,10 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
         }
     }
     let value = value.as_str();
+    // `height: screen` : tout l'écran, au moins (ADR-061).
+    if name == "height" && value == "screen" {
+        return Ok(());
+    }
     let words: Vec<&str> = value.split_whitespace().collect();
     let correct = match shape {
         Shape::Color => words.len() == 1 && is_color(value),
@@ -338,6 +342,7 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
     }
     let expected = match shape {
         Shape::Color => "une couleur, comme « gray » ou « #E9B44C »".to_string(),
+        Shape::Size if name == "height" => "une taille, comme « 16px » ou « 50% », ou « screen » : tout l'écran".to_string(),
         Shape::Size => "une taille, comme « 16px » ou « 50% »".to_string(),
         Shape::Sizes => "une à quatre tailles, comme « 8px 16px »".to_string(),
         Shape::Word(possible) => format!("l'un de ces mots : {}", possible.join(", ")),

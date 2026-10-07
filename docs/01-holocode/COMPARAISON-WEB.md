@@ -61,8 +61,9 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `picture`, `source`, `srcset` (plusieurs tailles) | | manque |
 | `figure`, `figcaption` (image et légende) | | manque |
 | `video` | `Video(source:, label:)`, sans lecture automatique | fait |
-| `audio` | `Sound(name:, source:)` et `Ding.play` : un bruit déclenché par une règle ; pas un lecteur | fait |
+| `audio` | `Sound(name:, source:, volume:, loop:)`, `Ding.play`, `Ding.stop` : un bruit déclenché par une règle ; pas un lecteur | fait (`ADR-061` : volume, boucle, arrêt) |
 | `canvas`, WebGL | `Point`, `World` | fait |
+| `aria-*`, `role`, `aria-live` | rien à écrire : les repères, les étiquettes obligatoires, et la vue points lue au lecteur d'écran (la page reste dessous, « Vue points » annoncé) | fait (`ADR-061`) |
 | `svg` | comme fichier d'image seulement | en partie |
 | `iframe`, `embed`, `object` | `Point(inside: "fichier.holo")` : on y entre | fait |
 
@@ -128,6 +129,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `:hover`, `:focus`, `:active` (l'apparence selon l'état) | `hover: { … }`, `focus: { … }`, `active: { … }` dans un style | fait |
 | `position: absolute` pour un badge, une pastille | `Stack(children: [ … ])` et `align:` | fait |
 | Tailles de texte qui suivent le réglage du visiteur (`rem`) | automatique : les `px` d'une taille de texte deviennent des `rem` ; les grands titres rétrécissent sur un petit écran | fait |
+| Autres tailles qui suivent le visiteur (`rem`) ; toute la hauteur de l'écran (`100vh`, `100dvh`) | automatique : les `px` des marges, largeurs, hauteurs, coins et écarts deviennent des `rem` ; `height: screen` | fait (`ADR-061`) |
 | `transition`, `animation`, `@keyframes` | `enter: Enter(…)`, `loop: Loop(…)`, `Scenes` : d'où il part ou où il va, quand, combien de temps, quel caractère ; lettre à lettre et enfant après enfant sans JavaScript | fait |
 | `@media` (s'adapter à l'écran) | le moteur le fait seul (une ligne passe à la ligne, une grille perd des colonnes) ; et `phone: { … }`, avec `display: none` pour cacher | fait |
 | `prefers-color-scheme` (le thème sombre) | `dark: { … }` dans un style | fait |
@@ -144,9 +146,10 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | Réagir à un clic | `On(Open.tap, effect: ...)` | fait |
 | Changer de page sans recharger (un routeur) | `Point(inside:)`, `enter`, `leave`, le dézoom | fait |
 | L'historique, le bouton « retour » | automatique : chaque site a son adresse | fait |
-| Le clavier | `On(Key.left, effect: …)` : les flèches et l'espace | fait |
+| Le clavier | `On(Key.left, effect: …)` : les flèches, l'espace, Entrée, Échap, les lettres, les chiffres ; jamais Tab ; les touches à une lettre se coupent dans le menu | fait (`ADR-061`) |
 | Survol (`mouseenter`, `mouseleave`) | `On(Carte.hover, …)`, `On(Carte.hoverEnd, …)` : aussi au clavier et au doigt | fait |
-| Approche, défilement | | manque |
+| Défilement : apparaître quand on arrive dessus | `Enter(…, inView: true)` | fait (`ADR-061`) |
+| Approche, position du défilement | | manque |
 | `else` | `If(…, children: [ … ], else: [ … ])` | fait |
 | `setTimeout` | `After(3s, effect: …)` ; sous une condition, part quand elle devient vraie | fait |
 | `Date` (la date et l'heure du jour) | `{year}`, `{month}`, `{day}`, `{weekday}`, `{hour}`, `{minute}` | fait ; pas encore de calcul sur les dates |
@@ -161,7 +164,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `Intl`, `padStart` (formats) | `{n:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}`, `{month:name}` | fait |
 | Animations écrites par l'auteur | | manque |
 | Garder des données dans le navigateur | `keep: [cart]` | fait |
-| Calculer librement | prévu : fonctions pures, modules WebAssembly (`ADR-013`) | manque |
+| Calculer librement | les modules WebAssembly enfermés (`ADR-045`) | fait : un nombre contre un nombre |
 | Modifier la page à la main (le DOM) | refusé (`ADR-015`) | exprès |
 
 ## 4. Ce que HoloCode a, et que le web classique n'a pas
