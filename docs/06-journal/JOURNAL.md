@@ -6,6 +6,20 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Lot 1 : des essais dans un vrai navigateur, et les limites
+
+- Yocthan a donné l'ordre de terminer le web, dans l'ordre : d'abord renforcer les essais dans un vrai navigateur et les limites.
+- Fait : `moteur/outils/browser-tests.mjs`. Il lance le serveur d'essai sur un port libre et Chrome sans fenêtre, piloté par son protocole, sans rien installer. Il ouvre les 81 leçons (aucune erreur, un titre) et joue 13 essais de gestes : le moteur au premier geste, le pincement à deux doigts, un module, les touches et les lettres qu'on coupe, Échap et une fenêtre, une liste qui change, une liste reçue du serveur, des données trop grosses refusées, un formulaire envoyé, l'apparition en descendant, le son, les tailles, la vue points au lecteur d'écran. Trois pages d'essai, dans `exemples/.essais-navigateur/` (un dossier que la pile ne montre pas).
+- GitHub lance ces essais à chaque pull request : un sixième contrôle, « Navigateur — les leçons et les gestes ». Chrome y est déjà ; seul wasm-bindgen y est téléchargé, à la version du moteur, comme le fait `outils/build.ps1`.
+- Les limites : le moteur les avait presque toutes. Deux étaient faibles : une liste reçue du serveur et un module étaient téléchargés en entier avant d'être coupés (64 Ko et 4 Mo). Ils sont maintenant lus morceau par morceau, et la lecture s'arrête dès que la limite est passée. Le guide donne toutes les limites, telles que le code les applique.
+- Exécuté sur ce PC : `node outils/browser-tests.mjs` → les 14 essais passent, en 97 secondes.
+
+**Erreur en route**
+
+- Mon premier essai des données trop grosses fabriquait un fichier de 61 Ko, sous la limite : il a été pris, à juste titre. Grossi à 96 Ko : refusé.
+
+---
+
 ## 2026-10-07 — La réponse de Codex, et la synthèse des deux avis
 
 - Yocthan a collé la réponse de Codex au prompt « tout le web » ; Codex a aussi ouvert sa revue complète (PR 144, fusionnée). Rangée : `docs/05-discussions/reponses/2026-10-07-codex-tout-le-web.md`, avec la lecture de Claude.

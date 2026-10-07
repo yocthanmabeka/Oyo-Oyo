@@ -1642,6 +1642,21 @@ On zoome : le point se morcelle en ses fragments. On zoome encore sur l'un d'eux
 
 Un fichier `.holo` est un texte court. Le moteur refuse, avant toute analyse : un fichier de plus de 262 144 octets, de plus de 100 000 mots, ou dont les blocs et les listes s'emboîtent sur plus de 64 niveaux. Le repère d'un point planté (`above:`) doit être un bloc du même site que lui.
 
+Toutes les limites, telles que le moteur les applique (chacune refusée avec un message, ou coupée sans danger) :
+
+| Quoi | La limite |
+|---|---|
+| Le fichier | 262 144 octets ; 100 000 mots ; 64 niveaux de blocs et de listes l'un dans l'autre ; 16 fichiers importés |
+| Les valeurs (`State`) | 32 valeurs par page ; un nombre jusqu'à 1 000 000 000 ; un texte de 2 000 caractères |
+| Une liste qui change (`State(tasks: [])`) | 100 éléments ; un texte de 200 caractères ; 16 champs par élément |
+| `Repeat(items:)` | 200 éléments ; 20 000 blocs une fois déplié |
+| Les composants | 16 paramètres ; 8 composants l'un dans l'autre ; 2 000 copies |
+| Le temps | `Every` et `After` : de 100 ms à 3 600 s ; `Data(every:)` : de 1 s à 3 600 s |
+| Les données reçues (`Data`) | 64 Ko : au-delà, elles sont refusées, et la lecture s'arrête dès qu'elles dépassent |
+| Les modules | 8 par page ; un fichier de 4 Mo, refusé dès qu'il dépasse ; un temps de 10 ms à 5 s ; une mémoire de 64 Ko à 16 Mo |
+| Un fichier envoyé par un formulaire | 10 Mo au plus (`max:` de 1 KB à 10 MB) |
+| La vue points | 200 000 points à l'écran |
+
 ## 9. Les unités
 
 Une unité se colle au nombre : `500KB`, jamais `500 KB`.

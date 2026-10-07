@@ -1,0 +1,13 @@
+// Une page d'essai (moteur/outils/browser-tests.mjs), pas une leçon : une liste reçue du serveur.
+// Le fichier de données est choisi par l'essai : « donnees-petites.json » est pris ; un fichier
+// de plus de 64 Ko est refusé, et la liste garde sa valeur de départ.
+
+Page(
+  title: "Essai : des données reçues",
+  state: State(articles: [ Item(title: "Au départ", price: 0) ]),
+  data: Data(from: "donnees-petites.json"),
+  children: [
+    P("{articles} article(s)"),
+    Repeat(over: articles, children: [ Text("{item.title}") ]),
+  ],
+)

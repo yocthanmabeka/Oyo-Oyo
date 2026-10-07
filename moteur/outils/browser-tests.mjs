@@ -1,0 +1,328 @@
+// Les essais dans un vrai navigateur : Chrome sans fenêtre, piloté par son protocole (DevTools),
+// sans rien installer. Le serveur d'essai est lancé sur un port libre ; chaque essai ouvre une
+// page, joue des gestes comme une main (souris, clavier, doigts) et vérifie ce qui doit se passer.
+// Les tests du moteur en Rust ne voient pas la page : le pincement, les modules et la touche
+// Échap ont cassé le 2026-10-07 alors qu'ils restaient verts.
+//
+//     node outils/browser-tests.mjs              (depuis moteur/)
+//     node outils/browser-tests.mjs pinch        (seulement les essais dont le nom contient « pinch »)
+//
+// Il faut le moteur construit (web/pkg, web/pkg-light, target/release/holo) et Chrome : CHROME
+// donne son chemin ; sinon l'emplacement habituel sous Windows, ou google-chrome sous Linux.
+// Rend « OK » ou « RATÉ » par essai, et un code de sortie 1 s'il y a un raté.
+
+import { spawn, spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const engine = fileURLToPath(new URL("..", import.meta.url));
+const repo = resolve(engine, "..");
+const only = process.argv[2] ?? "";
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function findChrome() {
+  const candidates = [
+    process.env.CHROME,
+    "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+  ];
+  for (const c of candidates) if (c && existsSync(c)) return c;
+  for (const name of ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser"]) {
+    const found = spawnSync("which", [name], { encoding: "utf8" });
+    if (found.status === 0 && found.stdout.trim()) return found.stdout.trim();
+  }
+  throw new Error("Chrome introuvable : donner son chemin dans CHROME");
+}
+
+// Le serveur d'essai, sur un port libre ; on attend qu'il annonce son adresse.
+async function startServer() {
+  const port = 18000 + Math.floor(Math.random() * 2000);
+  const env = { ...process.env, PORT: String(port) };
+  delete env.HOLO_KEY;
+  delete env.HOLO_REPO;
+  const server = spawn(process.execPath, ["outils/server.mjs"], { cwd: engine, env, stdio: ["ignore", "pipe", "pipe"] });
+  let output = "";
+  server.stdout.on("data", (d) => { output += d; });
+  server.stderr.on("data", (d) => { output += d; });
+  for (let i = 0; i < 100 && !output.includes(`localhost:${port}`); i++) await pause(100);
+  if (!output.includes(`localhost:${port}`)) throw new Error(`le serveur d'essai ne démarre pas :\n${output}`);
+  return { base: `http://localhost:${port}`, stop: () => server.kill() };
+}
+
+async function startChrome() {
+  const port = 9200 + Math.floor(Math.random() * 600);
+  const profile = mkdtempSync(join(tmpdir(), "holo-essais-"));
+  const args = [
+    "--headless=new", "--no-first-run", "--no-default-browser-check", "--enable-unsafe-swiftshader",
+    "--autoplay-policy=no-user-gesture-required", "--hide-scrollbars", `--remote-debugging-port=${port}`,
+    "--window-size=1000,700", `--user-data-dir=${profile}`, "about:blank",
+  ];
+  // Sur les machines de GitHub, le bac à sable de Chrome n'a pas les droits du système.
+  if (process.env.CI) args.unshift("--no-sandbox");
+  const chrome = spawn(findChrome(), args, { stdio: "ignore" });
+  let target;
+  for (let i = 0; i < 100 && !target; i++) {
+    await pause(200);
+    try { target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === "page"); } catch { /* pas encore */ }
+  }
+  if (!target) throw new Error("Chrome ne démarre pas");
+  const ws = new WebSocket(target.webSocketDebuggerUrl);
+  await new Promise((ok, ko) => { ws.onopen = ok; ws.onerror = ko; });
+  let n = 0;
+  const waiting = new Map();
+  const errors = [];
+  ws.onmessage = (m) => {
+    const r = JSON.parse(m.data);
+    if (r.method === "Runtime.exceptionThrown") {
+      const d = r.params.exceptionDetails;
+      errors.push((d.exception?.description ?? d.text ?? "erreur").split("\n")[0]);
+    }
+    waiting.get(r.id)?.(r);
+  };
+  const send = (method, params = {}) => new Promise((ok) => { waiting.set(++n, ok); ws.send(JSON.stringify({ id: n, method, params })); });
+  await send("Runtime.enable");
+  await send("Page.enable");
+  await send("Accessibility.enable");
+  return {
+    send,
+    errors,
+    stop() {
+      ws.close();
+      chrome.kill();
+      // Chrome garde son dossier un instant après s'être arrêté.
+      setTimeout(() => { try { rmSync(profile, { recursive: true, force: true }); } catch { /* tant pis */ } }, 1500);
+    },
+  };
+}
+
+// Les gestes et les questions à la page.
+function page(browser, base) {
+  const { send } = browser;
+  const value = async (expression) => {
+    const r = await send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
+    if (r.result?.exceptionDetails) throw new Error(`la question à la page a échoué : ${expression}`);
+    return r.result?.result?.value;
+  };
+  const p = {
+    value,
+    async open(path, wait = 1200) {
+      browser.errors.length = 0;
+      await send("Page.navigate", { url: base + path });
+      for (let i = 0; i < 50; i++) {
+        await pause(100);
+        if ((await value("document.readyState").catch(() => "")) === "complete") break;
+      }
+      await pause(wait);
+    },
+    // Attend qu'une condition soit vraie dans la page (le moteur arrive en quelques secondes).
+    async until(expression, timeout = 40000) {
+      const end = Date.now() + timeout;
+      while (Date.now() < end) {
+        if (await value(`(() => { try { return Boolean(${expression}); } catch { return false; } })()`).catch(() => false)) return true;
+        await pause(250);
+      }
+      return false;
+    },
+    async click(selector) {
+      const box = await value(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return null; e.scrollIntoView({ block: "center" }); const b = e.getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()`);
+      if (!box) throw new Error(`rien à toucher : ${selector}`);
+      for (const type of ["mousePressed", "mouseReleased"]) await send("Input.dispatchMouseEvent", { type, x: box[0], y: box[1], button: "left", clickCount: 1 });
+      await pause(150);
+    },
+    async key(key, code, keyCode, text) {
+      await send("Input.dispatchKeyEvent", { type: "keyDown", key, code, windowsVirtualKeyCode: keyCode, text });
+      await send("Input.dispatchKeyEvent", { type: "keyUp", key, code, windowsVirtualKeyCode: keyCode });
+      await pause(200);
+    },
+    async type(selector, text) {
+      await value(`document.querySelector(${JSON.stringify(selector)}).focus()`);
+      await send("Input.insertText", { text });
+      await pause(200);
+    },
+    text: () => value("document.getElementById('page').innerText"),
+  };
+  return p;
+}
+
+// Les leçons qui s'ouvrent seules : une page ou un monde (ni un morceau, ni un thème).
+function lessons() {
+  const folder = join(repo, "exemples", "lecons");
+  return readdirSync(folder).filter((f) => f.endsWith(".holo")).sort().filter((f) => {
+    const source = readFileSync(join(folder, f), "utf8").replace(/\/\/.*$/gm, "");
+    return /^\s*((import|module)\s[^\n]*\n\s*)*(Page|Point)\s*\(/.test(source);
+  });
+}
+
+const tests = [
+  ["toutes les leçons s'ouvrent, sans erreur", async (p, b) => {
+    const faults = [];
+    for (const file of lessons()) {
+      await p.open(`/exemples/lecons/${file}`, 600);
+      const title = await p.value("document.title");
+      if (b.errors.length) faults.push(`${file} : ${b.errors.join(" | ")}`);
+      else if (!title || title === "HoloCode") faults.push(`${file} : pas de titre`);
+    }
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : `${lessons().length} leçons`];
+  }],
+  ["le moteur arrive au premier geste", async (p) => {
+    await p.open("/exemples/lecons/01-page.holo");
+    await p.click("#toggle");
+    const ok = await p.until(`document.getElementById("tools") && !document.getElementById("tools").hidden`);
+    return [ok, ok ? "les outils s'ouvrent" : "les outils ne s'ouvrent pas"];
+  }],
+  ["pincer à deux doigts grossit la page (pinch)", async (p, b) => {
+    await b.send("Emulation.setDeviceMetricsOverride", { width: 400, height: 800, deviceScaleFactor: 2, mobile: true });
+    await b.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+    try {
+      await p.open("/exemples/lecons/09-zoom-et-points.holo");
+      const fingers = (gap) => [{ x: 200 - gap, y: 300, id: 1 }, { x: 200 + gap, y: 300, id: 2 }];
+      let zoomed = false;
+      for (let i = 0; i < 40 && !zoomed; i++) {
+        await b.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: fingers(40) });
+        for (let g = 50; g <= 160; g += 10) await b.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: fingers(g) });
+        await b.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+        await pause(800);
+        zoomed = await p.value(`(() => { const m = document.querySelector("#page main, #page .holo-Page"); return document.body.classList.contains("in-points") || (m && getComputedStyle(m).transform !== "none"); })()`);
+      }
+      return [zoomed && b.errors.length === 0, zoomed ? (b.errors.length ? b.errors.join(" | ") : "la page grossit") : `aucun zoom ; ${b.errors.join(" | ") || "aucune erreur"}`];
+    } finally {
+      await b.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+      await b.send("Emulation.clearDeviceMetricsOverride");
+    }
+  }],
+  ["un module enfermé rend son nombre", async (p) => {
+    await p.open("/exemples/lecons/69-module-enferme.holo");
+    await p.click('[data-name="Calculer"]');
+    const ok = await p.until(`(window.__holoModules ?? []).some((m) => m.ok && m.output === 5050)`);
+    return [ok, ok ? "5 050" : JSON.stringify(await p.value("window.__holoModules ?? null"))];
+  }],
+  ["les touches du clavier, et les lettres qu'on coupe", async (p) => {
+    await p.open("/exemples/lecons/77-toutes-les-touches.holo");
+    if (!(await p.until(`document.getElementById("shortcuts")`))) return [false, "le moteur n'est pas arrivé"];
+    const count = () => p.value(`document.querySelector(".holo-s-grand").textContent.trim()`);
+    await p.key("p", "KeyP", 80, "p");
+    await p.key("%", "Digit5", 53, "%"); // un clavier français : la touche du 5 sans Maj
+    await p.key("Enter", "Enter", 13, "\r");
+    const before = await count();
+    await p.value(`document.getElementById("shortcuts").click()`);
+    await p.key("p", "KeyP", 80, "p");
+    const cut = await count();
+    await p.key("Escape", "Escape", 27);
+    const reset = await count();
+    await p.value(`document.getElementById("shortcuts").click()`);
+    return [before === "16" && cut === "16" && reset === "0", `P, 5, Entrée → ${before} ; lettres coupées → ${cut} ; Échap → ${reset}`];
+  }],
+  ["Échap ferme une fenêtre, même quand la page écoute Échap", async (p) => {
+    await p.open("/exemples/.essais-navigateur/fenetre-et-echap.holo");
+    await p.click('[data-name="Ouvrir"]');
+    if (!(await p.until(`document.querySelector("dialog").open`))) return [false, "la fenêtre ne s'ouvre pas"];
+    await p.key("Escape", "Escape", 27);
+    const closed = await p.until(`!document.querySelector("dialog").open`, 3000);
+    await p.key("Escape", "Escape", 27);
+    const counted = await p.until(`document.getElementById("page").innerText.includes("Échap hors de la fenêtre : 1")`, 5000);
+    return [closed && counted, `fenêtre fermée : ${closed} ; règle d'Échap ailleurs : ${counted}`];
+  }],
+  ["une liste qui change : ajouter, retirer", async (p) => {
+    await p.open("/exemples/lecons/68-liste-qui-change.holo");
+    const lines = () => p.value(`document.querySelectorAll(".holo-line").length`);
+    const start = await lines();
+    await p.type("#page input", "Laver le pinceau");
+    await p.click('[data-name="Ajouter"]');
+    const added = await p.until(`document.querySelectorAll(".holo-line").length === ${start + 1}`);
+    await p.click('.holo-line:last-child [data-name^="Fait"]');
+    const removed = await p.until(`document.querySelectorAll(".holo-line").length === ${start}`);
+    return [added && removed, `lignes : ${start} → ajout ${added ? "fait" : "raté"} → retrait ${removed ? "fait" : "raté"}`];
+  }],
+  ["une liste à champs reçue du serveur", async (p) => {
+    await p.open("/exemples/lecons/71-liste-a-champs.holo");
+    const ok = await p.until(`document.querySelectorAll(".holo-line").length > 1 && !document.getElementById("page").innerText.includes("Chargement…")`);
+    return [ok, `${await p.value(`document.querySelectorAll(".holo-line").length`)} lignes`];
+  }],
+  ["des données de 64 Ko au plus : prises en dessous, refusées au-dessus", async (p) => {
+    // Le fichier trop gros est fabriqué ici (plus de 64 Ko), puis effacé.
+    const big = join(repo, "exemples", ".essais-navigateur", "donnees-trop-grosses.json");
+    const items = Array.from({ length: 1400 }, (_, i) => ({ title: `Article numéro ${i} avec un titre assez long`, price: i }));
+    writeFileSync(big, JSON.stringify({ articles: items }));
+    try {
+      await p.open("/exemples/.essais-navigateur/donnees.holo");
+      const small = await p.until(`document.getElementById("page").innerText.includes("3 article(s)")`);
+      await p.open("/exemples/.essais-navigateur/donnees-trop-grosses.holo", 3000);
+      const refused = await p.until(`document.getElementById("page").innerText.includes("1 article(s)")`, 5000)
+        && !(await p.value(`document.getElementById("page").innerText.includes("Article numéro")`));
+      return [small && refused, `petites données prises : ${small} ; ${Math.round(JSON.stringify({ articles: items }).length / 1000)} Ko refusés : ${refused}`];
+    } finally {
+      rmSync(big, { force: true });
+    }
+  }],
+  ["un formulaire envoie son message", async (p) => {
+    await p.open("/exemples/lecons/64-formulaire.holo");
+    await p.type("#page input", "Ada");
+    await p.type("#page textarea", "Un essai du navigateur.");
+    await p.click('[data-name="Envoyer"]');
+    const ok = await p.until(`document.getElementById("page").innerText.includes("Merci, ton message est arrivé.")`);
+    return [ok, ok ? "« Merci, ton message est arrivé. »" : "pas de confirmation"];
+  }],
+  ["un bloc entre en arrivant à l'écran", async (p) => {
+    await p.open("/exemples/lecons/78-apparaitre-en-descendant.holo");
+    const waiting = await p.value(`[...document.querySelectorAll(".holo-in-view")].every((b) => !b.classList.contains("holo-seen"))`);
+    await p.value(`document.querySelector(".holo-in-view").scrollIntoView({ block: "center" })`);
+    const seen = await p.until(`document.querySelector(".holo-in-view").classList.contains("holo-seen")`, 5000);
+    return [waiting && seen, `loin de l'écran, en attente : ${waiting} ; arrivé, entré : ${seen}`];
+  }],
+  ["un son : son volume, sa boucle, son arrêt", async (p) => {
+    await p.open("/exemples/lecons/79-regler-un-son.holo");
+    await p.click('[data-name="Lancer"]');
+    const playing = await p.until(`(() => { const a = document.querySelector('audio[data-name="Pluie"]'); return !a.paused && a.loop && a.volume === 0.6; })()`);
+    await p.click('[data-name="Arreter"]');
+    const stopped = await p.until(`(() => { const a = document.querySelector('audio[data-name="Pluie"]'); return a.paused && a.currentTime === 0; })()`, 5000);
+    return [playing && stopped, `joue en boucle au volume 0,6 : ${playing} ; arrêté au début : ${stopped}`];
+  }],
+  ["les tailles suivent le texte du visiteur", async (p) => {
+    await p.open("/exemples/lecons/80-tailles-qui-suivent.holo");
+    const normal = await p.value(`getComputedStyle(document.querySelector(".holo-s-carte")).padding`);
+    await p.value(`document.documentElement.style.fontSize = "24px"`);
+    const bigger = await p.value(`getComputedStyle(document.querySelector(".holo-s-carte")).padding`);
+    return [normal === "16px 24px" && bigger === "24px 36px", `${normal} → ${bigger}`];
+  }],
+  ["la vue points se lit au lecteur d'écran", async (p, b) => {
+    await p.open("/exemples/lecons/81-vue-points-et-lecteur-d-ecran.holo");
+    let inPoints = false;
+    for (let i = 0; i < 80 && !inPoints; i++) {
+      await b.send("Input.dispatchMouseEvent", { type: "mouseWheel", x: 500, y: 200, deltaX: 0, deltaY: -500, modifiers: 2 });
+      await pause(400);
+      inPoints = await p.value(`document.body.classList.contains("in-points")`);
+    }
+    const { result } = await b.send("Accessibility.getFullAXTree");
+    const heading = result.nodes.find((n) => n.role?.value === "heading" && n.name?.value === "La vue points se lit aussi");
+    const announced = await p.until(`(document.getElementById("announcement")?.textContent ?? "").startsWith("Vue points")`, 5000);
+    return [inPoints && heading && !heading.ignored && announced, `vue points : ${inPoints} ; titre lisible : ${Boolean(heading && !heading.ignored)} ; « Vue points » annoncé : ${announced}`];
+  }],
+];
+
+const server = await startServer();
+const browser = await startChrome();
+const p = page(browser, server.base);
+let failures = 0;
+const started = Date.now();
+try {
+  for (const [name, run] of tests) {
+    if (only && !name.includes(only)) continue;
+    const t0 = Date.now();
+    let ok = false;
+    let detail = "";
+    try {
+      [ok, detail] = await run(p, browser);
+    } catch (e) {
+      detail = String(e?.message ?? e);
+    }
+    if (!ok) failures += 1;
+    console.log(`${ok ? "OK  " : "RATÉ"} ${name} — ${detail} (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
+  }
+} finally {
+  browser.stop();
+  server.stop();
+}
+console.log(`\n${failures ? `${failures} essai(s) raté(s)` : "tous les essais passent"} — ${((Date.now() - started) / 1000).toFixed(0)} s`);
+process.exit(failures ? 1 : 0);
