@@ -6,6 +6,17 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Lot 9, deuxième pas : le dessin vectoriel, `Drawing` ; GitHub Actions bloqué
+
+- Fait (`ADR-086`) : `Drawing(label:, width:, height:, children: [ … ])`, fabriqué en SVG, nommé pour le lecteur d'écran ; quatre formes, `Rect`, `Circle`, `Line`, `Path` ; `fill`, `stroke`, `thickness`, `opacity` ; une mesure peut être le nom d'un nombre de la page, et la forme le suit. Le dessin trait par trait reste refusé. Leçon 98 : un paysage dont le soleil se lève et se couche derrière la colline.
+- Vérifié : tous les tests du moteur ; dans Chrome, un SVG à sept formes, nommé pour le lecteur d'écran, le soleil de 70 à 30 en deux touchers, les proportions gardées.
+- Raté puis corrigé : une vérification plus ancienne refusait un nombre à virgule dans `x` avec un message qui parlait de glissière et de plateau ; un dessin donne maintenant le sien.
+- **Bloqué** : sur la PR 171, aucune vérification de GitHub n'a démarré. GitHub écrit : « The job was not started because recent account payments have failed or your spending limit needs to be increased » (les minutes de GitHub Actions du compte sont épuisées, ou un paiement a échoué). Sans CI verte, rien n'est fusionné : les PR 171 et suivantes attendent que Yocthan règle « Billing & plans » sur GitHub. Le travail continue en local, vérifié par les mêmes tests.
+
+![La leçon 98 : un paysage dessiné en SVG ; le soleil a été levé de deux crans](images/2026-10-07-web-lot9-un-dessin.png)
+
+---
+
 ## 2026-10-07 — Lot 9, premier pas : des modules qui reçoivent une liste et rendent plusieurs valeurs
 
 - Pris par la session du nuage, selon le tableau « Qui fait quoi » relu sur `main` après la PR 170.

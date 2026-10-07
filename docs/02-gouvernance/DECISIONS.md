@@ -76,6 +76,7 @@ Ce registre empêche une proposition séduisante de devenir accidentellement une
 | [`ADR-073`](adr/ADR-073-lot-8-html-et-medias.md) | Lot 8 du web : `Aside`, `A(newTab: true)`, `A(download: true)`, `Video(captions:)`, les images qui viennent en approchant, l'état `print:` | `ACCEPTÉ` | Yocthan, 2026-10-07 | HoloCode, HoloEngine |
 | [`ADR-074`](adr/ADR-074-holo-serve-sans-javascript.md) | Lot 5, premier pas : `holo serve`, un serveur en Rust avec SQLite ; les boutons marchent sans JavaScript, par le même arbitre | `ACCEPTÉ` | Yocthan, 2026-10-07 | HoloEngine, serveur |
 | [`ADR-077`](adr/ADR-077-modules-second-contrat.md) | Lot 9, premier pas : des modules qui reçoivent et rendent des textes, des listes et des nombres à virgule (un texte JSON, relu avec méfiance) ; le premier contrat inchangé | `ACCEPTÉ` | Yocthan, 2026-10-07 | HoloCode, HoloEngine |
+| [`ADR-086`](adr/ADR-086-dessin-vectoriel.md) | Lot 9, deuxième pas : le dessin vectoriel déclaré, `Drawing` et ses formes `Rect`, `Circle`, `Line`, `Path`, en SVG ; une mesure peut suivre un nombre de la page | `ACCEPTÉ` | Yocthan, 2026-10-07 | HoloCode, HoloEngine |
 
 `ADR-003` à `ADR-006` ont été proposées par ChatGPT. Le 2026-09-21, Yocthan a accepté `ADR-003` (reformulée par Claude), `ADR-004` (telle quelle) et `ADR-005` (complétée par les chiffres de sa vision), et a laissé `ADR-006` en proposition. ChatGPT est invité à réagir aux reformulations.
 

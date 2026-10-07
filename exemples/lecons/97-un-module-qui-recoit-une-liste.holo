@@ -56,7 +56,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 96 : une vidéo sous-titrée", to: "96-une-video-sous-titree.holo"),
-      A("Leçon 1 : une page →", to: "01-page.holo"),
+      A("Leçon 98 : un dessin →", to: "98-un-dessin.holo"),
     ]),
   ],
   rules: [

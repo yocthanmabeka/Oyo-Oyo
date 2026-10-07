@@ -282,6 +282,22 @@ const tests = [
     const unchanged = after.includes("4 notes ; moyenne : 14,6");
     return [computed && again && refused && unchanged && reason.includes("admin"), `calculé : ${computed} ; avec une note de plus : ${again} ; refusé : ${refused} (${reason}) ; rien changé : ${unchanged}${before ? "" : ""}`];
   }],
+  ["un dessin en SVG, lu par le lecteur d'écran, dont une forme suit une valeur (leçon 98)", async (p, b) => {
+    await p.open("/exemples/lecons/98-un-dessin.holo");
+    const svg = await p.value(`(() => { const s = document.querySelector("svg.holo-Drawing"); return s && s.getAttribute("role") + "|" + s.getAttribute("aria-label") + "|" + s.querySelectorAll("rect,circle,line,path").length; })()`);
+    const { result } = await b.send("Accessibility.getFullAXTree");
+    const named = result.nodes.some((n) => ["image", "img"].includes(n.role?.value) && n.name?.value === "Un paysage : une maison, une colline, et le soleil" && !n.ignored);
+    const sun = () => p.value(`document.querySelector("svg.holo-Drawing circle").getAttribute("cy")`);
+    const start = await sun();
+    await p.click('[data-name="Lever"]');
+    await p.until(`document.querySelector("svg.holo-Drawing circle").getAttribute("cy") === "50"`, 40000);
+    await p.click('[data-name="Lever"]');
+    const raised = await p.until(`document.querySelector("svg.holo-Drawing circle").getAttribute("cy") === "30"`, 5000);
+    // Le dessin rétrécit avec l'écran, sans se déformer.
+    const shape = await p.value(`(() => { const r = document.querySelector("svg.holo-Drawing").getBoundingClientRect(); return Math.round(r.width / r.height * 100) / 100; })()`);
+    const ok = svg === "img|Un paysage : une maison, une colline, et le soleil|7" && named && start === "70" && raised && shape === 2;
+    return [ok, `SVG : ${svg} ; nommé pour le lecteur d'écran : ${named} ; soleil ${start} → 30 : ${raised} ; proportions : ${shape}`];
+  }],
   ["un module enfermé rend son nombre", async (p) => {
     await p.open("/exemples/lecons/69-module-enferme.holo");
     await p.click('[data-name="Calculer"]');

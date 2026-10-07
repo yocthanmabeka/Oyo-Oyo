@@ -1525,6 +1525,35 @@ Aside { print: { display: none; } }
 
 Cette écriture est décidée (`ADR-073`). Les leçons sont `95-un-article-long.holo` et `96-une-video-sous-titree.holo`.
 
+## 6 undetricies. Un dessin : `Drawing` et ses formes
+
+Un dessin vectoriel, net à toute taille, que le lecteur d'écran lit par son nom (`ADR-086`).
+
+```holo
+Page(
+  title: "A landscape",
+  state: State(sun: 70),
+  children: [
+    Drawing(label: "A house, a hill and the sun", width: 320, height: 160, children: [
+      Rect(x: 0, y: 0, width: 320, height: 160, radius: 12, fill: "#16213e"),
+      Circle(x: 250, y: sun, r: 18, fill: "#E9B44C"),
+      Path(d: "M0 120 Q160 92 320 120 L320 160 L0 160 Z", fill: "#1f4037"),
+      Line(from: [0, 132], to: [320, 132], stroke: "#8fd3ff", thickness: 1),
+    ]),
+    Button(name: Rise, text: "Raise the sun"),
+  ],
+  rules: [ On(Rise.tap, effect: sun.sub(20)) ],
+)
+```
+
+- **`Drawing(label:, width:, height:, children:)`** : `label` dit ce que montre le dessin, pour qui ne le voit pas ; `width` et `height` sont les unités du dessin, qui garde ces proportions sur tous les écrans.
+- **Les formes**, seulement dans un `Drawing` : `Rect(x:, y:, width:, height:, radius:)`, `Circle(x:, y:, r:)`, `Line(from: [x, y], to: [x, y])`, `Path(d: "M… L… Z")` (un tracé SVG : M pour aller à un point, L pour tracer jusqu'à un autre, Q pour une courbe, Z pour fermer).
+- **`fill`** remplit, **`stroke`** trace le bord, **`thickness`** dit son épaisseur, **`opacity`** va de 0 à 1. Les formes se dessinent dans l'ordre : la dernière passe devant.
+- **Une mesure peut être le nom d'un nombre entier de la page** (`y: sun`) : la forme le suit.
+- Pas de dessin trait par trait en JavaScript : refusé.
+
+La leçon est `98-un-dessin.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo
@@ -2047,6 +2076,8 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Repeat` | `items`, `children`, `rules` | Dans `children` |
 | `Font` | `family`, `source` | Dans `fonts:` d'une `Page` |
 | `Module` | `name`, `source`, `input`, `output` (un nom, ou une liste de noms, `ADR-077`), `time`, `memory` ; capacité `run` ; signaux `done`, `failed` | Dans `modules:` d'une `Page` ; annoncé en haut du fichier, `module "…"` |
+| `Drawing` | `label`, `width`, `height`, `children` | Partout dans `children` ; contient des formes |
+| `Rect`, `Circle`, `Line`, `Path` | `x`, `y`, `width`, `height`, `radius` ; `r` ; `from`, `to` ; `d` ; et `fill`, `stroke`, `thickness`, `opacity` | Seulement dans un `Drawing` |
 | `Item` | `key`, et les champs de l'élément | Dans `items` d'un `Repeat` |
 | `Repeat(over:)` | `over` (une liste de la page), `children`, `rules` | Dans `children` |
 | `When` | le nom d'une valeur, puis `is`, `not`, `over`, `under` ; ou le nom d'un bloc, puis `meets` et `within` ; et `effect:` | Dans `rules` |
@@ -2144,7 +2175,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 
 ## 11. Ce qui n'existe pas encore
 
-- Un module ne dessine pas encore (des ordres de dessin, l'étape 4 du lot 9).
+- Un module ne dessine pas encore (des ordres de dessin, l'étape 4 du lot 9) ; un dessin n'a pas encore de texte ni de dégradé.
 - Les données venues d'un autre serveur ; les comptes.
 - Pour les valeurs : pas de nombre négatif ; une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).

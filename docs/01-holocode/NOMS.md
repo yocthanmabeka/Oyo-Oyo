@@ -48,6 +48,8 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Button` | `button` | repris, avec une majuscule |
 | `Image` | `img` | changé : le mot entier |
 | `Shape` | `div` avec du CSS, ou `svg` | changé : quatre formes nommées |
+| `Drawing` | `svg role="img" aria-label` | changé : le nom (`label`) est obligatoire ; les mesures sont celles du dessin, qui garde ses proportions |
+| `Rect`, `Circle`, `Line`, `Path` | `rect`, `circle`, `line`, `path` | repris, avec des mots lisibles : `x`, `y`, `r`, `radius`, `from`, `to`, `thickness` au lieu de `cx`, `rx`, `x1`, `stroke-width` ; un tracé filtré |
 | `Enter` | `@keyframes` + `animation` (de… vers…), ou `element.animate()` | changé : on écrit seulement d'où le bloc part |
 | `Loop` | `animation: … infinite alternate` | changé : on écrit seulement où il va |
 | `Scenes`, `Scene` | une suite de `animation-delay` calculés à la main, ou un chef d'orchestre en JavaScript | changé : les scènes s'enchaînent seules |
@@ -85,7 +87,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `State(tasks: [])`, `push`, `remove(item)`, `clear` | un tableau JavaScript, `push`, `splice`, `length = 0` | changé : une valeur de la page, changée par des demandes ; on retire la ligne touchée |
 | `Repeat(over: tasks)` | `map` qui fabrique du HTML à chaque changement | changé : le moteur fabrique les lignes, et échappe ce que le visiteur a écrit |
 | `text.set("")` | `input.value = ""` | changé : une demande |
-| `module "…"`, `Module`, `run`, `done`, `failed` | `<script src>`, `new Worker`, `WebAssembly.instantiate` | changé : annoncé en haut du fichier, enfermé (un fil à part, une mémoire plafonnée, rien d'autre), arrêté s'il dure trop |
+| `module "…"`, `Module`, `run`, `done`, `failed` | `<script src>`, `new Worker`, `WebAssembly.instantiate` | changé : annoncé en haut du fichier, enfermé (un fil à part, une mémoire plafonnée, rien d'autre), arrêté s'il dure trop ; il reçoit et rend des valeurs de la page en JSON, relu avec méfiance (`ADR-077`) |
 | `bridge js`, `bridge css` | `<script>`, `<link>` vers du code existant | refusés (`ADR-011`, partie B) |
 | `mul`, `div` | `*=`, `/=`, `Math.floor` | changé : deux demandes, en nombres entiers |
 | `computed:`, `Filter(name:, from:)` | `array.filter()`, `array.sort()`, `array.slice()` | changé : une liste nommée, refaite seule à chaque changement (`ADR-062`) |
