@@ -6,6 +6,12 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Le planning de la 3D, proposé
+
+- Écrit : `docs/04-roadmap/PLAN-3D.md`, en proposition. Douze étapes, de la profondeur à la chaise mesurée sur le Flip 3, puis les mots du langage choisis après la chaise ; environ 15 séances. Une contrainte dite d'emblée : sans carte graphique dans le nuage, Claude ne voit pas l'image ; l'étape 0 essaie de lever cette limite.
+
+---
+
 ## 2026-10-07 — `Component`, des valeurs par défaut, des signaux branchés par la page
 
 - Yocthan : les propositions de Gemini et Codex validées ; « on doit prendre Component, vu qu'on aura besoin de Part pour la 3D » ; et pour l'essai au TalkBack : « c'est déjà bon » (noté tel quel ; aucun tableau de résultats n'a été rendu).
