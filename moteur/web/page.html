@@ -167,6 +167,16 @@
   (() => {
     const root = document.getElementById("page");
     const toggle = document.getElementById("toggle");
+    // Une page de holo serve (ADR-074) : avec JavaScript, ses boutons et ses champs quittent le
+    // formulaire des gestes et redeviennent ceux de la page ; le moteur les prend comme ailleurs,
+    // jusqu'à la touche Entrée d'un `Form`, qui l'envoie.
+    for (const field of root.querySelectorAll('[form="holo-gestures"]')) {
+      if (field.type === "hidden") field.remove();
+      else {
+        field.removeAttribute("form");
+        if (field.type === "submit") field.type = "button";
+      }
+    }
     // Ce qui entre quand on le voit (Enter(inView: true), ADR-061) : son mouvement attend que le
     // bloc arrive à l'écran. Sans JavaScript, rien n'attend : tout se voit d'emblée.
     document.documentElement.classList.add("holo-js");

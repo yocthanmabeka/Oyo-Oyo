@@ -74,7 +74,7 @@ async function startHoloServe(files) {
   server.stderr.on("data", (d) => { output += d; });
   for (let i = 0; i < 100 && !output.includes(`localhost:${port}`); i++) await pause(100);
   if (!output.includes(`localhost:${port}`)) throw new Error(`holo serve ne démarre pas :\n${output}`);
-  return { base: `http://localhost:${port}`, stop: () => { server.kill(); rmSync(folder, { recursive: true, force: true }); } };
+  return { base: `http://localhost:${port}`, folder, stop: () => { server.kill(); rmSync(folder, { recursive: true, force: true }); } };
 }
 
 // Lance Chrome sans fenêtre. Il choisit lui-même un port libre (`--remote-debugging-port=0`)
@@ -825,6 +825,46 @@ const tests = [
       const ok = added.includes("Arroser") && added.includes("2 tâche(s)") && !done.includes("Encadrer") && done.includes("1 tâche(s)")
         && !entered.includes("Semer\nFait") && kept === "Semer" && fruits.includes("En tout : 2 fruits, 4 euros") && resumed && stayed;
       return [ok, `ajoutée : ${added.includes("Arroser")} ; faite : ${!done.includes("Encadrer")} ; Entrée n'ajoute pas : ${!entered.includes("Semer\nFait")} (champ gardé : ${kept}) ; 2 pommes, 4 euros : ${fruits.includes("2 fruits, 4 euros")} ; avec JavaScript, repris : ${resumed}, sans recharger : ${stayed}`];
+    } finally {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      served.stop();
+    }
+  }],
+  ["un formulaire reçu par holo serve, avec ou sans JavaScript (serve)", async (_, b) => {
+    const served = await startHoloServe(["88-un-formulaire-qui-verifie.holo"]);
+    const q = page(b, served.base);
+    const thanks = `document.getElementById("page").innerText.includes("Merci, ton message est arrivé.")`;
+    try {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+      await q.open("/88-un-formulaire-qui-verifie.holo", 300);
+      // Envoyer vide : les messages sous les champs, écrits par le serveur.
+      await q.click('[data-name="Send"]');
+      await q.until(`document.readyState === "complete" && document.querySelectorAll(".holo-error").length > 0`, 5000);
+      const errors = await q.value(`[...document.querySelectorAll(".holo-error")].map((e) => e.textContent).join(" | ")`);
+      const linked = await q.value(`document.querySelector('[data-bind="name"]').getAttribute("aria-describedby") === document.querySelector(".holo-error").id`);
+      // Tout remplir : envoyé, rangé, merci.
+      await q.type('[data-bind="name"]', "Ada");
+      await q.type('[data-bind="email"]', "ada@exemple.fr");
+      await q.type('[data-bind="message"]', "Bonjour, une question.");
+      await q.click('[data-bind="accept"]');
+      await q.click('[data-name="Send"]');
+      const sentWithout = await q.until(`document.readyState === "complete" && ${thanks}`, 5000);
+      const noErrors = await q.value(`document.querySelectorAll(".holo-error").length === 0`);
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      // Avec JavaScript, un nouveau visiteur : le moteur envoie en JSON, holo serve range et répond 204.
+      await b.send("Network.clearBrowserCookies");
+      await q.open("/88-un-formulaire-qui-verifie.holo", 300);
+      await q.value("window.__stayed = true");
+      await q.type('[data-bind="name"]', "Bob");
+      await q.until("window.__holoStarted", 40000);
+      for (const [bind, text] of [["email", "bob@exemple.fr"], ["message", "Une autre question."]]) await q.type(`[data-bind="${bind}"]`, text);
+      await q.click('[data-bind="accept"]');
+      await q.click('[data-name="Send"]');
+      const sentWith = await q.until(thanks, 15000);
+      const stayed = await q.value("window.__stayed === true");
+      const kept = spawnSync(["holo", "holo.exe"].map((name) => join(engine, "target", "release", name)).find(existsSync), ["messages", served.folder], { encoding: "utf8" }).stdout.trim().split("\n").filter(Boolean);
+      const ok = errors.includes("Ce champ est obligatoire.") && linked && sentWithout && noErrors && sentWith && stayed && kept.length === 2 && kept[0].includes('"name":"Ada"') && kept[1].includes('"name":"Bob"');
+      return [ok, `sans JavaScript, erreurs : ${errors.split(" | ").length} (reliées : ${linked}) ; envoyé : ${sentWithout} ; avec JavaScript, envoyé : ${sentWith}, sans recharger : ${stayed} ; messages rangés : ${kept.length}`];
     } finally {
       await b.send("Emulation.setScriptExecutionDisabled", { value: false });
       served.stop();

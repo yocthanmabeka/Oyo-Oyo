@@ -11,6 +11,7 @@
 //! holo test page.holo page.test       joue les gestes d'un essai écrit, vérifie les valeurs (ADR-054)
 //! holo serve [dossier] [port]         sert un site sur ce PC, avec sa base SQLite ; les boutons
 //!                                     marchent même sans JavaScript (ADR-074)
+//! holo messages [dossier]             les messages reçus par ses formulaires, en JSON (ADR-075)
 //! ```
 //!
 //! C'est le même code Rust que dans le navigateur. Le serveur s'en sert pour envoyer la page
@@ -41,6 +42,24 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(error) => {
                 eprintln!("{error}");
+                ExitCode::FAILURE
+            }
+        };
+    }
+    // Les messages reçus par les formulaires d'un site servi (ADR-075), une ligne JSON chacun.
+    #[cfg(not(target_arch = "wasm32"))]
+    if arguments.first().map(String::as_str) == Some("messages") {
+        let folder = arguments.get(1).map_or(".", String::as_str);
+        return match holo_engine::server::messages(std::path::Path::new(folder)) {
+            Ok(lines) => {
+                for line in &lines {
+                    println!("{line}");
+                }
+                eprintln!("{} message(s)", lines.len());
+                ExitCode::SUCCESS
+            }
+            Err(error) => {
+                eprintln!("{folder} : {error}");
                 ExitCode::FAILURE
             }
         };
@@ -102,7 +121,7 @@ fn main() -> ExitCode {
         _ => ("", &String::new(), ""),
     };
     if command != "check" && command != "html" && command != "files" && command != "form" {
-        eprintln!("usage : holo check file.holo | holo check - [folder] | holo html file.holo [folder] | holo files page.holo | holo form page.holo < message.json | holo fmt file.holo | holo test page.holo page.test | holo serve [folder] [port] | holo vocabulary");
+        eprintln!("usage : holo check file.holo | holo check - [folder] | holo html file.holo [folder] | holo files page.holo | holo form page.holo < message.json | holo fmt file.holo | holo test page.holo page.test | holo serve [folder] [port] | holo messages [folder] | holo vocabulary");
         return ExitCode::from(2);
     }
     // `-` : le texte arrive par l'entrée standard, tel qu'il est dans l'éditeur (ADR-046).
