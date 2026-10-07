@@ -123,14 +123,14 @@ fn a_module<'a>(block: &'a Block, is_number: &dyn Fn(&str) -> bool) -> Result<Mo
 }
 
 /// Le module a rendu son nombre : il va dans sa valeur de sortie, bornée ; puis `Nom.done`.
-pub fn finished(program: &Program, state: &crate::state::State, name: &str, value: u64) -> crate::state::State {
+pub fn finished(program: &Program, state: &crate::state::State, texts: &crate::state::Texts, name: &str, value: u64) -> crate::state::State {
     let numbers = crate::state::initial(program).unwrap_or_default();
     let Some(module) = modules(program, &numbers).ok().and_then(|m| m.into_iter().find(|m| m.name == name)) else { return state.clone() };
     let mut state = state.clone();
     if let Some((_, place)) = state.iter_mut().find(|(known, _)| known == module.output) {
         *place = value.min(crate::state::VALUE_MAX);
     }
-    crate::state::arbitrate(program, &state, &format!("{name}.done"))
+    crate::state::arbitrate(program, &state, texts, &format!("{name}.done"))
 }
 
 #[cfg(test)]

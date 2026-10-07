@@ -354,6 +354,18 @@ mod tests {
     }
 
     #[test]
+    fn the_count_of_a_computed_list_is_compared_after_a_change() {
+        // L'état écrit contient la liste calculée, mais elle n'est pas relue : la réponse d'un
+        // « If(found, …) » doit venir de la liste refaite (avant : toujours « 0 » après un changement).
+        let source = PAGE.replace("children: [ Repeat", "children: [ Input(value: search, label: \"Chercher\"), If(found, is: 0, children: [ \"Rien\" ]), Repeat");
+        let start = crate::initial_state(&source);
+        assert_eq!(crate::conditions(&source, &start), "found|is=0:0");
+        let typed = crate::input(&source, &start, "search", "ri");
+        assert_eq!(crate::conditions(&source, &typed), "found|is=0:0");
+        assert_eq!(crate::conditions(&source, &crate::input(&source, &typed, "search", "zzz")), "found|is=0:1");
+    }
+
+    #[test]
     fn fold_removes_case_and_accents() {
         assert_eq!(fold("Élan À LA Crème Brûlée"), "elan a la creme brulee");
     }

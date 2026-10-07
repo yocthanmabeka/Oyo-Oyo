@@ -584,10 +584,10 @@ Page(
 | `over: 0` | plus grand que 0 |
 | `under: 10` | plus petit que 10 |
 
-- Le premier mot est le nom d'une valeur : une valeur de `State`, ou `count` et `total` quand la page donne des prix.
+- Le premier mot est le nom d'une valeur : une valeur de `State`, ou `count` et `total` quand la page donne des prix. Une valeur de texte se compare à un texte : `If(size, is: "L")` (voir « Comparer des textes »).
 - Plusieurs comparaisons valent ensemble : `over: 2, under: 10` veut dire « de 3 à 9 ».
 - Quand la valeur change, la page suit toute seule.
-- Il n'y a pas de « sinon » : on écrit une seconde condition, comme ci-dessus.
+- Le « sinon » s'écrit `else: [ … ]` (`ADR-039`) : ce qui se montre quand la condition est fausse.
 - Une condition se place dans `children`, y compris dans une ligne, une colonne ou une grille.
 
 Cette écriture est décidée (`ADR-025`).
@@ -711,7 +711,7 @@ Un plateau garde ses proportions : 640 de large, `height` de haut. Sur un télé
 
 **Une règle qui guette : `When`.** Elle se déclenche au moment où ce qu'elle guette **devient** vrai, pas tant qu'il le reste. Elle guette :
 
-- une valeur : `When(appleY, over: 99, effect: …)`, avec les comparaisons de `If` (`is`, `not`, `over`, `under`) ;
+- une valeur : `When(appleY, over: 99, effect: …)`, avec les comparaisons de `If` (`is`, `not`, `over`, `under`) ; ou un texte : `When(answer, is: "Paris", effect: …)` (`ADR-063`) ;
 - une rencontre : `When(Basket, meets: Apple, effect: …)`. Les deux blocs ont un nom, et un `x` et un `y` dans un `Board`. Ils se rencontrent au moment où le bord de l'un touche le bord de l'autre : un rond et un carré se touchent comme à l'œil. Avec `within: 20`, on juge autrement : sur l'écart entre leurs places, de 1 à 100, sans regarder leur taille. L'écart est mesuré sur chaque axe : `x` à 20 près **et** `y` à 20 près (un carré autour de l'objet, pas un cercle).
 
 **Des règles sous condition.** Une règle de temps tourne tant que la page est ouverte. Pour qu'elle ne vaille que pendant la partie, on la range sous une condition, avec le même `If` que pour montrer des blocs, et `rules` à la place de `children` :
@@ -809,7 +809,7 @@ Page(
 - `State(buyer: "")` : un texte, vide au départ. On peut aussi lui donner un départ : `city: "Paris"`.
 - `{buyer}` le montre, comme un nombre.
 - `Input(value: buyer, …)` : comme la valeur est un texte, le champ est un champ de texte. `max` borne alors sa longueur (80 caractères sans rien écrire, 200 au plus).
-- Un texte ne se compare qu'au vide : `is: ""` (il est vide) et `not: ""` (il est rempli).
+- Un texte se compare au vide, `is: ""` (il est vide) et `not: ""` (il est rempli), ou à n'importe quel texte : voir « Comparer des textes » (`ADR-063`).
 - Un texte ne change que par un champ : il n'y a pas de demande pour lui.
 - Ce que le visiteur écrit ne devient jamais du code : la page le montre lettre pour lettre.
 
@@ -1388,6 +1388,36 @@ Page(
 - `bridge js` et `bridge css` sont refusés : un pont ferait entrer du code sans garantie.
 
 Cette écriture est décidée (`ADR-045`). La leçon est `69-module-enferme.holo` ; ses trois modules, dans `exemples/lecons/modules/`.
+
+## 6 unvicies. Comparer des textes
+
+```holo
+Page(
+  title: "Shop",
+  state: State(size: "M", answer: "", score: 0, email: "", again: ""),
+  children: [
+    Choice(value: size, label: "Size", options: [ "S", "M", "L" ]),
+    If(size, is: "L", children: [ "Large is roomy." ], else: [ Text("Size {size}.") ]),
+    Input(value: answer, label: "Capital of France"),
+    Text("Right answers: {score}"),
+    Input(value: email, label: "Your e-mail"),
+    Input(value: again, label: "Once more"),
+    If(again, not: "", children: [
+      If(again, not: email, children: [ "The two e-mails differ." ]),
+    ]),
+  ],
+  rules: [ When(answer, is: "Paris", effect: score.add(1)) ],
+)
+```
+
+- `If(size, is: "L")` : le texte `size` est-il « L » ? `not: "M"` : est-il autre chose que « M » ? `is: ""` demande toujours s'il est vide.
+- `If(again, not: email)` compare deux valeurs de texte entre elles.
+- `When(answer, is: "Paris", effect: …)` agit au moment où le texte devient « Paris », que le visiteur l'écrive ou qu'une règle le change ; pas tant qu'il le reste. Ses effets changent des nombres ou jouent un son.
+- **À la lettre près** : majuscules, accents et espaces comptent. « paris » n'est pas « Paris ».
+- **Pas de mélange** : un texte se compare à un texte, un nombre à un nombre. `over` et `under` ne servent qu'aux nombres ; pour ranger des textes, on trie une liste (`Filter(sortBy:)`).
+- Des règles rangées sous une condition sur un texte, `If(mode, is: "play", rules: [ Every(…) ])`, valent tant qu'elle est vraie.
+
+Cette écriture est proposée (`ADR-063`) et attend la validation de Yocthan. La leçon est `83-comparer-des-textes.holo`.
 
 ## 6 vicies. Chercher, filtrer, trier : les listes calculées
 

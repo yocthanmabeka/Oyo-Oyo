@@ -32,10 +32,12 @@ pub const COMPARISONS: &[&str] = &["is", "not", "over", "under"];
 /// Ce à quoi une valeur est comparée, ou ce qu'une demande ajoute : un nombre écrit dans le
 /// fichier, ou le nom d'une autre valeur, lue au moment où l'on en a besoin.
 /// `If(score, over: 10)`, `When(score, over: best, effect: best.set(score))`.
+/// Un texte se compare à un texte écrit entre guillemets : `If(size, is: "M")` (ADR-063).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Term<'a> {
     Number(u64),
     Value(&'a str),
+    Text(&'a str),
 }
 
 impl Term<'_> {
@@ -44,6 +46,8 @@ impl Term<'_> {
         match self {
             Term::Number(number) => *number,
             Term::Value(name) => state.iter().find(|(known, _)| known == name).map_or(0, |(_, v)| *v),
+            // Un texte ne vaut pas un nombre : il se compare à un texte (`holds`).
+            Term::Text(_) => 0,
         }
     }
 }
@@ -53,6 +57,20 @@ impl std::fmt::Display for Term<'_> {
         match self {
             Term::Number(number) => write!(f, "{number}"),
             Term::Value(name) => write!(f, "{name}"),
+            // Dans le nom d'une condition, `size|is="M"` : les signes qui séparent ces noms
+            // (`;` entre deux réponses, `|` et `=` entre les comparaisons, `"` autour du texte)
+            // et les caractères de contrôle s'écrivent `%XX`.
+            Term::Text(text) => {
+                f.write_str("\"")?;
+                for c in text.chars() {
+                    if matches!(c, '%' | '"' | ';' | '|' | '=') || c.is_control() {
+                        write!(f, "%{:02X}", c as u32)?;
+                    } else {
+                        write!(f, "{c}")?;
+                    }
+                }
+                f.write_str("\"")
+            }
         }
     }
 }
@@ -62,9 +80,9 @@ pub fn condition(block: &Block) -> Result<(&str, Vec<(&str, Term<'_>)>), Error> 
     let rule = block.name == "When";
     let error = |message: &str| Error { message: message.into(), pos: block.pos };
     let writing = if rule {
-        "une règle qui guette s'écrit « When(lives, is: 0, effect: score.set(0)) » ; comparaisons : is (égal), not (différent), over (plus grand), under (plus petit)"
+        "une règle qui guette s'écrit « When(lives, is: 0, effect: score.set(0)) » ; comparaisons : is (égal), not (différent), over (plus grand), under (plus petit) ; un texte : When(answer, is: \"Paris\", …)"
     } else {
-        "une condition s'écrit « If(count, is: 0, children: [ … ]) » ; comparaisons : is (égal), not (différent), over (plus grand), under (plus petit)"
+        "une condition s'écrit « If(count, is: 0, children: [ … ]) » ; comparaisons : is (égal), not (différent), over (plus grand), under (plus petit) ; un texte : If(size, is: \"M\", …)"
     };
     let value = match block.arguments.first() {
         Some(Argument { name: None, value: Value::Name(value), .. }) => value.as_str(),
@@ -75,14 +93,20 @@ pub fn condition(block: &Block) -> Result<(&str, Vec<(&str, Term<'_>)>), Error> 
         match (argument.name.as_deref(), &argument.value) {
             (Some("children" | "rules" | "name" | "else"), _) if !rule => {}
             (Some("effect"), _) if rule => {}
-            // Pour un texte : « is: "" » (vide) et « not: "" » (rempli). Vide vaut 0.
-            (Some(word @ ("is" | "not")), Value::Text(text)) if text.is_empty() => comparisons.push((if word == "is" { "is" } else { "not" }, Term::Number(0))),
+            // Un texte se compare à un texte (ADR-063) : If(size, is: "M"), If(buyer, not: "")
+            // (rempli). Plus grand, plus petit : seulement des nombres.
+            (Some(word @ ("is" | "not")), Value::Text(text)) => comparisons.push((if word == "is" { "is" } else { "not" }, Term::Text(text.as_str()))),
+            (Some(word @ ("over" | "under")), Value::Text(_)) => {
+                return Err(Error { message: format!("« {word} » compare des nombres ; un texte se compare par is (égal) ou not (différent) : {}({value}, is: \"…\")", block.name), pos: argument.pos })
+            }
             (Some(word), Value::Integer(number)) if COMPARISONS.contains(&word) => comparisons.push((COMPARISONS[COMPARISONS.iter().position(|c| *c == word).unwrap_or(0)], Term::Number(*number))),
             // Comparer à une autre valeur : If(score, over: best).
             (Some(word), Value::Name(other)) if COMPARISONS.contains(&word) && is_value_name(other) => {
                 comparisons.push((COMPARISONS[COMPARISONS.iter().position(|c| *c == word).unwrap_or(0)], Term::Value(other.as_str())))
             }
-            (Some(word), _) if COMPARISONS.contains(&word) => return Err(Error { message: format!("« If({value}, {word}: …) » attend un nombre entier, ou le nom d'une autre valeur"), pos: argument.pos }),
+            (Some(word), _) if COMPARISONS.contains(&word) => {
+                return Err(Error { message: format!("« {}({value}, {word}: …) » attend un nombre entier, un texte entre guillemets, ou le nom d'une autre valeur", block.name), pos: argument.pos })
+            }
             (Some(word), _) => {
                 return Err(Error {
                     message: format!("« {} » n'a pas de paramètre « {word} » ; paramètres possibles : is, not, over, under, {}", block.name, if rule { "effect" } else { "children" }),
@@ -115,17 +139,38 @@ pub fn key(value: &str, comparisons: &[(&str, Term<'_>)]) -> String {
     comparisons.iter().fold(value.to_string(), |key, (word, number)| format!("{key}|{word}={number}"))
 }
 
+/// La condition est-elle vraie pour ces valeurs ? Un texte se compare à des textes, écrits
+/// dans le fichier ou d'autres valeurs de texte, à la lettre près (ADR-063) ; un nombre, à des
+/// nombres. Une valeur que la page ne connaît pas ne rend rien vrai.
+pub fn holds(value: &str, comparisons: &[(&str, Term<'_>)], numbers: &State, texts: &Texts) -> bool {
+    let text_of = |name: &str| texts.iter().find(|(known, _)| known == name).map(|(_, text)| text.as_str());
+    if let Some(text) = text_of(value) {
+        return comparisons.iter().all(|(word, term)| {
+            let other = match term {
+                Term::Text(other) => Some(*other),
+                Term::Value(name) => text_of(name),
+                Term::Number(_) => None,
+            };
+            match (*word, other) {
+                ("is", Some(other)) => text == other,
+                ("not", Some(other)) => text != other,
+                _ => false,
+            }
+        });
+    }
+    numbers.iter().find(|(known, _)| known == value).is_some_and(|(_, number)| real_one(comparisons, *number, numbers))
+}
+
 /// Toutes les conditions du fichier, avec leur réponse pour ces valeurs. C'est le seul endroit
 /// où une condition est décidée : au premier affichage comme après chaque changement.
-pub fn conditions(program: &Program, shown: &State) -> Vec<(String, bool)> {
+pub fn conditions(program: &Program, shown: &State, texts: &Texts) -> Vec<(String, bool)> {
     let mut responses: Vec<(String, bool)> = Vec::new();
     let _ = for_each_block(&program.root, &mut |block| {
         if block.name == "If" {
             if let Ok((value, comparisons)) = condition(block) {
                 let key = key(value, &comparisons);
                 if !responses.iter().any(|(known_one, _)| *known_one == key) {
-                    let number = shown.iter().find(|(known, _)| known == value).map_or(0, |(_, v)| *v);
-                    responses.push((key, real_one(&comparisons, number, shown)));
+                    responses.push((key, holds(value, &comparisons, shown, texts)));
                 }
             }
         }
@@ -210,7 +255,7 @@ fn floor(program: &Program, name: &str) -> u64 {
 /// Le visiteur a écrit dans un champ, ou coché une case. C'est encore l'arbitre qui change la
 /// valeur : seulement une valeur que la page déclare et qu'un champ présente, et jamais
 /// au-delà de son plafond. Un texte qui n'est pas un nombre ne change rien.
-pub fn input(program: &Program, state: &State, name: &str, written: &str) -> State {
+pub fn input(program: &Program, state: &State, texts: &Texts, name: &str, written: &str) -> State {
     let before = state.clone();
     let mut state = state.clone();
     let presented = {
@@ -227,7 +272,7 @@ pub fn input(program: &Program, state: &State, name: &str, written: &str) -> Sta
     if let (true, Some(number), Some((_, place))) = (presented, number, state.iter_mut().find(|(known, _)| known == name)) {
         *place = number.min(ceiling(program, name)).max(floor);
     }
-    suites(program, before, state)
+    suites(program, before, texts, state, texts)
 }
 
 /// Reprend les valeurs gardées lors d'une visite précédente. Ce qui est relu vient du
@@ -413,7 +458,7 @@ pub fn read_data(json: &str) -> Vec<(String, Datum)> {
 /// que la page déclare, de la bonne sorte (un nombre dans un nombre, un texte dans un texte),
 /// et dans leurs bornes. Puis les règles qui guettent ont leur mot à dire.
 pub fn receive(program: &Program, state: &State, texts: &Texts, json: &str) -> (State, Texts) {
-    let before = state.clone();
+    let (before, texts_before) = (state.clone(), texts.clone());
     let (mut state, mut texts) = (state.clone(), texts.clone());
     if data_source(program).ok().flatten().is_none() {
         return (state, texts);
@@ -433,7 +478,7 @@ pub fn receive(program: &Program, state: &State, texts: &Texts, json: &str) -> (
             }
         }
     }
-    (suites(program, before, state), texts)
+    (suites(program, before, &texts_before, state, &texts), texts)
 }
 
 thread_local! {
@@ -462,19 +507,19 @@ fn record_capabilities(rule: &Block) {
 
 /// Parcourt tous les blocs en disant, pour chacun, s'il est en vigueur pour cet état. Des règles
 /// rangées dans `If(lives, over: 0, rules: [ … ])` ne valent que tant que la condition est vraie.
-fn with_their_force<'a>(program: &'a Program, state: &State, f: &mut dyn FnMut(&'a Block, bool)) {
-    fn visit<'a>(value: &'a Value, in_force: bool, shown: &State, f: &mut dyn FnMut(&'a Block, bool)) {
+fn with_their_force<'a>(program: &'a Program, state: &State, texts: &Texts, f: &mut dyn FnMut(&'a Block, bool)) {
+    fn visit<'a>(value: &'a Value, in_force: bool, shown: &State, texts: &Texts, f: &mut dyn FnMut(&'a Block, bool)) {
         match value {
-            Value::List(elements) => elements.iter().for_each(|e| visit(e, in_force, shown, f)),
+            Value::List(elements) => elements.iter().for_each(|e| visit(e, in_force, shown, texts, f)),
             Value::Block(block) => {
                 f(block, in_force);
                 let under_condition = block.name == "If" && block.argument("rules").is_some();
                 let inside = in_force
                     && (!under_condition
-                        || condition(block).is_ok_and(|(value, comparisons)| shown.iter().find(|(known, _)| known == value).is_some_and(|(_, n)| real_one(&comparisons, *n, shown))));
+                        || condition(block).is_ok_and(|(value, comparisons)| holds(value, &comparisons, shown, texts)));
                 for argument in &block.arguments {
                     let here = if under_condition && argument.name.as_deref() == Some("rules") { inside } else { in_force };
-                    visit(&argument.value, here, shown, f);
+                    visit(&argument.value, here, shown, texts, f);
                 }
             }
             _ => {}
@@ -483,14 +528,14 @@ fn with_their_force<'a>(program: &'a Program, state: &State, f: &mut dyn FnMut(&
     let shown = to_show(program, state);
     f(&program.root, true);
     for argument in &program.root.arguments {
-        visit(&argument.value, true, &shown, f);
+        visit(&argument.value, true, &shown, texts, f);
     }
 }
 
 /// Cette règle est-elle en vigueur, pour cet état ?
-fn in_force(program: &Program, rule: &Block, state: &State) -> bool {
+fn in_force(program: &Program, rule: &Block, state: &State, texts: &Texts) -> bool {
     let mut response = true;
-    with_their_force(program, state, &mut |block, force| {
+    with_their_force(program, state, texts, &mut |block, force| {
         if std::ptr::eq(block, rule) {
             response = force;
         }
@@ -563,9 +608,9 @@ pub fn clocks(program: &Program) -> Vec<(u64, String)> {
 /// l'ouverture ; une attente rangée sous une condition, `If(toast, is: 1, rules: [ After(3s, …) ])`,
 /// court à partir du moment où la condition devient vraie, et s'arrête si elle redevient fausse.
 /// Chacune ne sonne qu'une fois par période où elle court : c'est la page qui tient le compte.
-pub fn delays(program: &Program, state: &State) -> Vec<(u64, bool)> {
+pub fn delays(program: &Program, state: &State, texts: &Texts) -> Vec<(u64, bool)> {
     let mut delays = Vec::new();
-    with_their_force(program, state, &mut |block, force| {
+    with_their_force(program, state, texts, &mut |block, force| {
         if block.name == "After" {
             delays.push((rhythm(block).unwrap_or(RHYTHM_MAX), force));
         }
@@ -1030,6 +1075,7 @@ pub fn reads_time(program: &Program) -> bool {
 /// règles qui guettent l'heure (`When(hour, is: 12, …)`) ont leur mot à dire.
 pub fn advance_clock(program: &Program, written: &str) -> State {
     let now = reread(program, written);
+    let texts = reread_texts(program, written);
     let mut before = now.clone();
     for chunk in written.split(';') {
         if let Some((name, value)) = chunk.split_once('=') {
@@ -1038,7 +1084,7 @@ pub fn advance_clock(program: &Program, written: &str) -> State {
             }
         }
     }
-    suites(program, before, now)
+    suites(program, before, &texts, now, &texts)
 }
 
 fn initial_without_prices(program: &Program) -> Result<State, Error> {
@@ -1289,11 +1335,12 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                 return Err(Error { message: "« Slider » : min doit être plus petit que max".into(), pos: block.pos });
             }
         }
-        // Une règle qui guette regarde un nombre : une valeur déclarée ou calculée.
+        // Une règle qui guette regarde une valeur : un nombre déclaré ou calculé, ou un texte
+        // (ADR-063).
         if block.name == "When" && block.argument("meets").is_none() {
             let (value, _) = condition(block)?;
-            if !to_show(program, &state).iter().any(|(known, _)| known == value) {
-                return Err(Error { message: format!("« When({value}, …) » : aucun nombre ne s'appelle « {value} » ; déclare-le sur la page, state: State({value}: 0)"), pos: block.pos });
+            if !to_show(program, &state).iter().any(|(known, _)| known == value) && !is_text(value) {
+                return Err(Error { message: format!("« When({value}, …) » : aucune valeur ne s'appelle « {value} » ; déclare-la sur la page, state: State({value}: 0)"), pos: block.pos });
             }
         }
         // Une condition qui regarde l'élément d'une ligne (ADR-057) : vérifiée à part.
@@ -1305,23 +1352,36 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
             if !showable.iter().any(|(known, _)| known == value) {
                 return Err(Error { message: format!("« If({value}, …) » : aucune valeur ne s'appelle « {value} » ; déclare-la sur la page, state: State({value}: 0)"), pos: block.pos });
             }
-            // Un texte se compare au vide, un nombre à un nombre : pas de mélange.
-            let to_void = block.arguments.iter().any(|a| matches!((a.name.as_deref(), &a.value), (Some("is" | "not"), Value::Text(_))));
-            let has_number = block.arguments.iter().any(|a| a.name.as_deref().is_some_and(|word| COMPARISONS.contains(&word)) && matches!(a.value, Value::Integer(_)));
-            if is_text(value) && has_number {
-                return Err(Error { message: format!("« {value} » est un texte : on demande seulement s'il est vide, If({value}, is: \"\") ou If({value}, not: \"\")"), pos: block.pos });
-            }
-            if !is_text(value) && to_void {
-                return Err(Error { message: format!("« {value} » est un nombre : on le compare à un nombre, If({value}, is: 0)"), pos: block.pos });
-            }
         }
-        // Une comparaison à une autre valeur : cette valeur doit être un nombre de la page.
-        if block.name == "If" || block.name == "When" {
-            for argument in &block.arguments {
-                if let (Some(word), Value::Name(other)) = (argument.name.as_deref(), &argument.value) {
-                    if COMPARISONS.contains(&word) && !to_show(program, &state).iter().any(|(known, _)| known == other) {
-                        return Err(Error { message: format!("« {word}: {other} » : aucun nombre ne s'appelle « {other} » ; déclare-le sur la page, state: State({other}: 0)"), pos: argument.pos });
+        // Comparer sans mélange (ADR-063) : un texte à un texte (entre guillemets, ou une autre
+        // valeur de texte), un nombre à un nombre (écrit, ou une autre valeur de nombre).
+        let compares = (block.name == "If" && crate::lists::element_subject(block).is_none()) || (block.name == "When" && block.argument("meets").is_none());
+        if let (true, Some(Argument { value: Value::Name(value), .. })) = (compares, block.arguments.first()) {
+            let numbers = to_show(program, &state);
+            let is_number = |name: &str| numbers.iter().any(|(known, _)| known == name);
+            let sort = |name: &str| if is_text(name) { "un texte" } else { "un nombre" };
+            for argument in &block.arguments[1..] {
+                let Some(word) = argument.name.as_deref().filter(|word| COMPARISONS.contains(word)) else { continue };
+                let error = |message: String| Err(Error { message, pos: argument.pos });
+                match &argument.value {
+                    Value::Text(_) if !is_text(value) => return error(format!("« {value} » est un nombre : on le compare à un nombre, {}({value}, {word}: 0)", block.name)),
+                    Value::Integer(_) if is_text(value) => {
+                        return error(format!("« {value} » est un texte : on le compare à un texte entre guillemets, {}({value}, is: \"…\"), ou à une autre valeur de texte", block.name))
                     }
+                    Value::Name(other) if !is_text(other) && !is_number(other) => {
+                        return error(if is_text(value) {
+                            format!("« {word}: {other} » : aucun texte ne s'appelle « {other} » ; déclare-le sur la page, state: State({other}: \"\")")
+                        } else {
+                            format!("« {word}: {other} » : aucun nombre ne s'appelle « {other} » ; déclare-le sur la page, state: State({other}: 0)")
+                        })
+                    }
+                    Value::Name(other) if is_text(other) != is_text(value) => {
+                        return error(format!("« {value} » est {} et « {other} » {} : on compare deux nombres, ou deux textes", sort(value), sort(other)))
+                    }
+                    Value::Name(_) if is_text(value) && matches!(word, "over" | "under") => {
+                        return error(format!("« {word} » compare des nombres ; un texte se compare par is (égal) ou not (différent) : {}({value}, is: \"…\")", block.name))
+                    }
+                    _ => {}
                 }
             }
         }
@@ -1400,7 +1460,7 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
 /// L'arbitre : ce que deviennent les valeurs quand ce signal est émis. Les demandes sont
 /// appliquées dans l'ordre où les règles sont écrites. Une valeur ne descend pas sous 0 et ne
 /// dépasse pas `VALEUR_MAX` : elle s'arrête à la borne.
-pub fn arbitrate(program: &Program, state: &State, signal: &str) -> State {
+pub fn arbitrate(program: &Program, state: &State, texts: &Texts, signal: &str) -> State {
     let before_signal = state.clone();
     let mut state = state.clone();
     let seed = random_seed(program);
@@ -1409,7 +1469,7 @@ pub fn arbitrate(program: &Program, state: &State, signal: &str) -> State {
     let mut clock = 0usize;
     let mut waiting = 0usize;
     // Les règles rangées sous une condition ne répondent que si elle est vraie au moment du signal.
-    with_their_force(program, &before_signal, &mut |block, force| {
+    with_their_force(program, &before_signal, texts, &mut |block, force| {
         // Une règle répond à un signal : celui d'un bloc (`On(Add.tap, …)`), ou celui de sa
         // propre horloge (`Every(1s, …)` : « every:0 » pour la première règle de temps du
         // fichier, « every:1 » pour la deuxième).
@@ -1437,20 +1497,30 @@ pub fn arbitrate(program: &Program, state: &State, signal: &str) -> State {
             }
         }
     });
-    watch(program, before_signal, &mut state, seed, &mut draws);
+    watch(program, before_signal, texts, &mut state, texts, seed, &mut draws);
     record_draws(&mut state, start_value, draws);
     state
 }
 
-/// Ce qui suit un changement fait sans signal (une saisie, un glissement) : les règles qui
-/// guettent ont leur mot à dire, comme après un geste.
-fn suites(program: &Program, before: State, mut state: State) -> State {
+/// Ce qui suit un changement fait sans signal (une saisie, un glissement, des données) : les
+/// règles qui guettent ont leur mot à dire, comme après un geste. Les textes d'avant et
+/// d'après comptent aussi : `When(answer, is: "Paris", …)` (ADR-063).
+fn suites(program: &Program, before: State, texts_before: &Texts, mut state: State, texts: &Texts) -> State {
     let seed = random_seed(program);
     let start_value = state.iter().find(|(name, _)| name == DRAWS).map_or(0, |(_, n)| *n);
     let mut draws = start_value;
-    watch(program, before, &mut state, seed, &mut draws);
+    watch(program, before, texts_before, &mut state, texts, seed, &mut draws);
     record_draws(&mut state, start_value, draws);
     state
+}
+
+/// Des textes ont changé, par un geste ou une saisie : les règles qui guettent un texte, ou
+/// qui sont rangées sous une condition sur un texte, ont leur mot à dire (ADR-063).
+pub fn after_texts(program: &Program, state: State, before: &Texts, texts: &Texts) -> State {
+    if before == texts {
+        return state;
+    }
+    suites(program, state.clone(), before, state, texts)
 }
 
 fn record_draws(state: &mut State, start_value: u64, draws: u64) {
@@ -1465,7 +1535,7 @@ fn record_draws(state: &mut State, start_value: u64, draws: u64) {
 /// Le visiteur fait glisser un bloc posé sur un plateau (`drag: true`). Ses places, si ce sont
 /// des valeurs de la page, suivent le doigt. C'est encore l'arbitre qui change les valeurs :
 /// seulement pour un bloc qui se laisse glisser, et sans sortir du plateau.
-pub fn drag(program: &Program, state: &State, name: &str, x: u64, y: u64) -> State {
+pub fn drag(program: &Program, state: &State, texts: &Texts, name: &str, x: u64, y: u64) -> State {
     let before = state.clone();
     let mut state = state.clone();
     let draggable = crate::rules::named_block(program, name).filter(|block| matches!(block.argument("drag").map(|a| &a.value), Some(Value::Bool(true))));
@@ -1478,13 +1548,16 @@ pub fn drag(program: &Program, state: &State, name: &str, x: u64, y: u64) -> Sta
             }
         }
     }
-    suites(program, before, state)
+    suites(program, before, texts, state, texts)
 }
 
 /// Les règles qui guettent (`When`) : chacune se déclenche au moment où ce qu'elle guette
 /// devient vrai, pas tant qu'il le reste.
-fn watch(program: &Program, before_change: State, state: &mut State, seed: u64, draws: &mut u64) {
+fn watch(program: &Program, before_change: State, texts_before: &Texts, state: &mut State, texts: &Texts, seed: u64, draws: &mut u64) {
     let start_state = before_change;
+    // Les effets d'une règle qui guette ne changent que des nombres : après la première photo,
+    // les textes d'avant sont ceux d'après.
+    let mut texts_before = texts_before;
     {
     // Toutes celles qui se déclenchent en même temps jugent sur la même photo de l'état, puis
     // leurs effets s'appliquent dans l'ordre. Un effet peut en déclencher d'autres : on
@@ -1494,8 +1567,8 @@ fn watch(program: &Program, before_change: State, state: &mut State, seed: u64, 
         let photo = state.clone();
         let mut triggered = false;
         let _ = for_each_block(&program.root, &mut |block| {
-            let seen = |state: &State| in_force(program, block, state) && watches(program, block, state);
-            if block.name == "When" && !seen(&before) && seen(&photo) {
+            let seen = |state: &State, texts: &Texts| in_force(program, block, state, texts) && watches(program, block, state, texts);
+            if block.name == "When" && !seen(&before, texts_before) && seen(&photo, texts) {
                 for effect in requests_of(block) {
                     apply(program, state, effect, seed, draws);
                     triggered = true;
@@ -1508,6 +1581,7 @@ fn watch(program: &Program, before_change: State, state: &mut State, seed: u64, 
             break;
         }
         before = photo;
+        texts_before = texts;
     }
     }
 }
@@ -1642,7 +1716,7 @@ fn touch_each_other(a: &Body, b: &Body) -> bool {
 
 /// Ce qu'une règle `When` guette est-il vrai, pour cet état ? Une valeur (`When(lives, is: 0)`),
 /// ou la rencontre de deux blocs (`When(Basket, meets: Apple)`).
-fn watches(program: &Program, rule: &Block, state: &State) -> bool {
+fn watches(program: &Program, rule: &Block, state: &State, texts: &Texts) -> bool {
     if rule.argument("meets").is_some() {
         return meets(rule).is_ok_and(|(a, b, distance)| {
             // Avec « within », on juge sur l'écart entre les places, de 0 à 100. Sans lui, sur le
@@ -1659,10 +1733,7 @@ fn watches(program: &Program, rule: &Block, state: &State) -> bool {
             }
         });
     }
-    condition(rule).is_ok_and(|(value, comparisons)| {
-        let shown = to_show(program, state);
-        shown.iter().find(|(known, _)| known == value).is_some_and(|(_, number)| real_one(&comparisons, *number, &shown))
-    })
+    condition(rule).is_ok_and(|(value, comparisons)| holds(value, &comparisons, &to_show(program, state), texts))
 }
 
 /// Les touches du clavier que les règles du fichier écoutent : `On(Key.left, …)`. Les flèches,
@@ -1748,13 +1819,13 @@ mod tests {
         let program = page(CART).unwrap();
         let start_value = initial(&program).unwrap();
         assert_eq!(write(&start_value), "cart=0;likes=3");
-        let two = arbitrate(&program, &arbitrate(&program, &start_value, "Add.tap"), "Add.tap");
+        let two = arbitrate(&program, &arbitrate(&program, &start_value, &Texts::new(), "Add.tap"), &Texts::new(), "Add.tap");
         assert_eq!(write(&two), "cart=2;likes=3");
-        assert_eq!(write(&arbitrate(&program, &two, "Remove.tap")), "cart=1;likes=3");
+        assert_eq!(write(&arbitrate(&program, &two, &Texts::new(), "Remove.tap")), "cart=1;likes=3");
         // Un signal, deux règles : les deux demandes sont faites, dans l'ordre.
-        assert_eq!(write(&arbitrate(&program, &two, "Empty.tap")), "cart=0;likes=4");
+        assert_eq!(write(&arbitrate(&program, &two, &Texts::new(), "Empty.tap")), "cart=0;likes=4");
         // Un signal sans règle ne change rien.
-        assert_eq!(arbitrate(&program, &two, "Nobody.tap"), two);
+        assert_eq!(arbitrate(&program, &two, &Texts::new(), "Nobody.tap"), two);
     }
 
     #[test]
@@ -1762,11 +1833,11 @@ mod tests {
         let program = page(CART).unwrap();
         let start_value = initial(&program).unwrap();
         // On ne descend pas sous zéro.
-        assert_eq!(write(&arbitrate(&program, &start_value, "Remove.tap")), "cart=0;likes=3");
+        assert_eq!(write(&arbitrate(&program, &start_value, &Texts::new(), "Remove.tap")), "cart=0;likes=3");
         // On ne dépasse pas le plafond, même en partant d'un état falsifié.
         let full = reread(&program, "cart=99999999999999;likes=7;intrus=4;cart");
         assert_eq!(write(&full), format!("cart={VALUE_MAX};likes=7"));
-        assert_eq!(write(&arbitrate(&program, &full, "Add.tap")), format!("cart={VALUE_MAX};likes=7"));
+        assert_eq!(write(&arbitrate(&program, &full, &Texts::new(), "Add.tap")), format!("cart={VALUE_MAX};likes=7"));
     }
 
     #[test]
@@ -1796,7 +1867,7 @@ mod tests {
         let start_value = initial(&program).unwrap();
         // « likes » n'a pas de prix : ce n'est pas un article, il ne compte pas.
         assert_eq!(write(&to_show(&program, &start_value)), "sunrise=0;blueDoor=2;likes=5;count=2;total=180");
-        let after = arbitrate(&program, &start_value, "Add.tap");
+        let after = arbitrate(&program, &start_value, &Texts::new(), "Add.tap");
         assert_eq!(write(&to_show(&program, &after)), "sunrise=1;blueDoor=2;likes=5;count=3;total=300");
         assert!(crate::flat_view(SHOP, "").unwrap().contains("<span data-state=\"count\">2</span> paintings, <span data-state=\"total\">180</span> euros"));
         // Ce que la page renvoie contient les valeurs calculées ; elles ne sont pas reprises telles
@@ -1836,7 +1907,7 @@ mod tests {
         for (source, message) in [
             ("Page(children: [ If(cart, is: 0, children: []) ])", "aucune valeur ne s'appelle « cart »"),
             ("Page(state: State(cart: 0), children: [ If(cart, children: []) ])", "une condition s'écrit"),
-            ("Page(state: State(cart: 0), children: [ If(cart, is: \"zero\", children: []) ])", "attend un nombre entier"),
+            ("Page(state: State(cart: 0), children: [ If(cart, is: \"zero\", children: []) ])", "« cart » est un nombre : on le compare à un nombre"),
             ("Page(state: State(cart: 0), children: [ If(cart, above: 0, children: []) ])", "n'a pas de paramètre « above »"),
             ("Page(state: State(cart: 0), children: [ If(cart, is: 0) ])", "attend ce qu'il montre"),
             ("Page(state: State(cart: 0), children: [ If(is: 0, children: []) ])", "une condition s'écrit"),
@@ -1856,25 +1927,25 @@ mod tests {
         let start_value = initial(&program).unwrap();
         assert_eq!(write(&start_value), "time=0;score=0;starX=50;starY=50;best=0");
         // Tant que la partie n'a pas commencé, le temps reste à zéro : il ne descend pas dessous.
-        assert_eq!(arbitrate(&program, &start_value, "every:0")[0], ("time".to_string(), 0));
+        assert_eq!(arbitrate(&program, &start_value, &Texts::new(), "every:0")[0], ("time".to_string(), 0));
         // « Play » : trente secondes. Ce geste change le temps : son horloge repartira de zéro.
-        let launched = arbitrate(&program, &start_value, "Play.tap");
+        let launched = arbitrate(&program, &start_value, &Texts::new(), "Play.tap");
         assert_eq!((launched[0].1, launched[1].1), (30, 0));
         assert_eq!(touched_ones(&program, "Play.tap"), ["score", "time"]);
         // Une seconde passe : seul le temps change. L'étoile a sa propre horloge.
-        let one_second = arbitrate(&program, &launched, "every:0");
+        let one_second = arbitrate(&program, &launched, &Texts::new(), "every:0");
         assert_eq!((one_second[0].1, one_second[2].1, one_second[3].1), (29, 50, 50));
-        let moved = arbitrate(&program, &one_second, "every:1");
+        let moved = arbitrate(&program, &one_second, &Texts::new(), "every:1");
         assert!(moved[2].1 <= 100 && moved[3].1 <= 100);
         assert_ne!((moved[2].1, moved[3].1), (50, 50), "l'étoile n'a pas bougé");
         // Toucher l'étoile : un point, elle part ailleurs, et son horloge repart : elle reste là
         // deux vraies secondes.
-        let touched = arbitrate(&program, &moved, "Star.tap");
+        let touched = arbitrate(&program, &moved, &Texts::new(), "Star.tap");
         assert_eq!(touched[1].1, 1);
         assert_ne!((touched[2].1, touched[3].1), (moved[2].1, moved[3].1));
         assert_eq!(touched_ones(&program, "Star.tap"), ["score", "starX", "starY"]);
         // Trente secondes plus tard, la partie est finie, et le score est gardé.
-        let end = (0..40).fold(touched, |state, _| arbitrate(&program, &state, "every:0"));
+        let end = (0..40).fold(touched, |state, _| arbitrate(&program, &state, &Texts::new(), "every:0"));
         assert_eq!((end[0].1, end[1].1), (0, 1));
     }
 
@@ -1898,44 +1969,43 @@ mod tests {
         assert_eq!(keypresses(&program), ["left", "right"]);
         let value = |state: &State, name: &str| state.iter().find(|(known, _)| known == name).unwrap().1;
         let start_value = initial(&program).unwrap();
-        let plays = arbitrate(&program, &start_value, "Play.tap");
+        let plays = arbitrate(&program, &start_value, &Texts::new(), "Play.tap");
         assert_eq!((value(&plays, "lives"), value(&plays, "basket"), value(&plays, "appleY")), (3, 50, 0));
         // Le clavier déplace le panier, qui ne sort jamais du plateau.
-        let left = (0..20).fold(plays.clone(), |state, _| arbitrate(&program, &state, "Key.left"));
+        let left = (0..20).fold(plays.clone(), |state, _| arbitrate(&program, &state, &Texts::new(), "Key.left"));
         assert_eq!(value(&left, "basket"), 0);
-        let right = (0..40).fold(left, |state, _| arbitrate(&program, &state, "Key.right"));
+        let right = (0..40).fold(left, |state, _| arbitrate(&program, &state, &Texts::new(), "Key.right"));
         assert_eq!(value(&right, "basket"), 100);
         // La pomme tombe. Le panier est dessous (50 et 50) : à la rencontre, un point, et une
         // nouvelle pomme repart d'en haut. Une seule fois, pas à chaque battement.
         let mut state = plays.clone();
         let mut beats = 0;
         while value(&state, "score") == 0 && beats < 60 {
-            state = arbitrate(&program, &state, "every:0");
+            state = arbitrate(&program, &state, &Texts::new(), "every:0");
             beats += 1;
         }
         assert_eq!((value(&state, "score"), value(&state, "appleY"), value(&state, "lives")), (1, 0, 3), "après {beats} battements");
         assert!(beats > 20, "la pomme a été prise trop tôt : {beats}");
         // Le panier parti loin, la pomme arrive en bas : une vie de moins, une seule, et une
         // nouvelle pomme.
-        let mut state = (0..20).fold(state, |e, _| arbitrate(&program, &e, "Key.left"));
+        let mut state = (0..20).fold(state, |e, _| arbitrate(&program, &e, &Texts::new(), "Key.left"));
         let apple_on_right = APPLE_CART.replace("appleX.random(100)", "appleX.set(90)");
         let program = page(&apple_on_right).unwrap();
         state.iter_mut().find(|(name, _)| name == "appleX").unwrap().1 = 90;
         let mut beats = 0;
         while value(&state, "lives") == 3 && beats < 60 {
-            state = arbitrate(&program, &state, "every:0");
+            state = arbitrate(&program, &state, &Texts::new(), "every:0");
             beats += 1;
         }
         assert_eq!((value(&state, "lives"), value(&state, "appleY"), value(&state, "score")), (2, 0, 1));
         // Trois pommes perdues : la partie est finie.
-        let end = (0..200).fold(state, |e, _| arbitrate(&program, &e, "every:0"));
+        let end = (0..200).fold(state, |e, _| arbitrate(&program, &e, &Texts::new(), "every:0"));
         assert_eq!((value(&end, "lives"), value(&end, "score")), (0, 1));
         for (source, message) in [
             ("Page(state: State(a: 0), rules: [ When(a, effect: a.set(0)) ])", "une règle qui guette s'écrit"),
-            ("Page(state: State(a: 0), rules: [ When(b, is: 1, effect: a.set(0)) ])", "aucun nombre ne s'appelle « b »"),
+            ("Page(state: State(a: 0), rules: [ When(b, is: 1, effect: a.set(0)) ])", "aucune valeur ne s'appelle « b »"),
             ("Page(state: State(a: 0), rules: [ When(a, is: 1) ])", "attend une demande"),
             ("Page(state: State(a: 0), rules: [ When(a, is: 1, children: []) ])", "n'a pas de paramètre « children »"),
-            ("Page(state: State(a: \"\", b: 0), rules: [ When(a, is: \"\", effect: b.set(1)) ])", "aucun nombre ne s'appelle « a »"),
             ("Page(state: State(a: 0), children: [ Board(children: [ Point(name: A, seed: 1, x: 1, y: 1) ]) ], rules: [ When(A, meets: 3, effect: a.add(1)) ])", "une rencontre s'écrit"),
             ("Page(state: State(a: 0), children: [ Board(children: [ Point(name: A, seed: 1, x: 1, y: 1) ]), P(name: B, \"x\") ], rules: [ When(A, meets: B, effect: a.add(1)) ])", "« B » n'est pas posé sur un plateau"),
             ("Page(state: State(a: 0), children: [ Board(children: [ Point(name: A, seed: 1, x: 1, y: 1), Point(name: B, seed: 2, x: 2, y: 2) ]) ], rules: [ When(A, meets: B, within: 500, effect: a.add(1)) ])", "de 1 à 100"),
@@ -1949,7 +2019,7 @@ mod tests {
         // Les règles du jeu sont rangées sous une condition : tant que la partie n'a pas commencé
         // (aucune vie), la pomme ne tombe pas, et rien n'est rattrapé ni perdu en cachette.
         requested_capabilities();
-        let before_playing = (0..60).fold(start_value.clone(), |e, _| arbitrate(&program, &e, "every:0"));
+        let before_playing = (0..60).fold(start_value.clone(), |e, _| arbitrate(&program, &e, &Texts::new(), "every:0"));
         assert_eq!(before_playing, start_value, "le jeu a joué tout seul avant « Play »");
         assert!(requested_capabilities().is_empty(), "un son a été demandé avant « Play »");
         // Le contact, pas la pénétration : la pomme (un rond de 44) est prise au moment où son
@@ -1957,14 +2027,14 @@ mod tests {
         let program = page(APPLE_CART).unwrap();
         let with = |y: u64| { let mut e = plays.clone(); e.iter_mut().find(|(n, _)| n == "appleY").unwrap().1 = y; e };
         // Plateau de 360 : le dessus du panier est à 284 ; le bas de la pomme est à y/100 × 316 + 44.
-        assert!(!watches(&program, rule_program(&program), &with(75)), "à 75, le bas de la pomme est à 281 : elle ne touche pas encore");
-        assert!(watches(&program, rule_program(&program), &with(76)), "à 76, le bas de la pomme est à 284 : elle touche");
+        assert!(!watches(&program, rule_program(&program), &with(75), &Texts::new()), "à 75, le bas de la pomme est à 281 : elle ne touche pas encore");
+        assert!(watches(&program, rule_program(&program), &with(76), &Texts::new()), "à 76, le bas de la pomme est à 284 : elle touche");
         // Sur le côté : le panier décalé d'un peu plus que la moitié des deux largeurs ne touche plus.
         let mut beside = with(96);
         beside.iter_mut().find(|(n, _)| n == "basket").unwrap().1 = 59;
-        assert!(watches(&program, rule_program(&program), &beside));
+        assert!(watches(&program, rule_program(&program), &beside, &Texts::new()));
         beside.iter_mut().find(|(n, _)| n == "basket").unwrap().1 = 60;
-        assert!(!watches(&program, rule_program(&program), &beside));
+        assert!(!watches(&program, rule_program(&program), &beside, &Texts::new()));
         // Le plateau garde ses proportions : une page qui annoncerait la largeur de son écran
         // (comme avant) ne change rien à la rencontre.
         assert_eq!(write(&reread(&program, &format!("{};<=320", write(&beside)))), write(&beside));
@@ -1979,20 +2049,20 @@ mod tests {
         // Faire glisser le panier : sa valeur suit le doigt, sans sortir du plateau ; un bloc qui
         // ne se laisse pas glisser ne bouge pas ; et une rencontre faite en glissant compte.
         let program = page(APPLE_CART).unwrap();
-        let dragging = drag(&program, &plays, "Basket", 250, 10);
+        let dragging = drag(&program, &plays, &Texts::new(), "Basket", 250, 10);
         assert_eq!((value(&dragging, "basket"), value(&dragging, "appleY")), (100, 0));
-        assert_eq!(drag(&program, &plays, "Apple", 10, 90), plays);
+        assert_eq!(drag(&program, &plays, &Texts::new(), "Apple", 10, 90), plays);
         let mut near = plays.clone();
         near.iter_mut().find(|(name, _)| name == "appleY").unwrap().1 = 90;
         near.iter_mut().find(|(name, _)| name == "basket").unwrap().1 = 10;
-        let caught = drag(&program, &near, "Basket", 50, 0);
+        let caught = drag(&program, &near, &Texts::new(), "Basket", 50, 0);
         assert_eq!((value(&caught, "score"), value(&caught, "appleY")), (1, 0));
         // Une règle peut faire plusieurs demandes, dans l'ordre ; une seule s'écrit sans crochets.
         let several = page("Page(state: State(a: 0, b: 0), children: [ Button(name: B, text: \"x\") ], rules: [ On(B.tap, effect: [a.add(2), b.set(7), a.add(1)]) ])").unwrap();
-        assert_eq!(write(&arbitrate(&several, &initial(&several).unwrap(), "B.tap")), "a=3;b=7");
+        assert_eq!(write(&arbitrate(&several, &initial(&several).unwrap(), &Texts::new(), "B.tap")), "a=3;b=7");
         // Un fichier où deux règles se relancent l'une l'autre ne tourne pas sans fin.
         let cycle = page("Page(state: State(a: 0, b: 0), children: [ Button(name: B, text: \"x\") ], rules: [ On(B.tap, effect: a.set(1)), When(a, is: 1, effect: a.set(0)), When(a, is: 0, effect: a.set(1)) ])").unwrap();
-        let _ = arbitrate(&cycle, &initial(&cycle).unwrap(), "B.tap");
+        let _ = arbitrate(&cycle, &initial(&cycle).unwrap(), &Texts::new(), "B.tap");
     }
 
     #[test]
@@ -2093,13 +2163,100 @@ mod tests {
         assert_eq!(crate::arbitrate(sum, &crate::initial_state(sum), "B.tap"), "a=6;b=5");
         for (source, message) in [
             ("Page(state: State(a: 0), children: [ If(a, over: b, children: []) ])", "aucun nombre ne s'appelle « b »"),
-            ("Page(state: State(a: 0, t: \"\"), children: [ If(a, over: t, children: []) ])", "aucun nombre ne s'appelle « t »"),
+            ("Page(state: State(a: 0, t: \"\"), children: [ If(a, over: t, children: []) ])", "« a » est un nombre et « t » un texte : on compare deux nombres, ou deux textes"),
             ("Page(state: State(a: 0), children: [ Button(name: B, text: \"x\") ], rules: [ On(B.tap, effect: a.set(b)) ])", "aucun nombre ne s'appelle « b »"),
             ("Page(state: State(a: 0), rules: [ When(a, over: b, effect: a.set(0)) ])", "aucun nombre ne s'appelle « b »"),
         ] {
             let error = page(source).unwrap_err();
             assert!(error.message.contains(message), "{source}\n→ {error}");
         }
+    }
+
+    #[test]
+    fn a_text_is_compared_to_a_text() {
+        // Une taille choisie, une réponse écrite, deux mots de passe (ADR-063).
+        let source = r#"Page(
+  state: State(size: "M", answer: "", password: "", again: "", score: 0, label: """a;b|c=d"e%"""),
+  children: [
+    Choice(value: size, label: "Size", options: [ "S", "M", "L" ]),
+    If(size, is: "L", children: [ "Large." ], else: [ "Not large." ]),
+    If(size, not: "M", children: [ "Not medium." ]),
+    Input(value: answer, label: "Capital of France"),
+    Input(value: password, label: "Password"),
+    Input(value: again, label: "Again"),
+    If(again, not: password, children: [ "The two differ." ]),
+    If(label, is: """a;b|c=d"e%""", children: [ "Odd label." ]),
+    Button(name: Pick, text: "Paris"),
+    Button(name: Clear, text: "Clear"),
+  ],
+  rules: [
+    When(answer, is: "Paris", effect: score.add(1)),
+    On(Pick.tap, effect: answer.set("Paris")),
+    On(Clear.tap, effect: answer.set("")),
+  ],
+)"#;
+        // Au départ : « M », donc ni « L » ni « pas M » ; le « sinon » de « L » se montre.
+        let html = crate::flat_view(source, "").unwrap();
+        assert!(html.contains(r#"data-if="size|is=&quot;L&quot;" hidden><p class="holo-P">Large.</p></div><div class="holo-If" data-else="size|is=&quot;L&quot;"><p"#), "{html}");
+        assert!(html.contains(r#"data-if="size|not=&quot;M&quot;" hidden>"#), "{html}");
+        // Les signes qui séparent les réponses sont écrits %XX dans le nom de la condition.
+        assert!(html.contains(r#"data-if="label|is=&quot;a%3Bb%7Cc%3Dd%22e%25&quot;"><p"#), "{html}");
+        let start = crate::initial_state(source);
+        let large = crate::input(source, &start, "size", "L");
+        assert_eq!(
+            crate::conditions(source, &large),
+            r#"size|is="L":1;size|not="M":1;again|not=password:0;label|is="a%3Bb%7Cc%3Dd%22e%25":1"#
+        );
+        // À la lettre près : « l » n'est pas « L ».
+        assert!(crate::conditions(source, &crate::input(source, &start, "size", "l")).starts_with(r#"size|is="L":0;"#));
+        // Deux valeurs de texte comparées entre elles.
+        let typed = crate::input(source, &start, "password", "secret");
+        assert!(crate::conditions(source, &typed).contains("again|not=password:1"));
+        assert!(crate::conditions(source, &crate::input(source, &typed, "again", "secret")).contains("again|not=password:0"));
+        // Une règle qui guette un texte : au moment où il devient « Paris », pas tant qu'il le reste.
+        let score = |state: &str| state.split(';').find_map(|chunk| chunk.strip_prefix("score=")).unwrap_or("?").to_string();
+        let mut state = start.clone();
+        let mut seen = Vec::new();
+        for written in ["P", "Pari", "Paris", "Paris", "Lyon", "Paris"] {
+            state = crate::input(source, &state, "answer", written);
+            seen.push(score(&state));
+        }
+        assert_eq!(seen, ["0", "0", "1", "1", "1", "2"]);
+        // Par un geste aussi : le texte changé par la règle « On » est guetté.
+        let picked = crate::arbitrate(source, &crate::arbitrate(source, &state, "Clear.tap"), "Pick.tap");
+        assert_eq!(score(&picked), "3");
+        assert_eq!(score(&crate::arbitrate(source, &picked, "Pick.tap")), "3", "déjà « Paris » : rien ne devient vrai");
+        // Les refus : pas de mélange, et plus grand ou plus petit pour les nombres seulement.
+        for (wrong, message) in [
+            ("If(size, over: \"M\", children: [])", "« over » compare des nombres ; un texte se compare par is (égal) ou not (différent)"),
+            ("If(size, is: 3, children: [])", "« size » est un texte : on le compare à un texte entre guillemets"),
+            ("If(size, is: nobody, children: [])", "aucun texte ne s'appelle « nobody »"),
+            ("If(size, under: answer, children: [])", "« under » compare des nombres"),
+            ("If(score, is: size, children: [])", "« score » est un nombre et « size » un texte"),
+            ("If(size, is: score, children: [])", "« size » est un texte et « score » un nombre"),
+        ] {
+            let page_source = source.replace("Button(name: Pick", &format!("{wrong}, Button(name: Pick"));
+            let error = page(&page_source).unwrap_err();
+            assert!(error.message.contains(message), "{wrong}\n→ {error}");
+        }
+        let error = page(&source.replace("When(answer, is: \"Paris\"", "When(answer, over: 2")).unwrap_err();
+        assert!(error.message.contains("« answer » est un texte"), "{error}");
+    }
+
+    #[test]
+    fn rules_under_a_text_condition() {
+        // Avant ADR-063, une règle rangée sous une condition sur un texte ne valait jamais.
+        let source = r#"Page(
+  state: State(mode: "", time: 0, done: 0),
+  children: [ Input(value: mode, label: "Mode"), P("{time}") ],
+  rules: [ If(mode, is: "play", rules: [ Every(1s, effect: time.add(1)), After(2s, effect: done.set(1)) ]) ],
+)"#;
+        let start = crate::initial_state(source);
+        assert_eq!(crate::arbitrate(source, &start, "every:0"), start, "« mode » est vide : l'horloge ne compte pas");
+        assert_eq!(crate::delays(source, &start), "2000:0");
+        let playing = crate::input(source, &start, "mode", "play");
+        assert!(crate::arbitrate(source, &playing, "every:0").starts_with("time=1;"));
+        assert_eq!(crate::delays(source, &playing), "2000:1");
     }
 
     #[test]
@@ -2120,15 +2277,15 @@ mod tests {
         assert!(html.contains("<input type=\"text\" maxlength=\"12\" value=\"\" data-bind=\"buyer\">"), "{html}");
         assert!(html.contains("<input type=\"text\" maxlength=\"80\" value=\"Paris\" data-bind=\"city\">"), "{html}");
         // Au départ le prénom est vide : la salutation est cachée, la question montrée.
-        assert!(html.contains("data-if=\"buyer|not=0\" hidden><p class=\"holo-P\">Hello <span data-state=\"buyer\"></span>, from <span data-state=\"city\">Paris</span>.</p>"), "{html}");
-        assert!(html.contains("data-if=\"buyer|is=0\"><p"), "{html}");
+        assert!(html.contains("data-if=\"buyer|not=&quot;&quot;\" hidden><p class=\"holo-P\">Hello <span data-state=\"buyer\"></span>, from <span data-state=\"city\">Paris</span>.</p>"), "{html}");
+        assert!(html.contains("data-if=\"buyer|is=&quot;&quot;\"><p"), "{html}");
         let start_value = crate::initial_state(source);
         assert_eq!(start_value, "cart=0;buyer=';city='Paris");
         // Écrire un prénom : il est nettoyé et coupé à la longueur permise ; rien ne se mêle
         // aux séparateurs de l'état, même un texte hostile.
         let written = crate::input(source, &start_value, "buyer", "Zoé;cart=99<b>&\u{7} et la suite est trop longue");
         assert_eq!(written, format!("cart=0;buyer='{};city='Paris", encode("Zoé;cart=99<")));
-        assert_eq!(crate::conditions(source, &written), "buyer|not=0:1;buyer|is=0:0");
+        assert_eq!(crate::conditions(source, &written), "buyer|not=\"\":1;buyer|is=\"\":0");
         // Un geste ailleurs ne touche pas aux textes.
         let after = crate::arbitrate(source, &written, "Add.tap");
         assert!(after.starts_with("cart=1;buyer='Zo") && after.ends_with(";city='Paris"), "{after}");
@@ -2144,7 +2301,7 @@ mod tests {
         for (source, message) in [
             ("Page(state: State(a: \"\"), children: [ If(a, over: 2, children: []) ])", "est un texte"),
             ("Page(state: State(a: 0), children: [ If(a, is: \"\", children: []) ])", "est un nombre"),
-            ("Page(state: State(a: \"\"), children: [ If(a, is: \"oui\", children: []) ])", "attend un nombre entier"),
+            ("Page(state: State(a: \"\"), children: [ If(a, under: \"oui\", children: []) ])", "« under » compare des nombres"),
             ("Page(state: State(a: \"\"), children: [ Checkbox(value: a, label: \"x\") ])", "une case attend un nombre"),
             ("Page(state: State(a: \"\", a: 0))", "déclarée deux fois"),
             ("Page(state: State(a: \"\"), children: [ Button(name: B, text: \"x\") ], rules: [ On(B.tap, effect: a.add(1)) ])", "« a » est un texte"),
@@ -2172,13 +2329,13 @@ mod tests {
         assert!(html.contains("<label class=\"holo-Checkbox\"><input type=\"checkbox\" data-bind=\"gift\"><span>Gift <strong>wrap</strong></span></label>"), "{html}");
         // La saisie passe par l'arbitre : bornée, et sourde à ce qui n'est pas un nombre.
         let start_value = initial(&program).unwrap();
-        assert_eq!(write(&input(&program, &start_value, "tip", " 12 ")), "tip=12;gift=0;visits=0");
-        assert_eq!(write(&input(&program, &start_value, "tip", "9999")), "tip=50;gift=0;visits=0");
-        assert_eq!(write(&input(&program, &start_value, "tip", "douze")), "tip=0;gift=0;visits=0");
-        assert_eq!(write(&input(&program, &input(&program, &start_value, "tip", "7"), "tip", "")), "tip=0;gift=0;visits=0");
-        assert_eq!(write(&input(&program, &start_value, "gift", "5")), "tip=0;gift=1;visits=0");
+        assert_eq!(write(&input(&program, &start_value, &Texts::new(), "tip", " 12 ")), "tip=12;gift=0;visits=0");
+        assert_eq!(write(&input(&program, &start_value, &Texts::new(), "tip", "9999")), "tip=50;gift=0;visits=0");
+        assert_eq!(write(&input(&program, &start_value, &Texts::new(), "tip", "douze")), "tip=0;gift=0;visits=0");
+        assert_eq!(write(&input(&program, &input(&program, &start_value, &Texts::new(), "tip", "7"), &Texts::new(), "tip", "")), "tip=0;gift=0;visits=0");
+        assert_eq!(write(&input(&program, &start_value, &Texts::new(), "gift", "5")), "tip=0;gift=1;visits=0");
         // Une valeur qu'aucun champ ne présente ne se saisit pas, même si on le demande.
-        assert_eq!(write(&input(&program, &start_value, "visits", "40")), "tip=0;gift=0;visits=0");
+        assert_eq!(write(&input(&program, &start_value, &Texts::new(), "visits", "40")), "tip=0;gift=0;visits=0");
         // Garder : seules les valeurs nommées par « keep » sont écrites, et seules elles sont reprises.
         assert_eq!(crate::to_keep(source, "tip=12;gift=1;visits=9"), "tip=12;gift=1");
         assert_eq!(crate::resume(source, "tip=12;gift=1;visits=9;intrus=3"), "tip=12;gift=1;visits=0");

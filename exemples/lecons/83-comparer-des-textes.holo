@@ -1,0 +1,54 @@
+// Leçon 83 — Comparer des textes
+//
+// Ce qu'on apprend :
+//   Une condition compare un texte à un texte écrit entre guillemets :
+//     If(size, is: "L", children: [ … ])         égal
+//     If(size, not: "M", children: [ … ])        différent
+//   ou à une autre valeur de texte :
+//     If(again, is: email, children: [ … ])
+//   Une règle qui guette un texte agit au moment où il devient ce qu'elle attend :
+//     When(answer, is: "Paris", effect: score.add(1))
+//   La comparaison se fait à la lettre près : « paris » n'est pas « Paris ».
+//   over et under (plus grand, plus petit) ne servent qu'aux nombres.
+//
+// À essayer :
+//   Choisis la taille « L ». Écris « Paris » dans la réponse : « Bravo ! », et le compteur
+//   passe à 1. Écris ton e-mail deux fois, d'abord avec une faute, puis sans faute.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 83 : comparer des textes",
+  state: State(size: "M", answer: "", score: 0, email: "", again: ""),
+  children: [
+    H1("Comparer des textes"),
+
+    Choice(value: size, label: "Taille du t-shirt", options: [ "S", "M", "L" ]),
+    If(size, is: "L", children: [ P("Le L est grand : prends-le si tu hésites.") ], else: [ P("Taille {size}.") ]),
+
+    H2("Une question"),
+    Input(value: answer, label: "Quelle est la capitale de la France ?"),
+    If(answer, is: "Paris", children: [ P("Bravo !") ]),
+    P("Bonnes réponses : {score}"),
+
+    H2("Deux fois le même e-mail"),
+    Input(value: email, label: "Ton e-mail"),
+    Input(value: again, label: "Encore une fois"),
+    If(again, not: "", children: [
+      If(again, is: email, children: [ P("Les deux sont pareils.") ], else: [ P("Les deux e-mails sont différents.") ]),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 82 : chercher, filtrer, trier", to: "82-chercher-filtrer-trier.holo"),
+    ]),
+  ],
+  rules: [
+    When(answer, is: "Paris", effect: score.add(1)),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+H2 { color: #E9B44C; font-size: 20px; }
+A { color: #8fd3ff; }

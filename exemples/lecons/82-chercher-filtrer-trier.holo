@@ -49,6 +49,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 81 : la vue points se lit aussi", to: "81-vue-points-et-lecteur-d-ecran.holo"),
+      A("Leçon 83 : comparer des textes →", to: "83-comparer-des-textes.holo"),
     ]),
   ],
   rules: [

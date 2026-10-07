@@ -51,23 +51,41 @@ async function startServer() {
   return { base: `http://localhost:${port}`, stop: () => server.kill() };
 }
 
-async function startChrome() {
-  const port = 9200 + Math.floor(Math.random() * 600);
+// Lance Chrome sans fenêtre. Il choisit lui-même un port libre (`--remote-debugging-port=0`)
+// et l'écrit dans son dossier, dans le fichier DevToolsActivePort : pas de port qui se heurte
+// à un autre. On attend jusqu'à une minute ; ce qu'il dit est gardé pour comprendre un échec.
+async function launchChrome() {
   const profile = mkdtempSync(join(tmpdir(), "holo-essais-"));
   const args = [
     "--headless=new", "--no-first-run", "--no-default-browser-check", "--enable-unsafe-swiftshader",
-    "--autoplay-policy=no-user-gesture-required", "--hide-scrollbars", `--remote-debugging-port=${port}`,
+    "--autoplay-policy=no-user-gesture-required", "--hide-scrollbars", "--remote-debugging-port=0",
     "--window-size=1000,700", `--user-data-dir=${profile}`, "about:blank",
   ];
   // Sur les machines de GitHub, le bac à sable de Chrome n'a pas les droits du système.
   if (process.env.CI) args.unshift("--no-sandbox");
-  const chrome = spawn(findChrome(), args, { stdio: "ignore" });
+  const chrome = spawn(findChrome(), args, { stdio: ["ignore", "ignore", "pipe"] });
+  let said = "";
+  chrome.stderr.on("data", (chunk) => { said = (said + chunk).slice(-4000); });
   let target;
-  for (let i = 0; i < 100 && !target; i++) {
+  for (let i = 0; i < 300 && !target && chrome.exitCode === null; i++) {
     await pause(200);
+    let port;
+    try { port = readFileSync(join(profile, "DevToolsActivePort"), "utf8").split("\n")[0].trim(); } catch { continue; }
     try { target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === "page"); } catch { /* pas encore */ }
   }
-  if (!target) throw new Error("Chrome ne démarre pas");
+  if (!target) chrome.kill();
+  return { chrome, profile, target, said: said.trim() || "(rien)" };
+}
+
+async function startChrome() {
+  let launched = await launchChrome();
+  // Sur une machine de GitHub qui vient de démarrer, Chrome tarde parfois : un second essai.
+  if (!launched.target) {
+    console.log(`Chrome ne répond pas ; second essai. Ce qu'il a dit : ${launched.said}`);
+    launched = await launchChrome();
+  }
+  if (!launched.target) throw new Error(`Chrome ne démarre pas. Ce qu'il a dit : ${launched.said}`);
+  const { chrome, profile, target } = launched;
   const ws = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((ok, ko) => { ws.onopen = ok; ws.onerror = ko; });
   let n = 0;
@@ -273,6 +291,29 @@ const tests = [
     const empty = await p.until(`document.querySelector(".holo-empty")?.textContent === "Aucune œuvre ne correspond."`);
     const ok = start === "Le phare | Orage | Élan du matin | La rivière" && searched && afterSearch === "La rivière | Rizières" && filtered && more && empty;
     return [ok, `départ : ${start} ; « RI » : ${afterSearch} ; huile : ${filtered} ; montrer plus : ${more} ; « zzz » vide : ${empty}`];
+  }],
+  ["comparer des textes (If et When)", async (p) => {
+    await p.open("/exemples/lecons/83-comparer-des-textes.holo");
+    const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;
+    // Écrire dans un champ vide : on l'efface d'abord, comme le ferait le visiteur.
+    const write = async (bind, text) => {
+      await p.value(`(() => { const i = document.querySelector('input[data-bind="${bind}"]'); i.value = ""; i.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+      await p.type(`input[data-bind="${bind}"]`, text);
+    };
+    const start = (await p.value(has("Taille M."))) && !(await p.value(has("Le L est grand")));
+    await p.click('input[type=radio][value="L"]');
+    const large = await p.until(`${has("Le L est grand")} && !${has("Taille M.")}`);
+    await write("answer", "paris");
+    const lower = await p.until(`!${has("Bravo !")} && ${has("Bonnes réponses : 0")}`);
+    await write("answer", "Paris");
+    const bravo = await p.until(`${has("Bravo !")} && ${has("Bonnes réponses : 1")}`);
+    await write("email", "ada@exemple.fr");
+    await write("again", "ada@exemple");
+    const differ = await p.until(has("Les deux e-mails sont différents."));
+    await write("again", "ada@exemple.fr");
+    const same = await p.until(`${has("Les deux sont pareils.")} && !${has("différents")}`);
+    const ok = start && large && lower && bravo && differ && same;
+    return [ok, `départ « Taille M. » : ${start} ; L : ${large} ; « paris » refusé : ${lower} ; « Paris » → Bravo et 1 : ${bravo} ; e-mails différents : ${differ} ; pareils : ${same}`];
   }],
   ["un formulaire envoie son message", async (p) => {
     await p.open("/exemples/lecons/64-formulaire.holo");
