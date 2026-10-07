@@ -6,6 +6,23 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Lot 2, première partie : chercher, filtrer, trier, montrer plus
+
+- Yocthan a choisi l'écriture A, « une liste calculée, nommée », parmi trois.
+- Fait (`ADR-062`) : `computed: [ Filter(name: found, from: articles, contains: search, in: [title], field: kind, is: chosen, sortBy: price, reverse: true, limit: shown) ]`, `Repeat(over: found, empty: "…")`, `{found}`. Sans majuscules ni accents ; une valeur vide ne filtre pas ; une liste calculée ne se change pas par une demande et ne se garde pas. `field`, `is` et `reverse` sont ajoutés par Claude dans la même idée : à valider par Yocthan, et marqués « à l'essai » dans le grand tableau.
+- Comment : la liste calculée suit l'état que le moteur écrit ; la page la montre et la redessine comme une liste ordinaire, sans rien de nouveau dans le navigateur. La page fabriquée par le serveur la contient déjà.
+- Leçon 82. Un essai de plus dans Chrome.
+- Exécuté : 127 tests ; `node outils/browser-tests.mjs` → 82 leçons ouvertes et tous les essais de gestes passent.
+
+**Erreurs en route**
+
+- `Filter(name: found)` était refusé : la règle des noms (`ADR-037`) veut une majuscule pour un nom de bloc ; ici le nom désigne une liste, une valeur : `Filter` est mis à part.
+- Une option vide dans `Choice` est refusée : la leçon a un bouton « Toutes les sortes » (`chosen.set("")`).
+- Deux fautes dans mes essais : un cas de test cassait deux choses à la fois ; un `
+` mal échappé dans une question envoyée à la page.
+
+---
+
 ## 2026-10-07 — Lot 1 : des essais dans un vrai navigateur, et les limites
 
 - Yocthan a donné l'ordre de terminer le web, dans l'ordre : d'abord renforcer les essais dans un vrai navigateur et les limites.

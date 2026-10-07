@@ -77,6 +77,10 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `module "…"`, `Module`, `run`, `done`, `failed` | `<script src>`, `new Worker`, `WebAssembly.instantiate` | changé : annoncé en haut du fichier, enfermé (un fil à part, une mémoire plafonnée, rien d'autre), arrêté s'il dure trop |
 | `bridge js`, `bridge css` | `<script>`, `<link>` vers du code existant | refusés (`ADR-011`, partie B) |
 | `mul`, `div` | `*=`, `/=`, `Math.floor` | changé : deux demandes, en nombres entiers |
+| `computed:`, `Filter(name:, from:)` | `array.filter()`, `array.sort()`, `array.slice()` | changé : une liste nommée, refaite seule à chaque changement (`ADR-062`) |
+| `contains:`, `in:` dans `Filter` | `string.includes()`, `toLowerCase()`, `normalize()` | changé : sans majuscules ni accents, d'office |
+| `field:`, `is:`, `sortBy:`, `reverse:`, `limit:` dans `Filter` | `filter`, `sort` et `localeCompare`, `reverse`, `slice` | changé : des réglages ; `field`, `is`, `reverse` à valider |
+| `empty:` dans `Repeat` | un `if (list.length === 0)` écrit à la main | nouveau : annoncé par un lecteur d'écran |
 | `Key.enter`, `Key.escape`, `Key.a` à `Key.z`, `Key.digit0` à `Key.digit9` | `KeyboardEvent.key`, `KeyboardEvent.code` | changé : un nom par touche ; les lettres par ce qui est écrit sur la touche, les chiffres par leur place (un clavier français marche sans Maj) ; jamais Tab ; les touches à une lettre se coupent (WCAG 2.1.4) |
 | `inView:` dans `Enter` | `IntersectionObserver`, `animation-timeline: view()` | nouveau : un mot, et rien qui tourne pendant qu'on défile |
 | `volume:`, `loop:` dans `Sound`, `stop` | `audio.volume` (seulement en JavaScript), `loop`, `pause()` puis `currentTime = 0` | repris, et `stop` qui manque au web |

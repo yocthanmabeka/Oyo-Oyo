@@ -15,6 +15,7 @@
 
 pub mod blocks;
 pub mod components;
+pub mod computed;
 pub mod state;
 pub mod files;
 pub mod format;
@@ -57,6 +58,8 @@ pub fn check_page(source: &str) -> Result<Program, Error> {
     let program = holo::read(source)?;
     blocks::check_blocks(&program)?;
     styles::check_styles(&program)?;
+    // Les listes calculées (lot 2 du web) : d'abord, car les lignes et les règles les nomment.
+    computed::check(&program)?;
     state::check_state(&program)?;
     rules::check_rules(&program)?;
     view::settings(&program)?;
@@ -216,7 +219,10 @@ fn write_all(program: &Program, numbers: &state::State, texts: &state::Texts, li
     // nom « ! » : ce n'est pas une valeur, la page le lit et le retire.
     let capabilities = state::requested_capabilities();
     let sounds = if capabilities.is_empty() { String::new() } else { format!("!={}", capabilities.join(",")) };
-    [state::write(&state::to_show(program, numbers)), state::write_texts(texts), lists::write(lists), sounds].into_iter().filter(|chunk| !chunk.is_empty()).collect::<Vec<_>>().join(";")
+    // Les listes calculées suivent l'état : la page les montre comme les autres, l'arbitre ne
+    // les relit jamais (il les refait).
+    let computed = lists::write(&computed::apply(program, numbers, texts, lists));
+    [state::write(&state::to_show(program, numbers)), state::write_texts(texts), lists::write(lists), computed, sounds].into_iter().filter(|chunk| !chunk.is_empty()).collect::<Vec<_>>().join(";")
 }
 
 /// Les valeurs d'une page à leur départ, écrites `cart=0;likes=3`, suivies de celles que le
@@ -317,7 +323,11 @@ pub fn module_finished(source: &str, state: &str, name: &str, value: u64) -> Str
 /// Les lignes d'une liste pour cet état (ADR-044) : la page les pose à la place des anciennes.
 pub fn list_html(source: &str, base: &str, state: &str, name: &str) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
-    flat::list_lines(&program, base, &state::reread(&program, state), &state::reread_texts(&program, state), &lists::reread(&program, state), name)
+    let (numbers, texts) = (state::reread(&program, state), state::reread_texts(&program, state));
+    let mut lists = lists::reread(&program, state);
+    let computed = computed::apply(&program, &numbers, &texts, &lists);
+    lists.extend(computed);
+    flat::list_lines(&program, base, &numbers, &texts, &lists, name)
 }
 
 /// Les valeurs qu'un signal fait changer (`time;score`) : leurs horloges repartent de zéro.

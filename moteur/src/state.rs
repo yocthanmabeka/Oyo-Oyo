@@ -160,6 +160,7 @@ pub fn kept_values(program: &Program) -> Result<Vec<String>, Error> {
     for name in names {
         match name {
             Value::Name(name) if CLOCK.contains(&name.as_str()) => return Err(error(format!("« keep » : « {name} » est l'heure du visiteur, elle ne se garde pas"))),
+            Value::Name(name) if crate::computed::is_computed(program, name) => return Err(error(format!("« keep » : « {name} » est une liste calculée ; elle se refait d'après sa source, garde plutôt la source"))),
             Value::Name(name) if declared.iter().any(|(known, _)| known == name) || texts.iter().any(|(known, _)| known == name) || crate::lists::is_list(program, name) => kept_values.push(name.clone()),
             Value::Name(name) => return Err(error(format!("« keep » : aucune valeur ne s'appelle « {name} » ; on ne garde que des valeurs déclarées dans « State »"))),
             _ => return Err(error("« keep » attend des noms de valeurs : keep: [cart]".into())),
@@ -1157,6 +1158,8 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
     let texts = initial_texts(program);
     let mut showable = with_texts(&to_show(program, &state), &texts);
     showable.extend(crate::lists::counts(&crate::lists::initial(program)));
+    // Le nombre d'éléments d'une liste calculée se montre aussi : « {found} résultat(s) ».
+    showable.extend(crate::computed::names(program).into_iter().map(|name| (name, 0)));
     let models = crate::lists::models_and_lists(program);
     let is_text = |name: &str| texts.iter().any(|(known, _)| known == name);
     let declare = state_block(program)?;

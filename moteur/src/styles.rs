@@ -513,6 +513,7 @@ mod tests {
             include_str!("../../exemples/lecons/67-formats.holo"),
             include_str!("../../exemples/lecons/68-liste-qui-change.holo"),
             include_str!("../../exemples/lecons/69-module-enferme.holo"),
+            include_str!("../../exemples/lecons/82-chercher-filtrer-trier.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();

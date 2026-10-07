@@ -196,6 +196,10 @@ pub enum Kind {
 
 /// La sorte d'une liste déclarée.
 pub fn kind(program: &Program, name: &str) -> Option<Kind> {
+    // Une liste calculée a les éléments de la liste dont elle part.
+    if crate::computed::is_computed(program, name) {
+        return crate::computed::source_of(program, name).and_then(|source| kind(program, &source));
+    }
     let Some(Value::Block(state)) = program.root.argument("state").map(|a| &a.value) else { return None };
     let Some(Value::List(elements)) = state.argument(name).map(|a| &a.value) else { return None };
     Some(match elements.first() {
@@ -287,7 +291,7 @@ pub fn check_declaration(argument: &Argument) -> Result<(), Error> {
 }
 
 pub fn is_list(program: &Program, name: &str) -> bool {
-    initial(program).iter().any(|(known, _)| known == name)
+    initial(program).iter().any(|(known, _)| known == name) || crate::computed::is_computed(program, name)
 }
 
 /// `tasks=[Pain,Lait]` : chaque élément codé comme un texte, pour ne pas se mêler aux séparateurs.
@@ -583,6 +587,9 @@ pub fn check_request(request: &Block, program: &Program, rule: &Block, in_line: 
             ("add" | "sub", [Argument { name: None, value: Value::Integer(_), .. }]) => Ok(()),
             _ => Err(error(format!("« item.{field}.{operation} » : on demande set (un nombre, un texte, ou une valeur de la page), add ou sub (un nombre entier)"))),
         };
+    }
+    if crate::computed::is_computed(program, value) {
+        return Err(error(format!("« {value} » est une liste calculée : elle se refait d'après sa source, on ne la change pas par une demande ; change plutôt « {} »", crate::computed::source_of(program, value).unwrap_or_default())));
     }
     if is_list(program, value) {
         let the_kind = kind(program, value).unwrap_or(Kind::Free);
