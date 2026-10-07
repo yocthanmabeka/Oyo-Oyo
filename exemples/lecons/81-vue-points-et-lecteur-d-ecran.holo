@@ -10,6 +10,11 @@
 //   Sur Windows, Ctrl + Windows + Entrée lance le Narrateur (la même touche l'arrête).
 //   Zoome sur la page (Ctrl + molette) jusqu'aux points : le Narrateur dit « Vue points »,
 //   et il lit toujours le texte. Appuie sur Tab : la page revient.
+//   Sur un téléphone Android, le lecteur d'écran s'appelle TalkBack : Paramètres →
+//   Accessibilité → TalkBack (ou les deux touches de volume appuyées trois secondes, si ce
+//   raccourci est activé). Sur un iPhone, c'est VoiceOver : Réglages → Accessibilité →
+//   VoiceOver. Pince la page à deux doigts jusqu'aux points : il dit « Vue points ».
+//   Rien à écrire pour l'un ou l'autre : la page est du HTML ordinaire, que tous lisent.
 //
 // (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
 
@@ -20,6 +25,7 @@ Page(
     H1("La vue points se lit aussi"),
     P("Zoome sur cette page : elle devient des points. Un lecteur d'écran, lui, continue de lire ce texte."),
     P("Sur Windows : Ctrl + Windows + Entrée lance le Narrateur ; la même touche l'arrête."),
+    P("Sur un téléphone Android : TalkBack, dans Paramètres → Accessibilité → TalkBack (ou les deux touches de volume appuyées trois secondes, si ce raccourci est activé). Sur un iPhone : VoiceOver, dans Réglages → Accessibilité → VoiceOver. Pince la page à deux doigts pour zoomer."),
 
     Hr(),
     Row(gap: 16px, align: between, children: [

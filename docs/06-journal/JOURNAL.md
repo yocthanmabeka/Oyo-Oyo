@@ -6,6 +6,41 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Lot 4 : la mise en page (téléphone, ordinateur, la place, ce qui dépasse, les proportions, le curseur, justifié, décrocher)
+
+- Fait (`ADR-069`, PROPOSITION), dans l'ordre demandé par Yocthan :
+  - `computer: { … }` (1024px ou plus) à côté de `phone: { … }` ; `Page { max-width: 960px; }` élargit la page ; `display: none` dans `phone:`, `computer:` et `narrow:` ;
+  - `narrow: { … }` vaut dans une case de `Grid` de moins de 320px ; la page mesure les cases elle-même ;
+  - un mot trop long passe à la ligne sans rien écrire ; `line-clamp: 3`, `min-width`, `min-height`, `max-height`, `overflow`, `white-space` ;
+  - `aspect-ratio`, `object-fit` (une image est `cover` d'office, jamais déformée), `object-position` ;
+  - `cursor` : 22 formes ou une image, avec la forme de secours ajoutée ;
+  - `text-align: justify`, avec les mots coupés dans la langue de la page.
+- **Décrocher la page**, décision de Yocthan sur son téléphone, « comme pour tourner » : par défaut, le zoom est celui du navigateur, et la page reste accrochée ; `Zoom(detach: true)` offre « Décrocher » dans le menu ☰. Avec des points, le moteur garde le zoom.
+- **Les touches à l'écran**, sa règle du même soir (« si la fonction existe sur téléphone, elle doit strictement aussi exister sur ordinateur et vice-versa ») : au doigt, une page qui écoute des touches les montre en bas de l'écran. Les leçons 35 et 81 disent aussi comment lancer TalkBack et VoiceOver.
+- **Le Big Bang mène aux leçons** : en haut à gauche, « Les leçons » et « La pile », et « Leçon 27 → » depuis la leçon 26. Sur le téléphone, rien n'y menait.
+- **La séance au doigt** : Yocthan a essayé les leçons 1 à 88 sur son Galaxy Z Flip 5 ; « jusqu'à la 88e leçon, tout est bon », hormis six points : quatre corrigés (la PR 160 et ce lot), deux proposés pour le lot 7 (les secondes, des polices libres prêtes). Compte rendu, avec deux captures : `proposals/Claude/telephone-2026-10-07/README.md`.
+- Dans la même pull request : le mode `--telephone` de `moteur/outils/browser-tests.mjs` (les essais dans le Chrome du téléphone branché, par le câble ; pas encore lancé jusqu'au bout) ; les mesures réparées : `moteur/src/web.rs` publie ses mesures avec des noms anglais (`fps`, `worst_ms`, `depth`…), ceux que lisent `web/measures.js` et `outils/mesures/`. Elles étaient cassées depuis l'`ADR-060`.
+- Leçons 89 à 94 ; la leçon 77 mise à jour ; la 94 mène à la 95 du lot 8. Noté pour la session du nuage : sa leçon 95 renvoie encore à la leçon 88 (règle du tableau « Qui fait quoi » : on ne touche pas au lot de l'autre). Trois essais de plus dans Chrome : la mise en page (un ordinateur de 1280px, un téléphone de 400px), le zoom et les touches, le Big Bang.
+- Exécuté : `cargo test --release` → 143 tests passent (3 nouveaux) ; dans Chrome, la suite entière → 27 essais `OK`, aucun raté (94 leçons ouvertes sans erreur ; la mise en page, 24 vérifications sur un ordinateur et un téléphone ; le zoom et les touches au doigt ; le Big Bang). Le tableau en ligne est republié.
+
+**Erreurs en route**
+
+- J'avais proposé à Yocthan `Relief(detach: true)` ; `Relief` n'existe qu'avec les points : c'est devenu `Zoom(detach: true)`.
+- `narrow:` était d'abord prévu avec les « container queries » du CSS : une case de grille ne peut pas s'y mesurer elle-même, et l'auteur s'y serait trompé. La page mesure maintenant chaque case.
+- La leçon de la place sautait du H1 au H3 : le moteur l'a refusée.
+- La boîte de la leçon 90 n'avait pas assez de texte pour défiler à la taille d'un téléphone : l'essai l'a vu.
+- Trouvé par l'essai, et qui aurait gêné sur le téléphone : quand le moteur grossit une page décrochée, Chrome sur téléphone élargit sa zone d'affichage, et le menu ☰ (avec « Accrocher ») partait hors de l'écran. Corrigé par `minimum-scale=1` : on grossit autant qu'on veut, on ne réduit pas sous la taille normale.
+- Dans l'essai, après un pincement du navigateur lui-même, le Chrome d'essai ne transmettait plus les doigts simulés aux pages suivantes : ce pincement est passé en dernier.
+- Trois tests du moteur attendaient l'ancienne page : deux sans la marque `data-zoom`, et le mien définissait deux fois le même style.
+- J'avais d'abord ajouté cinq boutons à la main dans la leçon 77 ; la règle de parité de Yocthan les a remplacés par les touches à l'écran, pour toutes les pages.
+- La fusion de la PR 160 a d'abord été bloquée par le garde-fou de Claude Code (« fusion sans relecture ») ; Yocthan l'a autorisée.
+- Deux agents lancés pour aller plus vite se sont arrêtés à la limite du modèle Fable ; ils ont été relancés sur Opus.
+- Je n'offrais que 15 formes de curseur, et ni `white-space: pre-wrap` : retirer une capacité du web sans raison va contre l'ordre de Yocthan. Relevé par l'agent qui écrivait la documentation ; les 7 formes et `pre-wrap` sont ajoutées, seul `pre` reste refusé, avec sa raison.
+- Mon essai annonçait « 26 vérifications » ; il en fait 24. Relevé par le même agent, corrigé.
+- Mes leçons allaient de 89 à 95, alors que la coordination des deux sessions, posée le même soir, réserve au lot 4 les leçons 89 à 94 (95 à 99 pour le lot 8, dans le nuage). La place a rejoint la leçon 89 (« L'écran et la place ») ; les suivantes ont descendu d'un cran.
+
+---
+
 ## 2026-10-07 — Holoverse de 1970 à 2026 : l'avis de Gemini
 
 - Codex a proposé (PR #153) un monde qui existe sans son dessin, visitable d'un terminal de 1978 au téléphone de 2026, et demandé l'avis de Claude et de Gemini.

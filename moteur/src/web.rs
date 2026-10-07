@@ -519,16 +519,18 @@ fn publish(e: &State, fps: f64) -> Result<(), JsValue> {
     let o = js_sys::Object::new();
     let place = |key: &str, v: JsValue| js_sys::Reflect::set(&o, &JsValue::from_str(key), &v).map(|_| ());
     place("backend", JsValue::from_str(e.renderer.backend))?;
-    place("ips", JsValue::from_f64((fps * 10.0).round() / 10.0))?;
-    place("pire_ms", JsValue::from_f64((e.worst_ms * 10.0).round() / 10.0))?;
-    place("profondeur", JsValue::from_f64(e.nav.depth() as f64))?;
-    place("chemin", JsValue::from_str(&e.nav.path()))?;
-    place("graine", JsValue::from_str(&e.nav.current_seed().to_string()))?;
-    place("points_dessines", JsValue::from_f64(e.nb_points as f64))?;
+    // Des noms anglais (ADR-060), ceux que lisent la page (sortir d'un monde en dézoomant) et le
+    // rapport des mesures (`web/measures.js`).
+    place("fps", JsValue::from_f64((fps * 10.0).round() / 10.0))?;
+    place("worst_ms", JsValue::from_f64((e.worst_ms * 10.0).round() / 10.0))?;
+    place("depth", JsValue::from_f64(e.nav.depth() as f64))?;
+    place("path", JsValue::from_str(&e.nav.path()))?;
+    place("seed", JsValue::from_str(&e.nav.current_seed().to_string()))?;
+    place("drawn_points", JsValue::from_f64(e.nb_points as f64))?;
     place("zoom", JsValue::from_f64((f64::from(e.nav.zoom) * 100.0).round() / 100.0))?;
-    place("largeur", JsValue::from_f64(f64::from(e.canvas.width())))?;
-    place("hauteur", JsValue::from_f64(f64::from(e.canvas.height())))?;
-    place("premiere_image_ms", JsValue::from_f64(e.first_frame_ms.unwrap_or(0.0).round()))?;
+    place("width", JsValue::from_f64(f64::from(e.canvas.width())))?;
+    place("height", JsValue::from_f64(f64::from(e.canvas.height())))?;
+    place("first_frame_ms", JsValue::from_f64(e.first_frame_ms.unwrap_or(0.0).round()))?;
     let window = web_sys::window().ok_or("pas de fenêtre")?;
     js_sys::Reflect::set(&window, &JsValue::from_str("__holo"), &o)?;
     Ok(())

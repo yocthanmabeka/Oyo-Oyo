@@ -12,14 +12,20 @@
 // Rend « OK » ou « RATÉ » par essai, et un code de sortie 1 s'il y a un raté.
 
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const engine = fileURLToPath(new URL("..", import.meta.url));
 const repo = resolve(engine, "..");
-const only = process.argv[2] ?? "";
+// `--telephone` : le Chrome du téléphone de Yocthan, par le câble. Avant :
+//   adb reverse tcp:8080 tcp:8080 ; adb forward tcp:9222 localabstract:chrome_devtools_remote ;
+//   adb shell am start -a android.intent.action.VIEW -d http://localhost:8080/stack com.android.chrome
+// Les pages viennent alors du serveur 8080 du PC (le code de main), et l'outil ne pilote que
+// l'onglet ouvert sur localhost:8080 : jamais les autres onglets du téléphone.
+const phone = process.argv.includes("--telephone");
+const only = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? "";
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function findChrome() {
@@ -38,6 +44,11 @@ function findChrome() {
 
 // Le serveur d'essai, sur un port libre ; on attend qu'il annonce son adresse.
 async function startServer() {
+  if (phone) {
+    const reached = await fetch("http://localhost:8080/exemples/lecons/01-page.holo").then((r) => r.ok, () => false);
+    if (!reached) throw new Error("le serveur 8080 du PC ne répond pas : node outils/server.mjs, avec PORT=8080");
+    return { base: "http://localhost:8080", stop() {} };
+  }
   const port = 18000 + Math.floor(Math.random() * 2000);
   const env = { ...process.env, PORT: String(port) };
   delete env.HOLO_KEY;
@@ -77,8 +88,18 @@ async function launchChrome() {
   return { chrome, profile, target, said: said.trim() || "(rien)" };
 }
 
+// Le Chrome du téléphone : l'onglet ouvert sur localhost:8080 (par adb shell am start).
+async function connectPhone() {
+  const tabs = await (await fetch("http://127.0.0.1:9222/json")).json().catch(() => []);
+  const target = tabs.find((t) => t.type === "page" && t.url.startsWith("http://localhost:8080/"));
+  if (!target) throw new Error("aucun onglet sur localhost:8080 dans le Chrome du téléphone : adb shell am start -a android.intent.action.VIEW -d http://localhost:8080/stack com.android.chrome");
+  const version = await (await fetch("http://127.0.0.1:9222/json/version")).json();
+  console.log(`Le téléphone : ${version.Browser} (${version["User-Agent"]})`);
+  return { target };
+}
+
 async function startChrome() {
-  let launched = await launchChrome();
+  let launched = phone ? await connectPhone() : await launchChrome();
   // Sur une machine de GitHub qui vient de démarrer, Chrome tarde parfois : un second essai.
   if (!launched.target) {
     console.log(`Chrome ne répond pas ; second essai. Ce qu'il a dit : ${launched.said}`);
@@ -115,6 +136,8 @@ async function startChrome() {
     },
     stop() {
       ws.close();
+      // Le Chrome du téléphone reste ouvert : on ne fait que s'en détacher.
+      if (!chrome) return;
       chrome.kill();
       // Chrome garde son dossier un instant après s'être arrêté.
       setTimeout(() => { try { rmSync(profile, { recursive: true, force: true }); } catch { /* tant pis */ } }, 1500);
@@ -188,8 +211,13 @@ const tests = [
       const title = await p.value("document.title");
       if (b.errors.length) faults.push(`${file} : ${b.errors.join(" | ")}`);
       else if (!title || title === "HoloCode") faults.push(`${file} : pas de titre`);
+      // Sur un téléphone, une page ne déborde pas de l'écran (on ne glisse pas de côté).
+      else if (phone) {
+        const [wide, screen] = await p.value("[document.documentElement.scrollWidth, innerWidth]");
+        if (wide > screen + 1) faults.push(`${file} : déborde (${wide} px pour un écran de ${screen} px)`);
+      }
     }
-    return [faults.length === 0, faults.length ? faults.join("\n      ") : `${lessons().length} leçons`];
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : `${lessons().length} leçons${phone ? ", aucune ne déborde de l'écran" : ""}`];
   }],
   ["le moteur arrive au premier geste", async (p) => {
     await p.open("/exemples/lecons/01-page.holo");
@@ -198,8 +226,10 @@ const tests = [
     return [ok, ok ? "les outils s'ouvrent" : "les outils ne s'ouvrent pas"];
   }],
   ["pincer à deux doigts grossit la page (pinch)", async (p, b) => {
-    await b.send("Emulation.setDeviceMetricsOverride", { width: 400, height: 800, deviceScaleFactor: 2, mobile: true });
-    await b.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+    if (!phone) {
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 400, height: 800, deviceScaleFactor: 2, mobile: true });
+      await b.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+    }
     try {
       await p.open("/exemples/lecons/09-zoom-et-points.holo");
       const fingers = (gap) => [{ x: 200 - gap, y: 300, id: 1 }, { x: 200 + gap, y: 300, id: 2 }];
@@ -213,8 +243,10 @@ const tests = [
       }
       return [zoomed && b.errors.length === 0, zoomed ? (b.errors.length ? b.errors.join(" | ") : "la page grossit") : `aucun zoom ; ${b.errors.join(" | ") || "aucune erreur"}`];
     } finally {
-      await b.send("Emulation.setTouchEmulationEnabled", { enabled: false });
-      await b.send("Emulation.clearDeviceMetricsOverride");
+      if (!phone) {
+        await b.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+        await b.send("Emulation.clearDeviceMetricsOverride");
+      }
     }
   }],
   ["un module enfermé rend son nombre", async (p) => {
@@ -530,6 +562,158 @@ const tests = [
       b.on("Fetch.requestPaused", null);
     }
   }],
+  ["la mise en page : téléphone, ordinateur, la place, ce qui dépasse, les proportions, le curseur, justifié (leçons 89 à 93)", async (p, b) => {
+    const faults = [];
+    const check = (name, ok, seen) => { if (!ok) faults.push(`${name} : ${seen}`); };
+    const style = (selector, property) => p.value(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); return e ? getComputedStyle(e).getPropertyValue(${JSON.stringify(property)}) : "absent"; })()`);
+    const shown = (selector) => p.value(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); return e ? getComputedStyle(e).display !== "none" : "absent"; })()`);
+    const width = (selector) => p.value(`document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect().width ?? -1`);
+    try {
+      // Sur un ordinateur (1280 de large) : la page s'élargit à 960, la phrase « téléphone » reste, l'autre se cache.
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
+      await p.open("/exemples/lecons/89-telephone-et-ordinateur.holo", 600);
+      check("ordinateur, largeur de la page", Math.abs((await width("#page main")) - 960) < 2, await width("#page main"));
+      check("ordinateur, bandeau à 22px", (await style(".holo-s-bandeau", "font-size")) === "22px", await style(".holo-s-bandeau", "font-size"));
+      check("ordinateur, la phrase « téléphone » se voit", (await shown(".holo-s-grand")) === true, await shown(".holo-s-grand"));
+      check("ordinateur, la phrase « ordinateur » se cache", (await shown(".holo-s-petit")) === false, await shown(".holo-s-petit"));
+      // Plus bas, la place : la grande case garde sa phrase, les trois petites la cachent.
+      const narrow = await p.until(`document.querySelectorAll(".holo-narrow").length === 3`, 5000);
+      check("la place : trois cases étroites marquées", narrow, await p.value(`document.querySelectorAll(".holo-narrow").length`));
+      check("la place : la grande case lit tout", (await p.value(`getComputedStyle(document.querySelectorAll(".holo-Grid")[0].querySelector(".holo-s-detail")).display !== "none"`)) === true, "phrase cachée");
+      check("la place : une petite case cache sa phrase", (await shown(".holo-narrow .holo-s-detail")) === false, await shown(".holo-narrow .holo-s-detail"));
+      check("la place : son titre rapetisse", (await style(".holo-narrow .holo-H3", "font-size")) === "16px", await style(".holo-narrow .holo-H3", "font-size"));
+      // Sur un téléphone (400 de large) : l'inverse, et rien ne déborde.
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 400, height: 800, deviceScaleFactor: 2, mobile: true });
+      await p.open("/exemples/lecons/89-telephone-et-ordinateur.holo", 600);
+      check("téléphone, bandeau à 14px", (await style(".holo-s-bandeau", "font-size")) === "14px", await style(".holo-s-bandeau", "font-size"));
+      check("téléphone, la phrase « téléphone » se cache", (await shown(".holo-s-grand")) === false, await shown(".holo-s-grand"));
+      check("téléphone, la phrase « ordinateur » se voit", (await shown(".holo-s-petit")) === true, await shown(".holo-s-petit"));
+      // Leçon 90, sur un téléphone : rien ne déborde, « … » après trois lignes, la boîte défile.
+      await p.open("/exemples/lecons/90-ce-qui-depasse.holo", 600);
+      const overflow = await p.value("document.documentElement.scrollWidth - document.documentElement.clientWidth");
+      check("ce qui dépasse : le long mot ne fait pas déborder la page", overflow <= 0, `${overflow}px de trop`);
+      check("ce qui dépasse : trois lignes puis « … »", (await style(".holo-s-resume", "-webkit-line-clamp")) === "3", await style(".holo-s-resume", "-webkit-line-clamp"));
+      const resumeHeight = await p.value(`document.querySelector(".holo-s-resume").getBoundingClientRect().height`);
+      check("ce qui dépasse : le résumé tient en trois lignes", resumeHeight > 40 && resumeHeight < 90, `${resumeHeight}px`);
+      check("ce qui dépasse : la boîte défile", (await p.value(`(() => { const b = document.querySelector(".holo-s-boite"); return b.scrollHeight > b.clientHeight && getComputedStyle(b).overflowY === "auto"; })()`)) === true, "pas de défilement");
+      check("ce qui dépasse : le prix ne se coupe pas", (await style(".holo-s-prix", "white-space")) === "nowrap", await style(".holo-s-prix", "white-space"));
+      // Leçon 91 : des carrés, l'image coupée ou entière.
+      await p.open("/exemples/lecons/91-garder-des-proportions.holo", 600);
+      const square = await p.value(`(() => { const r = document.querySelector(".holo-s-carre").getBoundingClientRect(); return Math.abs(r.width - r.height) < 1 && r.width > 100; })()`);
+      check("proportions : un carré", square === true, await p.value(`JSON.stringify(document.querySelector(".holo-s-carre").getBoundingClientRect())`));
+      check("proportions : coupée au milieu", (await style(".holo-s-carre", "object-fit")) === "cover", await style(".holo-s-carre", "object-fit"));
+      check("proportions : coupée à gauche", (await style(".holo-s-gauche", "object-position")) === "0% 50%", await style(".holo-s-gauche", "object-position"));
+      check("proportions : en entier", (await style(".holo-s-entier", "object-fit")) === "contain", await style(".holo-s-entier", "object-fit"));
+      // Leçon 92 : le curseur, dessiné avec sa forme de secours.
+      await p.open("/exemples/lecons/92-le-curseur.holo", 600);
+      check("curseur : une aide", (await style(".holo-s-aide", "cursor")) === "help", await style(".holo-s-aide", "cursor"));
+      const drawn = await style(".holo-s-dessin", "cursor");
+      check("curseur : dessiné, avec « auto » de secours", /viseur\.svg"?\),\s*auto$/.test(drawn), drawn);
+      // Leçon 93 : justifié, avec les coupures de mots.
+      await p.open("/exemples/lecons/93-texte-justifie.holo", 600);
+      check("justifié", (await style(".holo-s-livre", "text-align")) === "justify", await style(".holo-s-livre", "text-align"));
+      check("justifié : les mots se coupent", (await style(".holo-s-livre", "hyphens")) === "auto", await style(".holo-s-livre", "hyphens"));
+      if (b.errors.length) faults.push(`erreurs : ${b.errors.join(" | ")}`);
+    } finally {
+      await b.send("Emulation.clearDeviceMetricsOverride");
+    }
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : "24 vérifications, sur un ordinateur et sur un téléphone"];
+  }],
+  ["le zoom : accrochée par défaut, décrochée sur demande (leçon 94), et les touches à l'écran (leçon 77)", async (p, b) => {
+    const faults = [];
+    const check = (name, ok, seen) => { if (!ok) faults.push(`${name} : ${seen}`); };
+    await b.send("Emulation.setDeviceMetricsOverride", { width: 400, height: 800, deviceScaleFactor: 2, mobile: true });
+    await b.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+    const fingers = (gap) => [{ x: 200 - gap, y: 300, id: 1 }, { x: 200 + gap, y: 300, id: 2 }];
+    const pinch = async () => {
+      await b.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: fingers(40) });
+      for (let g = 50; g <= 160; g += 10) await b.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: fingers(g) });
+      await b.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      await pause(600);
+    };
+    const grown = () => p.value(`(() => { const m = document.querySelector("#page .holo-Page"); return !!m && getComputedStyle(m).transform !== "none"; })()`);
+    try {
+      // La leçon 9 (des points) : le pincement reste à la page, comme avant.
+      await p.open("/exemples/lecons/09-zoom-et-points.holo", 600);
+      check("avec des points : le zoom est au moteur", (await p.value(`document.documentElement.classList.contains("holo-zoom")`)) === true, "le pincement est resté au navigateur");
+      // La leçon 94 : accrochée d'abord ; « Décrocher » dans le menu ; décrochée, le moteur approche la page ;
+      // « Accrocher » la remet à sa place.
+      await p.open("/exemples/lecons/94-decrocher-la-page.holo", 600);
+      check("leçon 94 : accrochée au départ", (await p.value(`!document.documentElement.classList.contains("holo-zoom")`)) === true, "décrochée au départ");
+      await p.click("#toggle");
+      const offered = await p.until(`document.getElementById("detach") && !document.getElementById("detach").hidden`);
+      check("leçon 94 : « Décrocher » est offert", offered, "pas de bouton");
+      check("leçon 94 : « Décrocher » n'est pas sur une page ordinaire", (await p.value(`document.getElementById("detach").textContent`)) === "Décrocher", await p.value(`document.getElementById("detach").textContent`));
+      await p.click("#detach");
+      check("leçon 94 : décrochée", (await p.value(`document.body.classList.contains("detached") && document.getElementById("detach").textContent === "Accrocher"`)) === true, "pas décrochée");
+      await pinch();
+      check("leçon 94 : décrochée, le moteur approche la page", (await grown()) === true, "la page n'a pas grossi");
+      await p.click("#detach");
+      check("leçon 94 : accrochée à nouveau, à sa taille", (await p.value(`!document.body.classList.contains("detached")`)) === true && (await grown()) === false, "pas revenue");
+      // La leçon 77 au doigt : les touches en bas de l'écran (l'écran tactile sans souris est simulé).
+      await b.send("Emulation.setEmulatedMedia", { features: [{ name: "hover", value: "none" }, { name: "pointer", value: "coarse" }] });
+      await p.open("/exemples/lecons/77-toutes-les-touches.holo", 600);
+      const keys = await p.until(`document.querySelectorAll("#keys button").length === 5`, 15000);
+      check("leçon 77 au doigt : cinq touches à l'écran", keys, await p.value(`document.querySelectorAll("#keys button").length`));
+      check("leçon 77 au doigt : les étiquettes", (await p.value(`[...document.querySelectorAll("#keys button")].map((b) => b.textContent).join(" ")`)) === "P M 5 Entrée Échap", await p.value(`[...document.querySelectorAll("#keys button")].map((b) => b.textContent).join(" ")`));
+      const tap = async (key) => {
+        const box = await p.value(`(() => { const b = document.querySelector('#keys button[data-key="${key}"]').getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()`);
+        await b.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: box[0], y: box[1], id: 1 }] });
+        await b.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+        await pause(300);
+      };
+      await tap("p");
+      await tap("digit5");
+      await tap("enter");
+      const count = () => p.value(`document.querySelector('[data-state="compte"]')?.textContent`);
+      check("leçon 77 au doigt : P, 5, Entrée → 16", (await count()) === "16", await count());
+      await tap("escape");
+      check("leçon 77 au doigt : Échap → 0", (await count()) === "0", await count());
+      // Avec une souris, sur un ordinateur : pas de touches à l'écran, le clavier suffit.
+      await b.send("Emulation.setEmulatedMedia", { features: [] });
+      await b.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
+      await p.open("/exemples/lecons/77-toutes-les-touches.holo", 600);
+      await p.click("#toggle");
+      await p.until(`document.getElementById("tools") && !document.getElementById("tools").hidden`);
+      check("leçon 77 à la souris : pas de touches à l'écran", (await p.value(`document.getElementById("keys").hidden`)) === true, "des touches sont affichées");
+      // Une page ordinaire (leçon 1), au doigt : c'est le navigateur qui grossit la page, sur place.
+      // Le moteur ne grossit rien, et il n'est même pas demandé. (En dernier : après un pincement
+      // du navigateur, le Chrome d'essai ne transmet plus les doigts simulés aux pages suivantes.)
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 400, height: 800, deviceScaleFactor: 2, mobile: true });
+      await b.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+      await p.open("/exemples/lecons/01-page.holo", 600);
+      check("page ordinaire : le zoom est au navigateur", (await p.value(`!document.documentElement.classList.contains("holo-zoom")`)) === true, "la page garde le pincement");
+      await pinch();
+      const scale = await p.value("visualViewport.scale");
+      check("page ordinaire : le navigateur a grossi la page", scale > 1, `grossissement ${scale}`);
+      check("page ordinaire : le moteur ne grossit pas la page", (await grown()) === false, "la page a grossi par le moteur");
+      check("page ordinaire : le moteur n'est pas demandé pour pincer", (await p.value(`!document.querySelector('script[src^="/page-engine.js"]')`)) === true, "le moteur a été demandé");
+      if (b.errors.length) faults.push(`erreurs : ${b.errors.join(" | ")}`);
+    } finally {
+      await b.send("Emulation.setEmulatedMedia", { features: [] });
+      await b.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+      await b.send("Emulation.clearDeviceMetricsOverride");
+    }
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : "accrochée, décrochée, accrochée ; cinq touches au doigt"];
+  }],
+  ["depuis le Big Bang, les leçons et la pile se touchent (vu sur le téléphone)", async (p, b) => {
+    // Trouvé par Yocthan sur son téléphone, le 2026-10-07 : depuis le Big Bang, rien ne menait aux leçons.
+    await b.send("Emulation.setDeviceMetricsOverride", { width: 400, height: 800, deviceScaleFactor: 2, mobile: true });
+    try {
+      await p.open("/", 600);
+      const links = await p.value(`[...document.querySelectorAll("nav a")].map((a) => a.textContent + " → " + a.getAttribute("href")).join(" ; ")`);
+      const onTop = await p.value(`(() => { const a = document.querySelector('nav a[href$="01-page.holo"]'); const r = a.getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === a && r.height >= 44; })()`);
+      await p.click('nav a[href$="01-page.holo"]');
+      const moved = await p.until(`location.pathname.endsWith("01-page.holo")`, 8000);
+      // La leçon 26, le Big Bang, n'a pas de liens en bas de page : la suivante est en haut.
+      await p.open("/exemples/lecons/26-point-seul.holo", 600);
+      const next = await p.until(`document.querySelector('nav a[href$="27-donnees.holo"]')?.textContent === "Leçon 27 →"`, 8000);
+      return [onTop && moved && next, `${links} ; touchable : ${onTop} ; mène à la leçon 1 : ${moved} ; leçon 26 → 27 : ${next}`];
+    } finally {
+      await b.send("Emulation.clearDeviceMetricsOverride");
+    }
+  }],
   ["une fenêtre fermée ne couvre pas la page (leçon 63, vu sur le téléphone)", async (p) => {
     // Trouvé par Yocthan sur son téléphone, le 2026-10-07 : le lien vers la leçon 64 ne se
     // laissait pas toucher, la fenêtre fermée restait posée dessus.
@@ -590,6 +774,60 @@ const tests = [
     return [inPoints && heading && !heading.ignored && announced, `vue points : ${inPoints} ; titre lisible : ${Boolean(heading && !heading.ignored)} ; « Vue points » annoncé : ${announced}`];
   }],
 ];
+
+// Les essais propres au téléphone : seulement avec --telephone.
+const capturesFolder = join(repo, "proposals", "Claude", "telephone-2026-10-07", "captures");
+if (phone) tests.push(
+  ["téléphone : temps de chargement, sans cache", async (p, b) => {
+    await b.send("Network.enable");
+    await b.send("Network.setCacheDisabled", { cacheDisabled: true });
+    const seen = [];
+    try {
+      for (const path of ["/exemples/lecons/01-page.holo", "/exemples/site-reference/accueil.holo", "/exemples/lecons/84-donnees-arrivees-ou-pas.holo", "/mondes/big-bang.holo"]) {
+        await p.open(path, 2500);
+        const [ready, loaded, bytes] = await p.value(`(() => { const n = performance.getEntriesByType("navigation")[0]; const all = [n, ...performance.getEntriesByType("resource")]; return [Math.round(n.domContentLoadedEventEnd), Math.round(n.loadEventEnd), all.reduce((s, e) => s + (e.transferSize || 0), 0)]; })()`);
+        seen.push(`${path.split("/").pop()} : prête ${ready} ms, chargée ${loaded} ms, ${(bytes / 1000).toFixed(1)} Ko`);
+      }
+    } finally {
+      await b.send("Network.setCacheDisabled", { cacheDisabled: false });
+    }
+    return [true, seen.join(" ; ")];
+  }],
+  ["téléphone : une lettre tapée, la liste refaite (leçon 82)", async (p) => {
+    await p.open("/exemples/lecons/82-chercher-filtrer-trier.holo");
+    await p.until(`window.__holoStarted && document.querySelectorAll(".holo-line").length > 0`);
+    const times = [];
+    for (const letters of ["r", "ri", "riv", "", "h", "hu"]) {
+      times.push(await p.value(`(() => { const i = document.querySelector('input[data-bind="search"]'); const t0 = performance.now(); i.value = ${JSON.stringify(letters)}; i.dispatchEvent(new Event("input", { bubbles: true })); return Math.round((performance.now() - t0) * 10) / 10; })()`));
+    }
+    const worst = Math.max(...times);
+    return [worst < 50, `${times.join(", ")} ms ; la plus lente : ${worst} ms (cible : moins de 50 ms)`];
+  }],
+  ["téléphone : le champ à virgule et le champ date (leçons 86, 87)", async (p, b) => {
+    await p.open("/exemples/lecons/86-nombres-a-virgule.holo");
+    await p.until("window.__holoStarted");
+    const attributes = await p.value(`(() => { const i = document.querySelector('input[data-bind="price"]'); return [i.type, i.inputMode, i.step, i.value].join(" "); })()`);
+    // La virgule, comme sur un clavier français : Chrome la prend-il dans un champ de nombre ?
+    await p.value(`(() => { const i = document.querySelector('input[data-bind="price"]'); i.focus(); i.select(); })()`);
+    await b.send("Input.insertText", { text: "9,99" });
+    await pause(400);
+    const comma = await p.value(`[document.querySelector('input[data-bind="price"]').value, (document.getElementById("page").innerText.match(/Prix : [^€]*€/) ?? ["?"])[0]]`);
+    await p.open("/exemples/lecons/87-des-dates.holo");
+    await p.until("window.__holoStarted");
+    const date = await p.value(`(() => { const i = document.querySelector('input[data-bind="arrival"]'); return [i.type, i.min].join(" "); })()`);
+    return [attributes.startsWith("number decimal 0.01") && date.startsWith("date "), `champ à virgule : ${attributes} ; « 9,99 » écrit → champ « ${comma[0]} », page « ${comma[1]} » ; champ date : ${date}`];
+  }],
+  ["téléphone : des captures", async (p, b) => {
+    mkdirSync(capturesFolder, { recursive: true });
+    const pages = ["01-page", "53-telephone", "80-tailles-qui-suivent", "82-chercher-filtrer-trier", "84-donnees-arrivees-ou-pas", "85-une-cle-pour-chaque-element", "86-nombres-a-virgule", "87-des-dates"];
+    for (const name of pages) {
+      await p.open(`/exemples/lecons/${name}.holo`, 2500);
+      const shot = await b.send("Page.captureScreenshot", { format: "png" });
+      writeFileSync(join(capturesFolder, `${name}.png`), Buffer.from(shot.result.data, "base64"));
+    }
+    return [true, `${pages.length} captures dans proposals/Claude/telephone-2026-10-07/captures/`];
+  }],
+);
 
 const server = await startServer();
 const browser = await startChrome();

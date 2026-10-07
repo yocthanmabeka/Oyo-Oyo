@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-07). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (356 mots : 336 décidés, 20 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (377 mots : 344 décidés, 33 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
 - **Existe ?** : le jugement de Claude, élément par élément (oui, en partie, non) ; ce n’est pas une mesure. Le tableau ne donne pas de pourcentage : aucune méthode reproductible ne mesure la part d’un élément du web qu’on obtient en HoloCode (consigne de Yocthan du 2026-10-07). Les comptes se refont en comptant les lignes.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,11 +9,11 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 356 mots | 336 décidés, 20 à l’essai |
-| HTML | 62 éléments | 49 oui, 5 en partie, 5 non, 3 refusés |
-| CSS | 34 éléments | 25 oui, 5 en partie, 2 non, 2 refusés |
+| **HoloCode** | 377 mots | 344 décidés, 33 à l’essai |
+| HTML | 62 éléments | 51 oui, 5 en partie, 3 non, 3 refusés |
+| CSS | 34 éléments | 28 oui, 4 en partie, 0 non, 2 refusés |
 | JavaScript | 34 éléments | 15 oui, 11 en partie, 6 non, 1 refusés, 1 sans objet |
-| HTML, CSS, JS ensemble | 130 éléments | 89 oui, 21 en partie, 13 non, 6 refusés, 1 sans objet |
+| HTML, CSS, JS ensemble | 130 éléments | 94 oui, 20 en partie, 9 non, 6 refusés, 1 sans objet |
 
 # Partie 1 — Les mots de HoloCode
 
@@ -34,6 +34,7 @@
 | `Nav` | Un menu de navigation | `nav` | Décidé (ADR-036) |
 | `Main` | Le contenu principal | `main` | Décidé (ADR-036) |
 | `Footer` | Le pied de page | `footer` | Décidé (ADR-036) |
+| `Aside` | Un encadré à part, annoncé comme un contenu complémentaire | `aside` | Décidé (ADR-073) |
 
 ## Blocs : le texte
 
@@ -143,6 +144,7 @@
 |---|---|---|---|
 | `text` | Le texte d'un bouton | `le texte de button` | Décidé (ADR-009) |
 | `to` | L'adresse d'un lien | `href` | Décidé (ADR-022) |
+| `newTab, download (dans A)` | Un nouvel onglet, annoncé, qui ne peut pas toucher à la page ; un fichier rangé à côté qui se télécharge | `target=_blank rel=noopener, download` | Décidé (ADR-073) |
 | `by` | L'auteur d'une citation | `cite` | Décidé (ADR-025) |
 | `ordered` | Une liste numérotée | `ol` | Décidé (ADR-009) |
 | `caption, head, rows` | La légende, les titres de colonnes et les lignes d'un tableau | `caption, thead, tbody` | Décidé (ADR-038) |
@@ -205,6 +207,7 @@
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `active, max, shrink, levels, speed` | Les réglages de Zoom | — | Décidé (ADR-021) |
+| `detach` | Offre au visiteur « Décrocher » : la page se détache de l'écran et le zoom l'approche ; sinon, elle reste à sa place | — | À l’essai (ADR-069) |
 | `after, size, fragment, divisions, levels, density` | Les réglages de Points | — | Décidé (ADR-021, ADR-047) |
 | `height, tilt` | Les réglages de Relief | — | Décidé (ADR-021) |
 | `layout, count, size, brightness, duration` | Les réglages de Portals | — | Décidé (ADR-021) |
@@ -253,7 +256,7 @@
 | `color, background` | Les couleurs | `color, background` | Décidé (ADR-017) |
 | `font-size, font-weight, font-style, font-family, text-align` | Le texte (les tailles suivent le réglage du visiteur) | `les mêmes, en rem` | Décidé (ADR-017, ADR-036) |
 | `border, border-radius` | La bordure, les coins arrondis | `les mêmes` | Décidé (ADR-017) |
-| `padding, margin, width, height, max-width` | Les marges et les tailles | `les mêmes` | Décidé (ADR-017) |
+| `padding, margin, width, height, max-width, min-width, min-height, max-height` | Les marges et les tailles, au plus et au moins | `les mêmes` | Décidé (ADR-017, ADR-069) |
 | `opacity` | La transparence | `opacity` | Décidé (ADR-017) |
 | `hover, focus, active` | Ce qui change au survol, au clavier, pendant l'appui | `:hover, :focus-visible, :active` | Décidé (ADR-036) |
 
@@ -329,6 +332,11 @@
 | `linear-gradient, radial-gradient, url(…)` | Un fond en dégradé ou en image | `background-image` | Décidé (ADR-041) |
 | `--or (variables)` | Une couleur ou une taille nommée dans le style de la page | `--or, var(--or)` | Décidé (ADR-041) |
 | `dark, phone` | Le thème sombre ; un écran de téléphone | `@media` | Décidé (ADR-041) |
+| `print` | Ce qui change sur papier ; print: { display: none; } cache un bloc à l'impression | `@media print` | Décidé (ADR-073) |
+| `computer, narrow` | Un écran d'ordinateur (1024px et plus) ; une case de grille étroite (moins de 320px), quel que soit l'écran | `@media, @container` | À l’essai (ADR-069) |
+| `aspect-ratio, object-fit, object-position` | Garder des proportions ; l'image remplit son cadre ou se voit en entier, jamais déformée | `les mêmes` | À l’essai (ADR-069) |
+| `overflow, overflow-x, overflow-y, white-space, line-clamp` | Ce qui dépasse : couper, faire défiler, ne pas passer à la ligne, « … » après quelques lignes | `les mêmes, -webkit-line-clamp` | À l’essai (ADR-069) |
+| `cursor, justify` | La forme du curseur, ou un curseur dessiné ; le texte justifié, les mots coupés | `cursor, text-align: justify, hyphens` | À l’essai (ADR-069) |
 
 ## Blocs : la page
 
@@ -362,6 +370,7 @@
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `caption, phone` | La légende d'une image ; l'image pour un téléphone | `figcaption, picture` | Décidé (ADR-042) |
+| `captions (dans Video)` | Des sous-titres WebVTT, montrés d'emblée, dans la langue de la page | `track kind=captions` | Décidé (ADR-073) |
 | `volume, loop` | Le volume d'un son (de 0 à 1) ; un son qui recommence sans fin | `audio.volume, loop` | Décidé (ADR-061) |
 
 ## Paramètres : agir
@@ -497,7 +506,7 @@
 | — | `dl, dt, dd` | liste de définitions | Non | Plus tard | Un glossaire, une fiche technique. |
 | `A("…", to:)` | `a href` | un lien | Oui | Déjà là | — |
 | `A(to: "#Horaires")` | `a vers un endroit de la page` | sauter plus bas dans la page | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). Un nom qui n'existe pas est refusé. |
-| `A(newTab: true)`, `A(download: true)` | `a target, download` | nouvel onglet, télécharger | Oui | Déjà là | Ajouté le 2026-10-07 (ADR-073) : `noopener` et l'annonce au lecteur d'écran d'office. |
+| `A(newTab: true), A(download: true)` | `a target, download` | nouvel onglet, télécharger | Oui | Déjà là | Ajouté le 2026-10-07 (ADR-073) : noopener, et l'annonce au lecteur d'écran d'un nouvel onglet ; un téléchargement seulement pour un fichier rangé à côté. |
 
 ## HTML — Images et médias
 
@@ -507,7 +516,7 @@
 | `Image(alt:), obligatoire` | `img alt` | le texte pour qui ne voit pas | Oui | Déjà là | Obligatoire depuis le 2026-10-06 ; alt: "" pour un décor (ADR-038). |
 | `Image(phone: "petite.jpg")` | `picture, srcset` | une image plus légère sur téléphone | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). Un seul seuil, celui de la page. |
 | `Image(caption:)` | `figure, figcaption` | une image et sa légende | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
-| `Video(source:, label:, captions:)` | `video`, `track` | une vidéo, ses sous-titres | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038) ; les sous-titres le 2026-10-07 (ADR-073). |
+| `Video(source:, label:, captions:)` | `video, track` | une vidéo, ses sous-titres | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038) ; les sous-titres le 2026-10-07 (ADR-073). |
 | `Sound(…) et .play ; Sound(label:) pour un lecteur` | `audio` | un son, un lecteur | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
 | `Point, World, Shape` | `canvas, WebGL` | un dessin libre, de la 3D | En partie | Oui, utile | Des points et quatre formes ; pas de dessin libre ni de modèles 3D. |
 | `comme fichier d'image` | `svg dans la page` | un dessin vectoriel | En partie | Plus tard | — |
@@ -562,7 +571,7 @@
 | `color, background` | `color, background-color` | couleur du texte et du fond | Oui | Déjà là | — |
 | `font-family, font-size (en px)` | `font-family, font-size` | la police et sa taille | Oui | Déjà là | — |
 | `font-weight, font-style` | `font-weight, font-style` | gras, italique | Oui | Déjà là | — |
-| `text-align` | `text-align` | l'alignement | Oui | Déjà là | — |
+| `text-align (left, center, right, justify)` | `text-align` | l'alignement | Oui | Déjà là | justify coupe aussi les mots en fin de ligne, dans la langue de la page : pas de trous entre les mots sur un téléphone (ADR-069). |
 | `line-height (sans unité), letter-spacing` | `line-height, letter-spacing` | l'interligne, l'espacement | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
 | `text-transform, text-decoration` | `text-transform, text-decoration` | majuscules, souligné | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
 | `Page(fonts: [ Font(family:, source:) ])` | `@font-face` | charger sa propre police | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). Toujours font-display: swap ; une graisse par fichier. |
@@ -576,11 +585,11 @@
 | En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|
 | `margin, padding` | `margin, padding` | les marges | Oui | Déjà là | — |
-| `width, height, max-width` | `width, height, max-width` | les tailles | Oui | Déjà là | Pas de min-width ni max-height. |
+| `width, height, min-width, max-width, min-height, max-height` | `width, height, min-width, max-width, min-height, max-height` | les tailles | Oui | Déjà là | min-width, min-height et max-height ajoutés le 2026-10-07 (ADR-069). |
 | `border, border-radius` | `border, border-radius` | bordure et coins arrondis | Oui | Déjà là | — |
 | `opacity` | `opacity` | la transparence | Oui | Déjà là | — |
-| — | `overflow` | ce qui dépasse | Non | Plus tard | — |
-| — | `cursor` | la forme du curseur | Non | Plus tard | — |
+| `overflow, overflow-x, overflow-y, white-space, line-clamp ; les mots trop longs passent à la ligne d'eux-mêmes` | `overflow, text-overflow, white-space, line-clamp` | ce qui dépasse | Oui | Déjà là | Ajouté le 2026-10-07 (ADR-069). « … » en un seul réglage (line-clamp) ; text-overflow refusé, il ne fait rien seul en CSS. |
+| `cursor: help, grab… ou url("viseur.svg")` | `cursor` | la forme du curseur | Oui | Déjà là | Ajouté le 2026-10-07 (ADR-069). Le moteur ajoute la forme de secours, sans laquelle le navigateur ignore un curseur dessiné. |
 | `px et % ; le navigateur reçoit des rem ; height: screen` | `unités %, rem, vw, clamp` | des tailles qui s'adaptent à l'écran | Oui | Déjà là | Le texte, les marges, les largeurs, les coins suivent le réglage du visiteur ; height: screen remplit l'écran sans le défaut de 100vh (ADR-061). |
 
 ## CSS — Disposition
@@ -590,8 +599,8 @@
 | — | `display, position, float, z-index` | placer à la main | Refusé exprès | Non | Refusé (ADR-017) : la disposition vient des blocs. |
 | `Row, Column (gap, align, grow)` | `flexbox (en ligne, en colonne)` | côte à côte, l'un sous l'autre | Oui | Déjà là | grow: prend la place qui reste (ADR-052). |
 | `Grid(columns:, gap:)` | `grid` | une grille | En partie | Déjà là | Pas de zones nommées ni de case sur deux colonnes. |
-| `automatique, et phone: { … }` | `@media (s'adapter à l'écran)` | changer selon la taille | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). Un seul seuil : celui de la page. |
-| `Board (automatique)` | `aspect-ratio` | garder des proportions | En partie | Plus tard | — |
+| `automatique, et phone:, computer:, narrow: { … } ; Page { max-width: }` | `@media, @container (s'adapter à l'écran, à la place)` | changer selon la taille | Oui | Déjà là | phone: (ADR-041) ; computer: (1024px et plus) et narrow: (une case de grille de moins de 320px, quel que soit l'écran) ajoutés le 2026-10-07 (ADR-069). Rien à déclarer : le moteur mesure les cases. |
+| `aspect-ratio, object-fit, object-position` | `aspect-ratio, object-fit, object-position` | garder des proportions | Oui | Déjà là | Ajouté le 2026-10-07 (ADR-069). Une image n'est jamais déformée sans le demander (object-fit: cover au départ). |
 | `Stack et align:` | `position: absolute (badge, pastille)` | poser un bloc sur un autre | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-036). Pas encore de bulle attachée à un bloc. |
 | `P { }, .carte { }` | `sélecteurs par balise et par nom` | viser des blocs | Oui | Déjà là | — |
 | — | `sélecteurs composés, cascade, !important` | viser finement, forcer | Refusé exprès | Non | Refusé (ADR-017) : source de conflits sans fin en CSS. |
@@ -614,11 +623,11 @@
 | En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|
 | `On(Nom.tap, effect:)` | `clic` | réagir à un toucher | Oui | Déjà là | — |
-| `On(Key.left…), Key.enter, Key.escape, Key.a … Key.z, Key.digit0 … Key.digit9` | `clavier` | réagir aux touches | Oui | Déjà là | Toutes les touches utiles ; jamais Tab ; les touches à une lettre se coupent dans le menu (ADR-061). |
+| `On(Key.left…), Key.enter, Key.escape, Key.a … Key.z, Key.digit0 … Key.digit9` | `clavier` | réagir aux touches | Oui | Déjà là | Toutes les touches utiles ; jamais Tab ; les touches à une lettre se coupent dans le menu (ADR-061). Au doigt, les touches écoutées s'affichent à l'écran (ADR-069). |
 | `On(Carte.hover), On(Carte.hoverEnd)` | `survol, approche (mouseenter)` | quand la souris passe dessus | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-039) : à la souris, au clavier et au doigt. L'approche d'un personnage, en profondeur, reste à faire. |
 | `Enter(…, inView: true)` | `défilement (scroll)` | réagir quand on descend | En partie | Déjà là | Apparaître en arrivant à l'écran (ADR-061). Pas encore la position du défilement comme valeur. |
 | `drag: true sur un plateau` | `glisser-déposer` | faire glisser | En partie | Déjà là | Sur un plateau seulement. |
-| `le zoom du moteur` | `pincer, zoomer` | le zoom à deux doigts | Oui | Déjà là | Le cœur du métavers. |
+| `le zoom du navigateur ; Zoom(detach: true) : « Décrocher » ; le zoom du moteur avec des points` | `pincer, zoomer` | le zoom à deux doigts | Oui | Déjà là | Depuis le 2026-10-07 (ADR-069, décision de Yocthan) : la page reste à sa place, comme tout site ; elle se décroche seulement si l'auteur l'offre et que le visiteur le demande. |
 
 ## JavaScript — Données et calcul
 

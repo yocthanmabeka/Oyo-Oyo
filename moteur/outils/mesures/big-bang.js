@@ -18,9 +18,9 @@
   return JSON.stringify({
     images_par_seconde_pendant_le_zoom: Math.round((images / 6) * 10) / 10,
     pire_image_ms: Math.round(pire * 10) / 10,
-    profondeur_atteinte: m.profondeur,
-    chemin: m.chemin,
-    points_dessines: m.points_dessines,
+    profondeur_atteinte: m.depth,
+    chemin: m.path,
+    points_dessines: m.drawn_points,
     tas_js_Mo: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1e5) / 10 : null,
   }, null, 1);
 })()

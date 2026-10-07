@@ -1,0 +1,48 @@
+// Leçon 90 — Ce qui dépasse
+//
+// Ce qu'on apprend :
+//   Sans rien écrire, un mot trop long (une adresse, un nom de fichier) passe à la ligne au
+//   lieu de faire déborder la page sur un téléphone.
+//     line-clamp: 3        le texte s'arrête après 3 lignes, avec « … » ; un lecteur
+//                          d'écran, lui, lit tout
+//     line-clamp: 1        une seule ligne, avec « … »
+//     max-height: 120px    une hauteur au plus ; avec overflow: auto, on fait défiler la suite
+//     overflow: hidden     ce qui dépasse est coupé ; aussi visible (le départ), auto, scroll,
+//                          et overflow-x, overflow-y pour un seul sens
+//     white-space: nowrap  ne jamais passer à la ligne, comme un prix ; pre-line : garder les
+//                          retours à la ligne écrits dans le texte ; pre-wrap : aussi les espaces
+//     min-height, min-width : une taille au moins
+//   (En CSS, les « … » demandent trois ou quatre réglages ensemble, et text-overflow seul ne
+//   fait rien. Ici, un seul réglage.)
+//
+// À essayer :
+//   Sur ton téléphone : le long mot passe à la ligne, le résumé s'arrête après trois lignes,
+//   et la boîte bleue se fait défiler.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 90 : ce qui dépasse",
+  children: [
+    H1("Ce qui dépasse"),
+    P("Un mot très long : anticonstitutionnellementanticonstitutionnellementanticonstitutionnellement."),
+    P.resume("Ce résumé est long. Il raconte l'atelier, ses outils, ses couleurs, les heures où il ouvre et la façon d'y venir. Sur une carte, on n'a pas la place de tout dire : trois lignes suffisent, la suite est remplacée par des points. Un lecteur d'écran, lui, lit le texte en entier."),
+    P.titre("Un titre beaucoup trop long pour tenir sur une seule ligne d'un téléphone"),
+    P.boite("Une boîte de 120 pixels de haut, au plus. Ce qui dépasse se fait défiler, au doigt ou à la molette. L'atelier ouvre ses portes chaque matin. On y apprend à préparer les couleurs, à tendre une toile, à choisir un pinceau et à regarder longtemps avant de commencer. Les visiteurs repartent souvent avec une petite peinture, et toujours avec l'envie de revenir. Le samedi, l'atelier reste ouvert jusqu'au soir, et l'on y partage le thé. Dernière ligne : tu as fait défiler jusqu'au bout."),
+    P.prix("Prix : 12 345,00 €, jamais coupé"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 89 : l'écran et la place", to: "89-telephone-et-ordinateur.holo"),
+      A("Leçon 91 : garder des proportions →", to: "91-garder-des-proportions.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.resume { line-clamp: 3; }
+.titre { line-clamp: 1; color: #E9B44C; }
+.boite { max-height: 120px; min-height: 60px; overflow-y: auto; overflow-x: hidden; border: 1px solid #8fd3ff; border-radius: 8px; padding: 8px; }
+.prix { white-space: nowrap; min-width: 120px; }
