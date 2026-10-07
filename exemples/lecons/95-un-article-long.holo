@@ -1,0 +1,50 @@
+// Leçon 95 — Un article long : un encadré, des liens qui ouvrent ou téléchargent, l'impression
+//
+// Ce qu'on apprend :
+//   Aside(children: [ … ])            un encadré à part, à côté du texte (« Le saviez-vous ? »)
+//   A("…", to: "https://…", newTab: true)
+//                                     un lien qui s'ouvre dans un nouvel onglet ; le lecteur
+//                                     d'écran l'annonce
+//   A("…", to: "95-programme.txt", download: true)
+//                                     un fichier rangé à côté, téléchargé au lieu d'être ouvert
+//   Nav { print: { display: none; } } ce qui disparaît sur papier
+//   Les images plus bas dans la page ne viennent qu'en approchant de l'écran : rien à écrire.
+//
+// À essayer :
+//   Touche « le programme » : le fichier se télécharge.
+//   Imprime la page (Ctrl + P) : le menu disparaît, l'adresse des liens du web s'écrit à côté.
+
+Page(
+  title: "Leçon 95 : un article long",
+  children: [
+    Header(children: [
+      Nav(children: [ Row(gap: 16px, children: [ A("Leçon 1 : une page", to: "01-page.holo"), A("Leçon 96 : une vidéo sous-titrée", to: "96-une-video-sous-titree.holo") ]) ]),
+    ]),
+    H1("La nuit des étoiles filantes"),
+    Image(source: "etoile.svg", alt: "Une étoile dorée à cinq branches", caption: "Une étoile, vue de près"),
+    P("Chaque été, la Terre traverse la traînée de poussière d'une comète. Les grains brûlent en entrant dans l'air : ce sont les étoiles filantes."),
+    Aside(children: [
+      H2("Le saviez-vous ?"),
+      P("Une étoile filante n'est pas une étoile : c'est un grain plus petit qu'un pois, qui brûle à 100 km de haut."),
+    ]),
+    H2("Où regarder"),
+    P("Loin des lumières de la ville, allongé, les yeux vers le nord-est. Il faut une vingtaine de minutes pour que les yeux s'habituent au noir."),
+    P("Pour en savoir plus, le lien ci-dessous s'ouvre dans un nouvel onglet : cette page reste ouverte."),
+    A("Les Perséides sur Wikipédia", to: "https://fr.wikipedia.org/wiki/Pers%C3%A9ides", newTab: true),
+    H2("Le programme de la nuit"),
+    A("Télécharger le programme (texte)", to: "95-programme.txt", download: true),
+    Image(source: "etoile-petite.svg", alt: "Un disque bleu clair, comme une étoile vue de très loin", caption: "Plus bas dans la page : cette image ne vient qu'en approchant de l'écran"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 88 : un formulaire qui vérifie", to: "88-un-formulaire-qui-verifie.holo"),
+      A("Leçon 96 : une vidéo sous-titrée →", to: "96-une-video-sous-titree.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; print: { background: white; color: black; } }
+H1 { color: #E9B44C; font-size: 28px; print: { color: black; } }
+A { color: #8fd3ff; print: { color: black; } }
+Aside { color: #c9c9e0; print: { color: black; } }
+Nav { print: { display: none; } }

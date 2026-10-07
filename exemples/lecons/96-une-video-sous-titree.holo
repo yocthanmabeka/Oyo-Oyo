@@ -1,0 +1,28 @@
+// Leçon 96 — Une vidéo sous-titrée
+//
+// Ce qu'on apprend :
+//   Video(source: "film.mp4", label: "…", captions: "film.vtt")
+//                                     des sous-titres, écrits dans un fichier WebVTT rangé à côté ;
+//                                     ils s'affichent d'emblée, dans la langue de la page
+//   Le fichier .vtt : des moments (00:00.000 --> 00:02.000), et le texte à montrer pendant ce temps.
+//
+// À essayer :
+//   Lance la vidéo : les sous-titres apparaissent en bas. Le bouton « Sous-titres » du lecteur les coupe.
+
+Page(
+  title: "Leçon 96 : une vidéo sous-titrée",
+  children: [
+    H1("Une vidéo sous-titrée"),
+    Video(source: "41-video.mp4", label: "Une mire de couleurs qui défile, avec un son continu", captions: "96-sous-titres.vtt", weight: 80KB),
+    P("Les sous-titres servent à qui n'entend pas, à qui regarde sans le son, et aux moteurs de recherche."),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 95 : un article long", to: "95-un-article-long.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

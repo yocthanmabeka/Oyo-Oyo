@@ -316,8 +316,8 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
     // dans « phone: { … } », « computer: { … } » ou « narrow: { … } » (ADR-041, ADR-069).
     if name == "display" {
         return match (state, setting.value.as_str()) {
-            (Some("phone" | "computer" | "narrow"), "none") => Ok(()),
-            (Some(screen @ ("phone" | "computer" | "narrow")), _) => refusal(format!("dans « {screen}: {{ … }} », « display » ne prend que « none » : cacher le bloc")),
+            (Some("phone" | "computer" | "narrow" | "print"), "none") => Ok(()),
+            (Some(screen @ ("phone" | "computer" | "narrow" | "print")), _) => refusal(format!("dans « {screen}: {{ … }} », « display » ne prend que « none » : cacher le bloc")),
             _ => refusal("« display » règle la disposition, pas l'apparence : la disposition vient des blocs ; pour cacher un bloc sur un téléphone : « phone: { display: none; } » ; selon une valeur : If (ADR-017, ADR-041)".into()),
         };
     }
@@ -583,6 +583,9 @@ mod tests {
             include_str!("../../exemples/lecons/92-le-curseur.holo"),
             include_str!("../../exemples/lecons/93-texte-justifie.holo"),
             include_str!("../../exemples/lecons/94-decrocher-la-page.holo"),
+            // Le HTML et les médias qui manquent (ADR-073).
+            include_str!("../../exemples/lecons/95-un-article-long.holo"),
+            include_str!("../../exemples/lecons/96-une-video-sous-titree.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();

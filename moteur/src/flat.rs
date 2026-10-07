@@ -5,7 +5,7 @@
 //! n'y est pas entré (ADR-018, option A) : la page qui accueille le moteur le pose devant
 //! la vue en profondeur.
 
-use crate::holo::{Block, Target, Error, Program, Value};
+use crate::holo::{Argument, Block, Target, Error, Program, Value};
 use crate::rules::name_of;
 use crate::styles::is_color;
 
@@ -73,7 +73,10 @@ transition:left .12s linear,top .12s linear,transform .12s linear}\
 :where(.holo-Quote){border-left:3px solid currentColor;padding:0 0 0 12px;font-style:italic}\
 :where(.holo-Quote>p){margin:0 0 4px 0}:where(.holo-Quote>footer){font-style:normal;font-size:0.9em;opacity:0.7}\
 :where(.holo-Code){font-family:ui-monospace,Consolas,monospace;background:rgba(127,127,127,0.18);padding:8px 12px;border-radius:6px;overflow:auto;white-space:pre-wrap}\
-:where(.holo-Page code){font-family:ui-monospace,Consolas,monospace;background:rgba(127,127,127,0.18);padding:0 4px;border-radius:4px}:where(.holo-Code code){background:none;padding:0}";
+:where(.holo-Page code){font-family:ui-monospace,Consolas,monospace;background:rgba(127,127,127,0.18);padding:0 4px;border-radius:4px}:where(.holo-Code code){background:none;padding:0}\
+:where(.holo-Aside){display:block;box-sizing:border-box;border-left:3px solid currentColor;padding:0 0 0 16px;margin:0 0 16px 0}:where(.holo-Aside)>*{display:block;margin:0 0 12px 0}\
+:where(.holo-hidden){position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}\
+@media print{:where(.holo-Dialog:not([open]),.holo-Video,audio){display:none!important}:where(.holo-Page){min-height:0}:where(.holo-Page a[href^=\"http\"])::after{content:\" (\" attr(href) \")\";font-size:.85em}}";
 
 /// Entoure, dans le HTML en cours de fabrication, la condition d'un bloc `If` : `site_html`
 /// la remplace par « hidden » quand elle est fausse au départ. Ce caractère ne peut pas venir
@@ -111,7 +114,26 @@ pub fn site_html_from(program: &Program, page: &Block, base: &str, title: &str, 
     Ok(html.replacen("</style>", &format!("{}{movements}</style>", crate::movement::BASE), 1))
 }
 
+thread_local! {
+    /// La langue de la page en cours : le texte caché d'un lien vers un nouvel onglet la suit (ADR-073).
+    static LANGUAGE: std::cell::RefCell<String> = const { std::cell::RefCell::new(String::new()) };
+}
+
+fn set_language(program: &Program) {
+    let language = match program.root.argument("lang").map(|a| &a.value) {
+        Some(Value::Text(l)) => l.clone(),
+        _ => "fr".to_string(),
+    };
+    LANGUAGE.with(|l| *l.borrow_mut() = language);
+}
+
+/// Ce que lit un lecteur d'écran après un lien qui s'ouvre dans un nouvel onglet.
+fn new_tab_text() -> &'static str {
+    LANGUAGE.with(|l| if l.borrow().starts_with("fr") || l.borrow().is_empty() { " (s'ouvre dans un nouvel onglet)" } else { " (opens in a new tab)" })
+}
+
 fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start: Option<&Start>) -> Result<String, Error> {
+    set_language(program);
     // Les valeurs à virgule (ADR-066) se montrent avec leurs chiffres.
     crate::format::set_decimals(crate::state::decimals(program));
     // Les valeurs d'où part la page : son départ, ou celles que le serveur a données.
@@ -455,6 +477,8 @@ fn css(program: &Program, base: &str) -> String {
                 "phone" => format!("@media (max-width:{AUTHOR_WIDTH}px){{{selector}{{{body}}}}}"),
                 "computer" => format!("@media (min-width:{COMPUTER_WIDTH}px){{{selector}{{{body}}}}}"),
                 "narrow" => format!("{}{{{body}}}", selector.split(',').map(|s| format!("{s}.holo-narrow,.holo-narrow {s}")).collect::<Vec<_>>().join(",")),
+                // Sur papier (ADR-073) : `print: { display: none; }` cache un bloc à l'impression.
+                "print" => format!("@media print{{{selector}{{{body}}}}}"),
                 _ => format!("{}:active{{{body}}}", selector.split(',').collect::<Vec<_>>().join(":active,")),
             };
             output.push_str(&rule_state);
@@ -688,7 +712,7 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
             output.push_str("</div>");
         }
         // Les repères, pour qui navigue avec un lecteur d'écran (ADR-036).
-        "Nav" | "Header" | "Footer" => {
+        "Nav" | "Header" | "Footer" | "Aside" => {
             allowed_landmarks(block)?;
             let tag = block.name.to_ascii_lowercase();
             output.push_str(&format!("<{tag} class=\"{classes}\"{name}>"));
@@ -768,7 +792,10 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
                 Some(Value::Text(text)) => text.as_str(),
                 Some(_) => return Err(Error { message: "« Image(alt: …) » attend un texte entre guillemets : ce que montre l'image".into(), pos: block.pos }),
             };
-            let mut image = format!("<img class=\"{classes}\"{name} src=\"{}{}\" alt=\"{}\">", escape(base), escape(source), escape(alt));
+            // Les images plus bas dans la page ne viennent qu'en approchant de l'écran (ADR-073) ;
+            // la première de chaque partie vient tout de suite, elle est souvent visible d'emblée.
+            let later = if output.contains("<img") { " loading=\"lazy\" decoding=\"async\"" } else { "" };
+            let mut image = format!("<img class=\"{classes}\"{name} src=\"{}{}\" alt=\"{}\"{later}>", escape(base), escape(source), escape(alt));
             // Une image plus légère pour un téléphone (ADR-042) : le navigateur ne télécharge que
             // celle qu'il montre.
             match block.argument("phone").map(|a| &a.value) {
@@ -931,8 +958,18 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
             let Some(Value::Text(label)) = block.argument("label").map(|a| &a.value) else {
                 return Err(Error { message: "« Video » attend « label » : ce que montre la vidéo, pour qui ne la voit pas".into(), pos: block.pos });
             };
+            // Des sous-titres (ADR-073) : un fichier WebVTT rangé à côté, montrés d'emblée.
+            let track = match block.argument("captions").map(|a| &a.value) {
+                None => String::new(),
+                Some(Value::Text(file)) if path_on(file) && file.ends_with(".vtt") => {
+                    let language = LANGUAGE.with(|l| l.borrow().clone());
+                    let words = if language.starts_with("fr") || language.is_empty() { "Sous-titres" } else { "Captions" };
+                    format!("<track kind=\"captions\" src=\"{}{}\" srclang=\"{}\" label=\"{words}\" default>", escape(base), escape(file), escape(if language.is_empty() { "fr" } else { &language }))
+                }
+                Some(_) => return Err(Error { message: "« Video(captions: …) » attend un fichier de sous-titres rangé à côté, en .vtt : captions: \"film.vtt\"".into(), pos: block.pos }),
+            };
             output.push_str(&format!(
-                "<video class=\"{classes}\"{name} src=\"{}{}\" controls preload=\"metadata\" playsinline aria-label=\"{}\"></video>",
+                "<video class=\"{classes}\"{name} src=\"{}{}\" controls preload=\"metadata\" playsinline aria-label=\"{}\">{track}</video>",
                 escape(base),
                 escape(source),
                 escape(label)
@@ -1125,7 +1162,34 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
                     pos: block.pos,
                 });
             };
-            output.push_str(&format!("<a class=\"{classes}\"{name} href=\"{}\">{}</a>", escape(&address), markdown(text_of(block)?)));
+            let flag = |p: &str| -> Result<bool, Error> {
+                match block.argument(p) {
+                    None => Ok(false),
+                    Some(Argument { value: Value::Bool(b), .. }) => Ok(*b),
+                    Some(argument) => Err(Error { message: format!("« A({p}: …) » attend true ou false : A(\"…\", to: \"…\", {p}: true)"), pos: argument.pos }),
+                }
+            };
+            let (new_tab, download) = (flag("newTab")?, flag("download")?);
+            let mut extra = String::new();
+            let mut after = String::new();
+            // Un nouvel onglet (ADR-073) : le lecteur d'écran l'annonce, et la page ouverte ne peut
+            // pas toucher à celle-ci (noopener).
+            if new_tab {
+                extra.push_str(" target=\"_blank\" rel=\"noopener\"");
+                after = format!("<span class=\"holo-hidden\">{}</span>", new_tab_text());
+            }
+            // Un téléchargement : seulement un fichier rangé à côté, pas une page ni une adresse du web.
+            if download {
+                let Some(Value::Text(file)) = block.argument("to").map(|a| &a.value) else { unreachable!("« to » vérifié plus haut") };
+                if !path_on(file) || file.ends_with(".holo") || file.contains('#') {
+                    return Err(Error { message: "« A(download: true) » télécharge un fichier rangé à côté, comme \"catalogue.pdf\" ; pas une page .holo ni une adresse du web".into(), pos: block.pos });
+                }
+                if new_tab {
+                    return Err(Error { message: "« A » télécharge ou ouvre un nouvel onglet, pas les deux : garde download: true ou newTab: true".into(), pos: block.pos });
+                }
+                extra.push_str(" download");
+            }
+            output.push_str(&format!("<a class=\"{classes}\"{name} href=\"{}\"{extra}>{}{after}</a>", escape(&address), markdown(text_of(block)?)));
         }
         // Une liste qui change pendant la visite (ADR-044) : une ligne par élément ; la page les
         // redessine quand la liste change.
@@ -1411,6 +1475,7 @@ fn lines(repeat: &Block, list: &str, base: &str) -> Result<String, Error> {
 pub fn list_lines(program: &Program, base: &str, numbers: &crate::state::State, texts: &crate::state::Texts, lists: &crate::lists::Lists, name: &str) -> String {
     crate::lists::set_running(lists.clone());
     crate::format::set_decimals(crate::state::decimals(program));
+    set_language(program);
     // `tasks@12:5` : la répétition de « tasks » écrite ligne 12, colonne 5 ; `tasks` seul : la première.
     let (name, place) = name.split_once('@').map_or((name, None), |(n, p)| (n, Some(p)));
     let written_at = |repeat: &Block| place.is_none_or(|p| p == format!("{}:{}", repeat.pos.line, repeat.pos.column));
@@ -2056,6 +2121,39 @@ H1 { colour: red; }").split(" : ").next(), Some("ligne 2, colonne 6"));
             ("Page(state: State(a: 1), children: [ P(\"{a:name}\") ])", "seuls weekday et month"),
             ("Page(state: State(t: \"\"), children: [ P(\"{t:00}\") ])", "un format s'applique à un nombre"),
             ("Page(children: [ Repeat(items: [ Item(t: \"x\") ], children: [ P(\"{item.t:cents}\") ]) ])", "doit être un nombre entier"),
+        ] {
+            let error = crate::check_page(source).unwrap_err();
+            assert!(error.message.contains(message), "{source}\n→ {error}");
+        }
+    }
+
+    #[test]
+    fn batch_8_aside_links_captions_lazy_images_and_print() {
+        let source = "Page(lang: \"en\", children: [ H1(\"a\"), Image(source: \"a.png\", alt: \"A\"), Aside(children: [ P(\"x\") ]), A(\"Wiki\", to: \"https://example.com/w\", newTab: true), A(\"Plan\", to: \"plan.pdf\", download: true), Image(source: \"b.png\", alt: \"B\"), Video(source: \"f.mp4\", label: \"F\", captions: \"f.vtt\") ])\nNav { print: { display: none; } }";
+        crate::check_page(source).unwrap();
+        let html = page_html(&read(source).unwrap(), "/ex/").unwrap();
+        for expected in [
+            "<aside class=\"holo-Aside\"><p class=\"holo-P\">x</p></aside>",
+            "href=\"https://example.com/w\" target=\"_blank\" rel=\"noopener\">Wiki<span class=\"holo-hidden\"> (opens in a new tab)</span></a>",
+            "href=\"/ex/plan.pdf\" download>Plan</a>",
+            "<img class=\"holo-Image\" src=\"/ex/a.png\" alt=\"A\">",
+            "<img class=\"holo-Image\" src=\"/ex/b.png\" alt=\"B\" loading=\"lazy\" decoding=\"async\">",
+            "<track kind=\"captions\" src=\"/ex/f.vtt\" srclang=\"en\" label=\"Captions\" default>",
+            "@media print{.holo-Nav{display:none;}}",
+        ] {
+            assert!(html.contains(expected), "{expected}\n{html}");
+        }
+        // En français, le texte caché est en français.
+        let html = page_html(&read("Page(children: [ A(\"W\", to: \"https://example.com\", newTab: true) ])").unwrap(), "").unwrap();
+        assert!(html.contains("(s'ouvre dans un nouvel onglet)"), "{html}");
+        for (source, message) in [
+            ("Page(children: [ A(\"x\", to: \"https://example.com/a.pdf\", download: true) ])", "fichier rangé à côté"),
+            ("Page(children: [ A(\"x\", to: \"b.holo\", download: true) ])", "pas une page .holo"),
+            ("Page(children: [ A(\"x\", to: \"a.pdf\", download: true, newTab: true) ])", "pas les deux"),
+            ("Page(children: [ A(\"x\", to: \"a.holo\", newTab: yes) ])", "true ou false"),
+            ("Page(children: [ Video(source: \"f.mp4\", label: \"F\", captions: \"f.srt\") ])", "en .vtt"),
+            ("Page(children: [ Aside(\"x\") ])", "range des blocs"),
+            ("Page(children: [ H1(\"x\") ])\nP { print: { display: block; } }", "display"),
         ] {
             let error = crate::check_page(source).unwrap_err();
             assert!(error.message.contains(message), "{source}\n→ {error}");

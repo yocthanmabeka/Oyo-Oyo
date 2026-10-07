@@ -13,14 +13,14 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
   - `narrow: { … }` vaut dans une case de `Grid` de moins de 320px ; la page mesure les cases elle-même ;
   - un mot trop long passe à la ligne sans rien écrire ; `line-clamp: 3`, `min-width`, `min-height`, `max-height`, `overflow`, `white-space` ;
   - `aspect-ratio`, `object-fit` (une image est `cover` d'office, jamais déformée), `object-position` ;
-  - `cursor` : 15 formes ou une image, avec la forme de secours ajoutée ;
+  - `cursor` : 22 formes ou une image, avec la forme de secours ajoutée ;
   - `text-align: justify`, avec les mots coupés dans la langue de la page.
 - **Décrocher la page**, décision de Yocthan sur son téléphone, « comme pour tourner » : par défaut, le zoom est celui du navigateur, et la page reste accrochée ; `Zoom(detach: true)` offre « Décrocher » dans le menu ☰. Avec des points, le moteur garde le zoom.
 - **Les touches à l'écran**, sa règle du même soir (« si la fonction existe sur téléphone, elle doit strictement aussi exister sur ordinateur et vice-versa ») : au doigt, une page qui écoute des touches les montre en bas de l'écran. Les leçons 35 et 81 disent aussi comment lancer TalkBack et VoiceOver.
 - **Le Big Bang mène aux leçons** : en haut à gauche, « Les leçons » et « La pile », et « Leçon 27 → » depuis la leçon 26. Sur le téléphone, rien n'y menait.
 - **La séance au doigt** : Yocthan a essayé les leçons 1 à 88 sur son Galaxy Z Flip 5 ; « jusqu'à la 88e leçon, tout est bon », hormis six points : quatre corrigés (la PR 160 et ce lot), deux proposés pour le lot 7 (les secondes, des polices libres prêtes). Compte rendu, avec deux captures : `proposals/Claude/telephone-2026-10-07/README.md`.
 - Dans la même pull request : le mode `--telephone` de `moteur/outils/browser-tests.mjs` (les essais dans le Chrome du téléphone branché, par le câble ; pas encore lancé jusqu'au bout) ; les mesures réparées : `moteur/src/web.rs` publie ses mesures avec des noms anglais (`fps`, `worst_ms`, `depth`…), ceux que lisent `web/measures.js` et `outils/mesures/`. Elles étaient cassées depuis l'`ADR-060`.
-- Leçons 89 à 94 ; la leçon 77 mise à jour. Trois essais de plus dans Chrome : la mise en page (un ordinateur de 1280px, un téléphone de 400px), le zoom et les touches, le Big Bang.
+- Leçons 89 à 94 ; la leçon 77 mise à jour ; la 94 mène à la 95 du lot 8. Noté pour la session du nuage : sa leçon 95 renvoie encore à la leçon 88 (règle du tableau « Qui fait quoi » : on ne touche pas au lot de l'autre). Trois essais de plus dans Chrome : la mise en page (un ordinateur de 1280px, un téléphone de 400px), le zoom et les touches, le Big Bang.
 - Exécuté : `cargo test --release` → 143 tests passent (3 nouveaux) ; dans Chrome, la suite entière → 27 essais `OK`, aucun raté (94 leçons ouvertes sans erreur ; la mise en page, 24 vérifications sur un ordinateur et un téléphone ; le zoom et les touches au doigt ; le Big Bang). Le tableau en ligne est republié.
 
 **Erreurs en route**
@@ -38,6 +38,18 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 - Je n'offrais que 15 formes de curseur, et ni `white-space: pre-wrap` : retirer une capacité du web sans raison va contre l'ordre de Yocthan. Relevé par l'agent qui écrivait la documentation ; les 7 formes et `pre-wrap` sont ajoutées, seul `pre` reste refusé, avec sa raison.
 - Mon essai annonçait « 26 vérifications » ; il en fait 24. Relevé par le même agent, corrigé.
 - Mes leçons allaient de 89 à 95, alors que la coordination des deux sessions, posée le même soir, réserve au lot 4 les leçons 89 à 94 (95 à 99 pour le lot 8, dans le nuage). La place a rejoint la leçon 89 (« L'écran et la place ») ; les suivantes ont descendu d'un cran.
+
+---
+
+## 2026-10-07 — Lot 8 du web : un encadré, des liens, des sous-titres, l'impression
+
+- Pris par la session du nuage, selon le tableau « Qui fait quoi ».
+- Fait (`ADR-073`) : `Aside` ; `A(newTab: true)` (avec `noopener` et « (s'ouvre dans un nouvel onglet) » lu par le lecteur d'écran) ; `A(download: true)`, seulement pour un fichier rangé à côté ; `Video(captions: "film.vtt")` ; les images après la première viennent en approchant (`loading="lazy"`) ; l'état `print:` dans un style, et à l'impression le moteur cache ses outils et écrit l'adresse des liens du web. Leçons 95 et 96.
+- Pas fait : l'historique à l'intérieur d'une page (il attend le premier vrai serveur, lot 5).
+- Raté puis corrigé : dans la leçon 95, les deux liens du menu étaient collés (un `Nav` ne sépare pas ses liens : ils vont dans un `Row`) ; le texte de remplacement de la seconde image décrivait une étoile dorée alors que l'image est un disque bleu.
+- Vérifié : tous les tests du moteur ; dans Chrome, le téléchargement (« 95-programme.txt »), le nouvel onglet, la page vue à l'impression, la piste de sous-titres (« captions », en français, deux répliques) ; l'audit axe-core, 90 leçons et le site de référence, 0 défaut, en clair et en sombre sur téléphone.
+
+![La leçon 95 vue à l'impression : sans menu, l'adresse du lien écrite à côté](images/2026-10-07-lot8-article-sur-papier.png)
 
 ---
 

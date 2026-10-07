@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-07). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (372 mots : 339 décidés, 33 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (377 mots : 344 décidés, 33 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
 - **Existe ?** : le jugement de Claude, élément par élément (oui, en partie, non) ; ce n’est pas une mesure. Le tableau ne donne pas de pourcentage : aucune méthode reproductible ne mesure la part d’un élément du web qu’on obtient en HoloCode (consigne de Yocthan du 2026-10-07). Les comptes se refont en comptant les lignes.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,11 +9,11 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 372 mots | 339 décidés, 33 à l’essai |
-| HTML | 62 éléments | 49 oui, 5 en partie, 5 non, 3 refusés |
+| **HoloCode** | 377 mots | 344 décidés, 33 à l’essai |
+| HTML | 62 éléments | 51 oui, 5 en partie, 3 non, 3 refusés |
 | CSS | 34 éléments | 28 oui, 4 en partie, 0 non, 2 refusés |
 | JavaScript | 34 éléments | 15 oui, 11 en partie, 6 non, 1 refusés, 1 sans objet |
-| HTML, CSS, JS ensemble | 130 éléments | 92 oui, 20 en partie, 11 non, 6 refusés, 1 sans objet |
+| HTML, CSS, JS ensemble | 130 éléments | 94 oui, 20 en partie, 9 non, 6 refusés, 1 sans objet |
 
 # Partie 1 — Les mots de HoloCode
 
@@ -34,6 +34,7 @@
 | `Nav` | Un menu de navigation | `nav` | Décidé (ADR-036) |
 | `Main` | Le contenu principal | `main` | Décidé (ADR-036) |
 | `Footer` | Le pied de page | `footer` | Décidé (ADR-036) |
+| `Aside` | Un encadré à part, annoncé comme un contenu complémentaire | `aside` | Décidé (ADR-073) |
 
 ## Blocs : le texte
 
@@ -143,6 +144,7 @@
 |---|---|---|---|
 | `text` | Le texte d'un bouton | `le texte de button` | Décidé (ADR-009) |
 | `to` | L'adresse d'un lien | `href` | Décidé (ADR-022) |
+| `newTab, download (dans A)` | Un nouvel onglet, annoncé, qui ne peut pas toucher à la page ; un fichier rangé à côté qui se télécharge | `target=_blank rel=noopener, download` | Décidé (ADR-073) |
 | `by` | L'auteur d'une citation | `cite` | Décidé (ADR-025) |
 | `ordered` | Une liste numérotée | `ol` | Décidé (ADR-009) |
 | `caption, head, rows` | La légende, les titres de colonnes et les lignes d'un tableau | `caption, thead, tbody` | Décidé (ADR-038) |
@@ -330,6 +332,7 @@
 | `linear-gradient, radial-gradient, url(…)` | Un fond en dégradé ou en image | `background-image` | Décidé (ADR-041) |
 | `--or (variables)` | Une couleur ou une taille nommée dans le style de la page | `--or, var(--or)` | Décidé (ADR-041) |
 | `dark, phone` | Le thème sombre ; un écran de téléphone | `@media` | Décidé (ADR-041) |
+| `print` | Ce qui change sur papier ; print: { display: none; } cache un bloc à l'impression | `@media print` | Décidé (ADR-073) |
 | `computer, narrow` | Un écran d'ordinateur (1024px et plus) ; une case de grille étroite (moins de 320px), quel que soit l'écran | `@media, @container` | À l’essai (ADR-069) |
 | `aspect-ratio, object-fit, object-position` | Garder des proportions ; l'image remplit son cadre ou se voit en entier, jamais déformée | `les mêmes` | À l’essai (ADR-069) |
 | `overflow, overflow-x, overflow-y, white-space, line-clamp` | Ce qui dépasse : couper, faire défiler, ne pas passer à la ligne, « … » après quelques lignes | `les mêmes, -webkit-line-clamp` | À l’essai (ADR-069) |
@@ -367,6 +370,7 @@
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `caption, phone` | La légende d'une image ; l'image pour un téléphone | `figcaption, picture` | Décidé (ADR-042) |
+| `captions (dans Video)` | Des sous-titres WebVTT, montrés d'emblée, dans la langue de la page | `track kind=captions` | Décidé (ADR-073) |
 | `volume, loop` | Le volume d'un son (de 0 à 1) ; un son qui recommence sans fin | `audio.volume, loop` | Décidé (ADR-061) |
 
 ## Paramètres : agir
@@ -471,7 +475,7 @@
 | `Page(lang:)` | `lang` | la langue de la page | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
 | `Header, Footer, Main` | `header, footer, main` | en-tête, pied, contenu principal | Oui | Déjà là | Ajoutés le 2026-10-06 (ADR-036). |
 | `Nav` | `nav` | le menu de navigation | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-036). |
-| — | `aside` | un encadré à part | Non | Plus tard | — |
+| `Aside(children:)` | `aside` | un encadré à part | Oui | Déjà là | Ajouté le 2026-10-07 (ADR-073). |
 | `les titres H1 à H3` | `section, article` | des parties de page | Refusé exprès | Non | Jugement de Claude, sans décision : les titres donnent déjà le plan. Soumis à Codex et Gemini. |
 | — | `div` | une boîte sans sens | Refusé exprès | Non | Refusé par Yocthan (ADR-009) : chaque bloc dit ce qu'il est. |
 | `Text` | `span` | un bout de texte | Oui | Déjà là | — |
@@ -502,7 +506,7 @@
 | — | `dl, dt, dd` | liste de définitions | Non | Plus tard | Un glossaire, une fiche technique. |
 | `A("…", to:)` | `a href` | un lien | Oui | Déjà là | — |
 | `A(to: "#Horaires")` | `a vers un endroit de la page` | sauter plus bas dans la page | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). Un nom qui n'existe pas est refusé. |
-| — | `a target, download` | nouvel onglet, télécharger | Non | Plus tard | — |
+| `A(newTab: true), A(download: true)` | `a target, download` | nouvel onglet, télécharger | Oui | Déjà là | Ajouté le 2026-10-07 (ADR-073) : noopener, et l'annonce au lecteur d'écran d'un nouvel onglet ; un téléchargement seulement pour un fichier rangé à côté. |
 
 ## HTML — Images et médias
 
@@ -512,7 +516,7 @@
 | `Image(alt:), obligatoire` | `img alt` | le texte pour qui ne voit pas | Oui | Déjà là | Obligatoire depuis le 2026-10-06 ; alt: "" pour un décor (ADR-038). |
 | `Image(phone: "petite.jpg")` | `picture, srcset` | une image plus légère sur téléphone | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). Un seul seuil, celui de la page. |
 | `Image(caption:)` | `figure, figcaption` | une image et sa légende | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
-| `Video(source:, label:)` | `video` | une vidéo | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). Pas encore de sous-titres. |
+| `Video(source:, label:, captions:)` | `video, track` | une vidéo, ses sous-titres | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038) ; les sous-titres le 2026-10-07 (ADR-073). |
 | `Sound(…) et .play ; Sound(label:) pour un lecteur` | `audio` | un son, un lecteur | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
 | `Point, World, Shape` | `canvas, WebGL` | un dessin libre, de la 3D | En partie | Oui, utile | Des points et quatre formes ; pas de dessin libre ni de modèles 3D. |
 | `comme fichier d'image` | `svg dans la page` | un dessin vectoriel | En partie | Plus tard | — |

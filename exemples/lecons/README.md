@@ -102,6 +102,8 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 92 | [Le curseur](92-le-curseur.holo) | `cursor`, `url("viseur.svg")` |
 | 93 | [Le texte justifié](93-texte-justifie.holo) | `text-align: justify` |
 | 94 | [Décrocher la page](94-decrocher-la-page.holo) | `Zoom(detach: true)`, « Décrocher », « Accrocher » |
+| 95 | [Un article long](95-un-article-long.holo) | `Aside`, `A(newTab: true)`, `A(download: true)`, `print: { … }`, les images qui viennent en approchant |
+| 96 | [Une vidéo sous-titrée](96-une-video-sous-titree.holo) | `Video(captions: "film.vtt")` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 
