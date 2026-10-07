@@ -1,0 +1,48 @@
+// Leçon 89 — Sur un téléphone, sur un ordinateur
+//
+// Ce qu'on apprend :
+//   Sans rien écrire, une page s'adapte déjà à l'écran : le texte passe à la ligne, une grille
+//   change son nombre de colonnes, un grand titre rétrécit sur un écran étroit.
+//   Un style peut dire ce qui change selon l'écran :
+//     phone: { … }      sur un téléphone : un écran plus étroit que la page (640px)
+//     computer: { … }   sur un ordinateur : un écran de 1024px de large ou plus
+//   La page fait 640px de large au plus, pour qu'un texte se lise bien. Sur un ordinateur, on
+//   peut l'élargir : Page { computer: { max-width: 960px; } }.
+//   « display: none » cache un bloc, mais seulement dans phone: ou computer: (la disposition
+//   vient des blocs, ADR-017).
+//
+// À essayer :
+//   Sur l'ordinateur, rétrécis la fenêtre : sous 1024px, la page redevient étroite et le
+//   bandeau change ; sous 640px, c'est l'allure du téléphone. Ouvre la même page sur ton
+//   téléphone.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 89 : sur un téléphone, sur un ordinateur",
+  children: [
+    H1("Sur un téléphone, sur un ordinateur"),
+    P.bandeau("Ce bandeau change d'allure selon l'écran."),
+    P.grand("Cette phrase se cache sur un téléphone : la place y est comptée."),
+    P.petit("Cette phrase se cache sur un ordinateur : là, la page s'est élargie."),
+    Grid(columns: 3, gap: 16px, children: [
+      P.case("Une case"),
+      P.case("Deux cases"),
+      P.case("Trois cases"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 88 : un formulaire qui vérifie", to: "88-un-formulaire-qui-verifie.holo"),
+      A("Leçon 90 : selon la place →", to: "90-selon-la-place.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; computer: { max-width: 960px; } }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.bandeau { background: #1d3557; padding: 16px; border-radius: 8px; phone: { font-size: 14px; padding: 8px; } computer: { font-size: 22px; padding: 24px; } }
+.grand { color: #E9B44C; phone: { display: none; } }
+.petit { color: #8fd3ff; computer: { display: none; } }
+.case { background: #22223a; padding: 16px; border-radius: 8px; }

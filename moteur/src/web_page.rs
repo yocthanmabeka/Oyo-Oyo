@@ -52,7 +52,7 @@ pub fn view_settings(source: &str) -> Result<Vec<f64>, JsValue> {
         crate::view::Layout::Column => 2.0,
         crate::view::Layout::Diagonal => 3.0,
     };
-    Ok(vec![r.density, f64::from(u8::from(r.reduce)), r.after, f64::from(u8::from(r.zoom_active)), layout, f64::from(r.portals_count), r.portals_size, r.portals_light, r.zoom_speed, r.portals_duration, r.angle_max.to_degrees(), f64::from(u8::from(r.active_points))])
+    Ok(vec![r.density, f64::from(u8::from(r.reduce)), r.after, f64::from(u8::from(r.zoom_active)), layout, f64::from(r.portals_count), r.portals_size, r.portals_light, r.zoom_speed, r.portals_duration, r.angle_max.to_degrees(), f64::from(u8::from(r.active_points)), f64::from(u8::from(r.detach))])
 }
 
 /// Les mondes voisins d'un site, calculés à partir d'une graine, pour remplir le carrefour.

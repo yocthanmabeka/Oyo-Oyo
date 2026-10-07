@@ -1,0 +1,33 @@
+// Leçon 94 — Le texte justifié
+//
+// Ce qu'on apprend :
+//     text-align: justify   le texte touche les deux bords, comme dans un livre
+//   (En CSS, un texte justifié sur un écran étroit ouvre de grands trous entre les mots. Ici,
+//   les mots se coupent aussi en fin de ligne, avec un trait d'union, dans la langue de la
+//   page (Page(lang:), le français sans rien écrire) : les trous restent petits.)
+//
+// À essayer :
+//   Sur ton téléphone, compare les deux paragraphes : le premier touche les deux bords.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 94 : le texte justifié",
+  children: [
+    H1("Le texte justifié"),
+    P.livre("L'atelier ouvre ses portes chaque matin. On y apprend à préparer les couleurs, à tendre une toile, à choisir un pinceau et à regarder longtemps avant de commencer. Les visiteurs repartent souvent avec une petite peinture, et toujours avec l'envie de revenir."),
+    P("Le même texte, aligné à gauche :"),
+    P("L'atelier ouvre ses portes chaque matin. On y apprend à préparer les couleurs, à tendre une toile, à choisir un pinceau et à regarder longtemps avant de commencer. Les visiteurs repartent souvent avec une petite peinture, et toujours avec l'envie de revenir."),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 93 : le curseur", to: "93-le-curseur.holo"),
+      A("Leçon 95 : décrocher la page →", to: "95-decrocher-la-page.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.livre { text-align: justify; }

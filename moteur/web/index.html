@@ -3,10 +3,16 @@
      L'auteur d'un monde n'écrit que du .holo (ADR-009). -->
 <html lang="fr"><head><meta charset="utf-8"><title>Big Bang</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}canvas{display:block;width:100vw;height:100vh;touch-action:none}main{display:contents}.hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}</style>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}canvas{display:block;width:100vw;height:100vh;touch-action:none}main{display:contents}.hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+/* Ailleurs : les leçons et la pile, au doigt comme à la souris (vu sur le téléphone de Yocthan, le
+   2026-10-07 : depuis le Big Bang, rien ne menait aux leçons ; sur l'ordinateur, il tapait /stack). */
+nav{position:fixed;left:8px;top:8px;z-index:2;display:flex;gap:8px}
+nav a{min-height:44px;box-sizing:border-box;display:flex;align-items:center;padding:0 14px;border-radius:999px;background:rgba(0,0,0,.6);border:1px solid #666;color:#fff;font:14px system-ui,sans-serif;text-decoration:none}
+nav a:focus-visible{outline:2px solid #fff;outline-offset:2px}</style>
 </head><body>
 <!-- Le zoom du navigateur reste permis : un doigt qui pince sur le monde est pour le moteur
      (touch-action: none), le reste de la page se grossit comme toute page (ADR-055). -->
+<nav aria-label="Ailleurs"><a href="/exemples/lecons/01-page.holo">Les leçons</a><a href="/stack">La pile</a></nav>
 <main><h1 class="hidden">Un monde fait de points</h1><canvas id="world" role="img" aria-label="Un monde fait de points lumineux : touche un point pour y entrer"></canvas></main>
 <script type="module">
   import init, { start_engine, pause } from "/pkg/holo_engine.js";
@@ -15,6 +21,19 @@
   window.__holoWithoutWebGPU = params.has("webgl"); // ?webgl : mesurer le mode de secours, WebGL 2
   // L'adresse est celle du fichier .holo lui-même ; sinon ?world=… ou le Big Bang.
   const file = location.pathname.endsWith(".holo") ? location.pathname : `/mondes/${params.get("world") ?? "big-bang"}.holo`;
+  // Un monde qui est une leçon (la leçon 26, le Big Bang) n'a pas de liens en bas de page : la
+  // leçon suivante s'ajoute aux liens d'en haut, si le serveur donne la liste des fichiers.
+  const lesson = /^\/exemples\/lecons\/(\d+)-/.exec(file);
+  if (lesson) {
+    fetch("/liste-holo").then((r) => (r.ok ? r.json() : [])).then((files) => {
+      const next = files.filter((f) => /^\/exemples\/lecons\/\d+-[^/]*\.holo$/.test(f) && !f.includes("-morceau"))
+        .map((f) => [Number(/(\d+)-/.exec(f)[1]), f]).filter(([n]) => n > Number(lesson[1])).sort((a, b) => a[0] - b[0])[0];
+      if (!next) return;
+      const link = document.querySelector("nav").appendChild(document.createElement("a"));
+      link.href = next[1];
+      link.textContent = `Leçon ${next[0]} →`;
+    }).catch(() => { /* sans la liste, les deux autres liens suffisent */ });
+  }
   try {
     await init();
     await start_engine(document.getElementById("world"), await (await fetch(file, { headers: { accept: "text/plain" } })).text(), Number(params.get("zoom") ?? 0));

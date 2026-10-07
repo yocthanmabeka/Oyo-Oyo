@@ -15,11 +15,31 @@
      Cette page ne décide de rien : chaque toucher est envoyé au moteur, qui répond par les
      effets que les règles du fichier demandent (ADR-015). -->
 <html lang="fr"><head><meta charset="utf-8"><title>HoloCode</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- minimum-scale=1 : on grossit au doigt autant qu'on veut, mais on ne réduit pas sous la taille
+     normale. Sans cela, quand le moteur grossit une page décrochée, Chrome sur téléphone élargit
+     sa zone d'affichage, et le menu ☰ (avec « Accrocher ») part hors de l'écran (ADR-069). -->
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <style>
-  /* Le pincement appartient à la page : sans cela, Chrome grossit tout l'écran à sa façon et
-     les pixels ne deviennent jamais des points. On défile toujours avec un doigt. */
-  html,body{margin:0;touch-action:pan-x pan-y}
+  /* Par défaut, le zoom est celui du navigateur, comme pour n'importe quel site : la page reste
+     à sa place et grossit sur place (ADR-069). Le pincement n'appartient à la page que si
+     l'auteur l'a écrit (des points, Zoom(shrink:), Zoom(active: false)) ou si le visiteur l'a
+     décrochée : sans cela, Chrome grossirait tout l'écran à sa façon et les pixels ne
+     deviendraient jamais des points. On défile toujours avec un doigt. */
+  html,body{margin:0}
+  .holo-zoom,.holo-zoom body{touch-action:pan-x pan-y}
+  /* Décrochée (Zoom(detach: true), puis « Décrocher ») : la page se détache de l'écran, comme
+     une feuille ; le zoom l'approche. « Accrocher » la remet à sa place. */
+  .detached #page{padding:12px;background:#000}
+  .detached #page>.holo-Page{border-radius:12px;box-shadow:0 0 0 2px #E9B44C,0 12px 40px rgba(0,0,0,.6)}
+  .in-world #detach,.in-points #detach{display:none}
+  /* Les touches à l'écran (ADR-069) : ce qui se fait au clavier se fait aussi au doigt. Sur un
+     appareil sans clavier, une page qui écoute des touches les montre en bas de l'écran. */
+  #keys{position:fixed;left:12px;right:72px;bottom:12px;z-index:7;display:flex;flex-wrap:wrap;gap:8px}
+  #keys[hidden],.in-points #keys,.in-world #keys{display:none}
+  #keys button{min-width:48px;min-height:48px;padding:0 12px;border:1px solid #888;border-radius:10px;background:rgba(0,0,0,.72);color:#fff;
+    font:600 16px system-ui,sans-serif;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+  #keys button:active,#keys button.pressed{border-color:#E9B44C;color:#E9B44C}
+  #keys button:focus-visible{outline:2px solid #fff;outline-offset:2px}
   /* La zone de dessin du moteur ne sert qu'en vue points. */
   canvas{position:fixed;inset:0;width:100vw;height:100vh;display:none;touch-action:none;z-index:1}
   .in-points canvas{display:block}
@@ -120,11 +140,13 @@
 <div id="crossroads" hidden></div>
 <div id="outage" hidden role="alert"><span>Le moteur n'a pas pu démarrer. La page se lit, mais les boutons ne répondent pas : rien n'a été ajouté ni envoyé.</span><button type="button">Réessayer</button></div>
 <div id="origin" hidden><span></span><button type="button">Revenir</button></div>
+<div id="keys" role="toolbar" aria-label="Les touches du clavier" hidden></div>
 <div id="menu" hidden>
   <div id="tools" hidden>
     <div id="views">
       <button id="points" type="button" title="Ou : Ctrl + molette, ou pincer, directement sur la page">Vue points</button>
       <button id="mode" type="button" title="Les sites voisins, sous forme de portails">Carrefour</button>
+      <button id="detach" type="button" hidden title="La page se détache de l'écran : le zoom l'approche comme une feuille">Décrocher</button>
     </div>
     <div id="commands">
       <button id="rotate" type="button" aria-pressed="false" title="Glisser fait tourner la page (ou : bouton droit, ou Maj)">Tourner</button>
@@ -153,6 +175,19 @@
         watcher.unobserve(entry.target);
       }
     }, { rootMargin: "0px 0px -10% 0px" });
+    // La place que reçoit un bloc (ADR-069) : une case de grille de moins de 20rem (320px) est
+    // marquée « holo-narrow », et les styles « narrow: { … } » s'y appliquent, à la case comme à
+    // ce qu'elle contient. Mesuré après la mise en page et avant le dessin : rien ne saute.
+    // Seulement si un style de la page le demande.
+    const cells = "ResizeObserver" in window && new ResizeObserver((entries) => {
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      for (const entry of entries) {
+        const width = entry.borderBoxSize?.[0]?.inlineSize ?? entry.target.offsetWidth;
+        entry.target.classList.toggle("holo-narrow", width < 20 * rem);
+      }
+    });
+    // Les cases d'une grille : ses enfants, ou ceux d'un bloc invisible (If, Repeat) posé dedans.
+    const gridItems = (parent) => [...parent.children].flatMap((child) => (getComputedStyle(child).display === "contents" ? gridItems(child) : [child]));
     // Aussi après chaque morceau de page fabriqué par le moteur. Et le volume des sons (ADR-061).
     window.__holoWatchEntrances = (inside = root) => {
       for (const block of inside.querySelectorAll(".holo-in-view:not(.holo-seen)")) {
@@ -160,6 +195,9 @@
         else block.classList.add("holo-seen");
       }
       for (const sound of inside.querySelectorAll("audio[data-volume]")) sound.volume = Number(sound.dataset.volume);
+      if (cells && [...root.querySelectorAll("style")].some((style) => style.textContent.includes("holo-narrow"))) {
+        for (const grid of inside.querySelectorAll(".holo-Grid")) for (const cell of gridItems(grid)) cells.observe(cell);
+      }
     };
     window.__holoWatchEntrances();
     const waiting = (window.__holoWaiting = []);
@@ -214,9 +252,16 @@
       if (block || hovered || (anchor && !spot)) load();
     };
     const openMenu = () => { window.__holoMenuRequested = true; load(); };
-    // Zoomer à la molette : la page à elle, pas le navigateur ; le moteur arrive pour la suite.
-    const zoom = (event) => { if (event.ctrlKey) { event.preventDefault(); load(); } };
-    const pinchZoom = (event) => { if (event.touches.length > 1) load(); };
+    // Qui grossit la page quand on zoome (ADR-069) : le navigateur, comme pour n'importe quel
+    // site, sauf si le fichier l'a confié au moteur (data-zoom). Une page que le serveur n'a pas
+    // fabriquée attend le moteur, qui en décide.
+    const byEngine = !!root.querySelector("[data-zoom]") || !root.querySelector("[data-title]");
+    document.documentElement.classList.toggle("holo-zoom", byEngine);
+    const engineZooms = () => document.documentElement.classList.contains("holo-zoom");
+    // Zoomer à la molette, quand c'est le moteur qui grossit : la page à elle, pas le navigateur ;
+    // le moteur arrive pour la suite.
+    const zoom = (event) => { if (event.ctrlKey && engineZooms()) { event.preventDefault(); load(); } };
+    const pinchZoom = (event) => { if (event.touches.length > 1 && engineZooms()) load(); };
     // La souris arrive sur un bloc qu'une règle écoute au survol, ou le clavier s'y pose (ADR-039) :
     // le moteur arrive, et le survol est rejoué s'il dure encore.
     const hover = (event) => {

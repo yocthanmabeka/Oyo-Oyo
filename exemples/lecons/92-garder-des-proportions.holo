@@ -1,0 +1,44 @@
+// Leçon 92 — Garder des proportions
+//
+// Ce qu'on apprend :
+//     aspect-ratio: 16/9     le bloc garde ces proportions (largeur / hauteur), quelle que
+//                            soit sa largeur ; « 1 » : un carré
+//     object-fit: cover      l'image remplit son cadre, coupée sur les bords
+//     object-fit: contain    l'image se voit en entier, avec des bandes
+//     object-position: left  ce qu'on garde quand l'image est coupée : top, bottom, left,
+//                            right, center, ou un coin, comme « top left »
+//   (En CSS, une image à qui l'on donne une largeur et une hauteur se déforme. Ici, jamais,
+//   à moins de le demander : object-fit: fill.)
+//
+// À essayer :
+//   Le même paysage, très large, dans trois cadres carrés : coupé au milieu, coupé à gauche,
+//   et en entier.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 92 : garder des proportions",
+  children: [
+    H1("Garder des proportions"),
+    Row(gap: 16px, children: [
+      Image.carre(source: "paysage.svg", alt: "Un paysage : des collines vertes sous un soleil jaune, coupé au milieu"),
+      Image.carre.gauche(source: "paysage.svg", alt: "Le même paysage, coupé à gauche : on voit le soleil"),
+      Image.carre.entier(source: "paysage.svg", alt: "Le même paysage, en entier, avec des bandes"),
+    ]),
+    P.ecran("Un bloc en 16/9, comme un écran de vidéo."),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 91 : ce qui dépasse", to: "91-ce-qui-depasse.holo"),
+      A("Leçon 93 : le curseur →", to: "93-le-curseur.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.carre { width: 160px; aspect-ratio: 1; border-radius: 8px; }
+.gauche { object-position: left; }
+.entier { object-fit: contain; background: #22223a; }
+.ecran { aspect-ratio: 16/9; background: #1d3557; border-radius: 8px; padding: 16px; overflow: hidden; }

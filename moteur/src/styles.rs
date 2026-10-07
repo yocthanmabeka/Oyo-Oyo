@@ -34,6 +34,12 @@ enum Shape {
     Angle,
     /// La durée d'un passage d'une allure à l'autre : `0.3s`, `200ms`, ou `none`.
     Duration,
+    /// Des proportions : `16/9`, `4 / 3`, ou un seul nombre, `1` (ADR-069).
+    Ratio,
+    /// Un nombre entier entre deux bornes : `line-clamp: 3`.
+    Count(u32, u32),
+    /// La forme du curseur : un mot, ou une image rangée à côté, `url("viseur.png")` (ADR-069).
+    Cursor,
 }
 
 /// Les réglages connus : l'apparence, avec les noms du CSS de base.
@@ -44,7 +50,8 @@ const SETTINGS: &[(&str, Shape)] = &[
     ("font-weight", Shape::Word(&["normal", "bold"])),
     ("font-style", Shape::Word(&["normal", "italic"])),
     ("font-family", Shape::Font),
-    ("text-align", Shape::Word(&["left", "center", "right"])),
+    // `justify` coupe aussi les mots en fin de ligne, dans la langue de la page (ADR-069).
+    ("text-align", Shape::Word(&["left", "center", "right", "justify"])),
     ("border", Shape::Border),
     ("border-radius", Shape::Size),
     ("padding", Shape::Sizes),
@@ -63,7 +70,27 @@ const SETTINGS: &[(&str, Shape)] = &[
     ("rotate", Shape::Angle),
     ("scale", Shape::Number(0.1, 5.0)),
     ("transition", Shape::Duration),
+    // Le lot 4 du web (ADR-069) : les tailles au plus et au moins, les proportions, ce qui
+    // dépasse, le curseur.
+    ("min-width", Shape::Size),
+    ("min-height", Shape::Size),
+    ("max-height", Shape::Size),
+    ("aspect-ratio", Shape::Ratio),
+    ("object-fit", Shape::Word(&["cover", "contain", "fill", "none", "scale-down"])),
+    ("object-position", Shape::Word(&["center", "top", "bottom", "left", "right", "top left", "top right", "bottom left", "bottom right"])),
+    ("overflow", Shape::Word(OVERFLOW)),
+    ("overflow-x", Shape::Word(OVERFLOW)),
+    ("overflow-y", Shape::Word(OVERFLOW)),
+    ("white-space", Shape::Word(&["normal", "nowrap", "pre-line"])),
+    ("line-clamp", Shape::Count(1, 20)),
+    ("cursor", Shape::Cursor),
 ];
+
+const OVERFLOW: &[&str] = &["visible", "hidden", "auto", "scroll"];
+
+/// Les formes de curseur du web, sauf celles des bords qu'on étire (`ew-resize`…), qui
+/// n'ont rien à étirer sans disposition à la main (ADR-017).
+const CURSORS: &[&str] = &["auto", "default", "pointer", "text", "move", "grab", "grabbing", "not-allowed", "help", "wait", "progress", "crosshair", "zoom-in", "zoom-out", "none"];
 
 /// Les noms des réglages d'un style, pour l'éditeur (ADR-046).
 pub fn setting_names() -> Vec<&'static str> {
@@ -282,13 +309,19 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
         }
         return Ok(());
     }
-    // Cacher un bloc sur un téléphone : seulement dans « phone: { … } » (ADR-041).
+    // Cacher un bloc sur un téléphone, sur un ordinateur, ou quand la place manque : seulement
+    // dans « phone: { … } », « computer: { … } » ou « narrow: { … } » (ADR-041, ADR-069).
     if name == "display" {
         return match (state, setting.value.as_str()) {
-            (Some("phone"), "none") => Ok(()),
-            (Some("phone"), _) => refusal("dans « phone: { … } », « display » ne prend que « none » : cacher le bloc sur un téléphone".into()),
+            (Some("phone" | "computer" | "narrow"), "none") => Ok(()),
+            (Some(screen @ ("phone" | "computer" | "narrow")), _) => refusal(format!("dans « {screen}: {{ … }} », « display » ne prend que « none » : cacher le bloc")),
             _ => refusal("« display » règle la disposition, pas l'apparence : la disposition vient des blocs ; pour cacher un bloc sur un téléphone : « phone: { display: none; } » ; selon une valeur : If (ADR-017, ADR-041)".into()),
         };
+    }
+    // Les « … » d'un texte trop long : en CSS, il faut trois réglages ensemble, et `text-overflow`
+    // seul ne fait rien. Ici, un seul (ADR-069).
+    if name == "text-overflow" {
+        return refusal("« text-overflow » ne fait rien seul ; écris « line-clamp: 1 » : une seule ligne, et « … » à la fin (ou « line-clamp: 3 » : trois lignes)".into());
     }
     if LAYOUT.contains(&name) {
         return refusal(format!(
@@ -336,6 +369,15 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
         },
         Shape::Angle => value.strip_suffix("deg").and_then(|n| n.parse::<f64>().ok()).is_some_and(|v| (-360.0..=360.0).contains(&v)),
         Shape::Duration => value == "none" || duration_in_ms(value).is_some_and(|ms| (0.0..=2000.0).contains(&ms)),
+        Shape::Ratio => {
+            let positive = |n: &str| n.trim().parse::<f64>().is_ok_and(|v| v.is_finite() && v > 0.0 && v <= 1000.0);
+            match value.split_once('/') {
+                Some((width, height)) => positive(width) && positive(height),
+                None => positive(value),
+            }
+        }
+        Shape::Count(min, max) => value.parse::<u32>().is_ok_and(|v| (*min..=*max).contains(&v)),
+        Shape::Cursor => CURSORS.contains(&value) || cursor_image(value).is_some(),
     };
     if correct {
         return Ok(());
@@ -356,6 +398,10 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
         Shape::Shadow => "une ombre : décalage, flou et couleur, comme « 0 4px 12px #00000066 » (trois au plus, séparées par des virgules), ou « none »".to_string(),
         Shape::Angle => "un angle de -360deg à 360deg, comme « -3deg »".to_string(),
         Shape::Duration => "une durée de 0 à 2s, comme « 0.3s » ou « 200ms », ou « none »".to_string(),
+        Shape::Ratio => "des proportions, la largeur puis la hauteur, comme « 16/9 », ou « 1 » pour un carré".to_string(),
+        Shape::Count(min, max) if name == "line-clamp" => format!("un nombre de lignes, de {min} à {max}, comme « 3 »"),
+        Shape::Count(min, max) => format!("un nombre entier de {min} à {max}"),
+        Shape::Cursor => format!("l'une de ces formes : {}, ou une image rangée à côté, « url(\"viseur.png\") » (.png, .svg ou .cur)", CURSORS.join(", ")),
     };
     refusal(format!("« {name}: {value} » : ce réglage attend {expected}"))
 }
@@ -390,6 +436,13 @@ fn is_gradient(value: &str) -> bool {
 pub(crate) fn background_image(value: &str) -> Option<&str> {
     let inside = value.strip_prefix("url(")?.strip_suffix(')')?.trim().trim_matches('"');
     let image = [".png", ".jpg", ".jpeg", ".webp", ".svg", ".gif", ".avif"].iter().any(|end| inside.ends_with(end));
+    (image && crate::flat::path_on(inside)).then_some(inside)
+}
+
+/// `url("viseur.png")` : le nom d'une image de curseur rangée à côté du fichier (ADR-069).
+pub(crate) fn cursor_image(value: &str) -> Option<&str> {
+    let inside = value.strip_prefix("url(")?.strip_suffix(')')?.trim().trim_matches('"');
+    let image = [".png", ".svg", ".cur"].iter().any(|end| inside.ends_with(end));
     (image && crate::flat::path_on(inside)).then_some(inside)
 }
 
@@ -516,6 +569,14 @@ mod tests {
             include_str!("../../exemples/lecons/82-chercher-filtrer-trier.holo"),
             include_str!("../../exemples/lecons/84-donnees-arrivees-ou-pas.holo"),
             include_str!("../../exemples/lecons/87-des-dates.holo"),
+            // La mise en page (ADR-069).
+            include_str!("../../exemples/lecons/89-telephone-et-ordinateur.holo"),
+            include_str!("../../exemples/lecons/90-selon-la-place.holo"),
+            include_str!("../../exemples/lecons/91-ce-qui-depasse.holo"),
+            include_str!("../../exemples/lecons/92-garder-des-proportions.holo"),
+            include_str!("../../exemples/lecons/93-le-curseur.holo"),
+            include_str!("../../exemples/lecons/94-texte-justifie.holo"),
+            include_str!("../../exemples/lecons/95-decrocher-la-page.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();
@@ -528,7 +589,7 @@ mod tests {
         for (setting, _) in SETTINGS {
             assert!(source.contains(&format!("{setting}:")), "le réglage « {setting} » manque dans l'exemple");
         }
-        for word in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave", "state:", "prices:", "{count}", "{total}", ".add(", ".sub(", ".set(", "gap:", "align:", "columns:", "alt:", "is:", "over:", "by:", ".random(", "x:", "y:", "keep:", "value:", "label:", "max:", "Key.left", "meets:", "drag:", "data:", "from:", ".play", "form:", "enter:", "loop:", "letters:", "each:", "repeat:", "ease:", "rotate:", "flip:", "tilt:", "blur:", "hue:", "round:", "scale:", "opacity:", "hover:", "focus:", "active:", "topRight", ".hover", ".hoverEnd", "else:", "{year}", "{month}", "{day}", "weekday", "{hour}", "{minute}", "items:", "key:", "{item.", "item.add(", "dark:", "phone:", "display: none", "linear-gradient(", "url(", "fonts:", "family:", ": --", "~~", "==", "^2^", "~2~", "to: \"#", "caption:", "phone:", "type: date", "type: time", "type: color", "summary:", "open: true", ".open", ".close", ".send", ".sent", ".failed", "icon:", ".mul(", ".div(", ":00}", ":number}", ":cents}", ":name}", "over:", ".push(", ".remove(item)", ".clear()", ".set(\"\")", "module \"", "modules:", ".run", ".done", "time:", "memory:", ".refresh"] {
+        for word in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave", "state:", "prices:", "{count}", "{total}", ".add(", ".sub(", ".set(", "gap:", "align:", "columns:", "alt:", "is:", "over:", "by:", ".random(", "x:", "y:", "keep:", "value:", "label:", "max:", "Key.left", "meets:", "drag:", "data:", "from:", ".play", "form:", "enter:", "loop:", "letters:", "each:", "repeat:", "ease:", "rotate:", "flip:", "tilt:", "blur:", "hue:", "round:", "scale:", "opacity:", "hover:", "focus:", "active:", "topRight", ".hover", ".hoverEnd", "else:", "{year}", "{month}", "{day}", "weekday", "{hour}", "{minute}", "items:", "key:", "{item.", "item.add(", "dark:", "phone:", "display: none", "linear-gradient(", "url(", "fonts:", "family:", ": --", "~~", "==", "^2^", "~2~", "to: \"#", "caption:", "phone:", "type: date", "type: time", "type: color", "summary:", "open: true", ".open", ".close", ".send", ".sent", ".failed", "icon:", ".mul(", ".div(", ":00}", ":number}", ":cents}", ":name}", "over:", ".push(", ".remove(item)", ".clear()", ".set(\"\")", "module \"", "modules:", ".run", ".done", "time:", "memory:", ".refresh", "computer:", "narrow:", "detach:", "justify"] {
             assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
     }
@@ -593,6 +654,23 @@ mod tests {
         assert!(error.message.contains("dans l'état « hover »"), "{error}");
         // Un dégradé, une image, une couleur à demi transparente : non mesurés.
         assert!(check(&page(".card { color: white; background: linear-gradient(white, #eeeeee); }")).is_ok());
+    }
+
+    #[test]
+    fn the_layout_settings_of_lot_4() {
+        // Accepté : les tailles au plus et au moins, les proportions, ce qui dépasse, le curseur,
+        // le texte justifié, et les états d'écran (ADR-069).
+        assert!(check(&page(".box { min-width: 120px; min-height: 60px; max-height: 50%; aspect-ratio: 16/9; overflow: auto; overflow-x: hidden; white-space: nowrap; line-clamp: 3; cursor: help; text-align: justify; }")).is_ok());
+        assert!(check(&page("Image { aspect-ratio: 4 / 3; object-fit: contain; object-position: top left; cursor: url(\"viseur.svg\"); }")).is_ok());
+        assert!(check(&page(".box { computer: { font-size: 22px; display: none; } narrow: { padding: 8px; display: none; } }")).is_ok());
+        // Refusé, avec le bon mot.
+        assert!(check(&page(".box { text-overflow: ellipsis; }")).unwrap_err().message.contains("line-clamp: 1"));
+        assert!(check(&page(".box { aspect-ratio: 16:9; }")).unwrap_err().message.contains("16/9"));
+        assert!(check(&page(".box { line-clamp: 0; }")).unwrap_err().message.contains("nombre de lignes"));
+        assert!(check(&page(".box { cursor: hand; }")).unwrap_err().message.contains("pointer"));
+        assert!(check(&page(".box { cursor: url(\"viseur.jpg\"); }")).unwrap_err().message.contains(".cur"));
+        assert!(check(&page(".box { computer: { display: flex; } }")).unwrap_err().message.contains("ne prend que « none »"));
+        assert!(check(&page(".box { wide: { color: red; } }")).unwrap_err().message.contains("computer"));
     }
 
     #[test]

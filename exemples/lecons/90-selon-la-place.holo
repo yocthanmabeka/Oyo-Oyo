@@ -1,0 +1,44 @@
+// Leçon 90 — Selon la place
+//
+// Ce qu'on apprend :
+//   Un même bloc peut recevoir une grande case ou une petite : dans une grille de trois
+//   colonnes, chaque case est étroite, même sur un ordinateur. « narrow: { … } » dit ce qui
+//   change quand la case de grille où se trouve le bloc fait moins de 320px de large.
+//   C'est la place du bloc qui compte, pas la taille de l'écran : une carte bien faite se
+//   range n'importe où.
+//   (En CSS, il faut déclarer un conteneur à la main, et une case ne peut pas se mesurer
+//   elle-même. Ici, rien à déclarer : le moteur mesure chaque case de grille.)
+//
+// À essayer :
+//   La même carte, seule sur sa ligne, puis trois fois côte à côte : dans les cases
+//   étroites, son titre rapetisse et sa phrase se cache.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 90 : selon la place",
+  children: [
+    H1("Selon la place"),
+    Grid(columns: 1, gap: 16px, children: [
+      Column.carte(gap: 8px, children: [ H2("Une grande case"), P.detail("Ici, la carte a toute la place : on lit tout.") ]),
+    ]),
+    Grid(columns: 3, gap: 16px, children: [
+      Column.carte(gap: 8px, children: [ H2("Petite"), P.detail("Cette phrase se cache dans une case étroite.") ]),
+      Column.carte(gap: 8px, children: [ H2("Petite"), P.detail("Cette phrase se cache dans une case étroite.") ]),
+      Column.carte(gap: 8px, children: [ H2("Petite"), P.detail("Cette phrase se cache dans une case étroite.") ]),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 89 : sur un téléphone, sur un ordinateur", to: "89-telephone-et-ordinateur.holo"),
+      A("Leçon 91 : ce qui dépasse →", to: "91-ce-qui-depasse.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+H2 { color: #E9B44C; font-size: 22px; margin: 0; narrow: { font-size: 16px; } }
+.carte { background: #22223a; padding: 16px; border-radius: 8px; narrow: { padding: 8px; } }
+.detail { margin: 0; narrow: { display: none; } }

@@ -12,8 +12,9 @@ use crate::styles::is_color;
 /// La disposition et l'allure de base, que l'auteur n'a pas à écrire. `:where` laisse
 /// toujours le dernier mot aux styles du fichier.
 const BASE: &str = "\
-:where(.holo-Page){min-height:100vh;box-sizing:border-box;margin:0}\
-:where(.holo-Page>main,.holo-Page>header,.holo-Page>footer){display:block;max-width:640px;margin:0 auto;position:relative}\
+:where(.holo-Page){min-height:100vh;box-sizing:border-box;margin:0;overflow-wrap:break-word}\
+:where(.holo-Page>main,.holo-Page>header,.holo-Page>footer){display:block;max-width:var(--holo-width,640px);margin:0 auto;position:relative}\
+:where(img.holo-Image){object-fit:cover}\
 :where(.holo-Page>main,.holo-Page>header,.holo-Page>footer,.holo-panel,.holo-Header,.holo-Footer,.holo-Main)>*{display:block;box-sizing:border-box;margin:0 0 16px 0}\
 :where(.holo-Nav)>*{margin:0}\
 :where(.holo-Stack){display:inline-grid;position:relative;max-width:100%;vertical-align:top}:where(.holo-Stack>:first-child .holo-Image){width:100%;display:block}:where(.holo-Stack)>*{grid-area:1/1;min-width:0;margin:0}\
@@ -220,6 +221,12 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
         || crate::state::data_source(program).ok().flatten().is_some()
         || body.contains("data-drag=");
     let live = if live { " data-live" } else { "" };
+    // Qui grossit la page quand on zoome (ADR-069) ? Par défaut, le navigateur, comme pour
+    // n'importe quel site : la page reste à sa place. Le moteur, seulement si l'auteur l'a
+    // écrit : des points, une page qui se réduit en un point, ou un zoom coupé. La page légère
+    // le sait avant l'arrivée du moteur, pour laisser faire le navigateur ou non.
+    let by_engine = crate::view::settings(program).is_ok_and(|r| r.active_points || r.reduce || !r.zoom_active);
+    let live = format!("{live}{}", if by_engine { " data-zoom" } else { "" });
     // Un bloc qu'une règle écoute au survol le dit à la page (ADR-039) : la page légère fait
     // venir le moteur quand la souris arrive dessus.
     // Un bloc vers lequel un lien de la page mène (ADR-042) reçoit son nom comme `id` : le
@@ -416,8 +423,15 @@ fn css(program: &Program, base: &str) -> String {
         };
         output.push_str(&selector);
         output.push('{');
+        // La largeur de la page (ADR-069) : `Page { max-width: 960px; }` élargit la colonne où
+        // tout se range (640px sans rien écrire), par exemple sur un ordinateur.
+        let page = matches!(&rule.target, Target::Type(t) if t == "Page");
+        let declaration = |setting: &crate::holo::Setting| match setting.name.as_str() {
+            "max-width" if page => format!("--holo-width:{};", css_value(setting, base)),
+            name => format!("{name}:{};", css_value(setting, base)),
+        };
         for setting in &rule.settings {
-            output.push_str(&format!("{}:{};", setting.name, css_value(setting, base)));
+            output.push_str(&declaration(setting));
         }
         // Un style qui change au survol ou à l'appui passe d'un aspect à l'autre en douceur,
         // à moins que l'auteur n'ait dit sa propre durée (`transition:`).
@@ -427,14 +441,20 @@ fn css(program: &Program, base: &str) -> String {
         output.push('}');
         // Les états (ADR-036). Le survol n'existe qu'avec une souris : sur un écran tactile, il
         // resterait collé après un toucher. Le focus est celui du clavier. Le thème sombre suit
-        // le choix du visiteur ; « phone » vaut pour un écran plus étroit que la page (ADR-041).
+        // le choix du visiteur ; « phone » vaut pour un écran plus étroit que la page (ADR-041) ;
+        // « computer » pour un écran large, 1024px ou plus ; « narrow » pour une case de grille
+        // de moins de 320px, quel que soit l'écran : la place que le bloc reçoit (ADR-069). La
+        // page marque elle-même ces cases (`holo-narrow`) : en CSS, une case ne peut pas se
+        // mesurer elle-même, seulement ce qu'elle contient, et l'auteur s'y tromperait.
         for (state, settings, _) in &rule.states {
-            let body: String = settings.iter().map(|r| format!("{}:{};", r.name, css_value(r, base))).collect();
+            let body: String = settings.iter().map(&declaration).collect();
             let rule_state = match state.as_str() {
                 "hover" => format!("@media (hover:hover){{{}:hover{{{body}}}}}", selector.split(',').map(str::to_string).collect::<Vec<_>>().join(":hover,")),
                 "focus" => format!("{}:focus-visible{{{body}}}", selector.split(',').collect::<Vec<_>>().join(":focus-visible,")),
                 "dark" => format!("@media (prefers-color-scheme:dark){{{selector}{{{body}}}}}"),
                 "phone" => format!("@media (max-width:{AUTHOR_WIDTH}px){{{selector}{{{body}}}}}"),
+                "computer" => format!("@media (min-width:{COMPUTER_WIDTH}px){{{selector}{{{body}}}}}"),
+                "narrow" => format!("{}{{{body}}}", selector.split(',').map(|s| format!("{s}.holo-narrow,.holo-narrow {s}")).collect::<Vec<_>>().join(",")),
                 _ => format!("{}:active{{{body}}}", selector.split(',').collect::<Vec<_>>().join(":active,")),
             };
             output.push_str(&rule_state);
@@ -445,6 +465,8 @@ fn css(program: &Program, base: &str) -> String {
 
 /// La largeur de page pour laquelle un auteur écrit ses tailles (`main` fait 640px au plus).
 const AUTHOR_WIDTH: f64 = 640.0;
+/// Un écran d'ordinateur, ou de tablette couchée : 1024px de large ou plus (ADR-069).
+const COMPUTER_WIDTH: f64 = 1024.0;
 
 /// La valeur d'un réglage, telle que le navigateur la reçoit. Une taille de texte écrite en
 /// pixels suit le réglage « texte plus grand » du visiteur (en rem : 16px = 1rem) ; un grand
@@ -472,7 +494,24 @@ fn css_value(setting: &crate::holo::Setting, base: &str) -> String {
         // le défaut de 100vh), et le bloc grandit si son contenu est plus long.
         return "auto;min-height:100vh;min-height:100dvh".into();
     }
-    if ["padding", "margin", "width", "max-width", "height", "border-radius"].contains(&setting.name.as_str()) {
+    // Le texte justifié coupe aussi les mots en fin de ligne, dans la langue de la page : sans
+    // cela, des trous s'ouvrent entre les mots sur un écran étroit, le défaut du CSS (ADR-069).
+    if setting.name == "text-align" && value == "justify" {
+        return "justify;hyphens:auto;-webkit-hyphens:auto".into();
+    }
+    // Couper un texte après quelques lignes, avec « … » : un seul réglage, quand le CSS en
+    // demande quatre ensemble (ADR-069).
+    if setting.name == "line-clamp" {
+        return format!("{value};-webkit-line-clamp:{value};display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden");
+    }
+    // Un curseur dessiné : le navigateur exige une forme de secours, sans quoi il ignore tout ;
+    // le moteur l'ajoute (ADR-069).
+    if setting.name == "cursor" {
+        if let Some(image) = crate::styles::cursor_image(&setting.value) {
+            return format!("url(\"{}{}\"),auto", escape(base), escape(image));
+        }
+    }
+    if ["padding", "margin", "width", "max-width", "height", "border-radius", "min-width", "min-height", "max-height"].contains(&setting.name.as_str()) {
         return value.split(' ').map(to_rem).collect::<Vec<_>>().join(" ");
     }
     if setting.name != "font-size" {
@@ -1611,7 +1650,7 @@ mod tests {
     fn the_shop_becomes_a_web_page() {
         let html = page_html(&read(include_str!("../../exemples/boutique-comparee/boutique.holo")).unwrap(), "/ex/").unwrap();
         for expected in [
-            "<div class=\"holo-Page\" data-title=\"My shop\"><header class=\"holo-Header\">",
+            "<div class=\"holo-Page\" data-title=\"My shop\" data-zoom><header class=\"holo-Header\">",
             "<nav class=\"holo-Nav\">",
             "</header><main><h1 class=\"holo-H1\">My shop</h1>",
             "<div class=\"holo-Stack\"><div><img class=\"holo-Image\"",
@@ -1792,7 +1831,7 @@ H1 { colour: red; }").split(" : ").next(), Some("ligne 2, colonne 6"));
         .unwrap();
         let world = crate::rules::site_of(&program, "A").unwrap();
         let html = site_html(&program, world, "", "A").unwrap();
-        assert!(html.contains("<div class=\"holo-Page holo-world-open holo-s-rose\" data-title=\"A\"><main><h1 class=\"holo-H1\">Inside</h1>"), "{html}");
+        assert!(html.contains("<div class=\"holo-Page holo-world-open holo-s-rose\" data-title=\"A\" data-zoom><main><h1 class=\"holo-H1\">Inside</h1>"), "{html}");
         assert!(html.contains(".holo-World,.holo-world-open{color:white;}"));
         // Il a ses propres points plantés, et leurs mondes : la boucle continue.
         assert!(html.contains("class=\"holo-pixel\" data-name=\"B\" aria-label=\"B\" data-above=\"Out\""));
@@ -2169,6 +2208,30 @@ H1 { colour: red; }").split(" : ").next(), Some("ligne 2, colonne 6"));
             let error = crate::check_page(source).err().or_else(|| crate::flat_view(source, "").err()).unwrap_or_else(|| panic!("accepté : {source}"));
             assert!(error.message.contains(message), "{source}\n→ {error}");
         }
+    }
+
+    #[test]
+    fn the_layout_of_lot_4_reaches_the_browser() {
+        // ADR-069 : ce que l'auteur écrit, et ce que le navigateur reçoit.
+        let html = crate::flat_view(
+            "Page(children: [ Grid(columns: 3, children: [ P.card(\"a\") ]) ])\nPage { max-width: 960px; computer: { max-width: 1200px; } }\n.card { text-align: justify; line-clamp: 3; cursor: url(\"viseur.svg\"); min-height: 32px; narrow: { padding: 8px; } }",
+            "/ex/",
+        )
+        .unwrap();
+        // La largeur de la page, aussi sur un ordinateur.
+        assert!(html.contains(".holo-Page{--holo-width:60rem;}"), "{html}");
+        assert!(html.contains("@media (min-width:1024px){.holo-Page{--holo-width:75rem;}}"), "{html}");
+        // Justifié : les mots se coupent ; trois lignes : les quatre réglages du CSS ; le curseur dessiné : sa forme de secours.
+        assert!(html.contains("text-align:justify;hyphens:auto;-webkit-hyphens:auto;"), "{html}");
+        assert!(html.contains("line-clamp:3;-webkit-line-clamp:3;display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;"), "{html}");
+        assert!(html.contains("cursor:url(\"/ex/viseur.svg\"),auto;"), "{html}");
+        assert!(html.contains("min-height:2rem;"), "{html}");
+        // La place : la case marquée par la page, et ce qu'elle contient.
+        assert!(html.contains(".holo-s-card.holo-narrow,.holo-narrow .holo-s-card{padding:0.5rem;}"), "{html}");
+        // Une page ordinaire laisse le zoom au navigateur ; des points le confient au moteur.
+        assert!(!html.contains("data-zoom"), "{html}");
+        assert!(crate::flat_view("Page(points: Points(), children: [ \"a\" ])", "").unwrap().contains(" data-zoom"));
+        assert!(!crate::flat_view("Page(zoom: Zoom(detach: true), children: [ \"a\" ])", "").unwrap().contains("data-zoom"));
     }
 
 }

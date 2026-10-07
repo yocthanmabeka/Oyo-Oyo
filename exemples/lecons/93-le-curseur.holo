@@ -1,0 +1,47 @@
+// Leçon 93 — Le curseur
+//
+// Ce qu'on apprend :
+//     cursor: pointer        la main : « on peut toucher » (déjà là sur les boutons et les liens)
+//     cursor: help           une aide ; aussi not-allowed, grab, grabbing, zoom-in, zoom-out,
+//                            crosshair, text, move, wait, progress, default, auto, none
+//     cursor: url("viseur.svg")   un curseur dessiné, rangé à côté du fichier (.png, .svg, .cur)
+//   (En CSS, un curseur dessiné sans forme de secours est ignoré en entier. Ici, le moteur
+//   l'ajoute.)
+//   Au doigt, il n'y a pas de curseur : il ne doit être qu'une indication, jamais la seule.
+//
+// À essayer :
+//   À la souris, passe sur chaque case : le curseur change de forme.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 93 : le curseur",
+  children: [
+    H1("Le curseur"),
+    Grid(columns: 3, gap: 12px, children: [
+      P.case.aide("Une aide"),
+      P.case.interdit("Interdit"),
+      P.case.saisir("À saisir"),
+      P.case.loupe("Une loupe"),
+      P.case.cible("Une cible"),
+      P.case.dessin("Dessiné"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 92 : garder des proportions", to: "92-garder-des-proportions.holo"),
+      A("Leçon 94 : le texte justifié →", to: "94-texte-justifie.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.case { background: #22223a; padding: 16px; border-radius: 8px; text-align: center; }
+.aide { cursor: help; }
+.interdit { cursor: not-allowed; }
+.saisir { cursor: grab; }
+.loupe { cursor: zoom-in; }
+.cible { cursor: crosshair; }
+.dessin { cursor: url("viseur.svg"); }
