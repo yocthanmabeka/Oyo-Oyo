@@ -6,6 +6,19 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Sur le téléphone : une fenêtre fermée couvrait les liens (leçon 63)
+
+- Vu par Yocthan sur son Galaxy Z Flip 5, pendant la séance d'essais au doigt : à la leçon 63, le lien vers la leçon 64 ne se laissait pas toucher.
+- Cause trouvée sur le PC, à la taille d'un téléphone (412 × 915, toucher simulé) : au point du lien, le navigateur touchait le titre de la fenêtre fermée. Une règle de base du moteur (`display: block` pour les enfants de `Main`) l'emportait sur la règle du navigateur qui cache une fenêtre fermée. La fenêtre, invisible mais présente, recouvrait le bas de la page.
+- Corrigé dans `moteur/src/flat.rs` : `.holo-Dialog:not([open]){display:none}`.
+- Exécuté : `node moteur/outils/browser-tests.mjs "fenêtre fermée"` → `OK` : lien touchable avant, fenêtre ouverte puis fermée, lien touchable après, et il mène à la leçon 64.
+
+**Erreur**
+
+- Aucun essai ne touchait ce qui se trouve sous une fenêtre fermée : la fenêtre n'était vérifiée qu'ouverte. C'est fait maintenant.
+
+---
+
 ## 2026-10-07 — Lot 3 : des formulaires qui vérifient
 
 - Fait (`ADR-068`, PROPOSITION) : `required: true`, `type: email`, `min:` en caractères pour un texte. À l'envoi, le moteur vérifie chaque champ : les messages s'écrivent sous les champs, dans la langue de la page, et un lecteur d'écran les lit ; le premier champ à corriger reçoit le clavier. Entrée envoie, un envoi à la fois, 15 secondes au plus. **Le serveur vérifie à nouveau** par le moteur (`holo form`) : un message forgé reçoit 422.
