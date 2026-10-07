@@ -2,7 +2,7 @@
 
 Deux listes. La première part de HoloCode : pour chaque mot, celui du web qui lui correspond, et ce qu'on en a fait. La seconde part du web : les mots qu'on n'a pas pris.
 
-Mis à jour le 2026-10-06.
+Mis à jour le 2026-10-07.
 
 **L'écriture des noms** (`ADR-037`, décidé par Yocthan le 2026-10-06) : celle de Flutter. La casse compte ; une seule écriture par mot ; deux mots se joignent par une majuscule (`appleX`, `topRight`, `BlueDoor`), jamais par `_` ; les styles gardent l'écriture du CSS (`font-size`).
 
@@ -78,6 +78,8 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `line-height`, `letter-spacing`, `text-transform`, `text-decoration`, `box-shadow`, `text-shadow`, `rotate`, `scale`, `transition` | les mêmes | repris ; `line-height` sans unité seulement ; `transition` ne prend qu'une durée |
 | `--or` (une variable) | `--or` et `var(--or)` | repris, employé sans `var( )` ; refusé s'il n'est défini nulle part |
 | `dark:`, `phone:` dans un style | `@media (prefers-color-scheme: dark)`, `@media (max-width: 640px)` | changé : des états du style, comme `hover:` |
+| `computer:` dans un style | `@media (min-width: 1024px)` | changé : un état du style, comme `phone:` (`ADR-069`, à valider) |
+| `narrow:` dans un style | `@container (max-width: …)`, avec `container-type` déclaré à la main | changé : la case de `Grid` fait moins de 320px ; rien à déclarer, la page mesure chaque case (`ADR-069`, à valider) |
 | `Font(family:, source:)` et `fonts:` | `@font-face` | changé : déclaré sur la page ; toujours `font-display: swap` |
 | `url("fond.jpg")` dans `background` | `background-image`, `background-size`, `background-repeat` | changé : l'image couvre toujours le bloc |
 | `State(tasks: [])`, `push`, `remove(item)`, `clear` | un tableau JavaScript, `push`, `splice`, `length = 0` | changé : une valeur de la page, changée par des demandes ; on retire la ligne touchée |
@@ -168,6 +170,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `active:` | `user-scalable=no` | changé |
 | `max:` | `maximum-scale` | changé |
 | `shrink:` | `minimum-scale` ; `flex-shrink` dit autre chose | changé |
+| `Zoom(detach:)` | aucun : sur le web, le zoom du navigateur grossit toujours la page sur place | nouveau : le bouton « Décrocher » du menu ☰ ; la page se détache comme une feuille, et le zoom l'approche ; « Accrocher » la remet à sa place (`ADR-069`, à valider) |
 | `levels:`, `speed:` | aucun | nouveaux ; `levels:` dans `Zoom` et dans `Points`, avec la même idée : combien de fois l'un dans l'autre |
 | `after:` | aucun ; `::after` dit autre chose | nouveau |
 | `size:` | `width`, `height` | changé |
@@ -203,6 +206,12 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `.card { … }` | `.card { … }` | repris |
 | `P.card(...)` | `class="card"` | changé |
 | `color`, `background`, `font-size`, `font-weight`, `font-style`, `font-family`, `text-align`, `padding`, `margin`, `border`, `border-radius`, `width`, `height`, `max-width`, `opacity` | les mêmes | repris, quinze réglages |
+| `min-width`, `min-height`, `max-height` | les mêmes | repris ; en px ou en %, écrits en `rem` ; `max-width` sur `Page` élargit la page (`ADR-069`, à valider) |
+| `overflow`, `overflow-x`, `overflow-y`, `white-space` | les mêmes | repris ; `white-space` : `normal`, `nowrap`, `pre-line`, `pre-wrap` (`pre` refusé : il déborde sur un téléphone) ; un mot trop long passe à la ligne sans rien écrire (`ADR-069`, à valider) |
+| `line-clamp` | `-webkit-line-clamp`, avec `display: -webkit-box`, `-webkit-box-orient: vertical` et `overflow: hidden` | changé : un réglage au lieu de quatre (`ADR-069`, à valider) |
+| `aspect-ratio`, `object-fit`, `object-position` | les mêmes | repris ; une image est `cover` sans rien écrire : jamais déformée (`ADR-069`, à valider) |
+| `cursor` | `cursor` | repris : 22 formes, ou `url("viseur.svg")` ; le moteur ajoute la forme de secours `auto` (`ADR-069`, à valider) |
+| `justify` dans `text-align` | `text-align: justify`, `hyphens: auto` | repris ; les mots se coupent seuls, dans la langue de la page (`ADR-069`, à valider) |
 
 ### Les unités et le reste
 
@@ -227,9 +236,12 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `ul`, `ol`, `li` | Un seul bloc, `List`. |
 | `section`, `article` | Les titres donnent le plan. |
 | `script`, `onclick`, le DOM modifié à la main | Pas de code libre dans un bloc. |
-| `display`, `position`, `float` dans un style | La disposition vient des blocs. |
+| `display`, `position`, `float` dans un style | La disposition vient des blocs. Seule exception : `display: none` dans `phone:`, `computer:` ou `narrow:`, pour cacher. |
 | Sélecteurs composés, cascade, `!important` | Un style vise un type ou un nom, rien d'autre. |
-| `justify-content`, `align-items`, `flex-wrap`, `@media` | Le moteur s'en charge ; un seul mot, `align`. |
+| `justify-content`, `align-items`, `flex-wrap` | Le moteur s'en charge ; un seul mot, `align`. |
+| `@media`, `@container` écrits à la main | Des états du style : `phone:`, `computer:`, `narrow:`, `dark:`. |
+| `text-overflow` | Seul, il ne fait rien : `line-clamp: 1` fait le tout. |
+| `ew-resize`, `col-resize` et les autres curseurs d'étirement | Rien à étirer sans disposition à la main. |
 | `var`, `let`, `function`, `this`, `null`, `undefined`, `NaN` | Pas de variables libres ; une valeur est déclarée et bornée. |
 | `noscript` | Sans objet. |
 

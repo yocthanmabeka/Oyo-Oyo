@@ -71,5 +71,6 @@ Le web sera dit viable quand ces dix parcours marcheront, chacun au clavier seul
 3. **La règle du même résultat**, reformulée.
 4. **Les valeurs calculées** : une seule notion pour chercher, filtrer, trier et calculer (pistes 1 et 10 de l'exploration).
 5. **Les quatre questions du serveur**, avec les corrections de Codex.
+   **Décidé par Yocthan le 2026-10-07, pour le lot 5** : `holo serve` en Rust, avec deux bibliothèques éprouvées, `tiny_http` (le serveur web) et `rusqlite` (la base SQLite, comprise dans `holo.exe`) ; rien d'autre à installer, aucun service extérieur. Les adresses comme `/profil/123` se disent par le nom du fichier : `profil/{id}.holo`, et `{id}` s'écrit dans la page comme les autres valeurs.
 
 Le lot 1 ne demande aucune décision de langage : il peut commencer tout de suite.

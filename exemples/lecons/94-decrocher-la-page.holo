@@ -1,0 +1,34 @@
+// Leçon 94 — Décrocher la page
+//
+// Ce qu'on apprend :
+//   Sans rien écrire, quand on zoome (pincer à deux doigts, ou Ctrl + molette), c'est le
+//   navigateur qui grossit la page, comme pour n'importe quel site : elle reste à sa place.
+//   « zoom: Zoom(detach: true) » offre au visiteur un bouton « Décrocher », dans le menu ☰ :
+//   la page se détache de l'écran, comme une feuille, et le zoom l'approche. « Accrocher » la
+//   remet à sa place. C'est la décision de Yocthan du 2026-10-07 : comme pour tourner, ce qui
+//   fait sortir la page du web ordinaire s'active dans le fichier.
+//
+// À essayer :
+//   Zoome : la page grossit sur place. Ouvre le menu ☰, touche « Décrocher », puis zoome :
+//   la page s'approche comme une feuille. Touche « Accrocher » : elle revient à sa place.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 94 : décrocher la page",
+  zoom: Zoom(detach: true),
+  children: [
+    H1("Décrocher la page"),
+    P("Zoome sur cette page : elle grossit sur place. Puis ouvre le menu ☰ et touche « Décrocher »."),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 93 : le texte justifié", to: "93-texte-justifie.holo"),
+      A("Leçon 95 : un article long →", to: "95-un-article-long.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

@@ -10,10 +10,15 @@
 //   Jamais Tab : elle sert à passer d'un bouton à l'autre.
 //   Une page qui écoute des lettres ou des chiffres ajoute au menu ☰ « Touches à une lettre » :
 //   le visiteur peut les couper (un logiciel de dictée pourrait les taper sans le vouloir).
+//   Sur un téléphone, rien à écrire non plus : le clavier de l'écran n'apparaît que dans un
+//   champ où l'on écrit, alors le moteur montre les touches que la page écoute en bas de
+//   l'écran, et le doigt fait ce que fait le clavier (ADR-069). Gardée enfoncée, une touche
+//   se répète, comme au clavier.
 //
 // À essayer :
 //   Appuie sur P, M, 5, Entrée, Échap. Puis ouvre le menu ☰ et coupe « Touches à une lettre » :
 //   P, M et 5 ne font plus rien ; Entrée et Échap marchent toujours.
+//   Sur un téléphone : touche les cinq touches en bas de l'écran.
 //
 // (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
 
@@ -24,6 +29,7 @@ Page(
     H1("Toutes les touches"),
     P("**P** ajoute 1, **M** enlève 1, **5** ajoute 5, **Entrée** ajoute 10, **Échap** remet à zéro."),
     P.grand("{compte}"),
+    P("Sur un téléphone, ces touches sont en bas de l'écran."),
 
     Hr(),
     Row(gap: 16px, align: between, children: [

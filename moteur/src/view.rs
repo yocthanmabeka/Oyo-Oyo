@@ -33,6 +33,11 @@ pub enum Layout {
 pub struct Settings {
     /// `Zoom(active:)` : faux, le visiteur ne peut pas zoomer dans la page.
     pub zoom_active: bool,
+    /// `Zoom(detach:)` : vrai, un bouton « Décrocher » est offert au visiteur. Sans lui, la page
+    /// reste à sa place et grossit sur place, par le zoom du navigateur, comme n'importe quel
+    /// site ; décrochée, elle grossit comme une feuille qu'on approche (ADR-069, décision de
+    /// Yocthan du 2026-10-07 : « comme pour tourner »).
+    pub detach: bool,
     /// `Portals(layout:)` : comment les portails du carrefour se rangent.
     pub portals_layout: Layout,
     /// `Portals(count:)` : combien de mondes le carrefour montre. Les sites écrits dans le
@@ -82,6 +87,7 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             zoom_active: true,
+            detach: false,
             portals_layout: Layout::Grid,
             portals_count: 12,
             portals_size: 170.0,
@@ -159,8 +165,13 @@ pub fn settings(program: &Program) -> Result<Settings, Error> {
         return Ok(r);
     }
     if let Some(zoom) = block_of(page, "zoom", "Zoom")? {
-        only(zoom, &["active", "max", "shrink", "levels", "speed"])?;
+        only(zoom, &["active", "max", "shrink", "levels", "speed", "detach"])?;
         r.zoom_speed = number(zoom, "speed", None, 0.25, 4.0, r.zoom_speed)?;
+        r.detach = match zoom.argument("detach").map(|a| &a.value) {
+            None => r.detach,
+            Some(Value::Bool(b)) => *b,
+            Some(_) => return refusal(zoom, "detach", "true ou false"),
+        };
         r.zoom_active = match zoom.argument("active").map(|a| &a.value) {
             None => r.zoom_active,
             Some(Value::Bool(b)) => *b,
@@ -226,6 +237,13 @@ pub fn settings(program: &Program) -> Result<Settings, Error> {
             message: "« relief » demande les points : ajoute « points: Points() » à la page (le relief est celui des points, et c'est en points que la page tourne)".into(),
             pos: relief.pos,
         });
+    }
+    // Décrocher n'a de sens que pour une page que le zoom du navigateur grossit sur place : avec
+    // les points, ou en réduisant la page jusqu'à un point, elle se décroche déjà ; sans zoom,
+    // il n'y a rien à décrocher. Rien n'est toléré en silence.
+    if r.detach && (r.active_points || r.reduce || !r.zoom_active) {
+        let why = if r.active_points { "avec les points, la page se décroche déjà quand on zoome" } else if r.reduce { "avec « shrink: true », la page se décroche déjà quand on dézoome" } else { "avec « active: false », on ne zoome pas : il n'y a rien à décrocher" };
+        return Err(Error { message: format!("« Zoom(detach: true) » ne sert à rien ici : {why}"), pos: page.argument("zoom").map_or(page.pos, |a| a.pos) });
     }
     // Sans les points, le zoom ordinaire s'arrête de lui-même à ce que `Zoom(max:)` permet.
     if !r.active_points {
@@ -371,5 +389,17 @@ mod tests {
         assert_eq!(error.pos.line, 3, "l'erreur désigne le point de trop");
         // Les points plantés dans un pixel comptent aussi.
         assert!(read_ones("Page(zoom: Zoom(levels: 1), pixels: [ Point(name: A, above: A, seed: 1, inside: World(children: [])) ])").is_err());
+    }
+
+    #[test]
+    fn a_page_can_be_detached_only_where_it_means_something() {
+        // ADR-069 : décrocher, pour une page que le navigateur grossit sur place.
+        assert!(read_ones("Page(zoom: Zoom(detach: true), children: [ \"a\" ])").unwrap().detach);
+        assert!(!read_ones("Page(children: [ \"a\" ])").unwrap().detach);
+        let refused = |src: &str| read_ones(src).unwrap_err().message;
+        assert!(refused("Page(zoom: Zoom(detach: true), points: Points(), children: [ \"a\" ])").contains("avec les points"));
+        assert!(refused("Page(zoom: Zoom(detach: true, shrink: true), children: [ \"a\" ])").contains("shrink"));
+        assert!(refused("Page(zoom: Zoom(detach: true, active: false), children: [ \"a\" ])").contains("rien à décrocher"));
+        assert!(refused("Page(zoom: Zoom(detach: 1), children: [ \"a\" ])").contains("true ou false"));
     }
 }

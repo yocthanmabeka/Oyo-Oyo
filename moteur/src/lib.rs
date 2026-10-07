@@ -165,7 +165,7 @@ pub fn vocabulary() -> String {
         ("Data", &["name", "from", "every"]),
         ("Enter", MOVEMENT),
         ("Loop", &cycle),
-        ("Zoom", &["active", "max", "shrink", "levels", "speed"]),
+        ("Zoom", &["active", "max", "shrink", "levels", "speed", "detach"]),
         ("Points", &["after", "size", "fragment", "divisions", "levels", "density"]),
         ("Relief", &["height", "tilt"]),
         ("Portals", &["layout", "count", "size", "brightness", "duration"]),

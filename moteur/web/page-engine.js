@@ -51,6 +51,12 @@
   let zoomSpeed = 1;     // Zoom(speed:)
   let portalDuration = 450;  // Portals(duration:), en millisecondes
   let rotationAngle = 0;   // Relief(tilt:), en degrés ; 0 : la page ne tourne pas
+  // Qui grossit la page quand on zoome (ADR-069). Par défaut, le navigateur : la page reste à sa
+  // place. Le moteur, si le fichier le demande (points, Zoom(shrink:), Zoom(active: false)), ou
+  // si le visiteur a décroché la page (Zoom(detach: true), puis « Décrocher »).
+  let detachAllowed = false;
+  let detached = false;
+  let byEngine = false;
   let activePoints = false;  // l'auteur a-t-il demandé les points (points: ou pixels:) ? Sinon, un site ordinaire
   // Les valeurs de chaque fichier ouvert (State) : « cart=2 ». Elles suivent le visiteur tant
   // qu'il ne recharge pas la page : il peut entrer dans un monde, passer ailleurs, revenir.
@@ -79,6 +85,7 @@
   const modeButton = document.getElementById("mode");
   const pointsButton = document.getElementById("points");
   const turnButton = document.getElementById("rotate");
+  const detachButton = document.getElementById("detach");
   const image = document.getElementById("image");
   const state = document.getElementById("status");
   const number = new Intl.NumberFormat("fr-FR");
@@ -180,7 +187,7 @@
   // Ce que le fichier affiché dit de sa vue (Zoom, Points, Portals).
   function readSettings() {
     let active, storage;
-    [requestedDensity, reduce, zoomBeforePoints, active, storage, portalCount, portalSize, backgroundLight, zoomSpeed, portalDuration, rotationAngle, activePoints] = view_settings(source);
+    [requestedDensity, reduce, zoomBeforePoints, active, storage, portalCount, portalSize, backgroundLight, zoomSpeed, portalDuration, rotationAngle, activePoints, detachAllowed] = view_settings(source);
     activePoints = activePoints === 1;
     document.body.classList.toggle("rotated", rotationAngle > 0 && active === 1);
     // L'état de départ, avec ce que la page a gardé d'une visite précédente (keep: […]).
@@ -196,6 +203,19 @@
     zoomActive = active === 1;
     layout = ["grid", "line", "column", "diagonal"][storage];
     pointsButton.style.display = zoomActive && activePoints ? "" : "none";
+    // Une autre page commence accrochée.
+    detachAllowed = detachAllowed === 1;
+    detached = false;
+    document.body.classList.remove("detached");
+    detachButton.textContent = "Décrocher";
+    zoomMode();
+  }
+
+  // Qui grossit la page quand on zoome : le navigateur, ou le moteur (ADR-069).
+  function zoomMode() {
+    byEngine = activePoints || reduce || !zoomActive || detached;
+    document.documentElement.classList.toggle("holo-zoom", byEngine);
+    detachButton.hidden = !detachAllowed;
   }
 
   // Passe à un autre fichier sans recharger la page : son adresse devient celle de la barre
@@ -258,6 +278,68 @@
       document.getElementById("views")?.append(button);
     }
     button.setAttribute("aria-pressed", String(lettersAllowed));
+  }
+  // Les touches à l'écran (ADR-069). Règle de Yocthan du 2026-10-07 : ce qui existe sur
+  // l'ordinateur existe sur le téléphone, et l'inverse. Sur un appareil qu'on touche du doigt,
+  // sans souris (donc, presque toujours, sans clavier), une page qui écoute des touches les
+  // montre en bas de l'écran : le doigt fait ce que fait le clavier. Le clavier de l'écran,
+  // lui, n'apparaît que dans un champ où l'on écrit.
+  const touchOnly = matchMedia("(hover: none) and (pointer: coarse)");
+  const keysBar = document.getElementById("keys");
+  const keyLabels = { left: "←", up: "↑", down: "↓", right: "→", space: "Espace", enter: "Entrée", escape: "Échap" };
+  const keySpoken = { left: "flèche gauche", up: "flèche haut", down: "flèche bas", right: "flèche droite" };
+  function setKeysBar() {
+    keysBar.replaceChildren();
+    const shown = touchOnly.matches && listenedKeys.length > 0;
+    keysBar.hidden = !shown;
+    document.body.style.paddingBottom = "";
+    if (!shown) return;
+    // Les flèches d'abord, rangées comme sur un clavier ; puis les autres, dans l'ordre du fichier.
+    const arrows = ["left", "up", "down", "right"].filter((key) => listenedKeys.includes(key));
+    for (const key of [...arrows, ...listenedKeys.filter((key) => !arrows.includes(key))]) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.key = key;
+      button.textContent = keyLabels[key] ?? (key.startsWith("digit") ? key.slice(5) : key.toUpperCase());
+      button.setAttribute("aria-label", `Touche ${keySpoken[key] ?? button.textContent}`);
+      keysBar.append(button);
+    }
+    // Les touches ne cachent jamais le bas de la page : on peut toujours y descendre.
+    document.body.style.paddingBottom = `${keysBar.offsetHeight + 24}px`;
+  }
+  touchOnly.addEventListener("change", setKeysBar);
+  {
+    let repeat = 0;
+    let pressedByFinger = null;
+    const stop = () => {
+      clearTimeout(repeat);
+      clearInterval(repeat);
+      keysBar.querySelector(".pressed")?.classList.remove("pressed");
+    };
+    const press = (key) => {
+      if (inPoints || inWorld || !crossroads.hidden || document.querySelector("dialog[open]")) return;
+      emit(`Key.${key}`);
+    };
+    keysBar.addEventListener("pointerdown", (event) => {
+      const button = event.target.closest("button[data-key]");
+      if (!button) return;
+      event.preventDefault(); // le doigt ne sélectionne rien et ne fait pas défiler
+      stop();
+      pressedByFinger = button;
+      button.classList.add("pressed");
+      press(button.dataset.key);
+      // Gardée enfoncée, comme une touche du clavier, elle se répète.
+      repeat = setTimeout(() => { repeat = setInterval(() => press(button.dataset.key), 80); }, 400);
+    });
+    for (const end of ["pointerup", "pointercancel", "pointerleave"]) keysBar.addEventListener(end, stop);
+    // Un lecteur d'écran (TalkBack, VoiceOver) touche un bouton sans poser le doigt dessus : un
+    // clic seul compte alors pour un appui. Après un appui du doigt, le clic qui suit est ignoré.
+    keysBar.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-key]");
+      if (!button) return;
+      if (pressedByFinger === button) pressedByFinger = null;
+      else press(button.dataset.key);
+    });
   }
   let beats = []; // une horloge par règle Every : { ms, valeur, minuterie }
   function launch(clock, rank) {
@@ -365,6 +447,7 @@
     followTime();
     listenedKeys = keypresses(source).split(";").filter(Boolean);
     setShortcutsButton();
+    setKeysBar();
     beats.forEach((clock) => clearInterval(clock.timer));
     beats = clocks(source).split(";").filter(Boolean).map((chunk) => {
       const [ms, values] = chunk.split(":");
@@ -728,15 +811,18 @@
 
   // Grossit la page vivante, comme le zoom d'un navigateur : le texte reste du texte.
   function grow(value, x = innerWidth / 2, y = innerHeight / 2) {
-    const [beforeX, beforeY] = [(scrollX + x) / sharpZoom, (scrollY + y) / sharpZoom];
+    // La page peut être posée un peu en retrait (décrochée, ADR-069) : on compte depuis son coin.
+    const [left, top] = [frame.offsetLeft, frame.offsetTop];
+    const [beforeX, beforeY] = [(scrollX + x - left) / sharpZoom, (scrollY + y - top) / sharpZoom];
     sharpZoom = value;
     // Un vrai agrandissement, depuis le coin de la page : la mise en page ne bouge pas, tout
     // grossit ensemble. La zone à faire défiler grandit d'autant.
     const enlarged = sharpZoom !== 1;
-    Object.assign(frame.style, { transformOrigin: "0 0", transform: enlarged ? `scale(${sharpZoom})` : "", width: enlarged ? `${document.documentElement.clientWidth}px` : "" });
+    const width = frame.style.width || `${frame.offsetWidth}px`;
+    Object.assign(frame.style, { transformOrigin: "0 0", transform: enlarged ? `scale(${sharpZoom})` : "", width: enlarged ? width : "" });
     Object.assign(root.style, { width: enlarged ? `${frame.offsetWidth * sharpZoom}px` : "", height: enlarged ? `${frame.offsetHeight * sharpZoom}px` : "", overflow: enlarged ? "hidden" : "", cursor: enlarged ? "grab" : "" });
     // Ce qui était sous le doigt y reste.
-    scrollTo(beforeX * sharpZoom - x, beforeY * sharpZoom - y);
+    scrollTo(beforeX * sharpZoom + left - x, beforeY * sharpZoom + top - y);
   }
 
   // ---------------------------------------------------------------- vue points
@@ -947,6 +1033,8 @@
 
   // À la souris : Ctrl + molette (un pavé tactile envoie la même chose quand on pince).
   addEventListener("wheel", (event) => {
+    // Par défaut, c'est le navigateur qui grossit la page, comme pour tout site (ADR-069).
+    if (!byEngine) return;
     // Sinon Chrome grossit ou réduit toute la fenêtre, et le site sort de son cadre.
     if (event.ctrlKey) event.preventDefault();
     if (inPoints || !event.ctrlKey) return; // en vue points, la zone de dessin reçoit la molette elle-même
@@ -965,7 +1053,7 @@
   });
   addEventListener("touchstart", (event) => {
     // Un pincement commencé sur la zone de dessin est suivi par le moteur lui-même.
-    const onPage = event.touches.length === 2 && !inPoints && !inWorld && crossroads.hidden;
+    const onPage = byEngine && event.touches.length === 2 && !inPoints && !inWorld && crossroads.hidden;
     pinch = onPage ? twoFingers(event.touches).gap : null;
   }, { capture: true, passive: true });
   addEventListener("touchmove", (event) => {
@@ -1654,6 +1742,16 @@
       mosaic_turn(active);
     });
     document.getElementById("front").addEventListener("click", () => { mosaic_front(); wakeTracking(); });
+    // Décrocher la page (Zoom(detach: true), ADR-069) : elle se détache de l'écran, et le zoom
+    // l'approche comme une feuille. Accrocher la remet à sa place, à sa taille.
+    detachButton.addEventListener("click", () => {
+      detached = !detached;
+      if (!detached) grow(1);
+      document.body.classList.toggle("detached", detached);
+      detachButton.textContent = detached ? "Accrocher" : "Décrocher";
+      zoomMode();
+      announce(detached ? "Page décrochée : le zoom l'approche comme une feuille." : "Page accrochée : elle reste à sa place.");
+    });
     // En vue points, tout geste relance le suivi ; une souris qui passe sans bouton ne compte pas.
     for (const name of ["wheel", "pointerdown", "pointermove", "pointerup"]) {
       addEventListener(name, (event) => {

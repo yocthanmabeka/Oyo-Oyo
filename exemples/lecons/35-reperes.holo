@@ -10,6 +10,10 @@
 // À essayer :
 //   Sur Windows, lance le Narrateur (Ctrl + Windows + Entrée), puis la touche D : il saute
 //   de repère en repère.
+//   Sur un téléphone Android, lance TalkBack (Paramètres → Accessibilité → TalkBack), choisis
+//   « Repères » dans son menu de lecture, puis balaie vers le bas pour passer de l'un à
+//   l'autre. Sur un iPhone, VoiceOver (Réglages → Accessibilité → VoiceOver) : tourne deux
+//   doigts sur l'écran pour choisir « Repères », puis balaie vers le bas.
 //
 // (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
 
