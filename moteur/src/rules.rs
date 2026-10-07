@@ -291,7 +291,7 @@ fn check_effects(rule: &Block, names: &[(&str, &str)], state: &crate::state::Sta
                 crate::lists::check_request(request, program, rule, line.as_deref())?;
             }
             Value::Block(request) if crate::state::is_requested(request) => {
-                crate::state::request(request, state)?;
+                crate::state::request(program, request, state)?;
             }
             Value::Name(_) if allowed_capabilities => {
                 let (target, capability) = name_and_word(rule, Some(effect), "l'effet")?;
@@ -348,7 +348,7 @@ fn bytes(block: &Block, param: &str) -> Result<Option<f64>, Error> {
         _ => None,
     };
     match &argument.value {
-        Value::Number { value, unit: Some(unit) } if *value >= 0.0 && factor(unit).is_some() => Ok(factor(unit).map(|f| value * f)),
+        Value::Number { value, unit: Some(unit), .. } if *value >= 0.0 && factor(unit).is_some() => Ok(factor(unit).map(|f| value * f)),
         _ => Err(Error { message: format!("le paramètre « {param} » attend une taille, comme « 500KB » (unités : B, KB, MB, GB)"), pos: argument.pos }),
     }
 }

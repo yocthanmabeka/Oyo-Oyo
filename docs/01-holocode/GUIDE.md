@@ -496,7 +496,7 @@ Page(
 
 Les limites :
 
-- Une valeur est un nombre entier, de 0 à 1 000 000 000. Une page en déclare au plus 32.
+- Une valeur est un nombre, de 0 à 1 000 000 000 : entier, ou à virgule (`price: 12.50`, voir « Des nombres à virgule »). Une page en déclare au plus 32.
 - Son nom s'écrit en minuscules : `cart`, `items_seen`.
 - Les valeurs se déclarent sur la `Page`. Elles valent pour tout le fichier : un texte écrit dans le monde d'un point peut montrer `{cart}`, et une règle de ce monde peut le changer.
 - La valeur suit le visiteur d'un monde à l'autre et d'un fichier à l'autre. Si la page est rechargée, elle repart du départ.
@@ -1419,6 +1419,38 @@ Page(
 
 Cette écriture est décidée (`ADR-045`). La leçon est `69-module-enferme.holo` ; ses trois modules, dans `exemples/lecons/modules/`.
 
+## 6 tervicies. Des nombres à virgule
+
+```holo
+Page(
+  title: "Order",
+  state: State(price: 12.50, qty: 1, sum: 12.50),
+  children: [
+    P("Price: {price} €"),
+    Input(value: price, label: "Change the price"),
+    Input(value: qty, label: "How many?"),
+    Button(name: Compute, text: "Compute"),
+    P("Total: {sum} € ({sum:number} €)"),
+    Button(name: Tip, text: "Add 10 %"),
+    If(sum, over: 49.99, children: [ "Free delivery." ]),
+  ],
+  rules: [
+    On(Compute.tap, effect: [sum.set(price), sum.mul(qty)]),
+    On(Tip.tap, effect: sum.mul(1.1)),
+  ],
+)
+```
+
+- **`price: 12.50`** déclare une valeur à virgule, avec deux chiffres après la virgule (de 1 à 6). Elle est **exacte** : 12,50 × 3 font 37,50, jamais 37,4999.
+- **`{price}`** la montre dans la langue de la page : « 12,50 » en français, « 12.50 » en anglais ; **`{price:number}`** la groupe par milliers, « 1 234,50 ».
+- **`add`, `sub`, `set`** prennent un nombre qui n'a pas plus de chiffres après la virgule que la valeur (`sum.add(0.25)`), ou une autre valeur qui n'en a pas plus. **`mul` et `div`** prennent un facteur, entier ou à virgule (`sum.mul(1.1)` : 10 % de plus) ; le résultat est arrondi au plus proche, à l'échelle de la valeur. Entre nombres entiers, la division arrondit toujours vers le bas.
+- **Les comparaisons sont exactes**, même entre un entier et un nombre à virgule : `If(sum, over: 49.99)`.
+- **Un champ** présente une valeur à virgule avec le clavier décimal ; « 12,5 » et « 12.5 » sont compris.
+- **Des données reçues** : `{"price": 12.5}` va dans une valeur à virgule.
+- Pas encore : une glissière, une barre, une case, une place sur un plateau, les prix (`Prices`) et `limit:` prennent un nombre entier ; une fiche de liste aussi (un prix de fiche s'écrit en centimes, `{item.price:cents}`) ; pas de nombre négatif.
+
+Cette écriture est proposée (`ADR-066`) et attend la validation de Yocthan. La leçon est `86-nombres-a-virgule.holo`.
+
 ## 6 duovicies. Les lignes d'une liste : une clé, le clavier gardé, le total
 
 ```holo
@@ -1775,7 +1807,7 @@ Toutes les limites, telles que le moteur les applique (chacune refusée avec un 
 | Quoi | La limite |
 |---|---|
 | Le fichier | 262 144 octets ; 100 000 mots ; 64 niveaux de blocs et de listes l'un dans l'autre ; 16 fichiers importés |
-| Les valeurs (`State`) | 32 valeurs par page ; un nombre jusqu'à 1 000 000 000 ; un texte de 2 000 caractères |
+| Les valeurs (`State`) | 32 valeurs par page ; un nombre jusqu'à 1 000 000 000, avec au plus 6 chiffres après la virgule (`ADR-066`) ; un texte de 2 000 caractères |
 | Une liste qui change (`State(tasks: [])`) | 100 éléments ; un texte de 200 caractères ; 16 champs par élément |
 | `Repeat(items:)` | 200 éléments ; 20 000 blocs une fois déplié |
 | Les composants | 16 paramètres ; 8 composants l'un dans l'autre ; 2 000 copies |
@@ -1942,7 +1974,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 
 - Un module n'échange encore qu'un nombre contre un nombre.
 - Les données venues d'un autre serveur ; les comptes.
-- Pour les valeurs : des nombres entiers, des textes et des listes ; pas de nombre à virgule (les prix s'écrivent en centimes, `{price:cents}`), pas de calcul sur les dates, pas de clé choisie par l'auteur pour une ligne.
+- Pour les valeurs : pas de nombre négatif ; pas de calcul sur les dates ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
 - Les garde-fous de zoom pour un `Point` seul : ils sont encore fixés dans le moteur.

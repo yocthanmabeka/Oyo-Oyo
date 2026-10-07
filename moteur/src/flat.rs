@@ -111,6 +111,8 @@ pub fn site_html_from(program: &Program, page: &Block, base: &str, title: &str, 
 }
 
 fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start: Option<&Start>) -> Result<String, Error> {
+    // Les valeurs à virgule (ADR-066) se montrent avec leurs chiffres.
+    crate::format::set_decimals(crate::state::decimals(program));
     // Les valeurs d'où part la page : son départ, ou celles que le serveur a données.
     let (start_value, texts, mut lists) = match start {
         Some((numbers, texts, lists)) => (numbers.clone(), texts.clone(), lists.clone()),
@@ -279,6 +281,13 @@ fn fill_marks(html: String, shown: &crate::state::State, texts: &crate::state::T
                 if start_text(name).is_some() {
                     let length = max.parse::<usize>().map_or(crate::state::TEXT_SHORT, |m| m.min(crate::state::TEXT_MAX));
                     output.push_str(&format!(" type=\"text\" maxlength=\"{length}\""));
+                } else if crate::format::decimal_places(name) > 0 {
+                    // Un nombre à virgule (ADR-066) : le clavier décimal, et un pas de 0,01.
+                    let places = crate::format::decimal_places(name);
+                    output.push_str(&format!(" type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"{}\" data-places=\"{places}\"", crate::state::format_decimal(1, places)));
+                    if !max.is_empty() {
+                        output.push_str(&format!(" max=\"{max}\""));
+                    }
                 } else {
                     output.push_str(" type=\"number\" inputmode=\"numeric\" min=\"0\"");
                     if !max.is_empty() {
@@ -296,7 +305,10 @@ fn fill_marks(html: String, shown: &crate::state::State, texts: &crate::state::T
                 // Un champ : la valeur de départ, telle quelle.
                 match start_text(name) {
                     Some(text) => output.push_str(&escape(text)),
-                    None => output.push_str(&shown.iter().find(|(known, _)| known == name).map_or(0, |(_, v)| *v).to_string()),
+                    None => {
+                        let units = shown.iter().find(|(known, _)| known == name).map_or(0, |(_, v)| *v);
+                        output.push_str(&crate::state::format_decimal(units, crate::format::decimal_places(name)));
+                    }
                 }
             } else if let Some(name) = chunk.strip_prefix('?') {
                 // Une case : cochée au départ si la valeur n'est pas zéro.
@@ -573,7 +585,7 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
             for argument in &block.arguments {
                 match (argument.name.as_deref(), &argument.value) {
                     (Some("name" | "children"), _) => {}
-                    (Some("height"), Value::Number { value, unit: Some(unit) }) if unit == "px" && (80.0..=2000.0).contains(value) => height = *value,
+                    (Some("height"), Value::Number { value, unit: Some(unit), .. }) if unit == "px" && (80.0..=2000.0).contains(value) => height = *value,
                     (Some("height"), _) => return Err(Error { message: "« Scenes(height: …) » attend une hauteur entre 80px et 2000px".into(), pos: argument.pos }),
                     (Some("repeat"), Value::Name(word)) if word == "forever" => always = true,
                     (Some("repeat"), _) => return Err(Error { message: "« Scenes(repeat: …) » attend « forever » : les scènes recommencent sans fin".into(), pos: argument.pos }),
@@ -895,7 +907,7 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
             for argument in &block.arguments {
                 match (argument.name.as_deref(), &argument.value) {
                     (Some("name" | "children"), _) => {}
-                    (Some("height"), Value::Number { value, unit: Some(unit) }) if unit == "px" && (80.0..=800.0).contains(value) => height = *value,
+                    (Some("height"), Value::Number { value, unit: Some(unit), .. }) if unit == "px" && (80.0..=800.0).contains(value) => height = *value,
                     (Some("height"), _) => return Err(Error { message: "« Board(height: …) » attend une taille entre 80px et 800px".into(), pos: argument.pos }),
                     (Some(other), _) => return Err(Error { message: format!("« Board » n'a pas de paramètre « {other} » ; paramètres possibles : name, children, height"), pos: argument.pos }),
                     (None, _) => return Err(Error { message: "« Board » range des blocs : Board(children: [ … ])".into(), pos: argument.pos }),
@@ -945,7 +957,7 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
                     (Some("form"), _) => return Err(Error { message: "« Shape(form: …) » attend l'un de ces mots : circle, square, triangle, diamond".into(), pos: argument.pos }),
                     (Some("color"), Value::Text(color)) if is_color(color) => pace.push_str(&format!("--holo-color:{color};")),
                     (Some("color"), _) => return Err(Error { message: "« Shape(color: …) » attend une couleur entre guillemets, comme \"#E9B44C\"".into(), pos: argument.pos }),
-                    (Some("size"), Value::Number { value, unit: Some(unit) }) if unit == "px" && (8.0..=400.0).contains(value) => pace.push_str(&format!("--holo-size:{value}px;--holo-n:{value};")),
+                    (Some("size"), Value::Number { value, unit: Some(unit), .. }) if unit == "px" && (8.0..=400.0).contains(value) => pace.push_str(&format!("--holo-size:{value}px;--holo-n:{value};")),
                     (Some("size"), _) => return Err(Error { message: "« Shape(size: …) » attend une taille entre 8px et 400px".into(), pos: argument.pos }),
                     (Some(other), _) => return Err(Error { message: format!("« Shape » n'a pas de paramètre « {other} » ; paramètres possibles : form, color, size, name"), pos: argument.pos }),
                     (None, _) => return Err(Error { message: "chaque paramètre de « Shape » est nommé : Shape(form: circle, color: \"#E9B44C\", size: 48px)".into(), pos: argument.pos }),
@@ -969,7 +981,7 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
             for argument in &block.arguments {
                 match (argument.name.as_deref(), &argument.value) {
                     (Some("name" | "weight"), _) | (Some("label"), Value::Text(_)) => {}
-                    (Some("volume"), Value::Number { value, unit: None }) if (0.0..=1.0).contains(value) => settings.push_str(&format!(" data-volume=\"{value}\"")),
+                    (Some("volume"), Value::Number { value, unit: None, .. }) if (0.0..=1.0).contains(value) => settings.push_str(&format!(" data-volume=\"{value}\"")),
                     (Some("volume"), Value::Integer(i)) if *i <= 1 => settings.push_str(&format!(" data-volume=\"{i}\"")),
                     (Some("volume"), _) => return Err(Error { message: "« Sound(volume: …) » attend un nombre de 0 (muet) à 1 (le plus fort), comme l'opacité : volume: 0.4".into(), pos: argument.pos }),
                     (Some("loop"), Value::Bool(true)) => settings.push_str(" loop"),
@@ -1314,6 +1326,7 @@ fn lines(repeat: &Block, list: &str, base: &str) -> Result<String, Error> {
 /// Les lignes d'une liste pour cet état : la page les pose à la place des anciennes (ADR-044).
 pub fn list_lines(program: &Program, base: &str, numbers: &crate::state::State, texts: &crate::state::Texts, lists: &crate::lists::Lists, name: &str) -> String {
     crate::lists::set_running(lists.clone());
+    crate::format::set_decimals(crate::state::decimals(program));
     // `tasks@12:5` : la répétition de « tasks » écrite ligne 12, colonne 5 ; `tasks` seul : la première.
     let (name, place) = name.split_once('@').map_or((name, None), |(n, p)| (n, Some(p)));
     let written_at = |repeat: &Block| place.is_none_or(|p| p == format!("{}:{}", repeat.pos.line, repeat.pos.column));
@@ -1349,7 +1362,7 @@ fn layout(block: &Block) -> Result<String, Error> {
         match (argument.name.as_deref(), &argument.value) {
             (Some("name" | "children"), _) => {}
             (Some("gap"), value) => match value {
-                Value::Number { value, unit: Some(unit) } if unit == "px" && (0.0..=64.0).contains(value) => style.push_str(&format!("--holo-gap:{};", to_rem(&format!("{value}px")))),
+                Value::Number { value, unit: Some(unit), .. } if unit == "px" && (0.0..=64.0).contains(value) => style.push_str(&format!("--holo-gap:{};", to_rem(&format!("{value}px")))),
                 _ => return Err(error("une taille entre 0px et 64px")),
             },
             (Some("columns"), value) if block.name == "Grid" => match value {
@@ -1390,7 +1403,7 @@ fn point_pace(block: &Block) -> Result<String, Error> {
         pace.push_str(&format!("--holo-color:rgb({r},{v},{b});"));
     }
     match block.argument("brightness").map(|a| &a.value) {
-        Some(Value::Number { value, unit: None }) => pace.push_str(&format!("--holo-brightness:{value};")),
+        Some(Value::Number { value, unit: None, .. }) => pace.push_str(&format!("--holo-brightness:{value};")),
         Some(Value::Integer(integer)) => pace.push_str(&format!("--holo-brightness:{integer};")),
         _ => {}
     }
@@ -1510,12 +1523,21 @@ fn markdown(text: &str) -> String {
     html = alternate(&alternate(&alternate(&alternate(&html, "~~", "s"), "==", "mark"), "^", "sup"), "~", "sub").replace('\n', "<br>");
     // `{cart}` : l'endroit où s'affiche une valeur de la page. `site_html` y écrit son départ,
     // la page d'entrée la tient à jour.
+    // Une valeur à virgule (ADR-066) a son format : `d2`, ou `nd2` groupée par milliers.
     for name in crate::state::names_in(text) {
-        html = html.replace(&format!("{{{name}}}"), &format!("<span data-state=\"{name}\"></span>"));
+        let span = match crate::format::decimal_places(name) {
+            0 => format!("<span data-state=\"{name}\"></span>"),
+            places => format!("<span data-state=\"{name}\" data-format=\"d{places}\"></span>"),
+        };
+        html = html.replace(&format!("{{{name}}}"), &span);
     }
     // `{minute:00}` : la valeur, avec son format (ADR-043).
     for (name, format) in crate::format::formats_in(text) {
-        html = html.replace(&format!("{{{name}:{format}}}"), &format!("<span data-state=\"{name}\" data-format=\"{format}\"></span>"));
+        let shown = match (crate::format::decimal_places(name), format) {
+            (places, "number") if places > 0 => format!("nd{places}"),
+            _ => format.to_string(),
+        };
+        html = html.replace(&format!("{{{name}:{format}}}"), &format!("<span data-state=\"{name}\" data-format=\"{shown}\"></span>"));
     }
     html
 }

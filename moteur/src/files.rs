@@ -56,7 +56,7 @@ pub fn kinds(block: &Block) -> Result<Vec<String>, Error> {
 pub fn max_size(block: &Block) -> Result<u64, Error> {
     match block.argument("max").map(|a| &a.value) {
         None => Ok(DEFAULT_SIZE),
-        Some(Value::Number { value, unit: Some(u) }) if u == "KB" || u == "MB" => {
+        Some(Value::Number { value, unit: Some(u), .. }) if u == "KB" || u == "MB" => {
             let bytes = (if u == "MB" { value * 1e6 } else { value * 1e3 }).round();
             if (1e3..=SIZE_MAX as f64).contains(&bytes) {
                 Ok(bytes as u64)

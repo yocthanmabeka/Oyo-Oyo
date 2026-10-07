@@ -604,7 +604,7 @@ fn replace_in_text(text: &str, copy: &Copy) -> String {
             (Some(Value::Integer(n)), Some(f)) if crate::format::is_format(f) && f != "name" => output.push_str(&crate::format::format_value(name, *n, f, &crate::format::language())),
             (Some(Value::Text(t)), None) => output.push_str(t),
             (Some(Value::Integer(n)), None) => output.push_str(&n.to_string()),
-            (Some(Value::Number { value, unit }), None) => output.push_str(&format!("{value}{}", unit.as_deref().unwrap_or(""))),
+            (Some(Value::Number { value, unit, .. }), None) => output.push_str(&format!("{value}{}", unit.as_deref().unwrap_or(""))),
             (Some(Value::Bool(b)), None) => output.push_str(if *b { "true" } else { "false" }),
             _ => output.push_str(&remainder[start..start + 1 + end + 1]),
         }

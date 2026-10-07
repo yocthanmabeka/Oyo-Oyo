@@ -16,6 +16,20 @@ pub fn language() -> String {
     LANGUAGE.with(|l| l.borrow().clone())
 }
 
+thread_local! {
+    /// Les valeurs à virgule de la page en cours de fabrication, et leurs chiffres (ADR-066).
+    static DECIMALS: std::cell::RefCell<Vec<(String, u32)>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+pub fn set_decimals(decimals: Vec<(String, u32)>) {
+    DECIMALS.with(|d| *d.borrow_mut() = decimals);
+}
+
+/// Les chiffres après la virgule de cette valeur, dans la page en cours ; 0 pour un nombre entier.
+pub fn decimal_places(name: &str) -> u32 {
+    DECIMALS.with(|d| d.borrow().iter().find(|(known, _)| known == name).map_or(0, |(_, p)| *p))
+}
+
 /// Les formats connus, pour les messages.
 pub const FORMATS: &[&str] = &["00", "number", "cents", "name"];
 
@@ -59,6 +73,14 @@ pub fn format_value(name: &str, value: u64, format: &str, language: &str) -> Str
     match format {
         "number" => grouper(value, thousands),
         "cents" => format!("{}{decimals}{:02}", grouper(value / 100, thousands), value % 100),
+        // Un nombre à virgule (ADR-066), gardé à l'échelle : `d2` montre 1250 en « 12,50 » ;
+        // `nd2`, groupé par milliers, « 1 234,50 ». Le moteur les écrit, pas l'auteur.
+        f if f.len() == 2 && f.starts_with('d') || f.len() == 3 && f.starts_with("nd") => {
+            let places = f[f.len() - 1..].parse::<u32>().unwrap_or(0).min(6);
+            let scale = 10u64.pow(places);
+            let whole = if f.starts_with('n') { grouper(value / scale, thousands) } else { (value / scale).to_string() };
+            if places == 0 { whole } else { format!("{whole}{decimals}{:0width$}", value % scale, width = places as usize) }
+        }
         "name" => {
             let (days, month) = if english { (DAYS_EN, MONTHS_EN) } else { (DAYS_FR, MONTHS_FR) };
             let list: &[&str] = if name == "weekday" { &days } else { &month };

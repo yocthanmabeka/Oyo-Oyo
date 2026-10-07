@@ -1,0 +1,45 @@
+// Leçon 86 — Des nombres à virgule
+//
+// Ce qu'on apprend :
+//   Une valeur à virgule se déclare avec ses chiffres : price: 12.50 en garde deux.
+//   Elle est exacte : 12,50 × 3 font 37,50, jamais 37,4999.
+//   {price} la montre dans la langue de la page : « 12,50 » en français, « 12.50 » en anglais ;
+//   {price:number} la groupe par milliers : « 1 234,50 ».
+//     sum.add(0.25)    ajoute 0,25          sum.mul(qty)     multiplie par une autre valeur
+//     sum.mul(1.1)     ajoute 10 %          sum.div(3)       divise, arrondi au centime le plus proche
+//     If(sum, over: 49.99, …)  compare, exactement
+//   Un champ présente un nombre à virgule avec le clavier décimal : 9,99 ou 9.99 sont compris.
+//
+// À essayer :
+//   Écris 4 dans « Combien ? », touche « Calculer » : 50,00 €. Touche « Ajouter 10 % » : 55,00 €,
+//   et la livraison devient offerte. Change le prix : 9,99.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 86 : des nombres à virgule",
+  state: State(price: 12.50, qty: 1, sum: 12.50),
+  children: [
+    H1("Des nombres à virgule"),
+    P("Prix : {price} €"),
+    Input(value: price, label: "Changer le prix"),
+    Input(value: qty, label: "Combien ?"),
+    Button(name: Compute, text: "Calculer"),
+    P("Total : {sum} €"),
+    Button(name: Tip, text: "Ajouter 10 %"),
+    If(sum, over: 49.99, children: [ P("Livraison offerte.") ], else: [ P("Livraison offerte dès 50 €.") ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 85 : une clé pour chaque élément", to: "85-une-cle-pour-chaque-element.holo"),
+    ]),
+  ],
+  rules: [
+    On(Compute.tap, effect: [sum.set(price), sum.mul(qty)]),
+    On(Tip.tap, effect: sum.mul(1.1)),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

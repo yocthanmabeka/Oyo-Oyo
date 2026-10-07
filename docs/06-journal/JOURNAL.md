@@ -6,6 +6,30 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Lot 2, sixième partie : des nombres à virgule, exacts
+
+- Fait (`ADR-066`, PROPOSITION : Yocthan n'a pas encore validé) : `State(price: 12.50)` garde deux chiffres après la virgule, et reste exact. Le moteur garde 12,50 en nombre entier « à l'échelle » (1250) : 12,50 × 3 font 37,50.
+  - `{price}` montre « 12,50 » en français, « 12.50 » en anglais ; `{price:number}` groupe par milliers.
+  - `add`, `sub` et `set` refusent un nombre qui perdrait des chiffres ; `mul` et `div` arrondissent au plus proche (`sum.mul(1.1)`) ; entre nombres entiers, la division arrondit toujours vers le bas.
+  - Les comparaisons sont exactes, même entre un entier et un nombre à virgule.
+  - Un champ a le clavier décimal ; « 12,5 » et « 12.5 » sont compris.
+  - `{"price": 12.5}` reçu va dans une valeur à virgule.
+- Comment : le lecteur garde le nombre de chiffres écrits après la virgule (`12.50` en a deux). L'état voyage toujours en nombres entiers : la page, les valeurs gardées et les conditions n'ont presque rien changé.
+- Pas encore, et refusé avec la raison : une glissière, une barre, une case, une place sur un plateau, `Prices` et `limit:` avec une valeur à virgule ; une fiche de liste à virgule ; les nombres négatifs.
+- Leçon 86. Un essai de plus dans Chrome.
+- Exécuté :
+  - `cargo test --release` → 136 tests passent (un nouveau, `decimals_are_kept_exact`) ;
+  - le moteur léger fait 521 785 octets (510 701 avant ce lot) ;
+  - `node outils/browser-tests.mjs` → 86 leçons ouvertes sans erreur, et les 21 essais passent, en 145 secondes.
+
+**Erreurs en route**
+
+- Un ancien essai attendait que `State(cart: 1.5)` soit refusé : c'est maintenant permis. Il vérifie à la place qu'un nombre négatif, et plus de 6 chiffres après la virgule, sont refusés.
+- Mon essai dans Chrome vidait le champ du prix sans lui donner le clavier. La page récrivait alors « 0.00 », et « 9.99 » s'ajoutait derrière : « 0.00999 ». Un visiteur a le clavier sur le champ qu'il vide, et la page ne récrit jamais ce champ. L'essai fait maintenant comme lui.
+- Encore des barres obliques avalées par le terminal dans un script : écrit dans un fichier.
+
+---
+
 ## 2026-10-07 — Lot 2, cinquième partie : les lignes d'une liste (une clé, le clavier gardé, le total)
 
 - Fait (`ADR-065`, PROPOSITION : Yocthan n'a pas encore validé) :

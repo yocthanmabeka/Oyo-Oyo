@@ -38,6 +38,8 @@ pub enum Term<'a> {
     Number(u64),
     Value(&'a str),
     Text(&'a str),
+    /// Un nombre à virgule écrit dans le fichier (ADR-066) : `If(price, over: 9.99)`.
+    Decimal { units: u64, places: u32 },
 }
 
 impl Term<'_> {
@@ -48,6 +50,7 @@ impl Term<'_> {
             Term::Value(name) => state.iter().find(|(known, _)| known == name).map_or(0, |(_, v)| *v),
             // Un texte ne vaut pas un nombre : il se compare à un texte (`holds`).
             Term::Text(_) => 0,
+            Term::Decimal { units, .. } => *units,
         }
     }
 }
@@ -57,6 +60,7 @@ impl std::fmt::Display for Term<'_> {
         match self {
             Term::Number(number) => write!(f, "{number}"),
             Term::Value(name) => write!(f, "{name}"),
+            Term::Decimal { units, places } => write!(f, "{}", format_decimal(*units, *places)),
             // Dans le nom d'une condition, `size|is="M"` : les signes qui séparent ces noms
             // (`;` entre deux réponses, `|` et `=` entre les comparaisons, `"` autour du texte)
             // et les caractères de contrôle s'écrivent `%XX`.
@@ -98,6 +102,12 @@ pub fn condition(block: &Block) -> Result<(&str, Vec<(&str, Term<'_>)>), Error> 
             (Some(word @ ("is" | "not")), Value::Text(text)) => comparisons.push((if word == "is" { "is" } else { "not" }, Term::Text(text.as_str()))),
             (Some(word @ ("over" | "under")), Value::Text(_)) => {
                 return Err(Error { message: format!("« {word} » compare des nombres ; un texte se compare par is (égal) ou not (différent) : {}({value}, is: \"…\")", block.name), pos: argument.pos })
+            }
+            // Un nombre à virgule (ADR-066) : If(price, over: 9.99).
+            (Some(word), Value::Number { value: number, unit: None, places }) if COMPARISONS.contains(&word) && (1..=PLACES_MAX).contains(&u32::from(*places)) && *number >= 0.0 => {
+                let places = u32::from(*places);
+                let term = Term::Decimal { units: (number * scale(places) as f64).round() as u64, places };
+                comparisons.push((COMPARISONS[COMPARISONS.iter().position(|c| *c == word).unwrap_or(0)], term))
             }
             (Some(word), Value::Integer(number)) if COMPARISONS.contains(&word) => comparisons.push((COMPARISONS[COMPARISONS.iter().position(|c| *c == word).unwrap_or(0)], Term::Number(*number))),
             // Comparer à une autre valeur : If(score, over: best).
@@ -142,14 +152,14 @@ pub fn key(value: &str, comparisons: &[(&str, Term<'_>)]) -> String {
 /// La condition est-elle vraie pour ces valeurs ? Un texte se compare à des textes, écrits
 /// dans le fichier ou d'autres valeurs de texte, à la lettre près (ADR-063) ; un nombre, à des
 /// nombres. Une valeur que la page ne connaît pas ne rend rien vrai.
-pub fn holds(value: &str, comparisons: &[(&str, Term<'_>)], numbers: &State, texts: &Texts) -> bool {
+pub fn holds(program: &Program, value: &str, comparisons: &[(&str, Term<'_>)], numbers: &State, texts: &Texts) -> bool {
     let text_of = |name: &str| texts.iter().find(|(known, _)| known == name).map(|(_, text)| text.as_str());
     if let Some(text) = text_of(value) {
         return comparisons.iter().all(|(word, term)| {
             let other = match term {
                 Term::Text(other) => Some(*other),
                 Term::Value(name) => text_of(name),
-                Term::Number(_) => None,
+                Term::Number(_) | Term::Decimal { .. } => None,
             };
             match (*word, other) {
                 ("is", Some(other)) => text == other,
@@ -158,7 +168,26 @@ pub fn holds(value: &str, comparisons: &[(&str, Term<'_>)], numbers: &State, tex
             }
         });
     }
-    numbers.iter().find(|(known, _)| known == value).is_some_and(|(_, number)| real_one(comparisons, *number, numbers))
+    // Un nombre : comparé exactement, les deux à la même échelle, même un entier à un nombre à
+    // virgule (ADR-066).
+    let Some(number) = numbers.iter().find(|(known, _)| known == value).map(|(_, v)| *v) else { return false };
+    let own = places(program, value);
+    comparisons.iter().all(|(word, term)| {
+        let (other, other_places) = match term {
+            Term::Number(n) => (*n, 0),
+            Term::Decimal { units, places } => (*units, *places),
+            Term::Value(name) => (numbers.iter().find(|(known, _)| known == name).map_or(0, |(_, v)| *v), places(program, name)),
+            Term::Text(_) => return false,
+        };
+        let common = own.max(other_places);
+        let (a, b) = (u128::from(number) * u128::from(scale(common - own)), u128::from(other) * u128::from(scale(common - other_places)));
+        match *word {
+            "is" => a == b,
+            "not" => a != b,
+            "over" => a > b,
+            _ => a < b,
+        }
+    })
 }
 
 /// Toutes les conditions du fichier, avec leur réponse pour ces valeurs. C'est le seul endroit
@@ -170,7 +199,7 @@ pub fn conditions(program: &Program, shown: &State, texts: &Texts) -> Vec<(Strin
             if let Ok((value, comparisons)) = condition(block) {
                 let key = key(value, &comparisons);
                 if !responses.iter().any(|(known_one, _)| *known_one == key) {
-                    responses.push((key, holds(value, &comparisons, shown, texts)));
+                    responses.push((key, holds(program, value, &comparisons, shown, texts)));
                 }
             }
         }
@@ -217,12 +246,14 @@ pub fn kept_values(program: &Program) -> Result<Vec<String>, Error> {
 /// Jusqu'où une valeur peut monter par la saisie : 1 pour une case à cocher, le `max` d'un champ
 /// s'il en a un, sinon la borne du langage.
 fn ceiling(program: &Program, name: &str) -> u64 {
-    let mut ceiling = VALUE_MAX;
+    // Une valeur à virgule (ADR-066) : le même plafond, à son échelle.
+    let places = places(program, name);
+    let mut ceiling = VALUE_MAX.saturating_mul(scale(places));
     let _ = for_each_block(&program.root, &mut |block| {
         if matches!(block.argument("value").map(|a| &a.value), Some(Value::Name(value)) if value == name) {
             match (block.name.as_str(), block.argument("max").map(|a| &a.value)) {
                 ("Checkbox", _) => ceiling = ceiling.min(1),
-                ("Input" | "Slider", Some(Value::Integer(max))) => ceiling = ceiling.min(*max),
+                ("Input" | "Slider", Some(max)) if literal_units(max, places).is_some() => ceiling = ceiling.min(literal_units(max, places).unwrap_or(ceiling)),
                 ("Slider", None) => ceiling = ceiling.min(100),
                 _ => {}
             }
@@ -236,6 +267,91 @@ fn ceiling(program: &Program, name: &str) -> u64 {
         Ok(())
     });
     ceiling
+}
+
+/// Au plus 6 chiffres après la virgule (ADR-066).
+pub const PLACES_MAX: u32 = 6;
+
+/// 10 puissance `places` : l'échelle d'une valeur à `places` chiffres après la virgule.
+pub fn scale(places: u32) -> u64 {
+    10u64.pow(places.min(PLACES_MAX))
+}
+
+/// Les chiffres après la virgule d'une valeur de la page, d'après sa déclaration (ADR-066) :
+/// `State(price: 12.50)` → 2 ; 0 pour un nombre entier, ou une valeur inconnue. Une valeur à
+/// virgule est gardée exacte, en nombre entier « à l'échelle » : 12,50 est gardé 1250.
+pub fn places(program: &Program, name: &str) -> u32 {
+    match state_block(program).ok().flatten().and_then(|block| block.argument(name)).map(|a| &a.value) {
+        Some(Value::Number { unit: None, places, .. }) => u32::from(*places).min(PLACES_MAX),
+        _ => 0,
+    }
+}
+
+/// Les valeurs à virgule de la page, et leurs chiffres après la virgule.
+pub fn decimals(program: &Program) -> Vec<(String, u32)> {
+    let Some(block) = state_block(program).ok().flatten() else { return Vec::new() };
+    block
+        .arguments
+        .iter()
+        .filter_map(|a| match (&a.name, &a.value) {
+            (Some(name), Value::Number { unit: None, places, .. }) if *places > 0 => Some((name.clone(), u32::from(*places).min(PLACES_MAX))),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Un nombre écrit dans le fichier, à l'échelle de `places` chiffres : `0.25` → 25 pour 2.
+/// Rien s'il a plus de chiffres après la virgule que `places`, ou s'il est négatif.
+pub fn literal_units(value: &Value, places: u32) -> Option<u64> {
+    match value {
+        Value::Integer(n) => n.checked_mul(scale(places)),
+        Value::Number { value, unit: None, places: written } if u32::from(*written) <= places && *value >= 0.0 => Some((value * scale(places) as f64).round() as u64),
+        _ => None,
+    }
+}
+
+/// « 12.5 », « 12,50 » ou « 12 » → la valeur à l'échelle de `places` chiffres (1250 pour 2),
+/// arrondie au plus proche, la moitié vers le haut, s'il y a plus de chiffres. Rien si ce n'est
+/// pas un nombre positif écrit en chiffres.
+pub fn parse_decimal(text: &str, places: u32) -> Option<u64> {
+    let text = text.trim().replace(',', ".");
+    let (whole, fraction) = text.split_once('.').unwrap_or((text.as_str(), ""));
+    if (whole.is_empty() && fraction.is_empty()) || !whole.chars().all(|c| c.is_ascii_digit()) || !fraction.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    let whole: u64 = if whole.is_empty() { 0 } else { whole.parse().ok()? };
+    let digits: Vec<u64> = fraction.bytes().map(|b| u64::from(b - b'0')).collect();
+    let fraction = (0..places as usize).fold(0u64, |units, k| units * 10 + digits.get(k).copied().unwrap_or(0));
+    let units = whole.checked_mul(scale(places))?.checked_add(fraction)?;
+    if digits.get(places as usize).is_some_and(|d| *d >= 5) {
+        return units.checked_add(1);
+    }
+    Some(units)
+}
+
+/// 1250 à 2 chiffres → « 12.50 », avec un point : la forme d'un champ de nombre.
+pub fn format_decimal(units: u64, places: u32) -> String {
+    if places == 0 {
+        return units.to_string();
+    }
+    format!("{}.{:0width$}", units / scale(places), units % scale(places), width = places as usize)
+}
+
+/// Une valeur d'une échelle à une autre : arrondie au plus proche quand on perd des chiffres.
+fn rescale(units: u64, from: u32, to: u32) -> u64 {
+    if from <= to {
+        units.saturating_mul(scale(to - from))
+    } else {
+        round_div(u128::from(units), u128::from(scale(from - to)))
+    }
+}
+
+/// a ÷ b, arrondi au plus proche, la moitié vers le haut.
+fn round_div(a: u128, b: u128) -> u64 {
+    if b == 0 {
+        return 0;
+    }
+    u64::try_from((a + b / 2) / b).unwrap_or(u64::MAX)
 }
 
 /// Le plus petit nombre qu'une glissière laisse choisir (ADR-042) ; 0 sinon.
@@ -267,7 +383,9 @@ pub fn input(program: &Program, state: &State, texts: &Texts, name: &str, writte
         found_one
     };
     let written = written.trim();
-    let number = if written.is_empty() { Some(0) } else { written.parse::<u64>().ok() };
+    // Un nombre à virgule (ADR-066) : « 12,5 » ou « 12.5 », à l'échelle de la valeur.
+    let places = places(program, name);
+    let number = if written.is_empty() { Some(0) } else if places > 0 { parse_decimal(written, places) } else { written.parse::<u64>().ok() };
     let floor = floor(program, name);
     if let (true, Some(number), Some((_, place))) = (presented, number, state.iter_mut().find(|(known, _)| known == name)) {
         *place = number.min(ceiling(program, name)).max(floor);
@@ -314,7 +432,7 @@ pub fn data_source(program: &Program) -> Result<Option<(String, u64)>, Error> {
                 file = Some(name.clone());
             }
             (Some("from"), _) => return Err(Error { message: "« Data(from: …) » attend un fichier .json rangé à côté de la page, comme \"stock.json\"".into(), pos: argument.pos }),
-            (Some("every"), Value::Number { value, unit: Some(unit) }) if unit == "s" || unit == "ms" => {
+            (Some("every"), Value::Number { value, unit: Some(unit), .. }) if unit == "s" || unit == "ms" => {
                 let ms = if unit == "s" { value * 1000.0 } else { *value };
                 if !(DATA_MIN as f64..=DATA_MAX as f64).contains(&ms) {
                     return Err(Error { message: "« Data(every: …) » va de 1s à 3600s".into(), pos: argument.pos });
@@ -353,6 +471,8 @@ pub fn data_name(program: &Program) -> Option<String> {
 #[derive(Debug, PartialEq)]
 pub enum Datum {
     Number(u64),
+    /// Un nombre à virgule, tel qu'écrit : « 12.5 » (ADR-066).
+    Decimal(String),
     Text(String),
 }
 
@@ -443,8 +563,18 @@ pub fn read_data(json: &str) -> Vec<(String, Datum)> {
                     while t.get(i).is_some_and(|c| c.is_ascii_digit()) {
                         i += 1;
                     }
-                    // Un nombre à virgule ou avec exposant n'est pas repris.
-                    if t.get(i).is_some_and(|c| matches!(c, '.' | 'e' | 'E')) {
+                    // Un nombre à virgule (ADR-066) est repris tel qu'écrit ; avec un exposant, non.
+                    if t.get(i) == Some(&'.') && t.get(i + 1).is_some_and(char::is_ascii_digit) {
+                        i += 1;
+                        while t.get(i).is_some_and(|c| c.is_ascii_digit()) {
+                            i += 1;
+                        }
+                        if t.get(i).is_some_and(|c| matches!(c, 'e' | 'E')) {
+                            skip(&t, &mut i)?;
+                        } else {
+                            data.push((key, Datum::Decimal(t[start..i].iter().collect())));
+                        }
+                    } else if t.get(i).is_some_and(|c| matches!(c, '.' | 'e' | 'E')) {
                         skip(&t, &mut i)?;
                     } else if let Ok(number) = t[start..i].iter().collect::<String>().parse::<u64>() {
                         data.push((key, Datum::Number(number)));
@@ -481,13 +611,22 @@ pub fn receive(program: &Program, state: &State, texts: &Texts, json: &str) -> (
         return (state, texts);
     }
     for (key, datum) in read_data(json) {
+        let places = places(program, &key);
         match datum {
             Datum::Number(number) => {
                 let ceiling = ceiling(program, &key);
                 if let Some((_, place)) = state.iter_mut().find(|(known, _)| *known == key && known != DRAWS && !CLOCK.contains(&known.as_str())) {
-                    *place = number.min(ceiling);
+                    *place = number.saturating_mul(scale(places)).min(ceiling);
                 }
             }
+            // Un nombre à virgule ne va que dans une valeur à virgule, arrondi à son échelle.
+            Datum::Decimal(written) if places > 0 => {
+                let ceiling = ceiling(program, &key);
+                if let (Some(units), Some((_, place))) = (parse_decimal(&written, places), state.iter_mut().find(|(known, _)| *known == key)) {
+                    *place = units.min(ceiling);
+                }
+            }
+            Datum::Decimal(_) => {}
             Datum::Text(text) => {
                 if let Some((_, place)) = texts.iter_mut().find(|(known, _)| *known == key) {
                     *place = clean(&text, TEXT_MAX);
@@ -525,18 +664,18 @@ fn record_capabilities(rule: &Block) {
 /// Parcourt tous les blocs en disant, pour chacun, s'il est en vigueur pour cet état. Des règles
 /// rangées dans `If(lives, over: 0, rules: [ … ])` ne valent que tant que la condition est vraie.
 fn with_their_force<'a>(program: &'a Program, state: &State, texts: &Texts, f: &mut dyn FnMut(&'a Block, bool)) {
-    fn visit<'a>(value: &'a Value, in_force: bool, shown: &State, texts: &Texts, f: &mut dyn FnMut(&'a Block, bool)) {
+    fn visit<'a>(program: &Program, value: &'a Value, in_force: bool, shown: &State, texts: &Texts, f: &mut dyn FnMut(&'a Block, bool)) {
         match value {
-            Value::List(elements) => elements.iter().for_each(|e| visit(e, in_force, shown, texts, f)),
+            Value::List(elements) => elements.iter().for_each(|e| visit(program, e, in_force, shown, texts, f)),
             Value::Block(block) => {
                 f(block, in_force);
                 let under_condition = block.name == "If" && block.argument("rules").is_some();
                 let inside = in_force
                     && (!under_condition
-                        || condition(block).is_ok_and(|(value, comparisons)| holds(value, &comparisons, shown, texts)));
+                        || condition(block).is_ok_and(|(value, comparisons)| holds(program, value, &comparisons, shown, texts)));
                 for argument in &block.arguments {
                     let here = if under_condition && argument.name.as_deref() == Some("rules") { inside } else { in_force };
-                    visit(&argument.value, here, shown, texts, f);
+                    visit(program, &argument.value, here, shown, texts, f);
                 }
             }
             _ => {}
@@ -545,7 +684,7 @@ fn with_their_force<'a>(program: &'a Program, state: &State, texts: &Texts, f: &
     let shown = to_show(program, state);
     f(&program.root, true);
     for argument in &program.root.arguments {
-        visit(&argument.value, true, &shown, texts, f);
+        visit(program, &argument.value, true, &shown, texts, f);
     }
 }
 
@@ -595,8 +734,8 @@ pub fn rhythm(rule: &Block) -> Result<u64, Error> {
         pos: rule.pos,
     };
     let milliseconds = match rule.arguments.first() {
-        Some(Argument { name: None, value: Value::Number { value, unit: Some(unit) }, .. }) if unit == "s" => value * 1000.0,
-        Some(Argument { name: None, value: Value::Number { value, unit: Some(unit) }, .. }) if unit == "ms" => *value,
+        Some(Argument { name: None, value: Value::Number { value, unit: Some(unit), .. }, .. }) if unit == "s" => value * 1000.0,
+        Some(Argument { name: None, value: Value::Number { value, unit: Some(unit), .. }, .. }) if unit == "ms" => *value,
         _ => return Err(error()),
     };
     if !(RHYTHM_MIN as f64..=RHYTHM_MAX as f64).contains(&milliseconds) {
@@ -1109,8 +1248,21 @@ fn initial_without_prices(program: &Program) -> Result<State, Error> {
     let mut state = State::new();
     for argument in &block.arguments {
         // Une valeur est un nombre entier (cart: 0) ou un texte (buyer: "").
+        let mut ceiling = VALUE_MAX;
         let (name, start_value) = match (&argument.name, &argument.value) {
             (Some(name), Value::Integer(start_value)) => (name, Some(*start_value)),
+            // Un nombre à virgule (ADR-066) : price: 12.50 garde deux chiffres après la virgule.
+            (Some(name), Value::Number { value, unit: None, places }) => {
+                let places = u32::from(*places);
+                if places == 0 || places > PLACES_MAX {
+                    return Err(Error { message: format!("« {name} » : un nombre à virgule a de 1 à {PLACES_MAX} chiffres après la virgule, comme {name}: 12.50"), pos: argument.pos });
+                }
+                if *value < 0.0 {
+                    return Err(Error { message: format!("« {name} » : une valeur va de 0 à {VALUE_MAX} ; les nombres négatifs ne sont pas encore là"), pos: argument.pos });
+                }
+                ceiling = VALUE_MAX.saturating_mul(scale(places));
+                (name, Some((value * scale(places) as f64).round() as u64))
+            }
             (Some(name), Value::Text(text)) if text.chars().count() <= TEXT_MAX => (name, None),
             (Some(name), Value::Text(_)) => return Err(Error { message: format!("« {name} » : un texte fait au plus {TEXT_MAX} caractères"), pos: argument.pos }),
             // Une liste de textes (ADR-044) : State(tasks: []).
@@ -1135,7 +1287,7 @@ fn initial_without_prices(program: &Program) -> Result<State, Error> {
             return Err(Error { message: format!("la valeur « {name} » est déclarée deux fois"), pos: argument.pos });
         }
         match start_value {
-            Some(start_value) if start_value > VALUE_MAX => return Err(Error { message: format!("« {name} » : une valeur va de 0 à {VALUE_MAX}"), pos: argument.pos }),
+            Some(start_value) if start_value > ceiling => return Err(Error { message: format!("« {name} » : une valeur va de 0 à {VALUE_MAX}"), pos: argument.pos }),
             Some(start_value) => state.push((name.clone(), start_value)),
             None => {}
         }
@@ -1151,7 +1303,10 @@ fn initial_without_prices(program: &Program) -> Result<State, Error> {
 pub struct Request<'a> {
     pub value: &'a str,
     pub verb: &'a str,
+    /// add, sub, set : la quantité, à l'échelle de la valeur (0.25 → 25 pour deux chiffres) ;
+    /// mul, div : un facteur, à l'échelle de ses propres chiffres (`factor_places`, ADR-066).
     pub quantity: u64,
+    pub factor_places: u32,
     /// Quand la quantité est une autre valeur : `best.set(score)`. Elle est lue au moment où
     /// la demande est faite.
     pub since: Option<&'a str>,
@@ -1163,7 +1318,7 @@ pub fn is_requested(block: &Block) -> bool {
 }
 
 /// Lit et vérifie une demande, d'après les valeurs déclarées.
-pub fn request<'a>(block: &'a Block, state: &State) -> Result<Request<'a>, Error> {
+pub fn request<'a>(program: &Program, block: &'a Block, state: &State) -> Result<Request<'a>, Error> {
     let error = |message: String| Error { message, pos: block.pos };
     let Some((value, verb)) = block.name.split_once('.') else {
         return Err(error(format!("« {} » : une demande s'écrit « cart.add(1) »", block.name)));
@@ -1177,15 +1332,42 @@ pub fn request<'a>(block: &'a Block, state: &State) -> Result<Request<'a>, Error
     if !REQUESTS.contains(&verb) {
         return Err(error(format!("demande inconnue « {verb} » : pour une valeur, on peut demander {}", REQUESTS.join(", "))));
     }
+    let places = places(program, value);
     match block.arguments.as_slice() {
-        // La quantité peut être une autre valeur de la page : best.set(score).
-        [Argument { name: None, value: Value::Name(other), .. }] if state.iter().any(|(known, _)| known == other) => Ok(Request { value, verb, quantity: 0, since: Some(other.as_str()) }),
+        // La quantité peut être une autre valeur de la page : best.set(score). Ajouter, retirer ou
+        // donner une valeur qui a plus de chiffres après la virgule en perdrait (ADR-066).
+        [Argument { name: None, value: Value::Name(other), .. }] if state.iter().any(|(known, _)| known == other) => {
+            let other_places = self::places(program, other);
+            if !matches!(verb, "mul" | "div") && other_places > places {
+                let sort = if places == 0 { "un nombre entier".to_string() } else { format!("un nombre à {places} chiffre(s) après la virgule") };
+                return Err(error(format!("« {value}.{verb}({other}) » : « {other} » a {other_places} chiffre(s) après la virgule, et « {value} » est {sort} ; déclare-les avec autant de chiffres, comme {value}: 0.{}", "0".repeat(other_places as usize))));
+            }
+            Ok(Request { value, verb, quantity: 0, factor_places: 0, since: Some(other.as_str()) })
+        }
         [Argument { name: None, value: Value::Name(other), .. }] => Err(error(format!("« {value}.{verb}({other}) » : aucun nombre ne s'appelle « {other} » ; déclare-le sur la page, state: State({other}: 0)"))),
-        [argument] if argument.name.is_none() => match argument.value {
+        [argument] if argument.name.is_none() => match (&argument.value, verb) {
             // « random(0) » ne tirerait jamais que 0 : c'est sûrement une erreur.
-            Value::Integer(0) if verb == "div" => Err(error(format!("« {value}.div(0) » : on ne divise pas par 0"))),
-            Value::Integer(0) if verb == "random" => Err(error(format!("« {value}.random » attend le plus grand nombre possible, au moins 1 : {value}.random(100) tire de 0 à 100"))),
-            Value::Integer(quantity) if quantity <= VALUE_MAX => Ok(Request { value, verb, quantity, since: None }),
+            (Value::Integer(0), "div") => Err(error(format!("« {value}.div(0) » : on ne divise pas par 0"))),
+            (Value::Integer(0), "random") => Err(error(format!("« {value}.random » attend le plus grand nombre possible, au moins 1 : {value}.random(100) tire de 0 à 100"))),
+            (_, "random") if places > 0 => Err(error(format!("« {value}.random » tire un nombre entier ; « {value} » a des chiffres après la virgule"))),
+            // Multiplier, diviser : un facteur, entier ou à virgule (1.2 pour 20 % de plus).
+            (Value::Integer(factor), "mul" | "div") if *factor <= VALUE_MAX => Ok(Request { value, verb, quantity: *factor, factor_places: 0, since: None }),
+            (Value::Number { value: factor, unit: None, places: factor_places }, "mul" | "div") if (1..=PLACES_MAX).contains(&u32::from(*factor_places)) && *factor >= 0.0 && *factor <= VALUE_MAX as f64 => {
+                let units = (factor * scale(u32::from(*factor_places)) as f64).round() as u64;
+                if units == 0 && verb == "div" {
+                    return Err(error(format!("« {value}.div(0) » : on ne divise pas par 0")));
+                }
+                Ok(Request { value, verb, quantity: units, factor_places: u32::from(*factor_places), since: None })
+            }
+            (Value::Integer(quantity), _) if *quantity <= VALUE_MAX => Ok(Request { value, verb, quantity: quantity * scale(places), factor_places: 0, since: None }),
+            (Value::Number { unit: None, places: written, .. }, _) if u32::from(*written) > places => {
+                let sort = if places == 0 { "est un nombre entier".to_string() } else { format!("a {places} chiffre(s) après la virgule") };
+                Err(error(format!("« {value} » {sort} : « {value}.{verb}(…) » ne prend pas plus de chiffres après la virgule")))
+            }
+            (number @ Value::Number { unit: None, .. }, _) if literal_units(number, places).is_some_and(|u| u <= VALUE_MAX.saturating_mul(scale(places))) => {
+                Ok(Request { value, verb, quantity: literal_units(number, places).unwrap_or(0), factor_places: 0, since: None })
+            }
+            _ if places > 0 => Err(error(format!("« {value}.{verb} » attend un nombre de 0 à {VALUE_MAX}, avec au plus {places} chiffre(s) après la virgule : {value}.{verb}(1.5)"))),
             _ => Err(error(format!("« {value}.{verb} » attend un nombre entier de 0 à {VALUE_MAX} : {value}.{verb}(1)"))),
         },
         _ => Err(error(format!("« {value}.{verb} » attend un seul nombre : {value}.{verb}(1)"))),
@@ -1216,6 +1398,14 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
     price(program)?;
     kept_values(program)?;
     data_source(program)?;
+    // Les prix comptent des quantités entières (ADR-066 : pas encore de quantité à virgule).
+    if let Some(Value::Block(prices)) = program.root.argument("prices").map(|a| &a.value) {
+        for a in &prices.arguments {
+            if let Some(name) = a.name.as_deref().filter(|n| places(program, n) > 0) {
+                return Err(Error { message: format!("« Prices({name}: …) » : « {name} » a des chiffres après la virgule ; un prix compte une quantité, un nombre entier"), pos: a.pos });
+            }
+        }
+    }
     // Ce qu'un texte peut montrer : les valeurs déclarées, nombres et textes, et celles que le
     // moteur calcule.
     let texts = initial_texts(program);
@@ -1322,6 +1512,15 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                 }
             }
         }
+        // Un nombre à virgule (ADR-066) ne règle pas encore une glissière, une barre, une case, ni
+        // une place sur un plateau : ils prennent un nombre entier.
+        for parameter in ["value", "x", "y"] {
+            if let Some(Argument { value: Value::Name(v), pos, .. }) = block.argument(parameter) {
+                if places(program, v) > 0 && (matches!(block.name.as_str(), "Slider" | "Progress" | "Checkbox") || parameter != "value") {
+                    return Err(Error { message: format!("« {}({parameter}: {v}) » : « {v} » a des chiffres après la virgule ; une glissière, une barre, une case ou une place sur un plateau prennent un nombre entier", block.name), pos: *pos });
+                }
+            }
+        }
         // Une glissière présente un nombre de la page ; une barre de progression le montre (ADR-042).
         if block.name == "Slider" || block.name == "Progress" {
             let example = if block.name == "Slider" { "Slider(value: volume, label: \"Volume\", min: 0, max: 100)" } else { "Progress(value: lives, max: 3, label: \"Lives\")" };
@@ -1385,7 +1584,7 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                 let error = |message: String| Err(Error { message, pos: argument.pos });
                 match &argument.value {
                     Value::Text(_) if !is_text(value) => return error(format!("« {value} » est un nombre : on le compare à un nombre, {}({value}, {word}: 0)", block.name)),
-                    Value::Integer(_) if is_text(value) => {
+                    Value::Integer(_) | Value::Number { .. } if is_text(value) => {
                         return error(format!("« {value} » est un texte : on le compare à un texte entre guillemets, {}({value}, is: \"…\"), ou à une autre valeur de texte", block.name))
                     }
                     Value::Name(other) if !is_text(other) && !is_number(other) => {
@@ -1425,6 +1624,10 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                 }
                 if is_text(name) {
                     return Err(Error { message: format!("« {{{name}:{format}}} » : « {name} » est un texte ; un format s'applique à un nombre"), pos });
+                }
+                // Un nombre à virgule se montre avec ses chiffres, dans la langue de la page (ADR-066).
+                if places(program, name) > 0 && format != "number" {
+                    return Err(Error { message: format!("« {{{name}:{format}}} » : « {name} » est un nombre à virgule ; il se montre tel quel, {{{name}}}, ou groupé par milliers, {{{name}:number}}"), pos });
                 }
             }
             // Dans les lignes d'une liste à champs, `{item.title}` montre un champ (ADR-051).
@@ -1609,18 +1812,31 @@ fn watch(program: &Program, before_change: State, texts_before: &Texts, state: &
 /// Fait ce qu'une demande demande : `cart.add(1)`. Une valeur ne descend pas sous 0 et ne
 /// dépasse pas son plafond.
 fn apply(program: &Program, state: &mut State, effect: &Block, seed: u64, draws: &mut u64) {
-    let Ok(d) = request(effect, state) else { return };
-    let quantity = d.since.map_or(d.quantity, |other| state.iter().find(|(known, _)| known == other).map_or(0, |(_, v)| *v));
+    let Ok(d) = request(program, effect, state) else { return };
+    let places = places(program, d.value);
+    // Une autre valeur, lue maintenant : à notre échelle pour add, sub, set ; à la sienne pour un
+    // facteur (ADR-066).
+    let (quantity, factor_places) = match d.since {
+        Some(other) => {
+            let units = state.iter().find(|(known, _)| known == other).map_or(0, |(_, v)| *v);
+            let other_places = self::places(program, other);
+            if matches!(d.verb, "mul" | "div") { (units, other_places) } else { (rescale(units, other_places, places), 0) }
+        }
+        None => (d.quantity, d.factor_places),
+    };
     let ceiling = ceiling(program, d.value);
     if let Some((_, value)) = state.iter_mut().find(|(name, _)| name == d.value) {
         *value = match d.verb {
             "add" => value.saturating_add(quantity),
             "sub" => value.saturating_sub(quantity),
-            // Multiplier, diviser (ADR-043) : des nombres entiers ; la division arrondit vers le bas,
-            // et une division par une valeur qui vaut 0 ne change rien.
-            "mul" => value.saturating_mul(quantity),
+            // Multiplier, diviser (ADR-043) : entre nombres entiers, la division arrondit vers le
+            // bas ; avec un nombre à virgule (ADR-066), le résultat est arrondi au plus proche, à
+            // l'échelle de la valeur. Une division par une valeur qui vaut 0 ne change rien.
+            "mul" if factor_places == 0 => value.saturating_mul(quantity),
+            "mul" => round_div(u128::from(*value) * u128::from(quantity), u128::from(scale(factor_places))),
             "div" if quantity == 0 => *value,
-            "div" => *value / quantity,
+            "div" if places == 0 && factor_places == 0 => *value / quantity,
+            "div" => round_div(u128::from(*value) * u128::from(scale(factor_places)), u128::from(quantity)),
             // Le hasard n'en est pas un : c'est le énième tirage d'une suite fixée par la graine
             // du fichier. Rejouer les mêmes gestes redonne les mêmes nombres.
             "random" => {
@@ -1685,7 +1901,7 @@ fn body(program: &Program, state: &State, name: &str) -> Option<Body> {
     let block = crate::rules::named_block(program, name)?;
     let (x, y) = place_of(program, state, name)?;
     let pixels = |block: &Block, param: &str| match block.argument(param).map(|a| &a.value) {
-        Some(Value::Number { value, unit: Some(unit) }) if unit == "px" => Some(*value),
+        Some(Value::Number { value, unit: Some(unit), .. }) if unit == "px" => Some(*value),
         _ => None,
     };
     // La taille du bloc, et la part de cette taille qu'on voit vraiment.
@@ -1753,7 +1969,7 @@ fn watches(program: &Program, rule: &Block, state: &State, texts: &Texts) -> boo
             }
         });
     }
-    condition(rule).is_ok_and(|(value, comparisons)| holds(value, &comparisons, &to_show(program, state), texts))
+    condition(rule).is_ok_and(|(value, comparisons)| holds(program, value, &comparisons, &to_show(program, state), texts))
 }
 
 /// Les touches du clavier que les règles du fichier écoutent : `On(Key.left, …)`. Les flèches,
@@ -2213,6 +2429,81 @@ mod tests {
     }
 
     #[test]
+    fn decimals_are_kept_exact() {
+        // ADR-066 : 12.50 garde deux chiffres après la virgule, et se calcule sans erreur d'arrondi.
+        let source = r#"Page(
+  lang: "fr",
+  state: State(price: 12.50, qty: 3, sum: 0.00, entered: 0.00, name: ""),
+  data: Data(from: "prices.json"),
+  children: [
+    P("{price} € ; {sum} € ; {sum:number} €"),
+    Input(value: entered, label: "Montant"),
+    Input(value: name, label: "Nom"),
+    If(sum, over: 30, children: [ "Plus de 30." ]),
+    If(sum, over: 37.49, children: [ "Plus de 37,49." ]),
+    If(sum, is: price, children: [ "Égal au prix." ]),
+    Button(name: Compute, text: "Calculer"),
+    Button(name: Tip, text: "Pourboire"),
+    Button(name: Third, text: "Un tiers"),
+    Button(name: More, text: "Plus"),
+  ],
+  rules: [
+    On(Compute.tap, effect: [sum.set(price), sum.mul(qty)]),
+    On(Tip.tap, effect: sum.mul(1.1)),
+    On(Third.tap, effect: sum.div(3)),
+    On(More.tap, effect: sum.add(0.25)),
+  ],
+)"#;
+        let start = crate::initial_state(source);
+        assert!(start.starts_with("price=1250;qty=3;sum=0;entered=0"), "{start}");
+        let html = crate::flat_view(source, "").unwrap();
+        assert!(html.contains(r#"<span data-state="price" data-format="d2">12,50</span> € ; <span data-state="sum" data-format="d2">0,00</span>"#), "{html}");
+        assert!(html.contains(r#"type="number" inputmode="decimal" min="0" step="0.01" data-places="2" value="0.00" data-bind="entered""#), "{html}");
+        // 12,50 × 3 = 37,50 : exact, et comparé exactement, à un entier comme à un nombre à virgule.
+        let computed = crate::arbitrate(source, &start, "Compute.tap");
+        assert!(computed.contains("sum=3750"), "{computed}");
+        assert_eq!(crate::conditions(source, &computed), "sum|over=30:1;sum|over=37.49:1;sum|is=price:0");
+        // × 1,1 = 41,25 ; ÷ 3 = 13,75 : arrondis au plus proche, à deux chiffres.
+        let tipped = crate::arbitrate(source, &computed, "Tip.tap");
+        assert!(tipped.contains("sum=4125"), "{tipped}");
+        assert!(crate::arbitrate(source, &tipped, "Third.tap").contains("sum=1375"));
+        assert!(crate::arbitrate(source, &start, "More.tap").contains("sum=25"));
+        // Écrire « 12,345 » : 12,35 (la moitié vers le haut) ; « abc » ne change rien.
+        assert!(crate::input(source, &start, "entered", "12,345").contains("entered=1235"));
+        assert!(crate::input(source, &start, "entered", "abc").contains("entered=0"));
+        // Des données : 9.999 → 10,00 ; un nombre à virgule ne va pas dans un nombre entier.
+        let received = crate::receive(source, &start, r#"{ "price": 9.999, "qty": 2.5 }"#);
+        assert!(received.contains("price=1000") && received.contains("qty=3"), "{received}");
+        // Les formats, dans la langue de la page.
+        assert_eq!(crate::format_value("price", 123450, "nd2", "fr"), "1\u{202F}234,50");
+        assert_eq!(crate::format_value("price", 123450, "nd2", "en"), "1,234.50");
+        assert_eq!(crate::format_value("price", 5, "d2", "fr"), "0,05");
+        // Les refus, avec leur raison.
+        for (wrong, message) in [
+            ("sum.add(0.25)", "sum.add(0.125)"),
+            ("sum.mul(1.1)", "qty.add(price)"),
+            ("sum.div(3)", "price.random(10)"),
+        ] {
+            let page_source = source.replace(wrong, message);
+            let error = page(&page_source).unwrap_err();
+            let expected = match message {
+                "sum.add(0.125)" => "ne prend pas plus de chiffres après la virgule",
+                "qty.add(price)" => "« price » a 2 chiffre(s) après la virgule, et « qty » est un nombre entier",
+                _ => "tire un nombre entier",
+            };
+            assert!(error.message.contains(expected), "{message}\n→ {error}");
+        }
+        let zeros = source.replace(r#"P("{price} €"#, r#"P("{price:00} €"#);
+        assert!(page(&zeros).unwrap_err().message.contains("est un nombre à virgule"));
+        let slider = source.replace(r#"Input(value: entered, label: "Montant")"#, r#"Slider(value: entered, label: "Montant")"#);
+        assert!(page(&slider).unwrap_err().message.contains("a des chiffres après la virgule"));
+        let priced = source.replace("data: Data(", "prices: Prices(price: 100),\n  data: Data(");
+        assert!(page(&priced).unwrap_err().message.contains("un prix compte une quantité"));
+        let text_compared = source.replace("If(sum, over: 30,", "If(name, over: 1.5,");
+        assert!(page(&text_compared).unwrap_err().message.contains("est un texte"));
+    }
+
+    #[test]
     fn a_text_is_compared_to_a_text() {
         // Une taille choisie, une réponse écrite, deux mots de passe (ADR-063).
         let source = r#"Page(
@@ -2463,7 +2754,9 @@ mod tests {
             ("Page(state: State(appleX: 0), children: [ Text(\"{apple_x}\") ])", "écris « {appleX} »"),
             ("Page(children: [ Button(name: Less_sunrise, text: \"-\") ])", "écris « name: LessSunrise »"),
             ("Page(children: [ Stack(children: [ P(\"a\"), P(\"b\", align: top_right) ]) ])", "écris « topRight »"),
-            ("Page(state: State(cart: 1.5))", "un nombre entier, un texte ou une liste"),
+            ("Page(state: State(cart: 1.5px))", "un nombre entier, un texte ou une liste"),
+            ("Page(state: State(cart: -1.5))", "les nombres négatifs ne sont pas encore là"),
+            ("Page(state: State(cart: 1.1234567))", "de 1 à 6 chiffres après la virgule"),
             ("Page(state: State(cart: 0, cart: 1))", "déclarée deux fois"),
             ("Page(state: State(cart: 5000000000))", "de 0 à 1000000000"),
             ("Page(state: 4)", "un bloc « State(...) »"),

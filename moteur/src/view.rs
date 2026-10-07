@@ -103,8 +103,8 @@ fn number(block: &Block, param: &str, unit: Option<&str>, min: f64, max: f64, de
     let Some(argument) = block.argument(param) else { return Ok(default_value) };
     let value = match (&argument.value, unit) {
         (Value::Integer(e), None) => Some(*e as f64),
-        (Value::Number { value, unit: None }, None) => Some(*value),
-        (Value::Number { value, unit: Some(u) }, Some(expected_unit)) if u == expected_unit => Some(*value),
+        (Value::Number { value, unit: None, .. }, None) => Some(*value),
+        (Value::Number { value, unit: Some(u), .. }, Some(expected_unit)) if u == expected_unit => Some(*value),
         _ => None,
     };
     match value {

@@ -450,7 +450,7 @@ pub fn point_source(source: &str, name: &str) -> Option<String> {
     let write = |value: &Value| match value {
         Value::Name(n) => Some(n.clone()),
         Value::Integer(e) => Some(e.to_string()),
-        Value::Number { value, unit: None } => Some(value.to_string()),
+        Value::Number { value, unit: None, .. } => Some(value.to_string()),
         Value::Text(t) => Some(format!("\"{t}\"")),
         Value::List(elements) => {
             let texts: Option<Vec<String>> = elements
