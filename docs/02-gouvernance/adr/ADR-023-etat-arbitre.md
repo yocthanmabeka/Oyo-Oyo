@@ -32,7 +32,7 @@ Page(
 1. **`state: State(cart: 0)`** déclare une valeur de la page et son départ. Une valeur est un nombre entier, de 0 à 1 000 000 000. Une page en déclare au plus 32. Son nom s'écrit en minuscules.
 2. **`{cart}` dans un texte** affiche la valeur, et le texte se met à jour tout seul. Cela vaut pour tous les textes du fichier, y compris dans les mondes de ses points.
 3. **Une demande** s'écrit dans l'effet d'une règle : `cart.add(1)` (ajouter), `cart.sub(1)` (retirer), `cart.set(0)` (fixer). Il n'y a pas d'autre demande.
-4. **L'arbitre est dans le moteur** (`moteur/src/etat.rs`). Le bouton émet un signal ; la règle demande ; le moteur fait le changement. Une valeur ne descend pas sous 0 et ne dépasse pas son plafond : elle s'arrête à la borne.
+4. **L'arbitre est dans le moteur** (`moteur/src/state.rs`). Le bouton émet un signal ; la règle demande ; le moteur fait le changement. Une valeur ne descend pas sous 0 et ne dépasse pas son plafond : elle s'arrête à la borne.
 5. **Tout est vérifié avant l'affichage** : un `{nom}` qui ne correspond à aucune valeur, une demande inconnue, une valeur déclarée deux fois ou dans un monde font refuser le fichier, avec la ligne.
 6. **La valeur suit le visiteur** tant qu'il ne recharge pas la page : il entre dans un monde, passe dans un autre fichier, revient, le panier est le même. Rechargée, la page repart du départ.
 
@@ -89,7 +89,7 @@ Défauts de JavaScript évités :
 ## Critères de validation
 
 - `exemples/boutique-comparee/boutique.holo` : ajouter, retirer, vider ; le panier suit dans l'atelier.
-- Tests du moteur : `moteur/src/etat.rs` (arbitrage, bornes, état falsifié, affichage, refus).
+- Tests du moteur : `moteur/src/state.rs` (arbitrage, bornes, état falsifié, affichage, refus).
 
 ## Conditions de réexamen
 

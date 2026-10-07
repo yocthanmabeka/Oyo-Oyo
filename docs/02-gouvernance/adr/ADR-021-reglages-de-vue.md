@@ -116,7 +116,7 @@ Mots : `fragment` reprend `fragments` (`ADR-016`), le mot retenu pour « morcele
 ## Critères de validation
 
 - `exemples/boutique-comparee/boutique.holo` écrit les réglages habituels ; `exemples/zoom/reduire.holo` les change, et la page se réduit bien à un point.
-- Tests du moteur : `moteur/src/vue.rs` (lecture et bornes), `moteur/src/mosaique.rs` (les limites sont respectées).
+- Tests du moteur : `moteur/src/view.rs` (lecture et bornes), `moteur/src/mosaic.rs` (les limites sont respectées).
 
 ## Conditions de réexamen
 

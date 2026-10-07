@@ -1,7 +1,7 @@
 # Moteur HoloCode — sprint Big Bang
 
-- L'éditeur (`ADR-046`) : `http://localhost:8080/editeur?cle=…`, l'adresse exacte affichée au démarrage du serveur.
-- **La pile** : `http://localhost:8080/pile` — tout ce qui a été créé, le plus récent en haut, dans un seul onglet ; la page choisie s'ouvre à côté de la liste (sur un téléphone, à sa place). Pour montrer une page sans ouvrir de nouvel onglet : `node outils/montrer.mjs /exemples/lecons/09-zoom-et-points.holo` (la pile ouverte l'affiche ; s'il n'y en a pas, Chrome s'ouvre une fois, sur la pile).
+- L'éditeur (`ADR-046`) : `http://localhost:8080/editor?key=…`, l'adresse exacte affichée au démarrage du serveur.
+- **La pile** : `http://localhost:8080/stack` — tout ce qui a été créé, le plus récent en haut, dans un seul onglet ; la page choisie s'ouvre à côté de la liste (sur un téléphone, à sa place). Pour montrer une page sans ouvrir de nouvel onglet : `node outils/show.mjs /exemples/lecons/09-zoom-et-points.holo` (la pile ouverte l'affiche ; s'il n'y en a pas, Chrome s'ouvre une fois, sur la pile).
 - Statut : `ACCEPTÉ` — mesuré sur deux téléphones (environ 60 images par seconde) ; « valide tout ce qui est à laisser [à l'essai] si tu n'as pas encore validé » (Yocthan, 2026-10-06)
 - Décisions mises à l'épreuve : `ADR-005` (téléphone, navigateur, 1 Go), `ADR-007` (vue en profondeur), `ADR-008` (même fichier, même résultat), `ADR-009` (format `.holo`), `ADR-010` (moteur Rust, WebAssembly, `wgpu`)
 - Auteur : Claude, à la demande de Yocthan, le 2026-10-03
@@ -32,7 +32,7 @@ Le moteur est écrit en Rust, compilé en WebAssembly, et dessine avec `wgpu` : 
 - **Glisser** avec un doigt : tourner le monde.
 - **Pincer dans l'autre sens** : dézoomer jusqu'à ressortir dans le monde parent.
 - **Pause** : le bouton « pause », en bas à droite, arrête tout calcul et tout dessin ; « reprendre » relance. Le monde se met aussi en pause tout seul quand l'onglet est caché.
-- Les mesures sont cachées : le petit bouton « mesures », en bas à droite, les affiche avec le bouton « Copier le rapport » (ou `?mesures=1` dans l'adresse).
+- Les mesures sont cachées : le petit bouton « mesures », en bas à droite, les affiche avec le bouton « Copier le rapport » (ou `?measures=1` dans l'adresse).
 
 ## Construire et lancer
 
@@ -40,13 +40,13 @@ Il faut Rust (avec la cible `wasm32-unknown-unknown`) et Node.
 
 ```powershell
 cd moteur
-.\outils\construire.ps1        # cargo test, cargo build (wasm), wasm-bindgen → web/pkg
-node outils/serveur.mjs        # http://localhost:8080
+.\outils\build.ps1        # cargo test, cargo build (wasm), wasm-bindgen → web/pkg
+node outils/server.mjs        # http://localhost:8080
 ```
 
-Le script construit deux paquets : `web/pkg` (le moteur entier, avec le dessin) et `web/pkg-leger` (le moteur léger, sans le dessin, `ADR-053`) ; une page prend le léger, et ne fait venir le dessin que si elle montre des points ou des mondes. Le script télécharge `wasm-bindgen` 0.2.100 dans `outils/bin/` s'il manque. Le serveur compresse en Brotli, comme un vrai hébergement, pour que le poids transféré affiché soit le vrai.
+Le script construit deux paquets : `web/pkg` (le moteur entier, avec le dessin) et `web/pkg-light` (le moteur léger, sans le dessin, `ADR-053`) ; une page prend le léger, et ne fait venir le dessin que si elle montre des points ou des mondes. Le script télécharge `wasm-bindgen` 0.2.100 dans `outils/bin/` s'il manque. Le serveur compresse en Brotli, comme un vrai hébergement, pour que le poids transféré affiché soit le vrai.
 
-Paramètres d'adresse utiles : `?zoom=3.4` démarre à un zoom donné (pour les captures), `?monde=nom` charge `mondes/nom.holo`.
+Paramètres d'adresse utiles : `?zoom=3.4` démarre à un zoom donné (pour les captures), `?world=nom` charge `mondes/nom.holo`.
 
 ## Tester sur le téléphone
 
@@ -124,7 +124,7 @@ Ce que ces mesures ne disent pas : la consommation de batterie, l'échauffement 
 
 Pour mesurer le mode de secours (WebGL 2) sur un appareil qui a WebGPU, ajouter `?webgl` à l'adresse.
 
-Pour refaire les mesures : `adb reverse tcp:8080 tcp:8080`, `adb forward tcp:9222 localabstract:chrome_devtools_remote`, ouvrir la page dans Chrome sur le téléphone (écran allumé et déverrouillé), puis `node outils/mesurer-telephone.mjs big-bang.holo @outils/mesures/big-bang.js` ou `node outils/mesurer-telephone.mjs boutique.holo @outils/mesures/vue-points.js`.
+Pour refaire les mesures : `adb reverse tcp:8080 tcp:8080`, `adb forward tcp:9222 localabstract:chrome_devtools_remote`, ouvrir la page dans Chrome sur le téléphone (écran allumé et déverrouillé), puis `node outils/measure-phone.mjs big-bang.holo @outils/mesures/big-bang.js` ou `node outils/measure-phone.mjs boutique.holo @outils/mesures/vue-points.js`.
 
 ## Captures (Chrome sans fenêtre, rendu WebGL 2 logiciel)
 
@@ -159,13 +159,13 @@ Repris de la proposition de Gemini, à vérifier sur le téléphone :
 | Fichier | Rôle |
 |---|---|
 | `src/holo.rs` | Lecture d'un fichier `.holo` : mots, blocs, erreurs avec ligne et colonne |
-| `src/graine.rs` | Graines et nombres pseudo-aléatoires reproductibles, en arithmétique entière |
-| `src/univers.rs` | Du bloc `Point` au monde ; les enfants et leurs graines |
+| `src/seed.rs` | Graines et nombres pseudo-aléatoires reproductibles, en arithmétique entière |
+| `src/universe.rs` | Du bloc `Point` au monde ; les enfants et leurs graines |
 | `src/navigation.rs` | Morcellement, zoom, entrée, sortie ; produit la liste des disques à dessiner |
-| `src/rendu.rs`, `src/rendu.wgsl` | Dessin avec `wgpu` : un disque lumineux par instance, mélange additif |
+| `src/renderer.rs`, `src/renderer.wgsl` | Dessin avec `wgpu` : un disque lumineux par instance, mélange additif |
 | `src/web.rs` | Zone de dessin, doigts, molette, boucle d'affichage, mesures dans `window.__holo` |
 | `web/index.html` | La seule page HTML, générée une fois pour tous les mondes |
-| `web/mesures.js` | L'affichage des mesures et le bouton « Copier le rapport » |
-| `outils/serveur.mjs` | Serveur local avec compression Brotli ; envoie la page déjà fabriquée si `holo` est construit |
+| `web/measures.js` | L'affichage des mesures et le bouton « Copier le rapport » |
+| `outils/server.mjs` | Serveur local avec compression Brotli ; envoie la page déjà fabriquée si `holo` est construit |
 | `src/bin/holo.rs` | Le moteur en ligne de commande, pour le PC ou un serveur : `cargo build --release --bin holo`, puis `holo check fichier.holo` (vérifier) et `holo html fichier.holo` (écrire le HTML de la page) |
-| `outils/construire.ps1` | Construction complète |
+| `outils/build.ps1` | Construction complète |

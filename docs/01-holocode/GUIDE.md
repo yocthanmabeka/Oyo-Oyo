@@ -10,21 +10,21 @@ Ce guide montre comment écrire un fichier `.holo` aujourd'hui, avec ce que le m
 
 ## 1. Voir ce qu'on écrit
 
-1. Lancer le serveur local, une fois, dans un terminal : `node moteur/outils/serveur.mjs`
+1. Lancer le serveur local, une fois, dans un terminal : `node moteur/outils/server.mjs`
 2. Ranger son fichier dans `exemples/` (une page) ou dans `moteur/mondes/` (un monde seul).
 3. Dans VS Code, avec l'extension HoloCode ([`outils/vscode-holocode/`](../../outils/vscode-holocode/README.md)) : ouvrir le fichier et cliquer sur ▶ en haut à droite (ou `Ctrl+Alt+H`). Le fichier s'ouvre dans Chrome, à sa propre adresse.
 
 Sans l'extension : ouvrir `http://localhost:8080/exemples/mon-dossier/ma-page.holo` dans Chrome.
 
-**L'éditeur** (`ADR-046`), sur le PC et sur le téléphone : `http://localhost:8080/editeur?cle=…` (le serveur affiche l'adresse exacte, avec sa clé, à son démarrage). Le texte à gauche, la page à droite, mise à jour pendant qu'on écrit ; la faute soulignée à sa place, et, quand le moteur dit le bon mot, un bouton **« Remplacer « h1 » par « H1 » »** ; en bas, les mots du langage à toucher, pour ne pas taper de majuscule au milieu d'un mot sur un téléphone. Dans VS Code, l'extension (version 0.2.0) souligne la même faute et propose la même correction dans l'ampoule (`Ctrl+.`).
+**L'éditeur** (`ADR-046`), sur le PC et sur le téléphone : `http://localhost:8080/editor?key=…` (le serveur affiche l'adresse exacte, avec sa clé, à son démarrage). Le texte à gauche, la page à droite, mise à jour pendant qu'on écrit ; la faute soulignée à sa place, et, quand le moteur dit le bon mot, un bouton **« Remplacer « h1 » par « H1 » »** ; en bas, les mots du langage à toucher, pour ne pas taper de majuscule au milieu d'un mot sur un téléphone. Dans VS Code, l'extension (version 0.2.0) souligne la même faute et propose la même correction dans l'ampoule (`Ctrl+.`).
 
 Si le fichier contient une erreur, la page affiche le message du moteur, avec la ligne et la colonne.
 
 **Les outils de l'auteur** (`ADR-054`) :
 
-- **Voir les valeurs** : ajouter `?valeurs` à l'adresse (`…/ma-page.holo?valeurs`). Un petit panneau, en bas à gauche, montre les valeurs de la page (`cart = 18000`, une liste et ses éléments), puis le dernier geste et ce qu'il a changé (`cart : 12000 → 13000`).
+- **Voir les valeurs** : ajouter `?values` à l'adresse (`…/ma-page.holo?values`). Un petit panneau, en bas à gauche, montre les valeurs de la page (`cart = 18000`, une liste et ses éléments), puis le dernier geste et ce qu'il a changé (`cart : 12000 → 13000`).
 - **Remettre en forme** : `moteur/target/release/holo fmt ma-page.holo`. Deux espaces de plus après une ligne qui ouvre, deux de moins quand elle se referme ; seuls les blancs changent.
-- **Des essais écrits** : un fichier `ma-page.essai` à côté de la page, puis `holo essai ma-page.holo ma-page.essai`. Une ligne par geste ou par vérification :
+- **Des essais écrits** : un fichier `ma-page.test` à côté de la page, puis `holo test ma-page.holo ma-page.test`. Une ligne par geste ou par vérification :
 
 ```text
 // Ajouter deux fois le tableau « Night » remplit le panier.
@@ -1248,7 +1248,7 @@ Page(
 - **`accept:`** est obligatoire : `image` (PNG, JPEG, WebP, GIF), `pdf`, ou `[image, pdf]`. **`max:`** de `1KB` à `10MB` ; `2MB` si on ne l'écrit pas.
 - **La valeur est un texte** : le nom du fichier choisi, `""` sinon. `{photo}` le montre ; `photo.set("")` vide le champ.
 - **La page vérifie tout de suite** la sorte et la taille, et le dit avec le message du navigateur ; un fichier refusé est retiré.
-- **Le serveur vérifie tout à nouveau** : il demande au moteur ce que la page permet, lit la sorte dans les premiers octets du fichier (jamais dans son nom), et range le fichier dans `messages/fichiers/`, sous un nom tiré au hasard. Le message garde le nom donné par le visiteur, le chemin et la taille.
+- **Le serveur vérifie tout à nouveau** : il demande au moteur ce que la page permet, lit la sorte dans les premiers octets du fichier (jamais dans son nom), et range le fichier dans `messages/files/`, sous un nom tiré au hasard. Le message garde le nom donné par le visiteur, le chemin et la taille.
 
 Cette écriture est décidée (`ADR-059`). La leçon est `76-envoyer-un-fichier.holo`.
 

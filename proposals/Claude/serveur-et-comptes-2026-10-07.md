@@ -10,7 +10,7 @@
 
 **Oui.** Dans le monde JavaScript, la page tourne dans le navigateur, et le serveur tourne presque toujours dans Node.js (avec Express, Next.js, SvelteKit, Nuxt), ou chez un service tout fait (Firebase, Supabase). L'auteur écrit donc deux programmes : celui de la page et celui du serveur. Avec TypeScript des deux côtés, c'est le même langage, mais ce sont deux programmes qu'il faut garder d'accord. C'est là que naissent beaucoup de failles : la page vérifie une chose, le serveur en oublie une autre.
 
-HoloCode a aujourd'hui un petit serveur d'essai en Node.js (`moteur/outils/serveur.mjs`) : il sert les pages, range les messages et les fichiers. Il est fait pour le PC de Yocthan, pas pour Internet.
+HoloCode a aujourd'hui un petit serveur d'essai en Node.js (`moteur/outils/server.mjs`) : il sert les pages, range les messages et les fichiers. Il est fait pour le PC de Yocthan, pas pour Internet.
 
 ## L'idée : un seul moteur, des deux côtés
 

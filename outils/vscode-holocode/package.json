@@ -38,10 +38,10 @@
     "configuration": {
       "title": "HoloCode",
       "properties": {
-        "holocode.serveur": {
+        "holocode.server": {
           "type": "string",
           "default": "http://localhost:8080",
-          "description": "Adresse du serveur local du moteur (node moteur/outils/serveur.mjs)."
+          "description": "Adresse du serveur local du moteur (node moteur/outils/server.mjs)."
         }
       }
     }

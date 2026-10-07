@@ -6,7 +6,7 @@ Le même film, en sept scènes : le Big Bang, le titre, trois mots, le morphing,
 - [`web/showreel.html`](web/showreel.html) — son jumeau exact, en HTML et CSS, écrit comme l'écrirait un développeur web expérimenté (variables CSS, une animation réutilisée par tous les blocs). 7 lignes de JavaScript : couper les titres en lettres, relancer le film.
 - [`web/showreel-max.html`](web/showreel-max.html) — **hors comparaison** : le même scénario, poussé au maximum de ce que le web sait faire (520 particules physiques, morphing en cœur, cube en 3D, réaction à la souris). Il montre ce que HoloCode ne sait pas encore faire.
 
-Pour les voir : le serveur local (`node moteur/outils/serveur.mjs`), puis `http://localhost:8080/exemples/motion/holocode/showreel.holo` et `http://localhost:8080/exemples/motion/web/showreel.html`.
+Pour les voir : le serveur local (`node moteur/outils/server.mjs`), puis `http://localhost:8080/exemples/motion/holocode/showreel.holo` et `http://localhost:8080/exemples/motion/web/showreel.html`.
 
 ## Mesuré, sur les deux jumeaux
 

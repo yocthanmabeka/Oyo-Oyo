@@ -6,7 +6,7 @@
 //!
 //! Ces sondes utilisent seulement l'API publique du crate quand c'est possible.
 
-use holo_moteur::{arbitrer, verifier_page, vue_a_plat};
+use holo_engine::{arbitrate, check_page, flat_view};
 
 #[test]
 fn composant_parametre_et_signal_de_copie() {
@@ -34,12 +34,12 @@ Page(
 )
 "#;
 
-    verifier_page(source).unwrap();
-    let html = vue_a_plat(source, "").unwrap();
+    check_page(source).unwrap();
+    let html = flat_view(source, "").unwrap();
 
     assert!(html.contains("Sunrise"));
     assert!(html.contains("data-name="AddSunrise""));
-    assert_eq!(arbitrer(source, "cart=0;sunrise=0", "AddSunrise.tap"), "cart=120;sunrise=1");
+    assert_eq!(arbitrate(source, "cart=0;sunrise=0", "AddSunrise.tap"), "cart=120;sunrise=1");
 }
 
 #[test]
@@ -62,10 +62,10 @@ Page(
 )
 "#;
 
-    verifier_page(source).unwrap();
+    check_page(source).unwrap();
 
-    assert_eq!(arbitrer(source, "a=0;b=0", "AddA.tap"), "a=1;b=0");
-    assert_eq!(arbitrer(source, "a=0;b=0", "AddB.tap"), "a=0;b=1");
+    assert_eq!(arbitrate(source, "a=0;b=0", "AddA.tap"), "a=1;b=0");
+    assert_eq!(arbitrate(source, "a=0;b=0", "AddB.tap"), "a=0;b=1");
 }
 
 #[test]
@@ -86,7 +86,7 @@ Page(
 )
 "#;
 
-    let erreur = verifier_page(source).unwrap_err();
+    let erreur = check_page(source).unwrap_err();
     assert!(erreur.message.contains("nom d'une valeur de la page"), "{erreur}");
 }
 
@@ -122,8 +122,8 @@ Page(
 )
 "#;
 
-    verifier_page(source).unwrap();
-    let html = vue_a_plat(source, "").unwrap();
+    check_page(source).unwrap();
+    let html = flat_view(source, "").unwrap();
     assert!(html.contains(">A</h2>"));
     assert!(html.contains(">B</h2>"));
     assert!(html.contains("data-name="AddA""));
@@ -144,7 +144,7 @@ Page(
 )
 "#;
 
-    let erreur = verifier_page(source).unwrap_err();
+    let erreur = check_page(source).unwrap_err();
     assert!(erreur.message.contains("se pose lui-même"), "{erreur}");
 }
 
@@ -160,7 +160,7 @@ Page(
 )
 "#;
 
-    let erreur = verifier_page(source).unwrap_err();
+    let erreur = check_page(source).unwrap_err();
     assert!(erreur.message.contains("deux composants"), "{erreur}");
 }
 
@@ -187,8 +187,8 @@ Page(
 )
 "#;
 
-    verifier_page(source).unwrap();
-    let html = vue_a_plat(source, "").unwrap();
+    check_page(source).unwrap();
+    let html = flat_view(source, "").unwrap();
 
     assert!(html.contains("<main"));
     assert!(html.contains("<h2"));
@@ -215,8 +215,8 @@ Card { --accent: #E9B44C; border: 1px solid --accent; }
 .promo { --accent: crimson; }
 "#;
 
-    verifier_page(source).unwrap();
-    let html = vue_a_plat(source, "").unwrap();
+    check_page(source).unwrap();
+    let html = flat_view(source, "").unwrap();
 
     assert!(html.contains("holo-c-Card"));
     assert!(html.contains("holo-s-promo"));
@@ -248,8 +248,8 @@ Page(
 .card { color: red; }
 "#;
 
-    verifier_page(source).unwrap();
-    let html = vue_a_plat(source, "").unwrap();
+    check_page(source).unwrap();
+    let html = flat_view(source, "").unwrap();
 
     assert_eq!(html.matches("holo-s-card").count(), 3, "{html}");
     assert!(html.contains(".holo-s-card{color:red;}"), "{html}");
@@ -270,6 +270,6 @@ Page(
 )
 "#;
 
-    let erreur = verifier_page(source).unwrap_err();
+    let erreur = check_page(source).unwrap_err();
     assert!(erreur.message.contains("state") || erreur.message.contains("réglage"), "{erreur}");
 }

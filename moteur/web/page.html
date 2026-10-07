@@ -22,112 +22,112 @@
   html,body{margin:0;touch-action:pan-x pan-y}
   /* La zone de dessin du moteur ne sert qu'en vue points. */
   canvas{position:fixed;inset:0;width:100vw;height:100vh;display:none;touch-action:none;z-index:1}
-  .en-points canvas{display:block}
+  .in-points canvas{display:block}
   /* Vue points : l'image de la page suit la vue, et s'efface quand les points prennent le relais. */
   #image{position:fixed;left:0;top:0;z-index:3;transform-origin:0 0;pointer-events:none;display:none;will-change:transform,opacity}
-  .en-points{overflow:hidden}
-  .en-points #image{display:block}
-  #etat,#commandes{display:none}
+  .in-points{overflow:hidden}
+  .in-points #image{display:block}
+  #status,#commands{display:none}
   /* La rotation activée par l'auteur (Relief(tilt:)) : « Tourner » est offert dès la page de face. */
-  .tourne #commandes{display:flex;flex-direction:column;gap:8px}
-  body:not(.en-points) #face,.en-monde #commandes{display:none}
-  .en-points #etat{display:block;position:fixed;left:8px;bottom:8px;z-index:5;padding:4px 8px;border-radius:6px;
+  .rotated #commands{display:flex;flex-direction:column;gap:8px}
+  body:not(.in-points) #front,.in-world #commands{display:none}
+  .in-points #status{display:block;position:fixed;left:8px;bottom:8px;z-index:5;padding:4px 8px;border-radius:6px;
     background:rgba(0,0,0,.6);color:#bbb;font:12px system-ui,sans-serif;pointer-events:none}
 
-  .en-points #mode{display:none}
+  .in-points #mode{display:none}
   /* Les outils du moteur tiennent dans un seul bouton rond, en bas à droite, posé par-dessus
      le site comme une bulle. On appuie : les outils apparaissent au-dessus de lui, et il
      devient une croix pour les refermer. Le site garde tout l'écran pour lui. */
   #menu{position:fixed;right:12px;bottom:12px;z-index:8;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
-  #menu[hidden],#outils[hidden]{display:none}
-  #outils{display:flex;flex-direction:column;gap:8px;padding:8px;border-radius:14px;background:rgba(0,0,0,.72);border:1px solid #666}
-  #bascule{width:48px;height:48px;padding:0;border-radius:50%;border:1px solid #888;background:rgba(0,0,0,.72);color:#fff;
+  #menu[hidden],#tools[hidden]{display:none}
+  #tools{display:flex;flex-direction:column;gap:8px;padding:8px;border-radius:14px;background:rgba(0,0,0,.72);border:1px solid #666}
+  #toggle{width:48px;height:48px;padding:0;border-radius:50%;border:1px solid #888;background:rgba(0,0,0,.72);color:#fff;
     font:22px/1 system-ui,sans-serif;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.5)}
-  #bascule[aria-expanded="true"]{border-color:#E9B44C;color:#E9B44C}
-  #bascule:focus-visible{outline:2px solid #fff;outline-offset:2px}
-  #vues{display:flex;flex-direction:column;gap:8px}
-  #vues button,#commandes button{text-align:left;padding:8px 12px;border:1px solid #888;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;
+  #toggle[aria-expanded="true"]{border-color:#E9B44C;color:#E9B44C}
+  #toggle:focus-visible{outline:2px solid #fff;outline-offset:2px}
+  #views{display:flex;flex-direction:column;gap:8px}
+  #views button,#commands button{text-align:left;padding:8px 12px;border:1px solid #888;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;
     font:14px system-ui,sans-serif;cursor:pointer}
-  #commandes button[aria-pressed="true"]{border-color:#E9B44C;color:#E9B44C}
+  #commands button[aria-pressed="true"]{border-color:#E9B44C;color:#E9B44C}
 
   /* Un monde calculé, ouvert en profondeur. */
-  .en-monde canvas{display:block}
-  .en-monde #page{display:none}
-  .en-monde #points{display:none}
+  .in-world canvas{display:block}
+  .in-world #page{display:none}
+  .in-world #points{display:none}
 
   /* Le carrefour : des portails vers les mondes voisins, sur le fond du site où l'on est,
      éclairci par une lueur pour qu'on y voie même sur un site sombre (Portals(brightness:)). */
-  #carrefour{position:fixed;inset:0;z-index:6;display:flex;gap:36px 44px;padding:64px 32px 32px;box-sizing:border-box;overflow:auto;
-    background:radial-gradient(circle at 50% 42%,color-mix(in srgb,#fff var(--lueur,15%),var(--fond,#000)),var(--fond,#000) 85%)}
-  #carrefour[hidden]{display:none}
+  #crossroads{position:fixed;inset:0;z-index:6;display:flex;gap:36px 44px;padding:64px 32px 32px;box-sizing:border-box;overflow:auto;
+    background:radial-gradient(circle at 50% 42%,color-mix(in srgb,#fff var(--glow,15%),var(--background,#000)),var(--background,#000) 85%)}
+  #crossroads[hidden]{display:none}
   /* Portals(layout: grid) : en grille, sur toute la fenêtre. */
-  #carrefour.grille{flex-wrap:wrap;align-items:center;justify-content:safe center;align-content:safe center}
+  #crossroads.grid{flex-wrap:wrap;align-items:center;justify-content:safe center;align-content:safe center}
   /* Portals(layout: row) : une ligne, on défile de gauche à droite. */
-  #carrefour.ligne{flex-wrap:nowrap;align-items:center;overflow-y:hidden}
+  #crossroads.line{flex-wrap:nowrap;align-items:center;overflow-y:hidden}
   /* Portals(layout: column) : une colonne, on défile de haut en bas. */
-  #carrefour.colonne{flex-direction:column;flex-wrap:nowrap;align-items:center;overflow-x:hidden}
+  #crossroads.column{flex-direction:column;flex-wrap:nowrap;align-items:center;overflow-x:hidden}
   /* Portals(layout: diagonal) : en diagonale, chaque portail un cran plus bas que le précédent. */
-  #carrefour.diagonale{flex-wrap:nowrap;align-items:flex-start}
-  #carrefour.diagonale .portail{margin-top:calc(var(--rang) * var(--taille) * .55)}
-  #carrefour .portail{flex:none}
+  #crossroads.diagonal{flex-wrap:nowrap;align-items:flex-start}
+  #crossroads.diagonale .portal{margin-top:calc(var(--rank) * var(--size) * .55)}
+  #crossroads .portal{flex:none}
   /* Le passage direct vers un site : le point s'ouvre sur place, au-dessus de la page. */
   #passage{position:fixed;inset:0;z-index:9;pointer-events:none}
-  .portail{display:flex;flex-direction:column;align-items:center;gap:10px;padding:0;border:0;background:none;color:inherit;
+  .portal{display:flex;flex-direction:column;align-items:center;gap:10px;padding:0;border:0;background:none;color:inherit;
     font:15px system-ui,sans-serif;cursor:pointer}
-  .portail .apercu{display:block;position:relative;width:var(--taille);height:var(--taille);border-radius:50%;overflow:hidden;
-    box-shadow:0 0 0 3px var(--couleur),0 0 28px 6px var(--couleur);transition:transform .2s,box-shadow .2s}
+  .portal .preview{display:block;position:relative;width:var(--size);height:var(--size);border-radius:50%;overflow:hidden;
+    box-shadow:0 0 0 3px var(--color),0 0 28px 6px var(--color);transition:transform .2s,box-shadow .2s}
   /* Là où le curseur se pose, le monde s'avance : il grandit et devient une feuille lisible. */
-  .portail:hover{position:relative;z-index:2}
-  .portail:hover .apercu{transform:scale(1.45);border-radius:16px;box-shadow:0 0 0 3px var(--couleur),0 0 60px 18px var(--couleur)}
-  .portail:focus-visible .apercu{box-shadow:0 0 0 6px #fff,0 0 44px 12px var(--couleur)}
+  .portal:hover{position:relative;z-index:2}
+  .portal:hover .preview{transform:scale(1.45);border-radius:16px;box-shadow:0 0 0 3px var(--color),0 0 60px 18px var(--color)}
+  .portal:focus-visible .preview{box-shadow:0 0 0 6px #fff,0 0 44px 12px var(--color)}
   /* Un monde calculé : une boule de lumière de sa couleur, avec ses points. */
-  .portail .apercu.calcule{background:
+  .portal .preview.computed{background:
     radial-gradient(circle at 34% 30%,#fff 0 3%,transparent 4%),radial-gradient(circle at 68% 42%,#fff 0 2%,transparent 3%),
     radial-gradient(circle at 46% 70%,#fff 0 2.5%,transparent 3.5%),radial-gradient(circle at 24% 62%,#fff 0 1.5%,transparent 2.5%),
-    radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--couleur) 70%,#fff) 0,var(--couleur) 38%,color-mix(in srgb,var(--couleur) 25%,#000) 72%)}
-  .portail .contenu{display:block;position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none;text-align:left}
-  .portail:focus{outline:none}
-  .portail .nom{padding:4px 10px;border-radius:999px;background:rgba(0,0,0,.55);color:#fff}
-  .portail.vers .apercu{box-shadow:0 0 0 5px var(--couleur),0 0 60px 16px var(--couleur)}
+    radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--color) 70%,#fff) 0,var(--color) 38%,color-mix(in srgb,var(--color) 25%,#000) 72%)}
+  .portal .content{display:block;position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none;text-align:left}
+  .portal:focus{outline:none}
+  .portal .name{padding:4px 10px;border-radius:999px;background:rgba(0,0,0,.55);color:#fff}
+  .portal.to .preview{box-shadow:0 0 0 5px var(--color),0 0 60px 16px var(--color)}
   /* Un portail qui s'ouvre : son aperçu grandit jusqu'à remplir la fenêtre, puis devient le site. */
-  .apercu.ouverture{position:fixed;z-index:9;box-shadow:none;transition:left var(--duree,.45s) ease-in,top var(--duree,.45s) ease-in,width var(--duree,.45s) ease-in,height var(--duree,.45s) ease-in,border-radius var(--duree,.45s) ease-in}
-  .apercu.ouverture .contenu{transition:transform var(--duree,.45s) ease-in}
-  @media (prefers-reduced-motion:reduce){.apercu.ouverture,.apercu.ouverture .contenu,.portail .apercu{transition:none}}
+  .preview.opening{position:fixed;z-index:9;box-shadow:none;transition:left var(--duration,.45s) ease-in,top var(--duration,.45s) ease-in,width var(--duration,.45s) ease-in,height var(--duration,.45s) ease-in,border-radius var(--duration,.45s) ease-in}
+  .preview.opening .content{transition:transform var(--duration,.45s) ease-in}
+  @media (prefers-reduced-motion:reduce){.preview.opening,.preview.opening .content,.portal .preview{transition:none}}
 
   /* Chez quelqu'un d'autre : un bandeau qui appartient au moteur, pas au site. Un fichier ne
      peut ni le cacher ni le styler : ses styles ne visent que ses propres blocs. */
-  #origine{position:fixed;left:8px;top:8px;z-index:9;display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;
+  #origin{position:fixed;left:8px;top:8px;z-index:9;display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;
     background:#111;color:#fff;border:1px solid #E9B44C;font:13px system-ui,sans-serif}
-  #origine[hidden]{display:none}
-  #origine button{padding:4px 8px;border:1px solid #888;border-radius:6px;background:none;color:#fff;font:inherit;cursor:pointer}
-  #erreur{position:fixed;left:8px;bottom:8px;right:8px;z-index:10;color:#f88;font:13px monospace;white-space:pre-wrap}
+  #origin[hidden]{display:none}
+  #origin button{padding:4px 8px;border:1px solid #888;border-radius:6px;background:none;color:#fff;font:inherit;cursor:pointer}
+  #error{position:fixed;left:8px;bottom:8px;right:8px;z-index:10;color:#f88;font:13px monospace;white-space:pre-wrap}
   /* Un bouton touché avant l'arrivée du moteur : il montre qu'il attend, tout de suite. */
-  .holo-attend{cursor:progress;animation:holo-attend .9s ease-in-out infinite alternate}
-  @keyframes holo-attend{to{opacity:.45}}
-  @media (prefers-reduced-motion:reduce){.holo-attend{animation:none;opacity:.6}}
+  .holo-waiting{cursor:progress;animation:holo-waiting .9s ease-in-out infinite alternate}
+  @keyframes holo-waiting{to{opacity:.45}}
+  @media (prefers-reduced-motion:reduce){.holo-waiting{animation:none;opacity:.6}}
   /* Le moteur n'a pas pu démarrer : la page le dit, sans rien cacher de ce qui se lit. */
-  #panne{position:fixed;left:12px;right:76px;bottom:12px;z-index:10;display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 14px;
+  #outage{position:fixed;left:12px;right:76px;bottom:12px;z-index:10;display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 14px;
     border-radius:10px;background:#2a1212;color:#ffd6d6;border:1px solid #f88;font:14px system-ui,sans-serif}
-  #panne[hidden]{display:none}
-  #panne button{padding:6px 12px;border-radius:6px;border:1px solid #ffd6d6;background:none;color:inherit;font:inherit;cursor:pointer}
+  #outage[hidden]{display:none}
+  #outage button{padding:6px 12px;border-radius:6px;border:1px solid #ffd6d6;background:none;color:inherit;font:inherit;cursor:pointer}
 </style>
-</head><body><canvas id="zone"></canvas><div id="page"></div>
-<img id="image" alt=""><div id="etat"></div>
-<div id="carrefour" hidden></div>
-<div id="panne" hidden role="alert"><span>Le moteur n'a pas pu démarrer. La page se lit, mais les boutons ne répondent pas : rien n'a été ajouté ni envoyé.</span><button type="button">Réessayer</button></div>
-<div id="origine" hidden><span></span><button type="button">Revenir</button></div>
+</head><body><canvas id="area"></canvas><div id="page"></div>
+<img id="image" alt=""><div id="status"></div>
+<div id="crossroads" hidden></div>
+<div id="outage" hidden role="alert"><span>Le moteur n'a pas pu démarrer. La page se lit, mais les boutons ne répondent pas : rien n'a été ajouté ni envoyé.</span><button type="button">Réessayer</button></div>
+<div id="origin" hidden><span></span><button type="button">Revenir</button></div>
 <div id="menu" hidden>
-  <div id="outils" hidden>
-    <div id="vues">
+  <div id="tools" hidden>
+    <div id="views">
       <button id="points" type="button" title="Ou : Ctrl + molette, ou pincer, directement sur la page">Vue points</button>
       <button id="mode" type="button" title="Les sites voisins, sous forme de portails">Carrefour</button>
     </div>
-    <div id="commandes">
-      <button id="tourner" type="button" aria-pressed="false" title="Glisser fait tourner la page (ou : bouton droit, ou Maj)">Tourner</button>
-      <button id="face" type="button" title="Remettre la page de face">De face</button>
+    <div id="commands">
+      <button id="rotate" type="button" aria-pressed="false" title="Glisser fait tourner la page (ou : bouton droit, ou Maj)">Tourner</button>
+      <button id="front" type="button" title="Remettre la page de face">De face</button>
     </div>
   </div>
-  <button id="bascule" type="button" aria-expanded="false" aria-controls="outils" aria-label="Ouvrir les outils" title="Les outils du moteur">☰</button>
+  <button id="toggle" type="button" aria-expanded="false" aria-controls="tools" aria-label="Ouvrir les outils" title="Les outils du moteur">☰</button>
 </div>
 <script>
   // Le site léger (ADR-033). La page arrive toute faite par le serveur : on la lit, on défile,
@@ -137,112 +137,112 @@
   // rejoué. Une page vivante (horloge, clavier, données, glissement) le demande tout de suite,
   // comme une page que le serveur n'a pas fabriquée, ou qui a des valeurs gardées à remettre.
   (() => {
-    const racine = document.getElementById("page");
-    const bascule = document.getElementById("bascule");
-    const attente = (window.__holoAttente = []);
-    const panne = document.getElementById("panne");
-    let demande = false;
-    let essai = 0;
+    const root = document.getElementById("page");
+    const toggle = document.getElementById("toggle");
+    const waiting = (window.__holoWaiting = []);
+    const outage = document.getElementById("outage");
+    let request = false;
+    let test = 0;
     // Plus rien n'attend : les boutons touchés cessent de le montrer.
-    const finDeLAttente = () => {
-      for (const bloc of racine.querySelectorAll(".holo-attend")) bloc.classList.remove("holo-attend");
-      racine.removeAttribute("aria-busy");
+    const waitingEnd = () => {
+      for (const block of root.querySelectorAll(".holo-waiting")) block.classList.remove("holo-waiting");
+      root.removeAttribute("aria-busy");
     };
-    const charger = () => {
-      if (demande) return;
-      demande = true;
-      panne.hidden = true;
-      const moteur = document.createElement("script");
-      moteur.type = "module";
+    const load = () => {
+      if (request) return;
+      request = true;
+      outage.hidden = true;
+      const engine = document.createElement("script");
+      engine.type = "module";
       // Un nouvel essai demande le fichier à nouveau, sans reprendre l'échec gardé en cache.
-      moteur.src = essai ? `/page-moteur.js?essai=${essai}` : "/page-moteur.js";
-      moteur.onerror = () => window.__holoEchec(false);
-      document.body.append(moteur);
+      engine.src = test ? `/page-engine.js?essai=${test}` : "/page-engine.js";
+      engine.onerror = () => window.__holoFailure(false);
+      document.body.append(engine);
     };
     // Le moteur n'a pas pu arriver. Les touchers en attente sont oubliés : aucun ne sera rejoué
     // plus tard sans que le visiteur le sache. `relancer` : il faut recharger la page (le module
     // est arrivé, mais pas le WebAssembly).
-    window.__holoEchec = (relancer) => {
-      attente.length = 0;
-      finDeLAttente();
-      panne.hidden = false;
-      panne.querySelector("button").onclick = () => {
-        if (relancer) return location.reload();
-        essai += 1;
-        demande = false;
-        charger();
+    window.__holoFailure = (restart) => {
+      waiting.length = 0;
+      waitingEnd();
+      outage.hidden = false;
+      outage.querySelector("button").onclick = () => {
+        if (restart) return location.reload();
+        test += 1;
+        request = false;
+        load();
       };
     };
-    const noter = (evenement) => {
-      const bloc = evenement.target.closest("[data-name]");
+    const record = (event) => {
+      const block = event.target.closest("[data-name]");
       // Au doigt, toucher un bloc qu'une règle écoute au survol le survole (ADR-039).
-      const survole = evenement.pointerType === "touch" && evenement.target.closest("[data-hover]");
-      if (survole) attente.push(`${survole.dataset.name}.touch`);
-      if (bloc) {
+      const hovered = event.pointerType === "touch" && event.target.closest("[data-hover]");
+      if (hovered) waiting.push(`${hovered.dataset.name}.touch`);
+      if (block) {
         // Dans la ligne d'une liste, le toucher garde sa ligne (ADR-044).
-        const ligne = bloc.closest("[data-rang]")?.dataset.rang;
-        attente.push(ligne === undefined ? bloc.dataset.name : `${bloc.dataset.name}@${ligne}`);
-        bloc.classList.add("holo-attend");
-        racine.setAttribute("aria-busy", "true");
+        const line = block.closest("[data-rank]")?.dataset.rank;
+        waiting.push(line === undefined ? block.dataset.name : `${block.dataset.name}@${line}`);
+        block.classList.add("holo-waiting");
+        root.setAttribute("aria-busy", "true");
       }
       // Un lien vers un endroit de la page (#Hours) : le navigateur y descend, sans le moteur.
-      const ancre = evenement.target.closest('a[href^="#"]');
-      const endroit = ancre && document.getElementById(decodeURIComponent(ancre.getAttribute("href").slice(1)));
-      if (bloc || survole || (ancre && !endroit)) charger();
+      const anchor = event.target.closest('a[href^="#"]');
+      const spot = anchor && document.getElementById(decodeURIComponent(anchor.getAttribute("href").slice(1)));
+      if (block || hovered || (anchor && !spot)) load();
     };
-    const ouvrirLeMenu = () => { window.__holoMenuDemande = true; charger(); };
+    const openMenu = () => { window.__holoMenuRequested = true; load(); };
     // Zoomer à la molette : la page à elle, pas le navigateur ; le moteur arrive pour la suite.
-    const zoom = (evenement) => { if (evenement.ctrlKey) { evenement.preventDefault(); charger(); } };
-    const pincer = (evenement) => { if (evenement.touches.length > 1) charger(); };
+    const zoom = (event) => { if (event.ctrlKey) { event.preventDefault(); load(); } };
+    const pinchZoom = (event) => { if (event.keypresses.length > 1) load(); };
     // La souris arrive sur un bloc qu'une règle écoute au survol, ou le clavier s'y pose (ADR-039) :
     // le moteur arrive, et le survol est rejoué s'il dure encore.
-    const survol = (evenement) => {
-      if (evenement.pointerType === "touch") return;
-      const bloc = evenement.target.closest("[data-hover]");
-      if (!bloc || bloc.contains(evenement.relatedTarget)) return;
-      const signal = `${bloc.dataset.name}.${evenement.type.startsWith("focus") ? "focus" : "hover"}`;
-      if (evenement.type === "pointerover" || evenement.type === "focusin") {
-        if (!attente.includes(signal)) attente.push(signal);
-        charger();
-      } else if (attente.includes(signal)) attente.splice(attente.indexOf(signal), 1);
+    const hover = (event) => {
+      if (event.pointerType === "touch") return;
+      const block = event.target.closest("[data-hover]");
+      if (!block || block.contains(event.relatedTarget)) return;
+      const signal = `${block.dataset.name}.${event.type.startsWith("focus") ? "focus" : "hover"}`;
+      if (event.type === "pointerover" || event.type === "focusin") {
+        if (!waiting.includes(signal)) waiting.push(signal);
+        load();
+      } else if (waiting.includes(signal)) waiting.splice(waiting.indexOf(signal), 1);
     };
-    racine.addEventListener("pointerover", survol);
-    racine.addEventListener("pointerout", survol);
-    racine.addEventListener("focusin", survol);
-    racine.addEventListener("focusout", survol);
-    racine.addEventListener("click", noter);
+    root.addEventListener("pointerover", hover);
+    root.addEventListener("pointerout", hover);
+    root.addEventListener("focusin", hover);
+    root.addEventListener("focusout", hover);
+    root.addEventListener("click", record);
     // Un formulaire ne recharge jamais la page, même avant l'arrivée du moteur (ADR-042).
-    racine.addEventListener("submit", (evenement) => { if (evenement.target.closest(".holo-Form")) evenement.preventDefault(); });
-    racine.addEventListener("focusin", charger);
+    root.addEventListener("submit", (event) => { if (event.target.closest(".holo-Form")) event.preventDefault(); });
+    root.addEventListener("focusin", load);
     // Un bouton rond coché, une option choisie : le moteur arrive, et reprend ce choix.
-    racine.addEventListener("change", charger);
-    racine.addEventListener("input", charger);
-    bascule.addEventListener("click", ouvrirLeMenu);
+    root.addEventListener("change", load);
+    root.addEventListener("input", load);
+    toggle.addEventListener("click", openMenu);
     addEventListener("wheel", zoom, { passive: false });
-    addEventListener("touchstart", pincer, { passive: true });
-    window.__holoArreterDeNoter = () => {
-      finDeLAttente();
-      racine.removeEventListener("click", noter);
-      racine.removeEventListener("pointerover", survol);
-      racine.removeEventListener("pointerout", survol);
-      racine.removeEventListener("focusin", survol);
-      racine.removeEventListener("focusout", survol);
-      racine.removeEventListener("focusin", charger);
-      racine.removeEventListener("change", charger);
-      racine.removeEventListener("input", charger);
-      bascule.removeEventListener("click", ouvrirLeMenu);
+    addEventListener("touchstart", pinchZoom, { passive: true });
+    window.__holoStopRecording = () => {
+      waitingEnd();
+      root.removeEventListener("click", record);
+      root.removeEventListener("pointerover", hover);
+      root.removeEventListener("pointerout", hover);
+      root.removeEventListener("focusin", hover);
+      root.removeEventListener("focusout", hover);
+      root.removeEventListener("focusin", load);
+      root.removeEventListener("change", load);
+      root.removeEventListener("input", load);
+      toggle.removeEventListener("click", openMenu);
       removeEventListener("wheel", zoom);
-      removeEventListener("touchstart", pincer);
+      removeEventListener("touchstart", pinchZoom);
     };
-    const parametres = new URLSearchParams(location.search);
-    document.getElementById("menu").hidden = parametres.has("nu");
+    const params = new URLSearchParams(location.search);
+    document.getElementById("menu").hidden = params.has("bare");
     // ?moteur : tout de suite, pour mesurer ou comparer. Une adresse avec # ou ? sert aux
     // mondes et aux captures : le moteur aussi.
-    const endroit = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)));
-    if (!racine.querySelector("[data-title]") || racine.querySelector("[data-vivant]") || location.search || (location.hash && !endroit)) charger();
+    const spot = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)));
+    if (!root.querySelector("[data-title]") || root.querySelector("[data-live]") || location.search || (location.hash && !spot)) load();
     // Des valeurs gardées d'une visite précédente (keep) : le moteur les remet. Le visiteur est
     // déjà venu, son navigateur a sans doute gardé le moteur.
-    try { if (localStorage.getItem(`holo:${location.pathname}`)) charger(); } catch { /* stockage refusé */ }
+    try { if (localStorage.getItem(`holo:${location.pathname}`)) load(); } catch { /* stockage refusé */ }
   })();
 </script>
 </body></html>

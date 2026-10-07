@@ -13,7 +13,7 @@
 2. **Des valeurs par défaut** : `params: [title, price: 0, image: "placeholder.svg"]`. Un paramètre qui a une valeur par défaut peut être oublié à l'appel. Une valeur nommée dans une liste n'est permise que là.
 3. **Des signaux émis** : `emits: [add]` déclare les signaux du composant ; une règle émet au lieu d'agir, `On(Add.tap, emit: add)` ; la page branche à l'appel, `onAdd: cart.add(1)` ou une liste de demandes. Un signal non branché ne fait rien. L'écriture d'`ADR-050` (`qty: sunrise`, `qty.add(1)`) reste permise.
 4. **Les noms internes restent visibles** (`AddSunrise`), pour ne rien casser ; les rendre privés est remis à plus tard.
-5. **Le panneau `?valeurs`** (`ADR-054`) montre aussi le dernier geste et ce qu'il a changé.
+5. **Le panneau `?values`** (`ADR-054`) montre aussi le dernier geste et ce qu'il a changé.
 
 ## Ce qui n'est pas fait
 
@@ -24,4 +24,4 @@
 
 - Tests : `Component` lu, `Part` et `parts` refusés avec le bon mot ; valeurs par défaut ; signaux branchés, en liste, non branchés ; refus (signal non déclaré, branchement qui n'est pas une demande, `onGoo` mal écrit).
 - Les leçons, le site de référence et `exemples/site/` passent avec `Component`.
-- La leçon 73 dans Chrome, avec le panneau `?valeurs` ; son essai écrit passe.
+- La leçon 73 dans Chrome, avec le panneau `?values` ; son essai écrit passe.

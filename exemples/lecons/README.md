@@ -87,4 +87,4 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 
-Certaines leçons ont un **essai écrit** à côté (`68-liste-qui-change.essai`, `70-composants.essai`, `71-liste-a-champs.essai`, `73-defauts-et-signaux.essai`, `74-champ-dans-une-ligne.essai`, `75-contenu-d-un-composant.essai`, `76-envoyer-un-fichier.essai`) : des gestes et les valeurs attendues, que `holo essai` joue et que les tests du moteur vérifient (`ADR-054`). Pour voir les valeurs pendant qu'on essaie une leçon : ajouter `?valeurs` à son adresse.
+Certaines leçons ont un **essai écrit** à côté (`68-liste-qui-change.test`, `70-composants.test`, `71-liste-a-champs.test`, `73-defauts-et-signaux.test`, `74-champ-dans-une-ligne.test`, `75-contenu-d-un-composant.test`, `76-envoyer-un-fichier.test`) : des gestes et les valeurs attendues, que `holo test` joue et que les tests du moteur vérifient (`ADR-054`). Pour voir les valeurs pendant qu'on essaie une leçon : ajouter `?values` à son adresse.

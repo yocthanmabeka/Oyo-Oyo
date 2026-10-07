@@ -1,13 +1,13 @@
-use holo_moteur::{holo, verifier};
+use holo_engine::{holo, check};
 
 fn main() {
     for seed in ["9007199254740992", "9007199254740993"] {
         let source = format!("Point(nom: A, graine: {seed})");
-        println!("seed {seed} => {:?}", verifier(&source).map(|p| p.graine));
+        println!("seed {seed} => {:?}", check(&source).map(|p| p.seed));
     }
-    println!("ignored import => {:?}", verifier("import \"absent.holo\" Point(nom: A, graine: 1)").map(|p| p.graine));
-    println!("unit with whitespace => {:?}", holo::lire("Point(nom: A, graine: 1, budget: 500 Ko)").map(|p| p.racine.nom));
+    println!("ignored import => {:?}", check("import \"absent.holo\" Point(nom: A, graine: 1)").map(|p| p.seed));
+    println!("unit with whitespace => {:?}", holo::read("Point(nom: A, graine: 1, budget: 500 Ko)").map(|p| p.root.name));
     let source = include_str!("../boutique.holo");
-    println!("boutique syntax => {:?}", holo::lire(source).map(|p| p.racine.nom));
-    println!("boutique semantics => {:?}", verifier(source).map(|p| p.nom));
+    println!("boutique syntax => {:?}", holo::read(source).map(|p| p.root.name));
+    println!("boutique semantics => {:?}", check(source).map(|p| p.name));
 }

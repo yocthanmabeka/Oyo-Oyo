@@ -74,7 +74,7 @@ Le point 5 (« les titres s'arrêtent à `H3` ») est levé, après l'avis des h
 ## Critères de validation
 
 - Suite de conformité : `01-page-simple`, `05-texte-sans-role` acceptés ; `E09-bloc-en-minuscules`, `E10-titre-saute-un-niveau`, `E11-titre-trop-profond` refusés à la bonne ligne.
-- Tests du moteur (`moteur/src/blocs.rs`) qui lisent ces cas directement.
+- Tests du moteur (`moteur/src/blocks.rs`) qui lisent ces cas directement.
 
 ## Conditions de réexamen
 

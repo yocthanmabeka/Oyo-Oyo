@@ -5,33 +5,33 @@
 thread_local! {
     /// La langue de la page en cours de lecture, pour les formats écrits à la lecture
     /// (`{item.price:cents}` dans une répétition).
-    static LANGUE: std::cell::RefCell<String> = std::cell::RefCell::new("fr".into());
+    static LANGUAGE: std::cell::RefCell<String> = std::cell::RefCell::new("fr".into());
 }
 
-pub fn regler_langue(langue: &str) {
-    LANGUE.with(|l| *l.borrow_mut() = langue.to_string());
+pub fn set_language(language: &str) {
+    LANGUAGE.with(|l| *l.borrow_mut() = language.to_string());
 }
 
-pub fn langue() -> String {
-    LANGUE.with(|l| l.borrow().clone())
+pub fn language() -> String {
+    LANGUAGE.with(|l| l.borrow().clone())
 }
 
 /// Les formats connus, pour les messages.
 pub const FORMATS: &[&str] = &["00", "number", "cents", "name"];
 
 /// Un format est-il connu ? `00` à `000000` : autant de chiffres au moins.
-pub fn est_format(format: &str) -> bool {
+pub fn is_format(format: &str) -> bool {
     (2..=6).contains(&format.len()) && format.chars().all(|c| c == '0') || matches!(format, "number" | "cents" | "name")
 }
 
-const JOURS_FR: [&str; 7] = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
-const JOURS_EN: [&str; 7] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-const MOIS_FR: [&str; 12] = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
-const MOIS_EN: [&str; 12] = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const DAYS_FR: [&str; 7] = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
+const DAYS_EN: [&str; 7] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const MONTHS_FR: [&str; 12] = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+const MONTHS_EN: [&str; 12] = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 /// Le séparateur des milliers et celui des décimales, selon la langue.
-fn separateurs(langue: &str) -> (&'static str, &'static str) {
-    match langue.split('-').next().unwrap_or("") {
+fn separators(language: &str) -> (&'static str, &'static str) {
+    match language.split('-').next().unwrap_or("") {
         "en" => (",", "."),
         "de" | "es" | "it" | "pt" | "nl" => (".", ","),
         // Le français, et par défaut : une espace fine insécable, et la virgule.
@@ -40,76 +40,76 @@ fn separateurs(langue: &str) -> (&'static str, &'static str) {
 }
 
 /// 1234567 → « 1 234 567 ».
-fn grouper(valeur: u64, milliers: &str) -> String {
-    let chiffres = valeur.to_string();
-    let mut sortie = String::new();
-    for (rang, c) in chiffres.chars().enumerate() {
-        if rang > 0 && (chiffres.len() - rang) % 3 == 0 {
-            sortie.push_str(milliers);
+fn grouper(value: u64, thousands: &str) -> String {
+    let digits = value.to_string();
+    let mut output = String::new();
+    for (rank, c) in digits.chars().enumerate() {
+        if rank > 0 && (digits.len() - rank) % 3 == 0 {
+            output.push_str(thousands);
         }
-        sortie.push(c);
+        output.push(c);
     }
-    sortie
+    output
 }
 
 /// Écrit `valeur` (la valeur `nom`) selon `format`, dans la langue de la page.
-pub fn formater(nom: &str, valeur: u64, format: &str, langue: &str) -> String {
-    let (milliers, decimales) = separateurs(langue);
-    let anglais = langue.starts_with("en");
+pub fn format_value(name: &str, value: u64, format: &str, language: &str) -> String {
+    let (thousands, decimals) = separators(language);
+    let english = language.starts_with("en");
     match format {
-        "number" => grouper(valeur, milliers),
-        "cents" => format!("{}{decimales}{:02}", grouper(valeur / 100, milliers), valeur % 100),
+        "number" => grouper(value, thousands),
+        "cents" => format!("{}{decimals}{:02}", grouper(value / 100, thousands), value % 100),
         "name" => {
-            let (jours, mois) = if anglais { (JOURS_EN, MOIS_EN) } else { (JOURS_FR, MOIS_FR) };
-            let liste: &[&str] = if nom == "weekday" { &jours } else { &mois };
-            valeur.checked_sub(1).and_then(|i| liste.get(i as usize)).map_or_else(|| valeur.to_string(), |n| (*n).to_string())
+            let (days, month) = if english { (DAYS_EN, MONTHS_EN) } else { (DAYS_FR, MONTHS_FR) };
+            let list: &[&str] = if name == "weekday" { &days } else { &month };
+            value.checked_sub(1).and_then(|i| list.get(i as usize)).map_or_else(|| value.to_string(), |n| (*n).to_string())
         }
-        zeros => format!("{valeur:0largeur$}", largeur = zeros.len()),
+        zeros => format!("{value:0width$}", width = zeros.len()),
     }
 }
 
 /// Les valeurs à format d'un texte : `{minute:00}` → (`minute`, `00`).
-pub fn formats_dans(texte: &str) -> Vec<(&str, &str)> {
-    let mut trouves = Vec::new();
-    let mut reste = texte;
-    while let Some(debut) = reste.find('{') {
-        reste = &reste[debut + 1..];
-        let Some(fin) = reste.find('}') else { break };
-        if let Some((nom, format)) = reste[..fin].split_once(':') {
-            if nom.starts_with(|c: char| c.is_ascii_lowercase()) && nom.chars().all(|c| c.is_ascii_alphanumeric()) && !format.is_empty() && format.chars().all(|c| c.is_ascii_alphanumeric()) {
-                trouves.push((nom, format));
+pub fn formats_in(text: &str) -> Vec<(&str, &str)> {
+    let mut found_list = Vec::new();
+    let mut remainder = text;
+    while let Some(start) = remainder.find('{') {
+        remainder = &remainder[start + 1..];
+        let Some(end) = remainder.find('}') else { break };
+        if let Some((name, format)) = remainder[..end].split_once(':') {
+            if name.starts_with(|c: char| c.is_ascii_lowercase()) && name.chars().all(|c| c.is_ascii_alphanumeric()) && !format.is_empty() && format.chars().all(|c| c.is_ascii_alphanumeric()) {
+                found_list.push((name, format));
             }
         }
-        reste = &reste[fin..];
+        remainder = &remainder[end..];
     }
-    trouves
+    found_list
 }
 
 /// Remplit, dans une page fabriquée, chaque valeur à format par son départ :
 /// `<span data-state="minute" data-format="00"></span>` → `…>05</span>`.
-pub fn remplir(html: &str, valeurs: &[(String, u64)], langue: &str) -> String {
-    const DEBUT: &str = "<span data-state=\"";
-    let mut sortie = String::with_capacity(html.len());
-    let mut reste = html;
-    while let Some(place) = reste.find(DEBUT) {
-        sortie.push_str(&reste[..place]);
-        let apres = &reste[place + DEBUT.len()..];
-        let ouverture = apres.find('>').map(|f| &apres[..f]);
-        if let Some((nom, format)) = ouverture.and_then(|o| o.split_once("\" data-format=\"")).map(|(n, f)| (n, f.trim_end_matches('"'))) {
-            if let (Some((_, valeur)), true) = (valeurs.iter().find(|(connu, _)| connu == nom), apres[nom.len() + format.len() + 16..].starts_with("></span>")) {
-                let entete = &reste[place..place + DEBUT.len() + nom.len() + 15 + format.len() + 2];
-                sortie.push_str(entete);
-                sortie.push_str(&formater(nom, *valeur, format, langue));
-                sortie.push_str("</span>");
-                reste = &apres[nom.len() + format.len() + 16 + "></span>".len()..];
+pub fn fill(html: &str, values: &[(String, u64)], language: &str) -> String {
+    const START: &str = "<span data-state=\"";
+    let mut output = String::with_capacity(html.len());
+    let mut remainder = html;
+    while let Some(place) = remainder.find(START) {
+        output.push_str(&remainder[..place]);
+        let after = &remainder[place + START.len()..];
+        let opening = after.find('>').map(|f| &after[..f]);
+        if let Some((name, format)) = opening.and_then(|o| o.split_once("\" data-format=\"")).map(|(n, f)| (n, f.trim_end_matches('"'))) {
+            if let (Some((_, value)), true) = (values.iter().find(|(known, _)| known == name), after[name.len() + format.len() + 16..].starts_with("></span>")) {
+                let header = &remainder[place..place + START.len() + name.len() + 15 + format.len() + 2];
+                output.push_str(header);
+                output.push_str(&format_value(name, *value, format, language));
+                output.push_str("</span>");
+                remainder = &after[name.len() + format.len() + 16 + "></span>".len()..];
                 continue;
             }
         }
-        sortie.push_str(DEBUT);
-        reste = apres;
+        output.push_str(START);
+        remainder = after;
     }
-    sortie.push_str(reste);
-    sortie
+    output.push_str(remainder);
+    output
 }
 
 #[cfg(test)]
@@ -117,17 +117,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn les_formats() {
-        assert_eq!(formater("minute", 5, "00", "fr"), "05");
-        assert_eq!(formater("n", 1234567, "number", "fr"), "1\u{202F}234\u{202F}567");
-        assert_eq!(formater("n", 1234567, "number", "en"), "1,234,567");
-        assert_eq!(formater("total", 123450, "cents", "fr"), "1\u{202F}234,50");
-        assert_eq!(formater("total", 7, "cents", "en"), "0.07");
-        assert_eq!(formater("weekday", 2, "name", "fr"), "mardi");
-        assert_eq!(formater("month", 10, "name", "en"), "October");
-        assert_eq!(formater("month", 0, "name", "fr"), "0");
-        assert_eq!(formats_dans("il est {hour} h {minute:00}, {total:cents} €"), [("minute", "00"), ("total", "cents")]);
+    fn the_formats() {
+        assert_eq!(format_value("minute", 5, "00", "fr"), "05");
+        assert_eq!(format_value("n", 1234567, "number", "fr"), "1\u{202F}234\u{202F}567");
+        assert_eq!(format_value("n", 1234567, "number", "en"), "1,234,567");
+        assert_eq!(format_value("total", 123450, "cents", "fr"), "1\u{202F}234,50");
+        assert_eq!(format_value("total", 7, "cents", "en"), "0.07");
+        assert_eq!(format_value("weekday", 2, "name", "fr"), "mardi");
+        assert_eq!(format_value("month", 10, "name", "en"), "October");
+        assert_eq!(format_value("month", 0, "name", "fr"), "0");
+        assert_eq!(formats_in("il est {hour} h {minute:00}, {total:cents} €"), [("minute", "00"), ("total", "cents")]);
         let html = "<p><span data-state=\"minute\" data-format=\"00\"></span> et <span data-state=\"n\"></span></p>";
-        assert_eq!(remplir(html, &[("minute".into(), 7)], "fr"), "<p><span data-state=\"minute\" data-format=\"00\">07</span> et <span data-state=\"n\"></span></p>");
+        assert_eq!(fill(html, &[("minute".into(), 7)], "fr"), "<p><span data-state=\"minute\" data-format=\"00\">07</span> et <span data-state=\"n\"></span></p>");
     }
 }

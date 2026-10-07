@@ -13,10 +13,10 @@ Une page `.holo` arrivait déjà toute faite par le serveur : elle s'affichait a
 
 ## Décision
 
-1. La page d'entrée est coupée en deux : `page.html`, la page légère, et `page-moteur.js`, qui charge le moteur en Rust et prend la page en main.
+1. La page d'entrée est coupée en deux : `page.html`, la page légère, et `page-engine.js`, qui charge le moteur en Rust et prend la page en main.
 2. La page légère ne télécharge rien d'autre. On lit, on défile, on suit un lien vers une autre page `.holo` (le serveur la fabrique aussi).
 3. Le moteur est demandé au premier geste qui en a besoin : toucher un bloc nommé (un bouton), un lien vers un point (`#…`), entrer dans un champ, toucher le menu, zoomer (Ctrl + molette, pincer). Les touchers faits en l'attendant sont rejoués, et le menu touché s'ouvre.
-4. Une page **vivante** demande le moteur tout de suite. C'est le moteur qui la marque (`data-vivant`), quand elle a une horloge (`Every`), le clavier (`Key`), des données (`Data`) ou un bloc à faire glisser (`drag`). Une page aux valeurs gardées (`keep`) le demande aussi tout de suite, mais seulement s'il y a vraiment quelque chose de gardé d'une visite précédente.
+4. Une page **vivante** demande le moteur tout de suite. C'est le moteur qui la marque (`data-live`), quand elle a une horloge (`Every`), le clavier (`Key`), des données (`Data`) ou un bloc à faire glisser (`drag`). Une page aux valeurs gardées (`keep`) le demande aussi tout de suite, mais seulement s'il y a vraiment quelque chose de gardé d'une visite précédente.
 5. Le moteur arrive aussi tout de suite quand le serveur n'a pas fabriqué la page, et quand l'adresse porte `?` ou `#` (mondes, captures, mesures).
 
 ## Comparaison faite avant de choisir
@@ -51,7 +51,7 @@ Trois défauts, tous venus de la même cause : en arrivant, le moteur redessinai
 2. **Un bouton touché avant l'arrivée du moteur montre qu'il attend**, tout de suite (il pâlit et repâlit ; le curseur devient une attente ; `aria-busy` pour un lecteur d'écran). Le signe disparaît quand le toucher est rejoué.
 3. **Si le moteur ne peut pas arriver**, un bandeau le dit : « La page se lit, mais les boutons ne répondent pas : rien n'a été ajouté ni envoyé. » Les touchers en attente sont oubliés, jamais rejoués en cachette plus tard. « Réessayer » redemande le moteur.
 
-Vérifié dans Chrome (PC), avec le serveur local réglé pour retarder le moteur de 5 s (`HOLO_MOTEUR=lent:5000`) ou le refuser (`HOLO_MOTEUR=panne`) :
+Vérifié dans Chrome (PC), avec le serveur local réglé pour retarder le moteur de 5 s (`HOLO_ENGINE=slow:5000`) ou le refuser (`HOLO_ENGINE=outage`) :
 
 | Cas | Observé |
 |---|---|

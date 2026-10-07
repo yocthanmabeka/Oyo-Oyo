@@ -10,7 +10,7 @@
 ## Décision
 
 1. **Le moteur refuse un texte trop peu contrasté** : quand un même style donne la couleur du texte et celle du fond (couleurs pleines, variables comprises, dans chaque état : survol, focus, appui, sombre, téléphone), le contraste doit être d'au moins 4,5 pour 1, ou 3 pour 1 pour un grand texte (24px, ou 19px en gras), comme le demande le WCAG. Le message dit le contraste mesuré et le seuil. Un dégradé, une image ou une couleur à demi transparente ne sont pas mesurés.
-2. **Un audit automatique** : `moteur/outils/accessibilite.mjs` passe axe-core sur toutes les pages d'un dossier, dans Chrome, en thème clair ou sombre, à la largeur voulue.
+2. **Un audit automatique** : `moteur/outils/accessibility.mjs` passe axe-core sur toutes les pages d'un dossier, dans Chrome, en thème clair ou sombre, à la largeur voulue.
 3. **La page d'un monde en 3D** laisse le zoom du navigateur permis, a un repère principal, un titre pour les lecteurs d'écran, et un nom pour le monde dessiné.
 4. **Un essai humain** au lecteur d'écran (TalkBack, NVDA) suit `docs/01-holocode/ESSAI-LECTEUR-D-ECRAN.md` ; chaque problème trouvé devient une correction du moteur.
 

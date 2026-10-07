@@ -36,7 +36,7 @@
 ## Où ils divergent, et l'avis de Claude
 
 - **Le découpage du moteur** : Gemini veut une interface générique pour chaque étape du dessin ; Codex préfère des étapes écrites à la main (`OpaquePass`, `PointsPass`, `PostProcessPass`), et généraliser après deux ou trois. **Claude suit Codex** : moins d'abstraction avant le besoin.
-- **Les extensions de rendu** : Gemini propose des parties du moteur exclues à la compilation ; Codex des parties officielles du moteur, activées si l'appareil le permet. Un seul moteur est servi à tous : **Claude propose de les charger à la demande**, comme `page-moteur.js` (`ADR-033`).
+- **Les extensions de rendu** : Gemini propose des parties du moteur exclues à la compilation ; Codex des parties officielles du moteur, activées si l'appareil le permet. Un seul moteur est servi à tous : **Claude propose de les charger à la demande**, comme `page-engine.js` (`ADR-033`).
 - **Les mots du langage** : Codex propose `Material(name:, kind: wood, finish: waxed)`, `Model(source:, material:)`, `Light(kind: sun, mood: sunset)`. **Claude propose d'attendre la chaise** : pour le premier essai, `Model(source: "chair.holo3d")` suffit, le fichier connaît déjà sa matière, et un ciel par défaut éclaire. Les mots `Material` et `Light` viendront quand un vrai besoin apparaîtra, selon la règle de Yocthan : chercher la forme la plus courte.
 - **Les budgets de la chaise** : Gemini (150 Ko au palier léger) est plus serré que Codex (300 Ko). Ce sont des paramètres d'essai ; on garde ceux de Codex, plus réalistes pour un objet vu de près.
 

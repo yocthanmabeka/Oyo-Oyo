@@ -32,6 +32,6 @@ Coller le tableau rempli dans une discussion ou dans `docs/05-discussions/repons
 
 ## Ce qui est déjà vérifié par les outils
 
-- `node moteur/outils/accessibilite.mjs exemples/lecons` (axe-core 4.14, dans Chrome) : 72 pages, 0 défaut, en thème clair et sombre, à 1000 et à 390 pixels de large ; idem pour `site-reference`, `site`, `boutique-comparee`, `jeu`, `maison`, `zoom`.
+- `node moteur/outils/accessibility.mjs exemples/lecons` (axe-core 4.14, dans Chrome) : 72 pages, 0 défaut, en thème clair et sombre, à 1000 et à 390 pixels de large ; idem pour `site-reference`, `site`, `boutique-comparee`, `jeu`, `maison`, `zoom`.
 - Le moteur refuse un style dont le texte et le fond, écrits ensemble, sont trop peu contrastés (4,5 pour 1, ou 3 pour 1 pour un grand texte).
 - Le moteur exige déjà le texte de remplacement des images (`alt`), fabrique de vrais repères (`header`, `nav`, `main`, `footer`), de vrais titres, de vrais champs avec leur étiquette, et le survol marche aussi au clavier.

@@ -15,6 +15,6 @@ Construit par Claude le 2026-10-06 d'après le cahier des charges de Codex ([PR 
 | Galerie | [`galerie.holo`](galerie.holo) | `Enter`, `Loop`, `Scenes`, `letters`, `each` |
 | Menu et pied de page | [`commun.holo`](commun.holo), [`pied.holo`](pied.holo) | `Part`, `Use`, `import` |
 
-Pour l'ouvrir : `node moteur/outils/serveur.mjs`, puis `http://localhost:8080/exemples/site-reference/accueil.holo`.
+Pour l'ouvrir : `node moteur/outils/server.mjs`, puis `http://localhost:8080/exemples/site-reference/accueil.holo`.
 
 La recette de Codex n'est **pas** encore exécutée : ses résultats seront consignés à part. Ce qui a été vérifié à la construction est dans le journal du 2026-10-06.

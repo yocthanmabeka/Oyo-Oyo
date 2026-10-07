@@ -46,7 +46,7 @@ Le moteur ne dessine que des points, additionnés, sans profondeur : il ne sait 
 ### 6. Les extensions
 
 - **Un module enfermé (`ADR-045`) calcule, mais ne touche jamais au GPU** : il reçoit des données bornées et rend des données bornées, que le moteur vérifie avant de les dessiner.
-- **Une extension de rendu** (ciel avancé, splats sur PC, effets du palier haut) est du **code du moteur**, chargé seulement quand l'appareil le permet et qu'une page en a besoin, comme `page-moteur.js` (`ADR-033`). Aucune extension ne supprime le chemin de repli d'un objet.
+- **Une extension de rendu** (ciel avancé, splats sur PC, effets du palier haut) est du **code du moteur**, chargé seulement quand l'appareil le permet et qu'une page en a besoin, comme `page-engine.js` (`ADR-033`). Aucune extension ne supprime le chemin de repli d'un objet.
 - Pas de pont JavaScript (`ADR-011`, partie B).
 
 ### 7. Ce qui n'est pas pour maintenant

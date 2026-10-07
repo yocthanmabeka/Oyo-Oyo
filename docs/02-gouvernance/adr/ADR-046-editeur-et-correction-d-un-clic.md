@@ -20,9 +20,9 @@ Deux éditeurs, une seule façon de corriger.
    - **La faute à sa place** : soulignée, sa ligne marquée, le message du moteur en bas ; un toucher sur le message mène à la faute.
    - **La correction d'un clic** : quand le moteur dit le bon mot, ou qu'un mot connu est tout proche (`Butten` → `Button`, `chldren` → `children`), un bouton « Remplacer « h1 » par « H1 » ». Rien n'est corrigé sans ce clic.
    - **Les mots à toucher**, en bas : les blocs dans une liste `children: [`, les réglages du bloc où l'on écrit, les valeurs du fichier après `{` dans un texte, les signaux après `Ajouter.`, les demandes après `panier.`, les réglages et les états dans un style. Tab prend le premier.
-   - **Enregistrer** (`Ctrl+S`) écrit le fichier sur le PC, sous `exemples/`, avec **la clé** que le serveur tire au hasard et affiche à son démarrage ; sans la clé, on lit et on essaie, rien ne s'écrit. L'ancienne version est gardée dans `editeur-sauvegardes/` (jamais versionné). Un nouveau fichier se crée depuis le panneau « Fichiers ».
+   - **Enregistrer** (`Ctrl+S`) écrit le fichier sur le PC, sous `exemples/`, avec **la clé** que le serveur tire au hasard et affiche à son démarrage ; sans la clé, on lit et on essaie, rien ne s'écrit. L'ancienne version est gardée dans `editor-backups/` (jamais versionné). Un nouveau fichier se crée depuis le panneau « Fichiers ».
 2. **L'extension VS Code** (version 0.2.0) : la faute soulignée pendant qu'on écrit, même avant d'enregistrer ; l'ampoule (`Ctrl+.`) « Remplacer « h1 » par « H1 » » ; les mots du langage proposés.
-3. **Une seule logique de correction**, `moteur/web/corrections.js`, copiée dans l'extension à l'empaquetage. Le moteur donne deux choses de plus : `verifier_texte` (la faute avec sa ligne, pour un texte pas encore enregistré ; en ligne de commande, `holo check -`) et `vocabulaire` (tous les mots du langage ; `holo vocabulaire`).
+3. **Une seule logique de correction**, `moteur/web/fixes.js`, copiée dans l'extension à l'empaquetage. Le moteur donne deux choses de plus : `verifier_texte` (la faute avec sa ligne, pour un texte pas encore enregistré ; en ligne de commande, `holo check -`) et `vocabulaire` (tous les mots du langage ; `holo vocabulary`).
 
 ## Comparaison faite avant de choisir
 

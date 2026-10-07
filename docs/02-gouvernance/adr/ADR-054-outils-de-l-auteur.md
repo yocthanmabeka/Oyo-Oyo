@@ -9,9 +9,9 @@
 
 ## Décision
 
-1. **`?valeurs`** dans l'adresse d'une page : un panneau montre ses valeurs à chaque changement (les nombres, les textes, les listes et leurs éléments, champs compris). Il ne sert qu'à l'essai ; sans `?valeurs`, rien ne change.
+1. **`?values`** dans l'adresse d'une page : un panneau montre ses valeurs à chaque changement (les nombres, les textes, les listes et leurs éléments, champs compris). Il ne sert qu'à l'essai ; sans `?values`, rien ne change.
 2. **`holo fmt page.holo`** remet un fichier en forme comme les leçons du dépôt : deux espaces de plus après une ligne qui ouvre (une ou plusieurs parenthèses, crochets ou accolades), deux de moins quand ce qu'elle a ouvert se referme. Seuls les blancs changent : ni les mots, ni l'ordre, ni les commentaires, ni le contenu d'un texte long ; un commentaire aligné plus loin par l'auteur garde sa place. Le moteur lit exactement la même page avant et après.
-3. **`holo essai page.holo page.essai`** joue un essai écrit avec l'arbitre de la page : `tap`, `signal`, `type`, `receive`, `expect`. Les mots sont anglais, comme le vocabulaire du langage (`ADR-016`). Un fichier d'essai n'est pas du HoloCode : c'est un outil, il n'ajoute aucun mot au langage. Les essais de `exemples/lecons/` sont joués par les tests du moteur.
+3. **`holo test page.holo page.test`** joue un essai écrit avec l'arbitre de la page : `tap`, `signal`, `type`, `receive`, `expect`. Les mots sont anglais, comme le vocabulaire du langage (`ADR-016`). Un fichier d'essai n'est pas du HoloCode : c'est un outil, il n'ajoute aucun mot au langage. Les essais de `exemples/lecons/` sont joués par les tests du moteur.
 
 ## Alternatives écartées
 
@@ -23,4 +23,4 @@
 
 - Tests : la mise en forme ne change que les blancs, deux fois de suite donne le même résultat, et le moteur fabrique la même page ; un essai réussi, un essai raté avec sa ligne et la valeur vue ; chaque essai des leçons passe.
 - Sur 74 fichiers d'exemples, la mise en forme n'en change que deux, dont les lignes étaient vraiment mal alignées (`site-reference/commun.holo`, `pied.holo`).
-- Le panneau `?valeurs` dans Chrome, sur les leçons 70 et 71.
+- Le panneau `?values` dans Chrome, sur les leçons 70 et 71.

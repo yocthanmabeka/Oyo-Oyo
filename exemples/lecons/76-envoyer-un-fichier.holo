@@ -9,7 +9,7 @@
 //   photo.set("")               une règle peut vider le champ
 //   La page dit tout de suite qu'un fichier est trop lourd ou d'une autre sorte. Chez toi, le
 //   serveur vérifie tout à nouveau, la sorte d'après le contenu du fichier, et le range dans
-//   messages/fichiers/, sous un nom tiré au hasard. Un fichier ne part que par un formulaire.
+//   messages/files/, sous un nom tiré au hasard. Un fichier ne part que par un formulaire.
 //
 // À essayer :
 //   Choisis une image, écris ton nom, puis touche « Envoyer ».

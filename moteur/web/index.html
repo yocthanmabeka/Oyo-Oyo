@@ -3,28 +3,28 @@
      L'auteur d'un monde n'écrit que du .holo (ADR-009). -->
 <html lang="fr"><head><meta charset="utf-8"><title>Big Bang</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}canvas{display:block;width:100vw;height:100vh;touch-action:none}main{display:contents}.cache{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}</style>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}canvas{display:block;width:100vw;height:100vh;touch-action:none}main{display:contents}.hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}</style>
 </head><body>
 <!-- Le zoom du navigateur reste permis : un doigt qui pince sur le monde est pour le moteur
      (touch-action: none), le reste de la page se grossit comme toute page (ADR-055). -->
-<main><h1 class="cache">Un monde fait de points</h1><canvas id="monde" role="img" aria-label="Un monde fait de points lumineux : touche un point pour y entrer"></canvas></main>
+<main><h1 class="hidden">Un monde fait de points</h1><canvas id="world" role="img" aria-label="Un monde fait de points lumineux : touche un point pour y entrer"></canvas></main>
 <script type="module">
-  import init, { demarrer, pause } from "/pkg/holo_moteur.js";
+  import init, { start_engine, pause } from "/pkg/holo_engine.js";
   window.__holoPause = pause;
   const params = new URLSearchParams(location.search);
-  window.__holoSansWebGPU = params.has("webgl"); // ?webgl : mesurer le mode de secours, WebGL 2
-  // L'adresse est celle du fichier .holo lui-même ; sinon ?monde=… ou le Big Bang.
-  const fichier = location.pathname.endsWith(".holo") ? location.pathname : `/mondes/${params.get("monde") ?? "big-bang"}.holo`;
+  window.__holoWithoutWebGPU = params.has("webgl"); // ?webgl : mesurer le mode de secours, WebGL 2
+  // L'adresse est celle du fichier .holo lui-même ; sinon ?world=… ou le Big Bang.
+  const file = location.pathname.endsWith(".holo") ? location.pathname : `/mondes/${params.get("world") ?? "big-bang"}.holo`;
   try {
     await init();
-    await demarrer(document.getElementById("monde"), await (await fetch(fichier, { headers: { accept: "text/plain" } })).text(), Number(params.get("zoom") ?? 0));
+    await start_engine(document.getElementById("world"), await (await fetch(file, { headers: { accept: "text/plain" } })).text(), Number(params.get("zoom") ?? 0));
   } catch (e) {
     const pre = document.querySelector("main").appendChild(document.createElement("pre"));
     pre.setAttribute("role", "alert");
-    pre.id = "erreur";
+    pre.id = "error";
     pre.style.cssText = "position:fixed;left:8px;bottom:8px;right:8px;color:#f88;font:13px monospace;white-space:pre-wrap";
     pre.textContent = "Le moteur n'a pas pu démarrer : " + (e?.message ?? e);
   }
 </script>
-<script type="module" src="/mesures.js"></script>
+<script type="module" src="/measures.js"></script>
 </body></html>

@@ -5,4 +5,4 @@ edition = "2021"
 publish = false
 
 [dependencies]
-holo-moteur = { path = "../../../moteur" }
+holo-engine = { path = "../../../moteur" }

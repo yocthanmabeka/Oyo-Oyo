@@ -10,7 +10,7 @@
 //
 // À essayer :
 //   Ouvre le pli « Détails » de la première tâche, puis marque la deuxième comme faite :
-//   le pli de la première reste ouvert. Ouvre aussi la page avec ?valeurs.
+//   le pli de la première reste ouvert. Ouvre aussi la page avec ?values.
 
 Page(
   title: "Leçon 74 : un champ dans une ligne",

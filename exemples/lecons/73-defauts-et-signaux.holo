@@ -9,7 +9,7 @@
 //   onLike: [likes.add(1), …]  une liste de demandes ; un signal que la page ne branche pas ne fait rien
 //
 // À essayer :
-//   Ouvre cette page avec ?valeurs à la fin de l'adresse : le panneau montre le dernier geste
+//   Ouvre cette page avec ?values à la fin de l'adresse : le panneau montre le dernier geste
 //   et ce qu'il a changé. Puis branche onLike sur la carte « Gift card ».
 
 Page(
