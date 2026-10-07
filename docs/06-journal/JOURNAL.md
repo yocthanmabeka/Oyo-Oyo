@@ -22,6 +22,7 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 - J'ai écrit `\"` dans un texte HoloCode : la langue n'a pas d'échappement ; un `"` ne s'écrit que dans un texte long `"""…"""`.
 - Mon essai de la liste calculée tapait dans un champ qui n'existait pas : le moteur ignorait la saisie, et l'essai passait à moitié par hasard. Le champ est ajouté.
 - Le tableau publie encore des pourcentages de couverture estimés : contraire à la consigne du 2026-10-07. Ils seront retirés dans une pull request à part.
+- Sur GitHub, Chrome n'a pas démarré dans les 20 secondes prévues : l'essai du navigateur a échoué avant même le premier geste, et `fusionner.sh` a refusé la fusion, comme il le doit. Les pull requests 148 et 149 étaient passées avec le même outil : c'est la machine de GitHub qui a tardé. L'outil laisse maintenant Chrome choisir son port (le fichier `DevToolsActivePort`), attend une minute, relance Chrome une fois, et écrit ce que Chrome a dit s'il échoue encore.
 
 ---
 

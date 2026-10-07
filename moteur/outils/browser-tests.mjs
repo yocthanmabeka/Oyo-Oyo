@@ -51,23 +51,41 @@ async function startServer() {
   return { base: `http://localhost:${port}`, stop: () => server.kill() };
 }
 
-async function startChrome() {
-  const port = 9200 + Math.floor(Math.random() * 600);
+// Lance Chrome sans fenêtre. Il choisit lui-même un port libre (`--remote-debugging-port=0`)
+// et l'écrit dans son dossier, dans le fichier DevToolsActivePort : pas de port qui se heurte
+// à un autre. On attend jusqu'à une minute ; ce qu'il dit est gardé pour comprendre un échec.
+async function launchChrome() {
   const profile = mkdtempSync(join(tmpdir(), "holo-essais-"));
   const args = [
     "--headless=new", "--no-first-run", "--no-default-browser-check", "--enable-unsafe-swiftshader",
-    "--autoplay-policy=no-user-gesture-required", "--hide-scrollbars", `--remote-debugging-port=${port}`,
+    "--autoplay-policy=no-user-gesture-required", "--hide-scrollbars", "--remote-debugging-port=0",
     "--window-size=1000,700", `--user-data-dir=${profile}`, "about:blank",
   ];
   // Sur les machines de GitHub, le bac à sable de Chrome n'a pas les droits du système.
   if (process.env.CI) args.unshift("--no-sandbox");
-  const chrome = spawn(findChrome(), args, { stdio: "ignore" });
+  const chrome = spawn(findChrome(), args, { stdio: ["ignore", "ignore", "pipe"] });
+  let said = "";
+  chrome.stderr.on("data", (chunk) => { said = (said + chunk).slice(-4000); });
   let target;
-  for (let i = 0; i < 100 && !target; i++) {
+  for (let i = 0; i < 300 && !target && chrome.exitCode === null; i++) {
     await pause(200);
+    let port;
+    try { port = readFileSync(join(profile, "DevToolsActivePort"), "utf8").split("\n")[0].trim(); } catch { continue; }
     try { target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === "page"); } catch { /* pas encore */ }
   }
-  if (!target) throw new Error("Chrome ne démarre pas");
+  if (!target) chrome.kill();
+  return { chrome, profile, target, said: said.trim() || "(rien)" };
+}
+
+async function startChrome() {
+  let launched = await launchChrome();
+  // Sur une machine de GitHub qui vient de démarrer, Chrome tarde parfois : un second essai.
+  if (!launched.target) {
+    console.log(`Chrome ne répond pas ; second essai. Ce qu'il a dit : ${launched.said}`);
+    launched = await launchChrome();
+  }
+  if (!launched.target) throw new Error(`Chrome ne démarre pas. Ce qu'il a dit : ${launched.said}`);
+  const { chrome, profile, target } = launched;
   const ws = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((ok, ko) => { ws.onopen = ok; ws.onerror = ko; });
   let n = 0;
