@@ -99,7 +99,8 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Progress` | `progress` | repris, avec une étiquette obligatoire |
 | `type: date`, `time`, `color` dans `Input` | `input type="date"`, `"time"`, `"color"` | repris |
 | `today`, `{arrival:date}`, `due.add(7)`, `Days(name:, from:, to:)` | `new Date()`, `toLocaleDateString`, `setDate`, une différence de millisecondes | changé : un jour du calendrier, sans heure ni fuseau ; exact (`ADR-067`, à valider) |
-| `min:` dans `Input` | `min` | repris, pour un nombre et une date (`ADR-067`) |
+| `min:` dans `Input` | `min`, `minlength` | repris : pour un nombre, une date (`ADR-067`), et la longueur d'un texte (`ADR-068`) |
+| `required: true`, `type: email` | `required`, `type="email"`, `setCustomValidity`, `aria-invalid` | changé : vérifié par le moteur, dans la page puis au serveur ; messages sous le champ, lus par un lecteur d'écran (`ADR-068`, à valider) |
 | `type: file`, `accept: image`, `max: 2MB` dans `Input` | `input type="file" accept="image/png,…"`, `FormData` | changé : des sortes nommées, une taille, vérifiées par la page et par le serveur |
 | `caption:`, `phone:` dans `Image` | `figure`, `figcaption` ; `picture`, `source media` | changé : deux paramètres de l'image |
 | `label:` dans `Sound` | `audio controls` | changé : avec une étiquette, le son devient un lecteur |

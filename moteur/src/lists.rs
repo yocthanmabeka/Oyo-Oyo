@@ -370,16 +370,18 @@ pub fn is_json_object(json: &str) -> bool {
 /// Une valeur JSON, juste ce qu'il faut pour des données de page : textes, nombres entiers,
 /// tableaux et objets, trois niveaux au plus. Le reste ne donne rien.
 #[derive(Debug, Clone, PartialEq)]
-enum Json {
+pub(crate) enum Json {
     Text(String),
     Number(u64),
+    /// Un nombre à virgule, tel qu'écrit : « 12.50 » (ADR-066).
+    Decimal(String),
     Table(Vec<Json>),
     Object(Vec<(String, Json)>),
     Other,
 }
 
 impl Json {
-    fn read(text: &str) -> Option<Json> {
+    pub(crate) fn read(text: &str) -> Option<Json> {
         let t: Vec<char> = text.chars().collect();
         let mut i = 0;
         let value = Self::value(&t, &mut i, 0)?;
@@ -391,6 +393,7 @@ impl Json {
         match self {
             Json::Text(t) => t.clone(),
             Json::Number(n) => n.to_string(),
+            Json::Decimal(d) => d.clone(),
             _ => String::new(),
         }
     }
@@ -454,7 +457,8 @@ impl Json {
                     *i += 1;
                 }
                 let written: String = t[start..*i].iter().collect();
-                Some(written.parse::<u64>().map_or(Json::Other, Json::Number))
+                let decimal = written.split_once('.').is_some_and(|(a, b)| !a.is_empty() && !b.is_empty() && a.chars().chain(b.chars()).all(|c| c.is_ascii_digit()));
+                Some(if decimal { Json::Decimal(written) } else { written.parse::<u64>().map_or(Json::Other, Json::Number) })
             }
             _ => {
                 for word in ["true", "false", "null"] {

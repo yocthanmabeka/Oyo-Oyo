@@ -5,7 +5,7 @@
   // dessin (les points, les mondes, la vue points) est un second moteur, chargé seulement quand
   // la page s'en sert : une page qui ne fait que bouger ne le télécharge jamais.
   import init, {
-    flat_view, effects, initial_state, arbitrate, submission, format_value, format_date, list_html, module_info, module_finished, delays, reads_time, set_now, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
+    flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, module_info, module_finished, delays, reads_time, set_now, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
   } from "/pkg-light/holo_engine.js";
   let drawing = null;
   let drawingLoading = null;
@@ -1210,11 +1210,49 @@
   // Un formulaire qu'on envoie (ADR-042) : le moteur dit ce qu'il contient, la page l'envoie
   // au serveur d'où elle vient, puis émet Contact.sent, ou Contact.failed. Un seul envoi à la fois.
   const submissionsInProgress = new Set();
+  // Les messages d'un formulaire (ADR-068) : sous chaque champ qui ne va pas, relié au champ
+  // (aria-describedby), le champ marqué (aria-invalid). Le moteur écrit les messages.
+  function formElement(formName) {
+    return root.querySelector(`form[data-name="${CSS.escape(formName)}"]`);
+  }
+  function showFormErrors(formName, focus) {
+    const form = formElement(formName);
+    if (!form) return 0;
+    const errors = form_errors(source, states.get(path) ?? "", formName).split("\n").filter(Boolean).map((line) => line.split("|"));
+    for (const old of form.querySelectorAll(".holo-error")) old.remove();
+    for (const field of form.querySelectorAll("[aria-invalid]")) {
+      field.removeAttribute("aria-invalid");
+      field.removeAttribute("aria-describedby");
+    }
+    let first = null;
+    for (const [bind, message] of errors) {
+      const group = form.querySelector(`[data-group="${CSS.escape(bind)}"]`);
+      const field = group ?? form.querySelector(`[data-bind="${CSS.escape(bind)}"]`);
+      if (!field) continue;
+      const id = `holo-error-${formName}-${bind}`;
+      const note = Object.assign(document.createElement("p"), { className: "holo-error", id, textContent: message });
+      (group ?? field.closest("label") ?? field).after(note);
+      field.setAttribute("aria-invalid", "true");
+      field.setAttribute("aria-describedby", id);
+      first ??= group ? group.querySelector("input") : field;
+    }
+    if (focus && first) {
+      first.focus();
+      announce(errors.length === 1 ? errors[0][1] : `${errors.length} champs à corriger.`);
+    }
+    return errors.length;
+  }
+
   async function submit(formName) {
     if (submissionsInProgress.has(formName)) return;
+    // Vérifier avant d'envoyer (ADR-068) ; ensuite, les messages suivent ce qu'on corrige.
+    const form = formElement(formName);
+    if (form) form.dataset.tried = "1";
+    if (showFormErrors(formName, true)) return;
     const body = submission(source, states.get(path) ?? "", formName);
     if (!body) return;
     submissionsInProgress.add(formName);
+    form?.setAttribute("aria-busy", "true");
     const for_ = path;
     let arrived = false;
     // Avec des fichiers (ADR-059), l'envoi part en plusieurs morceaux : les valeurs, puis chaque fichier.
@@ -1226,11 +1264,16 @@
       for (const field of files) chunks.append(field.dataset.bind, field.files[0], field.files[0].name);
       request = { method: "POST", body: chunks };
     }
+    // 15 secondes au plus (ADR-068) : un serveur qui ne répond pas est un échec.
+    const stop = new AbortController();
+    const late = setTimeout(() => stop.abort(), 15000);
     try {
-      const response = await fetch(path, request);
+      const response = await fetch(path, { ...request, signal: stop.signal });
       arrived = response.ok;
-    } catch { /* pas de réseau, ou pas de serveur pour recevoir */ }
+    } catch { /* pas de réseau, pas de serveur pour recevoir, ou trop lent */ }
+    clearTimeout(late);
     submissionsInProgress.delete(formName);
+    form?.removeAttribute("aria-busy");
     if (for_ === path) emit(`${formName}.${arrived ? "sent" : "failed"}`);
   }
 
@@ -1537,6 +1580,20 @@
       if (!field) return;
       const written = field.type === "checkbox" ? (field.checked ? "1" : "0") : field.type === "file" ? allowedFile(field) : field.value;
       changeState(store(input(source, states.get(path) ?? "", field.dataset.bind, written)));
+      // Après un premier essai d'envoi, les messages suivent ce qu'on corrige (ADR-068).
+      const form = field.closest(".holo-Form");
+      if (form?.dataset.tried) showFormErrors(form.dataset.name, false);
+    });
+    // Entrée dans un champ d'une ligne envoie le formulaire, comme sur le web : c'est le premier
+    // bouton du formulaire qui est touché (ADR-068).
+    root.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || event.isComposing || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return;
+      const field = event.target;
+      if (!field.matches?.(".holo-Form input:not([type=checkbox]):not([type=radio]):not([type=file]), .holo-Form select")) return;
+      const button = field.closest(".holo-Form").querySelector("button[data-name]");
+      if (!button) return;
+      event.preventDefault();
+      button.click();
     });
     // En quittant un champ, il montre la valeur que l'arbitre a retenue (bornée).
     root.addEventListener("change", () => showValues());

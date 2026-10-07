@@ -81,8 +81,8 @@ fn main() -> ExitCode {
         [command, file, folder] => (command.as_str(), file, folder.as_str()),
         _ => ("", &String::new(), ""),
     };
-    if command != "check" && command != "html" && command != "files" {
-        eprintln!("usage : holo check file.holo | holo check - [folder] | holo html file.holo [folder] | holo files page.holo | holo fmt file.holo | holo test page.holo page.test | holo vocabulary");
+    if command != "check" && command != "html" && command != "files" && command != "form" {
+        eprintln!("usage : holo check file.holo | holo check - [folder] | holo html file.holo [folder] | holo files page.holo | holo form page.holo < message.json | holo fmt file.holo | holo test page.holo page.test | holo vocabulary");
         return ExitCode::from(2);
     }
     // `-` : le texte arrive par l'entrée standard, tel qu'il est dans l'éditeur (ADR-046).
@@ -143,6 +143,29 @@ fn main() -> ExitCode {
         }
         eprintln!("{file} : {response}");
         return ExitCode::FAILURE;
+    }
+    // Pour le serveur : ce qu'un formulaire a envoyé, lu sur l'entrée standard, est-il bon ?
+    // « ok », ou une ligne par erreur (ADR-068).
+    if command == "form" {
+        let mut message = String::new();
+        if std::io::stdin().read_to_string(&mut message).is_err() {
+            eprintln!("le message reçu n'est pas lisible");
+            return ExitCode::from(2);
+        }
+        return match holo_engine::check_submission(&source, &message) {
+            Ok(errors) if errors.is_empty() => {
+                println!("ok");
+                ExitCode::SUCCESS
+            }
+            Ok(errors) => {
+                println!("{errors}");
+                ExitCode::FAILURE
+            }
+            Err(error) => {
+                eprintln!("{file} : {error}");
+                ExitCode::from(2)
+            }
+        };
     }
     let result = match command {
         "check" => holo_engine::check_page(&source).map(|_| "ok".to_string()),

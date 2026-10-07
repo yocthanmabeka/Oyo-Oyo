@@ -217,6 +217,16 @@ async function receiveMessage(req, res, url, pageHolo) {
   let submission;
   try { submission = JSON.parse(body.toString("utf8")); } catch { return respond(res, 400, "message illisible"); }
   if (typeof submission?.form !== "string" || typeof submission.values !== "object" || submission.values === null || Array.isArray(submission.values)) return respond(res, 400, "message mal formé");
+  // Les champs, vérifiés à nouveau par le moteur (ADR-068) : obligatoires, e-mail, longueurs,
+  // bornes. La page peut être contournée ; le serveur, non.
+  if (renderer) {
+    try {
+      execFileSync(renderer, ["form", pageHolo], { input: body, encoding: "utf8", timeout: 5000 });
+    } catch (error) {
+      const errors = String(error.stdout ?? "").trim();
+      return respond(res, errors ? 422 : 400, errors || "page refusée par le moteur");
+    }
+  }
   const name = url.replace(/^\/+/, "").replace(/\.holo$/, "").replace(/[^A-Za-z0-9_-]+/g, "_");
   if (receivedFiles.length) {
     // Ce que la page permet, demandé au moteur : jamais à ce que dit le navigateur.

@@ -984,7 +984,8 @@ pub fn input_text(program: &Program, texts: &Texts, name: &str, written: &str) -
         }
         return texts;
     }
-    if let Some(kind) = kind {
+    // Un e-mail s'écrit comme un texte (ADR-068) : il est vérifié à l'envoi, pas lettre à lettre.
+    if let Some(kind) = kind.filter(|k| k != "email") {
         let digits = |t: &str, template: &str| t.len() == template.len() && t.chars().zip(template.chars()).all(|(c, g)| if g == '9' { c.is_ascii_digit() } else { c == g });
         let correct = written.is_empty()
             || match kind.as_str() {
@@ -1063,12 +1064,145 @@ pub fn submission(program: &Program, state: &State, texts: &Texts, form_name: &s
     let values: Vec<String> = names
         .iter()
         .filter_map(|name| match (state.iter().find(|(c, _)| c == name), texts.iter().find(|(c, _)| c == name)) {
-            (Some((_, n)), _) => Some(format!("{}:{n}", json(name))),
+            (Some((_, n)), _) => Some(format!("{}:{}", json(name), format_decimal(*n, places(program, name)))),
             (_, Some((_, t))) => Some(format!("{}:{}", json(name), json(t))),
             _ => None,
         })
         .collect();
     Some(format!("{{\"form\":{},\"values\":{{{}}}}}", json(form_name), values.join(",")))
+}
+
+/// Les champs d'un formulaire : le bloc, et le nom de la valeur qu'il présente.
+fn form_fields(form: &Block) -> Vec<(&Block, &str)> {
+    let mut fields: Vec<(&Block, &str)> = Vec::new();
+    let _ = for_each_block(form, &mut |block| {
+        if matches!(block.name.as_str(), "Input" | "Checkbox" | "Choice" | "Slider") {
+            if let Some(Value::Name(value)) = block.argument("value").map(|a| &a.value) {
+                if !fields.iter().any(|(_, known)| *known == value) {
+                    fields.push((block, value.as_str()));
+                }
+            }
+        }
+        Ok(())
+    });
+    fields
+}
+
+/// Une adresse e-mail plausible : `nom@exemple.fr`. Ni espace, une seule arobase, un point dans
+/// le domaine, 254 caractères au plus. (Seul l'envoi d'un courrier prouve qu'elle existe.)
+pub fn is_email(text: &str) -> bool {
+    let Some((local, domain)) = text.split_once('@') else { return false };
+    !local.is_empty()
+        && !domain.contains('@')
+        && domain.contains('.')
+        && !domain.starts_with('.')
+        && !domain.ends_with('.')
+        && !domain.contains("..")
+        && text.len() <= 254
+        && !text.chars().any(|c| c.is_whitespace() || c.is_control())
+}
+
+/// La langue de la page, pour ses messages : `Page(lang: "en")`, le français sinon.
+fn page_language(program: &Program) -> String {
+    match program.root.argument("lang").map(|a| &a.value) {
+        Some(Value::Text(l)) => l.clone(),
+        _ => "fr".into(),
+    }
+}
+
+/// Ce qui ne va pas dans un formulaire, champ par champ, dans la langue de la page (ADR-068) :
+/// (la valeur du champ, le message). Une liste vide : il peut partir.
+pub fn form_errors(program: &Program, numbers: &State, texts: &Texts, form_name: &str) -> Vec<(String, String)> {
+    let Some(form) = crate::rules::named_block(program, form_name).filter(|b| b.name == "Form") else { return Vec::new() };
+    let english = page_language(program).starts_with("en");
+    let say = |fr: String, en: String| if english { en } else { fr };
+    let mut errors = Vec::new();
+    for (block, value) in form_fields(form) {
+        let required = matches!(block.argument("required").map(|a| &a.value), Some(Value::Bool(true)));
+        let kind = match block.argument("type").map(|a| &a.value) {
+            Some(Value::Name(kind)) => kind.as_str(),
+            _ => "",
+        };
+        let integer = |param: &str| match block.argument(param).map(|a| &a.value) {
+            Some(Value::Integer(n)) => Some(*n as usize),
+            _ => None,
+        };
+        let text = texts.iter().find(|(n, _)| n == value).map(|(_, t)| t.as_str());
+        let number = numbers.iter().find(|(n, _)| n == value).map(|(_, v)| *v);
+        let message = match (block.name.as_str(), text, number) {
+            ("Checkbox", _, Some(0)) if required => Some(say("Cette case doit être cochée.".into(), "This box must be checked.".into())),
+            ("Choice", Some(""), _) if required => Some(say("Choisis une réponse.".into(), "Choose an answer.".into())),
+            (_, Some(t), _) if required && t.trim().is_empty() => Some(say("Ce champ est obligatoire.".into(), "This field is required.".into())),
+            (_, Some(""), _) => None,
+            (_, Some(t), _) if kind == "email" && !is_email(t.trim()) => Some(say("Écris une adresse e-mail, comme nom@exemple.fr.".into(), "Enter an email address, like name@example.com.".into())),
+            (_, Some(t), _) if kind == "date" && (crate::dates::days(t).is_none() || !date_within(program, value, t)) => {
+                Some(say("Choisis une date permise.".into(), "Choose an allowed date.".into()))
+            }
+            (_, Some(t), _) if kind.is_empty() && integer("min").is_some_and(|min| t.chars().count() < min) => {
+                let n = integer("min").unwrap_or(0);
+                Some(say(format!("Au moins {n} caractères."), format!("At least {n} characters.")))
+            }
+            (_, Some(t), _) if kind.is_empty() && integer("max").is_some_and(|max| t.chars().count() > max) => {
+                let n = integer("max").unwrap_or(0);
+                Some(say(format!("Au plus {n} caractères."), format!("At most {n} characters.")))
+            }
+            // Un nombre hors de ses bornes : la page l'en empêche ; un envoi forgé, non.
+            ("Input" | "Slider" | "Checkbox", None, Some(n)) if n < floor(program, value) || n > ceiling(program, value) => {
+                let places = places(program, value);
+                let (low, high) = (format_decimal(floor(program, value), places), format_decimal(ceiling(program, value), places));
+                Some(say(format!("Un nombre de {low} à {high}."), format!("A number from {low} to {high}.")))
+            }
+            _ => None,
+        };
+        if let Some(message) = message {
+            errors.push((value.to_string(), message));
+        }
+    }
+    errors
+}
+
+/// Le serveur vérifie à nouveau ce qu'un formulaire a envoyé (ADR-068) : la page peut être
+/// contournée. `{"form":"Contact","values":{…}}` : les mêmes règles, et rien de plus que les
+/// champs du formulaire, chacun de sa sorte. Une liste vide : le message est bon.
+pub fn check_submission(program: &Program, json: &str) -> Vec<(String, String)> {
+    use crate::lists::Json;
+    let refused = |message: &str| vec![(String::new(), message.to_string())];
+    let Some(Json::Object(top)) = Json::read(json) else { return refused("message illisible") };
+    let (Some(Json::Text(form_name)), Some(Json::Object(values))) = (top.iter().find(|(k, _)| k == "form").map(|(_, v)| v), top.iter().find(|(k, _)| k == "values").map(|(_, v)| v)) else {
+        return refused("message mal formé");
+    };
+    let Some(form) = crate::rules::named_block(program, form_name).filter(|b| b.name == "Form") else { return refused("aucun formulaire de ce nom") };
+    let fields = form_fields(form);
+    let mut errors = Vec::new();
+    for (key, _) in values {
+        if !fields.iter().any(|(_, value)| value == key) {
+            errors.push((key.clone(), "champ inconnu".into()));
+        }
+    }
+    let mut numbers = initial(program).unwrap_or_default();
+    let mut texts = initial_texts(program);
+    for (_, value) in &fields {
+        let sent = values.iter().find(|(k, _)| k == value).map(|(_, v)| v);
+        let places = places(program, value);
+        if let Some((_, place)) = texts.iter_mut().find(|(n, _)| n == value) {
+            match sent {
+                Some(Json::Text(t)) if t.chars().count() <= TEXT_MAX => *place = t.clone(),
+                None => *place = String::new(),
+                // Un fichier : le serveur a rangé son nom à part.
+                Some(Json::Object(_)) => {}
+                Some(_) => errors.push((value.to_string(), "un texte attendu".into())),
+            }
+        } else if let Some((_, place)) = numbers.iter_mut().find(|(n, _)| n == value) {
+            match sent {
+                Some(Json::Number(n)) => *place = n.saturating_mul(scale(places)),
+                Some(Json::Decimal(d)) if places > 0 => *place = parse_decimal(d, places).unwrap_or(u64::MAX),
+                None => *place = 0,
+                Some(_) => errors.push((value.to_string(), "un nombre attendu".into())),
+            }
+        }
+    }
+    errors.extend(form_errors(program, &numbers, &texts, form_name));
+    errors
 }
 
 /// Pour les conditions, un texte vaut 0 quand il est vide, 1 sinon : `If(buyer, not: "")`.
@@ -1510,7 +1644,7 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
             }
         }
         if block.name == "Input" || block.name == "Checkbox" {
-            let allowed: &[&str] = if block.name == "Input" { &["name", "value", "label", "min", "max", "lines", "type", "accept"] } else { &["name", "value", "label"] };
+            let allowed: &[&str] = if block.name == "Input" { &["name", "value", "label", "min", "max", "lines", "type", "accept", "required"] } else { &["name", "value", "label", "required"] };
             let example = if block.name == "Input" { "Input(value: quantity, label: \"How many?\")" } else { "Checkbox(value: gift, label: \"Gift wrap\")" };
             for argument in &block.arguments {
                 match (argument.name.as_deref(), &argument.value) {
@@ -1552,9 +1686,26 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                             return Err(Error { message: "« Input(type: date, min: …) » attend today, ou une date « AAAA-MM-JJ » : min: today, max: \"2026-12-31\"".into(), pos: argument.pos });
                         }
                     }
-                    (Some("min"), _) if block.name == "Input" => {
-                        return Err(Error { message: "« Input(min: …) » borne un nombre, ou une date (type: date) ; la longueur d'un texte viendra avec les formulaires".into(), pos: argument.pos });
+                    // La longueur la plus courte d'un texte : Input(value: name, min: 2) (ADR-068).
+                    (Some("min"), Value::Integer(n)) if block.name == "Input" && matches!(block.argument("value").map(|a| &a.value), Some(Value::Name(v)) if is_text(v)) => {
+                        let max = match block.argument("max").map(|a| &a.value) {
+                            Some(Value::Integer(max)) => *max as usize,
+                            _ => TEXT_MAX,
+                        };
+                        if *n == 0 || *n as usize > max {
+                            return Err(Error { message: format!("« Input(min: …) » : la longueur la plus courte va de 1 à {max} caractères"), pos: argument.pos });
+                        }
                     }
+                    (Some("min"), _) if block.name == "Input" => {
+                        return Err(Error { message: "« Input(min: …) » attend un nombre : le plus petit nombre permis, la longueur la plus courte d'un texte, ou une date (type: date)".into(), pos: argument.pos });
+                    }
+                    // Un champ obligatoire (ADR-068) : un texte rempli, une case cochée. Un nombre n'est
+                    // jamais vide : on le borne, min: 1.
+                    (Some("required"), Value::Bool(_)) if matches!(block.argument("value").map(|a| &a.value), Some(Value::Name(v)) if is_text(v)) || block.name == "Checkbox" => {}
+                    (Some("required"), Value::Bool(_)) => {
+                        return Err(Error { message: "« Input(required: …) » : un nombre n'est jamais vide ; pour un plus petit nombre permis, min: 1".into(), pos: argument.pos });
+                    }
+                    (Some("required"), _) => return Err(Error { message: format!("« {}(required: …) » attend true ou false", block.name), pos: argument.pos }),
                     (Some("max"), Value::Integer(max)) if block.name == "Input" && *max <= VALUE_MAX => {}
                     // Un texte long : de 2 à 20 lignes visibles, pour une valeur qui est un texte.
                     (Some("lines"), Value::Integer(n)) if block.name == "Input" && (2..=20).contains(n) => {
@@ -1564,12 +1715,12 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                     }
                     (Some("lines"), _) => return Err(Error { message: "« Input(lines: …) » attend un nombre de lignes, de 2 à 20".into(), pos: argument.pos }),
                     // Une date, une heure, une couleur (ADR-042) : la valeur est un texte.
-                    (Some("type"), Value::Name(t)) if block.name == "Input" && ["date", "time", "color", "file"].contains(&t.as_str()) => {
+                    (Some("type"), Value::Name(t)) if block.name == "Input" && ["date", "time", "color", "file", "email"].contains(&t.as_str()) => {
                         if !matches!(block.argument("value").map(|a| &a.value), Some(Value::Name(v)) if is_text(v)) {
                             return Err(Error { message: format!("« Input(type: {t}) » écrit un texte : sa valeur se déclare ainsi, state: State(arrivee: \"\")"), pos: argument.pos });
                         }
                     }
-                    (Some("type"), _) => return Err(Error { message: "« Input(type: …) » attend date, time, color ou file ; un nombre ou un texte se devinent tout seuls".into(), pos: argument.pos }),
+                    (Some("type"), _) => return Err(Error { message: "« Input(type: …) » attend email, date, time, color ou file ; un nombre ou un texte se devinent tout seuls".into(), pos: argument.pos }),
                     // `grow:` range le bloc dans Row ou Column (ADR-052) ; sa place est vérifiée ailleurs.
                     (Some("grow"), _) => {}
                     (Some(word), _) if allowed.contains(&word) => return Err(Error { message: format!("« {}({word}: …) » est mal écrit : {example}", block.name), pos: argument.pos }),
@@ -1582,6 +1733,25 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                 if block.argument(required).is_none() {
                     return Err(Error { message: format!("« {} » attend « {required} » : {example}", block.name), pos: block.pos });
                 }
+            }
+        }
+        // Un champ obligatoire ne sert que dans un formulaire : c'est l'envoi qui vérifie (ADR-068).
+        if let Some(argument) = block.argument("required").filter(|_| matches!(block.name.as_str(), "Input" | "Checkbox" | "Choice")) {
+            let mut inside = false;
+            let _ = for_each_block(&program.root, &mut |form| {
+                if form.name == "Form" {
+                    let _ = for_each_block(form, &mut |b| {
+                        inside |= std::ptr::eq(b, block);
+                        Ok(())
+                    });
+                }
+                Ok(())
+            });
+            if !inside {
+                return Err(Error { message: format!("« {}(required: …) » est vérifié à l'envoi d'un formulaire : mets ce champ dans Form(name: …, children: [ … ])", block.name), pos: argument.pos });
+            }
+            if block.name == "Choice" && !matches!(argument.value, Value::Bool(_)) {
+                return Err(Error { message: "« Choice(required: …) » attend true ou false".into(), pos: argument.pos });
             }
         }
         // Un nombre à virgule (ADR-066) ne règle pas encore une glissière, une barre, une case, ni
@@ -2593,6 +2763,44 @@ mod tests {
     }
 
     #[test]
+    fn a_form_is_checked_before_sending_and_again_by_the_server() {
+        // ADR-068 : obligatoire, e-mail, longueurs ; les mêmes règles au serveur.
+        let source = include_str!("../../exemples/lecons/88-un-formulaire-qui-verifie.holo");
+        let program = page(source).unwrap();
+        let (numbers, texts) = (initial(&program).unwrap(), initial_texts(&program));
+        let empty = form_errors(&program, &numbers, &texts, "Contact");
+        assert_eq!(empty.iter().map(|(f, _)| f.as_str()).collect::<Vec<_>>(), ["name", "email", "message", "accept"]);
+        assert_eq!(empty[3].1, "Cette case doit être cochée.");
+        let english = page(&source.replace("title: \"Leçon 88", "lang: \"en\", title: \"Leçon 88")).unwrap();
+        assert_eq!(form_errors(&english, &numbers, &texts, "Contact")[0].1, "This field is required.");
+        assert!(is_email("ada@exemple.fr") && !is_email("ada@") && !is_email("a b@c.fr") && !is_email("@c.fr") && !is_email("a@b") && !is_email("a@b..fr"));
+        // Le serveur : un bon message passe ; un message forgé est refusé, champ par champ.
+        let good = r#"{"form":"Contact","values":{"name":"Ada","email":"ada@exemple.fr","message":"Bonjour, un essai.","accept":1}}"#;
+        assert!(check_submission(&program, good).is_empty(), "{:?}", check_submission(&program, good));
+        let forged = r#"{"form":"Contact","values":{"name":"","email":"x","message":"court","accept":0,"admin":1}}"#;
+        let errors = check_submission(&program, forged);
+        assert_eq!(errors.len(), 5, "{errors:?}");
+        assert!(errors.iter().any(|(f, m)| f == "admin" && m == "champ inconnu"));
+        assert!(errors.iter().any(|(f, m)| f == "message" && m == "Au moins 10 caractères."));
+        assert_eq!(check_submission(&program, "pas du json")[0].1, "message illisible");
+        assert_eq!(check_submission(&program, r#"{"form":"Autre","values":{}}"#)[0].1, "aucun formulaire de ce nom");
+        // Un nombre à virgule part comme on l'écrit (défaut du lot 2f : il partait « 1250 »).
+        let order = "Page(state: State(price: 12.50), children: [ Form(name: Order, children: [ Input(value: price, label: \"Prix\"), Button(name: Go, text: \"OK\") ]) ], rules: [ On(Go.tap, effect: Order.send) ])";
+        let order = page(order).unwrap();
+        assert_eq!(submission(&order, &initial(&order).unwrap(), &initial_texts(&order), "Order").unwrap(), r#"{"form":"Order","values":{"price":12.50}}"#);
+        // Les refus, avec leur raison.
+        for (wrong, message) in [
+            ("Input(value: name, label: \"Ton nom\", required: true, min: 2)", "Input(value: sent, label: \"x\", required: true)"),
+            ("Form(name: Contact, children: [", "Input(value: name, label: \"Dehors\", required: true), Form(name: Contact, children: ["),
+            ("type: email, required: true", "type: email, required: oui"),
+        ] {
+            let error = page(&source.replace(wrong, message)).unwrap_err();
+            let expected = if message.contains("sent") { "un nombre n'est jamais vide" } else if message.contains("Dehors") { "est vérifié à l'envoi d'un formulaire" } else { "attend true ou false" };
+            assert!(error.message.contains(expected), "{message}\n→ {error}");
+        }
+    }
+
+    #[test]
     fn days_between_two_dates_count_nights() {
         // ADR-067 : une réservation. Days compte les nuits ; le total les multiplie.
         set_now([2026, 10, 7, 3, 9, 5]);
@@ -2890,7 +3098,7 @@ mod tests {
             ("Page(state: State(a: 0), children: [ Input(value: a) ])", "attend « label »"),
             ("Page(state: State(a: 0), children: [ Input(label: \"x\") ])", "attend « value »"),
             ("Page(state: State(a: 0), children: [ Input(value: b, label: \"x\") ])", "aucune valeur ne s'appelle « b »"),
-            ("Page(state: State(a: \"\"), children: [ Input(value: a, label: \"x\", min: 2) ])", "la longueur d'un texte viendra avec les formulaires"),
+            ("Page(state: State(a: \"\"), children: [ Input(value: a, label: \"x\", min: 0) ])", "la longueur la plus courte va de 1 à"),
             ("Page(state: State(a: 0), children: [ Input(value: a, label: \"x\", min: 5, max: 3) ])", "min doit être plus petit que max"),
             ("Page(state: State(a: 0), children: [ Checkbox(value: a, label: \"x\", max: 2) ])", "n'a pas de paramètre « max »"),
             ("Page(state: State(a: 0), children: [ Input(value: a, label: 3) ])", "est mal écrit"),

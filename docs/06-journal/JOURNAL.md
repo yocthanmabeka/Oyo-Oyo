@@ -6,6 +6,22 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Lot 3 : des formulaires qui vérifient
+
+- Fait (`ADR-068`, PROPOSITION) : `required: true`, `type: email`, `min:` en caractères pour un texte. À l'envoi, le moteur vérifie chaque champ : les messages s'écrivent sous les champs, dans la langue de la page, et un lecteur d'écran les lit ; le premier champ à corriger reçoit le clavier. Entrée envoie, un envoi à la fois, 15 secondes au plus. **Le serveur vérifie à nouveau** par le moteur (`holo form`) : un message forgé reçoit 422.
+- Corrigé en chemin : un nombre à virgule partait à son échelle interne (« 1250 » au lieu de « 12.50 ») ; un défaut de mon lot 2f, trouvé en lisant le code.
+- Une seule pull request pour le lot entier, à la demande de Yocthan d'aller plus vite. Sur le PC, seuls les nouveaux essais ont tourné ; GitHub relance la suite entière avant la fusion.
+- Exécuté : `cargo test --release` → 140 tests passent (un nouveau) ; dans Chrome, l'essai de la leçon 88 : 4 messages, rien envoyé, les messages qui suivent la correction, Entrée, un seul envoi, l'échec après 14,9 s, le message forgé refusé (422, 5 erreurs).
+
+**Erreurs en route**
+
+- L'étiquette d'un champ s'est d'abord retrouvée dans sa balise : deux arguments dans le mauvais ordre.
+- Des guillemets dans une règle de style fermaient la chaîne du moteur.
+- Le champ e-mail ne gardait pas ce qu'on écrivait : il tombait dans la vérification d'une couleur.
+- Mon essai interceptait toutes les demandes vers la leçon, y compris la lecture de la page elle-même : il ne compte plus que les envois.
+
+---
+
 ## 2026-10-07 — Lot 2, septième partie : des dates (le lot 2 est terminé)
 
 - Fait (`ADR-067`, PROPOSITION : Yocthan n'a pas encore validé) :

@@ -60,7 +60,7 @@ transition:left .12s linear,top .12s linear,transform .12s linear}\
 :where(.holo-Dialog){max-width:min(90vw,480px);border:1px solid currentColor;border-radius:12px;padding:16px 20px;color:inherit;background:var(--fond,Canvas)}\
 :where(.holo-Dialog)::backdrop{background:rgba(0,0,0,0.5)}:where(.holo-Dialog>*){margin:0 0 12px 0}:where(.holo-close){display:flex;justify-content:flex-end;margin:0}\
 :where(.holo-close button){font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;font-size:1.2em;line-height:1}\
-:where(.holo-Lines,.holo-line){display:contents}:where(.holo-Form){display:block}:where(.holo-Form>*){box-sizing:border-box;margin:0 0 16px 0}:where(.holo-Form>:not(.holo-Input)){display:block}\
+:where(.holo-Lines,.holo-line){display:contents}:where(.holo-Form){display:block}:where(.holo-error){font-weight:bold;margin:4px 0 0 0}:where(.holo-error)::before{content:\"⚠ \"}:where([aria-invalid=true]){outline:2px solid currentColor;outline-offset:2px}:where(.holo-Form>*){box-sizing:border-box;margin:0 0 16px 0}:where(.holo-Form>:not(.holo-Input)){display:block}\
 :where(.holo-Shape){display:block;width:var(--holo-size,48px);height:var(--holo-size,48px);padding:0;border:0;background:var(--holo-color,currentColor)}\
 :where(button.holo-Shape){cursor:pointer}\
 :where(.holo-forme-circle){border-radius:50%}\
@@ -296,6 +296,10 @@ fn fill_marks(html: String, shown: &crate::state::State, texts: &crate::state::T
                 if start_text(name).is_some() {
                     let length = max.parse::<usize>().map_or(crate::state::TEXT_SHORT, |m| m.min(crate::state::TEXT_MAX));
                     output.push_str(&format!(" type=\"text\" maxlength=\"{length}\""));
+                    // La longueur la plus courte (ADR-068) : vérifiée à l'envoi.
+                    if min != "0" {
+                        output.push_str(&format!(" minlength=\"{min}\""));
+                    }
                 } else if crate::format::decimal_places(name) > 0 {
                     // Un nombre à virgule (ADR-066) : le clavier décimal, et un pas de 0,01.
                     let places = crate::format::decimal_places(name);
@@ -795,8 +799,9 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
                     _ => crate::state::TEXT_LONG,
                 };
                 output.push_str(&format!(
-                    "<label class=\"{classes}\"{name}><span>{}</span><textarea rows=\"{lines}\" maxlength=\"{max}\" data-bind=\"{value}\">{MARK}#{value}{MARK}</textarea></label>",
-                    markdown(label)
+                    "<label class=\"{classes}\"{name}><span>{}</span><textarea rows=\"{lines}\" maxlength=\"{max}\"{} data-bind=\"{value}\">{MARK}#{value}{MARK}</textarea></label>",
+                    markdown(label),
+                    checked_by_form(block)
                 ));
             } else if crate::files::is_file(block) {
                 // Un fichier (ADR-059) : la page vérifie sa sorte et sa taille avant l'envoi.
@@ -818,10 +823,19 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
                         }
                     }
                 }
+                // Un e-mail (ADR-068) : le clavier des adresses, et le navigateur propose la sienne.
+                if kind == "email" {
+                    let max = match block.argument("max").map(|a| &a.value) {
+                        Some(Value::Integer(max)) => (*max as usize).min(254),
+                        _ => 254,
+                    };
+                    bounds.push_str(&format!(" inputmode=\"email\" autocomplete=\"email\" maxlength=\"{max}\""));
+                }
                 output.push_str(&format!(
-                    "<label class=\"{classes}\"{name}><span>{}</span><input type=\"{}\"{bounds} value=\"{MARK}#{value}{MARK}\" data-bind=\"{value}\"></label>",
+                    "<label class=\"{classes}\"{name}><span>{}</span><input type=\"{}\"{bounds}{} value=\"{MARK}#{value}{MARK}\" data-bind=\"{value}\"></label>",
                     markdown(label),
-                    escape(kind)
+                    escape(kind),
+                    checked_by_form(block)
                 ));
             } else if block.name == "Input" {
                 // Les bornes d'un champ de nombre, écrites comme dans le fichier : 99.99, 1.
@@ -832,12 +846,14 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
                 };
                 let (max, min) = (written("max"), written("min"));
                 output.push_str(&format!(
-                    "<label class=\"{classes}\"{name}><span>{}</span><input{MARK}!{value}|{max}|{min}{MARK} value=\"{MARK}#{value}{MARK}\" data-bind=\"{value}\"></label>",
-                    markdown(label)
+                    "<label class=\"{classes}\"{name}><span>{}</span><input{MARK}!{value}|{max}|{min}{MARK}{} value=\"{MARK}#{value}{MARK}\" data-bind=\"{value}\"></label>",
+                    markdown(label),
+                    checked_by_form(block)
                 ));
             } else {
                 output.push_str(&format!(
-                    "<label class=\"{classes}\"{name}><input type=\"checkbox\" data-bind=\"{value}\"{MARK}?{value}{MARK}><span>{}</span></label>",
+                    "<label class=\"{classes}\"{name}><input type=\"checkbox\"{} data-bind=\"{value}\"{MARK}?{value}{MARK}><span>{}</span></label>",
+                    checked_by_form(block),
                     markdown(label)
                 ));
             }
@@ -850,14 +866,16 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
             let value = escape(value);
             let options = crate::state::choice_options(block);
             if matches!(block.argument("menu").map(|a| &a.value), Some(Value::Bool(true))) {
-                output.push_str(&format!("<label class=\"{classes}\"{name}><span>{}</span><select data-bind=\"{value}\"><option value=\"\">—</option>", markdown(label)));
+                output.push_str(&format!("<label class=\"{classes}\"{name}><span>{}</span><select{} data-bind=\"{value}\"><option value=\"\">—</option>", markdown(label), checked_by_form(block)));
                 for option in options {
                     let o = escape(option);
                     output.push_str(&format!("<option value=\"{o}\"{MARK}=selected|{value}|{o}{MARK}>{o}</option>"));
                 }
                 output.push_str("</select></label>");
             } else {
-                output.push_str(&format!("<fieldset class=\"{classes}\"{name}><legend>{}</legend>", markdown(label)));
+                // Des boutons ronds obligatoires : le groupe le dit à un lecteur d'écran (ADR-068).
+                let group = if checked_by_form(block).is_empty() { "" } else { " role=\"radiogroup\" aria-required=\"true\"" };
+                output.push_str(&format!("<fieldset class=\"{classes}\"{name}{group} data-group=\"{value}\"><legend>{}</legend>", markdown(label)));
                 for option in options {
                     let o = escape(option);
                     output.push_str(&format!("<label><input type=\"radio\" name=\"choix-{value}\" value=\"{o}\" data-bind=\"{value}\"{MARK}=checked|{value}|{o}{MARK}><span>{o}</span></label>"));
@@ -1524,6 +1542,16 @@ pub(crate) fn path_on(source: &str) -> bool {
         && !source.starts_with('/')
         && !source.contains("..")
         && source.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '/'))
+}
+
+/// Un champ obligatoire le dit à un lecteur d'écran (ADR-068) ; c'est l'envoi du formulaire qui
+/// le vérifie, et le moteur qui écrit le message.
+fn checked_by_form(block: &Block) -> &'static str {
+    if matches!(block.argument("required").map(|a| &a.value), Some(Value::Bool(true))) {
+        " aria-required=\"true\""
+    } else {
+        ""
+    }
 }
 
 fn escape(text: &str) -> String {
