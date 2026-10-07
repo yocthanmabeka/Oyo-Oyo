@@ -8,4 +8,4 @@ publish = false
 path = "harness.rs"
 
 [dependencies]
-holo-moteur = { path = "../../../moteur" }
+holo-engine = { path = "../../../moteur" }

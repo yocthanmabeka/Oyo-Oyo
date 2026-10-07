@@ -583,7 +583,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19b30a45b0cd0bcca8037f3d0dc3421eaf95327a17cad11964fb8179b4fc4832"
 
 [[package]]
-name = "revue-codex-2026-10-03"
+name = "revue-gpt56-holocode-hostile"
 version = "0.1.0"
 dependencies = [
  "holo-engine",
