@@ -6,6 +6,17 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Un emplacement pour du contenu dans un composant
+
+- Yocthan : « un emplacement pour contenu dans un composant. Oui […] dans Flutter, il y avait children […] et child ».
+- Choisi : un seul mot, `children`, comme partout dans HoloCode ; `child` est refusé avec le bon mot.
+- Fait (`ADR-058`) : `params: [title, children]` ; le mot `children` posé seul dans une liste du composant ; `Panel(title: "…", children: [ … ])` à l'appel. Le contenu est déplié chez la page, puis posé dans la copie sans être renommé. Une carte peut contenir une carte.
+- Vérifié : tous les tests du moteur (sept refus) ; la leçon 75 et son essai écrit ; dans Chrome avec `?valeurs` (le bouton posé dans l'encadré change la valeur de la page) ; l'audit axe-core, 75 pages, 0 défaut.
+
+![La leçon 75 : trois encadrés, dont un dans un autre](images/2026-10-07-contenu-d-un-composant.png)
+
+---
+
 ## 2026-10-07 — Un champ dans une ligne, et des lignes qui restent en place
 
 - Yocthan : « travaille sur une condition sur un champ dans une ligne des listes. Les clés stables des listes, ok. »

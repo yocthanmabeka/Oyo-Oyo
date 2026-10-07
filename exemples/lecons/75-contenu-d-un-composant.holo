@@ -1,0 +1,60 @@
+// Leçon 75 — Un emplacement pour du contenu dans un composant
+//
+// Ce qu'on apprend :
+//   params: [title, children]   le composant a un emplacement pour du contenu
+//   Column(children: [ H2("{title}"), children ])
+//                               le mot children, posé seul, marque où va le contenu
+//   Encadre(title: "…", children: [ P("…"), Image(…) ])
+//                               la page donne le contenu à l'appel, comme le children de Flutter
+//   Un seul mot, children, même pour un seul bloc : child est refusé.
+//   Le contenu appartient à la page : ses noms ne sont pas changés, ses règles sont celles de la page.
+//
+// À essayer :
+//   Touche « Réserver » dans le deuxième encadré : la valeur de la page change.
+//   Retire le mot children du composant : le moteur te dit de le poser.
+
+Page(
+  title: "Leçon 75 : le contenu d'un composant",
+  state: State(reserve: 0),
+  components: [
+    Component(
+      name: Encadre,
+      params: [title, children],
+      children: [
+        Column(gap: 8px, children: [
+          H2("{title}"),
+          children,
+        ]),
+      ],
+    ),
+  ],
+  children: [
+    H1("Le contenu d'un composant"),
+    Encadre(title: "L'atelier", children: [
+      P("Ouvert du mardi au samedi, de 10 h à 18 h."),
+      P("Entrée libre."),
+    ]),
+    Encadre(title: "Sunrise", children: [
+      P("Une huile sur toile, 60 × 80 cm."),
+      Button(name: Reserver, text: "Réserver"),
+      If(reserve, is: 1, children: [ P("Réservé : on vous écrit demain.") ]),
+    ]),
+    Encadre(title: "Un encadré dans un encadré", children: [
+      Encadre(title: "Le saviez-vous ?", children: [ P("Chaque encadré porte la marque Encadre : un seul style les vise tous.") ]),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 74 : un champ dans une ligne", to: "74-champ-dans-une-ligne.holo"),
+    ]),
+  ],
+  rules: [
+    On(Reserver.tap, effect: reserve.set(1)),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+H2 { color: #E9B44C; font-size: 20px; }
+A { color: #8fd3ff; }
+Encadre { border: 1px solid #2a2a4e; border-radius: 8px; padding: 12px 16px; margin: 0 0 12px; }

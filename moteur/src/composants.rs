@@ -31,6 +31,9 @@
 //! - Les règles du composant rejoignent celles de la page (ou du monde), une fois par copie.
 //! - Le bloc racine de la copie porte la marque du composant (`ArticleCard { … }` le vise) et
 //!   les noms de style écrits à l'appel (`ArticleCard.promo` : `.promo { … }` le vise).
+//! - Un emplacement pour du contenu (ADR-058) : `params: [title, children]` ; la page donne
+//!   `Card(title: "…", children: [ P("…") ])`, et le mot `children` posé seul dans une liste du
+//!   composant devient ces blocs, comme le `children` d'un widget Flutter.
 
 use crate::holo::{Argument, Bloc, Erreur, Pos, Valeur};
 
@@ -61,6 +64,8 @@ pub struct Composant {
     /// Les signaux que le composant émet : `emits: [add]` ; la page les branche à l'appel,
     /// `onAdd: cart.add(1)` (ADR-056).
     pub emis: Vec<String>,
+    /// Le composant a un emplacement pour du contenu : `params: [title, children]` (ADR-058).
+    pub emplacement: bool,
     pub enfants: Vec<Valeur>,
     pub regles: Vec<Valeur>,
     pub pos: Pos,
@@ -73,6 +78,7 @@ pub fn lire_part(part: &Bloc) -> Result<Composant, Erreur> {
     let (mut nom, mut parametres, mut enfants, mut regles) = (None, Vec::new(), None, Vec::new());
     let mut defauts: Vec<(String, Valeur)> = Vec::new();
     let mut emis: Vec<String> = Vec::new();
+    let mut emplacement = false;
     for argument in &part.arguments {
         match (argument.nom.as_deref(), &argument.valeur) {
             (Some("name"), Valeur::Nom(n)) => nom = Some(n.clone()),
@@ -80,10 +86,15 @@ pub fn lire_part(part: &Bloc) -> Result<Composant, Erreur> {
             (Some("params"), Valeur::Liste(liste)) => {
                 for valeur in liste {
                     match valeur {
+                        Valeur::Nom(p) if p == "children" => emplacement = true,
+                        Valeur::Nom(p) if p == "child" => return refus("un seul mot pour le contenu, au pluriel même pour un bloc : params: [title, children]".into(), argument.pos),
                         Valeur::Nom(p) => parametres.push(p.clone()),
                         // `price: 0` : un paramètre facultatif, et sa valeur par défaut.
                         Valeur::Bloc(b) if b.nom == crate::holo::VALEUR_NOMMEE => {
                             let Some(Argument { nom: Some(p), valeur: defaut, .. }) = b.arguments.first() else { continue };
+                            if p == "children" {
+                                return refus("« children » n'a pas de valeur par défaut : sans contenu donné, l'emplacement reste vide ; écris params: [title, children]".into(), b.pos);
+                            }
                             if !matches!(defaut, Valeur::Texte(_) | Valeur::Entier(_) | Valeur::Nombre { .. } | Valeur::Nom(_) | Valeur::Bool(_)) {
                                 return refus(format!("la valeur par défaut de « {p} » est un texte, un nombre ou un nom, pas un bloc ni une liste"), b.pos);
                             }
@@ -143,7 +154,45 @@ pub fn lire_part(part: &Bloc) -> Result<Composant, Erreur> {
             }
         }
     }
-    Ok(Composant { nom, parametres, defauts, emis, enfants, regles, pos: part.pos })
+    let mut seuls = 0;
+    compter_les_emplacements(&Valeur::Liste(enfants.clone()), true, &mut seuls);
+    if emplacement && seuls == 0 {
+        return refus(format!("« {nom} » déclare « children » sans le poser : écris le mot seul là où va le contenu, Column(children: [ H2(\"{{title}}\"), children ])"), part.pos);
+    }
+    if !emplacement && seuls > 0 {
+        return refus(format!("« {nom} » pose « children » sans le déclarer : écris params: [{}children]", parametres.iter().map(|p| format!("{p}, ")).collect::<String>()), part.pos);
+    }
+    Ok(Composant { nom, parametres, defauts, emis, emplacement, enfants, regles, pos: part.pos })
+}
+
+/// Compte les `children` posés seuls dans les listes du contenu : là où ira le contenu donné.
+fn compter_les_emplacements(valeur: &Valeur, dans_une_liste: bool, seuls: &mut usize) {
+    match valeur {
+        Valeur::Nom(n) if n == "children" && dans_une_liste => *seuls += 1,
+        Valeur::Liste(l) => l.iter().for_each(|v| compter_les_emplacements(v, true, seuls)),
+        Valeur::Bloc(b) => b.arguments.iter().for_each(|a| compter_les_emplacements(&a.valeur, false, seuls)),
+        _ => {}
+    }
+}
+
+/// Met le contenu donné à l'appel à la place du mot `children` posé seul dans une liste.
+fn garnir(valeur: &mut Valeur, contenu: &[Valeur]) {
+    match valeur {
+        Valeur::Liste(l) => {
+            let mut garnie = Vec::with_capacity(l.len() + contenu.len());
+            for mut v in std::mem::take(l) {
+                if matches!(&v, Valeur::Nom(n) if n == "children") {
+                    garnie.extend(contenu.iter().cloned());
+                } else {
+                    garnir(&mut v, contenu);
+                    garnie.push(v);
+                }
+            }
+            *l = garnie;
+        }
+        Valeur::Bloc(b) => b.arguments.iter_mut().for_each(|a| garnir(&mut a.valeur, contenu)),
+        _ => {}
+    }
 }
 
 /// Les signaux qu'une règle émet : `emit: add`, ou `emit: [add, remove]`.
@@ -293,6 +342,12 @@ fn poser_valeur(valeur: &mut Valeur, composants: &[Composant], regles: &mut Vec<
                         if *copies > COPIES_MAX {
                             return Err(Erreur { message: format!("la page pose plus de {COPIES_MAX} composants : c'est trop pour une page"), pos: appel.pos });
                         }
+                        // Le contenu donné appartient à la page : on le déplie là où il est écrit,
+                        // avant de le poser dans la copie (une carte peut contenir une carte).
+                        let mut appel = appel;
+                        if let Some(argument) = appel.arguments.iter_mut().find(|a| a.nom.as_deref() == Some("children")) {
+                            poser_valeur(&mut argument.valeur, composants, regles, chemin, copies, sans_nom)?;
+                        }
                         let (racine, regles_de_la_copie) = poser_copie(composant, &appel, sans_nom)?;
                         chemin.push(composant.nom.clone());
                         // La racine peut être elle-même un composant : on la pose comme un élément de liste.
@@ -328,6 +383,7 @@ fn poser_copie(composant: &Composant, appel: &Bloc, sans_nom: &mut Vec<String>) 
     let mut nom_de_copie = None;
     let mut donnes: Vec<(&str, &Valeur)> = Vec::new();
     let mut branches: Vec<(String, Valeur)> = Vec::new();
+    let mut contenu: Option<&Vec<Valeur>> = None;
     for argument in &appel.arguments {
         let Some(cle) = argument.nom.as_deref() else {
             return Err(Erreur { message: format!("chaque paramètre de « {nom} » est nommé : {exemple}"), pos: argument.pos });
@@ -335,6 +391,16 @@ fn poser_copie(composant: &Composant, appel: &Bloc, sans_nom: &mut Vec<String>) 
         match (cle, &argument.valeur) {
             ("name", Valeur::Nom(n)) if n.starts_with(|c: char| c.is_ascii_uppercase()) && n.chars().all(|c| c.is_ascii_alphanumeric()) => nom_de_copie = Some(n.clone()),
             ("name", _) => return Err(Erreur { message: format!("le nom d'une copie s'écrit comme un bloc, avec une majuscule : {nom}(name: Sunrise, …)"), pos: argument.pos }),
+            // `children: [ … ]` : le contenu que la page met dans l'emplacement (ADR-058).
+            ("children", Valeur::Liste(l)) if composant.emplacement => {
+                if contenu.is_some() {
+                    return Err(Erreur { message: "« children » est donné deux fois".into(), pos: argument.pos });
+                }
+                contenu = Some(l);
+            }
+            ("children", _) if composant.emplacement => return Err(Erreur { message: format!("« children » attend une liste de blocs entre crochets : {nom}(children: [ P(\"…\") ])"), pos: argument.pos }),
+            ("child", _) if composant.emplacement => return Err(Erreur { message: format!("écris « children » : un seul mot pour le contenu, au pluriel même pour un bloc, {nom}(children: [ P(\"…\") ])"), pos: argument.pos }),
+            ("children" | "child", _) => return Err(Erreur { message: format!("« {nom} » n'a pas d'emplacement pour du contenu : pour en avoir un, déclare params: [{}children] et pose le mot children dans son contenu", composant.parametres.iter().map(|p| format!("{p}, ")).collect::<String>()), pos: argument.pos }),
             // `onAdd: cart.add(1)` : la page branche un signal émis par le composant.
             (cle, v) if composant.emis.iter().any(|e| branchement(e) == cle) => {
                 let bon = match v {
@@ -397,6 +463,10 @@ fn poser_copie(composant: &Composant, appel: &Bloc, sans_nom: &mut Vec<String>) 
     let copie = Copie { donnes: &donnes, noms: &noms, suffixe: nom_de_copie.as_deref() };
     let mut racine = composant.enfants[0].clone();
     remplacer(&mut racine, &copie)?;
+    // Après le remplacement : le contenu donné n'est ni renommé ni touché par les paramètres.
+    if composant.emplacement {
+        garnir(&mut racine, contenu.map_or(&[][..], |c| c.as_slice()));
+    }
     if let Valeur::Bloc(bloc) = &mut racine {
         // La marque du composant d'abord, puis les noms de style écrits à l'appel.
         let mut styles = vec![nom.clone()];
@@ -647,6 +717,51 @@ ArticleCard { --accent: #E9B44C; border: 1px solid --accent; }
             ("Page(parts: [ Component(name: Card, children: [ P(\"x\") ]) ], children: [])", "écris « components »"),
         ] {
             let erreur = crate::verifier_page(source).unwrap_err();
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
+    }
+
+    #[test]
+    fn un_emplacement_pour_du_contenu() {
+        let source = r#"Page(
+  state: State(open: 0),
+  components: [
+    Component(
+      name: Panel,
+      params: [title, children],
+      children: [ Column(children: [ H2("{title}"), children, Button(name: Close, text: "Close") ]) ],
+      rules: [ On(Close.tap, effect: open.set(0)) ],
+    ),
+  ],
+  children: [
+    H1("Panels"),
+    Panel(name: Info, title: "Info", children: [ P("First"), Button(name: More, text: "More") ]),
+    Panel(name: Outer, title: "Outer", children: [ Panel(name: Inner, title: "Inner", children: [ P("Deep") ]) ]),
+    Panel(name: Empty, title: "Empty"),
+  ],
+  rules: [ On(More.tap, effect: open.set(1)) ],
+)"#;
+        crate::verifier_page(source).unwrap();
+        let html = crate::plat::page_html(&lire(source).unwrap(), "").unwrap();
+        // Le contenu est posé entre le titre et le bouton ; ses noms ne sont pas renommés.
+        let (titre, premier, bouton) = (html.find(">Info<").unwrap(), html.find(">First<").unwrap(), html.find("data-name=\"CloseInfo\"").unwrap());
+        assert!(titre < premier && premier < bouton, "{html}");
+        assert!(html.contains("data-name=\"More\""), "{html}");
+        // Une carte dans une carte, et un emplacement laissé vide.
+        assert!(html.contains(">Deep<") && html.contains("data-name=\"CloseInner\"") && html.contains(">Empty<"), "{html}");
+        assert_eq!(crate::arbitrer(source, "open=0", "More.tap"), "open=1");
+        assert_eq!(crate::arbitrer(source, "open=1", "CloseInner.tap"), "open=0");
+        let carte = |params: &str, contenu: &str, appel: &str| format!("Page(components: [ Component(name: Card, params: [{params}], children: [ Column(children: [ {contenu} ]) ]) ], children: [ {appel} ])");
+        for (source, message) in [
+            (carte("children", "P(\"x\")", "Card()"), "sans le poser"),
+            (carte("", "children", "Card()"), "sans le déclarer"),
+            (carte("", "P(\"x\")", "Card(children: [ P(\"y\") ])"), "pas d'emplacement"),
+            (carte("children", "children", "Card(child: P(\"y\"))"), "écris « children »"),
+            (carte("child", "children", "Card()"), "au pluriel"),
+            (carte("children", "children", "Card(children: P(\"y\"))"), "liste de blocs"),
+            (carte("children: []", "children", "Card()"), "pas de valeur par défaut"),
+        ] {
+            let erreur = crate::verifier_page(&source).unwrap_err();
             assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
         }
     }

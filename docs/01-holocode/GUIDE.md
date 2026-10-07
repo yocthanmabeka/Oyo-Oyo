@@ -921,6 +921,29 @@ ArticleCard { border: 1px solid --accent; border-radius: 12px; padding: 12px 16p
 
 **Des signaux, que la page branche** (`ADR-056`) : le composant déclare ce qu'il émet, `emits: [add]`, et sa règle émet au lieu d'agir, `On(Add.tap, emit: add)`. À l'appel, la page décide : `ArticleCard(title: "Sunrise", onAdd: cart.add(12000))`, ou une liste de demandes, `onAdd: [cart.add(1000), likes.add(1)]`. Un signal que la page ne branche pas ne fait rien. La leçon est `73-defauts-et-signaux.holo`.
 
+**Un emplacement pour du contenu** (`ADR-058`) : comme le `children` d'un widget Flutter, le composant laisse une place, et la page la remplit à l'appel.
+
+```holo
+Page(
+  title: "Panels",
+  components: [
+    Component(name: Panel, params: [title, children], children: [
+      Column(children: [ H2("{title}"), children ]),
+    ]),
+  ],
+  children: [
+    H1("Panels"),
+    Panel(title: "Opening hours", children: [ P("Tuesday to Saturday."), P("Free entry.") ]),
+    Panel(title: "Empty"),
+  ],
+)
+```
+
+- `params: [title, children]` déclare l'emplacement ; le mot `children` posé seul dans une liste du composant marque où va le contenu.
+- À l'appel, `children: [ … ]` est une liste de blocs ; sans elle, l'emplacement reste vide.
+- Un seul mot, `children`, même pour un seul bloc : `child` est refusé avec le bon mot.
+- Le contenu appartient à la page : ses noms ne sont pas changés, ses règles sont celles de la page ; il peut contenir d'autres composants, et le même.
+
 **Changer son apparence, de l'extérieur.**
 
 | On écrit | Ce qui change |

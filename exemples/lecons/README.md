@@ -82,7 +82,8 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 72 | [La place qui reste, et un thème partagé](72-place-et-theme.holo) | `grow`, un fichier de styles importé, `Text.titre.discret(…)` |
 | 73 | [Valeurs par défaut et signaux](73-defauts-et-signaux.holo) | `params: [title, price: 0]`, `emits`, `emit:`, `onAdd:` |
 | 74 | [Un champ dans une ligne](74-champ-dans-une-ligne.holo) | `If(item.done, …)`, `item.done.set(1)`, les lignes gardées |
+| 75 | [Le contenu d'un composant](75-contenu-d-un-composant.holo) | `params: [title, children]`, `children` posé seul, `Encadre(children: [ … ])` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 
-Certaines leçons ont un **essai écrit** à côté (`68-liste-qui-change.essai`, `70-composants.essai`, `71-liste-a-champs.essai`, `73-defauts-et-signaux.essai`, `74-champ-dans-une-ligne.essai`) : des gestes et les valeurs attendues, que `holo essai` joue et que les tests du moteur vérifient (`ADR-054`). Pour voir les valeurs pendant qu'on essaie une leçon : ajouter `?valeurs` à son adresse.
+Certaines leçons ont un **essai écrit** à côté (`68-liste-qui-change.essai`, `70-composants.essai`, `71-liste-a-champs.essai`, `73-defauts-et-signaux.essai`, `74-champ-dans-une-ligne.essai`, `75-contenu-d-un-composant.essai`) : des gestes et les valeurs attendues, que `holo essai` joue et que les tests du moteur vérifient (`ADR-054`). Pour voir les valeurs pendant qu'on essaie une leçon : ajouter `?valeurs` à son adresse.
