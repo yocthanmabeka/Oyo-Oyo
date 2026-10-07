@@ -1407,7 +1407,11 @@
     // La page fabriquée par le serveur avec ses données (ADR-064) : le navigateur rejoue la même
     // réception, puis `Shop.done`, pour partir du même état. Sans cela, les valeurs de départ
     // remplaceraient un instant celles des données. Les effets (un son…) ne sont pas rejoués.
-    const received = !location.hash.slice(1) && root.querySelector(".holo-Page")?.dataset.received;
+    // La page fabriquée par holo serve pour ce visiteur (ADR-074) : ses valeurs, gardées sur le
+    // serveur après des touchers faits sans JavaScript. Le moteur repart de là.
+    const visit = !location.hash.slice(1) && root.querySelector(".holo-Page")?.dataset.visit;
+    if (visit) states.set(path, visit);
+    const received = !visit && !location.hash.slice(1) && root.querySelector(".holo-Page")?.dataset.received;
     if (received) {
       const dataName = data(source).split("|")[2];
       let replayed = receive(source, states.get(path) ?? "", received);

@@ -40,7 +40,7 @@
 | 2 | **Données et calcul** : les types communs (texte, décimal exact, date, durée, liste, erreur), chercher, filtrer, trier, couper en pages, des valeurs calculées, un `Data` qui dit « chargement » et « échec » | un catalogue de 200 produits où l'on cherche et trie, lisible par un robot ; un panier qui calcule la TVA | fonctions pures et quelques mots | 6 à 8 |
 | 3 | **Formulaires sûrs** | une inscription vérifiée, les erreurs annoncées, un envoi unique, un délai | mots et serveur | 4 à 6 |
 | 4 | **Mise en page d'ordinateur et de téléphone** | une vraie page large et sa version téléphone | mots de disposition | 4 à 6 |
-| 5 | **Premier vrai serveur** : `holo serve`, SQLite, sauvegardes, adresses comme `/profil/123` | un site qui tourne sur le serveur en Rust, sur le PC | serveur | 6 à 9 |
+| 5 | **Premier vrai serveur** : `holo serve`, SQLite, sauvegardes, adresses comme `/profil/123` | un site qui tourne sur le serveur en Rust, sur le PC ; **la boutique marche avec JavaScript coupé** : ajouter, retirer, commander (ajouté par Yocthan le 2026-10-07, après l'avis de Gemini sur Holoverse de 1970 à 2026) | serveur | 6 à 9 |
 | 6 | **Valeurs partagées et direct** | une réservation que tout le monde voit tout de suite | arbitre sur le serveur, WebSocket | 5 à 8 |
 | 7 | **Comptes et droits** | un compte local, son panier sur deux appareils, un code à 6 chiffres | serveur et base locale | 7 à 10 |
 | 8 | **Le HTML et les médias qui manquent** : `aside`, nouvel onglet, téléchargement, sous-titres, images différées, impression, historique | un article long, accessible, imprimable, avec une vidéo sous-titrée | mots du langage | 3 à 5 |

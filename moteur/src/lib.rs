@@ -20,6 +20,7 @@ pub mod dates;
 pub mod state;
 pub mod files;
 pub mod format;
+pub mod gestures;
 pub mod seed;
 pub mod holo;
 pub mod lists;
@@ -41,6 +42,9 @@ mod renderer;
 mod web;
 #[cfg(target_arch = "wasm32")]
 mod web_page;
+// Le serveur (`holo serve`, ADR-074) : seulement sur le PC.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod server;
 
 use holo::{Error, Program, Value};
 use universe::PointDecl;
@@ -225,6 +229,40 @@ pub fn flat_view_with_data(source: &str, base: &str, json: &str) -> Result<Strin
     let html = flat::site_html_from(&program, &program.root, base, "", Some(&start))?;
     let received = json.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
     Ok(html.replacen(" data-title=\"", &format!(" data-received=\"{received}\" data-title=\""), 1))
+}
+
+/// La page d'un visiteur que `holo serve` connaît (ADR-074) : fabriquée avec ses valeurs, et
+/// prête à renvoyer ses gestes au serveur si le navigateur ne lance pas le moteur. La page garde
+/// cet état dans `data-visit` : avec JavaScript, le moteur repart de là.
+pub fn visitor_page(source: &str, base: &str, state: &str) -> Result<String, Error> {
+    let program = check_page(source)?;
+    let start = (state::reread(&program, state), state::reread_texts(&program, state), lists::reread(&program, state));
+    let html = flat::site_html_from(&program, &program.root, base, "", Some(&start))?;
+    let written = state.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
+    Ok(gestures::without_script(&html.replacen(" data-title=\"", &format!(" data-visit=\"{written}\" data-title=\""), 1)))
+}
+
+/// Ce que devient l'état d'un visiteur quand il envoie un formulaire des gestes, sans
+/// JavaScript (ADR-074) : ses champs d'abord, comme s'il venait de les écrire, puis son toucher.
+/// Le même arbitre que dans le navigateur ; un geste qui n'est pas un toucher est ignoré.
+pub fn visitor_gesture(source: &str, state: &str, fields: &[(String, String)]) -> String {
+    let mut written = state.to_string();
+    for (name, value) in fields.iter().filter(|(name, _)| name != gestures::SIGNAL) {
+        // Un bouton rond envoie son groupe (`choix-size`) : la valeur s'appelle `size`.
+        let name = name.strip_prefix("choix-").unwrap_or(name);
+        let after = input(source, &written, name, value);
+        if !after.is_empty() {
+            written = after;
+        }
+    }
+    if let Some((_, signal)) = fields.iter().find(|(name, signal)| name == gestures::SIGNAL && gestures::is_tap(signal)) {
+        let after = arbitrate(source, &written, signal);
+        if !after.is_empty() {
+            written = after;
+        }
+    }
+    // Les sons demandés (« ! ») ne se jouent pas sans le moteur : ils ne sont pas gardés.
+    written.split(';').filter(|chunk| !chunk.starts_with("!=")).collect::<Vec<_>>().join(";")
 }
 
 /// Les effets que les règles du fichier demandent pour un signal, comme `Open.tap`.

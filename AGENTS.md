@@ -19,9 +19,9 @@ Décidé par Yocthan le 2026-10-07 (« Vas-y, commence […] il faut qu'on aille
 | Lot | Session | Branches | Décisions réservées | Leçons réservées | État |
 |---|---|---|---|---|---|
 | 4 — mise en page d'ordinateur et de téléphone | la session du PC de Yocthan | `langage/lot4-…` | ADR-069 à ADR-072 | 89 à 94 | à faire |
-| 8 — le HTML et les médias qui manquent | la session du nuage | `langage/lot8-…` | ADR-073 (utilisée) à ADR-077 | 95, 96 (utilisées) à 99 | fait (`ADR-073`) ; l'historique dans une page attend le lot 5 |
-| 5, 6, 7 — serveur, valeurs partagées, comptes | une seule session, la première libre | — | à réserver ici | à réserver ici | à faire, après le lot 4 ou le lot 8 |
-| 9 — les capacités larges | l'autre session | — | à réserver ici | à réserver ici | à faire |
+| 8 — le HTML et les médias qui manquent | la session du nuage | `langage/lot8-…` | ADR-073 (utilisée) | 95, 96 (utilisées) | fait (`ADR-073`) ; l'historique dans une page attend le lot 5 |
+| 5, 6, 7 — serveur, valeurs partagées, comptes | la session du nuage | `serveur/lot5-…`, `serveur/lot6-…`, `serveur/lot7-…` | ADR-074 (utilisée) à ADR-077, puis ADR-078 à ADR-082 | 97 à 99, puis 100 à 104 | lot 5 en cours : `holo serve` et les boutons sans JavaScript faits (`ADR-074`) ; restent `Form` par `holo serve`, les sauvegardes, les adresses comme `/profil/123` |
+| 9 — les capacités larges | la session du PC, après le lot 4 | — | à réserver ici (à partir d'ADR-083, leçon 105) | à réserver ici | à faire |
 
 Règles : relire `main` avant chaque travail, et fusionner `main` dans sa branche avant de demander la fusion ; des petites PR, fusionnées vite ; ne pas toucher au lot de l'autre ; un défaut trouvé dans le lot de l'autre se note dans le journal, sans le corriger soi-même.
 

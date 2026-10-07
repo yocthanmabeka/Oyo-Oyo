@@ -17,6 +17,8 @@ target/
 messages/
 # Les anciennes versions des fichiers écrits par l'éditeur (ADR-046) : jamais versionnées.
 editor-backups/
+# La base d'un site servi par holo serve (ADR-074) : jamais versionnée.
+holo-data/
 node_modules/
 
 # Le fichier de données trop gros, fabriqué par les essais dans le navigateur.

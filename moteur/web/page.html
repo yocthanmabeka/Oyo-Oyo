@@ -236,8 +236,9 @@
     root.addEventListener("focusin", hover);
     root.addEventListener("focusout", hover);
     root.addEventListener("click", record);
-    // Un formulaire ne recharge jamais la page, même avant l'arrivée du moteur (ADR-042).
-    root.addEventListener("submit", (event) => { if (event.target.closest(".holo-Form")) event.preventDefault(); });
+    // Un formulaire ne recharge jamais la page, même avant l'arrivée du moteur (ADR-042). Celui des
+    // gestes non plus (ADR-074) : il ne part vers holo serve que si JavaScript manque.
+    root.addEventListener("submit", (event) => { if (event.target.closest(".holo-Form") || event.target.id === "holo-gestures") event.preventDefault(); });
     root.addEventListener("focusin", load);
     // Un bouton rond coché, une option choisie : le moteur arrive, et reprend ce choix.
     root.addEventListener("change", load);
