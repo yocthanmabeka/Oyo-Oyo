@@ -1,0 +1,2 @@
+Page(children: [ P.c("x") ])
+.c { font-size: clamp(16px, 4vw, 24px); }

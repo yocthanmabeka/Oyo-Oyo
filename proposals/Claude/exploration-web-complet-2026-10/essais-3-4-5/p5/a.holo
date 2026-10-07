@@ -1,0 +1,3 @@
+Component(name: Card, params: [title], children: [ H2.titre("{title}") ])
+
+.titre { color: #8a3b12; }

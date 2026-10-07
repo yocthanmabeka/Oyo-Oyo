@@ -1,0 +1,3 @@
+tap B
+expect a = 2
+expect total = 3998

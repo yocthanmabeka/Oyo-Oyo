@@ -1,0 +1,1 @@
+Page(title: "x", state: State(size: "", n: 1), children: [ H1("x"), Input(value: size, label: "S"), If(size, is: n, children: [ P("rempli") ]) ])

@@ -1,0 +1,24 @@
+// Le catalogue avec l'écriture d'aujourd'hui (main, 2026-10-07) : la liste arrive du serveur,
+// chaque fiche est écrite une fois. Le champ de recherche et le choix du thème existent, mais
+// rien ne peut s'en servir pour filtrer ; « Ajouter » ne peut pas mettre la fiche au panier.
+Page(
+  title: "Catalogue",
+  lang: "fr",
+  state: State(search: "", theme: "", articles: [ Item(id: "", title: "Chargement…", theme: "", price: 0, image: "vide.svg", alt: "") ]),
+  data: Data(from: "catalogue.json"),
+  children: [
+    H1("Le catalogue"),
+    Input(value: search, label: "Chercher une création"),
+    Choice(value: theme, label: "Thème", options: ["Eau", "Terre", "Ville", "Ciel"]),
+    P("{articles} créations"),
+    Grid(columns: 3, gap: 16px, children: [
+      Repeat(over: articles, children: [
+        Column(gap: 6px, children: [
+          Image(source: item.image, alt: "{item.alt}"),
+          H2("{item.title}"),
+          Text("{item.price:cents} €"),
+        ]),
+      ]),
+    ]),
+  ],
+)

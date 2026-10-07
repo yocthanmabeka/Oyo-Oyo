@@ -1,0 +1,2 @@
+Page(children: [ P.c("x") ])
+.c { font-variant-numeric: tabular-nums; }

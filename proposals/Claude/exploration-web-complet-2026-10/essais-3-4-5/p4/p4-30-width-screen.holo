@@ -1,0 +1,2 @@
+Page(children: [ Column.b(children: [ H1("x") ]) ])
+.b { width: screen; }

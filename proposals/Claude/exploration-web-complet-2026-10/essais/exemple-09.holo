@@ -1,0 +1,38 @@
+Page(
+  title: "Galerie",
+  lang: "fr",
+  children: [
+    // Existe. Correction proposée dans le moteur : le lecteur d'écran lit
+    // « L'atelier des mondes », et non plus une lettre après l'autre.
+    H1("L'atelier des mondes", enter: Enter(y: 40px, opacity: 0, letters: 0.04s, ease: spring)),
+
+    // Écriture proposée : une poussière d'or qui éclate une fois, tirée de la graine 7.
+    // Chaque grain part du centre, à une vitesse de 30 % à 100 % de speed (en px par seconde),
+    // tombe de gravity (en px par seconde, chaque seconde) et s'efface en life.
+    Particles(height: 240px, count: 120, colors: ["#E9B44C", "#FFE9A8"],
+      speed: 300px, gravity: 200px, life: 2s, seed: 7),
+
+    // Écriture proposée : form: dans Loop, et la forme star. Le rond devient une étoile, et revient.
+    Shape(form: circle, color: "#E9B44C", size: 80px,
+      loop: Loop(form: star, rotate: 72deg, for: 1.2s)),
+
+    // Écriture proposée : path:, un chemin libre (ici, un cœur).
+    Shape(path: "M 50 90 C 20 65 0 45 0 25 C 0 5 25 -5 50 20 C 75 -5 100 5 100 25 C 100 45 80 65 50 90 Z",
+      color: "#F472B6", size: 120px),
+
+    // Écriture proposée : along:. Une lune fait le tour du disque pâle (Stack existe).
+    Stack(children: [
+      Shape(form: circle, color: "#FFFFFF22", size: 200px),
+      Shape(form: circle, color: "#4ECDC4", size: 16px,
+        loop: Loop(along: circle, for: 4s, back: false, ease: linear)),
+    ]),
+
+    // Écriture proposée : follow: pointer. L'image penche vers le pointeur, ou vers le doigt posé.
+    Image(source: "lever.svg", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu",
+      loop: Loop(x: 12px, y: 8px, flip: 8deg, tilt: 6deg, follow: pointer)),
+
+    // Écriture proposée : follow: scroll. Le texte arrive au rythme du défilement.
+    P("Le texte arrive au rythme du défilement.",
+      enter: Enter(y: 80px, opacity: 0, follow: scroll)),
+  ],
+)

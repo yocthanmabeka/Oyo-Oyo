@@ -1,0 +1,4 @@
+Page(title: "Contraste", children: [ H1("Titre presque invisible"), P("Texte") ])
+
+Page { background: white; color: #1a1a2e; }
+H1 { color: #dddddd; background: white; }

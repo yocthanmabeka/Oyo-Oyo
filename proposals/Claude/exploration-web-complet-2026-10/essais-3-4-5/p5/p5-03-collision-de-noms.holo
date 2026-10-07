@@ -1,0 +1,13 @@
+Page(
+  title: "Collision",
+  state: State(cart: 0),
+  components: [
+    Component(name: Card, params: [title], children: [ Column(children: [ H2("{title}"), Button(name: Add, text: "Ajouter") ]) ], rules: [ On(Add.tap, effect: cart.add(1)) ]),
+  ],
+  children: [
+    H1("Collision"),
+    Card(name: Sunrise, title: "Sunrise"),
+    Button(name: AddSunrise, text: "Un autre bouton de la page"),
+  ],
+  rules: [ On(AddSunrise.tap, effect: cart.set(0)) ],
+)

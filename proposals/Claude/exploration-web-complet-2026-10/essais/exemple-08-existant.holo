@@ -1,0 +1,14 @@
+Page(
+  title: "Lever sur le fleuve",
+  lang: "fr",
+  children: [
+    H1("Lever sur le fleuve"),
+    Image(source: "lever.jpg", alt: "Un soleil jaune se lève au-dessus d'un fleuve bleu",
+      caption: "Huile sur toile, 40 × 25 cm."),
+    Video(source: "atelier.mp4", label: "Une visite de l'atelier, en une minute"),
+    Sound(source: "carillon.mp3", label: "Le carillon de l'atelier"),
+    Details(summary: "Ce qu'on entend", children: [
+      P("Trois notes de carillon, puis le silence."),
+    ]),
+  ],
+)

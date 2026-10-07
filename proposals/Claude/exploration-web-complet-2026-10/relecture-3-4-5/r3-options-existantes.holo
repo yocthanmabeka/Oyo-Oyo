@@ -1,0 +1,9 @@
+Page(title: "Options", children: [
+  Column.photo(children: [ Column.voile(children: [ H1("L'atelier des mondes") ]) ]),
+  Button.action(name: Voir, text: "Voir"),
+])
+
+Page { --encre: #2a2118; }
+.photo { background: url("atelier.jpg"); }
+.voile { background: linear-gradient(#2a2118b3, #2a2118b3); padding: 48px 24px; color: #fffaf3; }
+.action { background: #8a3b12; color: #fffaf3; focus: { box-shadow: 3px 3px 0 --encre, -3px -3px 0 --encre; } }

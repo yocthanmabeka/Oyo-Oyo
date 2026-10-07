@@ -1,0 +1,1 @@
+Page(title: "x", lang: "de", children: [ H1("x"), P("{weekday:name} {day}. {month:name} {year}") ])

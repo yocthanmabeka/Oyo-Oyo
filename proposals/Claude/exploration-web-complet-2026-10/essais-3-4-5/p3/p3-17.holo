@@ -1,0 +1,2 @@
+Page(children: [ P.c("x") ])
+.c { color: #8a3b12; disabled: { opacity: 0.5; } }

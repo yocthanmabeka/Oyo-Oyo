@@ -1,0 +1,8 @@
+6 · menu ouvert après le bouton ? → true
+6 · menu ouvert après Échap ? → false
+6 · plis ouverts après avoir ouvert le second → false,true
+6 · note visible après « Grand » → true ; annonce → "Le grand format part en caisse de bois."
+6 · après Échap dans la fenêtre : bouton caché ? → true ; focus → H1
+2 · Entrée, tout vide : envois → 0 ; focus → name ; erreurs → "name-error : Ce champ est à remplir. | mail-error : Ce champ est à remplir. | delivery-error : Ce champ est à remplir."
+2 · courriel « ada@ » : envois → 0 ; focus → mail ; erreurs → "Un courriel s'écrit comme nom@exemple.fr." ; adresse cachée ? → true
+2 · tout juste (sans serveur, en file://) : envois → 1 ; message d'échec visible ? → true

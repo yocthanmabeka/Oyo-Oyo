@@ -6,6 +6,17 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Les dix pistes de Codex, explorées (issue #82)
+
+- Yocthan : « Oui, commence le point 1 et 2. » Le point 1 : l'issue #82, explorer les dix pistes de Codex pour un site web complet.
+- Fait : `proposals/Claude/exploration-web-complet-2026-10/`, une fiche par piste et une sur le duel de motion design, puis un rapport de synthèse (le tableau des dix pistes, les défauts trouvés, les mesures, la liste classée des travaux, les décisions à prendre). Statut : exploration ; rien n'est décidé.
+- Fait par une équipe de huit agents (quatre explorent, quatre relisent) : 206 corrections des relecteurs, environ 1 480 actions, une heure trois quarts, 4,2 millions de tokens. Yocthan a demandé ensuite de couper ce mode : la plupart du travail n'en a pas besoin.
+- Trouvé en vérifiant, et réparé le même jour : le pincement au doigt et les modules (PR 141), Échap et les fenêtres (PR 145).
+- Mesuré par Claude (Chrome sans fenêtre, cache vide) : 8,4 Ko pour une page simple, 193 Ko quand le moteur arrive, 846 Ko en vue points, parce que le moteur complet arrive en plus du léger.
+
+**Erreur en route**
+
+- Les relecteurs ont laissé dans leur dossier de travail 265 Mo de profils Chrome temporaires : seuls les petits fichiers de preuve (1,7 Mo) sont versionnés.
 ## 2026-10-07 — Échap ferme de nouveau une fenêtre
 
 - Trouvé par la relecture de l'issue #82 : depuis le lot 9 (`ADR-061`), quand une page écoute la touche Échap (`On(Key.escape, …)`), Échap ne fermait plus une fenêtre ouverte (`Dialog`) : mon code prenait la touche pour la règle de la page.

@@ -1,0 +1,3 @@
+Component(name: Card, params: [label], children: [ P.titre("{label}") ])
+
+.titre { color: #245c45; }

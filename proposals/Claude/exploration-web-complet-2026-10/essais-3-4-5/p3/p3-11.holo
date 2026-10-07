@@ -1,0 +1,2 @@
+Page(children: [ P.c("x") ])
+.c { transition: 0.3s ease-out; }

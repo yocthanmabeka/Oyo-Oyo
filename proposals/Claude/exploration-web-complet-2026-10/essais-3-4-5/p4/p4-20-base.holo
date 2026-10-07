@@ -1,0 +1,18 @@
+Page(
+  title: "Prototype",
+  children: [
+    H1("Lever sur le fleuve"),
+    Row(gap: 16px, children: [
+      Column.image(grow: 1, children: [ Text("IMAGE") ]),
+      Column(grow: 2, gap: 8px, children: [ P("Un soleil jaune se lève au-dessus d'un fleuve bleu."), Text("120 euros"), Button(name: Add, text: "La mettre au panier") ]),
+    ]),
+    Grid(columns: 2, gap: 16px, children: [
+      Column.carte(children: [ Text.vignette("IMG"), Column(children: [ H2("Le phare"), P("Un phare blanc sur une mer de nuit.") ]) ]),
+      Column.carte(children: [ Text.vignette("IMG"), Column(children: [ H2("La barque"), P("Une barque sombre sur un lac doré.") ]) ]),
+    ]),
+  ],
+)
+
+.image { background: #c2a27a; height: 160px; }
+.vignette { background: #c2a27a; height: 90px; }
+.carte { background: #fffaf3; border: 1px solid #e3d5c3; padding: 12px; }

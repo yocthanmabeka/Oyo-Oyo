@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Réserver — L'atelier des mondes</title>
+<style>
+  .error { color: #b00020; margin: 4px 0 0; }
+  .waiting { cursor: progress; animation: pulse .9s ease-in-out infinite alternate; }
+  @keyframes pulse { to { opacity: .45; } }
+  @media (prefers-reduced-motion: reduce) { .waiting { animation: none; opacity: .6; } }
+  .for-reader { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Réserver vos tableaux</h1>
+  <p>3 tableaux, 330 euros.</p>
+  <form id="booking" novalidate>
+    <p><label for="name">Votre nom</label><br>
+      <input id="name" maxlength="80" autocomplete="name" required></p>
+    <p><label for="mail">Votre courriel</label><br>
+      <input id="mail" type="email" maxlength="80" autocomplete="email" required></p>
+    <fieldset id="delivery"><legend>Livraison</legend>
+      <label><input type="radio" name="delivery" value="À domicile" required> À domicile</label>
+      <label><input type="radio" name="delivery" value="À l'atelier"> À l'atelier</label>
+    </fieldset>
+    <p id="address-row" hidden><label for="address">Adresse de livraison</label><br>
+      <textarea id="address" rows="3" maxlength="1000" autocomplete="street-address" required></textarea></p>
+    <p><label><input id="gift" type="checkbox"> Emballage cadeau</label></p>
+    <button type="submit">Réserver</button>
+  </form>
+  <p id="sent" hidden>Merci, votre réservation est arrivée.</p>
+  <p id="failed" hidden>La réservation n'est pas partie : réessayez.</p>
+  <div id="live" class="for-reader" role="status" aria-live="polite"></div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const form = $("booking");
+  const say = (text) => { $("live").textContent = ""; setTimeout(() => ($("live").textContent = text), 50); };
+  let key = crypto.randomUUID(); // une clé par réservation : un second envoi n'est pas un doublon
+  let sending = false;
+  form.addEventListener("change", (e) => {
+    if (e.target.name === "delivery") $("address-row").hidden = e.target.value !== "À domicile";
+  });
+  function check(field) {
+    const box = field.type === "radio" ? $("delivery") : field;
+    const id = `${box.id}-error`;
+    let message = "";
+    if (!field.closest("[hidden]")) {
+      if (field.validity.valueMissing) message = "Ce champ est à remplir.";
+      else if (field.validity.typeMismatch) message = "Un courriel s'écrit comme nom@exemple.fr.";
+    }
+    $(id)?.remove();
+    box.removeAttribute("aria-invalid");
+    box.removeAttribute("aria-describedby");
+    if (message) {
+      (field.type === "radio" ? box : field.parentElement).append(Object.assign(document.createElement("p"), { id, className: "error", textContent: message }));
+      box.setAttribute("aria-invalid", "true");
+      box.setAttribute("aria-describedby", id);
+    }
+    return !message;
+  }
+  const fields = () => [$("name"), $("mail"), form.querySelector("input[name=delivery]"), $("address")];
+  form.addEventListener("input", (e) => {
+    const field = e.target.type === "radio" ? form.querySelector("input[name=delivery]") : e.target;
+    if ((field.type === "radio" ? $("delivery") : field).hasAttribute("aria-invalid")) check(field);
+  });
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault(); // la page ne se recharge pas ; Entrée dans un champ arrive ici aussi
+    if (sending) return;
+    const wrong = fields().filter((f) => !check(f));
+    if (wrong.length) return wrong[0].focus();
+    sending = true;
+    const button = form.querySelector("button");
+    button.setAttribute("aria-disabled", "true");
+    button.classList.add("waiting");
+    $("failed").hidden = true;
+    say("Envoi en cours…");
+    const values = { name: $("name").value, mail: $("mail").value, delivery: form.delivery.value, gift: $("gift").checked ? 1 : 0, lever: 2, porte: 1 };
+    if (!$("address-row").hidden) values.address = $("address").value;
+    let arrived = false;
+    try {
+      const response = await fetch(location.pathname, {
+        method: "POST",
+        headers: { "content-type": "application/json", "idempotency-key": key },
+        body: JSON.stringify({ form: "Booking", values }),
+        signal: AbortSignal.timeout(15000),
+      });
+      arrived = response.ok;
+    } catch { /* pas de réseau, serveur muet, ou plus de 15 s */ }
+    sending = false;
+    button.removeAttribute("aria-disabled");
+    button.classList.remove("waiting");
+    if (arrived) { key = crypto.randomUUID(); $("sent").hidden = false; say($("sent").textContent); }
+    else { $("failed").hidden = false; say($("failed").textContent); }
+  });
+</script>
+</body>
+</html>

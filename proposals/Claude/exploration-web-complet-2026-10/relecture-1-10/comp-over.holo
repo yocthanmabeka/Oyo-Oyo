@@ -1,0 +1,6 @@
+Page(
+  title: "x",
+  state: State(articles: [ Item(title: "Lever", price: 12000) ]),
+  components: [ Component(name: ArticleCard, params: [title, price], children: [ Column(children: [ H2("{title}"), Text("{price:cents} euros") ]) ]) ],
+  children: [ H1("x"), Repeat(over: articles, children: [ ArticleCard(title: item.title, price: item.price) ]) ],
+)

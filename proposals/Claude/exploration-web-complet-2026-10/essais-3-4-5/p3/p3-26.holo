@@ -1,0 +1,2 @@
+Page(children: [ P.c("x") ])
+.c { max-width: 60ch; }

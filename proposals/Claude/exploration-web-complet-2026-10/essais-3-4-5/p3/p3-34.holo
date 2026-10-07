@@ -1,0 +1,3 @@
+Page(children: [ P.c("x") ])
+Page { --a: #8a3b12; }
+.c { background: linear-gradient(to right, --a, #f7f2ea); }

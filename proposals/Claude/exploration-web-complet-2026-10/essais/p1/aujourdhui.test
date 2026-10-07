@@ -1,0 +1,5 @@
+receive {"articles": [ {"id": "lever", "title": "Lever sur le fleuve", "theme": "Eau", "price": 12000, "image": "lever.svg", "alt": "x"}, {"id": "barque", "title": "La barque", "theme": "Eau", "price": 7500, "image": "barque.svg", "alt": "y"} ]}
+expect articles = 2
+type search "fleuve"
+// la recherche ne change rien : la liste a toujours deux éléments
+expect articles = 2

@@ -1,0 +1,1 @@
+Page(title: "a", state: State(size: "S", medium: "M"), children: [ H1("a"), Choice(value: size, label: "Size", options: ["S", "M"]), If(size, is: medium, children: [ P("Medium chosen") ]) ])

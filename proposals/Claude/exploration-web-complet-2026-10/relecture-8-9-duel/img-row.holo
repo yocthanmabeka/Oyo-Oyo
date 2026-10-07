@@ -1,0 +1,8 @@
+Page(
+  title: "Essai row",
+  children: [
+    H1("Essai row"),
+    Row(children: [ Image(source: "photo-01.png", alt: "Une capture"), P("Un texte.") ]),
+    P("Le texte sous l image."),
+  ],
+)

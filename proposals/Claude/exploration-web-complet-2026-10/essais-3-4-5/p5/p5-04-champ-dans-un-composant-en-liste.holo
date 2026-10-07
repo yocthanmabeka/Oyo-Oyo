@@ -1,0 +1,10 @@
+Page(
+  title: "Favoris",
+  state: State(articles: [ Item(title: "Lever", fav: 0), Item(title: "Porte", fav: 0) ]),
+  components: [
+    Component(name: ArtCard, params: [title, fav], children: [
+      Column(children: [ H2("{title}"), Button(name: Like, text: "Favori"), If(fav, is: 1, children: [ Text("Dans vos favoris") ]) ]),
+    ], rules: [ On(Like.tap, effect: fav.set(1)) ]),
+  ],
+  children: [ H1("Favoris"), Repeat(over: articles, children: [ ArtCard(title: item.title, fav: item.fav) ]) ],
+)

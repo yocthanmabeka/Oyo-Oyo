@@ -1,0 +1,2 @@
+Page(children: [ P.c("x") ])
+.c { --ombre: 0 4px 12px #00000033; }

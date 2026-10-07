@@ -1,0 +1,1 @@
+Page(title: "a", title: "b", children: [ H1("x") ])

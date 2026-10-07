@@ -1,0 +1,17 @@
+Component(
+  name: Oeuvre,
+  params: [image, alt, title, price, fav],
+  children: [
+    Column.carte(gap: 6px, children: [
+      Image(source: image, alt: alt),
+      P.titreOeuvre("{title}"),
+      Text("{price} euros"),
+      Button(name: Fav, text: "Favori"),
+      If(fav, is: 1, children: [ Text("Dans vos favoris") ]),
+    ]),
+  ],
+  rules: [ On(Fav.tap, effect: fav.set(1)) ],
+)
+
+.carte { background: #fffaf3; border-radius: 14px; padding: 12px; }
+.titreOeuvre { font-weight: bold; color: #8a3b12; }

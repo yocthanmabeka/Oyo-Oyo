@@ -1,0 +1,2 @@
+signal Pick.tap@1
+expect chosen = "Barque"

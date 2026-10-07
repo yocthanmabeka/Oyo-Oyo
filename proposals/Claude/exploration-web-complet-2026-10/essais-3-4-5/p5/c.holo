@@ -1,0 +1,3 @@
+Component(name: Card, params: [label], children: [ P.etiquette("{label}") ])
+
+.etiquette { color: #245c45; }

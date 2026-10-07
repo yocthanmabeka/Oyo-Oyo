@@ -1,0 +1,326 @@
+{
+ "proposedImages": 12,
+ "png-telephone": {
+  "atOpen": {
+   "imagesDemandees": 12,
+   "octetsImages": 1272325,
+   "octetsMedia": 0,
+   "octetsTotal": 1280996,
+   "moteurDemande": false
+  },
+  "layout": {
+   "largeurEcran": 390,
+   "largeurPage": 390,
+   "cls": 0.132,
+   "images": [
+    {
+     "affichee": "155x87",
+     "choisie": "photo-01.png"
+    },
+    {
+     "affichee": "155x121",
+     "choisie": "photo-02.png"
+    },
+    {
+     "affichee": "155x87",
+     "choisie": "photo-03.png"
+    }
+   ]
+  },
+  "afterScroll": {
+   "imagesDemandees": 12,
+   "octetsImages": 1272325,
+   "octetsMedia": 0,
+   "octetsTotal": 1280996,
+   "moteurDemande": false
+  },
+  "exceptions": []
+ },
+ "phone-telephone": {
+  "atOpen": {
+   "imagesDemandees": 12,
+   "octetsImages": 65939,
+   "octetsMedia": 0,
+   "octetsTotal": 74500,
+   "moteurDemande": false
+  },
+  "layout": {
+   "largeurEcran": 390,
+   "largeurPage": 390,
+   "cls": 0,
+   "images": [
+    {
+     "affichee": "155x87",
+     "choisie": "photo-01-320.webp"
+    },
+    {
+     "affichee": "155x121",
+     "choisie": "photo-02-320.webp"
+    },
+    {
+     "affichee": "155x87",
+     "choisie": "photo-03-320.webp"
+    }
+   ]
+  },
+  "afterScroll": {
+   "imagesDemandees": 12,
+   "octetsImages": 65939,
+   "octetsMedia": 0,
+   "octetsTotal": 74500,
+   "moteurDemande": false
+  },
+  "exceptions": []
+ },
+ "propose-telephone": {
+  "atOpen": {
+   "imagesDemandees": 10,
+   "octetsImages": 141970,
+   "octetsMedia": 0,
+   "octetsTotal": 150015,
+   "moteurDemande": false
+  },
+  "layout": {
+   "largeurEcran": 1491,
+   "largeurPage": 1491,
+   "cls": 0,
+   "images": [
+    {
+     "affichee": "1280x720",
+     "choisie": "photo-01-640.webp"
+    },
+    {
+     "affichee": "900x700",
+     "choisie": "photo-02-640.webp"
+    },
+    {
+     "affichee": "1280x720",
+     "choisie": "photo-03-640.webp"
+    }
+   ]
+  },
+  "afterScroll": {
+   "imagesDemandees": 12,
+   "octetsImages": 158340,
+   "octetsMedia": 0,
+   "octetsTotal": 166385,
+   "moteurDemande": false
+  },
+  "exceptions": []
+ },
+ "png-pc": {
+  "atOpen": {
+   "imagesDemandees": 12,
+   "octetsImages": 1272325,
+   "octetsMedia": 0,
+   "octetsTotal": 1280796,
+   "moteurDemande": false
+  },
+  "layout": {
+   "largeurEcran": 1280,
+   "largeurPage": 1280,
+   "cls": 0.14,
+   "images": [
+    {
+     "affichee": "187x105",
+     "choisie": "photo-01.png"
+    },
+    {
+     "affichee": "187x145",
+     "choisie": "photo-02.png"
+    },
+    {
+     "affichee": "187x105",
+     "choisie": "photo-03.png"
+    }
+   ]
+  },
+  "afterScroll": {
+   "imagesDemandees": 12,
+   "octetsImages": 1272325,
+   "octetsMedia": 0,
+   "octetsTotal": 1280796,
+   "moteurDemande": false
+  },
+  "exceptions": []
+ },
+ "phone-pc": {
+  "atOpen": {
+   "imagesDemandees": 12,
+   "octetsImages": 298391,
+   "octetsMedia": 0,
+   "octetsTotal": 306952,
+   "moteurDemande": false
+  },
+  "layout": {
+   "largeurEcran": 1280,
+   "largeurPage": 1280,
+   "cls": 0.065,
+   "images": [
+    {
+     "affichee": "187x105",
+     "choisie": "photo-01-1280.webp"
+    },
+    {
+     "affichee": "187x145",
+     "choisie": "photo-02-1280.webp"
+    },
+    {
+     "affichee": "187x105",
+     "choisie": "photo-03-1280.webp"
+    }
+   ]
+  },
+  "afterScroll": {
+   "imagesDemandees": 12,
+   "octetsImages": 298391,
+   "octetsMedia": 0,
+   "octetsTotal": 306952,
+   "moteurDemande": false
+  },
+  "exceptions": []
+ },
+ "propose-pc": {
+  "atOpen": {
+   "imagesDemandees": 9,
+   "octetsImages": 51397,
+   "octetsMedia": 0,
+   "octetsTotal": 59442,
+   "moteurDemande": false
+  },
+  "layout": {
+   "largeurEcran": 1280,
+   "largeurPage": 2045,
+   "cls": 0,
+   "images": [
+    {
+     "affichee": "1280x720",
+     "choisie": "photo-01-320.webp"
+    },
+    {
+     "affichee": "900x700",
+     "choisie": "photo-02-320.webp"
+    },
+    {
+     "affichee": "1280x720",
+     "choisie": "photo-03-320.webp"
+    }
+   ]
+  },
+  "afterScroll": {
+   "imagesDemandees": 12,
+   "octetsImages": 65939,
+   "octetsMedia": 0,
+   "octetsTotal": 73984,
+   "moteurDemande": false
+  },
+  "exceptions": []
+ },
+ "grande-image-telephone": {
+  "atOpen": {
+   "imagesDemandees": 13,
+   "octetsImages": 318055,
+   "octetsMedia": 0,
+   "octetsTotal": 326144,
+   "moteurDemande": false
+  },
+  "layout": {
+   "largeurEcran": 1280,
+   "largeurPage": 1280,
+   "cls": 0,
+   "images": [
+    {
+     "affichee": "1280x720",
+     "choisie": "photo-01.png"
+    }
+   ]
+  },
+  "afterScroll": null,
+  "exceptions": []
+ },
+ "video-holo": {
+  "atOpen": {
+   "imagesDemandees": 6,
+   "octetsImages": 0,
+   "octetsMedia": 61941,
+   "octetsTotal": 70052,
+   "moteurDemande": false
+  },
+  "layout": {
+   "largeurEcran": 390,
+   "largeurPage": 390,
+   "cls": 0,
+   "images": []
+  },
+  "afterScroll": null,
+  "exceptions": []
+ },
+ "video-sous-titres": {
+  "atOpen": {
+   "imagesDemandees": 6,
+   "octetsImages": 0,
+   "octetsMedia": 61941,
+   "octetsTotal": 62775,
+   "moteurDemande": false
+  },
+  "layout": {
+   "largeurEcran": 390,
+   "largeurPage": 390,
+   "cls": 0,
+   "images": []
+  },
+  "afterScroll": null,
+  "exceptions": [],
+  "pistes": {
+   "mode": "showing",
+   "repliques": 2
+  },
+  "typeVtt": "application/octet-stream"
+ },
+ "pincer-page-legere": {
+  "atOpen": {
+   "imagesDemandees": 0,
+   "octetsImages": 0,
+   "octetsMedia": 0,
+   "octetsTotal": 8055,
+   "moteurDemande": false
+  },
+  "layout": {
+   "largeurEcran": 390,
+   "largeurPage": 390,
+   "cls": 0,
+   "images": []
+  },
+  "afterScroll": null,
+  "exceptions": [],
+  "apresPincement": {
+   "exceptions": [
+    "TypeError: Cannot read properties of undefined (reading 'length') |     at pinchZoom (http://localhost:8093/exemples/media/pincer.holo:219:57)",
+    "TypeError: Cannot read properties of undefined (reading 'length') |     at pinchZoom (http://localhost:8093/exemples/media/pincer.holo:219:57)"
+   ],
+   "moteurDemande": false
+  }
+ },
+ "pincer-avec-moteur": {
+  "atOpen": {
+   "imagesDemandees": 0,
+   "octetsImages": 0,
+   "octetsMedia": 0,
+   "octetsTotal": 844722,
+   "moteurDemande": true
+  },
+  "layout": {
+   "largeurEcran": 390,
+   "largeurPage": 390,
+   "cls": 0,
+   "images": []
+  },
+  "afterScroll": null,
+  "exceptions": [],
+  "apresPincement": {
+   "exceptionsAvant": [],
+   "exceptions": [],
+   "grossie": "non"
+  }
+ }
+}

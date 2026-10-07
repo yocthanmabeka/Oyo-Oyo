@@ -1,0 +1,14 @@
+Page(
+  title: "Menu",
+  components: [
+    Component(name: Menu, params: [current], children: [
+      Nav(children: [ Row(children: [
+        A("Accueil", to: "accueil.holo"),
+        If(current, is: "catalogue", children: [ Text.ici("Catalogue") ], else: [ A("Catalogue", to: "catalogue.holo") ]),
+      ]) ]),
+    ]),
+  ],
+  children: [ Menu(current: "catalogue"), H1("Catalogue") ],
+)
+
+.ici { font-weight: bold; }

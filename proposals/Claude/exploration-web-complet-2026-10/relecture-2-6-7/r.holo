@@ -1,0 +1,2 @@
+Page(title: "a", children: [ Header(children: [ Text("x") ]), H1("a") ])
+Header { position: sticky; }

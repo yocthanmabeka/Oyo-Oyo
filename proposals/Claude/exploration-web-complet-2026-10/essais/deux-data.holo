@@ -1,0 +1,1 @@
+Page(title: "a", state: State(a: 0), data: Data(from: "a.json"), data: Data(from: "b.json"), children: [ H1("x") ])

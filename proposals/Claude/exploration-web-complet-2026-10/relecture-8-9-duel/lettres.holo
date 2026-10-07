@@ -1,0 +1,7 @@
+Page(
+  title: "Lettres",
+  children: [
+    H1("CLAUDE", enter: Enter(y: 40px, opacity: 0, letters: 0.07s)),
+    P("Motion designer", enter: Enter(opacity: 0, letters: 0.03s)),
+  ],
+)

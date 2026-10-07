@@ -1,0 +1,27 @@
+Page(
+  title: "Réserver — L'atelier des mondes",
+  lang: "fr",
+  state: State(lever: 2, porte: 1, name: "", mail: "", delivery: "", address: "", gift: 0, sent: 0, failed: 0),
+  prices: Prices(lever: 120, porte: 90),
+  children: [
+    H1("Réserver vos tableaux"),
+    P("{count} tableaux, {total} euros."),
+    Form(name: Booking, include: [lever, porte], children: [                                       // proposé : include
+      Input(value: name, label: "Votre nom", required: true, autofill: name),                      // proposé : required, autofill
+      Input(value: mail, label: "Votre courriel", type: email, required: true, autofill: email),   // proposé : type: email
+      Choice(value: delivery, label: "Livraison", options: ["À domicile", "À l'atelier"], required: true),     // proposé : required
+      If(delivery, is: "À domicile", children: [                                                    // proposé : comparer un texte
+        Input(value: address, label: "Adresse de livraison", lines: 3, required: true, autofill: address),   // proposé : required, autofill
+      ]),
+      Checkbox(value: gift, label: "Emballage cadeau"),
+      Button(name: Send, text: "Réserver"),
+    ]),
+    If(sent, is: 1, announce: true, children: [ P("Merci, votre réservation est arrivée.") ]),        // proposé : announce
+    If(failed, is: 1, announce: true, children: [ P("La réservation n'est pas partie : réessayez.") ]),    // proposé : announce
+  ],
+  rules: [
+    On(Send.tap, effect: [failed.set(0), Booking.send]),
+    On(Booking.sent, effect: sent.set(1)),
+    On(Booking.failed, effect: failed.set(1)),
+  ],
+)

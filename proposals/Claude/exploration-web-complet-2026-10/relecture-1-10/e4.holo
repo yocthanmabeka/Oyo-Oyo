@@ -1,0 +1,1 @@
+Page(title: "x", state: State(articles: [ "a", "b" ]), children: [ H1("x"), Repeat(over: articles, children: [ Text("A {item}") ]), Repeat(over: articles, children: [ Text("B {item}") ]) ])

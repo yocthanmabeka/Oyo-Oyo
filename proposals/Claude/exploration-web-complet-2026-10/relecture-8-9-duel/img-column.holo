@@ -1,0 +1,8 @@
+Page(
+  title: "Essai column",
+  children: [
+    H1("Essai column"),
+    Column(children: [ Image(source: "photo-01.png", alt: "Une capture") ]),
+    P("Le texte sous l image."),
+  ],
+)

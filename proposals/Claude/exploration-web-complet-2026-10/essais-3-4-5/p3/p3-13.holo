@@ -1,0 +1,2 @@
+Page(children: [ P.c("x") ])
+.c { border-bottom: 1px solid #8a3b12; }

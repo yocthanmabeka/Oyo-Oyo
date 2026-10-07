@@ -1,0 +1,271 @@
+<!doctype html>
+<!-- Porte d'entrée pour une page : identique pour tous les fichiers .holo.
+
+     On est d'abord devant un site web normal, fabriqué par le moteur (vue à plat).
+     - Zoomer (Ctrl + molette, ou pincer) grossit d'abord la page comme n'importe quel site :
+       on lit, on sélectionne, on copie. Au-delà du grossissement fixé par le fichier
+       (Points(after:)), ses pixels deviennent des points lumineux, qui se morcellent ensuite.
+       Dézoomer ramène au site normal.
+     - Tourner la page, en vue points : on la voit de biais, et ce qui est lumineux se soulève.
+     - Entrer dans un point qui contient un site ouvre le carrefour : des portails vers les
+       sites voisins, chacun montrant le site où il mène. Un clic sur un portail l'ouvre en
+       grand. Un site peut en contenir d'autres, sans changer de page : la boucle continue.
+     - Chaque site a son adresse : le fichier, puis # et le chemin des points traversés.
+
+     Cette page ne décide de rien : chaque toucher est envoyé au moteur, qui répond par les
+     effets que les règles du fichier demandent (ADR-015). -->
+<html lang="fr"><head><meta charset="utf-8"><title>Leçon 64 : envoyer un message</title><meta property="og:title" content="Leçon 64 : envoyer un message">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* Le pincement appartient à la page : sans cela, Chrome grossit tout l'écran à sa façon et
+     les pixels ne deviennent jamais des points. On défile toujours avec un doigt. */
+  html,body{margin:0;touch-action:pan-x pan-y}
+  /* La zone de dessin du moteur ne sert qu'en vue points. */
+  canvas{position:fixed;inset:0;width:100vw;height:100vh;display:none;touch-action:none;z-index:1}
+  .in-points canvas{display:block}
+  /* Vue points : l'image de la page suit la vue, et s'efface quand les points prennent le relais. */
+  #image{position:fixed;left:0;top:0;z-index:3;transform-origin:0 0;pointer-events:none;display:none;will-change:transform,opacity}
+  .in-points{overflow:hidden}
+  .in-points #image{display:block}
+  #status,#commands{display:none}
+  /* La rotation activée par l'auteur (Relief(tilt:)) : « Tourner » est offert dès la page de face. */
+  .rotated #commands{display:flex;flex-direction:column;gap:8px}
+  body:not(.in-points) #front,.in-world #commands{display:none}
+  .in-points #status{display:block;position:fixed;left:8px;bottom:8px;z-index:5;padding:4px 8px;border-radius:6px;
+    background:rgba(0,0,0,.6);color:#bbb;font:12px system-ui,sans-serif;pointer-events:none}
+
+  .in-points #mode{display:none}
+  /* Les outils du moteur tiennent dans un seul bouton rond, en bas à droite, posé par-dessus
+     le site comme une bulle. On appuie : les outils apparaissent au-dessus de lui, et il
+     devient une croix pour les refermer. Le site garde tout l'écran pour lui. */
+  #menu{position:fixed;right:12px;bottom:12px;z-index:8;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+  #menu[hidden],#tools[hidden]{display:none}
+  #tools{display:flex;flex-direction:column;gap:8px;padding:8px;border-radius:14px;background:rgba(0,0,0,.72);border:1px solid #666}
+  #toggle{width:48px;height:48px;padding:0;border-radius:50%;border:1px solid #888;background:rgba(0,0,0,.72);color:#fff;
+    font:22px/1 system-ui,sans-serif;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.5)}
+  #toggle[aria-expanded="true"]{border-color:#E9B44C;color:#E9B44C}
+  #toggle:focus-visible{outline:2px solid #fff;outline-offset:2px}
+  #views{display:flex;flex-direction:column;gap:8px}
+  #views button,#commands button{text-align:left;padding:8px 12px;border:1px solid #888;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;
+    font:14px system-ui,sans-serif;cursor:pointer}
+  #commands button[aria-pressed="true"],#views button[aria-pressed="true"]{border-color:#E9B44C;color:#E9B44C}
+  /* Lu par un lecteur d'écran, invisible à l'écran (ADR-061). */
+  .for-reader{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  /* Vue points : la page reste dessous, invisible mais lisible par un lecteur d'écran (ADR-061). */
+  .under-points{opacity:0;pointer-events:none}
+
+  /* Un monde calculé, ouvert en profondeur. */
+  .in-world canvas{display:block}
+  .in-world #page{display:none}
+  .in-world #points{display:none}
+
+  /* Le carrefour : des portails vers les mondes voisins, sur le fond du site où l'on est,
+     éclairci par une lueur pour qu'on y voie même sur un site sombre (Portals(brightness:)). */
+  #crossroads{position:fixed;inset:0;z-index:6;display:flex;gap:36px 44px;padding:64px 32px 32px;box-sizing:border-box;overflow:auto;
+    background:radial-gradient(circle at 50% 42%,color-mix(in srgb,#fff var(--glow,15%),var(--background,#000)),var(--background,#000) 85%)}
+  #crossroads[hidden]{display:none}
+  /* Portals(layout: grid) : en grille, sur toute la fenêtre. */
+  #crossroads.grid{flex-wrap:wrap;align-items:center;justify-content:safe center;align-content:safe center}
+  /* Portals(layout: row) : une ligne, on défile de gauche à droite. */
+  #crossroads.line{flex-wrap:nowrap;align-items:center;overflow-y:hidden}
+  /* Portals(layout: column) : une colonne, on défile de haut en bas. */
+  #crossroads.column{flex-direction:column;flex-wrap:nowrap;align-items:center;overflow-x:hidden}
+  /* Portals(layout: diagonal) : en diagonale, chaque portail un cran plus bas que le précédent. */
+  #crossroads.diagonal{flex-wrap:nowrap;align-items:flex-start}
+  #crossroads.diagonale .portal{margin-top:calc(var(--rank) * var(--size) * .55)}
+  #crossroads .portal{flex:none}
+  /* Le passage direct vers un site : le point s'ouvre sur place, au-dessus de la page. */
+  #passage{position:fixed;inset:0;z-index:9;pointer-events:none}
+  .portal{display:flex;flex-direction:column;align-items:center;gap:10px;padding:0;border:0;background:none;color:inherit;
+    font:15px system-ui,sans-serif;cursor:pointer}
+  .portal .preview{display:block;position:relative;width:var(--size);height:var(--size);border-radius:50%;overflow:hidden;
+    box-shadow:0 0 0 3px var(--color),0 0 28px 6px var(--color);transition:transform .2s,box-shadow .2s}
+  /* Là où le curseur se pose, le monde s'avance : il grandit et devient une feuille lisible. */
+  .portal:hover{position:relative;z-index:2}
+  .portal:hover .preview{transform:scale(1.45);border-radius:16px;box-shadow:0 0 0 3px var(--color),0 0 60px 18px var(--color)}
+  .portal:focus-visible .preview{box-shadow:0 0 0 6px #fff,0 0 44px 12px var(--color)}
+  /* Un monde calculé : une boule de lumière de sa couleur, avec ses points. */
+  .portal .preview.computed{background:
+    radial-gradient(circle at 34% 30%,#fff 0 3%,transparent 4%),radial-gradient(circle at 68% 42%,#fff 0 2%,transparent 3%),
+    radial-gradient(circle at 46% 70%,#fff 0 2.5%,transparent 3.5%),radial-gradient(circle at 24% 62%,#fff 0 1.5%,transparent 2.5%),
+    radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--color) 70%,#fff) 0,var(--color) 38%,color-mix(in srgb,var(--color) 25%,#000) 72%)}
+  .portal .content{display:block;position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none;text-align:left}
+  .portal:focus{outline:none}
+  .portal .name{padding:4px 10px;border-radius:999px;background:rgba(0,0,0,.55);color:#fff}
+  .portal.to .preview{box-shadow:0 0 0 5px var(--color),0 0 60px 16px var(--color)}
+  /* Un portail qui s'ouvre : son aperçu grandit jusqu'à remplir la fenêtre, puis devient le site. */
+  .preview.opening{position:fixed;z-index:9;box-shadow:none;transition:left var(--duration,.45s) ease-in,top var(--duration,.45s) ease-in,width var(--duration,.45s) ease-in,height var(--duration,.45s) ease-in,border-radius var(--duration,.45s) ease-in}
+  .preview.opening .content{transition:transform var(--duration,.45s) ease-in}
+  @media (prefers-reduced-motion:reduce){.preview.opening,.preview.opening .content,.portal .preview{transition:none}}
+
+  /* Chez quelqu'un d'autre : un bandeau qui appartient au moteur, pas au site. Un fichier ne
+     peut ni le cacher ni le styler : ses styles ne visent que ses propres blocs. */
+  #origin{position:fixed;left:8px;top:8px;z-index:9;display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;
+    background:#111;color:#fff;border:1px solid #E9B44C;font:13px system-ui,sans-serif}
+  #origin[hidden]{display:none}
+  #origin button{padding:4px 8px;border:1px solid #888;border-radius:6px;background:none;color:#fff;font:inherit;cursor:pointer}
+  #error{position:fixed;left:8px;bottom:8px;right:8px;z-index:10;color:#f88;font:13px monospace;white-space:pre-wrap}
+  /* Un bouton touché avant l'arrivée du moteur : il montre qu'il attend, tout de suite. */
+  .holo-waiting{cursor:progress;animation:holo-waiting .9s ease-in-out infinite alternate}
+  @keyframes holo-waiting{to{opacity:.45}}
+  @media (prefers-reduced-motion:reduce){.holo-waiting{animation:none;opacity:.6}}
+  /* Le moteur n'a pas pu démarrer : la page le dit, sans rien cacher de ce qui se lit. */
+  #outage{position:fixed;left:12px;right:76px;bottom:12px;z-index:10;display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 14px;
+    border-radius:10px;background:#2a1212;color:#ffd6d6;border:1px solid #f88;font:14px system-ui,sans-serif}
+  #outage[hidden]{display:none}
+  #outage button{padding:6px 12px;border-radius:6px;border:1px solid #ffd6d6;background:none;color:inherit;font:inherit;cursor:pointer}
+</style>
+</head><body><canvas id="area" aria-hidden="true"></canvas><div id="page"><style>:where(.holo-Page){min-height:100vh;box-sizing:border-box;margin:0}:where(.holo-Page>main,.holo-Page>header,.holo-Page>footer){display:block;max-width:640px;margin:0 auto;position:relative}:where(.holo-Page>main,.holo-Page>header,.holo-Page>footer,.holo-panel,.holo-Header,.holo-Footer,.holo-Main)>*{display:block;box-sizing:border-box;margin:0 0 16px 0}:where(.holo-Nav)>*{margin:0}:where(.holo-Stack){display:inline-grid;position:relative;max-width:100%;vertical-align:top}:where(.holo-Stack>:first-child .holo-Image){width:100%;display:block}:where(.holo-Stack)>*{grid-area:1/1;min-width:0;margin:0}:where(.holo-stacked){z-index:1;margin:6px}:where(.holo-Button){font:inherit;color:inherit;cursor:pointer;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 12px}:where(.holo-Point){width:64px;height:64px;padding:0;border:0;border-radius:50%;cursor:pointer;background:radial-gradient(circle,white 0%,var(--holo-color,white) 35%,transparent 70%);opacity:var(--holo-brightness,1)}:where(.holo-pixel){position:absolute;width:1px;height:1px;margin:0;padding:0;border:0;background:var(--holo-color,white);cursor:pointer}:where(.holo-World){position:fixed;inset:0;margin:0;pointer-events:none}:where(.holo-World[hidden]){display:none}:where(.holo-panel){position:absolute;z-index:1;left:0;right:0;bottom:0;max-height:46vh;overflow:auto;padding:16px max(16px,calc(50% - 320px));box-sizing:border-box;background:rgba(0,0,0,0.6);pointer-events:auto}:where(.holo-If){display:contents}:where(.holo-If)>*{display:block;box-sizing:border-box;margin:0 0 16px 0}:where(.holo-Row){display:flex;flex-wrap:wrap;align-items:center;gap:var(--holo-gap,1rem);justify-content:var(--holo-align,flex-start)}:where(.holo-Column){display:flex;flex-direction:column;gap:var(--holo-gap,1rem);align-items:var(--holo-align,stretch)}:where(.holo-Grid){display:grid;gap:var(--holo-gap,1rem);grid-template-columns:repeat(auto-fill,minmax(min(100%,max(7.5rem,calc((100% - (var(--holo-columns,2) - 1)*var(--holo-gap,1rem))/var(--holo-columns,2)))),1fr))}:where(.holo-Row,.holo-Column,.holo-Grid)>*{margin:0;box-sizing:border-box;min-width:0}:where(.holo-grow){display:flex;flex-direction:column;min-width:0}:where(.holo-grow)>*{flex:1 1 auto;margin:0}.holo-grow :is(input,textarea,select){width:100%;box-sizing:border-box}:where(.holo-grow .holo-Input){align-items:stretch}:where(.holo-Row,.holo-Column,.holo-Grid)>.holo-If>*{margin:0}:where(.holo-If[hidden]){display:none}:where(.holo-Input){display:flex;flex-direction:column;gap:4px;align-items:flex-start}:where(.holo-Input input){font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 10px;width:120px}:where(.holo-Input input[type=text]){width:min(100%,280px);box-sizing:border-box}:where(.holo-Input input[type=file]){width:min(100%,360px);box-sizing:border-box}:where(.holo-Checkbox){display:flex;align-items:center;gap:8px;cursor:pointer}:where(.holo-Checkbox input){width:18px;height:18px;margin:0;accent-color:currentColor}:where(.holo-Input textarea){font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 10px;width:min(100%,480px);box-sizing:border-box;resize:vertical}:where(.holo-Choice){border:0;padding:0;margin:0 0 16px 0;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}:where(.holo-Choice legend){padding:0;margin:0 0 6px 0;width:100%}:where(.holo-Choice label){display:flex;gap:6px;align-items:center;cursor:pointer}:where(.holo-Choice input){accent-color:currentColor;width:18px;height:18px;margin:0}:where(label.holo-Choice){flex-direction:column;align-items:flex-start;gap:4px}:where(.holo-Choice select){font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 10px}:where(.holo-Video){display:block;width:100%;max-width:640px;border-radius:12px;background:black}:where(.holo-table-wrap){overflow-x:auto;max-width:100%}:where(.holo-Table){border-collapse:collapse;min-width:100%}:where(.holo-Table caption){text-align:left;font-weight:bold;padding:0 0 8px 0}:where(.holo-Table th,.holo-Table td){text-align:left;padding:8px 12px;border-bottom:1px solid color-mix(in srgb,currentColor 25%,transparent)}:where(.holo-Table th){font-weight:bold}:where(.holo-Board){position:relative;overflow:hidden;border-radius:12px;container-type:inline-size;margin-inline:auto}:where(.holo-positioned){position:absolute;left:calc(var(--x)*1%);top:calc(var(--y)*1%);transform:translate(calc(var(--x)*-1%),calc(var(--y)*-1%));transition:left .12s linear,top .12s linear,transform .12s linear}:where(.holo-positioned[data-drag]){touch-action:none;cursor:grab}.holo-positioned.holo-dragging{transition:none;cursor:grabbing}@media (prefers-reduced-motion:reduce){.holo-positioned{transition:none}.holo-Page,.holo-Page *{transition:none!important}}:where(.holo-Sound){display:none}:where(audio.holo-Sound[controls]){display:block;width:100%;max-width:480px}:where(.holo-figure){margin:0 0 16px 0}:where(.holo-figure figcaption){font-size:0.9em;opacity:0.8;margin-top:6px}:where(picture){display:contents}:where(.holo-Slider,.holo-Progress){display:flex;flex-direction:column;gap:4px;align-items:flex-start}:where(.holo-Slider input){width:min(100%,320px);accent-color:currentColor}:where(.holo-Progress progress){width:min(100%,320px);accent-color:currentColor}:where(.holo-Details summary){cursor:pointer;font-weight:bold}:where(.holo-Details[open] summary){margin-bottom:8px}:where(.holo-Dialog){max-width:min(90vw,480px);border:1px solid currentColor;border-radius:12px;padding:16px 20px;color:inherit;background:var(--fond,Canvas)}:where(.holo-Dialog)::backdrop{background:rgba(0,0,0,0.5)}:where(.holo-Dialog>*){margin:0 0 12px 0}:where(.holo-close){display:flex;justify-content:flex-end;margin:0}:where(.holo-close button){font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;font-size:1.2em;line-height:1}:where(.holo-Lines,.holo-line){display:contents}:where(.holo-Form){display:block}:where(.holo-Form>*){box-sizing:border-box;margin:0 0 16px 0}:where(.holo-Form>:not(.holo-Input)){display:block}:where(.holo-Shape){display:block;width:var(--holo-size,48px);height:var(--holo-size,48px);padding:0;border:0;background:var(--holo-color,currentColor)}:where(button.holo-Shape){cursor:pointer}:where(.holo-forme-circle){border-radius:50%}:where(.holo-Board .holo-Shape){width:calc(var(--holo-n,48)*100cqw/640);height:calc(var(--holo-n,48)*100cqw/640)}:where(.holo-Board .holo-Point){width:10cqw;height:10cqw}:where(.holo-forme-triangle){clip-path:polygon(50% 0,100% 100%,0 100%)}:where(.holo-forme-diamond){clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}:where(.holo-Hr){border:0;border-top:1px solid currentColor;opacity:0.4;height:0}:where(.holo-Quote){border-left:3px solid currentColor;padding:0 0 0 12px;font-style:italic}:where(.holo-Quote>p){margin:0 0 4px 0}:where(.holo-Quote>footer){font-style:normal;font-size:0.9em;opacity:0.7}:where(.holo-Code){font-family:ui-monospace,Consolas,monospace;background:rgba(127,127,127,0.18);padding:8px 12px;border-radius:6px;overflow:auto;white-space:pre-wrap}:where(.holo-Page code){font-family:ui-monospace,Consolas,monospace;background:rgba(127,127,127,0.18);padding:0 4px;border-radius:4px}:where(.holo-Code code){background:none;padding:0}.holo-Page{background:#101020;color:white;font-family:Georgia, serif;padding:1.5rem 1rem;}.holo-H1{color:#E9B44C;font-size:clamp(1.5rem,4.375vw,1.75rem);}.holo-A{color:#8fd3ff;}.holo-s-ok{color:#7be38f;}.holo-s-erreur{color:#ff8a80;}</style><div class="holo-Page" data-title="Leçon 64 : envoyer un message"><main><h1 class="holo-H1">Envoyer un message</h1><form class="holo-Form" data-name="Contact" novalidate><label class="holo-Input"><span>Ton nom</span><input type="text" maxlength="80" value="" data-bind="nom"></label><label class="holo-Input"><span>Ton message</span><textarea rows="4" maxlength="1000" data-bind="message"></textarea></label><button type="button" class="holo-Button" data-name="Envoyer">Envoyer</button></form><div class="holo-If" data-if="etat|is=1" hidden><p class="holo-P holo-s-ok">Merci, ton message est arrivé.</p></div><div class="holo-If" data-if="etat|is=2" hidden><p class="holo-P holo-s-erreur">Le message n'est pas parti : réessaie plus tard.</p></div><hr class="holo-Hr"><div class="holo-Row" style="--holo-gap:1rem;--holo-align:space-between;"><a class="holo-A" href="/exemples/lecons/63-fenetre.holo">← Leçon 63 : une fenêtre par-dessus la page</a><a class="holo-A" href="/exemples/lecons/65-icone-de-l-onglet.holo">Leçon 65 : l'icône de l'onglet →</a></div></main></div></div>
+<img id="image" alt=""><div id="status"></div><div id="announcement" class="for-reader" role="status" aria-live="polite"></div>
+<div id="crossroads" hidden></div>
+<div id="outage" hidden role="alert"><span>Le moteur n'a pas pu démarrer. La page se lit, mais les boutons ne répondent pas : rien n'a été ajouté ni envoyé.</span><button type="button">Réessayer</button></div>
+<div id="origin" hidden><span></span><button type="button">Revenir</button></div>
+<div id="menu" hidden>
+  <div id="tools" hidden>
+    <div id="views">
+      <button id="points" type="button" title="Ou : Ctrl + molette, ou pincer, directement sur la page">Vue points</button>
+      <button id="mode" type="button" title="Les sites voisins, sous forme de portails">Carrefour</button>
+    </div>
+    <div id="commands">
+      <button id="rotate" type="button" aria-pressed="false" title="Glisser fait tourner la page (ou : bouton droit, ou Maj)">Tourner</button>
+      <button id="front" type="button" title="Remettre la page de face">De face</button>
+    </div>
+  </div>
+  <button id="toggle" type="button" aria-expanded="false" aria-controls="tools" aria-label="Ouvrir les outils" title="Les outils du moteur">☰</button>
+</div>
+<script>
+  // Le site léger (ADR-033). La page arrive toute faite par le serveur : on la lit, on défile,
+  // on suit un lien vers une autre page, sans rien télécharger d'autre. Le moteur (environ
+  // 560 Ko) n'est demandé qu'au premier geste qui en a besoin : toucher un bouton nommé, un
+  // lien vers un point, un champ, le menu, ou zoomer. Ce qui a été touché en l'attendant est
+  // rejoué. Une page vivante (horloge, clavier, données, glissement) le demande tout de suite,
+  // comme une page que le serveur n'a pas fabriquée, ou qui a des valeurs gardées à remettre.
+  (() => {
+    const root = document.getElementById("page");
+    const toggle = document.getElementById("toggle");
+    // Ce qui entre quand on le voit (Enter(inView: true), ADR-061) : son mouvement attend que le
+    // bloc arrive à l'écran. Sans JavaScript, rien n'attend : tout se voit d'emblée.
+    document.documentElement.classList.add("holo-js");
+    const watcher = "IntersectionObserver" in window && new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        entry.target.classList.add("holo-seen");
+        watcher.unobserve(entry.target);
+      }
+    }, { rootMargin: "0px 0px -10% 0px" });
+    // Aussi après chaque morceau de page fabriqué par le moteur. Et le volume des sons (ADR-061).
+    window.__holoWatchEntrances = (inside = root) => {
+      for (const block of inside.querySelectorAll(".holo-in-view:not(.holo-seen)")) {
+        if (watcher) watcher.observe(block);
+        else block.classList.add("holo-seen");
+      }
+      for (const sound of inside.querySelectorAll("audio[data-volume]")) sound.volume = Number(sound.dataset.volume);
+    };
+    window.__holoWatchEntrances();
+    const waiting = (window.__holoWaiting = []);
+    const outage = document.getElementById("outage");
+    let request = false;
+    let test = 0;
+    // Plus rien n'attend : les boutons touchés cessent de le montrer.
+    const waitingEnd = () => {
+      for (const block of root.querySelectorAll(".holo-waiting")) block.classList.remove("holo-waiting");
+      root.removeAttribute("aria-busy");
+    };
+    const load = () => {
+      if (request) return;
+      request = true;
+      outage.hidden = true;
+      const engine = document.createElement("script");
+      engine.type = "module";
+      // Un nouvel essai demande le fichier à nouveau, sans reprendre l'échec gardé en cache.
+      engine.src = test ? `/page-engine.js?essai=${test}` : "/page-engine.js";
+      engine.onerror = () => window.__holoFailure(false);
+      document.body.append(engine);
+    };
+    // Le moteur n'a pas pu arriver. Les touchers en attente sont oubliés : aucun ne sera rejoué
+    // plus tard sans que le visiteur le sache. `relancer` : il faut recharger la page (le module
+    // est arrivé, mais pas le WebAssembly).
+    window.__holoFailure = (restart) => {
+      waiting.length = 0;
+      waitingEnd();
+      outage.hidden = false;
+      outage.querySelector("button").onclick = () => {
+        if (restart) return location.reload();
+        test += 1;
+        request = false;
+        load();
+      };
+    };
+    const record = (event) => {
+      const block = event.target.closest("[data-name]");
+      // Au doigt, toucher un bloc qu'une règle écoute au survol le survole (ADR-039).
+      const hovered = event.pointerType === "touch" && event.target.closest("[data-hover]");
+      if (hovered) waiting.push(`${hovered.dataset.name}.touch`);
+      if (block) {
+        // Dans la ligne d'une liste, le toucher garde sa ligne (ADR-044).
+        const line = block.closest("[data-rank]")?.dataset.rank;
+        waiting.push(line === undefined ? block.dataset.name : `${block.dataset.name}@${line}`);
+        block.classList.add("holo-waiting");
+        root.setAttribute("aria-busy", "true");
+      }
+      // Un lien vers un endroit de la page (#Hours) : le navigateur y descend, sans le moteur.
+      const anchor = event.target.closest('a[href^="#"]');
+      const spot = anchor && document.getElementById(decodeURIComponent(anchor.getAttribute("href").slice(1)));
+      if (block || hovered || (anchor && !spot)) load();
+    };
+    const openMenu = () => { window.__holoMenuRequested = true; load(); };
+    // Zoomer à la molette : la page à elle, pas le navigateur ; le moteur arrive pour la suite.
+    const zoom = (event) => { if (event.ctrlKey) { event.preventDefault(); load(); } };
+    const pinchZoom = (event) => { if (event.touches.length > 1) load(); };
+    // La souris arrive sur un bloc qu'une règle écoute au survol, ou le clavier s'y pose (ADR-039) :
+    // le moteur arrive, et le survol est rejoué s'il dure encore.
+    const hover = (event) => {
+      if (event.pointerType === "touch") return;
+      const block = event.target.closest("[data-hover]");
+      if (!block || block.contains(event.relatedTarget)) return;
+      const signal = `${block.dataset.name}.${event.type.startsWith("focus") ? "focus" : "hover"}`;
+      if (event.type === "pointerover" || event.type === "focusin") {
+        if (!waiting.includes(signal)) waiting.push(signal);
+        load();
+      } else if (waiting.includes(signal)) waiting.splice(waiting.indexOf(signal), 1);
+    };
+    root.addEventListener("pointerover", hover);
+    root.addEventListener("pointerout", hover);
+    root.addEventListener("focusin", hover);
+    root.addEventListener("focusout", hover);
+    root.addEventListener("click", record);
+    // Un formulaire ne recharge jamais la page, même avant l'arrivée du moteur (ADR-042).
+    root.addEventListener("submit", (event) => { if (event.target.closest(".holo-Form")) event.preventDefault(); });
+    root.addEventListener("focusin", load);
+    // Un bouton rond coché, une option choisie : le moteur arrive, et reprend ce choix.
+    root.addEventListener("change", load);
+    root.addEventListener("input", load);
+    toggle.addEventListener("click", openMenu);
+    addEventListener("wheel", zoom, { passive: false });
+    addEventListener("touchstart", pinchZoom, { passive: true });
+    window.__holoStopRecording = () => {
+      waitingEnd();
+      root.removeEventListener("click", record);
+      root.removeEventListener("pointerover", hover);
+      root.removeEventListener("pointerout", hover);
+      root.removeEventListener("focusin", hover);
+      root.removeEventListener("focusout", hover);
+      root.removeEventListener("focusin", load);
+      root.removeEventListener("change", load);
+      root.removeEventListener("input", load);
+      toggle.removeEventListener("click", openMenu);
+      removeEventListener("wheel", zoom);
+      removeEventListener("touchstart", pinchZoom);
+    };
+    const params = new URLSearchParams(location.search);
+    document.getElementById("menu").hidden = params.has("bare");
+    // ?moteur : tout de suite, pour mesurer ou comparer. Une adresse avec # ou ? sert aux
+    // mondes et aux captures : le moteur aussi.
+    const spot = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)));
+    if (!root.querySelector("[data-title]") || root.querySelector("[data-live]") || location.search || (location.hash && !spot)) load();
+    // Des valeurs gardées d'une visite précédente (keep) : le moteur les remet. Le visiteur est
+    // déjà venu, son navigateur a sans doute gardé le moteur.
+    try { if (localStorage.getItem(`holo:${location.pathname}`)) load(); } catch { /* stockage refusé */ }
+  })();
+</script>
+</body></html>

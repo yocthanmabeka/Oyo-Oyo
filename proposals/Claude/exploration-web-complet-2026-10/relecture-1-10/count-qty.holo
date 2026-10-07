@@ -1,0 +1,1 @@
+Page(title: "x", state: State(a: 1, n: 0), prices: Prices(a: 1999), children: [ H1("x"), Button(name: V, text: "v") ], rules: [ On(V.tap, effect: n.set(count)) ])

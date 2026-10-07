@@ -1,0 +1,4 @@
+7 · ?format=Petit : coché → Petit
+7 · après « Grand » : adresse → ?format=Grand
+7 · premier Tab → Aller au contenu
+7 · Entrée sur le lien d'évitement : focus → MAIN#content

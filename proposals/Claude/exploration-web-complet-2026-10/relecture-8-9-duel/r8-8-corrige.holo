@@ -1,0 +1,6 @@
+Page(
+  title: "Poids",
+  children: [
+    Image(source: "photo-01.png", alt: "Une capture", weight: 1KB),
+  ],
+)

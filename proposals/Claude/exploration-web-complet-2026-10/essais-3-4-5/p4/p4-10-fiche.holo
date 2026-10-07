@@ -1,0 +1,19 @@
+Page(
+  title: "Fiche",
+  children: [
+    H1("Lever sur le fleuve"),
+    Row(gap: 16px, children: [
+      Column.image(grow: 1, children: [ Text("IMAGE") ]),
+      Column(grow: 2, gap: 8px, children: [
+        P("Un soleil jaune se lève au-dessus d'un fleuve bleu. Peint à la main, en 2026."),
+        Text.prix("120 euros"),
+        Button(name: Add, text: "La mettre au panier"),
+      ]),
+    ]),
+    Grid(columns: 3, gap: 16px, children: [ P.carte("Un"), P.carte("Deux"), P.carte("Trois"), P.carte("Quatre"), P.carte("Cinq"), P.carte("Six") ]),
+  ],
+)
+
+.image { background: #c2a27a; height: 160px; }
+.prix { font-weight: bold; }
+.carte { background: #fffaf3; border: 1px solid #e3d5c3; padding: 12px; }

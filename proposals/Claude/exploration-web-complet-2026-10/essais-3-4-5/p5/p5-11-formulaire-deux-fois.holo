@@ -1,0 +1,18 @@
+Page(
+  title: "Deux formulaires",
+  state: State(questionA: "", questionB: "", recuA: 0, recuB: 0),
+  components: [
+    Component(name: Question, params: [titre, texte, recu], children: [
+      Column(children: [
+        H2("{titre}"),
+        Form(name: Envoi, children: [ Input(value: texte, label: "Votre question", lines: 3), Button(name: Envoyer, text: "Envoyer") ]),
+        If(recu, is: 1, children: [ P("Merci, c'est reçu.") ]),
+      ]),
+    ], rules: [ On(Envoyer.tap, effect: Envoi.send), On(Envoi.sent, effect: recu.set(1)) ]),
+  ],
+  children: [
+    H1("Questions"),
+    Question(name: Livraison, titre: "Sur la livraison", texte: questionA, recu: recuA),
+    Question(name: Cadre, titre: "Sur le cadre", texte: questionB, recu: recuB),
+  ],
+)

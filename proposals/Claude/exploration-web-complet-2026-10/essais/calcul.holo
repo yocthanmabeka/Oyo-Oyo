@@ -1,0 +1,19 @@
+// Ce que le calcul d'aujourd'hui donne (ADR-043) : TVA, arrondi, négatif, valeur qui suit.
+Page(
+  title: "Calcul",
+  state: State(price: 1999, vat: 0, qty: 1, line: 0, balance: 500, arrival: ""),
+  children: [
+    H1("Calcul"),
+    Input(value: qty, label: "Quantité", max: 99),
+    Input(value: arrival, label: "Arrivée", type: date),
+    P("TVA : {vat:cents} € ; ligne : {line:cents} € ; solde : {balance:cents} €"),
+    Button(name: Vat, text: "TVA"),
+    Button(name: Line, text: "Ligne"),
+    Button(name: Refund, text: "Rembourser 8 €"),
+  ],
+  rules: [
+    On(Vat.tap, effect: [vat.set(price), vat.mul(20), vat.div(100)]),
+    On(Line.tap, effect: [line.set(price), line.mul(qty)]),
+    On(Refund.tap, effect: balance.sub(800)),
+  ],
+)

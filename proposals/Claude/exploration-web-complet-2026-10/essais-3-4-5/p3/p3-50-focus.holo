@@ -1,0 +1,12 @@
+Page(title: "Focus", children: [ Row(gap: 12px, children: [ Button.action(name: Un, text: "Ajouter"), Button.action(name: Deux, text: "Retirer") ]) ])
+
+.action {
+  background: #8a3b12;
+  color: #fffaf3;
+  border-radius: 999px;
+  padding: 10px 22px;
+  font-weight: bold;
+  hover: { background: #a5481a; }
+  focus: { border: 3px solid #2a2118; }
+  active: { opacity: 0.8; }
+}

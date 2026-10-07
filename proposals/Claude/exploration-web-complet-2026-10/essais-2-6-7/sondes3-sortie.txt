@@ -1,0 +1,8 @@
+P2-18 comparer deux textes : If(size, is: medium)
+  → ligne 1, colonne 143 : « is: medium » : aucun nombre ne s'appelle « medium » ; déclare-le sur la page, state: State(medium: 0)
+
+P2-18b au départ size = S, medium = M : le bloc est-il caché ?
+  → 
+P2-19 champ de nombre : valeur négative impossible (min=0)
+  → ok
+

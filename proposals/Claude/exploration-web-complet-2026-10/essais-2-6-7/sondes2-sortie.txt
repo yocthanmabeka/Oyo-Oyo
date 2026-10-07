@@ -1,0 +1,40 @@
+P2-15 If sur un texte de Choice : If(size, is: "M")
+  → ligne 1, colonne 129 : « If(size, is: …) » attend un nombre entier, ou le nom d'une autre valeur
+
+P6-15 menu.toggle(1)
+  → ligne 1, colonne 140 : demande inconnue « toggle » : pour une valeur, on peut demander add, sub, set, random, mul, div
+
+P6-16 un menu déroulant sans moteur : Details dans Nav
+  → ok
+
+P6-17 un formulaire dans une fenêtre
+  → ok
+
+P6-18 Key.escape et fenêtre ouverte (accepté)
+  → ok
+
+P6-19 Input dans un Repeat(over:) (un champ par ligne)
+  → ligne 1, colonne 128 : « Input(value: item.qty) » : aucune valeur ne s'appelle « item.qty » ; déclare-la sur la page, state: State(item.qty: 0)
+
+P2-16 un champ nombre dans un formulaire (quantité commandée)
+  → ok
+
+P7-16 Main nommé, visé par un lien d évitement
+  → ok
+
+P7-16b le même : l id Content est-il posé dans le HTML ?
+  → href="#Content" href="/essai/home.holo" <main> 
+P7-17 lien vers un H2 nommé : id posé ?
+  → href="#Hours" id="Hours" 
+P7-18 deux Nav : quels attributs ?
+  → <header class="holo-Header"> <nav class="holo-Nav"> <footer class="holo-Footer"> <nav class="holo-Nav"> 
+P7-19 Dialog : nom accessible ?
+  → <dialog class="holo-Dialog" data-name="Thanks"> aria-label="Fermer" 
+P2-17 Form rendu : attributs du formulaire et des champs
+  → <form class="holo-Form" data-name="Contact" novalidate> <input type="text" maxlength="80" value="" data-bind="name"> <input type="number" inputmode="numeric" min="0" max="5" value="0" data-bind="n"> <button type="button" class="holo-Button" data-name="Send"> 
+P7-20 tableau : th et scope
+  → <caption> <thead> <th scope="col"> <th scope="col"> <td> <td> 
+P7-21 page sans titre : data-title
+  → data-title="" 
+P7-22 A externe : attributs
+  → <a class="holo-A" href="https://example.com"> 

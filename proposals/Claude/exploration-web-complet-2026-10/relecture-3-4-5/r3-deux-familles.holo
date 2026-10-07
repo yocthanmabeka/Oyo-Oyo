@@ -1,0 +1,8 @@
+Page(
+  title: "Deux familles",
+  fonts: [ Font(family: "Carlito", source: "carlito.woff2"), Font(family: "Carlito Gras", source: "carlito-bold.woff2") ],
+  children: [ H1("Titre en gras"), P("Texte normal") ],
+)
+
+Page { font-family: Carlito, Georgia, serif; }
+H1 { font-family: Carlito Gras, Carlito, Georgia, serif; font-weight: normal; }

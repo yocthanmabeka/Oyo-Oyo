@@ -1,0 +1,18 @@
+Component(
+  name: Oeuvre,
+  params: [image, alt, title, price],
+  children: [
+    Column.carte(gap: 6px, children: [
+      Image(source: image, alt: alt),
+      P.titre("{title}"),
+      Text("{price} euros"),
+      Button(name: Fav, text: "Favori"),
+      
+    ]),
+  ],
+
+)
+
+.carte { background: #fffaf3; border-radius: 14px; padding: 12px; }
+.titre { font-weight: bold; color: #8a3b12; }
+.pastille { background: #c2462b; color: #fffaf3; border-radius: 999px; padding: 3px 10px; }

@@ -1,0 +1,4 @@
+Page(title: "Sombre et survol", children: [ Button.cta(name: Go, text: "Aller") ])
+
+Page { --accent: #8a3b12; --accent-survol: #a5481a; --texte-bouton: #fffaf3; background: #f7f2ea; color: #2a2118; dark: { --accent: #e9b44c; --accent-survol: #ffd27a; --texte-bouton: #101020; background: #101020; color: #f5f5f5; } }
+.cta { background: --accent; color: --texte-bouton; hover: { background: --accent-survol; } focus: { border: 3px solid --accent; } }

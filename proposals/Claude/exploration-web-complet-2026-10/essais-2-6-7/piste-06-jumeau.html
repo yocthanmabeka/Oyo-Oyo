@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Questions — L'atelier des mondes</title>
+<style>
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+  .for-reader { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  fieldset { border: 0; padding: 0; }
+</style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <span>L'atelier des mondes</span>
+    <button type="button" popovertarget="site-menu">Menu</button>
+  </div>
+  <div id="site-menu" popover>
+    <nav aria-label="Menu principal">
+      <ul>
+        <li><a href="accueil.holo">Accueil</a></li>
+        <li><a href="catalogue.holo">Catalogue</a></li>
+        <li><a href="panier.holo">Panier</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<main>
+  <h1 tabindex="-1">Questions</h1>
+  <details name="faq"><summary>Livrez-vous à l'étranger ?</summary><p>Oui, partout en Europe, en cinq jours.</p></details>
+  <details name="faq"><summary>Les tableaux sont-ils encadrés ?</summary><p>Oui, d'un cadre en chêne.</p></details>
+  <fieldset>
+    <legend>Format</legend>
+    <label><input type="radio" name="size" value="Petit"> Petit</label>
+    <label><input type="radio" name="size" value="Grand"> Grand</label>
+  </fieldset>
+  <p id="note" hidden>Le grand format part en caisse de bois.</p>
+  <button type="button" id="ask">Recevoir les nouveautés</button>
+  <dialog id="news" aria-labelledby="news-title">
+    <form method="dialog"><button aria-label="Fermer">✕</button></form>
+    <h2 id="news-title">Les nouveautés</h2>
+    <p>Un courriel par mois, pas plus. Écrivez-nous depuis la page Contact.</p>
+    <button type="button" id="ok">D'accord</button>
+  </dialog>
+  <div id="live" class="for-reader" role="status" aria-live="polite"></div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const say = (text) => { $("live").textContent = ""; setTimeout(() => ($("live").textContent = text), 50); };
+  // La valeur gardée d'une visite à l'autre (keep: [asked]).
+  let asked = 0;
+  try { asked = Number(localStorage.getItem("questions:asked") ?? 0); } catch {}
+  $("ask").hidden = asked === 1;
+
+  // When(size, is: "Grand") et When(size, is: "Petit") : au moment où le choix change.
+  for (const radio of document.querySelectorAll("input[name=size]")) {
+    radio.addEventListener("change", () => {
+      if (radio.value === "Grand" && $("note").hidden) { $("note").hidden = false; say($("note").textContent); }
+      if (radio.value === "Petit") $("note").hidden = true;
+    });
+  }
+  $("ask").addEventListener("click", () => $("news").showModal());
+  $("ok").addEventListener("click", () => $("news").close());
+  // News.closed : par « D'accord », par la croix ou par Échap.
+  $("news").addEventListener("close", () => {
+    asked = 1;
+    try { localStorage.setItem("questions:asked", "1"); } catch {}
+    $("ask").hidden = true;
+    // Le bouton qui avait le focus a disparu : le focus va au titre, pas au vide.
+    document.querySelector("h1").focus();
+  });
+</script>
+</body>
+</html>

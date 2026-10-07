@@ -1,0 +1,6 @@
+expect cart = 1
+signal Pick.tap@1
+expect chosen = "Barque"
+expect cart = 2
+signal Pick.tap@0
+expect cart = 3

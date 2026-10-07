@@ -1,0 +1,8 @@
+tap Vat
+// 12 999 × 20 % = 2 599,8 centimes : la division arrondit vers le bas
+expect vat = 2599
+expect ttc = 15598
+tap MoreBarque
+expect ht = 14998
+// la TVA ne suit pas tant qu'on ne touche pas « Calculer la TVA »
+expect vat = 2599

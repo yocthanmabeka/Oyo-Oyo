@@ -1,0 +1,9 @@
+Page(title: "Voile", children: [
+  Column.photo(children: [
+    Column.voile(gap: 8px, children: [ H1.surimage("L'atelier des mondes"), P.surimage("Des tableaux faits à la main.") ]),
+  ]),
+])
+
+.photo { background: url("lever.svg"); border-radius: 16px; }
+.voile { background: linear-gradient(#2a2118b3, #2a2118b3); padding: 48px 24px; border-radius: 16px; }
+.surimage { color: #fffaf3; }

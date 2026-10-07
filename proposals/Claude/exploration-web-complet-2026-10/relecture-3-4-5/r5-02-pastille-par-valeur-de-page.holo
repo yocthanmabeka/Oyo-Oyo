@@ -1,0 +1,16 @@
+Page(
+  title: "Catalogue",
+  state: State(nouveauLever: 1, nouveauPorte: 0),
+  components: [
+    Component(name: Oeuvre, params: [title, isNew], children: [
+      Column(children: [
+        If(isNew, is: 1, children: [ Text("Nouveau") ]),
+        P("{title}"),
+      ]),
+    ]),
+  ],
+  children: [
+    Oeuvre(name: Lever, title: "Lever sur le fleuve", isNew: nouveauLever),
+    Oeuvre(name: Porte, title: "La porte bleue", isNew: nouveauPorte),
+  ],
+)

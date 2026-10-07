@@ -1,0 +1,3 @@
+tap FavLever
+expect favLever = 1
+expect favPorte = 0

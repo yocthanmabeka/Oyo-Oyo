@@ -1,0 +1,2 @@
+Page(children: [ P.c("x") ])
+.c { border-radius: 12px 12px 0 0; }
