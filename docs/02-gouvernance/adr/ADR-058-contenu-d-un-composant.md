@@ -22,5 +22,5 @@
 ## Critères de validation
 
 - Tests : contenu posé à la bonne place, noms gardés, carte dans une carte, emplacement vide, règles du contenu et de la copie ; les sept refus.
-- La leçon 75 et son essai écrit ; dans Chrome, avec `?valeurs`.
+- La leçon 75 et son essai écrit ; dans Chrome, avec `?values`.
 - L'audit axe-core : les 75 leçons, 0 défaut.

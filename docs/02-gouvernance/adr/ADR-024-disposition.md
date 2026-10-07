@@ -70,7 +70,7 @@ Défauts de CSS évités : le débordement horizontal par oubli de `flex-wrap` ;
 ## Critères de validation
 
 - `exemples/boutique-comparee/boutique.holo` : trois colonnes sur un écran large, deux sur un téléphone ; les boutons du panier côte à côte.
-- Tests du moteur : `moteur/src/plat.rs` (`la_disposition_range_cote_a_cote_en_colonne_et_en_grille`).
+- Tests du moteur : `moteur/src/flat.rs` (`la_disposition_range_cote_a_cote_en_colonne_et_en_grille`).
 
 ## Conditions de réexamen
 

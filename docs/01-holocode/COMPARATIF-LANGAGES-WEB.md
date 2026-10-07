@@ -459,7 +459,7 @@ Yocthan a validé les six points et donné son feu vert ; ils sont construits et
 | Accessibilité et vrai HTML par défaut | 10 | 80 | **90** | 0 défaut axe-core sur 72 pages dans quatre modes ; l'essai humain reste à faire. |
 | Rapidité et poids | 10 | 60 | **70** | Une page qui bouge : 149 Ko au lieu de 626 ; l'objectif de 100 Ko n'est pas atteint. |
 | Ce qu'on peut construire | 10 | 45 | **60** | Un catalogue venu du serveur, un panier par composants ; toujours pas de comptes ni d'envoi vers un vrai serveur. |
-| Les outils | 5 | 35 | **55** | `?valeurs`, `holo fmt`, `holo essai` ; pas de débogueur. |
+| Les outils | 5 | 35 | **55** | `?values`, `holo fmt`, `holo test` ; pas de débogueur. |
 | Les bibliothèques, l'entraide | 5 | 5 | **5** | Rien n'a changé : cela vient avec des utilisateurs. |
 | **Total** | 100 | **70 %** | **78,5 %** | Svelte : 82 %. |
 

@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La pile</title>
+<link rel="icon" href="data:,">
+<!--
+  La pile (demandée par Yocthan le 2026-10-06) : tout ce qui s'ouvre dans le navigateur, le plus
+  récent en haut, dans un seul onglet. La page choisie s'ouvre à côté de la liste (sur un
+  téléphone : à la place de la liste). Quand Claude veut montrer quelque chose, il le demande au
+  serveur (outils/show.mjs) : la pile ouverte l'affiche elle-même, sans nouvel onglet ni
+  nouvelle fenêtre. Rien ne tourne tant qu'on ne choisit rien : la liste est du texte, et la page
+  choisie est arrêtée quand on revient à la liste sur un téléphone.
+-->
+<style>
+  :root {
+    color-scheme: dark;
+    --background: #0f1117; --surface: #171a22; --stroke: #2a2f3a; --text: #e8e6e3;
+    --muted: #a2a8b2; --accent: #f0b232; --link: #8cc8ff; --selected: #232838;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      color-scheme: light;
+      --background: #f6f5f2; --surface: #ffffff; --stroke: #dedbd4; --text: #1d1d1f;
+      --muted: #5f6368; --accent: #8a5a00; --link: #0b57d0; --selected: #ece8df;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--background); color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: grid; grid-template-rows: auto 1fr;
+  }
+  header {
+    display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center;
+    padding: 10px 16px; border-bottom: 1px solid var(--stroke); background: var(--surface);
+  }
+  h1 { font-size: 17px; margin: 0; color: var(--accent); }
+  #count { color: var(--muted); font-size: 13px; }
+  #search {
+    flex: 1 1 160px; min-width: 0; max-width: 360px; padding: 6px 10px; border-radius: 8px;
+    border: 1px solid var(--stroke); background: var(--background); color: var(--text); font: inherit;
+  }
+  header a { color: var(--link); font-size: 14px; }
+  main { display: grid; grid-template-columns: minmax(260px, 360px) minmax(0, 1fr); min-height: 0; }
+  #list { overflow-y: auto; border-right: 1px solid var(--stroke); padding: 4px 0 24px; }
+  #list h2 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+    margin: 14px 16px 4px;
+  }
+  #list a {
+    display: block; padding: 7px 16px 7px 13px; color: inherit; text-decoration: none;
+    border-left: 3px solid transparent;
+  }
+  #list a:hover, #list a:focus-visible { background: var(--selected); outline: none; }
+  #list a[aria-current="page"] { background: var(--selected); border-left-color: var(--accent); }
+  .title { display: block; font-weight: 600; overflow-wrap: anywhere; }
+  .detail { display: block; font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+  .new {
+    font-size: 11px; font-weight: 700; color: var(--background); background: var(--accent);
+    border-radius: 4px; padding: 0 5px; margin-left: 6px; vertical-align: 1px;
+  }
+  #view { display: grid; grid-template-rows: auto 1fr; grid-template-columns: minmax(0, 1fr); min-height: 0; min-width: 0; }
+  #bar {
+    display: flex; gap: 12px; align-items: center; padding: 6px 12px; min-height: 40px;
+    border-bottom: 1px solid var(--stroke);
+  }
+  #back { font: inherit; color: var(--link); background: none; border: 0; padding: 4px 0; cursor: pointer; display: none; }
+  #name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 13px; }
+  #single { color: var(--link); font-size: 13px; white-space: nowrap; }
+  #single[hidden] { display: none; }
+  iframe { border: 0; width: 100%; height: 100%; display: block; }
+  #empty { display: grid; place-items: center; color: var(--muted); padding: 24px; text-align: center; }
+  @media (max-width: 760px) {
+    main { grid-template-columns: minmax(0, 1fr); }
+    #list { border-right: 0; }
+    #view { display: none; }
+    body.viewing #list { display: none; }
+    body.viewing #view { display: grid; }
+    #back { display: inline; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>La pile</h1>
+  <span id="count">…</span>
+  <input id="search" type="search" placeholder="Chercher" aria-label="Chercher dans la pile">
+  <a id="editor" href="/editor">L'éditeur</a>
+  <a href="https://claude.ai/artifact/PAuybWugSLUEEngQ1PPcPg" target="_blank" rel="noopener">Le grand tableau ↗</a>
+</header>
+<main>
+  <nav id="list" aria-label="Tout ce qui a été créé, le plus récent en haut"></nav>
+  <section id="view" aria-label="La page choisie">
+    <div id="bar">
+      <button id="back" type="button">← La pile</button>
+      <span id="name"></span>
+      <a id="single" href="/" hidden>Ouvrir en grand</a>
+    </div>
+    <div id="empty">Choisis une page dans la liste : elle s'ouvre ici, dans le même onglet.</div>
+  </section>
+</main>
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+// La clé de l'éditeur, quand la pile a été ouverte avec elle : pour enregistrer depuis l'éditeur.
+const key = params.get("key") ?? "";
+const withKey = (address) => (key ? `${address}${address.includes("?") ? "&" : "?"}cle=${encodeURIComponent(key)}` : address);
+$("editor").href = withKey("/editor");
+
+let things = [];
+let chosen = null;
+// « nouveau » : ce qui a changé depuis la dernière visite (gardé dans ce navigateur seulement).
+let seenBefore = 0;
+try { seenBefore = Number(localStorage.getItem("stack-seen")) || 0; } catch {}
+addEventListener("pagehide", () => { try { localStorage.setItem("stack-seen", String(Date.now())); } catch {} });
+
+const dayFormat = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+const hourFormat = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" });
+function dayName(date) {
+  const start = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const gap = Math.round((start(new Date()) - start(date)) / 86400000);
+  if (gap === 0) return "Aujourd'hui";
+  if (gap === 1) return "Hier";
+  const name = dayFormat.format(date);
+  return name[0].toUpperCase() + name.slice(1);
+}
+// Un morceau (Component) ne s'ouvre pas seul : on le montre dans l'éditeur.
+const addressOf = (thing) => (thing.chunk ? withKey(`/editor?file=${encodeURIComponent(thing.path)}`) : thing.path);
+const stackAddress = (path) => withKey(path ? `/stack?show=${encodeURIComponent(path)}` : "/stack");
+
+function draw() {
+  const filter = $("search").value.trim().toLowerCase();
+  const visible = things.filter((c) => !filter || `${c.title} ${c.path} ${c.kind}`.toLowerCase().includes(filter));
+  $("count").textContent = filter ? `${visible.length} sur ${things.length}` : `${things.length} pages`;
+  const list = $("list");
+  list.replaceChildren();
+  let group = "";
+  for (const thing of visible) {
+    const date = new Date(thing.date);
+    const day = dayName(date);
+    if (day !== group) {
+      group = day;
+      const title = document.createElement("h2");
+      title.textContent = day;
+      list.append(title);
+    }
+    const link = document.createElement("a");
+    link.href = stackAddress(thing.path);
+    link.dataset.path = thing.path;
+    if (thing.path === chosen) link.setAttribute("aria-current", "page");
+    const title = document.createElement("span");
+    title.className = "title";
+    title.textContent = thing.title;
+    if (seenBefore && date.getTime() > seenBefore) {
+      const mark = document.createElement("span");
+      mark.className = "new";
+      mark.textContent = "nouveau";
+      title.append(mark);
+    }
+    const detail = document.createElement("span");
+    detail.className = "detail";
+    detail.textContent = `${thing.kind} · ${thing.path.replace(/^\/exemples\//, "")} · ${hourFormat.format(date)}`;
+    link.append(title, detail);
+    list.append(link);
+  }
+}
+
+async function load() {
+  try {
+    const response = await fetch("/stack.json", { cache: "no-store" });
+    things = await response.json();
+    draw();
+  } catch {
+    $("count").textContent = "le serveur ne répond pas";
+  }
+}
+
+function show(path, { remember = true } = {}) {
+  const thing = things.find((c) => c.path === path) ?? { path, title: path.split("/").pop(), chunk: false };
+  chosen = path;
+  let frame = document.querySelector("#view iframe");
+  if (!frame) {
+    frame = document.createElement("iframe");
+    frame.title = "La page choisie";
+    frame.allow = "fullscreen; autoplay";
+    $("empty").replaceWith(frame);
+  }
+  frame.src = addressOf(thing);
+  $("name").textContent = `${thing.title} — ${path}`;
+  $("single").href = addressOf(thing);
+  $("single").hidden = false;
+  document.body.classList.add("viewing");
+  document.title = `${thing.title} · La pile`;
+  for (const link of $("list").querySelectorAll("a[data-path]")) {
+    if (link.dataset.path === path) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  }
+  if (remember) history.pushState({ see: path }, "", stackAddress(path));
+}
+
+// Revenir à la liste : la page choisie est arrêtée (plus de calcul, plus de son).
+function goBack({ remember = true } = {}) {
+  chosen = null;
+  const frame = document.querySelector("#view iframe");
+  if (frame) {
+    const empty = document.createElement("div");
+    empty.id = "empty";
+    empty.textContent = "Choisis une page dans la liste : elle s'ouvre ici, dans le même onglet.";
+    frame.replaceWith(empty);
+  }
+  $("name").textContent = "";
+  $("single").hidden = true;
+  document.body.classList.remove("viewing");
+  document.title = "La pile";
+  for (const link of $("list").querySelectorAll("a[aria-current]")) link.removeAttribute("aria-current");
+  if (remember) history.pushState({}, "", stackAddress(null));
+}
+
+$("list").addEventListener("click", (e) => {
+  const link = e.target.closest("a[data-path]");
+  if (!link || e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
+  e.preventDefault();
+  show(link.dataset.path);
+});
+$("back").addEventListener("click", () => goBack());
+$("search").addEventListener("input", draw);
+addEventListener("popstate", (e) => (e.state?.see ? show(e.state.see, { remember: false }) : goBack({ remember: false })));
+// De retour sur l'onglet : la liste est relue (rien ne tourne pendant qu'on regarde ailleurs).
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  document.title = document.title.replace(/^● /, "");
+  load();
+});
+
+// Claude montre quelque chose : la pile l'ouvre ici. L'onglet le signale par « ● » s'il est caché.
+const listening = new EventSource("/stack/listen");
+listening.addEventListener("show", async (e) => {
+  const { path } = JSON.parse(e.data);
+  await load();
+  show(path);
+  if (document.visibilityState !== "visible") document.title = `● ${document.title}`;
+});
+listening.addEventListener("list", () => load());
+
+await load();
+const see = params.get("show");
+if (see) {
+  history.replaceState({ see }, "", location.href);
+  show(see, { remember: false });
+}
+</script>
+</body>
+</html>

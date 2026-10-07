@@ -18,129 +18,129 @@
 //! (`run`) et deux signaux (`done`, `failed`), jamais du Rust. Chaque module est annoncé en haut
 //! du fichier, `module "somme.wasm"`, pour que le risque se lise d'un coup d'œil.
 
-use crate::holo::{Bloc, Erreur, Programme, Valeur};
+use crate::holo::{Block, Error, Program, Value};
 
 /// Les bornes d'un module : son temps, et sa mémoire (en pages de 64 Ko, celles de WebAssembly).
-pub const TEMPS_MIN: u64 = 10;
-pub const TEMPS_MAX: u64 = 5_000;
-pub const TEMPS_COURANT: u64 = 100;
+pub const TIME_MIN: u64 = 10;
+pub const TIME_MAX: u64 = 5_000;
+pub const CURRENT_TIME: u64 = 100;
 pub const PAGE: u64 = 65_536;
 pub const PAGES_MAX: u64 = 256;
-pub const PAGES_COURANTES: u64 = 16;
+pub const CURRENT_PAGES: u64 = 16;
 pub const MODULES_MAX: usize = 8;
 
 /// Un module déclaré par la page.
 #[derive(Debug, PartialEq)]
 pub struct Module<'a> {
-    pub nom: &'a str,
+    pub name: &'a str,
     pub source: &'a str,
-    pub entree: Option<&'a str>,
-    pub sortie: &'a str,
-    pub temps: u64,
+    pub entry: Option<&'a str>,
+    pub output: &'a str,
+    pub time: u64,
     pub pages: u64,
 }
 
-fn exemple() -> &'static str {
+fn example() -> &'static str {
     "modules: [ Module(name: Sum, source: \"somme.wasm\", input: n, output: total) ]"
 }
 
 /// Les modules de la page, vérifiés. `nombres` : les valeurs de la page qui sont des nombres.
-pub fn modules<'a>(programme: &'a Programme, nombres: &[(String, u64)]) -> Result<Vec<Module<'a>>, Erreur> {
-    let annonces: Vec<&crate::holo::Import> = programme.imports.iter().filter(|i| i.sorte == "module").collect();
-    let Some(argument) = programme.racine.argument("modules") else {
-        if let Some(annonce) = annonces.first() {
-            return Err(Erreur { message: format!("« module \"{}\" » est annoncé en haut du fichier, mais la page ne le déclare pas : {}", annonce.cible, exemple()), pos: annonce.pos });
+pub fn modules<'a>(program: &'a Program, numbers: &[(String, u64)]) -> Result<Vec<Module<'a>>, Error> {
+    let announcements: Vec<&crate::holo::Import> = program.imports.iter().filter(|i| i.kind == "module").collect();
+    let Some(argument) = program.root.argument("modules") else {
+        if let Some(announcement) = announcements.first() {
+            return Err(Error { message: format!("« module \"{}\" » est annoncé en haut du fichier, mais la page ne le déclare pas : {}", announcement.target, example()), pos: announcement.pos });
         }
         return Ok(Vec::new());
     };
-    let Valeur::Liste(liste) = &argument.valeur else {
-        return Err(Erreur { message: format!("« modules » est une liste : {}", exemple()), pos: argument.pos });
+    let Value::List(list) = &argument.value else {
+        return Err(Error { message: format!("« modules » est une liste : {}", example()), pos: argument.pos });
     };
-    if liste.len() > MODULES_MAX {
-        return Err(Erreur { message: format!("une page fait tourner au plus {MODULES_MAX} modules"), pos: argument.pos });
+    if list.len() > MODULES_MAX {
+        return Err(Error { message: format!("une page fait tourner au plus {MODULES_MAX} modules"), pos: argument.pos });
     }
-    let est_nombre = |nom: &str| nombres.iter().any(|(connu, _)| connu == nom);
-    let mut lus = Vec::new();
-    for valeur in liste {
-        let Valeur::Bloc(bloc) = valeur else {
-            return Err(Erreur { message: format!("« modules » contient des « Module(…) » : {}", exemple()), pos: argument.pos });
+    let is_number = |name: &str| numbers.iter().any(|(known, _)| known == name);
+    let mut read_ones = Vec::new();
+    for value in list {
+        let Value::Block(block) = value else {
+            return Err(Error { message: format!("« modules » contient des « Module(…) » : {}", example()), pos: argument.pos });
         };
-        if bloc.nom != "Module" {
-            return Err(Erreur { message: format!("« modules » contient des « Module(…) », pas des « {} »", bloc.nom), pos: bloc.pos });
+        if block.name != "Module" {
+            return Err(Error { message: format!("« modules » contient des « Module(…) », pas des « {} »", block.name), pos: block.pos });
         }
-        lus.push(un_module(bloc, &est_nombre)?);
+        read_ones.push(a_module(block, &is_number)?);
     }
     // Chaque module se lit en haut du fichier ; chaque annonce a son module.
-    for module in &lus {
-        if !annonces.iter().any(|a| a.cible == module.source) {
-            return Err(Erreur { message: format!("le module « {} » doit être annoncé en haut du fichier, pour que le risque se lise d'un coup d'œil : module \"{}\"", module.nom, module.source), pos: argument.pos });
+    for module in &read_ones {
+        if !announcements.iter().any(|a| a.target == module.source) {
+            return Err(Error { message: format!("le module « {} » doit être annoncé en haut du fichier, pour que le risque se lise d'un coup d'œil : module \"{}\"", module.name, module.source), pos: argument.pos });
         }
     }
-    for annonce in &annonces {
-        if !lus.iter().any(|m| m.source == annonce.cible) {
-            return Err(Erreur { message: format!("« module \"{}\" » est annoncé, mais aucun Module ne l'emploie", annonce.cible), pos: annonce.pos });
+    for announcement in &announcements {
+        if !read_ones.iter().any(|m| m.source == announcement.target) {
+            return Err(Error { message: format!("« module \"{}\" » est annoncé, mais aucun Module ne l'emploie", announcement.target), pos: announcement.pos });
         }
     }
-    Ok(lus)
+    Ok(read_ones)
 }
 
-fn un_module<'a>(bloc: &'a Bloc, est_nombre: &dyn Fn(&str) -> bool) -> Result<Module<'a>, Erreur> {
-    let erreur = |message: String, pos| Erreur { message, pos };
-    let (mut nom, mut source, mut entree, mut sortie, mut temps, mut pages) = (None, None, None, None, TEMPS_COURANT, PAGES_COURANTES);
-    for a in &bloc.arguments {
-        match (a.nom.as_deref(), &a.valeur) {
-            (Some("name"), Valeur::Nom(n)) => nom = Some(n.as_str()),
-            (Some("source"), Valeur::Texte(s)) if s.ends_with(".wasm") && crate::plat::chemin_sur(s) => source = Some(s.as_str()),
-            (Some("source"), _) => return Err(erreur("« Module(source: …) » attend un fichier .wasm rangé à côté de la page, comme \"somme.wasm\"".into(), a.pos)),
-            (Some("input"), Valeur::Nom(v)) if est_nombre(v) => entree = Some(v.as_str()),
-            (Some("output"), Valeur::Nom(v)) if est_nombre(v) && !crate::etat::HORLOGE.contains(&v.as_str()) => sortie = Some(v.as_str()),
-            (Some(p @ ("input" | "output")), _) => return Err(erreur(format!("« Module({p}: …) » attend le nom d'un nombre de la page : un module reçoit un nombre et rend un nombre"), a.pos)),
-            (Some("time"), Valeur::Nombre { valeur, unite: Some(u) }) if u == "ms" || u == "s" => {
-                let ms = if u == "s" { valeur * 1000.0 } else { *valeur };
-                if !(TEMPS_MIN as f64..=TEMPS_MAX as f64).contains(&ms) {
-                    return Err(erreur(format!("« Module(time: …) » va de {TEMPS_MIN}ms à 5s : au-delà, le module est arrêté"), a.pos));
+fn a_module<'a>(block: &'a Block, is_number: &dyn Fn(&str) -> bool) -> Result<Module<'a>, Error> {
+    let error = |message: String, pos| Error { message, pos };
+    let (mut name, mut source, mut entry, mut output, mut time, mut pages) = (None, None, None, None, CURRENT_TIME, CURRENT_PAGES);
+    for a in &block.arguments {
+        match (a.name.as_deref(), &a.value) {
+            (Some("name"), Value::Name(n)) => name = Some(n.as_str()),
+            (Some("source"), Value::Text(s)) if s.ends_with(".wasm") && crate::flat::path_on(s) => source = Some(s.as_str()),
+            (Some("source"), _) => return Err(error("« Module(source: …) » attend un fichier .wasm rangé à côté de la page, comme \"somme.wasm\"".into(), a.pos)),
+            (Some("input"), Value::Name(v)) if is_number(v) => entry = Some(v.as_str()),
+            (Some("output"), Value::Name(v)) if is_number(v) && !crate::state::CLOCK.contains(&v.as_str()) => output = Some(v.as_str()),
+            (Some(p @ ("input" | "output")), _) => return Err(error(format!("« Module({p}: …) » attend le nom d'un nombre de la page : un module reçoit un nombre et rend un nombre"), a.pos)),
+            (Some("time"), Value::Number { value, unit: Some(u) }) if u == "ms" || u == "s" => {
+                let ms = if u == "s" { value * 1000.0 } else { *value };
+                if !(TIME_MIN as f64..=TIME_MAX as f64).contains(&ms) {
+                    return Err(error(format!("« Module(time: …) » va de {TIME_MIN}ms à 5s : au-delà, le module est arrêté"), a.pos));
                 }
-                temps = ms.round() as u64;
+                time = ms.round() as u64;
             }
-            (Some("time"), _) => return Err(erreur("« Module(time: …) » attend une durée, comme 100ms".into(), a.pos)),
-            (Some("memory"), Valeur::Nombre { valeur, unite: Some(u) }) if u == "KB" || u == "MB" => {
-                let octets = if u == "MB" { valeur * 1e6 } else { valeur * 1e3 };
-                let voulues = (octets / PAGE as f64).ceil() as u64;
-                if !(1..=PAGES_MAX).contains(&voulues) {
-                    return Err(erreur("« Module(memory: …) » va de 64KB à 16MB".into(), a.pos));
+            (Some("time"), _) => return Err(error("« Module(time: …) » attend une durée, comme 100ms".into(), a.pos)),
+            (Some("memory"), Value::Number { value, unit: Some(u) }) if u == "KB" || u == "MB" => {
+                let bytes = if u == "MB" { value * 1e6 } else { value * 1e3 };
+                let wanted_ones = (bytes / PAGE as f64).ceil() as u64;
+                if !(1..=PAGES_MAX).contains(&wanted_ones) {
+                    return Err(error("« Module(memory: …) » va de 64KB à 16MB".into(), a.pos));
                 }
-                pages = voulues;
+                pages = wanted_ones;
             }
-            (Some("memory"), _) => return Err(erreur("« Module(memory: …) » attend une taille, comme 1MB".into(), a.pos)),
-            (Some(autre), _) => return Err(erreur(format!("« Module » n'a pas de paramètre « {autre} » ; paramètres possibles : name, source, input, output, time, memory"), a.pos)),
-            (None, _) => return Err(erreur(format!("chaque paramètre de « Module » est nommé : {}", exemple()), a.pos)),
+            (Some("memory"), _) => return Err(error("« Module(memory: …) » attend une taille, comme 1MB".into(), a.pos)),
+            (Some(other), _) => return Err(error(format!("« Module » n'a pas de paramètre « {other} » ; paramètres possibles : name, source, input, output, time, memory"), a.pos)),
+            (None, _) => return Err(error(format!("chaque paramètre de « Module » est nommé : {}", example()), a.pos)),
         }
     }
-    match (nom, source, sortie) {
-        (Some(nom), Some(source), Some(sortie)) => Ok(Module { nom, source, entree, sortie, temps, pages }),
-        _ => Err(erreur(format!("« Module » attend name, source et output : {}", exemple()), bloc.pos)),
+    match (name, source, output) {
+        (Some(name), Some(source), Some(output)) => Ok(Module { name, source, entry, output, time, pages }),
+        _ => Err(error(format!("« Module » attend name, source et output : {}", example()), block.pos)),
     }
 }
 
 /// Le module a rendu son nombre : il va dans sa valeur de sortie, bornée ; puis `Nom.done`.
-pub fn fini(programme: &Programme, etat: &crate::etat::Etat, nom: &str, valeur: u64) -> crate::etat::Etat {
-    let nombres = crate::etat::initial(programme).unwrap_or_default();
-    let Some(module) = modules(programme, &nombres).ok().and_then(|m| m.into_iter().find(|m| m.nom == nom)) else { return etat.clone() };
-    let mut etat = etat.clone();
-    if let Some((_, place)) = etat.iter_mut().find(|(connu, _)| connu == module.sortie) {
-        *place = valeur.min(crate::etat::VALEUR_MAX);
+pub fn finished(program: &Program, state: &crate::state::State, name: &str, value: u64) -> crate::state::State {
+    let numbers = crate::state::initial(program).unwrap_or_default();
+    let Some(module) = modules(program, &numbers).ok().and_then(|m| m.into_iter().find(|m| m.name == name)) else { return state.clone() };
+    let mut state = state.clone();
+    if let Some((_, place)) = state.iter_mut().find(|(known, _)| known == module.output) {
+        *place = value.min(crate::state::VALUE_MAX);
     }
-    crate::etat::arbitrer(programme, &etat, &format!("{nom}.done"))
+    crate::state::arbitrate(program, &state, &format!("{name}.done"))
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
-    fn un_module_se_declare_et_s_annonce() {
+    fn a_module_is_declared_and_announced() {
         let source = "module \"somme.wasm\"\nPage(state: State(n: 10, total: 0, ok: 0), modules: [ Module(name: Sum, source: \"somme.wasm\", input: n, output: total, time: 50ms, memory: 1MB) ], children: [ Button(name: Go, text: \"g\") ], rules: [ On(Go.tap, effect: Sum.run), On(Sum.done, effect: ok.set(1)), On(Sum.failed, effect: ok.set(2)) ])";
-        crate::verifier_page(source).unwrap();
+        crate::check_page(source).unwrap();
         assert_eq!(crate::module_info(source, "n=10;total=0;ok=0", "Sum"), "somme.wasm|10|50|16");
-        assert_eq!(crate::module_fini(source, "n=10;total=0;ok=0", "Sum", 55), "n=10;total=55;ok=1");
+        assert_eq!(crate::module_finished(source, "n=10;total=0;ok=0", "Sum", 55), "n=10;total=55;ok=1");
         for (source, message) in [
             ("Page(state: State(t: 0), modules: [ Module(name: S, source: \"s.wasm\", output: t) ], children: [])", "doit être annoncé en haut du fichier"),
             ("module \"s.wasm\"\nPage(children: [])", "la page ne le déclare pas"),
@@ -150,8 +150,8 @@ mod tests {
             ("module \"../s.wasm\"\nPage(state: State(t: 0), modules: [ Module(name: S, source: \"../s.wasm\", output: t) ], children: [])", "rangé à côté de la page"),
             ("module \"s.wasm\"\nPage(state: State(t: 0), modules: [ Module(name: S, source: \"s.wasm\", output: t) ], children: [ Button(name: B, text: \"b\") ], rules: [ On(B.tap, effect: S.fly) ])", "un « Module » offre run"),
         ] {
-            let erreur = crate::verifier_page(source).unwrap_err();
-            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+            let error = crate::check_page(source).unwrap_err();
+            assert!(error.message.contains(message), "{source}\n→ {error}");
         }
     }
 }

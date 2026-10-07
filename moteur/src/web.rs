@@ -9,53 +9,53 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlCanvasElement, PointerEvent, WheelEvent};
 
-use crate::mosaique::Mosaique;
+use crate::mosaic::Mosaic;
 use crate::navigation::Navigation;
-use crate::rendu::Rendu;
+use crate::renderer::Renderer;
 
 /// Au-delà, les pixels coûtent cher sur un téléphone pour un gain invisible.
-const DENSITE_MAX: f64 = 2.0;
+const DENSITY_MAX: f64 = 2.0;
 
-struct Etat {
+struct State {
     nav: Navigation,
     /// Quand elle est là, c'est elle qu'on affiche et qu'on manipule, à la place du monde.
-    mosaique: Option<Mosaique>,
+    mosaic: Option<Mosaic>,
     /// La vue de la mosaïque à la dernière image, et depuis combien d'images elle n'a pas
     /// bougé : une vue immobile n'est pas redessinée.
-    derniere_vue: Option<[f64; 7]>,
-    immobiles: u8,
-    rendu: Rendu,
+    last_view: Option<[f64; 7]>,
+    still_ones: u8,
+    renderer: Renderer,
     canvas: HtmlCanvasElement,
-    pointeurs: HashMap<i32, (f32, f32)>,
+    pointers: HashMap<i32, (f32, f32)>,
     /// Où chaque doigt s'est posé : un doigt qui se relève sans avoir bougé est un toucher.
-    departs: HashMap<i32, (f32, f32)>,
-    dernier_t: f64,
-    premiere_image_ms: Option<f64>,
+    starts: HashMap<i32, (f32, f32)>,
+    last_t: f64,
+    first_frame_ms: Option<f64>,
     images: u32,
-    pire_ms: f64,
-    dernier_rapport: f64,
+    worst_ms: f64,
+    last_report: f64,
     nb_points: usize,
 }
 
 /// Point d'entrée appelé par la page : lit le fichier `.holo`, prépare la carte graphique
 /// et lance la boucle d'affichage.
 #[wasm_bindgen]
-pub async fn demarrer(canvas: HtmlCanvasElement, source: &str, zoom_initial: f32) -> Result<(), JsValue> {
+pub async fn start_engine(canvas: HtmlCanvasElement, source: &str, zoom_initial: f32) -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
-    let decl = crate::verifier(source).map_err(|e| JsValue::from_str(&format!("fichier .holo refusé : {e}")))?;
-    lancer(canvas, navigation(decl, zoom_initial), None).await
+    let decl = crate::check(source).map_err(|e| JsValue::from_str(&format!("fichier .holo refusé : {e}")))?;
+    launch(canvas, navigation(decl, zoom_initial), None).await
 }
 
 /// Affiche une image comme une mosaïque de points, un point par pixel (voir `mosaique.rs`).
 /// `couleurs` contient quatre octets par pixel : rouge, vert, bleu, opacité.
 #[wasm_bindgen]
-pub async fn demarrer_mosaique(canvas: HtmlCanvasElement, couleurs: Vec<u8>, largeur: u32, hauteur: u32, source: Option<String>, deja_grossi: Option<f64>) -> Result<(), JsValue> {
+pub async fn start_mosaic(canvas: HtmlCanvasElement, colors: Vec<u8>, width: u32, height: u32, source: Option<String>, already_enlarged: Option<f64>) -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
-    let (vue_l, vue_h) = taille_vue(&canvas);
-    let mosaique = Mosaique::new(largeur, hauteur, couleurs, 1, vue_l, vue_h, reglages_restants(source, deja_grossi)?).ok_or_else(|| JsValue::from_str("image mal décrite : il faut largeur × hauteur × 4 octets"))?;
+    let (view_w, view_h) = view_size(&canvas);
+    let mosaic = Mosaic::new(width, height, colors, 1, view_w, view_h, remaining_settings(source, already_enlarged)?).ok_or_else(|| JsValue::from_str("image mal décrite : il faut largeur × hauteur × 4 octets"))?;
     // Le monde n'est pas affiché tant que la mosaïque est là ; il faut pourtant un point.
-    let decl = crate::univers::PointDecl { nom: "Mosaic".into(), graine: 1, lumiere: 0.0, morceler: 1, couleur: None, palette: Vec::new() };
-    lancer(canvas, Navigation::new(decl), Some(mosaique)).await
+    let decl = crate::universe::PointDecl { name: "Mosaic".into(), seed: 1, light: 0.0, shatter: 1, color: None, palette: Vec::new() };
+    launch(canvas, Navigation::new(decl), Some(mosaic)).await
 }
 
 /// Où est la mosaïque : centre (x, y, en pixels de l'image), pixels d'écran par pixel
@@ -64,15 +64,15 @@ pub async fn demarrer_mosaique(canvas: HtmlCanvasElement, couleurs: Vec<u8>, lar
 /// échelle où l'on voit la page entière.
 /// Vide s'il n'y a pas de mosaïque.
 #[wasm_bindgen]
-pub fn mosaique_camera() -> Vec<f64> {
-    ETAT.with(|e| {
+pub fn mosaic_camera() -> Vec<f64> {
+    STATE.with(|e| {
         e.borrow()
             .as_ref()
-            .and_then(|etat| {
-                let etat = etat.borrow();
-                let (_, vue_h) = taille_vue(&etat.canvas);
-                etat.mosaique.as_ref().map(|m| {
-                    vec![m.cx, m.cy, m.echelle, m.opacite_des_points(), f64::from(m.niveau()), etat.nb_points as f64, m.lacet, m.tangage, crate::mosaique::distance(vue_h), m.echelle_repos]
+            .and_then(|state| {
+                let state = state.borrow();
+                let (_, view_h) = view_size(&state.canvas);
+                state.mosaic.as_ref().map(|m| {
+                    vec![m.cx, m.cy, m.scale, m.points_opacity(), f64::from(m.level()), state.nb_points as f64, m.yaw, m.pitch, crate::mosaic::distance(view_h), m.rest_scale]
                 })
             })
             .unwrap_or_default()
@@ -82,36 +82,36 @@ pub fn mosaique_camera() -> Vec<f64> {
 
 /// Les réglages de vue, une fois décompté le grossissement déjà fait par le zoom ordinaire :
 /// `Zoom(max:)` borne le zoom entier, pas seulement la vue points.
-fn reglages_restants(source: Option<String>, deja_grossi: Option<f64>) -> Result<crate::vue::Reglages, JsValue> {
-    let mut r = crate::web_page::reglages_de(source)?;
-    r.zoom_max = (r.zoom_max / deja_grossi.unwrap_or(1.0).max(1.0)).max(1.0);
+fn remaining_settings(source: Option<String>, already_enlarged: Option<f64>) -> Result<crate::view::Settings, JsValue> {
+    let mut r = crate::web_page::settings_of(source)?;
+    r.zoom_max = (r.zoom_max / already_enlarged.unwrap_or(1.0).max(1.0)).max(1.0);
     Ok(r)
 }
 
 
-fn avec_la_mosaique(f: impl FnOnce(&mut Mosaique)) {
-    ETAT.with(|e| {
-        if let Some(etat) = e.borrow().as_ref() {
-            if let Some(m) = etat.borrow_mut().mosaique.as_mut() {
+fn with_mosaic(f: impl FnOnce(&mut Mosaic)) {
+    STATE.with(|e| {
+        if let Some(state) = e.borrow().as_ref() {
+            if let Some(m) = state.borrow_mut().mosaic.as_mut() {
                 f(m);
             }
         }
     });
-    let _ = reveiller();
+    let _ = wake();
 }
 
 /// Affiche une mosaïque alors que le moteur tourne déjà : la page devient des points.
 #[wasm_bindgen]
-pub fn poser_mosaique(couleurs: Vec<u8>, largeur: u32, hauteur: u32, source: Option<String>, deja_grossi: Option<f64>) -> Result<(), JsValue> {
-    let reglages = reglages_restants(source, deja_grossi)?;
-    ETAT.with(|e| match e.borrow().as_ref() {
-        Some(etat) => {
-            let mut etat = etat.borrow_mut();
-            let (vue_l, vue_h) = taille_vue(&etat.canvas);
-            let mosaique = Mosaique::new(largeur, hauteur, couleurs, 1, vue_l, vue_h, reglages);
-            etat.mosaique = Some(mosaique.ok_or_else(|| JsValue::from_str("image mal décrite : il faut largeur × hauteur × 4 octets"))?);
-            drop(etat);
-            reveiller()
+pub fn place_mosaic(colors: Vec<u8>, width: u32, height: u32, source: Option<String>, already_enlarged: Option<f64>) -> Result<(), JsValue> {
+    let settings = remaining_settings(source, already_enlarged)?;
+    STATE.with(|e| match e.borrow().as_ref() {
+        Some(state) => {
+            let mut state = state.borrow_mut();
+            let (view_w, view_h) = view_size(&state.canvas);
+            let mosaic = Mosaic::new(width, height, colors, 1, view_w, view_h, settings);
+            state.mosaic = Some(mosaic.ok_or_else(|| JsValue::from_str("image mal décrite : il faut largeur × hauteur × 4 octets"))?);
+            drop(state);
+            wake()
         }
         None => Err(JsValue::from_str("le moteur n'est pas encore démarré")),
     })
@@ -119,28 +119,28 @@ pub fn poser_mosaique(couleurs: Vec<u8>, largeur: u32, hauteur: u32, source: Opt
 
 /// Retire la mosaïque : le moteur affiche de nouveau son monde.
 #[wasm_bindgen]
-pub fn retirer_mosaique() {
-    ETAT.with(|e| {
-        if let Some(etat) = e.borrow().as_ref() {
-            etat.borrow_mut().mosaique = None;
+pub fn remove_mosaic() {
+    STATE.with(|e| {
+        if let Some(state) = e.borrow().as_ref() {
+            state.borrow_mut().mosaic = None;
         }
     });
-    let _ = reveiller();
+    let _ = wake();
 }
 
 /// Quel endroit de la page se trouve sous ce point de l'écran : x et y, en pixels de l'image.
 /// Vide s'il n'y a pas de mosaïque, ou si l'on vise à côté de la page.
 #[wasm_bindgen]
-pub fn mosaique_sous(x: f64, y: f64) -> Vec<f64> {
-    ETAT.with(|e| {
+pub fn mosaic_under(x: f64, y: f64) -> Vec<f64> {
+    STATE.with(|e| {
         e.borrow()
             .as_ref()
-            .and_then(|etat| {
-                let etat = etat.borrow();
-                let (vue_l, vue_h) = taille_vue(&etat.canvas);
-                let m = etat.mosaique.as_ref()?;
-                let [ux, uy] = m.sur_la_page(x - vue_l / 2.0, y - vue_h / 2.0, crate::mosaique::distance(vue_h))?;
-                Some(vec![m.cx + ux / m.echelle, m.cy + uy / m.echelle])
+            .and_then(|state| {
+                let state = state.borrow();
+                let (view_w, view_h) = view_size(&state.canvas);
+                let m = state.mosaic.as_ref()?;
+                let [ux, uy] = m.on_page(x - view_w / 2.0, y - view_h / 2.0, crate::mosaic::distance(view_h))?;
+                Some(vec![m.cx + ux / m.scale, m.cy + uy / m.scale])
             })
             .unwrap_or_default()
     })
@@ -148,72 +148,72 @@ pub fn mosaique_sous(x: f64, y: f64) -> Vec<f64> {
 
 /// Choisit ce que fait un glissement sur la mosaïque : tourner la page, ou la déplacer.
 #[wasm_bindgen]
-pub fn mosaique_tourner(actif: bool) {
-    avec_la_mosaique(|m| m.tourner = actif);
+pub fn mosaic_turn(active: bool) {
+    with_mosaic(|m| m.rotate = active);
 }
 
 /// Fait tourner la page de la mosaïque (en radians) : on la voit de biais.
 #[wasm_bindgen]
-pub fn mosaique_pivoter(lacet: f64, tangage: f64) {
-    avec_la_mosaique(|m| m.pivoter(lacet, tangage));
+pub fn mosaic_pivot(yaw: f64, pitch: f64) {
+    with_mosaic(|m| m.pivot(yaw, pitch));
 }
 
 /// Remet la page de la mosaïque de face.
 #[wasm_bindgen]
-pub fn mosaique_de_face() {
-    avec_la_mosaique(Mosaique::de_face);
+pub fn mosaic_front() {
+    with_mosaic(Mosaic::front_facing);
 }
 
 /// La taille de la zone de dessin, en pixels de la page.
-fn taille_vue(canvas: &HtmlCanvasElement) -> (f64, f64) {
+fn view_size(canvas: &HtmlCanvasElement) -> (f64, f64) {
     (f64::from(canvas.client_width()).max(1.0), f64::from(canvas.client_height()).max(1.0))
 }
 
-async fn lancer(canvas: HtmlCanvasElement, nav: Navigation, mosaique: Option<Mosaique>) -> Result<(), JsValue> {
-    ajuster_taille(&canvas);
-    let (rendu, canvas) = Rendu::nouveau(canvas).await?;
-    let etat = Rc::new(RefCell::new(Etat {
+async fn launch(canvas: HtmlCanvasElement, nav: Navigation, mosaic: Option<Mosaic>) -> Result<(), JsValue> {
+    adjust_size(&canvas);
+    let (renderer, canvas) = Renderer::new_one(canvas).await?;
+    let state = Rc::new(RefCell::new(State {
         nav,
-        mosaique,
-        derniere_vue: None,
-        immobiles: 0,
-        rendu,
+        mosaic,
+        last_view: None,
+        still_ones: 0,
+        renderer,
         canvas: canvas.clone(),
-        pointeurs: HashMap::new(),
-        departs: HashMap::new(),
-        dernier_t: 0.0,
-        premiere_image_ms: None,
+        pointers: HashMap::new(),
+        starts: HashMap::new(),
+        last_t: 0.0,
+        first_frame_ms: None,
         images: 0,
-        pire_ms: 0.0,
-        dernier_rapport: 0.0,
+        worst_ms: 0.0,
+        last_report: 0.0,
         nb_points: 0,
     }));
-    brancher(&canvas, &etat)?;
-    boucle(etat)
+    wire(&canvas, &state)?;
+    cycle(state)
 }
 
 /// Prépare la visite d'un point, en partant d'un zoom donné : par petits pas, pour franchir
 /// les seuils d'entrée exactement comme le ferait un pincement.
-fn navigation(decl: crate::univers::PointDecl, zoom_initial: f32) -> Navigation {
+fn navigation(decl: crate::universe::PointDecl, zoom_initial: f32) -> Navigation {
     let mut nav = Navigation::new(decl);
-    let mut restant = zoom_initial.max(0.0);
-    while restant > 0.0 {
-        let pas = restant.min(0.25);
-        nav.zoomer(pas);
-        restant -= pas;
+    let mut remaining = zoom_initial.max(0.0);
+    while remaining > 0.0 {
+        let step = remaining.min(0.25);
+        nav.zoom_in(step);
+        remaining -= step;
     }
-    nav.avancer_temps(10.0);
+    nav.advance_time(10.0);
     nav
 }
 
 /// Remplace le monde affiché par celui d'un autre point, sans relancer la carte graphique.
 #[wasm_bindgen]
-pub fn changer_de_monde(source: &str, zoom_initial: f32) -> Result<(), JsValue> {
-    let decl = crate::verifier(source).map_err(|e| JsValue::from_str(&format!("fichier .holo refusé : {e}")))?;
-    ETAT.with(|e| match e.borrow().as_ref() {
-        Some(etat) => {
-            etat.borrow_mut().nav = navigation(decl, zoom_initial);
-            reveiller()
+pub fn change_world(source: &str, zoom_initial: f32) -> Result<(), JsValue> {
+    let decl = crate::check(source).map_err(|e| JsValue::from_str(&format!("fichier .holo refusé : {e}")))?;
+    STATE.with(|e| match e.borrow().as_ref() {
+        Some(state) => {
+            state.borrow_mut().nav = navigation(decl, zoom_initial);
+            wake()
         }
         None => Err(JsValue::from_str("le moteur n'est pas encore démarré")),
     })
@@ -223,192 +223,192 @@ pub fn changer_de_monde(source: &str, zoom_initial: f32) -> Result<(), JsValue> 
 /// Vide tant que le moteur n'est pas démarré.
 #[wasm_bindgen]
 pub fn surface() -> Vec<f32> {
-    ETAT.with(|e| e.borrow().as_ref().map(|etat| etat.borrow().nav.surface().to_vec()).unwrap_or_default())
+    STATE.with(|e| e.borrow().as_ref().map(|state| state.borrow().nav.surface().to_vec()).unwrap_or_default())
 }
 
 
-fn ajuster_taille(canvas: &HtmlCanvasElement) -> bool {
-    let densite = web_sys::window().map(|w| w.device_pixel_ratio()).unwrap_or(1.0).min(DENSITE_MAX);
-    let largeur = (f64::from(canvas.client_width()) * densite).round().max(1.0) as u32;
-    let hauteur = (f64::from(canvas.client_height()) * densite).round().max(1.0) as u32;
-    if canvas.width() != largeur || canvas.height() != hauteur {
-        canvas.set_width(largeur);
-        canvas.set_height(hauteur);
+fn adjust_size(canvas: &HtmlCanvasElement) -> bool {
+    let density = web_sys::window().map(|w| w.device_pixel_ratio()).unwrap_or(1.0).min(DENSITY_MAX);
+    let width = (f64::from(canvas.client_width()) * density).round().max(1.0) as u32;
+    let height = (f64::from(canvas.client_height()) * density).round().max(1.0) as u32;
+    if canvas.width() != width || canvas.height() != height {
+        canvas.set_width(width);
+        canvas.set_height(height);
         return true;
     }
     false
 }
 
-fn brancher(canvas: &HtmlCanvasElement, etat: &Rc<RefCell<Etat>>) -> Result<(), JsValue> {
-    let ecouter = |nom: &str, f: Box<dyn FnMut(PointerEvent)>| -> Result<(), JsValue> {
+fn wire(canvas: &HtmlCanvasElement, state: &Rc<RefCell<State>>) -> Result<(), JsValue> {
+    let listen = |name: &str, f: Box<dyn FnMut(PointerEvent)>| -> Result<(), JsValue> {
         let c = Closure::wrap(f);
-        canvas.add_event_listener_with_callback(nom, c.as_ref().unchecked_ref())?;
+        canvas.add_event_listener_with_callback(name, c.as_ref().unchecked_ref())?;
         c.forget();
         Ok(())
     };
 
-    let e = etat.clone();
-    ecouter(
+    let e = state.clone();
+    listen(
         "pointerdown",
         Box::new(move |ev: PointerEvent| {
             ev.prevent_default();
-            let mut etat = e.borrow_mut();
+            let mut state = e.borrow_mut();
             let pos = (ev.client_x() as f32, ev.client_y() as f32);
-            etat.pointeurs.insert(ev.pointer_id(), pos);
-            etat.departs.insert(ev.pointer_id(), pos);
+            state.pointers.insert(ev.pointer_id(), pos);
+            state.starts.insert(ev.pointer_id(), pos);
         }),
     )?;
 
-    let e = etat.clone();
-    ecouter(
+    let e = state.clone();
+    listen(
         "pointermove",
         Box::new(move |ev: PointerEvent| {
-            let mut etat = e.borrow_mut();
+            let mut state = e.borrow_mut();
             let id = ev.pointer_id();
-            if !etat.pointeurs.contains_key(&id) {
+            if !state.pointers.contains_key(&id) {
                 return;
             }
-            let nouveau = (ev.client_x() as f32, ev.client_y() as f32);
-            let ancien = etat.pointeurs[&id];
-            let hauteur = f64::from(etat.canvas.client_height()).max(1.0) as f32;
-            if etat.pointeurs.len() >= 2 {
+            let new_one = (ev.client_x() as f32, ev.client_y() as f32);
+            let old = state.pointers[&id];
+            let height = f64::from(state.canvas.client_height()).max(1.0) as f32;
+            if state.pointers.len() >= 2 {
                 // Pincer : le rapport des écartements donne le zoom.
-                let autre = *etat.pointeurs.iter().find(|(k, _)| **k != id).map(|(_, v)| v).unwrap();
-                let d_avant = ((ancien.0 - autre.0).powi(2) + (ancien.1 - autre.1).powi(2)).sqrt().max(1.0);
-                let d_apres = ((nouveau.0 - autre.0).powi(2) + (nouveau.1 - autre.1).powi(2)).sqrt().max(1.0);
-                let (vue_l, vue_h) = taille_vue(&etat.canvas);
-                let etat = &mut *etat;
-                match etat.mosaique.as_mut() {
+                let other = *state.pointers.iter().find(|(k, _)| **k != id).map(|(_, v)| v).unwrap();
+                let d_before = ((old.0 - other.0).powi(2) + (old.1 - other.1).powi(2)).sqrt().max(1.0);
+                let d_after = ((new_one.0 - other.0).powi(2) + (new_one.1 - other.1).powi(2)).sqrt().max(1.0);
+                let (view_w, view_h) = view_size(&state.canvas);
+                let state = &mut *state;
+                match state.mosaic.as_mut() {
                     // Le milieu des deux doigts reste sur le même point de l'image.
-                    Some(m) => m.zoomer(f64::from(d_apres / d_avant), f64::from(nouveau.0 + autre.0) / 2.0, f64::from(nouveau.1 + autre.1) / 2.0, vue_l, vue_h),
-                    None => etat.nav.zoomer((d_apres / d_avant).log2() * 1.1),
+                    Some(m) => m.zoom_in(f64::from(d_after / d_before), f64::from(new_one.0 + other.0) / 2.0, f64::from(new_one.1 + other.1) / 2.0, view_w, view_h),
+                    None => state.nav.zoom_in((d_after / d_before).log2() * 1.1),
                 }
             } else {
-                let etat = &mut *etat;
-                match etat.mosaique.as_mut() {
+                let state = &mut *state;
+                match state.mosaic.as_mut() {
                     // Glisser avec le bouton droit, avec Maj, ou en mode « tourner » : la page
                     // tourne, on la voit de biais. Sinon, glisser la déplace.
-                    Some(m) if m.tourner || ev.shift_key() || ev.buttons() & 2 != 0 => {
-                        m.pivoter(f64::from(nouveau.0 - ancien.0) * 0.005, -f64::from(nouveau.1 - ancien.1) * 0.005)
+                    Some(m) if m.rotate || ev.shift_key() || ev.buttons() & 2 != 0 => {
+                        m.pivot(f64::from(new_one.0 - old.0) * 0.005, -f64::from(new_one.1 - old.1) * 0.005)
                     }
-                    Some(m) => m.deplacer(f64::from(nouveau.0 - ancien.0), f64::from(nouveau.1 - ancien.1)),
+                    Some(m) => m.translate(f64::from(new_one.0 - old.0), f64::from(new_one.1 - old.1)),
                     // Glisser : on tourne le monde.
                     None => {
-                        let dx = (nouveau.0 - ancien.0) / hauteur;
-                        let dy = (nouveau.1 - ancien.1) / hauteur;
-                        etat.nav.tourner(-dx * 2.4, -dy * 2.4);
+                        let dx = (new_one.0 - old.0) / height;
+                        let dy = (new_one.1 - old.1) / height;
+                        state.nav.rotate(-dx * 2.4, -dy * 2.4);
                     }
                 }
             }
-            etat.pointeurs.insert(id, nouveau);
+            state.pointers.insert(id, new_one);
         }),
     )?;
 
-    for nom in ["pointerup", "pointercancel", "pointerleave"] {
-        let e = etat.clone();
-        ecouter(
-            nom,
+    for name in ["pointerup", "pointercancel", "pointerleave"] {
+        let e = state.clone();
+        listen(
+            name,
             Box::new(move |ev: PointerEvent| {
-                let mut etat = e.borrow_mut();
+                let mut state = e.borrow_mut();
                 let id = ev.pointer_id();
-                let depart = etat.departs.remove(&id);
-                let seul = etat.pointeurs.len() == 1;
-                etat.pointeurs.remove(&id);
+                let start_value = state.starts.remove(&id);
+                let single = state.pointers.len() == 1;
+                state.pointers.remove(&id);
                 // Un toucher : un seul doigt, relevé à moins de 10 pixels de là où il s'est posé.
-                if let Some((x0, y0)) = depart {
+                if let Some((x0, y0)) = start_value {
                     let (x, y) = (ev.client_x() as f32, ev.client_y() as f32);
-                    if etat.mosaique.is_none() && seul && nom == "pointerup" && (x - x0).hypot(y - y0) < 10.0 {
-                        let largeur = f64::from(etat.canvas.client_width()).max(1.0) as f32;
-                        let hauteur = f64::from(etat.canvas.client_height()).max(1.0) as f32;
-                        let aspect = etat.rendu.aspect();
-                        let vx = (x / largeur * 2.0 - 1.0) * aspect;
-                        let vy = -(y / hauteur * 2.0 - 1.0);
-                        etat.nav.viser_ecran(vx, vy, aspect);
+                    if state.mosaic.is_none() && single && name == "pointerup" && (x - x0).hypot(y - y0) < 10.0 {
+                        let width = f64::from(state.canvas.client_width()).max(1.0) as f32;
+                        let height = f64::from(state.canvas.client_height()).max(1.0) as f32;
+                        let aspect = state.renderer.aspect();
+                        let vx = (x / width * 2.0 - 1.0) * aspect;
+                        let vy = -(y / height * 2.0 - 1.0);
+                        state.nav.aim_screen(vx, vy, aspect);
                     }
                 }
             }),
         )?;
     }
 
-    let e = etat.clone();
-    let molette = Closure::<dyn FnMut(WheelEvent)>::new(move |ev: WheelEvent| {
+    let e = state.clone();
+    let wheel = Closure::<dyn FnMut(WheelEvent)>::new(move |ev: WheelEvent| {
         ev.prevent_default();
-        let mut etat = e.borrow_mut();
-        let (vue_l, vue_h) = taille_vue(&etat.canvas);
-        let etat = &mut *etat;
-        match etat.mosaique.as_mut() {
+        let mut state = e.borrow_mut();
+        let (view_w, view_h) = view_size(&state.canvas);
+        let state = &mut *state;
+        match state.mosaic.as_mut() {
             Some(m) => {
                 // Un pincement arrive comme une molette avec Ctrl, par petits pas : on les grossit.
-                let pas = if ev.ctrl_key() && ev.delta_y().abs() < 50.0 { ev.delta_y() * 6.0 } else { ev.delta_y() };
+                let step = if ev.ctrl_key() && ev.delta_y().abs() < 50.0 { ev.delta_y() * 6.0 } else { ev.delta_y() };
                 // Zoom(speed:) règle la molette de la main ; un zoom envoyé par la page (deux
                 // doigts, approche d'un point) suit exactement ce qu'elle demande.
-                let vitesse = if ev.is_trusted() { m.vitesse() } else { 1.0 };
-                m.zoomer(2f64.powf(-pas * 0.003 * vitesse), f64::from(ev.client_x()), f64::from(ev.client_y()), vue_l, vue_h)
+                let speed = if ev.is_trusted() { m.speed() } else { 1.0 };
+                m.zoom_in(2f64.powf(-step * 0.003 * speed), f64::from(ev.client_x()), f64::from(ev.client_y()), view_w, view_h)
             }
-            None => etat.nav.zoomer(-(ev.delta_y() as f32) * 0.0018),
+            None => state.nav.zoom_in(-(ev.delta_y() as f32) * 0.0018),
         }
     });
     let options = web_sys::AddEventListenerOptions::new();
     options.set_passive(false);
-    canvas.add_event_listener_with_callback_and_add_event_listener_options("wheel", molette.as_ref().unchecked_ref(), &options)?;
-    molette.forget();
+    canvas.add_event_listener_with_callback_and_add_event_listener_options("wheel", wheel.as_ref().unchecked_ref(), &options)?;
+    wheel.forget();
 
     // Tout geste sur la zone de dessin relance la boucle si elle s'était arrêtée.
-    for nom in ["pointerdown", "pointermove", "pointerup", "wheel"] {
-        let reveil = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |ev: web_sys::MouseEvent| {
+    for name in ["pointerdown", "pointermove", "pointerup", "wheel"] {
+        let wakeup = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |ev: web_sys::MouseEvent| {
             // Une souris qui passe sans bouton enfoncé ne change rien à la vue.
-            if nom != "pointermove" || ev.buttons() != 0 {
-                let _ = reveiller();
+            if name != "pointermove" || ev.buttons() != 0 {
+                let _ = wake();
             }
         });
-        canvas.add_event_listener_with_callback(nom, reveil.as_ref().unchecked_ref())?;
-        reveil.forget();
+        canvas.add_event_listener_with_callback(name, wakeup.as_ref().unchecked_ref())?;
+        wakeup.forget();
     }
     Ok(())
 }
 
 thread_local! {
     /// La boucle d'affichage, gardée ici pour pouvoir la relancer après une pause.
-    static BOUCLE: RefCell<Option<Closure<dyn FnMut(f64)>>> = const { RefCell::new(None) };
-    static EN_PAUSE: Cell<bool> = const { Cell::new(false) };
+    static LOOP: RefCell<Option<Closure<dyn FnMut(f64)>>> = const { RefCell::new(None) };
+    static PAUSED: Cell<bool> = const { Cell::new(false) };
     /// Vrai quand la boucle s'est arrêtée d'elle-même parce que rien ne bougeait.
-    static AU_REPOS: Cell<bool> = const { Cell::new(false) };
+    static AT_REST: Cell<bool> = const { Cell::new(false) };
     /// Combien d'images ont été dessinées depuis le démarrage : sert à vérifier la sobriété.
     static IMAGES: Cell<u32> = const { Cell::new(0) };
-    static ETAT: RefCell<Option<Rc<RefCell<Etat>>>> = const { RefCell::new(None) };
+    static STATE: RefCell<Option<Rc<RefCell<State>>>> = const { RefCell::new(None) };
 }
 
 /// Met le monde en pause, ou le relance. En pause, plus rien n'est calculé ni dessiné :
 /// le processeur, la carte graphique et la batterie se reposent.
 #[wasm_bindgen]
 pub fn pause(active: bool) -> Result<(), JsValue> {
-    let avant = EN_PAUSE.with(|p| p.replace(active));
-    if avant && !active {
-        AU_REPOS.with(|r| r.set(false));
+    let before = PAUSED.with(|p| p.replace(active));
+    if before && !active {
+        AT_REST.with(|r| r.set(false));
         // À la reprise, on repart du temps présent : pas de saut d'animation.
-        ETAT.with(|e| {
-            if let Some(etat) = e.borrow().as_ref() {
-                let mut etat = etat.borrow_mut();
-                etat.dernier_t = 0.0;
-                etat.dernier_rapport = 0.0;
-                etat.images = 0;
+        STATE.with(|e| {
+            if let Some(state) = e.borrow().as_ref() {
+                let mut state = state.borrow_mut();
+                state.last_t = 0.0;
+                state.last_report = 0.0;
+                state.images = 0;
             }
         });
-        BOUCLE.with(|b| match b.borrow().as_ref() {
-            Some(c) => demander_image(c),
+        LOOP.with(|b| match b.borrow().as_ref() {
+            Some(c) => request_frame(c),
             None => Ok(()),
         })?;
     }
     Ok(())
 }
 
-fn boucle(etat: Rc<RefCell<Etat>>) -> Result<(), JsValue> {
-    ETAT.with(|e| *e.borrow_mut() = Some(etat.clone()));
-    let fermeture = Closure::new(move |t: f64| {
-        if EN_PAUSE.with(|p| p.get()) {
+fn cycle(state: Rc<RefCell<State>>) -> Result<(), JsValue> {
+    STATE.with(|e| *e.borrow_mut() = Some(state.clone()));
+    let closing = Closure::new(move |t: f64| {
+        if PAUSED.with(|p| p.get()) {
             return;
         }
-        match image(&etat, t) {
+        match image(&state, t) {
             Err(e) => {
                 web_sys::console::error_1(&e);
                 return;
@@ -416,32 +416,32 @@ fn boucle(etat: Rc<RefCell<Etat>>) -> Result<(), JsValue> {
             // Rien n'a bougé : la boucle s'arrête, jusqu'au prochain geste. Plus rien n'est
             // calculé ni dessiné, la machine se repose.
             Ok(false) => {
-                AU_REPOS.with(|r| r.set(true));
+                AT_REST.with(|r| r.set(true));
                 return;
             }
             Ok(true) => {}
         }
-        let suite = BOUCLE.with(|b| match b.borrow().as_ref() {
-            Some(c) => demander_image(c),
+        let suite = LOOP.with(|b| match b.borrow().as_ref() {
+            Some(c) => request_frame(c),
             None => Ok(()),
         });
         if let Err(e) = suite {
             web_sys::console::error_1(&e);
         }
     });
-    BOUCLE.with(|b| *b.borrow_mut() = Some(fermeture));
-    BOUCLE.with(|b| match b.borrow().as_ref() {
-        Some(c) => demander_image(c),
+    LOOP.with(|b| *b.borrow_mut() = Some(closing));
+    LOOP.with(|b| match b.borrow().as_ref() {
+        Some(c) => request_frame(c),
         None => Ok(()),
     })
 }
 
 /// Relance la boucle d'affichage si elle s'était arrêtée faute de mouvement.
 #[wasm_bindgen]
-pub fn reveiller() -> Result<(), JsValue> {
-    if AU_REPOS.with(|r| r.replace(false)) && !EN_PAUSE.with(|p| p.get()) {
-        BOUCLE.with(|b| match b.borrow().as_ref() {
-            Some(c) => demander_image(c),
+pub fn wake() -> Result<(), JsValue> {
+    if AT_REST.with(|r| r.replace(false)) && !PAUSED.with(|p| p.get()) {
+        LOOP.with(|b| match b.borrow().as_ref() {
+            Some(c) => request_frame(c),
             None => Ok(()),
         })?;
     }
@@ -450,86 +450,86 @@ pub fn reveiller() -> Result<(), JsValue> {
 
 /// Combien d'images le moteur a dessinées depuis son démarrage.
 #[wasm_bindgen]
-pub fn images_dessinees() -> u32 {
+pub fn frames_drawn() -> u32 {
     IMAGES.with(|i| i.get())
 }
 
-fn demander_image(c: &Closure<dyn FnMut(f64)>) -> Result<(), JsValue> {
+fn request_frame(c: &Closure<dyn FnMut(f64)>) -> Result<(), JsValue> {
     web_sys::window().ok_or("pas de fenêtre")?.request_animation_frame(c.as_ref().unchecked_ref())?;
     Ok(())
 }
 
 /// Dessine une image. Rend faux quand il n'y a plus rien à redessiner.
-fn image(etat: &Rc<RefCell<Etat>>, t: f64) -> Result<bool, JsValue> {
-    let mut e = etat.borrow_mut();
-    let dt = if e.dernier_t > 0.0 { ((t - e.dernier_t) / 1000.0).min(0.1) as f32 } else { 0.0 };
-    let duree_image = if e.dernier_t > 0.0 { t - e.dernier_t } else { 0.0 };
-    e.dernier_t = t;
+fn image(state: &Rc<RefCell<State>>, t: f64) -> Result<bool, JsValue> {
+    let mut e = state.borrow_mut();
+    let dt = if e.last_t > 0.0 { ((t - e.last_t) / 1000.0).min(0.1) as f32 } else { 0.0 };
+    let frame_duration = if e.last_t > 0.0 { t - e.last_t } else { 0.0 };
+    e.last_t = t;
 
-    let redimensionnee = ajuster_taille(&e.canvas);
-    if redimensionnee {
+    let resized = adjust_size(&e.canvas);
+    if resized {
         let (l, h) = (e.canvas.width(), e.canvas.height());
-        e.rendu.redimensionner(l, h);
+        e.renderer.resize(l, h);
     }
     // Une mosaïque ne bouge que si on la touche : immobile depuis quelques images, on ne la
     // redessine plus. (Un monde, lui, vit : ses points pulsent.)
-    let vue = e.mosaique.as_ref().map(|m| {
-        let (vue_l, vue_h) = taille_vue(&e.canvas);
-        [m.cx, m.cy, m.echelle, m.lacet, m.tangage, vue_l, vue_h]
+    let view = e.mosaic.as_ref().map(|m| {
+        let (view_w, view_h) = view_size(&e.canvas);
+        [m.cx, m.cy, m.scale, m.yaw, m.pitch, view_w, view_h]
     });
-    if vue.is_some() && vue == e.derniere_vue && !redimensionnee {
-        e.immobiles = e.immobiles.saturating_add(1);
-        if e.immobiles > 3 {
+    if view.is_some() && view == e.last_view && !resized {
+        e.still_ones = e.still_ones.saturating_add(1);
+        if e.still_ones > 3 {
             return Ok(false);
         }
     } else {
-        e.immobiles = 0;
+        e.still_ones = 0;
     }
-    e.derniere_vue = vue;
+    e.last_view = view;
     IMAGES.with(|i| i.set(i.get().wrapping_add(1)));
-    e.nav.avancer_temps(dt);
-    let aspect = e.rendu.aspect();
-    let sprites = match &e.mosaique {
+    e.nav.advance_time(dt);
+    let aspect = e.renderer.aspect();
+    let sprites = match &e.mosaic {
         Some(m) => {
-            let (vue_l, vue_h) = taille_vue(&e.canvas);
-            m.sprites(vue_l, vue_h)
+            let (view_w, view_h) = view_size(&e.canvas);
+            m.sprites(view_w, view_h)
         }
         None => e.nav.sprites(aspect),
     };
-    e.nb_points = e.rendu.dessiner(&sprites, (t / 1000.0) as f32)?;
+    e.nb_points = e.renderer.draw(&sprites, (t / 1000.0) as f32)?;
 
-    if e.premiere_image_ms.is_none() {
-        e.premiere_image_ms = Some(t);
+    if e.first_frame_ms.is_none() {
+        e.first_frame_ms = Some(t);
     }
     e.images += 1;
-    e.pire_ms = e.pire_ms.max(duree_image);
-    if t - e.dernier_rapport >= 500.0 {
-        let secondes = ((t - e.dernier_rapport) / 1000.0).max(0.001);
-        let ips = f64::from(e.images) / secondes;
-        publier(&e, ips)?;
+    e.worst_ms = e.worst_ms.max(frame_duration);
+    if t - e.last_report >= 500.0 {
+        let seconds = ((t - e.last_report) / 1000.0).max(0.001);
+        let fps = f64::from(e.images) / seconds;
+        publish(&e, fps)?;
         e.images = 0;
-        e.pire_ms = 0.0;
-        e.dernier_rapport = t;
+        e.worst_ms = 0.0;
+        e.last_report = t;
     }
     Ok(true)
 }
 
 /// Écrit les mesures dans `window.__holo`, que la page affiche et copie.
-fn publier(e: &Etat, ips: f64) -> Result<(), JsValue> {
+fn publish(e: &State, fps: f64) -> Result<(), JsValue> {
     let o = js_sys::Object::new();
-    let poser = |cle: &str, v: JsValue| js_sys::Reflect::set(&o, &JsValue::from_str(cle), &v).map(|_| ());
-    poser("backend", JsValue::from_str(e.rendu.backend))?;
-    poser("ips", JsValue::from_f64((ips * 10.0).round() / 10.0))?;
-    poser("pire_ms", JsValue::from_f64((e.pire_ms * 10.0).round() / 10.0))?;
-    poser("profondeur", JsValue::from_f64(e.nav.profondeur() as f64))?;
-    poser("chemin", JsValue::from_str(&e.nav.chemin()))?;
-    poser("graine", JsValue::from_str(&e.nav.graine_courante().to_string()))?;
-    poser("points_dessines", JsValue::from_f64(e.nb_points as f64))?;
-    poser("zoom", JsValue::from_f64((f64::from(e.nav.zoom) * 100.0).round() / 100.0))?;
-    poser("largeur", JsValue::from_f64(f64::from(e.canvas.width())))?;
-    poser("hauteur", JsValue::from_f64(f64::from(e.canvas.height())))?;
-    poser("premiere_image_ms", JsValue::from_f64(e.premiere_image_ms.unwrap_or(0.0).round()))?;
-    let fenetre = web_sys::window().ok_or("pas de fenêtre")?;
-    js_sys::Reflect::set(&fenetre, &JsValue::from_str("__holo"), &o)?;
+    let place = |key: &str, v: JsValue| js_sys::Reflect::set(&o, &JsValue::from_str(key), &v).map(|_| ());
+    place("backend", JsValue::from_str(e.renderer.backend))?;
+    place("ips", JsValue::from_f64((fps * 10.0).round() / 10.0))?;
+    place("pire_ms", JsValue::from_f64((e.worst_ms * 10.0).round() / 10.0))?;
+    place("profondeur", JsValue::from_f64(e.nav.depth() as f64))?;
+    place("chemin", JsValue::from_str(&e.nav.path()))?;
+    place("graine", JsValue::from_str(&e.nav.current_seed().to_string()))?;
+    place("points_dessines", JsValue::from_f64(e.nb_points as f64))?;
+    place("zoom", JsValue::from_f64((f64::from(e.nav.zoom) * 100.0).round() / 100.0))?;
+    place("largeur", JsValue::from_f64(f64::from(e.canvas.width())))?;
+    place("hauteur", JsValue::from_f64(f64::from(e.canvas.height())))?;
+    place("premiere_image_ms", JsValue::from_f64(e.first_frame_ms.unwrap_or(0.0).round()))?;
+    let window = web_sys::window().ok_or("pas de fenêtre")?;
+    js_sys::Reflect::set(&window, &JsValue::from_str("__holo"), &o)?;
     Ok(())
 }

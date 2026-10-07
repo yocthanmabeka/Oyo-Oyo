@@ -6,6 +6,16 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Tout le code du moteur passe en anglais
+
+- Yocthan : « le code doit être 100 % en anglais, bien sûr. […] le commentaire, tu le mets en français pour que je comprenne ». Puis : « Oui, fais comme je le dis. »
+- Fait (`ADR-060`) : environ 1 500 noms traduits dans le moteur Rust, les scripts du navigateur, le serveur d'essai, les outils et l'extension VS Code ; les fichiers sources renommés (`etat.rs` → `state.rs`, `page-moteur.js` → `page-engine.js`…) ; les attributs, classes et variables CSS du moteur ; les commandes (`holo test`, `holo files`, `holo vocabulary`) et les paramètres d'adresse (`?values`, `/editor?key=`, `/stack`). Les commentaires, les messages d'erreur, les textes de l'interface, les leçons et la documentation restent en français.
+- Comment : un outil a relevé chaque identifiant hors commentaires et textes ; la table de traduction a été écrite à la main ; le compilateur Rust a signalé les `{nom}` restés dans les messages ; puis chaque page a été rouverte dans Chrome.
+- Raté puis corrigé : deux pages HTML dupliquées par l'outil (positions non triées) ; `move` est un mot réservé de Rust (`translate`) ; des noms importés du wasm mis en camelCase ; `history` qui masquait `window.history` dans la pile ; l'audit qui cherchait `axis` au lieu d'`axe`.
+- Vérifié : 123 tests ; les deux paquets wasm ; dans Chrome, le monde d'accueil, neuf leçons, le site de référence, l'éditeur et la pile ; l'audit axe-core, 76 leçons et le site de référence, 0 défaut.
+
+---
+
 ## 2026-10-07 — Un serveur et des comptes, proposés
 
 - Yocthan demande si les langages issus de JavaScript passent par Node.js pour le serveur et les comptes. Réponse : oui, presque toujours, avec deux programmes à garder d'accord.

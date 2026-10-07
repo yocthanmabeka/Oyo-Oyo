@@ -1,5 +1,5 @@
 [package]
-name = "holo-moteur"
+name = "holo-engine"
 version = "0.1.0"
 edition = "2021"
 description = "Moteur HoloCode, sprint Big Bang : un point lumineux qui se morcelle en mondes, piloté par un fichier .holo"
@@ -12,8 +12,8 @@ crate-type = ["cdylib", "rlib"]
 [features]
 # Le dessin (WebGPU, WebGL 2) : le moteur entier. Sans lui (`--no-default-features`), le moteur
 # léger lit le fichier, fabrique la page et arbitre les valeurs, sans rien dessiner (ADR-053).
-default = ["dessin"]
-dessin = ["dep:wgpu"]
+default = ["drawing"]
+drawing = ["dep:wgpu"]
 
 [dependencies]
 bytemuck = { version = "1", features = ["derive"] }

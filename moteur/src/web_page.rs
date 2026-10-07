@@ -6,33 +6,33 @@
 use wasm_bindgen::prelude::*;
 
 /// Les réglages de vue écrits dans un fichier `.holo` ; sans fichier, les réglages par défaut.
-pub(crate) fn reglages_de(source: Option<String>) -> Result<crate::vue::Reglages, JsValue> {
+pub(crate) fn settings_of(source: Option<String>) -> Result<crate::view::Settings, JsValue> {
     match source {
-        Some(source) => crate::verifier_page(&source).and_then(|p| crate::vue::reglages(&p)).map_err(|e| JsValue::from_str(&e.to_string())),
-        None => Ok(crate::vue::Reglages::default()),
+        Some(source) => crate::check_page(&source).and_then(|p| crate::view::settings(&p)).map_err(|e| JsValue::from_str(&e.to_string())),
+        None => Ok(crate::view::Settings::default()),
     }
 }
 
 /// Cette page a-t-elle besoin du dessin (des points, un monde, la vue points, le relief) ? Sinon,
 /// le moteur léger suffit, et le dessin n'est jamais téléchargé (ADR-053).
 #[wasm_bindgen]
-pub fn a_besoin_du_dessin(source: &str) -> bool {
-    crate::a_besoin_du_dessin(source)
+pub fn needs_drawing(source: &str) -> bool {
+    crate::needs_drawing(source)
 }
 
 /// Le moteur léger ne dessine rien : la page d'entrée lui demande quand même de se mettre en
 /// pause, ou combien d'images il a dessinées. Le moteur entier remplace ces trois-là.
-#[cfg(not(feature = "dessin"))]
+#[cfg(not(feature = "drawing"))]
 #[wasm_bindgen]
 pub fn pause(_active: bool) {}
 
-#[cfg(not(feature = "dessin"))]
+#[cfg(not(feature = "drawing"))]
 #[wasm_bindgen]
-pub fn reveiller() {}
+pub fn wake() {}
 
-#[cfg(not(feature = "dessin"))]
+#[cfg(not(feature = "drawing"))]
 #[wasm_bindgen]
-pub fn images_dessinees() -> u32 {
+pub fn frames_drawn() -> u32 {
     0
 }
 
@@ -44,109 +44,109 @@ pub fn images_dessinees() -> u32 {
 /// jusqu'où la page tourne, en degrés (0 : elle ne tourne pas) ; si les pixels deviennent des
 /// points au zoom (1) ou si la page reste un site ordinaire (0).
 #[wasm_bindgen]
-pub fn reglages_de_vue(source: &str) -> Result<Vec<f64>, JsValue> {
-    let r = reglages_de(Some(source.to_string()))?;
-    let disposition = match r.portails_disposition {
-        crate::vue::Disposition::Grille => 0.0,
-        crate::vue::Disposition::Ligne => 1.0,
-        crate::vue::Disposition::Colonne => 2.0,
-        crate::vue::Disposition::Diagonale => 3.0,
+pub fn view_settings(source: &str) -> Result<Vec<f64>, JsValue> {
+    let r = settings_of(Some(source.to_string()))?;
+    let layout = match r.portals_layout {
+        crate::view::Layout::Grid => 0.0,
+        crate::view::Layout::Line => 1.0,
+        crate::view::Layout::Column => 2.0,
+        crate::view::Layout::Diagonal => 3.0,
     };
-    Ok(vec![r.densite, f64::from(u8::from(r.reduire)), r.apres, f64::from(u8::from(r.zoom_actif)), disposition, f64::from(r.portails_nombre), r.portails_taille, r.portails_lumiere, r.zoom_vitesse, r.portails_duree, r.angle_max.to_degrees(), f64::from(u8::from(r.points_actifs))])
+    Ok(vec![r.density, f64::from(u8::from(r.reduce)), r.after, f64::from(u8::from(r.zoom_active)), layout, f64::from(r.portals_count), r.portals_size, r.portals_light, r.zoom_speed, r.portals_duration, r.angle_max.to_degrees(), f64::from(u8::from(r.active_points))])
 }
 
 /// Les mondes voisins d'un site, calculés à partir d'une graine, pour remplir le carrefour.
 /// Chacun s'écrit « graine:rouge,vert,bleu » ; ils sont séparés par des points-virgules. La
 /// graine reste un texte : un nombre de 64 bits ne tient pas dans un nombre de JavaScript.
 #[wasm_bindgen]
-pub fn mondes_voisins(source: &str, chemin: &str, nombre: u32) -> String {
-    let texte = |(graine, c): (u64, [f32; 3])| format!("{graine}:{},{},{}", (c[0] * 255.0) as u8, (c[1] * 255.0) as u8, (c[2] * 255.0) as u8);
-    crate::mondes_voisins(source, chemin, nombre).into_iter().map(texte).collect::<Vec<_>>().join(";")
+pub fn neighbour_worlds(source: &str, path: &str, number: u32) -> String {
+    let text = |(seed, c): (u64, [f32; 3])| format!("{seed}:{},{},{}", (c[0] * 255.0) as u8, (c[1] * 255.0) as u8, (c[2] * 255.0) as u8);
+    crate::neighbour_worlds(source, path, number).into_iter().map(text).collect::<Vec<_>>().join(";")
 }
 
 /// Le monde où la page est posée quand on la regarde en personnage.
-#[cfg(feature = "dessin")]
+#[cfg(feature = "drawing")]
 #[wasm_bindgen]
-pub fn monde_d_accueil(source: &str) -> Option<String> {
-    crate::monde_d_accueil(source)
+pub fn home_world(source: &str) -> Option<String> {
+    crate::home_world(source)
 }
 
 /// La vue à plat : la page web ordinaire d'un fichier `.holo`, fabriquée par le moteur.
 #[wasm_bindgen]
-pub fn vue_a_plat(source: &str, base: &str, chemin: Option<String>) -> Result<String, JsValue> {
-    crate::vue_a_plat_de(source, base, chemin.as_deref().unwrap_or("")).map_err(|e| JsValue::from_str(&e.to_string()))
+pub fn flat_view(source: &str, base: &str, path: Option<String>) -> Result<String, JsValue> {
+    crate::flat_view_of(source, base, path.as_deref().unwrap_or("")).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
 /// Les effets demandés par un signal (`Open.tap`), séparés par des virgules.
 #[wasm_bindgen]
-pub fn effets(source: &str, signal: &str) -> String {
-    crate::effets(source, signal).join(",")
+pub fn effects(source: &str, signal: &str) -> String {
+    crate::effects(source, signal).join(",")
 }
 
 /// Les valeurs d'une page à leur départ (`cart=0;likes=3`).
 #[wasm_bindgen]
-pub fn etat_initial(source: &str) -> String {
-    crate::etat_initial(source)
+pub fn initial_state(source: &str) -> String {
+    crate::initial_state(source)
 }
 
 /// Les horloges d'une page : `1000:time;2000:starX`.
 #[wasm_bindgen]
-pub fn horloges(source: &str) -> String {
-    crate::horloges(source)
+pub fn clocks(source: &str) -> String {
+    crate::clocks(source)
 }
 
 /// Les attentes d'une page et si chacune court : `3000:1;5000:0`.
 #[wasm_bindgen]
-pub fn delais(source: &str, etat: &str) -> String {
-    crate::delais(source, etat)
+pub fn delays(source: &str, state: &str) -> String {
+    crate::delays(source, state)
 }
 
 /// Ce qu'il faut pour faire tourner un module : `somme.wasm|10|100|16`.
 #[wasm_bindgen]
-pub fn module_info(source: &str, etat: &str, nom: &str) -> String {
-    crate::module_info(source, etat, nom)
+pub fn module_info(source: &str, state: &str, name: &str) -> String {
+    crate::module_info(source, state, name)
 }
 
 /// Le module a rendu son nombre : le nouvel état.
 #[wasm_bindgen]
-pub fn module_fini(source: &str, etat: &str, nom: &str, valeur: f64) -> String {
-    crate::module_fini(source, etat, nom, valeur.max(0.0) as u64)
+pub fn module_finished(source: &str, state: &str, name: &str, value: f64) -> String {
+    crate::module_finished(source, state, name, value.max(0.0) as u64)
 }
 
 /// Les lignes d'une liste pour cet état.
 #[wasm_bindgen]
-pub fn liste_html(source: &str, base: &str, etat: &str, nom: &str) -> String {
-    crate::liste_html(source, base, etat, nom)
+pub fn list_html(source: &str, base: &str, state: &str, name: &str) -> String {
+    crate::list_html(source, base, state, name)
 }
 
 /// Ce qu'un formulaire envoie au serveur, en JSON.
 #[wasm_bindgen]
-pub fn envoi(source: &str, etat: &str, formulaire: &str) -> String {
-    crate::envoi(source, etat, formulaire)
+pub fn submission(source: &str, state: &str, form_name: &str) -> String {
+    crate::submission(source, state, form_name)
 }
 
 /// Une valeur écrite avec son format, dans la langue de la page.
 #[wasm_bindgen]
-pub fn formater(nom: &str, valeur: f64, format: &str, langue: &str) -> String {
-    crate::formater(nom, valeur.max(0.0) as u64, format, langue)
+pub fn format_value(name: &str, value: f64, format: &str, language: &str) -> String {
+    crate::format_value(name, value.max(0.0) as u64, format, language)
 }
 
 /// La page lit-elle l'heure du visiteur ?
 #[wasm_bindgen]
-pub fn lit_l_heure(source: &str) -> bool {
-    crate::lit_l_heure(source)
+pub fn reads_time(source: &str) -> bool {
+    crate::reads_time(source)
 }
 
 /// L'heure de l'appareil du visiteur, donnée au moteur.
 #[wasm_bindgen]
-pub fn regler_maintenant(annee: u32, mois: u32, jour: u32, semaine: u32, heure: u32, minute: u32) {
-    crate::regler_maintenant([annee, mois, jour, semaine, heure, minute].map(u64::from));
+pub fn set_now(year: u32, month: u32, day: u32, week: u32, hour: u32, minute: u32) {
+    crate::set_now([year, month, day, week, hour, minute].map(u64::from));
 }
 
 /// Une minute a passé : le nouvel état.
 #[wasm_bindgen]
-pub fn avancer_l_horloge(source: &str, etat: &str) -> String {
-    crate::avancer_l_horloge(source, etat)
+pub fn advance_clock(source: &str, state: &str) -> String {
+    crate::advance_clock(source, state)
 }
 
 /// Les fichiers qu'une page importe.
@@ -157,89 +157,89 @@ pub fn imports(source: &str) -> String {
 
 /// Les touches du clavier que la page écoute.
 #[wasm_bindgen]
-pub fn touches(source: &str) -> String {
-    crate::touches(source)
+pub fn keypresses(source: &str) -> String {
+    crate::keypresses(source)
 }
 
 /// Les valeurs qu'un signal fait changer : leurs horloges repartent de zéro.
 #[wasm_bindgen]
-pub fn touchees(source: &str, signal: &str) -> String {
-    crate::touchees(source, signal)
+pub fn touched_ones(source: &str, signal: &str) -> String {
+    crate::touched_ones(source, signal)
 }
 
 /// Le visiteur a écrit dans un champ ou coché une case.
 #[wasm_bindgen]
-pub fn saisir(source: &str, etat: &str, nom: &str, ecrit: &str) -> String {
-    crate::saisir(source, etat, nom, ecrit)
+pub fn input(source: &str, state: &str, name: &str, written: &str) -> String {
+    crate::input(source, state, name, written)
 }
 
 /// D'où viennent les données de la page, et à quel rythme.
 #[wasm_bindgen]
-pub fn donnees(source: &str) -> String {
-    crate::donnees(source)
+pub fn data(source: &str) -> String {
+    crate::data(source)
 }
 
 /// Les données viennent d'arriver du serveur.
 #[wasm_bindgen]
-pub fn recevoir(source: &str, etat: &str, json: &str) -> String {
-    crate::recevoir(source, etat, json)
+pub fn receive(source: &str, state: &str, json: &str) -> String {
+    crate::receive(source, state, json)
 }
 
 /// Le visiteur fait glisser un bloc d'un plateau.
 #[wasm_bindgen]
-pub fn glisser(source: &str, etat: &str, nom: &str, x: u32, y: u32) -> String {
-    crate::glisser(source, etat, nom, x, y)
+pub fn drag(source: &str, state: &str, name: &str, x: u32, y: u32) -> String {
+    crate::drag(source, state, name, x, y)
 }
 
 /// Ce que la page garde d'une visite à l'autre.
 #[wasm_bindgen]
-pub fn a_garder(source: &str, etat: &str) -> String {
-    crate::a_garder(source, etat)
+pub fn to_keep(source: &str, state: &str) -> String {
+    crate::to_keep(source, state)
 }
 
 /// L'état de départ, avec ce que la page avait gardé.
 #[wasm_bindgen]
-pub fn reprendre(source: &str, garde: &str) -> String {
-    crate::reprendre(source, garde)
+pub fn resume(source: &str, kept: &str) -> String {
+    crate::resume(source, kept)
 }
 
 /// Les conditions d'une page et leur réponse pour cet état (`count|is=0:1;…`).
 #[wasm_bindgen]
-pub fn conditions(source: &str, etat: &str) -> String {
-    crate::conditions(source, etat)
+pub fn conditions(source: &str, state: &str) -> String {
+    crate::conditions(source, state)
 }
 
 /// L'arbitre : les valeurs d'une page après ce signal (`Add.tap`).
 #[wasm_bindgen]
-pub fn arbitrer(source: &str, etat: &str, signal: &str) -> String {
-    crate::arbitrer(source, etat, signal)
+pub fn arbitrate(source: &str, state: &str, signal: &str) -> String {
+    crate::arbitrate(source, state, signal)
 }
 
 /// Le fichier `.holo` d'un seul point de la page, pour ouvrir sa vue en profondeur.
-#[cfg(feature = "dessin")]
+#[cfg(feature = "drawing")]
 #[wasm_bindgen]
-pub fn source_du_point(source: &str, nom: &str) -> Option<String> {
-    crate::source_du_point(source, nom)
+pub fn point_source(source: &str, name: &str) -> Option<String> {
+    crate::point_source(source, name)
 }
 
 /// L'éditeur : `ok`, ou la première faute avec sa ligne et sa colonne (ADR-046).
 #[wasm_bindgen]
-pub fn verifier_texte(source: &str) -> String {
-    crate::verifier_texte(source)
+pub fn check_text(source: &str) -> String {
+    crate::check_text(source)
 }
 
 /// L'éditeur : tous les mots du langage, en JSON.
 #[wasm_bindgen]
-pub fn vocabulaire() -> String {
-    crate::vocabulaire()
+pub fn vocabulary() -> String {
+    crate::vocabulary()
 }
 
 /// Vérifie un fichier `.holo` sans rien lancer. Rend `ok` ou le message d'erreur.
-#[cfg(feature = "dessin")]
+#[cfg(feature = "drawing")]
 #[wasm_bindgen]
-pub fn verifier_holo(source: &str) -> String {
-    match crate::verifier(source) {
-        Ok(d) => format!("ok : Point « {} », seed {}, {} fragments", d.nom, d.graine, d.morceler),
+pub fn check_holo(source: &str) -> String {
+    match crate::check(source) {
+        Ok(d) => format!("ok : Point « {} », seed {}, {} fragments", d.name, d.seed, d.shatter),
         Err(e) => e.to_string(),
     }
 }

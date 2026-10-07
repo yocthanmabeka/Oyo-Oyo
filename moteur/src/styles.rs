@@ -2,87 +2,87 @@
 //! mais rien n'est toléré en silence : un réglage inconnu, une valeur mal écrite, un style
 //! défini deux fois ou jamais défini sont refusés avec leur ligne.
 
-use crate::blocs::{bloc_inconnu, BLOCS};
-use crate::holo::{Bloc, Cible, Erreur, Programme, Reglage, Valeur};
+use crate::blocks::{unknown_block, BLOCKS};
+use crate::holo::{Block, Target, Error, Program, Setting, Value};
 
 /// Ce qu'un réglage accepte comme valeur.
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum Forme {
-    Couleur,
+enum Shape {
+    Color,
     /// Une taille : `0`, `16px` ou `50%`.
-    Taille,
+    Size,
     /// D'une à quatre tailles, comme `padding: 8px 16px`.
-    Tailles,
+    Sizes,
     /// Un mot parmi une liste.
-    Mot(&'static [&'static str]),
+    Word(&'static [&'static str]),
     /// Un nombre entre 0 et 1.
     Fraction,
     /// `1px solid gray`.
-    Bordure,
+    Border,
     /// Un ou plusieurs noms de police, séparés par des virgules.
-    Police,
+    Font,
     /// Le fond : une couleur, un dégradé (`linear-gradient(…)`, `radial-gradient(…)`), ou une
     /// image rangée à côté du fichier (`url("fond.jpg")`), qui couvre toujours le bloc (ADR-041).
-    Fond,
+    Background,
     /// Un nombre sans unité, entre deux bornes : `line-height: 1.5`, `scale: 1.1`.
-    Nombre(f64, f64),
+    Number(f64, f64),
     /// Un écart en pixels, qui peut être négatif : `letter-spacing: -0.5px`.
-    Ecart,
+    Gap,
     /// Une à trois ombres, séparées par des virgules : `0 4px 12px #00000066` ; ou `none`.
-    Ombre,
+    Shadow,
     /// Un angle, de -360deg à 360deg : `rotate: -3deg`.
     Angle,
     /// La durée d'un passage d'une allure à l'autre : `0.3s`, `200ms`, ou `none`.
-    Duree,
+    Duration,
 }
 
 /// Les réglages connus : l'apparence, avec les noms du CSS de base.
-const REGLAGES: &[(&str, Forme)] = &[
-    ("color", Forme::Couleur),
-    ("background", Forme::Fond),
-    ("font-size", Forme::Taille),
-    ("font-weight", Forme::Mot(&["normal", "bold"])),
-    ("font-style", Forme::Mot(&["normal", "italic"])),
-    ("font-family", Forme::Police),
-    ("text-align", Forme::Mot(&["left", "center", "right"])),
-    ("border", Forme::Bordure),
-    ("border-radius", Forme::Taille),
-    ("padding", Forme::Tailles),
-    ("margin", Forme::Tailles),
-    ("width", Forme::Taille),
-    ("height", Forme::Taille),
-    ("max-width", Forme::Taille),
-    ("opacity", Forme::Fraction),
+const SETTINGS: &[(&str, Shape)] = &[
+    ("color", Shape::Color),
+    ("background", Shape::Background),
+    ("font-size", Shape::Size),
+    ("font-weight", Shape::Word(&["normal", "bold"])),
+    ("font-style", Shape::Word(&["normal", "italic"])),
+    ("font-family", Shape::Font),
+    ("text-align", Shape::Word(&["left", "center", "right"])),
+    ("border", Shape::Border),
+    ("border-radius", Shape::Size),
+    ("padding", Shape::Sizes),
+    ("margin", Shape::Sizes),
+    ("width", Shape::Size),
+    ("height", Shape::Size),
+    ("max-width", Shape::Size),
+    ("opacity", Shape::Fraction),
     // Le lot 4 (ADR-041) : le texte, les ombres, la pose, le passage d'une allure à l'autre.
-    ("line-height", Forme::Nombre(0.8, 3.0)),
-    ("letter-spacing", Forme::Ecart),
-    ("text-transform", Forme::Mot(&["none", "uppercase", "lowercase", "capitalize"])),
-    ("text-decoration", Forme::Mot(&["none", "underline", "line-through"])),
-    ("box-shadow", Forme::Ombre),
-    ("text-shadow", Forme::Ombre),
-    ("rotate", Forme::Angle),
-    ("scale", Forme::Nombre(0.1, 5.0)),
-    ("transition", Forme::Duree),
+    ("line-height", Shape::Number(0.8, 3.0)),
+    ("letter-spacing", Shape::Gap),
+    ("text-transform", Shape::Word(&["none", "uppercase", "lowercase", "capitalize"])),
+    ("text-decoration", Shape::Word(&["none", "underline", "line-through"])),
+    ("box-shadow", Shape::Shadow),
+    ("text-shadow", Shape::Shadow),
+    ("rotate", Shape::Angle),
+    ("scale", Shape::Number(0.1, 5.0)),
+    ("transition", Shape::Duration),
 ];
 
 /// Les noms des réglages d'un style, pour l'éditeur (ADR-046).
-pub fn noms_des_reglages() -> Vec<&'static str> {
-    REGLAGES.iter().map(|(nom, _)| *nom).collect()
+pub fn setting_names() -> Vec<&'static str> {
+    SETTINGS.iter().map(|(name, _)| *name).collect()
 }
 
 /// Les variables (ADR-041) : `--or: #E9B44C;` dans le style de `Page`, puis `color: --or;`
 /// partout. Depuis ADR-050, un composant ou un nom de style peut aussi en définir ou en redéfinir
 /// une (`.promo { --accent: crimson; }`) : elle vaut pour le bloc et ce qu'il contient. Rend
 /// chaque variable et sa première valeur, celle du thème d'abord.
-pub fn variables(programme: &Programme) -> Vec<(String, String)> {
+pub fn variables(program: &Program) -> Vec<(String, String)> {
     let mut variables: Vec<(String, String)> = Vec::new();
-    let mut regles: Vec<_> = programme.styles.iter().collect();
-    regles.sort_by_key(|r| !matches!(&r.cible, Cible::Type(t) if t == "Page" || t == "World"));
-    for regle in regles {
+    let mut rules: Vec<_> = program.styles.iter().collect();
+    rules.sort_by_key(|r| !matches!(&r.target, Target::Type(t) if t == "Page" || t == "World"));
+    for rule in rules {
         {
-            for reglage in regle.reglages.iter().chain(regle.etats.iter().flat_map(|(_, r, _)| r.iter())) {
-                if reglage.nom.starts_with("--") && !variables.iter().any(|(n, _)| *n == reglage.nom) {
-                    variables.push((reglage.nom.clone(), reglage.valeur.clone()));
+            for setting in rule.settings.iter().chain(rule.states.iter().flat_map(|(_, r, _)| r.iter())) {
+                if setting.name.starts_with("--") && !variables.iter().any(|(n, _)| *n == setting.name) {
+                    variables.push((setting.name.clone(), setting.value.clone()));
                 }
             }
         }
@@ -91,27 +91,27 @@ pub fn variables(programme: &Programme) -> Vec<(String, String)> {
 }
 
 /// Les variables d'une valeur, `--or` dans `0 4px 8px --ombre`.
-pub fn variables_de(valeur: &str) -> Vec<&str> {
-    let mut noms = Vec::new();
-    let mut reste = valeur;
-    while let Some(debut) = reste.find("--") {
-        let avant_ok = debut == 0 || reste[..debut].ends_with([' ', ',', '(']);
-        let fin = reste[debut + 2..].find(|c: char| !(c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')).map_or(reste.len(), |f| debut + 2 + f);
-        if avant_ok && fin > debut + 2 {
-            noms.push(&reste[debut..fin]);
+pub fn variables_of(value: &str) -> Vec<&str> {
+    let mut names = Vec::new();
+    let mut remainder = value;
+    while let Some(start) = remainder.find("--") {
+        let before_ok = start == 0 || remainder[..start].ends_with([' ', ',', '(']);
+        let end = remainder[start + 2..].find(|c: char| !(c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')).map_or(remainder.len(), |f| start + 2 + f);
+        if before_ok && end > start + 2 {
+            names.push(&remainder[start..end]);
         }
-        reste = &reste[fin.max(debut + 2)..];
+        remainder = &remainder[end.max(start + 2)..];
     }
-    noms
+    names
 }
 
 /// La disposition ne se règle pas dans un style : elle vient des blocs (ADR-017, règle 3).
-const DISPOSITION: &[&str] = &[
+const LAYOUT: &[&str] = &[
     "display", "position", "float", "clear", "top", "left", "right", "bottom", "z-index", "flex", "flex-direction", "flex-wrap",
     "justify-content", "align-items", "align-self", "gap", "grid", "grid-template-columns", "grid-template-rows", "order",
 ];
 
-const COULEURS: &[&str] = &[
+const COLORS: &[&str] = &[
     "transparent", "black", "white", "gray", "silver", "red", "maroon", "orange", "gold", "yellow", "olive", "green", "lime",
     "teal", "aqua", "cyan", "blue", "navy", "purple", "magenta", "fuchsia", "pink", "brown", "beige", "ivory", "indigo", "violet",
     "turquoise", "salmon", "coral", "crimson", "khaki", "lavender", "tan",
@@ -120,22 +120,22 @@ const COULEURS: &[&str] = &[
 /// La couleur d'une valeur, en rouge, vert, bleu (0 à 255) : une couleur nommée, `#abc`,
 /// `#aabbcc`, ou une variable qui en porte une. `None` pour ce qui n'est pas une couleur pleine
 /// (un dégradé, une image, `transparent`, une couleur à demi transparente).
-fn rvb(valeur: &str, variables: &[(String, String)]) -> Option<[f64; 3]> {
-    let valeur = valeur.trim();
-    if valeur.starts_with("--") {
-        let (_, v) = variables.iter().find(|(n, _)| n == valeur)?;
-        return if v.starts_with("--") { None } else { rvb(v, variables) };
+fn rgb(value: &str, variables: &[(String, String)]) -> Option<[f64; 3]> {
+    let value = value.trim();
+    if value.starts_with("--") {
+        let (_, v) = variables.iter().find(|(n, _)| n == value)?;
+        return if v.starts_with("--") { None } else { rgb(v, variables) };
     }
-    if let Some(hexa) = valeur.strip_prefix('#') {
-        let octet = |a: &str| u8::from_str_radix(a, 16).ok().map(f64::from);
-        return match hexa.len() {
-            3 => Some([octet(&hexa[0..1].repeat(2))?, octet(&hexa[1..2].repeat(2))?, octet(&hexa[2..3].repeat(2))?]),
-            6 => Some([octet(&hexa[0..2])?, octet(&hexa[2..4])?, octet(&hexa[4..6])?]),
-            8 if hexa[6..8].eq_ignore_ascii_case("ff") => Some([octet(&hexa[0..2])?, octet(&hexa[2..4])?, octet(&hexa[4..6])?]),
+    if let Some(hex) = value.strip_prefix('#') {
+        let byte = |a: &str| u8::from_str_radix(a, 16).ok().map(f64::from);
+        return match hex.len() {
+            3 => Some([byte(&hex[0..1].repeat(2))?, byte(&hex[1..2].repeat(2))?, byte(&hex[2..3].repeat(2))?]),
+            6 => Some([byte(&hex[0..2])?, byte(&hex[2..4])?, byte(&hex[4..6])?]),
+            8 if hex[6..8].eq_ignore_ascii_case("ff") => Some([byte(&hex[0..2])?, byte(&hex[2..4])?, byte(&hex[4..6])?]),
             _ => None,
         };
     }
-    const NOMMEES: &[(&str, u32)] = &[
+    const NAMED: &[(&str, u32)] = &[
         ("black", 0x000000), ("white", 0xffffff), ("gray", 0x808080), ("silver", 0xc0c0c0), ("red", 0xff0000), ("maroon", 0x800000),
         ("orange", 0xffa500), ("gold", 0xffd700), ("yellow", 0xffff00), ("olive", 0x808000), ("green", 0x008000), ("lime", 0x00ff00),
         ("teal", 0x008080), ("aqua", 0x00ffff), ("cyan", 0x00ffff), ("blue", 0x0000ff), ("navy", 0x000080), ("purple", 0x800080),
@@ -143,12 +143,12 @@ fn rvb(valeur: &str, variables: &[(String, String)]) -> Option<[f64; 3]> {
         ("indigo", 0x4b0082), ("violet", 0xee82ee), ("turquoise", 0x40e0d0), ("salmon", 0xfa8072), ("coral", 0xff7f50),
         ("crimson", 0xdc143c), ("khaki", 0xf0e68c), ("lavender", 0xe6e6fa), ("tan", 0xd2b48c),
     ];
-    let (_, code) = NOMMEES.iter().find(|(n, _)| *n == valeur)?;
+    let (_, code) = NAMED.iter().find(|(n, _)| *n == value)?;
     Some([f64::from((code >> 16) & 0xff), f64::from((code >> 8) & 0xff), f64::from(code & 0xff)])
 }
 
 /// Le contraste de deux couleurs, de 1 à 21, comme le calcule le WCAG.
-fn contraste(a: [f64; 3], b: [f64; 3]) -> f64 {
+fn contrast(a: [f64; 3], b: [f64; 3]) -> f64 {
     let luminance = |c: [f64; 3]| {
         let l = |v: f64| {
             let v = v / 255.0;
@@ -163,35 +163,35 @@ fn contraste(a: [f64; 3], b: [f64; 3]) -> f64 {
 /// Un style qui donne à la fois la couleur du texte et celle du fond doit pouvoir être lu par
 /// tous : 4,5 pour 1 au moins, 3 pour 1 pour un grand texte (24px, ou 19px en gras), comme le
 /// demande le WCAG (ADR-055). Vérifié pour le style, et pour chacun de ses états.
-fn verifier_contraste(regle: &crate::holo::RegleStyle, variables: &[(String, String)]) -> Result<(), Erreur> {
-    let valeur = |reglages: &[Reglage], nom: &str| reglages.iter().find(|r| r.nom == nom).map(|r| r.valeur.clone());
-    let mut cas: Vec<(Option<&str>, Vec<Reglage>, crate::holo::Pos)> = vec![(None, regle.reglages.clone(), regle.pos)];
-    for (etat, reglages, pos) in &regle.etats {
-        let mut melange = regle.reglages.clone();
-        melange.retain(|r| !reglages.iter().any(|e| e.nom == r.nom));
-        melange.extend(reglages.iter().cloned());
-        cas.push((Some(etat.as_str()), melange, *pos));
+fn check_contrast(rule: &crate::holo::StyleRule, variables: &[(String, String)]) -> Result<(), Error> {
+    let value = |settings: &[Setting], name: &str| settings.iter().find(|r| r.name == name).map(|r| r.value.clone());
+    let mut sample: Vec<(Option<&str>, Vec<Setting>, crate::holo::Pos)> = vec![(None, rule.settings.clone(), rule.pos)];
+    for (state, settings, pos) in &rule.states {
+        let mut mix = rule.settings.clone();
+        mix.retain(|r| !settings.iter().any(|e| e.name == r.name));
+        mix.extend(settings.iter().cloned());
+        sample.push((Some(state.as_str()), mix, *pos));
     }
-    for (etat, reglages, pos) in cas {
-        let (Some(texte), Some(fond)) = (valeur(&reglages, "color"), valeur(&reglages, "background")) else { continue };
+    for (state, settings, pos) in sample {
+        let (Some(text), Some(background)) = (value(&settings, "color"), value(&settings, "background")) else { continue };
         // Une variable redéfinie dans ce style ou cet état (`dark: { --ink: #F5F5F5; }`) y vaut d'abord.
-        let mut locales: Vec<(String, String)> = reglages.iter().filter(|r| r.nom.starts_with("--")).map(|r| (r.nom.clone(), r.valeur.clone())).collect();
-        locales.extend(variables.iter().cloned());
-        let (Some(t), Some(f)) = (rvb(&texte, &locales), rvb(&fond, &locales)) else { continue };
-        let taille = valeur(&reglages, "font-size").and_then(|v| v.strip_suffix("px").and_then(|n| n.trim().parse::<f64>().ok())).unwrap_or(16.0);
-        let gras = valeur(&reglages, "font-weight").is_some_and(|v| v == "bold");
-        let grand = taille >= 24.0 || (gras && taille >= 19.0);
-        let seuil = if grand { 3.0 } else { 4.5 };
-        let vu = contraste(t, f);
-        if vu + 1e-9 < seuil {
-            let ou = etat.map_or(String::new(), |e| format!(", dans l'état « {e} »"));
-            let ecrit = |x: f64| format!("{:.1}", (x * 10.0).floor() / 10.0).replace('.', ",");
-            return Err(Erreur {
+        let mut local_rules: Vec<(String, String)> = settings.iter().filter(|r| r.name.starts_with("--")).map(|r| (r.name.clone(), r.value.clone())).collect();
+        local_rules.extend(variables.iter().cloned());
+        let (Some(t), Some(f)) = (rgb(&text, &local_rules), rgb(&background, &local_rules)) else { continue };
+        let size = value(&settings, "font-size").and_then(|v| v.strip_suffix("px").and_then(|n| n.trim().parse::<f64>().ok())).unwrap_or(16.0);
+        let bold = value(&settings, "font-weight").is_some_and(|v| v == "bold");
+        let big = size >= 24.0 || (bold && size >= 19.0);
+        let threshold = if big { 3.0 } else { 4.5 };
+        let seen = contrast(t, f);
+        if seen + 1e-9 < threshold {
+            let or_ = state.map_or(String::new(), |e| format!(", dans l'état « {e} »"));
+            let written = |x: f64| format!("{:.1}", (x * 10.0).floor() / 10.0).replace('.', ",");
+            return Err(Error {
                 message: format!(
-                    "« {} »{ou} : le texte « {texte} » sur le fond « {fond} » a un contraste de {} pour 1 ; il faut {} pour 1 au moins pour qu'il soit lu par tous (WCAG) : fonce le fond ou éclaircis le texte, ou l'inverse",
-                    regle.cible,
-                    ecrit(vu),
-                    if grand { "3" } else { "4,5" }
+                    "« {} »{or_} : le texte « {text} » sur le fond « {background} » a un contraste de {} pour 1 ; il faut {} pour 1 au moins pour qu'il soit lu par tous (WCAG) : fonce le fond ou éclaircis le texte, ou l'inverse",
+                    rule.target,
+                    written(seen),
+                    if big { "3" } else { "4,5" }
                 ),
                 pos,
             });
@@ -201,239 +201,239 @@ fn verifier_contraste(regle: &crate::holo::RegleStyle, variables: &[(String, Str
 }
 
 /// Vérifie les règles de style d'un fichier et les noms de style posés sur les blocs.
-pub fn verifier_styles(programme: &Programme) -> Result<(), Erreur> {
-    let variables = variables(programme);
-    for (i, regle) in programme.styles.iter().enumerate() {
-        if let Cible::Type(nom) = &regle.cible {
-            if !BLOCS.contains(&nom.as_str()) && !programme.composants.contains(nom) {
-                let majuscule = majuscule(nom);
-                let message = if BLOCS.contains(&majuscule.as_str()) {
-                    format!("« {nom} » : un type de bloc commence par une majuscule, écris « {majuscule} {{ … }} » (ADR-020)")
+pub fn check_styles(program: &Program) -> Result<(), Error> {
+    let variables = variables(program);
+    for (i, rule) in program.styles.iter().enumerate() {
+        if let Target::Type(name) = &rule.target {
+            if !BLOCKS.contains(&name.as_str()) && !program.components.contains(name) {
+                let uppercase = uppercase(name);
+                let message = if BLOCKS.contains(&uppercase.as_str()) {
+                    format!("« {name} » : un type de bloc commence par une majuscule, écris « {uppercase} {{ … }} » (ADR-020)")
                 } else {
-                    bloc_inconnu(nom)
+                    unknown_block(name)
                 };
-                return Err(Erreur { message, pos: regle.pos });
+                return Err(Error { message, pos: rule.pos });
             }
         }
-        if programme.styles[..i].iter().any(|autre| autre.cible == regle.cible) {
-            return Err(Erreur {
-                message: format!("le style « {} » est défini deux fois : rassemble ses réglages au même endroit", regle.cible),
-                pos: regle.pos,
+        if program.styles[..i].iter().any(|other| other.target == rule.target) {
+            return Err(Error {
+                message: format!("le style « {} » est défini deux fois : rassemble ses réglages au même endroit", rule.target),
+                pos: rule.pos,
             });
         }
-        for (j, reglage) in regle.reglages.iter().enumerate() {
-            if regle.reglages[..j].iter().any(|autre| autre.nom == reglage.nom) {
-                return Err(Erreur { message: format!("le réglage « {} » est donné deux fois dans « {} »", reglage.nom, regle.cible), pos: reglage.pos });
+        for (j, setting) in rule.settings.iter().enumerate() {
+            if rule.settings[..j].iter().any(|other| other.name == setting.name) {
+                return Err(Error { message: format!("le réglage « {} » est donné deux fois dans « {} »", setting.name, rule.target), pos: setting.pos });
             }
-            verifier_reglage(reglage, None, &variables)?;
+            check_setting(setting, None, &variables)?;
         }
-        verifier_contraste(regle, &variables)?;
+        check_contrast(rule, &variables)?;
         // Les états (hover, focus, active, dark, phone) : chacun une fois, avec des réglages connus.
-        for (k, (etat, reglages, pos)) in regle.etats.iter().enumerate() {
-            if regle.etats[..k].iter().any(|(autre, ..)| autre == etat) {
-                return Err(Erreur { message: format!("l'état « {etat} » est donné deux fois dans « {} »", regle.cible), pos: *pos });
+        for (k, (state, settings, pos)) in rule.states.iter().enumerate() {
+            if rule.states[..k].iter().any(|(other, ..)| other == state) {
+                return Err(Error { message: format!("l'état « {state} » est donné deux fois dans « {} »", rule.target), pos: *pos });
             }
-            if reglages.is_empty() {
-                return Err(Erreur { message: format!("l'état « {etat} » de « {} » est vide : écris ce qui change, comme « {etat}: {{ background: navy; }} »", regle.cible), pos: *pos });
+            if settings.is_empty() {
+                return Err(Error { message: format!("l'état « {state} » de « {} » est vide : écris ce qui change, comme « {state}: {{ background: navy; }} »", rule.target), pos: *pos });
             }
-            for (j, reglage) in reglages.iter().enumerate() {
-                if reglages[..j].iter().any(|autre| autre.nom == reglage.nom) {
-                    return Err(Erreur { message: format!("le réglage « {} » est donné deux fois dans l'état « {etat} »", reglage.nom), pos: reglage.pos });
+            for (j, setting) in settings.iter().enumerate() {
+                if settings[..j].iter().any(|other| other.name == setting.name) {
+                    return Err(Error { message: format!("le réglage « {} » est donné deux fois dans l'état « {state} »", setting.name), pos: setting.pos });
                 }
-                verifier_reglage(reglage, Some(etat), &variables)?;
+                check_setting(setting, Some(state), &variables)?;
             }
         }
     }
-    noms_poses(&programme.racine, programme)
+    placed_names(&program.root, program)
 }
 
 /// Chaque nom de style posé sur un bloc (`P.card(...)`) doit être défini.
-fn noms_poses(bloc: &Bloc, programme: &Programme) -> Result<(), Erreur> {
-    for nom in bloc.styles.iter().filter(|s| s.starts_with(|c: char| c.is_ascii_lowercase())) {
-        if !programme.styles.iter().any(|r| r.cible == Cible::Nom(nom.clone())) {
-            return Err(Erreur {
-                message: format!("le style « .{nom} » n'est défini nulle part : écris « .{nom} {{ … }} » après le bloc racine"),
-                pos: bloc.pos,
+fn placed_names(block: &Block, program: &Program) -> Result<(), Error> {
+    for name in block.styles.iter().filter(|s| s.starts_with(|c: char| c.is_ascii_lowercase())) {
+        if !program.styles.iter().any(|r| r.target == Target::Name(name.clone())) {
+            return Err(Error {
+                message: format!("le style « .{name} » n'est défini nulle part : écris « .{name} {{ … }} » après le bloc racine"),
+                pos: block.pos,
             });
         }
     }
-    fn visiter(valeur: &Valeur, programme: &Programme) -> Result<(), Erreur> {
-        match valeur {
-            Valeur::Bloc(bloc) => noms_poses(bloc, programme),
-            Valeur::Liste(elements) => elements.iter().try_for_each(|e| visiter(e, programme)),
+    fn visit(value: &Value, program: &Program) -> Result<(), Error> {
+        match value {
+            Value::Block(block) => placed_names(block, program),
+            Value::List(elements) => elements.iter().try_for_each(|e| visit(e, program)),
             _ => Ok(()),
         }
     }
-    bloc.arguments.iter().try_for_each(|a| visiter(&a.valeur, programme))
+    block.arguments.iter().try_for_each(|a| visit(&a.value, program))
 }
 
-fn verifier_reglage(reglage: &Reglage, etat: Option<&str>, variables: &[(String, String)]) -> Result<(), Erreur> {
-    let refus = |message: String| Err(Erreur { message, pos: reglage.pos });
-    let nom = reglage.nom.as_str();
+fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, String)]) -> Result<(), Error> {
+    let refusal = |message: String| Err(Error { message, pos: setting.pos });
+    let name = setting.name.as_str();
     // Une variable : une couleur ou une taille. Définie dans le thème (le style de Page), elle
     // vaut partout ; dans un composant ou un nom de style, pour ce bloc et son contenu (ADR-050).
-    if let Some(reste) = nom.strip_prefix("--") {
-        if reste.is_empty() || !reste.starts_with(|c: char| c.is_ascii_lowercase()) || !reste.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
-            return refus(format!("« {nom} » : une variable s'écrit comme en CSS, en minuscules, les mots joints par « - », comme « --or-clair »"));
+    if let Some(remainder) = name.strip_prefix("--") {
+        if remainder.is_empty() || !remainder.starts_with(|c: char| c.is_ascii_lowercase()) || !remainder.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+            return refusal(format!("« {name} » : une variable s'écrit comme en CSS, en minuscules, les mots joints par « - », comme « --or-clair »"));
         }
-        let valeur = reglage.valeur.as_str();
-        if !(est_couleur(valeur) || est_taille(valeur)) {
-            return refus(format!("« {nom}: {valeur} » : une variable porte une couleur ou une taille, comme « #E9B44C » ou « 16px »"));
+        let value = setting.value.as_str();
+        if !(is_color(value) || is_size(value)) {
+            return refusal(format!("« {name}: {value} » : une variable porte une couleur ou une taille, comme « #E9B44C » ou « 16px »"));
         }
         return Ok(());
     }
     // Cacher un bloc sur un téléphone : seulement dans « phone: { … } » (ADR-041).
-    if nom == "display" {
-        return match (etat, reglage.valeur.as_str()) {
+    if name == "display" {
+        return match (state, setting.value.as_str()) {
             (Some("phone"), "none") => Ok(()),
-            (Some("phone"), _) => refus("dans « phone: { … } », « display » ne prend que « none » : cacher le bloc sur un téléphone".into()),
-            _ => refus("« display » règle la disposition, pas l'apparence : la disposition vient des blocs ; pour cacher un bloc sur un téléphone : « phone: { display: none; } » ; selon une valeur : If (ADR-017, ADR-041)".into()),
+            (Some("phone"), _) => refusal("dans « phone: { … } », « display » ne prend que « none » : cacher le bloc sur un téléphone".into()),
+            _ => refusal("« display » règle la disposition, pas l'apparence : la disposition vient des blocs ; pour cacher un bloc sur un téléphone : « phone: { display: none; } » ; selon une valeur : If (ADR-017, ADR-041)".into()),
         };
     }
-    if DISPOSITION.contains(&nom) {
-        return refus(format!(
-            "« {nom} » règle la disposition, pas l'apparence : un style ne dit que l'apparence, la disposition vient des blocs (ADR-017)"
+    if LAYOUT.contains(&name) {
+        return refusal(format!(
+            "« {name} » règle la disposition, pas l'apparence : un style ne dit que l'apparence, la disposition vient des blocs (ADR-017)"
         ));
     }
-    if nom == "background-color" {
-        return refus("« background-color » s'écrit « background » : une seule écriture par réglage".into());
+    if name == "background-color" {
+        return refusal("« background-color » s'écrit « background » : une seule écriture par réglage".into());
     }
-    let Some((_, forme)) = REGLAGES.iter().find(|(connu, _)| *connu == nom) else {
-        let connus: Vec<&str> = REGLAGES.iter().map(|(n, _)| *n).collect();
-        return refus(format!("réglage inconnu « {nom} » ; réglages possibles : {}", connus.join(", ")));
+    let Some((_, shape)) = SETTINGS.iter().find(|(known, _)| *known == name) else {
+        let known_ones: Vec<&str> = SETTINGS.iter().map(|(n, _)| *n).collect();
+        return refusal(format!("réglage inconnu « {name} » ; réglages possibles : {}", known_ones.join(", ")));
     };
     // Les variables sont remplacées par leur valeur, pour vérifier ce qu'elles donnent.
-    let mut valeur = reglage.valeur.clone();
-    for variable in variables_de(&reglage.valeur) {
+    let mut value = setting.value.clone();
+    for variable in variables_of(&setting.value) {
         match variables.iter().find(|(n, _)| n == variable) {
-            Some((_, remplacement)) => valeur = valeur.replacen(variable, remplacement, 1),
-            None => return refus(format!("« {variable} » n'est définie nulle part : écris « Page {{ {variable}: … }} »")),
+            Some((_, replacement)) => value = value.replacen(variable, replacement, 1),
+            None => return refusal(format!("« {variable} » n'est définie nulle part : écris « Page {{ {variable}: … }} »")),
         }
     }
-    let valeur = valeur.as_str();
-    let mots: Vec<&str> = valeur.split_whitespace().collect();
-    let correct = match forme {
-        Forme::Couleur => mots.len() == 1 && est_couleur(valeur),
-        Forme::Taille => mots.len() == 1 && est_taille(valeur),
-        Forme::Tailles => (1..=4).contains(&mots.len()) && mots.iter().all(|m| est_taille(m)),
-        Forme::Mot(possibles) => possibles.contains(&valeur),
-        Forme::Fraction => valeur.parse::<f64>().is_ok_and(|v| (0.0..=1.0).contains(&v)),
-        Forme::Bordure => mots.len() == 3 && est_taille(mots[0]) && ["solid", "dashed", "dotted"].contains(&mots[1]) && est_couleur(mots[2]),
-        Forme::Police => valeur.split(',').all(|police| {
-            let police = police.trim().trim_matches('"');
-            !police.is_empty() && police.chars().all(|c| c.is_alphanumeric() || c == ' ' || c == '-')
+    let value = value.as_str();
+    let words: Vec<&str> = value.split_whitespace().collect();
+    let correct = match shape {
+        Shape::Color => words.len() == 1 && is_color(value),
+        Shape::Size => words.len() == 1 && is_size(value),
+        Shape::Sizes => (1..=4).contains(&words.len()) && words.iter().all(|m| is_size(m)),
+        Shape::Word(possible) => possible.contains(&value),
+        Shape::Fraction => value.parse::<f64>().is_ok_and(|v| (0.0..=1.0).contains(&v)),
+        Shape::Border => words.len() == 3 && is_size(words[0]) && ["solid", "dashed", "dotted"].contains(&words[1]) && is_color(words[2]),
+        Shape::Font => value.split(',').all(|font| {
+            let font = font.trim().trim_matches('"');
+            !font.is_empty() && font.chars().all(|c| c.is_alphanumeric() || c == ' ' || c == '-')
         }),
-        Forme::Fond => est_couleur(valeur) || est_degrade(valeur) || image_de_fond(valeur).is_some(),
-        Forme::Nombre(min, max) => valeur.parse::<f64>().is_ok_and(|v| (*min..=*max).contains(&v)),
-        Forme::Ecart => pixels_signes(valeur).is_some_and(|v| (-10.0..=40.0).contains(&v)),
-        Forme::Ombre => valeur == "none" || {
-            let ombres: Vec<&str> = valeur.split(',').map(str::trim).collect();
-            ombres.len() <= 3 && ombres.iter().all(|ombre| est_ombre(ombre))
+        Shape::Background => is_color(value) || is_gradient(value) || background_image(value).is_some(),
+        Shape::Number(min, max) => value.parse::<f64>().is_ok_and(|v| (*min..=*max).contains(&v)),
+        Shape::Gap => signed_pixels(value).is_some_and(|v| (-10.0..=40.0).contains(&v)),
+        Shape::Shadow => value == "none" || {
+            let shadows: Vec<&str> = value.split(',').map(str::trim).collect();
+            shadows.len() <= 3 && shadows.iter().all(|shadow| is_shadow(shadow))
         },
-        Forme::Angle => valeur.strip_suffix("deg").and_then(|n| n.parse::<f64>().ok()).is_some_and(|v| (-360.0..=360.0).contains(&v)),
-        Forme::Duree => valeur == "none" || duree_en_ms(valeur).is_some_and(|ms| (0.0..=2000.0).contains(&ms)),
+        Shape::Angle => value.strip_suffix("deg").and_then(|n| n.parse::<f64>().ok()).is_some_and(|v| (-360.0..=360.0).contains(&v)),
+        Shape::Duration => value == "none" || duration_in_ms(value).is_some_and(|ms| (0.0..=2000.0).contains(&ms)),
     };
     if correct {
         return Ok(());
     }
-    let attendu = match forme {
-        Forme::Couleur => "une couleur, comme « gray » ou « #E9B44C »".to_string(),
-        Forme::Taille => "une taille, comme « 16px » ou « 50% »".to_string(),
-        Forme::Tailles => "une à quatre tailles, comme « 8px 16px »".to_string(),
-        Forme::Mot(possibles) => format!("l'un de ces mots : {}", possibles.join(", ")),
-        Forme::Fraction => "un nombre entre 0 et 1".to_string(),
-        Forme::Bordure => "une épaisseur, un trait et une couleur, comme « 1px solid gray »".to_string(),
-        Forme::Police => "un ou plusieurs noms de police, séparés par des virgules".to_string(),
-        Forme::Fond => "une couleur, un dégradé comme « linear-gradient(#E9B44C, #1a1a2e) », ou une image rangée à côté, « url(\"fond.jpg\") »".to_string(),
-        Forme::Nombre(min, max) if nom == "line-height" => format!("un nombre sans unité, de {min} à {max}, comme « 1.5 » : la hauteur de ligne suit alors la taille du texte"),
-        Forme::Nombre(min, max) => format!("un nombre de {min} à {max}, comme « 1.1 »"),
-        Forme::Ecart => "un écart en pixels, de -10px à 40px, comme « 1px »".to_string(),
-        Forme::Ombre => "une ombre : décalage, flou et couleur, comme « 0 4px 12px #00000066 » (trois au plus, séparées par des virgules), ou « none »".to_string(),
-        Forme::Angle => "un angle de -360deg à 360deg, comme « -3deg »".to_string(),
-        Forme::Duree => "une durée de 0 à 2s, comme « 0.3s » ou « 200ms », ou « none »".to_string(),
+    let expected = match shape {
+        Shape::Color => "une couleur, comme « gray » ou « #E9B44C »".to_string(),
+        Shape::Size => "une taille, comme « 16px » ou « 50% »".to_string(),
+        Shape::Sizes => "une à quatre tailles, comme « 8px 16px »".to_string(),
+        Shape::Word(possible) => format!("l'un de ces mots : {}", possible.join(", ")),
+        Shape::Fraction => "un nombre entre 0 et 1".to_string(),
+        Shape::Border => "une épaisseur, un trait et une couleur, comme « 1px solid gray »".to_string(),
+        Shape::Font => "un ou plusieurs noms de police, séparés par des virgules".to_string(),
+        Shape::Background => "une couleur, un dégradé comme « linear-gradient(#E9B44C, #1a1a2e) », ou une image rangée à côté, « url(\"fond.jpg\") »".to_string(),
+        Shape::Number(min, max) if name == "line-height" => format!("un nombre sans unité, de {min} à {max}, comme « 1.5 » : la hauteur de ligne suit alors la taille du texte"),
+        Shape::Number(min, max) => format!("un nombre de {min} à {max}, comme « 1.1 »"),
+        Shape::Gap => "un écart en pixels, de -10px à 40px, comme « 1px »".to_string(),
+        Shape::Shadow => "une ombre : décalage, flou et couleur, comme « 0 4px 12px #00000066 » (trois au plus, séparées par des virgules), ou « none »".to_string(),
+        Shape::Angle => "un angle de -360deg à 360deg, comme « -3deg »".to_string(),
+        Shape::Duration => "une durée de 0 à 2s, comme « 0.3s » ou « 200ms », ou « none »".to_string(),
     };
-    refus(format!("« {nom}: {valeur} » : ce réglage attend {attendu}"))
+    refusal(format!("« {name}: {value} » : ce réglage attend {expected}"))
 }
 
-pub(crate) fn est_couleur(valeur: &str) -> bool {
-    match valeur.strip_prefix('#') {
-        Some(hexa) => [3, 6, 8].contains(&hexa.len()) && hexa.bytes().all(|c| c.is_ascii_hexdigit()),
-        None => COULEURS.contains(&valeur),
+pub(crate) fn is_color(value: &str) -> bool {
+    match value.strip_prefix('#') {
+        Some(hex) => [3, 6, 8].contains(&hex.len()) && hex.bytes().all(|c| c.is_ascii_hexdigit()),
+        None => COLORS.contains(&value),
     }
 }
 
 /// `linear-gradient(to right, #E9B44C, #1a1a2e)` ou `radial-gradient(white, navy)` : une
 /// direction ou un angle facultatifs, puis de deux à cinq couleurs.
-fn est_degrade(valeur: &str) -> bool {
-    let Some(dedans) = valeur.strip_prefix("linear-gradient(").or_else(|| valeur.strip_prefix("radial-gradient(")).and_then(|v| v.strip_suffix(')')) else { return false };
-    let mut parts: Vec<&str> = dedans.split(',').map(str::trim).collect();
-    let lineaire = valeur.starts_with("linear");
-    if lineaire && parts.first().is_some_and(|p| p.starts_with("to ") || p.ends_with("deg")) {
-        let sens = parts.remove(0);
-        let correct = match sens.strip_prefix("to ") {
-            Some(cotes) => cotes.split_whitespace().all(|c| ["top", "bottom", "left", "right"].contains(&c)),
-            None => sens.strip_suffix("deg").and_then(|n| n.parse::<f64>().ok()).is_some_and(|v| (-360.0..=360.0).contains(&v)),
+fn is_gradient(value: &str) -> bool {
+    let Some(inside) = value.strip_prefix("linear-gradient(").or_else(|| value.strip_prefix("radial-gradient(")).and_then(|v| v.strip_suffix(')')) else { return false };
+    let mut parts: Vec<&str> = inside.split(',').map(str::trim).collect();
+    let linear = value.starts_with("linear");
+    if linear && parts.first().is_some_and(|p| p.starts_with("to ") || p.ends_with("deg")) {
+        let direction = parts.remove(0);
+        let correct = match direction.strip_prefix("to ") {
+            Some(sides) => sides.split_whitespace().all(|c| ["top", "bottom", "left", "right"].contains(&c)),
+            None => direction.strip_suffix("deg").and_then(|n| n.parse::<f64>().ok()).is_some_and(|v| (-360.0..=360.0).contains(&v)),
         };
         if !correct {
             return false;
         }
     }
-    (2..=5).contains(&parts.len()) && parts.iter().all(|c| est_couleur(c))
+    (2..=5).contains(&parts.len()) && parts.iter().all(|c| is_color(c))
 }
 
 /// `url("fond.jpg")` : le nom d'une image rangée à côté du fichier.
-pub(crate) fn image_de_fond(valeur: &str) -> Option<&str> {
-    let dedans = valeur.strip_prefix("url(")?.strip_suffix(')')?.trim().trim_matches('"');
-    let image = [".png", ".jpg", ".jpeg", ".webp", ".svg", ".gif", ".avif"].iter().any(|fin| dedans.ends_with(fin));
-    (image && crate::plat::chemin_sur(dedans)).then_some(dedans)
+pub(crate) fn background_image(value: &str) -> Option<&str> {
+    let inside = value.strip_prefix("url(")?.strip_suffix(')')?.trim().trim_matches('"');
+    let image = [".png", ".jpg", ".jpeg", ".webp", ".svg", ".gif", ".avif"].iter().any(|end| inside.ends_with(end));
+    (image && crate::flat::path_on(inside)).then_some(inside)
 }
 
 /// `-0.5px` → -0.5.
-fn pixels_signes(valeur: &str) -> Option<f64> {
-    if valeur == "0" {
+fn signed_pixels(value: &str) -> Option<f64> {
+    if value == "0" {
         return Some(0.0);
     }
-    valeur.strip_suffix("px")?.parse::<f64>().ok().filter(|v| v.is_finite())
+    value.strip_suffix("px")?.parse::<f64>().ok().filter(|v| v.is_finite())
 }
 
 /// Une ombre : deux décalages (qui peuvent être négatifs), un flou facultatif, une couleur.
-fn est_ombre(ombre: &str) -> bool {
-    let mots: Vec<&str> = ombre.split_whitespace().collect();
-    let Some((couleur, tailles)) = mots.split_last() else { return false };
-    est_couleur(couleur)
-        && (2..=3).contains(&tailles.len())
-        && tailles[..2].iter().all(|t| pixels_signes(t).is_some_and(|v| v.abs() <= 100.0))
-        && tailles.get(2).is_none_or(|flou| est_taille(flou) && pixels_signes(flou).is_some_and(|v| v <= 200.0))
+fn is_shadow(shadow: &str) -> bool {
+    let words: Vec<&str> = shadow.split_whitespace().collect();
+    let Some((color, sizes)) = words.split_last() else { return false };
+    is_color(color)
+        && (2..=3).contains(&sizes.len())
+        && sizes[..2].iter().all(|t| signed_pixels(t).is_some_and(|v| v.abs() <= 100.0))
+        && sizes.get(2).is_none_or(|blur| is_size(blur) && signed_pixels(blur).is_some_and(|v| v <= 200.0))
 }
 
 /// `0.3s` → 300 ; `200ms` → 200.
-pub(crate) fn duree_en_ms(valeur: &str) -> Option<f64> {
-    if let Some(ms) = valeur.strip_suffix("ms") {
+pub(crate) fn duration_in_ms(value: &str) -> Option<f64> {
+    if let Some(ms) = value.strip_suffix("ms") {
         return ms.parse().ok();
     }
-    valeur.strip_suffix('s')?.parse::<f64>().ok().map(|s| s * 1000.0)
+    value.strip_suffix('s')?.parse::<f64>().ok().map(|s| s * 1000.0)
 }
 
-fn est_taille(valeur: &str) -> bool {
-    if valeur == "0" {
+fn is_size(value: &str) -> bool {
+    if value == "0" {
         return true;
     }
-    let nombre = valeur.strip_suffix("px").or_else(|| valeur.strip_suffix('%'));
-    nombre.is_some_and(|n| !n.is_empty() && !n.starts_with('-') && n.parse::<f64>().is_ok_and(f64::is_finite))
+    let number = value.strip_suffix("px").or_else(|| value.strip_suffix('%'));
+    number.is_some_and(|n| !n.is_empty() && !n.starts_with('-') && n.parse::<f64>().is_ok_and(f64::is_finite))
 }
 
-fn majuscule(nom: &str) -> String {
-    let mut lettres = nom.chars();
-    lettres.next().map(|c| format!("{}{}", c.to_ascii_uppercase(), lettres.as_str())).unwrap_or_default()
+fn uppercase(name: &str) -> String {
+    let mut letters = name.chars();
+    letters.next().map(|c| format!("{}{}", c.to_ascii_uppercase(), letters.as_str())).unwrap_or_default()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::holo::lire;
+    use crate::holo::read;
 
-    fn verifier(src: &str) -> Result<(), Erreur> {
-        verifier_styles(&lire(src)?)
+    fn check(src: &str) -> Result<(), Error> {
+        check_styles(&read(src)?)
     }
 
     fn page(styles: &str) -> String {
@@ -441,41 +441,41 @@ mod tests {
     }
 
     #[test]
-    fn la_boutique_de_la_suite_est_acceptee() {
+    fn the_suite_shop_is_accepted() {
         let source = include_str!("../../experiments/conformite-v0.1/cas/valides/06-boutique-avec-styles.holo");
-        let programme = lire(source).unwrap();
-        verifier_styles(&programme).unwrap();
-        crate::blocs::verifier_blocs(&programme).unwrap();
-        assert_eq!(programme.styles.len(), 5);
-        assert_eq!(programme.styles[0].cible, Cible::Type("Page".into()));
-        assert_eq!(programme.styles[3].cible, Cible::Nom("card".into()));
-        assert_eq!(programme.styles[3].reglages[0].nom, "background");
-        assert_eq!(programme.styles[3].reglages[0].valeur, "#1a1a2e");
+        let program = read(source).unwrap();
+        check_styles(&program).unwrap();
+        crate::blocks::check_blocks(&program).unwrap();
+        assert_eq!(program.styles.len(), 5);
+        assert_eq!(program.styles[0].target, Target::Type("Page".into()));
+        assert_eq!(program.styles[3].target, Target::Name("card".into()));
+        assert_eq!(program.styles[3].settings[0].name, "background");
+        assert_eq!(program.styles[3].settings[0].value, "#1a1a2e");
     }
 
     #[test]
-    fn la_boutique_comparee_emploie_tout_le_vocabulaire() {
+    fn the_compared_shop_uses_the_whole_vocabulary() {
         let source = include_str!("../../exemples/boutique-comparee/boutique.holo");
-        let programme = lire(source).unwrap();
-        crate::blocs::verifier_blocs(&programme).unwrap();
-        verifier_styles(&programme).unwrap();
+        let program = read(source).unwrap();
+        crate::blocks::check_blocks(&program).unwrap();
+        check_styles(&program).unwrap();
         // Le jeu complète la boutique : à eux deux, ils emploient tous les mots du langage.
-        let jeu = include_str!("../../exemples/jeu/attraper.holo");
-        crate::verifier_page(jeu).unwrap();
+        let game = include_str!("../../exemples/jeu/attraper.holo");
+        crate::check_page(game).unwrap();
         let second = include_str!("../../exemples/jeu/panier.holo");
-        crate::verifier_page(second).unwrap();
+        crate::check_page(second).unwrap();
         // Un site de deux pages, avec un morceau importé.
-        let (accueil, commun) = (include_str!("../../exemples/site/accueil.holo"), include_str!("../../exemples/site/commun.holo"));
-        crate::verifier_page(&format!("{accueil}{}commun.holo{}{commun}", crate::holo::FICHIER_SUIVANT, crate::holo::SEPARE_LE_NOM)).unwrap();
+        let (home, common) = (include_str!("../../exemples/site/accueil.holo"), include_str!("../../exemples/site/commun.holo"));
+        crate::check_page(&format!("{home}{}commun.holo{}{common}", crate::holo::NEXT_FILE, crate::holo::NAME_SEPARATOR)).unwrap();
         let contact = include_str!("../../exemples/site/contact.holo");
-        crate::verifier_page(&format!("{contact}{}commun.holo{}{commun}", crate::holo::FICHIER_SUIVANT, crate::holo::SEPARE_LE_NOM)).unwrap();
-        let donnees = include_str!("../../exemples/lecons/27-donnees.holo");
-        crate::verifier_page(donnees).unwrap();
+        crate::check_page(&format!("{contact}{}commun.holo{}{common}", crate::holo::NEXT_FILE, crate::holo::NAME_SEPARATOR)).unwrap();
+        let data = include_str!("../../exemples/lecons/27-donnees.holo");
+        crate::check_page(data).unwrap();
         // Le film en mouvement (ADR-034).
         let film = include_str!("../../exemples/motion/holocode/showreel.holo");
-        crate::verifier_page(film).unwrap();
+        crate::check_page(film).unwrap();
         // Les repères, les titres profonds, les états et la superposition (ADR-036).
-        let lecons = [
+        let lessons = [
             include_str!("../../exemples/lecons/35-reperes.holo"),
             include_str!("../../exemples/lecons/36-titres-profonds.holo"),
             include_str!("../../exemples/lecons/37-survol.holo"),
@@ -509,55 +509,55 @@ mod tests {
             include_str!("../../exemples/lecons/68-liste-qui-change.holo"),
             include_str!("../../exemples/lecons/69-module-enferme.holo"),
         ];
-        for lecon in lecons {
-            crate::verifier_page(lecon).unwrap();
+        for lesson in lessons {
+            crate::check_page(lesson).unwrap();
         }
-        let lecons = lecons.join("\n");
-        let source = &format!("{source}\n{jeu}\n{second}\n{accueil}\n{commun}\n{donnees}\n{film}\n{lecons}");
-        for bloc in crate::blocs::BLOCS {
-            assert!(source.contains(&format!("{bloc}(")) || source.contains(&format!("{bloc}.")), "le bloc « {bloc} » manque dans l'exemple");
+        let lessons = lessons.join("\n");
+        let source = &format!("{source}\n{game}\n{second}\n{home}\n{common}\n{data}\n{film}\n{lessons}");
+        for block in crate::blocks::BLOCKS {
+            assert!(source.contains(&format!("{block}(")) || source.contains(&format!("{block}.")), "le bloc « {block} » manque dans l'exemple");
         }
-        for (reglage, _) in REGLAGES {
-            assert!(source.contains(&format!("{reglage}:")), "le réglage « {reglage} » manque dans l'exemple");
+        for (setting, _) in SETTINGS {
+            assert!(source.contains(&format!("{setting}:")), "le réglage « {setting} » manque dans l'exemple");
         }
-        for mot in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave", "state:", "prices:", "{count}", "{total}", ".add(", ".sub(", ".set(", "gap:", "align:", "columns:", "alt:", "is:", "over:", "by:", ".random(", "x:", "y:", "keep:", "value:", "label:", "max:", "Key.left", "meets:", "drag:", "data:", "from:", ".play", "form:", "enter:", "loop:", "letters:", "each:", "repeat:", "ease:", "rotate:", "flip:", "tilt:", "blur:", "hue:", "round:", "scale:", "opacity:", "hover:", "focus:", "active:", "topRight", ".hover", ".hoverEnd", "else:", "{year}", "{month}", "{day}", "weekday", "{hour}", "{minute}", "items:", "key:", "{item.", "item.add(", "dark:", "phone:", "display: none", "linear-gradient(", "url(", "fonts:", "family:", ": --", "~~", "==", "^2^", "~2~", "to: \"#", "caption:", "phone:", "type: date", "type: time", "type: color", "summary:", "open: true", ".open", ".close", ".send", ".sent", ".failed", "icon:", ".mul(", ".div(", ":00}", ":number}", ":cents}", ":name}", "over:", ".push(", ".remove(item)", ".clear()", ".set(\"\")", "module \"", "modules:", ".run", ".done", "time:", "memory:"] {
-            assert!(source.contains(mot), "« {mot} » manque dans l'exemple");
+        for word in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave", "state:", "prices:", "{count}", "{total}", ".add(", ".sub(", ".set(", "gap:", "align:", "columns:", "alt:", "is:", "over:", "by:", ".random(", "x:", "y:", "keep:", "value:", "label:", "max:", "Key.left", "meets:", "drag:", "data:", "from:", ".play", "form:", "enter:", "loop:", "letters:", "each:", "repeat:", "ease:", "rotate:", "flip:", "tilt:", "blur:", "hue:", "round:", "scale:", "opacity:", "hover:", "focus:", "active:", "topRight", ".hover", ".hoverEnd", "else:", "{year}", "{month}", "{day}", "weekday", "{hour}", "{minute}", "items:", "key:", "{item.", "item.add(", "dark:", "phone:", "display: none", "linear-gradient(", "url(", "fonts:", "family:", ": --", "~~", "==", "^2^", "~2~", "to: \"#", "caption:", "phone:", "type: date", "type: time", "type: color", "summary:", "open: true", ".open", ".close", ".send", ".sent", ".failed", "icon:", ".mul(", ".div(", ":00}", ":number}", ":cents}", ":name}", "over:", ".push(", ".remove(item)", ".clear()", ".set(\"\")", "module \"", "modules:", ".run", ".done", "time:", "memory:"] {
+            assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
     }
 
     #[test]
-    fn refuse_ce_que_la_suite_refuse_a_la_bonne_ligne() {
-        let cas = [
+    fn refuses_what_the_suite_refuses_at_the_right_line() {
+        let sample = [
             (include_str!("../../experiments/conformite-v0.1/cas/refuses/E12-reglage-inconnu.holo"), 6, "réglage inconnu « colour »"),
             (include_str!("../../experiments/conformite-v0.1/cas/refuses/E13-disposition-dans-un-style.holo"), 7, "la disposition vient des blocs"),
             (include_str!("../../experiments/conformite-v0.1/cas/refuses/E14-style-non-defini.holo"), 5, "n'est défini nulle part"),
             (include_str!("../../experiments/conformite-v0.1/cas/refuses/E15-point-virgule-manquant.holo"), 6, "« ; » manquant"),
             (include_str!("../../experiments/conformite-v0.1/cas/refuses/E16-selecteur-compose.holo"), 6, "rien d'autre"),
         ];
-        for (source, ligne, message) in cas {
-            let erreur = verifier(source).unwrap_err();
-            assert_eq!(erreur.pos.ligne, ligne, "{erreur}");
-            assert!(erreur.message.contains(message), "{erreur}");
+        for (source, line, message) in sample {
+            let error = check(source).unwrap_err();
+            assert_eq!(error.pos.line, line, "{error}");
+            assert!(error.message.contains(message), "{error}");
         }
     }
 
     #[test]
-    fn rien_n_est_tolere_en_silence() {
-        assert!(verifier(&page("P { color: grey; }")).unwrap_err().message.contains("une couleur"));
-        assert!(verifier(&page("P { font-size: 16; }")).unwrap_err().message.contains("une taille"));
-        assert!(verifier(&page("P { font-size: 16em; }")).unwrap_err().message.contains("une taille"));
-        assert!(verifier(&page("P { color: gray; color: red; }")).unwrap_err().message.contains("deux fois"));
-        assert!(verifier(&page(".card { color: red; }")).unwrap_err().message.contains("défini deux fois"));
-        assert!(verifier(&page("p { color: gray; }")).unwrap_err().message.contains("écris « P { … } »"));
-        assert!(verifier(&page("Div { color: gray; }")).unwrap_err().message.contains("bloc inconnu"));
-        assert!(verifier(&page("P { background-color: red; }")).unwrap_err().message.contains("s'écrit « background »"));
-        assert!(verifier(&page("P { opacity: 2; }")).unwrap_err().message.contains("entre 0 et 1"));
-        assert!(verifier(&page("P { border: 1px gray; }")).unwrap_err().message.contains("1px solid gray"));
+    fn nothing_is_tolerated_silently() {
+        assert!(check(&page("P { color: grey; }")).unwrap_err().message.contains("une couleur"));
+        assert!(check(&page("P { font-size: 16; }")).unwrap_err().message.contains("une taille"));
+        assert!(check(&page("P { font-size: 16em; }")).unwrap_err().message.contains("une taille"));
+        assert!(check(&page("P { color: gray; color: red; }")).unwrap_err().message.contains("deux fois"));
+        assert!(check(&page(".card { color: red; }")).unwrap_err().message.contains("défini deux fois"));
+        assert!(check(&page("p { color: gray; }")).unwrap_err().message.contains("écris « P { … } »"));
+        assert!(check(&page("Div { color: gray; }")).unwrap_err().message.contains("bloc inconnu"));
+        assert!(check(&page("P { background-color: red; }")).unwrap_err().message.contains("s'écrit « background »"));
+        assert!(check(&page("P { opacity: 2; }")).unwrap_err().message.contains("entre 0 et 1"));
+        assert!(check(&page("P { border: 1px gray; }")).unwrap_err().message.contains("1px solid gray"));
     }
 
     #[test]
-    fn accepte_le_css_de_base() {
-        verifier(&page(
+    fn accepts_base_css() {
+        check(&page(
             "P { font-size: 16px; font-weight: bold; font-family: Georgia, \"Times New Roman\"; text-align: center }\n\
              H1 { color: #E9B44C; margin: 0 0 8px 0; }\n\
              Button { border: 1px solid gold; border-radius: 8px; padding: 8px 16px; opacity: 0.9; background: transparent; }\n\
@@ -565,33 +565,33 @@ mod tests {
         ))
         .unwrap();
         // Un fichier sans style reste valable, et un style qui ne sert pas n'est pas une erreur.
-        verifier("Point(name: A, seed: 1)").unwrap();
-        verifier("Point(name: A, seed: 1)\n.card { color: gray; }").unwrap();
+        check("Point(name: A, seed: 1)").unwrap();
+        check("Point(name: A, seed: 1)\n.card { color: gray; }").unwrap();
     }
 
     #[test]
-    fn un_texte_trop_peu_contraste_est_refuse() {
+    fn a_low_contrast_text_is_refused() {
         let page = |styles: &str| format!("Page(children: [ H1(\"x\"), P.card(\"y\") ])\n{styles}");
         // Refusé : blanc sur orange vif, en petit.
-        let erreur = verifier(&page(".card { color: white; background: #E4572E; }")).unwrap_err();
-        assert!(erreur.message.contains("contraste de 3,6 pour 1 ; il faut 4,5"), "{erreur}");
+        let error = check(&page(".card { color: white; background: #E4572E; }")).unwrap_err();
+        assert!(error.message.contains("contraste de 3,6 pour 1 ; il faut 4,5"), "{error}");
         // Accepté : le même en grand texte (3 pour 1 suffit), ou un fond plus sombre.
-        assert!(verifier(&page(".card { color: white; background: #E4572E; font-size: 24px; }")).is_ok());
-        assert!(verifier(&page(".card { color: white; background: #B83A1F; }")).is_ok());
+        assert!(check(&page(".card { color: white; background: #E4572E; font-size: 24px; }")).is_ok());
+        assert!(check(&page(".card { color: white; background: #B83A1F; }")).is_ok());
         // Une variable, et un état sombre qui redéfinit la sienne.
-        assert!(verifier(&page("Page { --ink: #777777; }\n.card { color: --ink; background: #888888; }")).unwrap_err().message.contains(".card"));
-        assert!(verifier(&page("Page { --ink: #1a1a2e; background: white; color: --ink; dark: { --ink: #F5F5F5; background: #101020; } }\n.card { padding: 4px; }")).is_ok());
-        let erreur = verifier(&page(".card { color: navy; background: white; hover: { background: blue; } }")).unwrap_err();
-        assert!(erreur.message.contains("dans l'état « hover »"), "{erreur}");
+        assert!(check(&page("Page { --ink: #777777; }\n.card { color: --ink; background: #888888; }")).unwrap_err().message.contains(".card"));
+        assert!(check(&page("Page { --ink: #1a1a2e; background: white; color: --ink; dark: { --ink: #F5F5F5; background: #101020; } }\n.card { padding: 4px; }")).is_ok());
+        let error = check(&page(".card { color: navy; background: white; hover: { background: blue; } }")).unwrap_err();
+        assert!(error.message.contains("dans l'état « hover »"), "{error}");
         // Un dégradé, une image, une couleur à demi transparente : non mesurés.
-        assert!(verifier(&page(".card { color: white; background: linear-gradient(white, #eeeeee); }")).is_ok());
+        assert!(check(&page(".card { color: white; background: linear-gradient(white, #eeeeee); }")).is_ok());
     }
 
     #[test]
-    fn un_bloc_porte_plusieurs_noms_de_style() {
-        assert!(verifier("Page(children: [ P.card.big(\"x\") ])\n.card { color: red; }\n.big { font-size: 24px; }").is_ok());
-        assert!(verifier("Page(children: [ P.card.big(\"x\") ])\n.card { color: red; }").unwrap_err().message.contains("« .big » n'est défini nulle part"));
-        assert!(verifier("Page(children: [ P.a.b.c.d.e(\"x\") ])").unwrap_err().message.contains("trop de noms de style"));
-        assert_eq!(lire("Page(children: [ P.card(\"x\") ])").unwrap().racine.arguments.len(), 1);
+    fn a_block_carries_several_style_names() {
+        assert!(check("Page(children: [ P.card.big(\"x\") ])\n.card { color: red; }\n.big { font-size: 24px; }").is_ok());
+        assert!(check("Page(children: [ P.card.big(\"x\") ])\n.card { color: red; }").unwrap_err().message.contains("« .big » n'est défini nulle part"));
+        assert!(check("Page(children: [ P.a.b.c.d.e(\"x\") ])").unwrap_err().message.contains("trop de noms de style"));
+        assert_eq!(read("Page(children: [ P.card(\"x\") ])").unwrap().root.arguments.len(), 1);
     }
 }

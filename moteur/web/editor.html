@@ -1,0 +1,159 @@
+<!doctype html>
+<!-- L'éditeur HoloCode (ADR-046) : écrire un fichier .holo, sur le PC ou sur le téléphone.
+
+     - À gauche, le texte ; à droite, la page telle que le visiteur la verra, mise à jour pendant
+       qu'on écrit. Sur un téléphone, deux onglets : Code et Aperçu.
+     - Une faute est montrée à sa place, avec le message du moteur ; quand le moteur sait le bon
+       mot, un bouton corrige d'un clic. Le moteur, lui, reste strict (ADR-037).
+     - En bas, des mots à toucher : les blocs, les réglages, les valeurs du fichier. Pas besoin de
+       taper une majuscule au milieu d'un mot sur un téléphone.
+     - « Enregistrer » écrit le fichier sur le PC, par le serveur local, avec la clé qu'il affiche
+       à son démarrage. Sans la clé, on lit et on essaie, sans rien écrire. -->
+<html lang="fr"><head><meta charset="utf-8"><title>Éditeur HoloCode</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
+<link rel="icon" href="data:,">
+<style>
+  /* La page : une barre en haut, le texte et l'aperçu au milieu, les mots et l'état en bas. */
+  :root {
+    --background: #101020; --background-2: #171730; --stroke: #2a2a4e; --text: #e8e8f2; --muted: #8a8aa8;
+    --gold: #E9B44C; --blue: #8fd3ff; --green: #7be38f; --red: #ff8a80; --pink: #f4a5ff; --purple: #c3a6ff;
+    --orange: #ffb86b; --selection: rgba(233, 180, 76, 0.28); --faulty-line: rgba(255, 138, 128, 0.12);
+    --code-font: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+    --font: system-ui, "Segoe UI", Roboto, sans-serif;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --background: #fbfaf6; --background-2: #f0eee6; --stroke: #dcd8ca; --text: #1d1d2e; --muted: #6b6b80;
+      --gold: #9a6a00; --blue: #1f5fae; --green: #1f7a4a; --red: #b3322b; --pink: #9b2d8f; --purple: #5b3fb0;
+      --orange: #a8520a; --selection: rgba(154, 106, 0, 0.22); --faulty-line: rgba(179, 50, 43, 0.09);
+      color-scheme: light;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--background); color: var(--text); font: 15px/1.4 var(--font); display: grid; grid-template-rows: auto 1fr auto; height: 100dvh; overflow: hidden; }
+  button, input, a.button { font: inherit; }
+  button, a.button { color: var(--text); background: var(--background-2); border: 1px solid var(--stroke); border-radius: 8px; padding: 6px 12px; cursor: pointer; text-decoration: none; white-space: nowrap; }
+  button:hover, a.button:hover { border-color: var(--gold); }
+  button:focus-visible, a.button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  button[disabled] { opacity: 0.5; cursor: default; }
+
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; border-bottom: 1px solid var(--stroke); }
+  .path { font-family: var(--code-font); font-size: 13px; color: var(--gold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 160px; }
+  .modified { color: var(--orange); font-size: 13px; white-space: nowrap; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tab { display: none; }
+  #save { border-color: var(--gold); }
+
+  .plane { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); min-height: 0; }
+  .code { display: flex; min-height: 0; border-right: 1px solid var(--stroke); }
+  .numbers { margin: 0; padding: 12px 8px 40vh 8px; min-width: 3.2em; text-align: right; color: var(--muted); overflow: hidden; user-select: none;
+    font: 14px/1.6 var(--code-font); white-space: pre; border-right: 1px solid var(--stroke); }
+  .write { position: relative; flex: 1; min-width: 0; overflow: hidden; }
+  #drawing, #code { position: absolute; inset: 0; margin: 0; padding: 12px 12px 40vh 10px; border: 0; font: 14px/1.6 var(--code-font);
+    white-space: pre; tab-size: 2; letter-spacing: 0; font-variant-ligatures: none; }
+  #drawing { overflow: hidden; pointer-events: none; color: var(--text); }
+  #code { width: 100%; height: 100%; background: transparent; color: transparent; caret-color: var(--gold); resize: none; outline: none; overflow: auto; }
+  #code::selection { background: var(--selection); color: transparent; }
+  .faulty-line { position: absolute; left: 0; right: 0; height: calc(14px * 1.6); background: var(--faulty-line); border-left: 3px solid var(--red); pointer-events: none; }
+
+  /* Les couleurs du texte. */
+  .j-block { color: var(--gold); font-weight: 600; }
+  .j-param { color: var(--blue); }
+  .j-text { color: var(--green); }
+  .j-in-text { color: var(--blue); font-weight: 600; }
+  .j-number { color: var(--pink); }
+  .j-comment { color: var(--muted); font-style: italic; }
+  .j-signal { color: var(--orange); }
+  .j-request { color: var(--orange); }
+  .j-name { color: var(--gold); }
+  .j-keyword, .j-directive, .j-state { color: var(--purple); }
+  .j-variable { color: var(--pink); }
+  .j-style-name { color: var(--gold); }
+  .j-punctuation { color: var(--muted); }
+  mark.fault { background: transparent; color: inherit; text-decoration: underline wavy var(--red); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+
+  .preview { position: relative; min-height: 0; background: white; }
+  .preview iframe { width: 100%; height: 100%; border: 0; display: block; background: white; }
+  .preview-old { position: absolute; left: 8px; bottom: 8px; margin: 0; padding: 4px 10px; border-radius: 6px; background: rgba(0, 0, 0, 0.72); color: #fff; font-size: 13px; }
+
+  .bottom { border-top: 1px solid var(--stroke); background: var(--background); }
+  .words { display: flex; gap: 6px; padding: 6px 12px; overflow-x: auto; min-height: 44px; align-items: center; scrollbar-width: thin; }
+  .words:empty::before { content: "Les mots proposés apparaissent ici pendant que tu écris."; color: var(--muted); font-size: 13px; }
+  .words button { font-family: var(--code-font); font-size: 14px; padding: 6px 12px; border-radius: 999px; }
+  .words button:first-child { border-color: var(--gold); }
+  .status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 12px 10px; font-size: 14px; }
+  .status .valid { color: var(--green); }
+  .status .invalid { color: var(--red); cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+  #fix { border-color: var(--green); color: var(--green); }
+
+  .files { position: fixed; inset: 0 auto 0 0; width: min(420px, 92vw); background: var(--background-2); border-right: 1px solid var(--stroke); z-index: 10;
+    display: flex; flex-direction: column; gap: 8px; padding: 12px; box-shadow: 8px 0 24px rgba(0, 0, 0, 0.4); }
+  .files[hidden] { display: none; }
+  .files-head { display: flex; justify-content: space-between; align-items: center; }
+  .files input { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--stroke); background: var(--background); color: var(--text); }
+  .files ul { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+  .files li.folder { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; margin: 10px 0 4px; }
+  .files li a { display: block; padding: 6px 8px; border-radius: 6px; color: var(--text); text-decoration: none; font-family: var(--code-font); font-size: 13px; }
+  .files li a:hover, .files li a[aria-current] { background: var(--background); color: var(--gold); }
+  .new { display: flex; gap: 6px; align-items: end; }
+  .new label { flex: 1; font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+  .temporary-message { position: fixed; top: 56px; right: 12px; z-index: 20; background: var(--background-2); border: 1px solid var(--gold); border-radius: 8px; padding: 8px 12px; }
+
+  /* Sur un téléphone : un onglet à la fois, Code ou Aperçu. */
+  @media (max-width: 760px) {
+    .plane { grid-template-columns: minmax(0, 1fr); }
+    .tab { display: inline-block; }
+    .tab[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+    body:not(.see-preview) .preview { display: none; }
+    body.see-preview .code { display: none; }
+    .code { border-right: 0; }
+    .numbers { min-width: 2.6em; padding-left: 4px; padding-right: 6px; }
+  }
+</style>
+</head>
+<body>
+<header class="bar">
+  <button id="open-files" type="button" aria-expanded="false" aria-controls="files">Fichiers</button>
+  <span id="path" class="path">…</span>
+  <span id="modified" class="modified" hidden>● non enregistré</span>
+  <div class="actions">
+    <button id="see-code" class="tab" type="button" aria-pressed="true">Code</button>
+    <button id="see-preview" class="tab" type="button" aria-pressed="false">Aperçu</button>
+    <button id="save" type="button" title="Ctrl + S">Enregistrer</button>
+    <a id="open" class="button" target="_blank" rel="noopener">Ouvrir la page ↗</a>
+  </div>
+</header>
+<main class="plane">
+  <section class="code" aria-label="Le texte du fichier">
+    <pre id="numbers" class="numbers" aria-hidden="true">1</pre>
+    <div class="write">
+      <pre id="drawing" aria-hidden="true"></pre>
+      <div id="faulty-line" class="faulty-line" hidden></div>
+      <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off" aria-label="Le texte du fichier .holo"></textarea>
+    </div>
+  </section>
+  <section class="preview" aria-label="La page">
+    <iframe id="preview" title="La page, telle que le visiteur la verra" sandbox="allow-same-origin"></iframe>
+    <p id="preview-old" class="preview-old" hidden>Aperçu de la dernière version juste</p>
+  </section>
+</main>
+<footer class="bottom">
+  <div id="words" class="words" role="toolbar" aria-label="Mots proposés"></div>
+  <div class="status" role="status" aria-live="polite">
+    <span id="status">Le moteur arrive…</span>
+    <button id="fix" type="button" hidden></button>
+  </div>
+</footer>
+<div id="files" class="files" hidden>
+  <div class="files-head"><strong>Les fichiers .holo</strong><button id="close-files" type="button" aria-label="Fermer">✕</button></div>
+  <input id="filter" type="search" placeholder="Chercher un fichier…" aria-label="Chercher un fichier">
+  <ul id="list"></ul>
+  <form id="new" class="new">
+    <label for="new-name">Nouveau fichier<input id="new-name" placeholder="/exemples/mon-site/accueil.holo" autocapitalize="off" autocomplete="off" spellcheck="false"></label>
+    <button type="submit">Créer</button>
+  </form>
+</div>
+<script type="module" src="/editor.js"></script>
+</body></html>

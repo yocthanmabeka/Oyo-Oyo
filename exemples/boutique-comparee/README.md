@@ -13,8 +13,8 @@ Les deux décrivent la même chose : une page de boutique (titres, paragraphes, 
 
 ## Où en est chaque version
 
-- **La version web fonctionne aujourd'hui** : ouvrir `web/index.html` dans un navigateur. Le bouton fait entrer dans l'atelier, « Back to the shop » en fait sortir. Les graines des six points sont calculées comme dans le moteur (vérifié : mêmes valeurs que `moteur/src/graine.rs`).
-- **La version HoloCode s'affiche aussi** : lancer `node outils/serveur.mjs` dans `moteur/`, puis ouvrir `http://localhost:8080/page.html`. Le moteur fabrique la page à partir de `boutique.holo` ; le bouton fait entrer dans le point, dont le monde est celui du moteur (les points sur une sphère où l'on zoome), avec son contenu lisible sur un panneau. Un test relit le fichier à chaque changement et contrôle qu'aucun mot du langage n'y manque.
+- **La version web fonctionne aujourd'hui** : ouvrir `web/index.html` dans un navigateur. Le bouton fait entrer dans l'atelier, « Back to the shop » en fait sortir. Les graines des six points sont calculées comme dans le moteur (vérifié : mêmes valeurs que `moteur/src/seed.rs`).
+- **La version HoloCode s'affiche aussi** : lancer `node outils/server.mjs` dans `moteur/`, puis ouvrir `http://localhost:8080/page.html`. Le moteur fabrique la page à partir de `boutique.holo` ; le bouton fait entrer dans le point, dont le monde est celui du moteur (les points sur une sphère où l'on zoome), avec son contenu lisible sur un panneau. Un test relit le fichier à chaque changement et contrôle qu'aucun mot du langage n'y manque.
 - Pour comparer côte à côte : `http://localhost:8080/exemples/boutique-comparee/web/index.html`.
 
 ## Terme par terme

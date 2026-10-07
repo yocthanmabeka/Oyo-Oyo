@@ -1,6 +1,6 @@
 # Construit le moteur pour le navigateur : tests, compilation WebAssembly, paquets web/pkg (le
-# moteur entier, avec le dessin) et web/pkg-leger (le moteur léger, sans le dessin : ADR-053).
-#     .\outils\construire.ps1
+# moteur entier, avec le dessin) et web/pkg-light (le moteur léger, sans le dessin : ADR-053).
+#     .\outils\build.ps1
 $ErrorActionPreference = "Stop"
 $moteur = Split-Path -Parent $PSScriptRoot
 Set-Location $moteur
@@ -19,16 +19,16 @@ if (-not (Test-Path $wb)) {
 
 cargo test
 cargo build --release --target wasm32-unknown-unknown
-& $wb --target web --no-typescript --out-dir web/pkg target/wasm32-unknown-unknown/release/holo_moteur.wasm
+& $wb --target web --no-typescript --out-dir web/pkg target/wasm32-unknown-unknown/release/holo_engine.wasm
 # Le moteur léger : sans le dessin, optimisé pour la taille.
 $env:CARGO_PROFILE_RELEASE_OPT_LEVEL = "z"
-cargo build --release --target wasm32-unknown-unknown --no-default-features --target-dir target/leger
+cargo build --release --target wasm32-unknown-unknown --no-default-features --target-dir target/light
 Remove-Item Env:CARGO_PROFILE_RELEASE_OPT_LEVEL
-& $wb --target web --no-typescript --out-dir web/pkg-leger target/leger/wasm32-unknown-unknown/release/holo_moteur.wasm
+& $wb --target web --no-typescript --out-dir web/pkg-light target/light/wasm32-unknown-unknown/release/holo_engine.wasm
 
-foreach ($paquet in "pkg", "pkg-leger") {
-    $wasm = Get-Item "web/$paquet/holo_moteur_bg.wasm"
-    $brotli = node -e "const z=require('zlib'),fs=require('fs');process.stdout.write(String(z.brotliCompressSync(fs.readFileSync('web/$paquet/holo_moteur_bg.wasm'),{params:{[z.constants.BROTLI_PARAM_QUALITY]:11}}).length))"
+foreach ($paquet in "pkg", "pkg-light") {
+    $wasm = Get-Item "web/$paquet/holo_engine_bg.wasm"
+    $brotli = node -e "const z=require('zlib'),fs=require('fs');process.stdout.write(String(z.brotliCompressSync(fs.readFileSync('web/$paquet/holo_engine_bg.wasm'),{params:{[z.constants.BROTLI_PARAM_QUALITY]:11}}).length))"
     Write-Host ("{0} : {1:N0} Ko réels, {2:N0} Ko transférés (Brotli)" -f $paquet, ($wasm.Length / 1KB), ([int]$brotli / 1KB))
 }
-Write-Host "Lancer : node outils/serveur.mjs"
+Write-Host "Lancer : node outils/server.mjs"
