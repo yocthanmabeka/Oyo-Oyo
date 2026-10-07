@@ -1566,6 +1566,11 @@ mod tests {
         crate::check_page(&page_source).unwrap();
         assert_eq!(crate::check_text(theme), "ok : un fichier de styles, à importer dans une page");
         assert!(crate::check_text("H1 { colour: red; }").contains("colour"));
+        // La faute d'un thème garde sa place dans le fichier : ligne 2, colonne 6.
+        assert_eq!(crate::check_text("// Un thème.
+H1 { colour: red; }").split(" : ").next(), Some("ligne 2, colonne 6"));
+        assert!(crate::is_styles_file(theme));
+        assert!(!crate::is_styles_file("Page(children: [ H1(\"a\") ])"));
     }
 
     #[test]
