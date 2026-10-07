@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-07). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (339 mots : 336 décidés, 3 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (341 mots : 336 décidés, 5 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
 - **Couverture** : la part de ce que fait l’élément web qu’on obtient en HoloCode aujourd’hui. Estimation de Claude, non mesurée.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,7 +9,7 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 339 mots | 336 décidés, 3 à l’essai |
+| **HoloCode** | 341 mots | 336 décidés, 5 à l’essai |
 | HTML | 84 % de couverture | 49 oui, 5 en partie, 5 non, 3 refusés |
 | CSS | 80 % de couverture | 25 oui, 5 en partie, 2 non, 2 refusés |
 | JavaScript | 59 % de couverture | 15 oui, 11 en partie, 6 non, 1 refusés |
@@ -186,6 +186,7 @@
 |---|---|---|---|
 | `effect` | Ce qu'une règle demande | `le corps d'une fonction` | Décidé (ADR-015) |
 | `is, not, over, under` | Les comparaisons : égal, différent, plus grand, plus petit | `===, !==, >, <` | Décidé (ADR-025) |
+| `is: "…", not: "…" (un texte)` | Comparer un texte à un texte, à la lettre près, dans If et When ; ou à une autre valeur de texte | `=== et !== sur des textes` | À l’essai (ADR-063) |
 | `meets, within` | Une rencontre entre deux blocs, au contact ou à un écart | `un calcul de collision` | Décidé (ADR-028) |
 | `from, every` | Le fichier de données et son rythme | `fetch + setInterval` | Décidé (ADR-030) |
 
@@ -620,7 +621,7 @@
 |---|---|---|---|---|---|---|
 | `State(…)` | `variables` | garder une valeur | En partie | 80 % | Déjà là | Nombres entiers, textes, listes (à champs) ; pas de nombre à virgule. |
 | `add, sub, mul, div, set, random` | `calcul (+ − × ÷)` | calculer | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-043). En nombres entiers ; pas de pourcentage ni de racine. |
-| `If(…, else: […]), When(…)` | `if, else` | décider | Oui | 100 % | Déjà là | Le « sinon » ajouté le 2026-10-06 (ADR-039). |
+| `If(…, else: […]), When(…) ; un texte : If(size, is: "L")` | `if, else` | décider | Oui | 100 % | Déjà là | Le « sinon » ajouté le 2026-10-06 (ADR-039) ; comparer des textes, If(size, is: "L") et When(answer, is: "Paris"), le 2026-10-07 (ADR-063, à valider). |
 | `State(articles: [ Item(…) ]), push(Item(…)), item.done.set(1)` | `tableaux, objets` | des listes de valeurs | Oui | 90 % | Déjà là | Des listes à champs, qui changent pendant la visite (ADR-044, ADR-051, ADR-057). |
 | `Repeat(items:, children:, rules:) ; Filter(…) pour chercher, filtrer, trier` | `for, map` | répéter pour chaque élément | Oui | 90 % | Déjà là | Déplié à la lecture (ADR-040) ; des listes calculées pour chercher, filtrer, trier et montrer plus (ADR-062). |
 | `Module(…) : du code WebAssembly enfermé` | `fonctions` | du calcul réutilisable | En partie | 40 % | Déjà là | Ajouté le 2026-10-06 (ADR-045) : un nombre en entrée, un nombre en sortie, arrêté s'il dure trop. |

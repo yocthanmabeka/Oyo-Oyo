@@ -50,6 +50,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `at:`, `for:`, `ease:` | `animation-delay`, `animation-duration`, `animation-timing-function` | changés : courts ; sept caractères nommés au lieu de courbes chiffrées |
 | `letters:`, `each:` | du JavaScript qui coupe le texte en `span`, et un délai par `span` | nouveaux |
 | `If(…, rules:)` | `if (…) { … }` autour d'un `setInterval` ; `clearInterval` à ne pas oublier | changé : les règles rangées dedans ne valent que si la condition est vraie |
+| `If(size, is: "L")`, `When(answer, is: "Paris", …)` | `size === "L"`, un écouteur `input` qui compare | changé : à la lettre près ; un texte ne se compare pas à un nombre (`ADR-063`, à valider) |
 | `Sound` | `audio`, `new Audio().play()` | changé : un bruit qu'une règle déclenche, pas un lecteur |
 | `List` | `ul`, `ol`, `li` | changé : un bloc au lieu de trois balises |
 | `Row` | `display: flex` | changé : mot de Flutter |

@@ -156,6 +156,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | `Date` (la date et l'heure du jour) | `{year}`, `{month}`, `{day}`, `{weekday}`, `{hour}`, `{minute}` | fait ; pas encore de calcul sur les dates |
 | Garder une valeur, l'afficher (un panier) | `State(cart: 0)`, `{cart}`, `cart.add(1)` | fait : des nombres entiers ; avec `Prices`, le moteur calcule `{count}` et `{total}` |
 | Afficher sous condition | `If(cart, is: 0, children: [...])` | fait |
+| Comparer des textes (`size === "L"`, `a !== b`) | `If(size, is: "L")`, `If(again, not: email)`, `When(answer, is: "Paris", effect: …)` | fait (`ADR-063`, à valider) ; à la lettre près ; plus grand et plus petit : pour les nombres |
 | Répéter sur une liste (`for`, `map`) | `Repeat(items: [ Item(…) ], children: [ … ])` : une liste écrite dans le fichier ; `Repeat(over: tasks, …)` : une liste qui change pendant la visite | fait  |
 | Un tableau qu'on remplit (`push`, `splice`) | `State(tasks: [])`, `tasks.push(task)`, `tasks.remove(item)`, `tasks.clear()` | fait : des textes |
 | Chercher des données (`fetch`) | `data: Data(from: "stock.json", every: 30s)` : des valeurs, du même serveur | fait ; pas de liste, pas d'envoi |

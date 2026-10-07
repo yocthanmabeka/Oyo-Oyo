@@ -92,3 +92,7 @@ Défauts du web évités : en JavaScript, `localStorage` s'écrit et se relit à
 
 - Quand Yocthan aura essayé et jugé : `Input`, `Checkbox`, `value`, `label`, `max`, `keep`.
 - Quand les valeurs de texte existeront.
+
+## Suite
+
+- 2026-10-07 : comparer un texte à n'importe quel texte, `If(size, is: "L")`, et guetter un texte, `When(answer, is: "Paris", …)`, sont construits et proposés par [`ADR-063`](ADR-063-comparer-des-textes.md), à valider par Yocthan. Cette décision-ci n'est pas changée.

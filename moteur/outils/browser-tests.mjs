@@ -274,6 +274,29 @@ const tests = [
     const ok = start === "Le phare | Orage | Élan du matin | La rivière" && searched && afterSearch === "La rivière | Rizières" && filtered && more && empty;
     return [ok, `départ : ${start} ; « RI » : ${afterSearch} ; huile : ${filtered} ; montrer plus : ${more} ; « zzz » vide : ${empty}`];
   }],
+  ["comparer des textes (If et When)", async (p) => {
+    await p.open("/exemples/lecons/83-comparer-des-textes.holo");
+    const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;
+    // Écrire dans un champ vide : on l'efface d'abord, comme le ferait le visiteur.
+    const write = async (bind, text) => {
+      await p.value(`(() => { const i = document.querySelector('input[data-bind="${bind}"]'); i.value = ""; i.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+      await p.type(`input[data-bind="${bind}"]`, text);
+    };
+    const start = (await p.value(has("Taille M."))) && !(await p.value(has("Le L est grand")));
+    await p.click('input[type=radio][value="L"]');
+    const large = await p.until(`${has("Le L est grand")} && !${has("Taille M.")}`);
+    await write("answer", "paris");
+    const lower = await p.until(`!${has("Bravo !")} && ${has("Bonnes réponses : 0")}`);
+    await write("answer", "Paris");
+    const bravo = await p.until(`${has("Bravo !")} && ${has("Bonnes réponses : 1")}`);
+    await write("email", "ada@exemple.fr");
+    await write("again", "ada@exemple");
+    const differ = await p.until(has("Les deux e-mails sont différents."));
+    await write("again", "ada@exemple.fr");
+    const same = await p.until(`${has("Les deux sont pareils.")} && !${has("différents")}`);
+    const ok = start && large && lower && bravo && differ && same;
+    return [ok, `départ « Taille M. » : ${start} ; L : ${large} ; « paris » refusé : ${lower} ; « Paris » → Bravo et 1 : ${bravo} ; e-mails différents : ${differ} ; pareils : ${same}`];
+  }],
   ["un formulaire envoie son message", async (p) => {
     await p.open("/exemples/lecons/64-formulaire.holo");
     await p.type("#page input", "Ada");

@@ -6,6 +6,25 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Lot 2, deuxième partie : comparer des textes
+
+- Fait (`ADR-063`, PROPOSITION : Yocthan n'a pas encore validé) : un texte se compare à un texte, `If(size, is: "L")`, `If(size, not: "M")`, ou à une autre valeur de texte, `If(again, is: email)`. Une règle qui guette peut regarder un texte : `When(answer, is: "Paris", effect: score.add(1))`, au moment où le visiteur l'écrit ou où une règle le change. À la lettre près. Pas de mélange texte et nombre ; `over` et `under` pour les nombres seulement ; chaque refus dit pourquoi.
+- Deux défauts trouvés par une sonde avant d'écrire le code, et corrigés :
+  - une règle rangée sous une condition sur un texte, `If(name, not: "", rules: [ Every(…) ])`, ne se déclenchait jamais : l'arbitre ne voyait pas les textes. Il les reçoit maintenant ;
+  - `If(found, is: 0)` sur une liste calculée (lot 2a) répondait « vrai » alors que la liste avait deux éléments : une liste calculée n'est pas relue de l'état, et la réponse ne la refaisait pas. Elle la refait maintenant.
+- Vérifié aussi, pas un défaut : une règle `When` ou `Every` qui voudrait changer un texte ou une liste est refusée avec sa raison (`ADR-044`).
+- Leçon 83. Un essai de plus dans Chrome.
+- Exécuté : `cargo test --release` → 130 tests passent (3 nouveaux) ; `node outils/browser-tests.mjs` → 83 leçons ouvertes sans erreur, et les 16 essais passent, en 99 secondes. Le moteur léger passe de 500 825 à 503 185 octets.
+
+**Erreurs en route**
+
+- Quatre anciens tests attendaient l'ancien comportement (le refus de `When` sur un texte, les anciens messages, l'ancien nom `buyer|is=0`) : mis à jour, puisque c'est voulu.
+- J'ai écrit `\"` dans un texte HoloCode : la langue n'a pas d'échappement ; un `"` ne s'écrit que dans un texte long `"""…"""`.
+- Mon essai de la liste calculée tapait dans un champ qui n'existait pas : le moteur ignorait la saisie, et l'essai passait à moitié par hasard. Le champ est ajouté.
+- Le tableau publie encore des pourcentages de couverture estimés : contraire à la consigne du 2026-10-07. Ils seront retirés dans une pull request à part.
+
+---
+
 ## 2026-10-07 — Lot 2, première partie : chercher, filtrer, trier, montrer plus
 
 - Yocthan a choisi l'écriture A, « une liste calculée, nommée », parmi trois.
@@ -18,8 +37,7 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 - `Filter(name: found)` était refusé : la règle des noms (`ADR-037`) veut une majuscule pour un nom de bloc ; ici le nom désigne une liste, une valeur : `Filter` est mis à part.
 - Une option vide dans `Choice` est refusée : la leçon a un bouton « Toutes les sortes » (`chosen.set("")`).
-- Deux fautes dans mes essais : un cas de test cassait deux choses à la fois ; un `
-` mal échappé dans une question envoyée à la page.
+- Deux fautes dans mes essais : un cas de test cassait deux choses à la fois ; un retour à la ligne mal échappé dans une question envoyée à la page.
 
 ---
 

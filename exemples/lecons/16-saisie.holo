@@ -6,7 +6,8 @@
 //   Aucune règle à écrire. « label » est obligatoire : il dit ce qu'on attend.
 //   Si la valeur est un nombre, le champ attend un nombre ; « max » borne ce nombre.
 //   Si la valeur est un texte (prenom: ""), le champ est un champ de texte ; « max » borne sa longueur.
-//   Un texte ne se compare qu'au vide : is: "" (vide), not: "" (rempli).
+//   Un texte se compare au vide : is: "" (vide), not: "" (rempli) ; à un autre texte aussi
+//   (leçon 83).
 //
 // À essayer :
 //   Écris ton prénom. Écris 999 dans l'âge : la valeur s'arrête à 120.

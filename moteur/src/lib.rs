@@ -241,9 +241,11 @@ pub fn arbitrate(source: &str, state: &str, signal: &str) -> String {
     // Un geste d'une ligne (`Done.tap@2`) : les nombres changent comme pour `Done.tap` ; les
     // listes et les textes savent de quelle ligne il vient (ADR-044).
     let base = lists::signal_and_line(signal).0;
-    let numbers = state::arbitrate(&program, &state::reread(&program, state), base);
-    let (texts, lists) = lists::arbitrate(&program, &numbers, &state::reread_texts(&program, state), &lists::reread(&program, state), signal);
-    write_all(&program, &numbers, &texts, &lists)
+    let texts = state::reread_texts(&program, state);
+    let numbers = state::arbitrate(&program, &state::reread(&program, state), &texts, base);
+    let (after, lists) = lists::arbitrate(&program, &numbers, &texts, &lists::reread(&program, state), signal);
+    // Un texte changé par le geste : les règles qui le guettent ont leur mot à dire (ADR-063).
+    write_all(&program, &state::after_texts(&program, numbers, &texts, &after), &after, &lists)
 }
 
 /// Les horloges d'une page, une par règle `Every` : son rythme en millisecondes et la valeur
@@ -255,7 +257,7 @@ pub fn clocks(source: &str) -> String {
 /// Les attentes d'une page (`After`), et si chacune court pour cet état : `3000:1;5000:0` (ADR-039).
 pub fn delays(source: &str, state: &str) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
-    state::delays(&program, &state::reread(&program, state)).iter().map(|(ms, short)| format!("{ms}:{}", u8::from(*short))).collect::<Vec<_>>().join(";")
+    state::delays(&program, &state::reread(&program, state), &state::reread_texts(&program, state)).iter().map(|(ms, short)| format!("{ms}:{}", u8::from(*short))).collect::<Vec<_>>().join(";")
 }
 
 /// Ce qu'un formulaire de la page envoie au serveur, en JSON (ADR-042). Vide s'il n'existe pas.
@@ -317,7 +319,8 @@ pub fn module_info(source: &str, state: &str, name: &str) -> String {
 pub fn module_finished(source: &str, state: &str, name: &str, value: u64) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
     state::requested_capabilities();
-    write_all(&program, &modules::finished(&program, &state::reread(&program, state), name, value), &state::reread_texts(&program, state), &lists::reread(&program, state))
+    let texts = state::reread_texts(&program, state);
+    write_all(&program, &modules::finished(&program, &state::reread(&program, state), &texts, name, value), &texts, &lists::reread(&program, state))
 }
 
 /// Les lignes d'une liste pour cet état (ADR-044) : la page les pose à la place des anciennes.
@@ -342,9 +345,11 @@ pub fn input(source: &str, state: &str, name: &str, written: &str) -> String {
     state::requested_capabilities();
     let (numbers, texts) = (state::reread(&program, state), state::reread_texts(&program, state));
     if texts.iter().any(|(known, _)| known == name) {
-        write_all(&program, &numbers, &state::input_text(&program, &texts, name, written), &lists::reread(&program, state))
+        // Un texte écrit : les règles qui le guettent ont leur mot à dire (ADR-063).
+        let after = state::input_text(&program, &texts, name, written);
+        write_all(&program, &state::after_texts(&program, numbers, &texts, &after), &after, &lists::reread(&program, state))
     } else {
-        write_all(&program, &state::input(&program, &numbers, name, written), &texts, &lists::reread(&program, state))
+        write_all(&program, &state::input(&program, &numbers, &texts, name, written), &texts, &lists::reread(&program, state))
     }
 }
 
@@ -368,7 +373,8 @@ pub fn receive(source: &str, state: &str, json: &str) -> String {
 pub fn drag(source: &str, state: &str, name: &str, x: u32, y: u32) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
     state::requested_capabilities();
-    write_all(&program, &state::drag(&program, &state::reread(&program, state), name, u64::from(x), u64::from(y)), &state::reread_texts(&program, state), &lists::reread(&program, state))
+    let texts = state::reread_texts(&program, state);
+    write_all(&program, &state::drag(&program, &state::reread(&program, state), &texts, name, u64::from(x), u64::from(y)), &texts, &lists::reread(&program, state))
 }
 
 /// Ce que la page garde d'une visite à l'autre (`keep:`), tiré de cet état : `cart=2;buyer='Ada`.
@@ -400,9 +406,12 @@ pub fn resume(source: &str, kept: &str) -> String {
 pub fn conditions(source: &str, state: &str) -> String {
     match check_page(source) {
         Ok(program) => {
-            let mut shown = state::with_texts(&state::to_show(&program, &state::reread(&program, state)), &state::reread_texts(&program, state));
-            shown.extend(lists::counts(&lists::reread(&program, state)));
-            state::conditions(&program, &shown).iter().map(|(key, real_one)| format!("{key}:{}", u8::from(*real_one))).collect::<Vec<_>>().join(";")
+            let (numbers, texts, lists) = (state::reread(&program, state), state::reread_texts(&program, state), lists::reread(&program, state));
+            let mut shown = state::to_show(&program, &numbers);
+            shown.extend(lists::counts(&lists));
+            // Une liste calculée n'est pas relue de l'état : elle se refait d'après lui (ADR-062).
+            shown.extend(lists::counts(&computed::apply(&program, &numbers, &texts, &lists)));
+            state::conditions(&program, &shown, &texts).iter().map(|(key, real_one)| format!("{key}:{}", u8::from(*real_one))).collect::<Vec<_>>().join(";")
         }
         Err(_) => String::new(),
     }

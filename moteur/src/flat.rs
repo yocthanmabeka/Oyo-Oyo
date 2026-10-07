@@ -152,7 +152,7 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str) -> Re
     // La réponse vient de `etat::conditions`, comme après chaque changement : une condition
     // n'est décidée qu'à un seul endroit.
     let texts = crate::state::initial_texts(program);
-    let responses = crate::state::conditions(program, &crate::state::with_texts(&shown, &texts));
+    let responses = crate::state::conditions(program, &shown, &texts);
     let conditions = |html: String| fill_marks(html, &shown, &texts, &responses);
     body = conditions(body);
     worlds = conditions(worlds);
@@ -188,7 +188,7 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str) -> Re
     // alors arriver tout de suite. Les autres pages s'affichent seules : le moteur n'est
     // téléchargé qu'au premier geste qui en a besoin (ADR-033).
     let live = !crate::state::clocks(program).is_empty()
-        || !crate::state::delays(program, &start_value).is_empty()
+        || !crate::state::delays(program, &start_value, &texts).is_empty()
         || crate::state::reads_time(program)
         || !crate::state::keypresses(program).is_empty()
         || crate::state::data_source(program).ok().flatten().is_some()
@@ -1255,7 +1255,7 @@ pub fn list_lines(program: &Program, base: &str, numbers: &crate::state::State, 
     let Some((repeat, _)) = crate::lists::repeats(program).into_iter().find(|(_, l)| l == name) else { return String::new() };
     let mut shown = crate::state::to_show(program, numbers);
     shown.extend(crate::lists::counts(lists));
-    let responses = crate::state::conditions(program, &crate::state::with_texts(&shown, texts));
+    let responses = crate::state::conditions(program, &shown, texts);
     lines(repeat, name, base).map(|html| fill_marks(html, &shown, texts, &responses)).unwrap_or_default()
 }
 
