@@ -326,6 +326,57 @@ impl Site {
     }
 }
 
+/// Combien de sauvegardes garder : les plus récentes ; les plus anciennes sont effacées.
+const BACKUPS_KEPT: usize = 14;
+/// Une sauvegarde par jour tant que le serveur tourne.
+const BACKUP_EVERY: u64 = 24 * 3600;
+
+/// Sauvegarde la base d'un site (ADR-076) : une copie entière et cohérente, même pendant que le
+/// serveur écrit (`VACUUM INTO`), dans `holo-data/backups/site-2026-10-07-2215-09.sqlite`
+/// (l'heure universelle). Garde les quatorze plus récentes. Rend le chemin de la copie.
+pub fn backup(folder: &Path) -> Result<PathBuf, String> {
+    let data = folder.join(DATA_FOLDER);
+    if !data.join("site.sqlite").is_file() {
+        return Err("aucune base : ce dossier n'a jamais été servi par holo serve".into());
+    }
+    let base = Connection::open(data.join("site.sqlite")).map_err(|e| e.to_string())?;
+    backup_into(&base, &data)
+}
+
+fn backup_into(base: &Connection, data: &Path) -> Result<PathBuf, String> {
+    let backups = data.join("backups");
+    std::fs::create_dir_all(&backups).map_err(|e| format!("{} : {e}", backups.display()))?;
+    let seconds = now();
+    let [year, month, day, _, hour, minute] = crate::state::from_unix_seconds(seconds);
+    let target = backups.join(format!("site-{year}-{month:02}-{day:02}-{hour:02}{minute:02}-{:02}.sqlite", seconds % 60));
+    if target.exists() {
+        return Ok(target);
+    }
+    base.execute("VACUUM INTO ?1", params![target.to_string_lossy()]).map_err(|e| e.to_string())?;
+    let mut kept: Vec<PathBuf> = std::fs::read_dir(&backups)
+        .map_err(|e| e.to_string())?
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| path.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("site-") && n.ends_with(".sqlite")))
+        .collect();
+    kept.sort();
+    let surplus = kept.len().saturating_sub(BACKUPS_KEPT);
+    for old in &kept[..surplus] {
+        let _ = std::fs::remove_file(old);
+    }
+    Ok(target)
+}
+
+/// La date de la dernière sauvegarde, en secondes, d'après le fichier le plus récent.
+fn last_backup(data: &Path) -> Option<u64> {
+    std::fs::read_dir(data.join("backups"))
+        .ok()?
+        .flatten()
+        .filter_map(|entry| entry.metadata().ok()?.modified().ok()?.duration_since(UNIX_EPOCH).ok())
+        .map(|age| age.as_secs())
+        .max()
+}
+
 /// Les messages reçus par un site, du plus ancien au plus récent, une ligne JSON chacun : ce que
 /// `holo messages` affiche à l'auteur (ADR-075).
 pub fn messages(folder: &Path) -> Result<Vec<String>, String> {
@@ -349,6 +400,24 @@ pub fn serve(folder: &Path, web: &Path, port: u16) -> Result<(), String> {
     println!("Sa base         : {}", site.folder.join(DATA_FOLDER).join("site.sqlite").display());
     println!("Sur ce PC       : http://localhost:{port}");
     println!("Sur le téléphone (même Wi-Fi) : http://<adresse de ce PC>:{port}");
+    // Une sauvegarde au départ si la dernière a plus d'un jour, puis une par jour (ADR-076).
+    {
+        let site = Arc::clone(&site);
+        std::thread::spawn(move || loop {
+            let data = site.folder.join(DATA_FOLDER);
+            let wait = match last_backup(&data) {
+                Some(last) if now().saturating_sub(last) < BACKUP_EVERY => BACKUP_EVERY - now().saturating_sub(last),
+                _ => {
+                    match site.base.lock().map_err(|_| "base indisponible".to_string()).and_then(|base| backup_into(&base, &data)) {
+                        Ok(path) => println!("Sauvegarde      : {}", path.display()),
+                        Err(error) => eprintln!("Sauvegarde impossible : {error}"),
+                    }
+                    BACKUP_EVERY
+                }
+            };
+            std::thread::sleep(std::time::Duration::from_secs(wait));
+        });
+    }
     let workers: Vec<_> = (0..4)
         .map(|_| {
             let (site, server) = (Arc::clone(&site), Arc::clone(&server));
@@ -693,6 +762,34 @@ mod tests {
         assert_eq!(std::fs::read(folder.join(DATA_FOLDER).join(file)).unwrap().len(), 11);
         // Le fichier rangé n'est pas servi.
         assert_eq!(site.answer(&ask("GET", &format!("/{DATA_FOLDER}/{file}"), "", b"")).status, 404);
+        let _ = std::fs::remove_dir_all(folder);
+    }
+
+    #[test]
+    fn a_backup_is_a_whole_copy_and_old_ones_go() {
+        let (site, folder) = site();
+        let reply = site.answer(&ask("POST", "/shop.holo", "", b"signal=Add.tap"));
+        let cookie = reply.headers.iter().find(|(n, _)| n == "Set-Cookie").map(|(_, v)| v.split(';').next().unwrap().to_string()).unwrap();
+        let copy = backup(&folder).unwrap();
+        assert!(copy.starts_with(folder.join(DATA_FOLDER).join("backups")), "{}", copy.display());
+        // La copie se relit seule : la valeur du visiteur y est.
+        let saved = Connection::open(&copy).unwrap();
+        let state: String = saved.query_row("SELECT state FROM visits WHERE visitor = ?1", params![cookie.trim_start_matches("holo_visitor=")], |row| row.get(0)).unwrap();
+        assert!(state.starts_with("cart=1;"), "{state}");
+        // Seules les quatorze plus récentes restent.
+        let backups = folder.join(DATA_FOLDER).join("backups");
+        for day in 1..=20 {
+            std::fs::write(backups.join(format!("site-2020-01-{day:02}-0000-00.sqlite")), b"").unwrap();
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        backup(&folder).unwrap();
+        let count = std::fs::read_dir(&backups).unwrap().count();
+        assert_eq!(count, BACKUPS_KEPT, "{count}");
+        assert!(!backups.join("site-2020-01-01-0000-00.sqlite").exists());
+        // Jamais servies.
+        assert_eq!(site.answer(&ask("GET", "/holo-data/backups/site-2020-01-20-0000-00.sqlite", "", b"")).status, 404);
+        // Un dossier jamais servi n'a rien à sauvegarder.
+        assert!(backup(&std::env::temp_dir().join("holo-jamais-servi")).is_err());
         let _ = std::fs::remove_dir_all(folder);
     }
 

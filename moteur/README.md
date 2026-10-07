@@ -55,7 +55,7 @@ cargo build --release --bin holo
 .\target\release\holo serve ..\exemples\lecons 8080     # http://localhost:8080/14-prix.holo
 ```
 
-Le premier vrai serveur, en Rust : il sert le dossier donné, fabrique chaque page avec les valeurs du visiteur et les range dans `holo-data/site.sqlite` (jamais servi, jamais versionné). Les boutons et les formulaires `Form` marchent même JavaScript coupé : le serveur fait tourner le même arbitre, et range les messages reçus dans la même base (`holo messages ..\exemples\lecons` les affiche, ADR-075). L'éditeur et la pile passent encore par `node outils/server.mjs`.
+Le premier vrai serveur, en Rust : il sert le dossier donné, fabrique chaque page avec les valeurs du visiteur et les range dans `holo-data/site.sqlite` (jamais servi, jamais versionné). Les boutons et les formulaires `Form` marchent même JavaScript coupé : le serveur fait tourner le même arbitre, et range les messages reçus dans la même base (`holo messages ..\exemples\lecons` les affiche, ADR-075). La base est sauvegardée au démarrage et chaque jour dans `holo-data/backups/` (les quatorze plus récentes ; `holo backup ..\exemples\lecons` en ajoute une, ADR-076) : pour revenir à une sauvegarde, arrêter le serveur et la copier à la place de `holo-data/site.sqlite`. L'éditeur et la pile passent encore par `node outils/server.mjs`.
 
 Paramètres d'adresse utiles : `?zoom=3.4` démarre à un zoom donné (pour les captures), `?world=nom` charge `mondes/nom.holo`.
 

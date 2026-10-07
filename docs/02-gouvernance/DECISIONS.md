@@ -76,6 +76,7 @@ Ce registre empêche une proposition séduisante de devenir accidentellement une
 | [`ADR-073`](adr/ADR-073-lot-8-html-et-medias.md) | Lot 8 du web : `Aside`, `A(newTab: true)`, `A(download: true)`, `Video(captions:)`, les images qui viennent en approchant, l'état `print:` | `ACCEPTÉ` | Yocthan, 2026-10-07 | HoloCode, HoloEngine |
 | [`ADR-074`](adr/ADR-074-holo-serve-sans-javascript.md) | Lot 5, premier pas : `holo serve`, un serveur en Rust avec SQLite ; les boutons marchent sans JavaScript, par le même arbitre | `ACCEPTÉ` | Yocthan, 2026-10-07 | HoloEngine, serveur |
 | [`ADR-075`](adr/ADR-075-formulaires-par-holo-serve.md) | Lot 5, deuxième pas : les formulaires `Form` reçus par `holo serve`, rangés dans SQLite, avec ou sans JavaScript ; `holo messages` | `ACCEPTÉ` | Yocthan, 2026-10-07 | HoloEngine, serveur |
+| [`ADR-076`](adr/ADR-076-sauvegardes.md) | Lot 5, troisième pas : les sauvegardes de la base, au démarrage et chaque jour, et `holo backup` ; les quatorze plus récentes gardées | `ACCEPTÉ` | Yocthan, 2026-10-07 | serveur |
 
 `ADR-003` à `ADR-006` ont été proposées par ChatGPT. Le 2026-09-21, Yocthan a accepté `ADR-003` (reformulée par Claude), `ADR-004` (telle quelle) et `ADR-005` (complétée par les chiffres de sa vision), et a laissé `ADR-006` en proposition. ChatGPT est invité à réagir aux reformulations.
 

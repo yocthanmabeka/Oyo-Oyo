@@ -12,6 +12,7 @@
 //! holo serve [dossier] [port]         sert un site sur ce PC, avec sa base SQLite ; les boutons
 //!                                     marchent même sans JavaScript (ADR-074)
 //! holo messages [dossier]             les messages reçus par ses formulaires, en JSON (ADR-075)
+//! holo backup [dossier]               sauvegarde sa base dans holo-data/backups/ (ADR-076)
 //! ```
 //!
 //! C'est le même code Rust que dans le navigateur. Le serveur s'en sert pour envoyer la page
@@ -42,6 +43,21 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(error) => {
                 eprintln!("{error}");
+                ExitCode::FAILURE
+            }
+        };
+    }
+    // Sauvegarder la base d'un site servi (ADR-076).
+    #[cfg(not(target_arch = "wasm32"))]
+    if arguments.first().map(String::as_str) == Some("backup") {
+        let folder = arguments.get(1).map_or(".", String::as_str);
+        return match holo_engine::server::backup(std::path::Path::new(folder)) {
+            Ok(path) => {
+                println!("{}", path.display());
+                ExitCode::SUCCESS
+            }
+            Err(error) => {
+                eprintln!("{folder} : {error}");
                 ExitCode::FAILURE
             }
         };
@@ -121,7 +137,7 @@ fn main() -> ExitCode {
         _ => ("", &String::new(), ""),
     };
     if command != "check" && command != "html" && command != "files" && command != "form" {
-        eprintln!("usage : holo check file.holo | holo check - [folder] | holo html file.holo [folder] | holo files page.holo | holo form page.holo < message.json | holo fmt file.holo | holo test page.holo page.test | holo serve [folder] [port] | holo messages [folder] | holo vocabulary");
+        eprintln!("usage : holo check file.holo | holo check - [folder] | holo html file.holo [folder] | holo files page.holo | holo form page.holo < message.json | holo fmt file.holo | holo test page.holo page.test | holo serve [folder] [port] | holo messages [folder] | holo backup [folder] | holo vocabulary");
         return ExitCode::from(2);
     }
     // `-` : le texte arrive par l'entrée standard, tel qu'il est dans l'éditeur (ADR-046).
