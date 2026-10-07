@@ -12,6 +12,19 @@ Tu arrives sur **Holoverse / HoloCode**, le projet de Yocthan Mabeka : réinvent
 
 Si tu n'as pas accès à GitHub (c'est le cas de Gemini), demande à Yocthan le fichier unique qui rassemble ces documents : Claude sait le préparer.
 
+## Qui fait quoi (deux sessions Claude en même temps)
+
+Décidé par Yocthan le 2026-10-07 (« Vas-y, commence […] il faut qu'on aille rapidement ») : les deux sessions se partagent les lots du web (`proposals/Claude/tout-le-web-2026-10/SYNTHESE.md`). **Avant de commencer un travail, lis ce tableau ; inscris-y ton lot avant d'écrire du code ; prends tes numéros de décision et de leçon dans ta réserve.**
+
+| Lot | Session | Branches | Décisions réservées | Leçons réservées | État |
+|---|---|---|---|---|---|
+| 4 — mise en page d'ordinateur et de téléphone | la session du PC de Yocthan | `langage/lot4-mise-en-page` | ADR-069 à ADR-072 (069 pris) | 89 à 94 (toutes prises) | fait, en relecture : la pull request du lot 4 |
+| 8 — le HTML et les médias qui manquent | la session du nuage | `langage/lot8-…` | ADR-073 à ADR-077 | 95 à 99 | en cours |
+| 5, 6, 7 — serveur, valeurs partagées, comptes | une seule session, la première libre | — | à réserver ici | à réserver ici | à faire, après le lot 4 ou le lot 8 |
+| 9 — les capacités larges | l'autre session | — | à réserver ici | à réserver ici | à faire |
+
+Règles : relire `main` avant chaque travail, et fusionner `main` dans sa branche avant de demander la fusion ; des petites PR, fusionnées vite ; ne pas toucher au lot de l'autre ; un défaut trouvé dans le lot de l'autre se note dans le journal, sans le corriger soi-même.
+
 ## Ce que tu dois savoir en une minute
 
 - **L'idée de Yocthan** : le métavers n'est pas un jeu, c'est une mise à jour du web. Un même fichier `.holo` s'affiche à plat (une page ordinaire) et en profondeur (un lieu où l'on zoome et où l'on entre). Tout part d'un point lumineux qui se morcelle en points, chacun contenant un monde. Un monde naît de sa graine, rien n'est stocké. Cible : n'importe quel téléphone actuel, dans un navigateur, premier test sous 1 Go.
@@ -74,6 +87,7 @@ Le canal entre les IA est **GitHub**, décidé par Yocthan le 2026-10-03 : simpl
 - **Corrigé, vu sur le téléphone le 2026-10-07** : une fenêtre (`Dialog`) fermée restait posée, invisible, sur le bas de la page, et prenait le doigt à la place des liens (leçon 63). Un essai dans Chrome le garde.
 - **Les essais dans un navigateur** (lot 1 du web, 2026-10-07) : `node moteur/outils/browser-tests.mjs` ouvre les 81 leçons dans Chrome sans fenêtre et joue les gestes ; GitHub les lance à chaque pull request (« Navigateur — les leçons et les gestes »). Toute PR qui touche `moteur/web/` doit les passer.
 - **Pour montrer à Yocthan** ce qu'on a fait : la pile, `http://localhost:8080/stack` (un seul onglet, le plus récent en haut), et `node moteur/outils/show.mjs /exemples/…` pour y afficher une page sans ouvrir de nouvel onglet ni de nouvelle fenêtre (demande du 2026-10-06 : sa batterie).
+- **La 3D commence après le lot 9 du web** (décidé par Yocthan le 2026-10-07) : d'abord les neuf lots de `proposals/Claude/tout-le-web-2026-10/SYNTHESE.md`, puis le plan de `docs/04-roadmap/PLAN-3D.md`, dont le contenu reste à valider.
 - Décisions : `ADR-001` à `ADR-069`, la liste dans `docs/02-gouvernance/DECISIONS.md`. **Depuis le 2026-10-06, plus rien n'est à l'essai** : ce qui est construit et essayé est accepté (ou rejeté, comme les ponts vers JavaScript). Yocthan : « tu mets trop de trucs en essai […] tu valides déjà le tout » ; et quand il dit « fais-le et valide », c'est accepté. Seul HoloIR reste une proposition (l'ancienne `ADR-006`, `ADR-011` partie D) : rien n'est construit, on en reparlera avec la 3D. La spécification Python de Codex (`SPECIFICATION-V0.1.md`) est `REMPLACÉE` par le moteur et le guide.
 - **La disposition** (`ADR-024`, décidé) : `Row`, `Column`, `Grid`, avec `gap`, `align`, `columns`.
 - **La page arrive déjà fabriquée** : `moteur/src/bin/holo.rs` est le moteur en ligne de commande (`holo check`, `holo html`) ; le serveur de démonstration s'en sert pour envoyer le HTML de la page, lisible sans lancer le moteur dans le navigateur. Depuis le 2026-10-07, avec ses données (`Data(from:)`, `ADR-064`) : le navigateur rejoue la même réception.
