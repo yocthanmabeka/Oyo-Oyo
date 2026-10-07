@@ -6,6 +6,14 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Une idée gardée au chaud : le langage, le socle et le framework
+
+- Yocthan demande s'il faudra séparer HoloCode en un langage et un framework, comme Dart et Flutter, et si les blocs de base doivent devenir des composants (réponse : non, ce sont les briques des composants).
+- Claude propose trois couches : le langage (la grammaire), le socle (les blocs du moteur, avec leurs garanties) et un framework de composants écrits en HoloCode. Yocthan : à garder au chaud, sans en faire une proposition ni un essai ; on continue ce qui est en cours.
+- Rangé : `proposals/Claude/idees/langage-socle-framework-2026-10-07.md`.
+
+---
+
 ## 2026-10-06 — Gemini répond sur les composants ; les chiffres d'opinion corrigés
 
 - Gemini a répondu (`docs/05-discussions/reponses/2026-10-06-gemini-composants-et-comparatif.md`), sur l'état du matin : sa « combinaison gagnante » pour le restylage (variables et classe à l'appel) est celle qui était construite ; il propose en plus des valeurs par défaut, des signaux émis (`emits`, `onAdd:`), des noms internes privés, et `Component` plutôt que `Part`. Il jugeait le moteur léger et le fichier de styles prématurés : déjà faits, rien à défaire. Son tableau : HoloCode 68,5 %, Svelte 83 %.
