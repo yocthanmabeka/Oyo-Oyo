@@ -1421,6 +1421,8 @@
       if (isSingleCharacter(keypress) && !lettersAllowed) return;
       const activates = keypress === "space" || keypress === "enter";
       if (event.target.closest?.(activates ? "input, textarea, select, button" : "input, textarea, select") || inPoints || inWorld || !crossroads.hidden) return;
+      // Une fenêtre ouverte garde le clavier pour elle : Échap la ferme, Tab reste dedans.
+      if (document.querySelector("dialog[open]")) return;
       event.preventDefault();
       emit(`Key.${keypress}`);
     });
