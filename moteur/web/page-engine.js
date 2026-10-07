@@ -271,12 +271,35 @@
   // chercher le fichier, rangé à côté d'elle, et le donne à l'arbitre, qui range ce qu'il veut
   // bien prendre. Elle ne parle qu'au serveur d'où elle vient.
   let refresh = 0;
+  // Lit une réponse sans jamais garder plus de `max` octets : au-delà, rien n'est pris, et la
+  // lecture s'arrête aussitôt (une réponse trop grosse n'occupe pas la mémoire de la page).
+  async function readCapped(response, max) {
+    if (Number(response.headers.get("content-length") ?? 0) > max) return null;
+    const reader = response.body?.getReader();
+    if (!reader) return null;
+    const chunks = [];
+    let size = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.length;
+      if (size > max) {
+        reader.cancel().catch(() => {});
+        return null;
+      }
+      chunks.push(value);
+    }
+    return new Blob(chunks).arrayBuffer();
+  }
   async function loadData(file, for_) {
     try {
       const discreet = fromElsewhere(for_) ? { credentials: "omit", referrerPolicy: "no-referrer" } : {};
       const response = await fetch(folderOf(for_) + file, { cache: "no-store", headers: { accept: "application/json" }, ...discreet });
       if (!response.ok || for_ !== path) return; // on a changé de fichier entre-temps
-      const json = (await response.text()).slice(0, 65536);
+      // Des données de 64 Ko au plus (DATA_BYTES dans le moteur) : au-delà, elles sont refusées.
+      const buffer = await readCapped(response, 65536);
+      if (!buffer) return;
+      const json = new TextDecoder().decode(buffer);
       const before = states.get(path) ?? "";
       const after = store(receive(source, before, json));
       if (after && after !== before && for_ === path) changeState(after);
@@ -1196,8 +1219,9 @@
     let result = { ok: false, reason: "module introuvable" };
     try {
       const response = await fetch(folderOf(path) + file);
-      const bytes = response.ok ? await response.arrayBuffer() : null;
-      if (bytes && bytes.byteLength <= 4e6) {
+      // Un module de 4 Mo au plus : au-delà, il n'est pas téléchargé plus loin.
+      const bytes = response.ok ? await readCapped(response, 4e6) : null;
+      if (bytes) {
         const box = new Worker(URL.createObjectURL(new Blob([SANDBOX_CODE], { type: "text/javascript" })));
         result = await new Promise((end) => {
           let stop = 0;

@@ -70,3 +70,35 @@ jobs:
       - name: Poids du moteur
         run: ls -la target/wasm32-unknown-unknown/release/holo_engine.wasm target/light/wasm32-unknown-unknown/release/holo_engine.wasm
         working-directory: moteur
+
+  # Les essais dans un vrai navigateur : les tests en Rust ne voient pas la page (le pincement,
+  # les modules et la touche Échap ont cassé le 2026-10-07 alors qu'ils restaient verts).
+  # Chrome est déjà sur les machines de GitHub ; l'outil d'essai n'a besoin de rien d'autre.
+  navigateur:
+    name: Navigateur — les leçons et les gestes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: moteur
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Construire le moteur pour le navigateur
+        working-directory: moteur
+        run: |
+          cargo build --release --target wasm32-unknown-unknown
+          CARGO_PROFILE_RELEASE_OPT_LEVEL=z cargo build --release --target wasm32-unknown-unknown --no-default-features --target-dir target/light
+          cargo build --release --bin holo
+          # wasm-bindgen, à la version du moteur (Cargo.toml), comme le fait outils/build.ps1.
+          curl -sSfL https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.100/wasm-bindgen-0.2.100-x86_64-unknown-linux-musl.tar.gz | tar -xz -C "$RUNNER_TEMP"
+          WB="$RUNNER_TEMP/wasm-bindgen-0.2.100-x86_64-unknown-linux-musl/wasm-bindgen"
+          "$WB" --target web --no-typescript --out-dir web/pkg target/wasm32-unknown-unknown/release/holo_engine.wasm
+          "$WB" --target web --no-typescript --out-dir web/pkg-light target/light/wasm32-unknown-unknown/release/holo_engine.wasm
+      - name: Les essais dans Chrome sans fenêtre
+        working-directory: moteur
+        run: node outils/browser-tests.mjs

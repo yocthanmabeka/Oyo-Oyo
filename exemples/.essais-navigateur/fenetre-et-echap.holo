@@ -1,0 +1,17 @@
+// Une page d'essai (moteur/outils/browser-tests.mjs), pas une leçon : une fenêtre, et une règle
+// sur la touche Échap. Échap doit fermer la fenêtre ouverte, et déclencher la règle ailleurs.
+
+Page(
+  title: "Essai : une fenêtre et la touche Échap",
+  state: State(n: 0),
+  children: [
+    Button(name: Ouvrir, text: "Ouvrir"),
+    Dialog(name: Fenetre, children: [ P("Une fenêtre"), Button(name: Fermer, text: "Fermer") ]),
+    P("Échap hors de la fenêtre : {n}"),
+  ],
+  rules: [
+    On(Ouvrir.tap, effect: Fenetre.open),
+    On(Fermer.tap, effect: Fenetre.close),
+    On(Key.escape, effect: n.add(1)),
+  ],
+)
