@@ -6,6 +6,15 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Les lots 5 à 7 à la session du PC, le lot 9 au nuage ; des règles pour ne plus s'entremêler
+
+- Les deux sessions avaient pris les lots 5 à 7 à quelques minutes d'écart. Yocthan a décidé : « que vous ne puissiez plus vous entremêler entre les lots ; que chacun puisse avoir un lot différent ». La session du PC, inscrite la première sur `main` (PR 166), garde les lots 5 à 7 et analyse le travail de la session du nuage ; la session du nuage prend le lot 9.
+- Raté : en trouvant le doublon, Claude (nuage) a demandé à Yocthan qui gardait les lots ; sans réponse tranchée, il a choisi le nuage et l'a écrit dans le tableau de la PR 167. Le programme de fusion automatique a fusionné cette PR quand sa CI est passée au vert, quelques minutes avant la décision de Yocthan. `holo serve` et les boutons sans JavaScript (`ADR-074`) sont donc sur `main`. Les PR 168 (les formulaires, `ADR-075`) et 169 (les sauvegardes, `ADR-076`) restent ouvertes, sans fusion automatique.
+- Fait : le tableau « Qui fait quoi » corrigé ; cinq règles pour ne plus s'entremêler (seul Yocthan donne un lot, à une session nommée ; relire le tableau sur `origin/main` avant le code ; changer le tableau par une petite PR fusionnée avant le code ; une session qui a fini demande à Yocthan ; en cas de doublon, la première ligne arrivée sur `main` garde le lot) ; la passation pour la session du PC, `proposals/Claude/passation-lot5-2026-10-07.md`.
+- Leçon : « la première libre » et « l'autre session » laissaient deux sessions se croire chacune la bonne. Une ligne du tableau nomme désormais une seule session.
+
+---
+
 ## 2026-10-07 — Lot 5, premier pas : `holo serve`, et des boutons qui marchent sans JavaScript
 
 - Yocthan a accepté la condition proposée après l'avis de Gemini : « la boutique marche avec JavaScript coupé » (« Oui, vas-y et continue »). La session du nuage prend les lots 5 à 7 ; le lot 9 revient à la session du PC.
@@ -13,7 +22,7 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 - Vérifié dans Chrome, JavaScript coupé : une tâche ajoutée puis faite (leçon 68), deux pommes et « 4 euros » calculés par le serveur (leçon 14) ; la touche Entrée n'ajoute rien ; JavaScript rallumé, le moteur repart des valeurs du serveur. Tous les tests du moteur et du navigateur passent.
 - Raté puis corrigé : le moteur pour le navigateur ne se construisait plus (`holo serve` n'existe pas en WebAssembly) ; le nom `data-state`, déjà pris par les valeurs affichées, est devenu `data-visit` ; la touche Entrée aurait « appuyé » sur le premier bouton de la page : un bouton caché, en tête, la reçoit.
 - Pas encore fait : les formulaires `Form` par `holo serve`, les sauvegardes, les adresses `profil/{id}.holo`.
-- Les deux sessions avaient inscrit les lots 5 à 7 à quelques minutes d'écart (la PR 166 du PC, et ce lot). Yocthan l'a laissé trancher : le nuage garde 5 à 7, déjà en partie construits ; le PC prend le lot 9.
+- Les deux sessions avaient inscrit les lots 5 à 7 à quelques minutes d'écart (la PR 166 du PC, et ce lot). Claude (nuage) a d'abord tranché pour le nuage ; Yocthan a décidé l'inverse le même soir : voir l'entrée « Les lots 5 à 7 à la session du PC ».
 
 ---
 
