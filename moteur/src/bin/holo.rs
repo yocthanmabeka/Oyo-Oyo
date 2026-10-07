@@ -9,6 +9,8 @@
 //! holo vocabulary                     tous les mots du langage, en JSON, pour un éditeur
 //! holo fmt page.holo                  remet le fichier en forme, et l'écrit (ADR-054)
 //! holo test page.holo page.test       joue les gestes d'un essai écrit, vérifie les valeurs (ADR-054)
+//! holo serve [dossier] [port]         sert un site sur ce PC, avec sa base SQLite ; les boutons
+//!                                     marchent même sans JavaScript (ADR-074)
 //! ```
 //!
 //! C'est le même code Rust que dans le navigateur. Le serveur s'en sert pour envoyer la page
@@ -24,6 +26,24 @@ fn main() -> ExitCode {
     if arguments.first().map(String::as_str) == Some("vocabulary") {
         println!("{}", holo_engine::vocabulary());
         return ExitCode::SUCCESS;
+    }
+    // Servir un site (ADR-074) : le dossier donné, ou celui où l'on est ; le port 8080, ou un autre.
+    #[cfg(not(target_arch = "wasm32"))]
+    if arguments.first().map(String::as_str) == Some("serve") {
+        let folder = arguments.get(1).map_or(".", String::as_str);
+        let Some(port) = arguments.get(2).map_or(Some(8080), |p| p.parse::<u16>().ok()) else {
+            eprintln!("usage : holo serve [folder] [port]");
+            return ExitCode::from(2);
+        };
+        // Le moteur pour le navigateur : moteur/web, ou le dossier de HOLO_WEB.
+        let web = std::env::var("HOLO_WEB").map_or_else(|_| std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("web"), std::path::PathBuf::from);
+        return match holo_engine::server::serve(std::path::Path::new(folder), &web, port) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => {
+                eprintln!("{error}");
+                ExitCode::FAILURE
+            }
+        };
     }
     // Remettre un fichier en forme : seuls les blancs changent (ADR-054).
     if let [command, file] = arguments.as_slice() {
@@ -82,7 +102,7 @@ fn main() -> ExitCode {
         _ => ("", &String::new(), ""),
     };
     if command != "check" && command != "html" && command != "files" && command != "form" {
-        eprintln!("usage : holo check file.holo | holo check - [folder] | holo html file.holo [folder] | holo files page.holo | holo form page.holo < message.json | holo fmt file.holo | holo test page.holo page.test | holo vocabulary");
+        eprintln!("usage : holo check file.holo | holo check - [folder] | holo html file.holo [folder] | holo files page.holo | holo form page.holo < message.json | holo fmt file.holo | holo test page.holo page.test | holo serve [folder] [port] | holo vocabulary");
         return ExitCode::from(2);
     }
     // `-` : le texte arrive par l'entrée standard, tel qu'il est dans l'éditeur (ADR-046).

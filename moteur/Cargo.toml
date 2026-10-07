@@ -32,6 +32,13 @@ web-sys = { version = "0.3", features = [
     "Performance", "console",
 ] }
 
+# Le serveur (`holo serve`, ADR-074) : seulement pour le PC, jamais dans le navigateur. SQLite
+# est compilé avec le moteur (`bundled`) : rien à installer à côté, sous Windows comme ailleurs.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tiny_http = "0.12"
+rusqlite = { version = "0.32", features = ["bundled"] }
+getrandom = "0.2"
+
 [profile.release]
 opt-level = "s"
 lto = true

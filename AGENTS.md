@@ -18,10 +18,12 @@ Décidé par Yocthan le 2026-10-07 (« Vas-y, commence […] il faut qu'on aille
 
 | Lot | Session | Branches | Décisions réservées | Leçons réservées | État |
 |---|---|---|---|---|---|
-| 4 — mise en page d'ordinateur et de téléphone | la session du PC de Yocthan | `langage/lot4-mise-en-page` | ADR-069 à ADR-072 (069 pris) | 89 à 94 (toutes prises) | fait, en relecture : la pull request du lot 4 |
-| 8 — le HTML et les médias qui manquent | la session du nuage | `langage/lot8-…` | ADR-073 (utilisée) à ADR-077 | 95, 96 (utilisées) à 99 | fait (`ADR-073`) ; l'historique dans une page attend le lot 5 |
-| 5, 6, 7 — serveur, valeurs partagées, comptes | la session du PC de Yocthan (la première libre, après le lot 4) | `langage/lot5-…` | ADR-078 à ADR-085 | 100 à 109 | lot 5 en cours |
-| 9 — les capacités larges | l'autre session | — | à réserver ici | à réserver ici | à faire |
+| 4 — mise en page d'ordinateur et de téléphone | la session du PC de Yocthan | `langage/lot4-mise-en-page` | ADR-069 à ADR-072 (069 pris) | 89 à 94 (toutes prises) | fait (`ADR-069`, PR 164 et 166) |
+| 8 — le HTML et les médias qui manquent | la session du nuage | `langage/lot8-…` | ADR-073 (utilisée) | 95, 96 (utilisées) | fait (`ADR-073`) ; l'historique dans une page attend le lot 5 |
+| 5, 6, 7 — serveur, valeurs partagées, comptes | la session du nuage | `serveur/lot5-…`, `serveur/lot6-…`, `serveur/lot7-…` | ADR-074 (utilisée) à ADR-077, puis ADR-078 à ADR-085 | 97 à 99, puis 100 à 109 | lot 5 en cours : `holo serve` et les boutons sans JavaScript (`ADR-074`) ; puis `Form` par `holo serve`, les sauvegardes, les adresses `profil/{id}.holo` |
+| 9 — les capacités larges | la session du PC de Yocthan | `langage/lot9-…` | ADR-086 à ADR-092 | 110 à 119 | à faire |
+
+Le 2026-10-07, les deux sessions ont inscrit les lots 5 à 7 à quelques minutes d'écart ; la session du nuage avait déjà construit `holo serve`. Tranché par Claude, Yocthan l'ayant laissé décider (« continue sur le lot 5 ») : le nuage garde 5 à 7, le PC prend le lot 9. **Si tu es la session du PC et que tu as commencé un serveur, arrête-le ; reprends le lot 9.**
 
 Règles : relire `main` avant chaque travail, et fusionner `main` dans sa branche avant de demander la fusion ; des petites PR, fusionnées vite ; ne pas toucher au lot de l'autre ; un défaut trouvé dans le lot de l'autre se note dans le journal, sans le corriger soi-même.
 

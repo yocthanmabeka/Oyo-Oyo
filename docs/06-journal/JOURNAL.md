@@ -6,6 +6,17 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Lot 5, premier pas : `holo serve`, et des boutons qui marchent sans JavaScript
+
+- Yocthan a accepté la condition proposée après l'avis de Gemini : « la boutique marche avec JavaScript coupé » (« Oui, vas-y et continue »). La session du nuage prend les lots 5 à 7 ; le lot 9 revient à la session du PC.
+- Fait (`ADR-074`) : `holo serve [dossier] [port]`, un serveur en Rust dans le moteur, avec une base SQLite (`holo-data/site.sqlite`) ; un numéro par visiteur, dans un cookie ; la page fabriquée avec ses valeurs ; un formulaire caché auquel les boutons et les champs se rattachent, sans changer la mise en page ; le même arbitre que le navigateur, côté serveur.
+- Vérifié dans Chrome, JavaScript coupé : une tâche ajoutée puis faite (leçon 68), deux pommes et « 4 euros » calculés par le serveur (leçon 14) ; la touche Entrée n'ajoute rien ; JavaScript rallumé, le moteur repart des valeurs du serveur. Tous les tests du moteur et du navigateur passent.
+- Raté puis corrigé : le moteur pour le navigateur ne se construisait plus (`holo serve` n'existe pas en WebAssembly) ; le nom `data-state`, déjà pris par les valeurs affichées, est devenu `data-visit` ; la touche Entrée aurait « appuyé » sur le premier bouton de la page : un bouton caché, en tête, la reçoit.
+- Pas encore fait : les formulaires `Form` par `holo serve`, les sauvegardes, les adresses `profil/{id}.holo`.
+- Les deux sessions avaient inscrit les lots 5 à 7 à quelques minutes d'écart (la PR 166 du PC, et ce lot). Yocthan l'a laissé trancher : le nuage garde 5 à 7, déjà en partie construits ; le PC prend le lot 9.
+
+---
+
 ## 2026-10-07 — La parité : ce qui agit ne se cache pas sur un seul appareil ; les choix du lot 5
 
 - Décidé par Yocthan (« Refuser pour ce qui agit ») : `display: none` dans `phone:`, `computer:` ou `narrow:` cache une phrase ou une image, jamais un bouton, un lien, un champ, un formulaire ou un bloc qu'une règle écoute. Le moteur le refuse, avec le bloc et l'appareil où il manquerait (`ADR-069`).

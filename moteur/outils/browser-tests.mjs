@@ -62,6 +62,21 @@ async function startServer() {
   return { base: `http://localhost:${port}`, stop: () => server.kill() };
 }
 
+// holo serve (ADR-074), sur un dossier d'essai à part : sa base ne salit pas le dépôt.
+async function startHoloServe(files) {
+  const folder = mkdtempSync(join(tmpdir(), "holo-serve-"));
+  for (const file of files) writeFileSync(join(folder, file), readFileSync(join(repo, "exemples", "lecons", file)));
+  const port = 20000 + Math.floor(Math.random() * 2000);
+  const binary = ["holo", "holo.exe"].map((name) => join(engine, "target", "release", name)).find(existsSync);
+  const server = spawn(binary, ["serve", folder, String(port)], { cwd: engine, stdio: ["ignore", "pipe", "pipe"] });
+  let output = "";
+  server.stdout.on("data", (d) => { output += d; });
+  server.stderr.on("data", (d) => { output += d; });
+  for (let i = 0; i < 100 && !output.includes(`localhost:${port}`); i++) await pause(100);
+  if (!output.includes(`localhost:${port}`)) throw new Error(`holo serve ne démarre pas :\n${output}`);
+  return { base: `http://localhost:${port}`, stop: () => { server.kill(); rmSync(folder, { recursive: true, force: true }); } };
+}
+
 // Lance Chrome sans fenêtre. Il choisit lui-même un port libre (`--remote-debugging-port=0`)
 // et l'écrit dans son dossier, dans le fichier DevToolsActivePort : pas de port qui se heurte
 // à un autre. On attend jusqu'à une minute ; ce qu'il dit est gardé pour comprendre un échec.
@@ -772,6 +787,48 @@ const tests = [
     const heading = result.nodes.find((n) => n.role?.value === "heading" && n.name?.value === "La vue points se lit aussi");
     const announced = await p.until(`(document.getElementById("announcement")?.textContent ?? "").startsWith("Vue points")`, 5000);
     return [inPoints && heading && !heading.ignored && announced, `vue points : ${inPoints} ; titre lisible : ${Boolean(heading && !heading.ignored)} ; « Vue points » annoncé : ${announced}`];
+  }],
+  ["sans JavaScript, holo serve fait marcher les boutons (serve)", async (_, b) => {
+    const served = await startHoloServe(["14-prix.holo", "68-liste-qui-change.holo"]);
+    const q = page(b, served.base);
+    try {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+      // Une liste : écrire, ajouter (le champ part avec le bouton), puis « Fait » sur la première ligne.
+      await q.open("/68-liste-qui-change.holo", 300);
+      await q.type('[data-bind="tache"]', "Arroser");
+      await q.click('[data-name="Ajouter"]');
+      await q.until(`document.readyState === "complete" && document.getElementById("page").innerText.includes("Arroser")`, 5000);
+      const added = await q.text();
+      await q.click('.holo-line[data-rank="0"] [data-name="Fait"]');
+      await q.until(`document.readyState === "complete" && !document.getElementById("page").innerText.includes("Encadrer")`, 5000);
+      const done = await q.text();
+      // La touche Entrée dans un champ envoie le champ, sans toucher « Ajouter ».
+      await q.type('[data-bind="tache"]', "Semer");
+      await q.key("Enter", "Enter", 13, "\r");
+      await pause(800);
+      const entered = await q.text();
+      const kept = await q.value(`document.querySelector('[data-bind="tache"]').value`);
+      // Des prix : deux pommes, le total calculé par le serveur.
+      await q.open("/14-prix.holo", 300);
+      await q.click('[data-name="Pomme"]');
+      await pause(500);
+      await q.click('[data-name="Pomme"]');
+      await pause(500);
+      const fruits = await q.text();
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      // Avec JavaScript, le moteur repart des valeurs du serveur, et le geste reste dans la page.
+      await q.open("/14-prix.holo", 300);
+      await q.value("window.__stayed = true");
+      await q.click('[data-name="Pomme"]');
+      const resumed = await q.until(`document.getElementById("page").innerText.includes("En tout : 3 fruits, 6 euros")`, 40000);
+      const stayed = await q.value("window.__stayed === true");
+      const ok = added.includes("Arroser") && added.includes("2 tâche(s)") && !done.includes("Encadrer") && done.includes("1 tâche(s)")
+        && !entered.includes("Semer\nFait") && kept === "Semer" && fruits.includes("En tout : 2 fruits, 4 euros") && resumed && stayed;
+      return [ok, `ajoutée : ${added.includes("Arroser")} ; faite : ${!done.includes("Encadrer")} ; Entrée n'ajoute pas : ${!entered.includes("Semer\nFait")} (champ gardé : ${kept}) ; 2 pommes, 4 euros : ${fruits.includes("2 fruits, 4 euros")} ; avec JavaScript, repris : ${resumed}, sans recharger : ${stayed}`];
+    } finally {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      served.stop();
+    }
   }],
 ];
 
