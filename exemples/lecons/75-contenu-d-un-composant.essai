@@ -1,0 +1,4 @@
+// L'essai de la leçon 75 : le bouton posé dans l'emplacement change la valeur de la page.
+expect reserve = 0
+tap Reserver
+expect reserve = 1

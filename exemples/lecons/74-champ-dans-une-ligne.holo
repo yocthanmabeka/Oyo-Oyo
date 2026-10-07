@@ -46,6 +46,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 73 : valeurs par défaut et signaux", to: "73-defauts-et-signaux.holo"),
+      A("Leçon 75 : le contenu d'un composant →", to: "75-contenu-d-un-composant.holo"),
     ]),
   ],
   rules: [

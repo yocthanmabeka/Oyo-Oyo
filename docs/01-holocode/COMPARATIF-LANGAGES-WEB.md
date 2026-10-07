@@ -469,6 +469,8 @@ Pour un développeur professionnel : **58 % → 70 %**.
 
 **Ce qui reste avant la 3D, par ordre d'effet** : l'essai humain au lecteur d'écran (Yocthan, sur le Flip) ; l'essai avec cinq débutants (la seule mesure qui compte vraiment) ; l'envoi vers un vrai serveur et les comptes ; un emplacement pour du contenu dans un composant ; un moteur d'exécution plus léger encore.
 
+**Depuis** : des valeurs par défaut et des signaux branchés par la page (`ADR-056`), un champ dans une ligne et des lignes gardées (`ADR-057`), un emplacement pour du contenu, `children` (`ADR-058`). Les composants passent de 80 à **88**, les valeurs qui changent de 82 à **85** : le total monte à environ **79,6 %**. L'envoi d'un fichier, puis le serveur et les comptes, restent devant.
+
 ## 11. Les trois avis, côte à côte
 
 | | Claude (matin) | Gemini (matin) | Codex (avec les composants) | Claude (soir, après les six points) |
