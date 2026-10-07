@@ -148,7 +148,19 @@ fn main() -> ExitCode {
         "check" => holo_engine::check_page(&source).map(|_| "ok".to_string()),
         // Pour le serveur : les fichiers qu'un formulaire de la page peut envoyer (ADR-059).
         "files" => holo_engine::files_for_server(&source),
-        _ => holo_engine::flat_view(&source, folder),
+        // La page fabriquée avec ses données (ADR-064) : le fichier de `Data(from:)`, rangé à
+        // côté du .holo, s'il existe et pèse 64 Ko au plus. Sinon, la page de départ.
+        _ => {
+            let data_file = holo_engine::data(&source).split('|').next().map(str::to_string).filter(|f| !f.is_empty());
+            let json = data_file
+                .map(|f| here.join(f))
+                .filter(|path| std::fs::metadata(path).is_ok_and(|m| m.len() <= holo_engine::state::DATA_BYTES as u64))
+                .and_then(|path| std::fs::read_to_string(path).ok());
+            match json {
+                Some(json) => holo_engine::flat_view_with_data(&source, folder, &json),
+                None => holo_engine::flat_view(&source, folder),
+            }
+        }
     };
     match result {
         Ok(output) => {

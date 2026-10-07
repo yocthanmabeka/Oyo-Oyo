@@ -1335,6 +1335,16 @@
     source = await withImports(await (await fetch(path, { headers: { accept: "text/plain" } })).text(), path);
     readFiles.set(path, Promise.resolve(source));
     readSettings();
+    // La page fabriquée par le serveur avec ses données (ADR-064) : le navigateur rejoue la même
+    // réception, puis `Shop.done`, pour partir du même état. Sans cela, les valeurs de départ
+    // remplaceraient un instant celles des données. Les effets (un son…) ne sont pas rejoués.
+    const received = !location.hash.slice(1) && root.querySelector(".holo-Page")?.dataset.received;
+    if (received) {
+      const dataName = data(source).split("|")[2];
+      let replayed = receive(source, states.get(path) ?? "", received);
+      if (replayed && dataName) replayed = arbitrate(source, replayed, `${dataName}.done`);
+      if (replayed) states.set(path, replayed.split(";").filter((chunk) => !chunk.startsWith("!=")).join(";"));
+    }
     // Une page qui montrera des points ou des mondes fait venir le dessin tout de suite, sans
     // l'attendre : il sera prêt quand le visiteur zoomera.
     if (needs_drawing(source)) loadDrawing().catch(() => {});
@@ -1345,6 +1355,7 @@
     // demandé par l'adresse (#Atelier), lui, se dessine.
     const alreadyThere = !siteStart && root.querySelector(".holo-Page") !== null;
     displaySite(siteStart.startsWith("@") ? "" : siteStart, { inHistory: false, resume: alreadyThere });
+    window.__holoStarted = true; // le moteur a pris la page en main (pour les essais)
     // Une adresse en #@… désigne le fichier d'un autre serveur : on propose le passage.
     if (siteStart.startsWith("@")) proposePassage(siteStart.slice(1));
     // « Revenir » : par où l'on est venu, ou, si l'on est arrivé directement, au fichier de départ.

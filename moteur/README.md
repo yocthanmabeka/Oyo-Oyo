@@ -168,5 +168,5 @@ Repris de la proposition de Gemini, à vérifier sur le téléphone :
 | `web/index.html` | La seule page HTML, générée une fois pour tous les mondes |
 | `web/measures.js` | L'affichage des mesures et le bouton « Copier le rapport » |
 | `outils/server.mjs` | Serveur local avec compression Brotli ; envoie la page déjà fabriquée si `holo` est construit |
-| `src/bin/holo.rs` | Le moteur en ligne de commande, pour le PC ou un serveur : `cargo build --release --bin holo`, puis `holo check fichier.holo` (vérifier) et `holo html fichier.holo` (écrire le HTML de la page) |
+| `src/bin/holo.rs` | Le moteur en ligne de commande, pour le PC ou un serveur : `cargo build --release --bin holo`, puis `holo check fichier.holo` (vérifier) et `holo html fichier.holo` (écrire le HTML de la page, avec les données de `Data(from:)` si le fichier est rangé à côté, `ADR-064`) |
 | `outils/build.ps1` | Construction complète |

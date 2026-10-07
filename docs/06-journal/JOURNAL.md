@@ -6,6 +6,24 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Lot 2, quatrième partie : la page du serveur arrive avec ses données
+
+- Fait (`ADR-064`) : `holo html` lit le fichier de `Data(from:)` rangé à côté du `.holo`, 64 Ko au plus. L'arbitre le range comme dans le navigateur, puis `Shop.done`, et la page est fabriquée à partir de là. Un robot de recherche, ou un visiteur dont le moteur tarde, voit les données tout de suite. Le serveur de démonstration n'a rien eu à changer : il appelle déjà `holo html`.
+- La page garde ce qu'elle a reçu (`data-received`). Le navigateur rejoue la même réception au démarrage, sans rejouer les effets (un son…), puis relit les données comme d'habitude. Sans ce rejeu, les valeurs de départ remplaçaient un instant celles des données.
+- Exécuté :
+  - `cargo test --release` → 131 tests passent (un nouveau : `the_server_page_starts_with_its_data`) ;
+  - `holo html` sur la leçon 84 → « Chargement… » caché, les nouvelles et « 42 » déjà écrits ;
+  - l'essai dans Chrome retient le fichier de données (il ne répond jamais au navigateur) : la page garde « 42 visiteurs » et ne montre pas « Chargement… ».
+- Vérifié dans les deux sens : avec le rejeu coupé, cet essai rate (`données gardées sans les relire : false`) ; remis, il passe.
+
+**Erreur en route**
+
+- Mon essai du moteur cherchait « Arbre » avant « Zèbre » dans tout le HTML. Il trouvait d'abord les mots dans `data-received`, où l'ordre est celui du fichier. Il cherche maintenant dans la page seulement.
+- L'essai « Data » du lot précédent a raté une fois : sa page arrive maintenant du serveur avec ses données (une lecture), puis le navigateur relit (une seconde). Il attendait « lectures 1 » fixe. Les deux arrivées sont réelles, donc je garde ce comportement, et l'essai compte à partir du nombre trouvé au départ.
+- Exécuté ensuite : `node outils/browser-tests.mjs` → 84 leçons, et les 18 essais passent, en 147 secondes.
+
+---
+
 ## 2026-10-07 — Lot 2, troisième partie : des données qui disent « arrivées » ou « échec »
 
 - Fait (`ADR-064`, PROPOSITION : Yocthan n'a pas encore validé) :

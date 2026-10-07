@@ -40,7 +40,11 @@ Défauts du web évités : avec `fetch`, une erreur 404 n'est pas une erreur (il
 ## Conséquences
 
 - `GUIDE.md` (section 6 septies) et le tableau des limites disent les 10 secondes et la seconde entre deux lectures.
-- Reste à faire, dans une autre pull request : la page fabriquée par le serveur avec ses données. Aujourd'hui, elle part des valeurs de départ, puis les données arrivent dans le navigateur.
+- La page fabriquée par le serveur contient ses données (pull request suivante, le même jour) :
+  - `holo html` lit le fichier de `Data(from:)` rangé à côté du `.holo` (64 Ko au plus) ;
+  - l'arbitre le range comme dans le navigateur, puis `Shop.done` ;
+  - la page garde ce qu'elle a reçu dans `data-received`, et le navigateur rejoue la même réception, sans rejouer les effets (un son…) ;
+  - des données absentes, trop grosses ou illisibles donnent la page de départ.
 
 ## Critères de validation
 
@@ -51,4 +55,6 @@ Défauts du web évités : avec `fetch`, une erreur 404 n'est pas une erreur (il
   - un fichier trop lent donne un échec après 10 secondes ;
   - deux demandes rapprochées sont servies l'une après l'autre ;
   - une demande pendant une lecture ne crée pas de lecture en trop ;
-  - la leçon 84 montre ses nouvelles.
+  - la leçon 84 montre ses nouvelles ;
+  - la page du serveur arrive avec ses données, et le navigateur les garde même quand sa propre lecture ne répond pas.
+- Test du moteur : `the_server_page_starts_with_its_data`.

@@ -90,9 +90,18 @@ pub fn page_html(program: &Program, base: &str) -> Result<String, Error> {
 /// ses propres points, dans lesquels on peut entrer à leur tour. `titre` sert au monde, qui
 /// n'en a pas.
 pub fn site_html(program: &Program, page: &Block, base: &str, title: &str) -> Result<String, Error> {
+    site_html_from(program, page, base, title, None)
+}
+
+/// Les valeurs d'où part une page : ses nombres, ses textes et ses listes.
+pub type Start = (crate::state::State, crate::state::Texts, crate::lists::Lists);
+
+/// Fabrique la page d'un site à partir de ces valeurs, ou de son départ (`None`). Le serveur
+/// part des données qu'il a lues (ADR-064).
+pub fn site_html_from(program: &Program, page: &Block, base: &str, title: &str, start: Option<&Start>) -> Result<String, Error> {
     // Les mouvements de la page deviennent du CSS, ajouté à son style (ADR-034).
     crate::movement::begin();
-    let html = raw_site_html(program, page, base, title);
+    let html = raw_site_html(program, page, base, title, start);
     let movements = crate::movement::finish();
     let html = html?;
     if movements.is_empty() && !html.contains("holo-Scene") {
@@ -101,10 +110,14 @@ pub fn site_html(program: &Program, page: &Block, base: &str, title: &str) -> Re
     Ok(html.replacen("</style>", &format!("{}{movements}</style>", crate::movement::BASE), 1))
 }
 
-fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str) -> Result<String, Error> {
-    // Les listes, à leur départ : les lignes de `Repeat(over:)` sont fabriquées d'après elles.
-    let mut lists = crate::lists::initial(program);
-    let computed = crate::computed::apply(program, &crate::state::initial(program).unwrap_or_default(), &crate::state::initial_texts(program), &lists);
+fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start: Option<&Start>) -> Result<String, Error> {
+    // Les valeurs d'où part la page : son départ, ou celles que le serveur a données.
+    let (start_value, texts, mut lists) = match start {
+        Some((numbers, texts, lists)) => (numbers.clone(), texts.clone(), lists.clone()),
+        None => (crate::state::initial(program).unwrap_or_default(), crate::state::initial_texts(program), crate::lists::initial(program)),
+    };
+    // Les lignes de `Repeat(over:)` sont fabriquées d'après les listes, et les listes calculées.
+    let computed = crate::computed::apply(program, &start_value, &texts, &lists);
     lists.extend(computed);
     crate::lists::set_running(lists);
     if page.name != "Page" && page.name != "World" {
@@ -144,14 +157,12 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str) -> Re
         _ => classes(page),
     };
     // Les valeurs de la page, à leur départ, là où un texte les montre : « {cart} » (ADR-023).
-    let start_value = crate::state::initial(program).unwrap_or_default();
     let mut shown = crate::state::to_show(program, &start_value);
     // Une liste montre son nombre d'éléments, et une condition le compare (ADR-044).
     shown.extend(crate::lists::counts(&crate::lists::running()));
     // Les conditions, à leur départ : ce qui est faux est caché dès le premier affichage (ADR-025).
     // La réponse vient de `etat::conditions`, comme après chaque changement : une condition
     // n'est décidée qu'à un seul endroit.
-    let texts = crate::state::initial_texts(program);
     let responses = crate::state::conditions(program, &shown, &texts);
     let conditions = |html: String| fill_marks(html, &shown, &texts, &responses);
     body = conditions(body);
