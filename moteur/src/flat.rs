@@ -57,7 +57,7 @@ transition:left .12s linear,top .12s linear,transform .12s linear}\
 :where(.holo-Slider,.holo-Progress){display:flex;flex-direction:column;gap:4px;align-items:flex-start}:where(.holo-Slider input){width:min(100%,320px);accent-color:currentColor}\
 :where(.holo-Progress progress){width:min(100%,320px);accent-color:currentColor}\
 :where(.holo-Details summary){cursor:pointer;font-weight:bold}:where(.holo-Details[open] summary){margin-bottom:8px}\
-:where(.holo-Dialog){max-width:min(90vw,480px);border:1px solid currentColor;border-radius:12px;padding:16px 20px;color:inherit;background:var(--fond,Canvas)}\
+:where(.holo-Dialog){max-width:min(90vw,480px);border:1px solid currentColor;border-radius:12px;padding:16px 20px;color:inherit;background:var(--fond,Canvas)}.holo-Dialog:not([open]){display:none}\
 :where(.holo-Dialog)::backdrop{background:rgba(0,0,0,0.5)}:where(.holo-Dialog>*){margin:0 0 12px 0}:where(.holo-close){display:flex;justify-content:flex-end;margin:0}\
 :where(.holo-close button){font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;font-size:1.2em;line-height:1}\
 :where(.holo-Lines,.holo-line){display:contents}:where(.holo-Form){display:block}:where(.holo-error){font-weight:bold;margin:4px 0 0 0}:where(.holo-error)::before{content:\"⚠ \"}:where([aria-invalid=true]){outline:2px solid currentColor;outline-offset:2px}:where(.holo-Form>*){box-sizing:border-box;margin:0 0 16px 0}:where(.holo-Form>:not(.holo-Input)){display:block}\

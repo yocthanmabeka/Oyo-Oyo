@@ -530,6 +530,22 @@ const tests = [
       b.on("Fetch.requestPaused", null);
     }
   }],
+  ["une fenêtre fermée ne couvre pas la page (leçon 63, vu sur le téléphone)", async (p) => {
+    // Trouvé par Yocthan sur son téléphone, le 2026-10-07 : le lien vers la leçon 64 ne se
+    // laissait pas toucher, la fenêtre fermée restait posée dessus.
+    await p.open("/exemples/lecons/63-fenetre.holo");
+    const onTop = () => p.value(`(() => { const a = document.querySelector('a[href$="64-formulaire.holo"]'); a.scrollIntoView({ block: "center" }); const b = a.getBoundingClientRect(); return document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2)?.closest("a") === a; })()`);
+    const before = await onTop();
+    await p.click('[data-name="Demander"]');
+    const opened = await p.until(`!!document.querySelector("dialog[open]")`, 10000);
+    await p.click('[data-name="Non"]');
+    const closed = await p.until(`!document.querySelector("dialog[open]")`, 5000);
+    const after = await onTop();
+    await p.click('a[href$="64-formulaire.holo"]');
+    const moved = await p.until(`location.pathname.endsWith("64-formulaire.holo")`, 8000);
+    const ok = before && opened && closed && after && moved;
+    return [ok, `lien touchable avant : ${before} ; fenêtre ouverte : ${opened}, puis fermée : ${closed} ; lien touchable après : ${after} ; mène à la leçon 64 : ${moved}`];
+  }],
   ["un formulaire envoie son message", async (p) => {
     await p.open("/exemples/lecons/64-formulaire.holo");
     await p.type("#page input", "Ada");
