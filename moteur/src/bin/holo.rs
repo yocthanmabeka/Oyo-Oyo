@@ -172,6 +172,24 @@ fn main() -> ExitCode {
             source.push_str(&text);
         }
     }
+    // Les valeurs de l'adresse (ADR-078) : celles que donne le serveur (HOLO_ADDRESS=id=123, les
+    // morceaux tels qu'ils sont dans l'URL) ; ou, pour vérifier un modèle `profil/{id}.holo`, un
+    // texte vide par nom.
+    let address = std::env::var("HOLO_ADDRESS").ok();
+    if address.is_some() || !holo_engine::address::names(file).is_empty() {
+        let values: Vec<(String, String)> = match address {
+            Some(pairs) => pairs
+                .split('&')
+                .filter(|pair| !pair.is_empty())
+                .map(|pair| {
+                    let (name, raw) = pair.split_once('=').unwrap_or((pair, ""));
+                    (name.to_string(), raw.to_string())
+                })
+                .collect(),
+            None => holo_engine::address::empty_values(file),
+        };
+        source = holo_engine::address::joined(&source, &values);
+    }
     // L'heure du lieu, si le serveur la donne (HOLO_NOW=2026,10,6,2,14,5 : année, mois,
     // jour, jour de la semaine, heure, minute) ; sinon l'heure universelle (ADR-039).
     let datum: Option<Vec<u64>> = std::env::var("HOLO_NOW").ok().map(|v| v.split(',').filter_map(|n| n.trim().parse().ok()).collect());

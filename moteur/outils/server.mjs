@@ -8,6 +8,9 @@
 // Un fichier .holo s'ouvre directement : quand le navigateur demande son adresse pour l'afficher,
 // le serveur répond par la porte d'entrée du moteur, qui va ensuite chercher le fichier lui-même.
 // C'est le rôle que tiendra plus tard un navigateur qui sait lire le .holo.
+//
+// Une adresse peut porter des valeurs (ADR-078) : le fichier exemples/profil/{id}.holo sert
+// /exemples/profil/123 et /exemples/profil/ada ; la page lit {id} comme ses autres valeurs.
 
 import { createServer } from "node:http";
 import { appendFile, mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
@@ -56,14 +59,25 @@ const cache = new Map();
 // est fabriquée dans le navigateur, comme avant.
 const renderer = ["release", "debug"].flatMap((profile) => ["holo.exe", "holo"].map((name) => join(root, "target", profile, name))).find(existsSync);
 
-function prerenderedPage(template, holoPath, folder) {
+// Ce que le moteur reçoit de son environnement. Les valeurs d'une adresse (HOLO_ADDRESS,
+// ADR-078) ne vont qu'à la page qui en porte : jamais à une autre, même si le serveur a été
+// lancé avec cette variable.
+function engineEnv(address = "", more = {}) {
+  const env = { ...process.env, ...more };
+  delete env.HOLO_ADDRESS;
+  if (address) env.HOLO_ADDRESS = address;
+  return env;
+}
+
+// `address` : les valeurs de l'adresse pour un modèle (« nom=ada »), sinon rien.
+function prerenderedPage(template, holoPath, folder, address = "") {
   if (!renderer) return template;
   try {
     // L'heure du lieu, pour une page qui la lit (ADR-039) : le moteur la corrige ensuite avec
     // celle de l'appareil du visiteur.
     const d = new Date();
     const HOLO_NOW = [d.getFullYear(), d.getMonth() + 1, d.getDate(), ((d.getDay() + 6) % 7) + 1, d.getHours(), d.getMinutes()].join(",");
-    const html = execFileSync(renderer, ["html", holoPath, folder], { encoding: "utf8", timeout: 5000, maxBuffer: 4e6, env: { ...process.env, HOLO_NOW } }).trim();
+    const html = execFileSync(renderer, ["html", holoPath, folder], { encoding: "utf8", timeout: 5000, maxBuffer: 4e6, env: engineEnv(address, { HOLO_NOW }) }).trim();
     const title = /data-title="([^"]*)"/.exec(html)?.[1] || "HoloCode";
     // La langue, la description et l'image de partage de la page (ADR-038), dans l'en-tête :
     // pour les lecteurs d'écran, pour Google, et pour l'aperçu d'un lien partagé.
@@ -80,6 +94,60 @@ function prerenderedPage(template, holoPath, folder) {
   } catch {
     return template; // fichier refusé : la page d'entrée affichera l'erreur du moteur
   }
+}
+
+// Le modèle d'une adresse qui porte des valeurs (ADR-078), quand aucun fichier n'est à cette
+// adresse. On descend morceau par morceau depuis le dossier servi (/exemples/ → exemples/,
+// /mondes/ → moteur/mondes/, sinon web/) : le dossier de même nom s'il existe, sinon un dossier
+// nommé {x} ; pour le dernier morceau, un fichier {x}.holo. S'il y en a plusieurs, le premier par
+// ordre alphabétique. Un nom s'écrit comme une valeur : une minuscule, puis lettres et chiffres.
+// Rend le fichier, son adresse (/exemples/profil/{id}.holo : celle que le moteur de la page
+// demandera pour lire son texte) et les valeurs (« id=ada »), ou null.
+// Comme values() dans src/address.rs : chaque valeur est le morceau d'adresse tel qu'il est dans
+// l'URL (le moteur le décode), pas vide, 200 caractères au plus une fois décodé, sans caractère
+// de contrôle. Seuls les noms trouvés sur le disque sont suivis : jamais « .. ».
+const ADDRESS_NAME = /^\{([a-z][A-Za-z0-9]{0,39})\}$/;
+const ADDRESS_VALUE_MAX = 200;
+function decodedOrNull(raw) {
+  try { return decodeURIComponent(raw); } catch { return null; }
+}
+async function findModel(rawPath) {
+  const pieces = rawPath.replace(/^\/+/, "").replace(/\/+$/, "").split("/");
+  const [start, prefix] = pieces[0] === "exemples" ? [examples, "/exemples/"] : pieces[0] === "mondes" ? [worlds, "/mondes/"] : [join(root, "web"), "/"];
+  if (prefix !== "/") pieces.shift();
+  let folder = start;
+  const names = [];
+  const values = [];
+  for (const [rank, raw] of pieces.entries()) {
+    const last = rank === pieces.length - 1;
+    const piece = decodedOrNull(raw);
+    if (piece === null) return null;
+    let entries;
+    try { entries = await readdir(folder, { withFileTypes: true }); } catch { return null; }
+    let name = !last && entries.some((e) => e.isDirectory() && e.name === piece) ? piece : null;
+    if (name === null) {
+      const stem = (e) => (last ? e.name.slice(0, -".holo".length) : e.name);
+      name = entries.filter((e) => (last ? e.isFile() && e.name.endsWith(".holo") : e.isDirectory()) && ADDRESS_NAME.test(stem(e))).map((e) => e.name).sort()[0];
+      if (!name || !piece || [...piece].length > ADDRESS_VALUE_MAX || /\p{Cc}/u.test(piece)) return null;
+      // « & » et « = » séparent les valeurs et leurs noms pour le moteur : dans une valeur, ils
+      // s'écrivent %26 et %3D (le même texte, une fois décodé). Sinon /profil/a&b=c donnerait
+      // id=a, et une valeur b en plus.
+      values.push(`${ADDRESS_NAME.exec(last ? name.slice(0, -".holo".length) : name)[1]}=${raw.replaceAll("&", "%26").replaceAll("=", "%3D")}`);
+    }
+    names.push(name);
+    folder = join(folder, name);
+  }
+  if (!values.length) return null;
+  const url = prefix + names.join("/");
+  return { file: folder, url, folder: url.slice(0, url.lastIndexOf("/") + 1), values: values.join("&") };
+}
+
+// La page d'une adresse qui porte des valeurs : fabriquée par le moteur avec ces valeurs, et le
+// modèle nommé dans l'en-tête (<meta name="holo-file">), pour que le moteur de la page lise ce
+// fichier-là. La balise est posée même si le moteur refuse le fichier : la page dira l'erreur.
+function addressPage(template, model) {
+  const content = model.url.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return prerenderedPage(template, model.file, model.folder, model.values).replace('<meta charset="utf-8">', () => `<meta charset="utf-8"><meta name="holo-file" content="${content}">`);
 }
 
 async function file(path) {
@@ -196,7 +264,9 @@ async function folderSize(folder) {
   for (const e of await readdir(folder, { withFileTypes: true }).catch(() => [])) if (e.isFile()) total += (await stat(join(folder, e.name))).size;
   return total;
 }
-async function receiveMessage(req, res, url, pageHolo) {
+// `model` : la page d'une adresse qui porte des valeurs (ADR-078) ; elle est vérifiée avec ces
+// valeurs, comme elle a été fabriquée.
+async function receiveMessage(req, res, url, pageHolo, model = null) {
   const multipart = /^multipart\/form-data/i.test(req.headers["content-type"] ?? "");
   const chunks = [];
   let size = 0;
@@ -221,19 +291,21 @@ async function receiveMessage(req, res, url, pageHolo) {
   // bornes. La page peut être contournée ; le serveur, non.
   if (renderer) {
     try {
-      execFileSync(renderer, ["form", pageHolo], { input: body, encoding: "utf8", timeout: 5000 });
+      execFileSync(renderer, ["form", pageHolo], { input: body, encoding: "utf8", timeout: 5000, env: engineEnv(model?.values) });
     } catch (error) {
       const errors = String(error.stdout ?? "").trim();
       return respond(res, errors ? 422 : 400, errors || "page refusée par le moteur");
     }
   }
-  const name = url.replace(/^\/+/, "").replace(/\.holo$/, "").replace(/[^A-Za-z0-9_-]+/g, "_");
+  // Un fichier par page .holo. Les adresses d'un modèle sont sans nombre, la place gardée ne
+  // l'est pas : elles partagent le fichier du modèle, et chaque message garde son adresse.
+  const name = (model?.url ?? url).replace(/^\/+/, "").replace(/\.holo$/, "").replace(/[^A-Za-z0-9_-]+/g, "_");
   if (receivedFiles.length) {
     // Ce que la page permet, demandé au moteur : jamais à ce que dit le navigateur.
     if (!renderer) return respond(res, 501, "le moteur n'est pas construit : ce serveur ne reçoit pas de fichiers");
     let allowed;
     try {
-      allowed = execFileSync(renderer, ["files", pageHolo], { encoding: "utf8", timeout: 5000 }).split("\n").filter(Boolean).map((l) => l.split("|"));
+      allowed = execFileSync(renderer, ["files", pageHolo], { encoding: "utf8", timeout: 5000, env: engineEnv(model?.values) }).split("\n").filter(Boolean).map((l) => l.split("|"));
     } catch { return respond(res, 400, "page refusée par le moteur"); }
     const folder = join(messages, "files", name);
     let place = FILES_PER_PAGE_MAX - (await folderSize(folder));
@@ -355,7 +427,10 @@ function respond(res, code, text) {
 
 createServer(async (req, res) => {
   try {
-    let url = decodeURIComponent(new URL(req.url, "http://x").pathname);
+    // L'adresse telle qu'elle est dans l'URL (encodée), et décodée.
+    const rawPath = new URL(req.url, "http://x").pathname;
+    let url;
+    try { url = decodeURIComponent(rawPath); } catch { return respond(res, 400, "adresse mal encodée"); }
     if (req.method === "PUT") return await saveFile(req, res, url);
     if (url === "/liste-holo") {
       res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-cache" });
@@ -370,11 +445,16 @@ createServer(async (req, res) => {
     if (url === "/stack/listen") return listenToStack(req, res);
     if (url === "/stack/show" && req.method === "POST") return await showInStack(req, res);
     if (req.method === "POST") {
-      if (!url.endsWith(".holo") || !/application\/json|multipart\/form-data/.test(req.headers["content-type"] ?? "")) return respond(res, 405, "seul un formulaire d'une page .holo envoie ici");
-      // Seulement pour une page qui existe, parmi les exemples servis.
+      const refused = () => respond(res, 405, "seul un formulaire d'une page .holo envoie ici");
+      if (!/application\/json|multipart\/form-data/.test(req.headers["content-type"] ?? "")) return refused();
+      // Seulement pour une page qui existe, parmi les exemples servis : un fichier .holo, ou
+      // l'adresse d'un modèle (ADR-078), où la page envoie son formulaire ; il est alors vérifié
+      // avec les valeurs de cette adresse.
       const pageHolo = url.startsWith("/exemples/") ? join(examples, normalize(url.slice("/exemples/".length))) : "";
-      if (!pageHolo.startsWith(examples) || !existsSync(pageHolo)) return respond(res, 404, "page introuvable");
-      return await receiveMessage(req, res, url, pageHolo);
+      if (url.endsWith(".holo") && pageHolo.startsWith(examples) && existsSync(pageHolo)) return await receiveMessage(req, res, url, pageHolo);
+      const model = url.startsWith("/exemples/") ? await findModel(rawPath) : null;
+      if (model) return await receiveMessage(req, res, url, model.file, model);
+      return url.endsWith(".holo") ? respond(res, 404, "page introuvable") : refused();
     }
     // Le retard ne compte qu'une fois, sur la première pièce du moteur.
     if (url === "/page-engine.js" && engineMode === "slow") await new Promise((r) => setTimeout(r, Number(engineDelay) || 5000));
@@ -388,16 +468,22 @@ createServer(async (req, res) => {
       ? join(examples, normalize(url.slice("/exemples/".length)))
       : inWorlds ? join(worlds, normalize(url.slice("/mondes/".length))) : join(root, "web", normalize(url));
     if (!path.startsWith(inExamples ? examples : inWorlds ? worlds : root)) throw Object.assign(new Error("hors racine"), { code: "ENOENT" });
+    // Aucun fichier à cette adresse : peut-être un modèle qui la sert (ADR-078). Sa page est
+    // fabriquée comme celle d'un .holo, avec les valeurs de l'adresse.
+    const model = existsSync(path) ? null : await findModel(rawPath);
     // Un .holo demandé pour être affiché (et non lu par le moteur) : on sert la porte d'entrée,
     // celle des pages ou celle des points selon le premier bloc du fichier.
-    const forDisplay = extname(path) === ".holo" && /text\/html/.test(req.headers.accept ?? "");
-    let toServe = path;
+    const forDisplay = !model && extname(path) === ".holo" && /text\/html/.test(req.headers.accept ?? "");
+    let toServe = model ? join(root, "web", "page.html") : path;
     if (forDisplay) {
       const source = (await readFile(path, "utf8")).replace(/\/\/.*$/gm, "");
       toServe = join(root, "web", /^\s*Point/.test(source) ? "index.html" : "page.html");
     }
     let { raw, br } = await file(toServe);
-    if (forDisplay && toServe.endsWith("page.html")) {
+    if (model) {
+      raw = Buffer.from(addressPage(raw.toString("utf8"), model));
+      br = brotliCompressSync(raw, { params: { [constants.BROTLI_PARAM_QUALITY]: 5 } });
+    } else if (forDisplay && toServe.endsWith("page.html")) {
       raw = Buffer.from(prerenderedPage(raw.toString("utf8"), path, url.slice(0, url.lastIndexOf("/") + 1)));
       br = brotliCompressSync(raw, { params: { [constants.BROTLI_PARAM_QUALITY]: 5 } });
     }

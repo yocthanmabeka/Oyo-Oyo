@@ -19,6 +19,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 95 : un article long", to: "95-un-article-long.holo"),
+      A("Leçon 100 : une adresse qui porte une valeur →", to: "100-une-adresse-qui-porte-une-valeur.holo"),
     ]),
   ],
 )

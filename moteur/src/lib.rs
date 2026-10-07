@@ -13,6 +13,7 @@
 //! La partie qui parle au navigateur et à la carte graphique (`web`, `rendu`) n'est
 //! compilée que pour WebAssembly.
 
+pub mod address;
 pub mod blocks;
 pub mod components;
 pub mod computed;
@@ -651,6 +652,11 @@ mod tests {
 ").skip(1).map(|suite| suite.split("```").next().unwrap()).collect();
         assert!(examples.len() >= 11, "le guide a perdu ses exemples : {}", examples.len());
         for example in examples {
+            // Un modèle d'adresse se nomme sur sa première ligne, `// profil/{id}.holo` (ADR-078) :
+            // il se vérifie comme `holo check`, chaque nom valant un texte vide.
+            let file = example.trim_start().strip_prefix("// ").and_then(|l| l.lines().next()).unwrap_or("");
+            let joined = if file.ends_with(".holo") && !address::names(file).is_empty() { address::joined(example, &address::empty_values(file)) } else { example.to_string() };
+            let example = joined.as_str();
             // Une page passe toutes les vérifications et se fabrique ; un point seul s'ouvre en
             // profondeur ; un morceau (un fichier fait pour être importé) est vérifié sans être affiché.
             let start = example.trim_start();

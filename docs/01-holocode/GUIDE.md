@@ -1419,6 +1419,30 @@ Page(
 
 Cette écriture est décidée (`ADR-045`). La leçon est `69-module-enferme.holo` ; ses trois modules, dans `exemples/lecons/modules/`.
 
+## 6 undetricies. Des adresses qui portent des valeurs : `profil/{id}.holo`
+
+Un fichier nommé `profil/{id}.holo` sert toutes les adresses `/profil/123`, `/profil/ada` :
+
+```holo
+// profil/{id}.holo
+Page(
+  title: "Profile",
+  children: [
+    H1("Hello, {id}"),
+    If(id, is: "ada", children: [ P("Ada wrote the first program.") ]),
+    A("← All the profiles", to: "../profiles.holo"),
+  ],
+)
+```
+
+- **`{id}` dans le nom du fichier** : la page le lit comme ses autres valeurs, un texte, `{id}` ou `If(id, is: "ada")`. Des dossiers aussi : `{author}/notes/{note}.holo`. Un vrai fichier passe avant le modèle.
+- On la lit, on ne la change pas : `id.set(…)`, `Input(value: id)` et `State(id: …)` sont refusés.
+- `holo serve` (`ADR-074`) fabrique la page de l'adresse, avec ou sans JavaScript, garde l'état de chaque visiteur pour cette adresse, et range un formulaire envoyé de là avec son adresse ; `/contact` mène aussi à `contact.holo`.
+- `holo check profil/{id}.holo` vérifie le modèle, chaque nom valant un texte vide.
+- **Un lien remonte d'un dossier**, comme sur le web : `A(to: "../profiles.holo")` ; il porte aussi des lettres accentuées, `A(to: "profil/Adé")`.
+
+Cette écriture est proposée (`ADR-078`) ; la forme, l'adresse dite par le nom du fichier, est celle choisie par Yocthan. La leçon est `100-une-adresse-qui-porte-une-valeur.holo`.
+
 ## 6 sexvicies. La mise en page : téléphone, ordinateur, la place, ce qui dépasse, les proportions, le curseur, justifié, décrocher
 
 ```holo

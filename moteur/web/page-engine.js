@@ -28,12 +28,57 @@
   window.__holoImages = frames_drawn; // combien d'images le moteur a dessinées : pour vérifier la sobriété
   const params = new URLSearchParams(location.search);
   window.__holoWithoutWebGPU = params.has("webgl"); // ?webgl : mesurer le mode de secours, WebGL 2
-  // L'adresse est celle du fichier .holo lui-même ; sinon ?world=… ou la boutique d'exemple.
+  // Le fichier de la page : celui que le serveur nomme dans l'en-tête (<meta name="holo-file">),
+  // quand l'adresse n'est pas celle du fichier (/contact → /contact.holo ; /profil/ada → son
+  // modèle /profil/{id}.holo, ADR-078). Sinon l'adresse est celle du fichier .holo lui-même ;
+  // sinon ?world=… ou la boutique d'exemple.
   // Ce fichier peut changer en cours de route : on passe d'un fichier à l'autre par un point,
   // sans recharger la page.
-  let path = location.pathname.endsWith(".holo") ? location.pathname : params.get("world") ?? "/exemples/boutique-comparee/boutique.holo";
+  const named = document.querySelector('meta[name="holo-file"]')?.getAttribute("content") || "";
+  let path = named || (location.pathname.endsWith(".holo") ? location.pathname : params.get("world") ?? "/exemples/boutique-comparee/boutique.holo");
   let base = path.slice(0, path.lastIndexOf("/") + 1);
   const folderOf = (file) => file.slice(0, file.lastIndexOf("/") + 1);
+  // Le fichier de la page et l'adresse où l'on est arrivé. Quand le serveur les distingue, un
+  // formulaire est envoyé à l'adresse (le serveur y retrouve les valeurs d'un modèle), et
+  // revenir à cette adresse, c'est revenir à ce fichier.
+  const pageFile = path;
+  const arrival = location.pathname;
+  const fileAt = (address) => (named && address === arrival ? pageFile : address);
+  const addressOf = (file) => (named && file === pageFile ? arrival : file);
+
+  // Les valeurs de l'adresse (ADR-078) : le modèle /profil/{id}.holo, à l'adresse /profil/ada,
+  // reçoit « id=ada », chaque valeur telle qu'elle est dans l'URL (le moteur la décode). La même
+  // règle que values() dans src/address.rs : autant de morceaux ; un morceau {nom} prend le sien,
+  // pas vide, 200 caractères au plus une fois décodé, sans caractère de contrôle ; les autres
+  // sont les mêmes. Le modèle ouvert lui-même (…/{id}.holo), ou une adresse qui ne lui correspond
+  // pas, reçoit un texte vide par nom, comme pour holo check. null : un fichier sans accolades.
+  function addressValues(file, here) {
+    const braces = (text) => text.replace(/%7B/gi, "{").replace(/%7D/gi, "}");
+    const decoded = (text) => { try { return decodeURIComponent(text); } catch { return null; } };
+    const wanted = braces(file).replace(/\.holo$/, "").replace(/^\/+/, "").split("/");
+    const nameOf = (piece) => /^\{(.*)\}$/.exec(piece)?.[1];
+    const names = wanted.map(nameOf).filter((name) => name !== undefined);
+    if (!names.length) return null;
+    const empty = names.map((name) => `${name}=`).join("&");
+    const got = here.replace(/^\/+/, "").replace(/\/+$/, "").split("/");
+    if (braces(file) === braces(here) || got.length !== wanted.length) return empty;
+    const values = [];
+    for (const [rank, piece] of wanted.entries()) {
+      const name = nameOf(piece);
+      const value = decoded(got[rank]);
+      if (name === undefined) {
+        if (value === null || value !== decoded(piece)) return empty;
+      } else if (!/^[a-z][A-Za-z0-9]{0,39}$/.test(name) || !value || [...value].length > 200 || /\p{Cc}/u.test(value)) {
+        return empty;
+      } else {
+        // « & » et « = » séparent les valeurs et leurs noms pour le moteur : dans une valeur,
+        // ils s'écrivent %26 et %3D (le même texte, une fois décodé).
+        values.push(`${name}=${got[rank].replaceAll("&", "%26").replaceAll("=", "%3D")}`);
+      }
+    }
+    return values.join("&");
+  }
+  const pageAddress = addressValues(pageFile, arrival);
   // Les fichiers déjà lus, par adresse : leur texte, ou null s'ils sont introuvables ou refusés.
   const readFiles = new Map();
   // Garde-fou : on ne garde en mémoire que les derniers fichiers lus. On peut passer d'un
@@ -130,6 +175,9 @@
         if (response.ok) all += `\u001e${name}\u001f${(await response.text()).slice(0, BYTES_MAX)}`;
       } catch { /* introuvable : le moteur le dira, avec la ligne de l'import */ }
     }
+    // Les valeurs de l'adresse (ADR-078), jointes après la page et ses imports comme un fichier
+    // nommé « @adresse » : seulement pour le fichier de la page, pas pour un autre lu en route.
+    if (file === pageFile && pageAddress !== null) all += `\u001e@adresse\u001f${pageAddress}`;
     return all;
   }
 
@@ -230,7 +278,7 @@
     // y était. Pour un fichier d'ailleurs, l'adresse garde donc le fichier de départ, suivi de
     // #@ et de l'adresse où l'on est vraiment.
     if (inHistory) {
-      history.pushState({ since }, "", fromElsewhere(file) ? `#@${fullAddress(file)}` : file + (sitePath ? `#${sitePath}` : ""));
+      history.pushState({ since }, "", fromElsewhere(file) ? `#@${fullAddress(file)}` : addressOf(file) + (sitePath ? `#${sitePath}` : ""));
     }
     displaySite(sitePath, { inHistory: false });
     return true;
@@ -1356,7 +1404,8 @@
     const stop = new AbortController();
     const late = setTimeout(() => stop.abort(), 15000);
     try {
-      const response = await fetch(path, { ...request, signal: stop.signal });
+      // À l'adresse de la page : pour un modèle (ADR-078), le serveur y retrouve les valeurs.
+      const response = await fetch(addressOf(path), { ...request, signal: stop.signal });
       arrived = response.ok;
     } catch { /* pas de réseau, pas de serveur pour recevoir, ou trop lent */ }
     clearTimeout(late);
@@ -1520,15 +1569,16 @@
     // Une adresse en #@… désigne le fichier d'un autre serveur : on propose le passage.
     if (siteStart.startsWith("@")) proposePassage(siteStart.slice(1));
     // « Revenir » : par où l'on est venu, ou, si l'on est arrivé directement, au fichier de départ.
-    document.querySelector("#origin button").addEventListener("click", () => (history.state?.since ? history.back() : openFile(location.pathname)));
+    document.querySelector("#origin button").addEventListener("click", () => (history.state?.since ? history.back() : openFile(fileAt(location.pathname))));
     // Le bouton « retour » du navigateur, ou une adresse changée à la main.
     addEventListener("popstate", () => {
       const sitePath = decodeURIComponent(location.hash.slice(1));
+      const here = fileAt(location.pathname);
       // L'adresse désigne un autre fichier : on y passe, toujours sans recharger.
       // Un fichier d'ailleurs déjà lu pendant cette visite : le visiteur l'avait choisi. Sinon, on propose.
       if (sitePath.startsWith("@") && readFiles.has(sitePath.slice(1))) openFile(sitePath.slice(1), "", { inHistory: false });
       else if (sitePath.startsWith("@")) proposePassage(sitePath.slice(1));
-      else if (location.pathname !== path && location.pathname.endsWith(".holo")) openFile(location.pathname, sitePath, { inHistory: false });
+      else if (here !== path && here.endsWith(".holo")) openFile(here, sitePath, { inHistory: false });
       // Un lien vers un endroit de la page (ADR-042) : le navigateur y descend, rien d'autre.
       else if (pageSpot(sitePath)) return;
       else displaySite(sitePath, { inHistory: false });

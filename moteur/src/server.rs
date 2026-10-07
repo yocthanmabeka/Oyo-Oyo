@@ -110,6 +110,9 @@ impl Site {
         .map_err(|e| e.to_string())?;
         // Une base faite avant les formulaires (ADR-075) reçoit leur colonne.
         let _ = base.execute("ALTER TABLE visits ADD COLUMN tried TEXT NOT NULL DEFAULT ''", []);
+        // Le modèle de la page qui reçoit un message (ADR-078) : le quota se compte par modèle, pour
+        // qu'on ne remplisse pas la base en inventant des adresses ; chaque message garde la sienne.
+        let _ = base.execute("ALTER TABLE messages ADD COLUMN model TEXT NOT NULL DEFAULT ''", []);
         base.execute("DELETE FROM visits WHERE updated < ?1", params![now().saturating_sub(FORGET_AFTER) as i64]).map_err(|e| e.to_string())?;
         Ok(Site { folder, web: web.to_path_buf(), base: Mutex::new(base) })
     }
@@ -118,20 +121,23 @@ impl Site {
     pub fn answer(&self, ask: &Ask) -> Reply {
         let Some(path) = url_path(ask.url) else { return Reply::text(400, "adresse illisible") };
         let path = if path == "/" { "/index.holo".to_string() } else { path };
+        // L'adresse telle qu'elle est dans l'URL, encodée : les valeurs d'un modèle en viennent (ADR-078).
+        let raw = ask.url.split(['?', '#']).next().unwrap_or("/");
         match ask.method {
-            "GET" | "HEAD" => self.get(ask, &path),
-            "POST" => self.gesture(ask, &path),
+            "GET" | "HEAD" => self.get(ask, &path, raw),
+            "POST" => self.gesture(ask, &path, raw),
             _ => Reply::text(405, "seuls GET et POST sont reçus"),
         }
     }
 
-    fn get(&self, ask: &Ask, path: &str) -> Reply {
-        let Some(file) = self.find(path) else { return Reply::text(404, "introuvable") };
+    fn get(&self, ask: &Ask, path: &str, raw: &str) -> Reply {
+        let Some((file, holo, values)) = self.locate(path, raw) else { return Reply::text(404, "introuvable") };
         // Un .holo demandé pour être affiché : sa page, fabriquée pour ce visiteur. Demandé par le
-        // moteur (`text/plain`), le fichier lui-même.
-        if path.ends_with(".holo") && ask.accept.contains("text/html") {
+        // moteur (`text/plain`), le fichier lui-même. Une adresse sans `.holo` (`/contact`, un
+        // modèle `profil/{id}.holo`) est toujours une page (ADR-078).
+        if holo.ends_with(".holo") && (ask.accept.contains("text/html") || holo != path) {
             let visit = visitor_of(ask.cookie).and_then(|visitor| self.stored(&visitor, path));
-            return match self.page(&file, path, visit) {
+            return match self.page(&file, path, &holo, &values, visit) {
                 Ok(html) => {
                     let mut reply = Reply { status: 200, headers: vec![("Content-Type".into(), "text/html; charset=utf-8".into())], body: html.into_bytes() };
                     reply.headers.extend(common_headers());
@@ -152,18 +158,18 @@ impl Site {
 
     /// Un toucher envoyé sans JavaScript (ADR-074) : le même arbitre, puis la page à jour par
     /// une nouvelle demande (`303`), pour qu'un rechargement ne rejoue pas le geste.
-    fn gesture(&self, ask: &Ask, path: &str) -> Reply {
-        if !path.ends_with(".holo") {
+    fn gesture(&self, ask: &Ask, path: &str, raw: &str) -> Reply {
+        let Some((file, holo, values)) = self.locate(path, raw) else { return Reply::text(404, "page introuvable") };
+        if !holo.ends_with(".holo") {
             return Reply::text(405, "seule une page .holo reçoit des gestes");
         }
-        let Some(file) = self.find(path) else { return Reply::text(404, "page introuvable") };
         // Une page d'un autre site ne fait pas toucher les boutons de celle-ci.
         if !ask.origin.is_empty() && ask.origin.split("://").nth(1) != Some(ask.host) {
             return Reply::text(403, "ce geste vient d'un autre site");
         }
         // Un formulaire envoyé par le moteur, en JSON, avec ou sans fichiers (ADR-075).
         if ask.content_type.starts_with("application/json") || ask.content_type.starts_with("multipart/form-data") {
-            return self.message(ask, path, &file);
+            return self.message(ask, path, &holo, &file, &values);
         }
         if !ask.content_type.starts_with("application/x-www-form-urlencoded") {
             return Reply::text(415, "un geste, ou un formulaire en JSON");
@@ -171,7 +177,7 @@ impl Site {
         if ask.body.len() as u64 > BODY_MAX {
             return Reply::text(413, "formulaire trop lourd");
         }
-        let Ok(source) = read_with_imports(&file) else { return Reply::text(404, "page introuvable") };
+        let Ok(source) = source_at(&file, &values) else { return Reply::text(404, "page introuvable") };
         set_clock();
         let (visitor, new_visitor) = match visitor_of(ask.cookie) {
             Some(visitor) => (visitor, false),
@@ -190,7 +196,7 @@ impl Site {
                 continue;
             }
             let submission = crate::submission(&source, &visit.state, form);
-            let outcome = if self.keep_message(path, form, &submission, "[]").is_ok() { "sent" } else { "failed" };
+            let outcome = if self.keep_message(path, &holo, form, &submission, "[]").is_ok() { "sent" } else { "failed" };
             visit.state = without_sounds(&crate::arbitrate(&source, &visit.state, &format!("{form}.{outcome}")));
         }
         if visit.state.len() <= STATE_MAX {
@@ -202,6 +208,46 @@ impl Site {
         }
         headers.extend(common_headers());
         Reply { status: 303, headers, body: Vec::new() }
+    }
+
+    /// Le fichier d'une page, et ce qui la décrit (ADR-078) : le fichier même de l'adresse ; sinon
+    /// la même adresse avec `.holo` (`/contact` → `contact.holo`) ; sinon un modèle
+    /// (`profil/{id}.holo` pour `/profil/123`). Rend le fichier, son adresse `.holo` (celle que le
+    /// moteur du navigateur lit) et les valeurs de l'adresse.
+    fn locate(&self, path: &str, raw: &str) -> Option<(PathBuf, String, Vec<(String, String)>)> {
+        if let Some(file) = self.find(path) {
+            // Un modèle ouvert lui-même : un texte vide par nom, comme `holo check`.
+            return Some((file, path.to_string(), crate::address::empty_values(path)));
+        }
+        if !path.ends_with(".holo") {
+            let plain = format!("{path}.holo");
+            if let Some(file) = self.find(&plain) {
+                return Some((file, plain, Vec::new()));
+            }
+        }
+        self.template(raw)
+    }
+
+    /// Le modèle d'une adresse : morceau par morceau, le dossier du même nom, sinon un dossier
+    /// `{x}` ; pour le dernier, un fichier `{x}.holo`. Jamais la base, ni un dossier caché.
+    fn template(&self, raw: &str) -> Option<(PathBuf, String, Vec<(String, String)>)> {
+        let parts: Vec<&str> = raw.trim_start_matches('/').trim_end_matches('/').split('/').collect();
+        let mut folder = self.folder.clone();
+        let mut pattern = String::new();
+        for (i, part) in parts.iter().enumerate() {
+            let last = i + 1 == parts.len();
+            let decoded = crate::address::decode(part)?;
+            if decoded.is_empty() || decoded.starts_with('.') || decoded.contains(['\\', ':']) || (i == 0 && decoded == DATA_FOLDER) {
+                return None;
+            }
+            let exact = folder.join(&decoded);
+            let name = if !last && exact.is_dir() { decoded } else { holder(&folder, last)? };
+            folder = folder.join(&name);
+            pattern.push('/');
+            pattern.push_str(&name);
+        }
+        let values = crate::address::values(&pattern, raw)?;
+        Some((folder, pattern, values))
     }
 
     /// Le fichier d'une adresse : dans le site d'abord, puis dans le moteur. Jamais la base, un
@@ -216,15 +262,19 @@ impl Site {
 
     /// La page d'entrée, avec la page du fichier déjà fabriquée dedans, comme le fait
     /// outils/server.mjs. Un fichier de points (`Point`) ouvre la porte des mondes.
-    fn page(&self, file: &Path, path: &str, visit: Option<Visit>) -> Result<String, String> {
-        let source = read_with_imports(file).map_err(|e| e.to_string())?;
+    fn page(&self, file: &Path, path: &str, holo: &str, values: &[(String, String)], visit: Option<Visit>) -> Result<String, String> {
+        let source = source_at(file, values).map_err(|e| e.to_string())?;
         if source.lines().map(|line| line.split("//").next().unwrap_or("").trim()).find(|line| !line.is_empty()).is_some_and(|line| line.starts_with("Point")) {
             return std::fs::read_to_string(self.web.join("index.html")).map_err(|e| e.to_string());
         }
         let template = std::fs::read_to_string(self.web.join("page.html")).map_err(|e| format!("page d'entrée du moteur introuvable : {e}"))?;
         set_clock();
         let visit = visit.unwrap_or_else(|| Visit { state: starting_state(&source, file), tried: Vec::new() });
-        let base = &path[..=path.rfind('/').unwrap_or(0)];
+        let _ = path;
+        let base = &holo[..=holo.rfind('/').unwrap_or(0)];
+        // Le fichier de la page (ADR-078) : le moteur du navigateur y lit son texte, même quand
+        // l'adresse ne le dit pas (`/contact`, un modèle `profil/{id}.holo`).
+        let template = template.replacen("<title>HoloCode</title>", &format!("<title>HoloCode</title><meta name=\"holo-file\" content=\"{}\">", crate::flat::escape(holo)), 1);
         // Un fichier refusé : la page d'entrée seule, qui affichera l'erreur du moteur.
         let Ok(html) = crate::visitor_page(&source, base, &visit.state, &visit.tried) else { return Ok(template) };
         Ok(filled_template(&template, &html))
@@ -254,7 +304,7 @@ impl Site {
     /// Un formulaire envoyé par le moteur du navigateur (ADR-042, ADR-059), reçu ici (ADR-075) :
     /// vérifié à nouveau par le moteur (la page peut être contournée, le serveur non), ses
     /// fichiers reconnus à leurs premiers octets, puis rangé dans la base. `204`, ou le refus.
-    fn message(&self, ask: &Ask, path: &str, file: &Path) -> Reply {
+    fn message(&self, ask: &Ask, path: &str, holo: &str, file: &Path, values: &[(String, String)]) -> Reply {
         let multipart = ask.content_type.starts_with("multipart/form-data");
         if ask.body.len() as u64 > if multipart { WITH_FILES_MAX } else { MESSAGE_MAX as u64 } {
             return Reply::text(413, "message trop long");
@@ -267,7 +317,7 @@ impl Site {
         } else {
             (String::from_utf8_lossy(ask.body).into_owned(), Vec::new())
         };
-        let Ok(source) = read_with_imports(file) else { return Reply::text(404, "page introuvable") };
+        let Ok(source) = source_at(file, values) else { return Reply::text(404, "page introuvable") };
         match crate::check_submission(&source, &json) {
             Ok(errors) if errors.is_empty() => {}
             Ok(errors) => return Reply::text(422, &errors),
@@ -306,20 +356,20 @@ impl Site {
             }
             kept.push(format!("{{\"field\":\"{field}\",\"file\":\"files/{}/{name}\",\"size\":{}}}", page_name(path), bytes.len()));
         }
-        match self.keep_message(path, form, &json, &format!("[{}]", kept.join(","))) {
+        match self.keep_message(path, holo, form, &json, &format!("[{}]", kept.join(","))) {
             Ok(()) => Reply { status: 204, headers: common_headers(), body: Vec::new() },
             Err(reply) => reply,
         }
     }
 
     /// Range un message dans la base, sauf si la page en garde déjà trop.
-    fn keep_message(&self, path: &str, form: &str, submission: &str, files: &str) -> Result<(), Reply> {
+    fn keep_message(&self, path: &str, model: &str, form: &str, submission: &str, files: &str) -> Result<(), Reply> {
         let base = self.base.lock().map_err(|_| Reply::text(500, "base indisponible"))?;
-        let already: i64 = base.query_row("SELECT COALESCE(SUM(LENGTH(submission)), 0) FROM messages WHERE page = ?1", params![path], |row| row.get(0)).map_err(|_| Reply::text(500, "base illisible"))?;
+        let already: i64 = base.query_row("SELECT COALESCE(SUM(LENGTH(submission)), 0) FROM messages WHERE model = ?1", params![model], |row| row.get(0)).map_err(|_| Reply::text(500, "base illisible"))?;
         if already > MESSAGES_PER_PAGE_MAX {
             return Err(Reply::text(507, "trop de messages gardés pour cette page"));
         }
-        base.execute("INSERT INTO messages (received, page, form, submission, files) VALUES (?1, ?2, ?3, ?4, ?5)", params![now() as i64, path, form, submission, files])
+        base.execute("INSERT INTO messages (received, page, model, form, submission, files) VALUES (?1, ?2, ?3, ?4, ?5, ?6)", params![now() as i64, path, model, form, submission, files])
             .map_err(|_| Reply::text(500, "message impossible à ranger"))?;
         println!("Message reçu : {path} ({form})");
         Ok(())
@@ -577,6 +627,29 @@ fn starting_state(source: &str, file: &Path) -> String {
     without_sounds(&state)
 }
 
+/// Le texte d'une page, avec ses imports, puis les valeurs de son adresse (ADR-078).
+fn source_at(file: &Path, values: &[(String, String)]) -> std::io::Result<String> {
+    let source = read_with_imports(file)?;
+    Ok(if values.is_empty() { source } else { crate::address::joined(&source, values) })
+}
+
+/// Le dossier `{x}`, ou pour le dernier morceau le fichier `{x}.holo`, d'un dossier ; le premier
+/// par ordre alphabétique s'il y en a plusieurs.
+fn holder(folder: &Path, last: bool) -> Option<String> {
+    let mut found: Vec<String> = std::fs::read_dir(folder)
+        .ok()?
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| if last { entry.path().is_file() } else { entry.path().is_dir() })
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .filter(|name| {
+            let stem = if last { name.strip_suffix(".holo") } else { Some(name.as_str()) };
+            stem.and_then(|s| s.strip_prefix('{')?.strip_suffix('}')).is_some_and(crate::address::valid_name)
+        })
+        .collect();
+    found.sort();
+    found.into_iter().next()
+}
+
 /// Le texte d'un fichier, avec les fichiers qu'il importe joints à la suite, lus à côté de lui.
 fn read_with_imports(file: &Path) -> std::io::Result<String> {
     let mut source = std::fs::read_to_string(file)?;
@@ -673,6 +746,53 @@ mod tests {
 
     fn ask<'a>(method: &'a str, url: &'a str, cookie: &'a str, body: &'a [u8]) -> Ask<'a> {
         Ask { method, url, accept: "text/html", cookie, content_type: "application/x-www-form-urlencoded", origin: "", host: "localhost:8080", body }
+    }
+
+    #[test]
+    fn an_address_carries_a_value_with_and_without_javascript() {
+        // ADR-078 : `profils/{nom}.holo` sert `/profils/ada` ; la page lit `{nom}`, sans le changer.
+        let (site, folder) = site();
+        std::fs::create_dir_all(folder.join("profils")).unwrap();
+        std::fs::write(
+            folder.join("profils").join("{nom}.holo"),
+            "Page(title: \"Profil\", state: State(likes: 0, email: \"\"), children: [ H1(\"Bonjour, {nom}\"), If(nom, is: \"ada\", children: [ P(\"Ada a écrit le premier programme.\") ]), P(\"J'aime : {likes}\"), Button(name: Like, text: \"J'aime\"), Form(name: Contact, children: [ Input(value: email, type: email, label: \"E-mail\", required: true), Button(name: Send, text: \"Envoyer\") ]) ], rules: [ On(Like.tap, effect: likes.add(1)), On(Send.tap, effect: Contact.send) ])",
+        )
+        .unwrap();
+        std::fs::write(folder.join("contact.holo"), "Page(title: \"Contact\", children: [ H1(\"Écris-nous\") ])").unwrap();
+        // La page fabriquée par le serveur, avec la valeur, et le fichier nommé pour le moteur.
+        let page = String::from_utf8(site.answer(&ask("GET", "/profils/ada", "", b"")).body).unwrap();
+        assert!(page.contains("Bonjour, <span data-state=\"nom\">ada</span>") && page.contains("Ada a écrit le premier programme."), "{page}");
+        assert!(page.contains("<meta name=\"holo-file\" content=\"/profils/{nom}.holo\">"), "{page}");
+        let accented = String::from_utf8(site.answer(&ask("GET", "/profils/Ad%C3%A9", "", b"")).body).unwrap();
+        assert!(accented.contains(">Adé<") && accented.contains("data-if=\"nom|is=&quot;ada&quot;\" hidden"), "{accented}");
+        // Le texte du modèle, pour le moteur du navigateur ; le modèle ouvert lui-même, un nom vide.
+        let mut plain = ask("GET", "/profils/%7Bnom%7D.holo", "", b"");
+        plain.accept = "text/plain";
+        assert!(String::from_utf8(site.answer(&plain).body).unwrap().starts_with("Page(title: \"Profil\""));
+        assert!(String::from_utf8(site.answer(&ask("GET", "/profils/%7Bnom%7D.holo", "", b"")).body).unwrap().contains("Bonjour, <span data-state=\"nom\"></span>"));
+        // Une adresse sans `.holo`, et une adresse sans modèle.
+        let contact = String::from_utf8(site.answer(&ask("GET", "/contact", "", b"")).body).unwrap();
+        assert!(contact.contains("Écris-nous") && contact.contains("<meta name=\"holo-file\" content=\"/contact.holo\">"), "{contact}");
+        assert_eq!(site.answer(&ask("GET", "/profils/ada/plus", "", b"")).status, 404);
+        assert_eq!(site.answer(&ask("GET", "/holo-data/x", "", b"")).status, 404);
+        // Sans JavaScript : un toucher à l'adresse ; l'état est gardé pour cette adresse-là.
+        let touched = site.answer(&ask("POST", "/profils/ada", "", b"signal=Like.tap"));
+        assert_eq!(touched.status, 303);
+        assert!(touched.headers.iter().any(|(name, value)| name == "Location" && value == "/profils/ada"));
+        let cookie = touched.headers.iter().find(|(name, _)| name == "Set-Cookie").map(|(_, value)| value.split(';').next().unwrap().to_string()).unwrap();
+        let again = String::from_utf8(site.answer(&ask("GET", "/profils/ada", &cookie, b"")).body).unwrap();
+        assert!(again.contains("J'aime : <span data-state=\"likes\">1</span>") && again.contains(">ada<"), "{again}");
+        let other = String::from_utf8(site.answer(&ask("GET", "/profils/grace", &cookie, b"")).body).unwrap();
+        assert!(other.contains("J'aime : <span data-state=\"likes\">0</span>"), "{other}");
+        // Avec JavaScript : un formulaire envoyé à l'adresse, vérifié avec la valeur, rangé avec son modèle.
+        let mut json = ask("POST", "/profils/ada", "", br#"{"form":"Contact","values":{"email":"ada@example.org"}}"#);
+        json.content_type = "application/json";
+        assert_eq!(site.answer(&json).status, 204);
+        let base = site.base.lock().unwrap();
+        let (page, model): (String, String) = base.query_row("SELECT page, model FROM messages", [], |row| Ok((row.get(0)?, row.get(1)?))).unwrap();
+        assert_eq!((page.as_str(), model.as_str()), ("/profils/ada", "/profils/{nom}.holo"));
+        drop(base);
+        let _ = std::fs::remove_dir_all(&folder);
     }
 
     #[test]

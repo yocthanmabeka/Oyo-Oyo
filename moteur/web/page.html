@@ -322,8 +322,10 @@
     const spot = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)));
     if (!root.querySelector("[data-title]") || root.querySelector("[data-live]") || location.search || (location.hash && !spot)) load();
     // Des valeurs gardées d'une visite précédente (keep) : le moteur les remet. Le visiteur est
-    // déjà venu, son navigateur a sans doute gardé le moteur.
-    try { if (localStorage.getItem(`holo:${location.pathname}`)) load(); } catch { /* stockage refusé */ }
+    // déjà venu, son navigateur a sans doute gardé le moteur. Elles sont rangées sous le nom du
+    // fichier, celui que le serveur nomme dans l'en-tête s'il l'a fait (ADR-078).
+    const file = document.querySelector('meta[name="holo-file"]')?.getAttribute("content") || location.pathname;
+    try { if (localStorage.getItem(`holo:${file}`)) load(); } catch { /* stockage refusé */ }
   })();
 </script>
 </body></html>
