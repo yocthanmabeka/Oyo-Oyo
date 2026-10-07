@@ -12,6 +12,19 @@ Tu arrives sur **Holoverse / HoloCode**, le projet de Yocthan Mabeka : réinvent
 
 Si tu n'as pas accès à GitHub (c'est le cas de Gemini), demande à Yocthan le fichier unique qui rassemble ces documents : Claude sait le préparer.
 
+## Qui fait quoi (deux sessions Claude en même temps)
+
+Décidé par Yocthan le 2026-10-07 (« Vas-y, commence […] il faut qu'on aille rapidement ») : les deux sessions se partagent les lots du web (`proposals/Claude/tout-le-web-2026-10/SYNTHESE.md`). **Avant de commencer un travail, lis ce tableau ; inscris-y ton lot avant d'écrire du code ; prends tes numéros de décision et de leçon dans ta réserve.**
+
+| Lot | Session | Branches | Décisions réservées | Leçons réservées | État |
+|---|---|---|---|---|---|
+| 4 — mise en page d'ordinateur et de téléphone | la session du PC de Yocthan | `langage/lot4-…` | ADR-069 à ADR-072 | 89 à 94 | à faire |
+| 8 — le HTML et les médias qui manquent | la session du nuage | `langage/lot8-…` | ADR-073 à ADR-077 | 95 à 99 | en cours |
+| 5, 6, 7 — serveur, valeurs partagées, comptes | une seule session, la première libre | — | à réserver ici | à réserver ici | à faire, après le lot 4 ou le lot 8 |
+| 9 — les capacités larges | l'autre session | — | à réserver ici | à réserver ici | à faire |
+
+Règles : relire `main` avant chaque travail, et fusionner `main` dans sa branche avant de demander la fusion ; des petites PR, fusionnées vite ; ne pas toucher au lot de l'autre ; un défaut trouvé dans le lot de l'autre se note dans le journal, sans le corriger soi-même.
+
 ## Ce que tu dois savoir en une minute
 
 - **L'idée de Yocthan** : le métavers n'est pas un jeu, c'est une mise à jour du web. Un même fichier `.holo` s'affiche à plat (une page ordinaire) et en profondeur (un lieu où l'on zoome et où l'on entre). Tout part d'un point lumineux qui se morcelle en points, chacun contenant un monde. Un monde naît de sa graine, rien n'est stocké. Cible : n'importe quel téléphone actuel, dans un navigateur, premier test sous 1 Go.
