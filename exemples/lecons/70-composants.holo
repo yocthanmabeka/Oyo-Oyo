@@ -1,8 +1,8 @@
 // Leçon 70 — Les composants : écrire un bloc une fois, le poser partout, le restyler par le CSS
 //
 // Ce qu'on apprend :
-//   parts: [ Part(…) ]          les composants de la page (ou un fichier importé qui commence par Part)
-//   Part(name: ArticleCard,     le nom du composant, comme un bloc : une majuscule
+//   components: [ Component(…) ]          les composants de la page (ou un fichier importé qui commence par Component)
+//   Component(name: ArticleCard,     le nom du composant, comme un bloc : une majuscule
 //        params: [title, price, qty],   ses paramètres : ce qui change d'une copie à l'autre
 //        children: [ … ],       son contenu : un seul bloc racine, comme un widget Flutter
 //        rules: [ … ])          ses règles, écrites une fois pour chaque copie
@@ -24,8 +24,8 @@
 Page(
   title: "Leçon 70 : les composants",
   state: State(cart: 0, sunrise: 0, river: 0, night: 0),
-  parts: [
-    Part(
+  components: [
+    Component(
       name: ArticleCard,
       params: [title, price, qty],
       children: [

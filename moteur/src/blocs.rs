@@ -4,7 +4,7 @@
 use crate::holo::{Bloc, Erreur, Programme, Valeur};
 
 /// `Text` est du texte sans rôle ; `P`, `H1`, `H2` et `H3` sont un `Text` avec un rôle (ADR-020).
-pub const BLOCS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Part", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop", "H4", "H5", "H6", "Main", "Nav", "Header", "Footer", "Stack", "Video", "Table", "Choice", "After", "Repeat", "Item", "Font", "Slider", "Progress", "Details", "Dialog", "Form", "Module"];
+pub const BLOCS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Component", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop", "H4", "H5", "H6", "Main", "Nav", "Header", "Footer", "Stack", "Video", "Table", "Choice", "After", "Repeat", "Item", "Font", "Slider", "Progress", "Details", "Dialog", "Form", "Module"];
 
 /// Le titre le plus profond : `H6`, comme en HTML (correction d'ADR-020 du 2026-10-06 ; les
 /// longs documents en ont besoin). Le numéro dit toujours la place dans le plan, jamais la taille.
@@ -20,9 +20,9 @@ pub fn verifier_blocs(programme: &Programme) -> Result<(), Erreur> {
 /// absents de cette liste vérifient leurs réglages eux-mêmes (`State`, `Prices`, `Data`,
 /// `Zoom`, `Points`, `Relief`, `Portals`, `Enter`, `Loop`, `Use`).
 const REGLAGES_DES_BLOCS: &[(&str, &[&str])] = &[
-    ("Page", &["name", "title", "children", "pixels", "rules", "state", "prices", "keep", "data", "zoom", "points", "relief", "portals", "lang", "description", "image", "fonts", "icon", "modules", "parts"]),
+    ("Page", &["name", "title", "children", "pixels", "rules", "state", "prices", "keep", "data", "zoom", "points", "relief", "portals", "lang", "description", "image", "fonts", "icon", "modules", "components"]),
     ("World", &["name", "children", "pixels", "rules"]),
-    ("Part", &["name", "params", "children", "rules"]),
+    ("Component", &["name", "params", "emits", "children", "rules"]),
     ("Text", &["name"]),
     ("P", &["name"]),
     ("H1", &["name"]),
@@ -77,7 +77,7 @@ pub fn parametres_des_blocs() -> &'static [(&'static str, &'static [&'static str
 }
 
 /// Les blocs qui ne se voient pas : ils ne bougent pas (`enter`, `loop`).
-const SANS_MOUVEMENT: &[&str] = &["Page", "World", "Part", "On", "Every", "When", "After", "Sound", "Scene"];
+const SANS_MOUVEMENT: &[&str] = &["Page", "World", "Component", "On", "Every", "When", "After", "Sound", "Scene"];
 
 /// Vérifie les réglages d'un bloc, selon le bloc qui le contient (`parent`).
 fn verifier_reglages(bloc: &Bloc, parent: &str) -> Result<(), Erreur> {
@@ -133,6 +133,13 @@ fn parcourir(bloc: &Bloc, dernier_titre: &mut u32, parent: &str) -> Result<(), E
             format!("« {}(...) » est une demande : elle s'écrit dans l'effet d'une règle, On(Add.tap, effect: {}(1))", bloc.nom, bloc.nom)
         };
         return Err(Erreur { message, pos: bloc.pos });
+    }
+    if bloc.nom == crate::holo::VALEUR_NOMMEE {
+        let nom = bloc.arguments.first().and_then(|a| a.nom.clone()).unwrap_or_default();
+        return Err(Erreur { message: format!("« {nom}: … » dans une liste : seuls les paramètres d'un composant ont une valeur par défaut, params: [title, {nom}: …] ; ailleurs, une liste contient des valeurs sans nom"), pos: bloc.pos });
+    }
+    if bloc.nom == "Part" {
+        return Err(Erreur { message: crate::composants::ANCIEN_PART.into(), pos: bloc.pos });
     }
     if !BLOCS.contains(&bloc.nom.as_str()) {
         return Err(Erreur { message: bloc_inconnu(&bloc.nom), pos: bloc.pos });

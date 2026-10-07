@@ -34,6 +34,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 71 : une liste à champs", to: "71-liste-a-champs.holo"),
+      A("Leçon 73 : valeurs par défaut et signaux →", to: "73-defauts-et-signaux.holo"),
     ]),
   ],
 )

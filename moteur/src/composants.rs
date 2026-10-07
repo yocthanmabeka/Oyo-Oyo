@@ -4,8 +4,8 @@
 //! ```holo
 //! Page(
 //!   state: State(cart: 0),
-//!   parts: [
-//!     Part(
+//!   components: [
+//!     Component(
 //!       name: ArticleCard,
 //!       params: [title, price, image],
 //!       children: [ Column.card(children: [ Image(source: image, alt: title), H3("{title}"), Text("{price} euros"), Button(name: Add, text: "Add") ]) ],
@@ -34,6 +34,10 @@
 
 use crate::holo::{Argument, Bloc, Erreur, Pos, Valeur};
 
+/// `Part` s'appelle `Component` depuis ADR-056 : le mot `Part` est gardé pour la 3D (une pièce
+/// d'un objet, comme dans Roblox). L'ancienne écriture est refusée avec le bon mot.
+pub const ANCIEN_PART: &str = "« Part » s'appelle maintenant « Component » (ADR-056) : écris « Component » ; le mot « Part » est gardé pour la 3D";
+
 /// Le nombre de paramètres d'un composant, au plus.
 pub const PARAMETRES_MAX: usize = 16;
 /// La profondeur des composants posés les uns dans les autres, au plus.
@@ -52,33 +56,57 @@ const MOTS_RESERVES: &[&str] = &[
 pub struct Composant {
     pub nom: String,
     pub parametres: Vec<String>,
+    /// Les valeurs par défaut : `params: [title, price: 0]` (ADR-056).
+    pub defauts: Vec<(String, Valeur)>,
+    /// Les signaux que le composant émet : `emits: [add]` ; la page les branche à l'appel,
+    /// `onAdd: cart.add(1)` (ADR-056).
+    pub emis: Vec<String>,
     pub enfants: Vec<Valeur>,
     pub regles: Vec<Valeur>,
     pub pos: Pos,
 }
 
-/// Lit un `Part(name:, params:, children:, rules:)`.
+/// Lit un `Component(name:, params:, children:, rules:)`.
 pub fn lire_part(part: &Bloc) -> Result<Composant, Erreur> {
-    let exemple = "Part(name: ArticleCard, params: [title, price], children: [ Column(children: [ H3(\"{title}\"), Text(\"{price} euros\") ]) ])";
+    let exemple = "Component(name: ArticleCard, params: [title, price], children: [ Column(children: [ H3(\"{title}\"), Text(\"{price} euros\") ]) ])";
     let refus = |message: String, pos: Pos| Err(Erreur { message, pos });
     let (mut nom, mut parametres, mut enfants, mut regles) = (None, Vec::new(), None, Vec::new());
+    let mut defauts: Vec<(String, Valeur)> = Vec::new();
+    let mut emis: Vec<String> = Vec::new();
     for argument in &part.arguments {
         match (argument.nom.as_deref(), &argument.valeur) {
             (Some("name"), Valeur::Nom(n)) => nom = Some(n.clone()),
             (Some("name"), _) => return refus(format!("le nom d'un composant s'écrit sans guillemets, avec une majuscule : {exemple}"), argument.pos),
             (Some("params"), Valeur::Liste(liste)) => {
                 for valeur in liste {
-                    let Valeur::Nom(p) = valeur else {
-                        return refus("« params » est une liste de noms : params: [title, price]".into(), argument.pos);
-                    };
-                    parametres.push(p.clone());
+                    match valeur {
+                        Valeur::Nom(p) => parametres.push(p.clone()),
+                        // `price: 0` : un paramètre facultatif, et sa valeur par défaut.
+                        Valeur::Bloc(b) if b.nom == crate::holo::VALEUR_NOMMEE => {
+                            let Some(Argument { nom: Some(p), valeur: defaut, .. }) = b.arguments.first() else { continue };
+                            if !matches!(defaut, Valeur::Texte(_) | Valeur::Entier(_) | Valeur::Nombre { .. } | Valeur::Nom(_) | Valeur::Bool(_)) {
+                                return refus(format!("la valeur par défaut de « {p} » est un texte, un nombre ou un nom, pas un bloc ni une liste"), b.pos);
+                            }
+                            parametres.push(p.clone());
+                            defauts.push((p.clone(), defaut.clone()));
+                        }
+                        _ => return refus("« params » est une liste de noms, avec ou sans valeur par défaut : params: [title, price: 0]".into(), argument.pos),
+                    }
+                }
+            }
+            (Some("emits"), Valeur::Liste(liste)) => {
+                for valeur in liste {
+                    match valeur {
+                        Valeur::Nom(e) if e.starts_with(|c: char| c.is_ascii_lowercase()) && e.chars().all(|c| c.is_ascii_alphanumeric()) && !emis.contains(e) => emis.push(e.clone()),
+                        _ => return refus("« emits » est une liste de signaux, en minuscules, chacun une fois : emits: [add, remove]".into(), argument.pos),
+                    }
                 }
             }
             (Some("children"), Valeur::Liste(liste)) => enfants = Some(liste.clone()),
             (Some("rules"), Valeur::Liste(liste)) => regles = liste.clone(),
-            (Some(mot @ ("params" | "children" | "rules")), _) => return refus(format!("« Part({mot}: …) » attend une liste entre crochets : {exemple}"), argument.pos),
-            (Some(autre), _) => return refus(format!("« Part » n'a pas de réglage « {autre} » ; réglages possibles : name, params, children, rules"), argument.pos),
-            (None, _) => return refus(format!("chaque réglage de « Part » est nommé : {exemple}"), argument.pos),
+            (Some(mot @ ("params" | "emits" | "children" | "rules")), _) => return refus(format!("« Component({mot}: …) » attend une liste entre crochets : {exemple}"), argument.pos),
+            (Some(autre), _) => return refus(format!("« Component » n'a pas de réglage « {autre} » ; réglages possibles : name, params, emits, children, rules"), argument.pos),
+            (None, _) => return refus(format!("chaque réglage de « Component » est nommé : {exemple}"), argument.pos),
         }
     }
     let (Some(nom), Some(enfants)) = (nom, enfants) else {
@@ -105,28 +133,84 @@ pub fn lire_part(part: &Bloc) -> Result<Composant, Erreur> {
         }
     }
     for regle in &regles {
-        if !matches!(regle, Valeur::Bloc(b) if matches!(b.nom.as_str(), "On" | "Every" | "When" | "After" | "If")) {
-            return refus("« Part(rules: …) » range des règles : rules: [ On(Add.tap, effect: cart.add(1)) ]".into(), part.pos);
+        let Valeur::Bloc(b) = regle else { return refus("« Component(rules: …) » range des règles : rules: [ On(Add.tap, effect: cart.add(1)) ]".into(), part.pos) };
+        if !matches!(b.nom.as_str(), "On" | "Every" | "When" | "After" | "If") {
+            return refus("« Component(rules: …) » range des règles : rules: [ On(Add.tap, effect: cart.add(1)) ]".into(), part.pos);
+        }
+        for signal in signaux_emis(b) {
+            if !emis.contains(&signal) {
+                return refus(format!("« emit: {signal} » : déclare ce signal dans le composant, emits: [{signal}]"), b.pos);
+            }
         }
     }
-    Ok(Composant { nom, parametres, enfants, regles, pos: part.pos })
+    Ok(Composant { nom, parametres, defauts, emis, enfants, regles, pos: part.pos })
 }
 
-/// Retire les composants écrits dans la page (`parts: [ Part(…) ]`) et les rend.
+/// Les signaux qu'une règle émet : `emit: add`, ou `emit: [add, remove]`.
+fn signaux_emis(regle: &Bloc) -> Vec<String> {
+    match regle.argument("emit").map(|a| &a.valeur) {
+        Some(Valeur::Nom(n)) => vec![n.clone()],
+        Some(Valeur::Liste(l)) => l.iter().filter_map(|v| if let Valeur::Nom(n) = v { Some(n.clone()) } else { None }).collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// `add` → `onAdd` : le nom du branchement d'un signal, à l'appel.
+fn branchement(signal: &str) -> String {
+    let mut lettres = signal.chars();
+    format!("on{}", lettres.next().map(|c| c.to_ascii_uppercase().to_string() + lettres.as_str()).unwrap_or_default())
+}
+
+/// Remplace `emit: add` dans une règle de la copie par ce que la page a branché (`onAdd:`).
+/// Une règle qui n'émet que des signaux non branchés, et ne fait rien d'autre, disparaît.
+fn brancher(mut regle: Valeur, branches: &[(String, Valeur)]) -> Option<Valeur> {
+    let Valeur::Bloc(bloc) = &mut regle else { return Some(regle) };
+    let signaux = signaux_emis(bloc);
+    if signaux.is_empty() {
+        return Some(regle);
+    }
+    bloc.arguments.retain(|a| a.nom.as_deref() != Some("emit"));
+    let mut effets: Vec<Valeur> = match bloc.argument("effect").map(|a| a.valeur.clone()) {
+        Some(Valeur::Liste(l)) => l,
+        Some(v) => vec![v],
+        None => Vec::new(),
+    };
+    for signal in &signaux {
+        if let Some((_, valeur)) = branches.iter().find(|(s, _)| s == signal) {
+            match valeur {
+                Valeur::Liste(l) => effets.extend(l.iter().cloned()),
+                v => effets.push(v.clone()),
+            }
+        }
+    }
+    if effets.is_empty() {
+        return None;
+    }
+    bloc.arguments.retain(|a| a.nom.as_deref() != Some("effect"));
+    let pos = bloc.pos;
+    bloc.arguments.push(Argument { nom: Some("effect".into()), valeur: if effets.len() == 1 { effets.remove(0) } else { Valeur::Liste(effets) }, pos });
+    Some(regle)
+}
+
+/// Retire les composants écrits dans la page (`components: [ Component(…) ]`) et les rend.
 pub fn retirer_les_parts(page: &mut Bloc) -> Result<Vec<Composant>, Erreur> {
-    let Some(i) = page.arguments.iter().position(|a| a.nom.as_deref() == Some("parts")) else { return Ok(Vec::new()) };
+    if let Some(ancien) = page.arguments.iter().find(|a| a.nom.as_deref() == Some("parts")) {
+        return Err(Erreur { message: "« parts » s'appelle maintenant « components » (ADR-056) : écris « components »".into(), pos: ancien.pos });
+    }
+    let Some(i) = page.arguments.iter().position(|a| a.nom.as_deref() == Some("components")) else { return Ok(Vec::new()) };
     let argument = page.arguments.remove(i);
     if page.nom != "Page" {
-        return Err(Erreur { message: "« parts » s'écrit dans la page : Page(parts: [ Part(…) ])".into(), pos: argument.pos });
+        return Err(Erreur { message: "« components » s'écrit dans la page : Page(components: [ Component(…) ])".into(), pos: argument.pos });
     }
     let Valeur::Liste(liste) = argument.valeur else {
-        return Err(Erreur { message: "« parts » est une liste de composants : parts: [ Part(name: ArticleCard, …) ]".into(), pos: argument.pos });
+        return Err(Erreur { message: "« components » est une liste de composants : components: [ Component(name: ArticleCard, …) ]".into(), pos: argument.pos });
     };
     let mut composants = Vec::new();
     for valeur in &liste {
         match valeur {
-            Valeur::Bloc(b) if b.nom == "Part" => composants.push(lire_part(b)?),
-            _ => return Err(Erreur { message: "« parts » ne contient que des « Part(…) »".into(), pos: argument.pos }),
+            Valeur::Bloc(b) if b.nom == "Component" => composants.push(lire_part(b)?),
+            Valeur::Bloc(b) if b.nom == "Part" => return Err(Erreur { message: ANCIEN_PART.into(), pos: b.pos }),
+            _ => return Err(Erreur { message: "« components » ne contient que des « Component(…) »".into(), pos: argument.pos }),
         }
     }
     Ok(composants)
@@ -243,6 +327,7 @@ fn poser_copie(composant: &Composant, appel: &Bloc, sans_nom: &mut Vec<String>) 
     let exemple = if attendus.is_empty() { format!("{nom}()") } else { format!("{nom}({attendus})") };
     let mut nom_de_copie = None;
     let mut donnes: Vec<(&str, &Valeur)> = Vec::new();
+    let mut branches: Vec<(String, Valeur)> = Vec::new();
     for argument in &appel.arguments {
         let Some(cle) = argument.nom.as_deref() else {
             return Err(Erreur { message: format!("chaque paramètre de « {nom} » est nommé : {exemple}"), pos: argument.pos });
@@ -250,6 +335,19 @@ fn poser_copie(composant: &Composant, appel: &Bloc, sans_nom: &mut Vec<String>) 
         match (cle, &argument.valeur) {
             ("name", Valeur::Nom(n)) if n.starts_with(|c: char| c.is_ascii_uppercase()) && n.chars().all(|c| c.is_ascii_alphanumeric()) => nom_de_copie = Some(n.clone()),
             ("name", _) => return Err(Erreur { message: format!("le nom d'une copie s'écrit comme un bloc, avec une majuscule : {nom}(name: Sunrise, …)"), pos: argument.pos }),
+            // `onAdd: cart.add(1)` : la page branche un signal émis par le composant.
+            (cle, v) if composant.emis.iter().any(|e| branchement(e) == cle) => {
+                let bon = match v {
+                    Valeur::Bloc(_) | Valeur::Nom(_) => true,
+                    Valeur::Liste(l) => !l.is_empty() && l.iter().all(|e| matches!(e, Valeur::Bloc(_) | Valeur::Nom(_))),
+                    _ => false,
+                };
+                if !bon {
+                    return Err(Erreur { message: format!("« {cle} » attend une demande ou une liste de demandes : {cle}: cart.add(1)"), pos: argument.pos });
+                }
+                let signal = composant.emis.iter().find(|e| branchement(e) == cle).cloned().unwrap_or_default();
+                branches.push((signal, v.clone()));
+            }
             (p, v) if composant.parametres.iter().any(|connu| connu == p) => {
                 if donnes.iter().any(|(connu, _)| *connu == p) {
                     return Err(Erreur { message: format!("le paramètre « {p} » est donné deux fois"), pos: argument.pos });
@@ -260,7 +358,9 @@ fn poser_copie(composant: &Composant, appel: &Bloc, sans_nom: &mut Vec<String>) 
                 donnes.push((p, v));
             }
             (autre, _) => {
-                let suggestion = proche(autre, &composant.parametres);
+                let mut connus = composant.parametres.clone();
+                connus.extend(composant.emis.iter().map(|e| branchement(e)));
+                let suggestion = proche(autre, &connus);
                 let message = match suggestion {
                     Some(bon) => format!("« {nom} » n'a pas de paramètre « {autre} » : écris « {bon} »"),
                     None if composant.parametres.is_empty() => format!("« {nom} » n'a pas de paramètres : {nom}()"),
@@ -268,6 +368,12 @@ fn poser_copie(composant: &Composant, appel: &Bloc, sans_nom: &mut Vec<String>) 
                 };
                 return Err(Erreur { message, pos: argument.pos });
             }
+        }
+    }
+    // Un paramètre oublié prend sa valeur par défaut, s'il en a une.
+    for (p, defaut) in &composant.defauts {
+        if !donnes.iter().any(|(d, _)| d == p) {
+            donnes.push((p.as_str(), defaut));
         }
     }
     if let Some(manque) = composant.parametres.iter().find(|p| !donnes.iter().any(|(d, _)| d == p)) {
@@ -302,7 +408,9 @@ fn poser_copie(composant: &Composant, appel: &Bloc, sans_nom: &mut Vec<String>) 
     for regle in &composant.regles {
         let mut r = regle.clone();
         remplacer(&mut r, &copie)?;
-        regles.push(r);
+        if let Some(r) = brancher(r, &branches) {
+            regles.push(r);
+        }
     }
     Ok((racine, regles))
 }
@@ -442,8 +550,8 @@ mod tests {
 
     const BOUTIQUE: &str = r#"Page(
   state: State(cart: 0, sunrise: 0),
-  parts: [
-    Part(
+  components: [
+    Component(
       name: ArticleCard,
       params: [title, price, qty],
       children: [ Column.card(children: [ H2("{title}"), Text("{price:cents} euros, {qty} in the cart"), Button(name: Add, text: "Add") ]) ],
@@ -479,7 +587,7 @@ ArticleCard { --accent: #E9B44C; border: 1px solid --accent; }
 
     #[test]
     fn un_composant_dans_une_repetition_et_dans_un_fichier_importe() {
-        let commun = "Part(name: Card, params: [title], children: [ Column(children: [ H2(\"{title}\"), Button(name: Add, text: \"Add\") ]) ], rules: [ On(Add.tap, effect: item.add(1)) ])\nCard { color: navy; }";
+        let commun = "Component(name: Card, params: [title], children: [ Column(children: [ H2(\"{title}\"), Button(name: Add, text: \"Add\") ]) ], rules: [ On(Add.tap, effect: item.add(1)) ])\nCard { color: navy; }";
         let page = "import \"commun.holo\"\nPage(state: State(a: 0, b: 0), children: [ H1(\"x\"), Repeat(items: [ Item(key: a, title: \"A\"), Item(key: b, title: \"B\") ], children: [ Card(title: item.title) ]) ])";
         let source = format!("{page}{}commun.holo{}{commun}", crate::holo::FICHIER_SUIVANT, crate::holo::SEPARE_LE_NOM);
         let programme = lire(&source).unwrap();
@@ -492,7 +600,7 @@ ArticleCard { --accent: #E9B44C; border: 1px solid --accent; }
     fn l_exemple_du_guide_dans_une_repetition() {
         let source = r#"Page(
   state: State(cart: 0, a: 0, b: 0),
-  parts: [ Part(name: ArticleCard, params: [title, price, qty], children: [ Column(children: [ H2("{title}"), Text("{price:cents} euros, {qty}"), Button(name: Add, text: "Add") ]) ], rules: [ On(Add.tap, effect: [qty.add(1), cart.add(price)]) ]) ],
+  components: [ Component(name: ArticleCard, params: [title, price, qty], children: [ Column(children: [ H2("{title}"), Text("{price:cents} euros, {qty}"), Button(name: Add, text: "Add") ]) ], rules: [ On(Add.tap, effect: [qty.add(1), cart.add(price)]) ]) ],
   children: [ H1("Shop"), Repeat(items: [ Item(key: a, title: "A", price: 1250), Item(key: b, title: "B", price: 300) ], children: [ ArticleCard(title: item.title, price: item.price, qty: item) ]) ],
 )"#;
         crate::verifier_page(source).unwrap();
@@ -502,20 +610,62 @@ ArticleCard { --accent: #E9B44C; border: 1px solid --accent; }
     }
 
     #[test]
+    fn valeurs_par_defaut_et_signaux_emis() {
+        let source = r#"Page(
+  state: State(cart: 0, likes: 0),
+  components: [
+    Component(
+      name: ArticleCard,
+      params: [title, price: 0, image: "placeholder.svg"],
+      emits: [add, like],
+      children: [ Column(children: [ Image(source: image, alt: title), H2("{title}"), Text("{price} euros"), Button(name: Add, text: "Add"), Button(name: Like, text: "♥") ]) ],
+      rules: [ On(Add.tap, emit: add), On(Like.tap, emit: like) ],
+    ),
+  ],
+  children: [
+    H1("Shop"),
+    ArticleCard(name: Sunrise, title: "Sunrise", price: 120, image: "sunrise.png", onAdd: cart.add(120), onLike: likes.add(1)),
+    ArticleCard(name: Gift, title: "Gift card", onAdd: [cart.add(10), likes.add(1)]),
+  ],
+)"#;
+        crate::verifier_page(source).unwrap();
+        let html = crate::plat::page_html(&lire(source).unwrap(), "").unwrap();
+        // Les valeurs par défaut : l'image et le prix oubliés par la seconde copie.
+        assert!(html.contains("src=\"placeholder.svg\" alt=\"Gift card\"") && html.contains("0 euros"), "{html}");
+        // Les signaux émis, branchés par la page.
+        assert_eq!(crate::arbitrer(source, "cart=0;likes=0", "AddSunrise.tap"), "cart=120;likes=0");
+        assert_eq!(crate::arbitrer(source, "cart=0;likes=0", "LikeSunrise.tap"), "cart=0;likes=1");
+        assert_eq!(crate::arbitrer(source, "cart=0;likes=0", "AddGift.tap"), "cart=10;likes=1");
+        // Un signal que la page ne branche pas ne fait rien.
+        assert_eq!(crate::arbitrer(source, "cart=0;likes=0", "LikeGift.tap"), "cart=0;likes=0");
+        for (source, message) in [
+            ("Page(components: [ Component(name: Card, children: [ Button(name: Go, text: \"go\") ], rules: [ On(Go.tap, emit: go) ]) ], children: [ Card() ])", "déclare ce signal"),
+            ("Page(components: [ Component(name: Card, emits: [go], children: [ Button(name: Go, text: \"go\") ], rules: [ On(Go.tap, emit: go) ]) ], children: [ Card(onGo: 3) ])", "attend une demande"),
+            ("Page(components: [ Component(name: Card, emits: [go], children: [ P(\"x\") ]) ], children: [ Card(onGoo: x.add(1)) ])", "écris « onGo »"),
+            ("Page(state: State(l: [ x: 1 ]), children: [])", "seuls les paramètres d'un composant"),
+            ("Page(components: [ Part(name: Card, children: [ P(\"x\") ]) ], children: [])", "écris « Component »"),
+            ("Page(parts: [ Component(name: Card, children: [ P(\"x\") ]) ], children: [])", "écris « components »"),
+        ] {
+            let erreur = crate::verifier_page(source).unwrap_err();
+            assert!(erreur.message.contains(message), "{source}\n→ {erreur}");
+        }
+    }
+
+    #[test]
     fn ce_qui_est_refuse() {
-        let part = |reste: &str| format!("Page(parts: [ Part(name: Card, params: [title], children: [ H3(\"{{title}}\") ]) ], children: [ {reste} ])");
+        let part = |reste: &str| format!("Page(components: [ Component(name: Card, params: [title], children: [ H3(\"{{title}}\") ]) ], children: [ {reste} ])");
         for (source, message) in [
             (part("Card()"), "attend le paramètre « title »"),
             (part("Card(titel: \"a\")"), "écris « title »"),
             (part("Card(title: \"a\", title: \"b\")"), "donné deux fois"),
             (part("Card(\"a\")"), "est nommé"),
-            ("Page(parts: [ Part(name: Card, children: [ Card() ]) ], children: [ Card() ])".into(), "se pose lui-même"),
-            ("Page(parts: [ Part(name: Text, children: [ P(\"x\") ]) ], children: [ Text() ])".into(), "déjà un bloc du langage"),
-            ("Page(parts: [ Part(name: Card, params: [add], children: [ P(\"x\") ]) ], children: [ ])".into(), "mot du langage"),
-            ("Page(state: State(title: \"\"), parts: [ Part(name: Card, params: [title], children: [ P(\"x\") ]) ], children: [ Card(title: \"a\") ])".into(), "nom d'une valeur de la page"),
-            ("Page(parts: [ Part(name: Card, children: [ P(\"a\"), P(\"b\") ]) ], children: [ Card() ])".into(), "un seul bloc racine"),
-            ("Page(parts: [ Part(name: Card, children: [ Button(name: Go, text: \"go\") ]) ], children: [ Card(), Card() ])".into(), "donne un nom à chaque copie"),
-            ("Page(parts: [ Part(name: Card, params: [n], children: [ Button(name: Go, text: \"go\") ], rules: [ On(Go.tap, effect: n.add(1)) ]) ], children: [ Card(n: 3) ])".into(), "doit recevoir le nom d'une valeur"),
+            ("Page(components: [ Component(name: Card, children: [ Card() ]) ], children: [ Card() ])".into(), "se pose lui-même"),
+            ("Page(components: [ Component(name: Text, children: [ P(\"x\") ]) ], children: [ Text() ])".into(), "déjà un bloc du langage"),
+            ("Page(components: [ Component(name: Card, params: [add], children: [ P(\"x\") ]) ], children: [ ])".into(), "mot du langage"),
+            ("Page(state: State(title: \"\"), components: [ Component(name: Card, params: [title], children: [ P(\"x\") ]) ], children: [ Card(title: \"a\") ])".into(), "nom d'une valeur de la page"),
+            ("Page(components: [ Component(name: Card, children: [ P(\"a\"), P(\"b\") ]) ], children: [ Card() ])".into(), "un seul bloc racine"),
+            ("Page(components: [ Component(name: Card, children: [ Button(name: Go, text: \"go\") ]) ], children: [ Card(), Card() ])".into(), "donne un nom à chaque copie"),
+            ("Page(components: [ Component(name: Card, params: [n], children: [ Button(name: Go, text: \"go\") ], rules: [ On(Go.tap, effect: n.add(1)) ]) ], children: [ Card(n: 3) ])".into(), "doit recevoir le nom d'une valeur"),
             ("Page(children: [ P.Big(\"x\") ])".into(), "en minuscules"),
         ] {
             let erreur = crate::verifier_page(&source).unwrap_err();

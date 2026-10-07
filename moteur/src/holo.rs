@@ -118,6 +118,10 @@ impl Bloc {
     }
 }
 
+/// La marque d'une valeur nommée dans une liste, `price: 0` : seuls les paramètres d'un
+/// composant en ont (ADR-056).
+pub const VALEUR_NOMMEE: &str = "=";
+
 /// Le nombre de noms de style qu'un bloc peut porter, au plus (ADR-051).
 pub const STYLES_PAR_BLOC: usize = 4;
 
@@ -621,7 +625,17 @@ impl Analyseur {
                 self.avancer();
                 let mut elements = Vec::new();
                 while !self.est_signe(']') {
-                    elements.push(self.valeur()?);
+                    // `price: 0` dans une liste : une valeur par défaut d'un paramètre de
+                    // composant (ADR-056). Gardée comme un bloc marqué ; refusée ailleurs.
+                    if let (Mot::Nom(nom), Some(Jeton { mot: Mot::Signe(':'), .. })) = (&self.courant().mot, self.jetons.get(self.i + 1)) {
+                        let (nom, pos) = (nom.clone(), self.courant().pos);
+                        self.avancer();
+                        self.avancer();
+                        let valeur = self.valeur()?;
+                        elements.push(Valeur::Bloc(Bloc { nom: VALEUR_NOMMEE.into(), styles: Vec::new(), arguments: vec![Argument { nom: Some(nom), valeur, pos }], pos }));
+                    } else {
+                        elements.push(self.valeur()?);
+                    }
                     if self.est_signe(',') {
                         self.avancer();
                     } else if !self.est_signe(']') {
@@ -685,7 +699,7 @@ pub fn imports_de(source: &str) -> Result<Vec<String>, Erreur> {
 }
 
 /// Lit un fichier et ceux qu'il importe, joints à sa suite. Un fichier importé est un morceau :
-/// `Part(name: Menu, children: [...])`, avec ses styles. Dans la page, `Use(Menu)` pose les
+/// `Component(name: Menu, children: [...])`, avec ses styles. Dans la page, `Use(Menu)` pose les
 /// blocs du morceau à cet endroit. Les styles du morceau viennent avec lui ; si la page écrit
 /// le même style, c'est le sien qui reste.
 pub fn lire(source: &str) -> Result<Programme, Erreur> {
@@ -703,7 +717,7 @@ pub fn lire(source: &str) -> Result<Programme, Erreur> {
         // Un fichier qui ne contient que des styles (ADR-052) : un thème partagé par les pages.
         let morceau = match lire_seul(texte) {
             Ok(morceau) => morceau,
-            Err(e) => match lire_seul(&format!("Part(name: HoloStyles, children: []) {texte}")) {
+            Err(e) => match lire_seul(&format!("Component(name: HoloStyles, children: []) {texte}")) {
                 Ok(styles) if !styles.styles.is_empty() && styles.imports.is_empty() => {
                     styles_importes.extend(styles.styles.into_iter().map(|r| (nom.clone(), r)));
                     continue;
@@ -712,8 +726,11 @@ pub fn lire(source: &str) -> Result<Programme, Erreur> {
             },
         };
         let refus = |message: String| Erreur { message: format!("« {nom} » : {message}"), pos };
-        if morceau.racine.nom != "Part" {
-            return Err(refus(format!("un fichier importé est un morceau, il commence par « Part(name: Menu, children: [ … ]) » ; celui-ci commence par « {} »", morceau.racine.nom)));
+        if morceau.racine.nom == "Part" {
+            return Err(refus(crate::composants::ANCIEN_PART.into()));
+        }
+        if morceau.racine.nom != "Component" {
+            return Err(refus(format!("un fichier importé est un composant, il commence par « Component(name: Menu, children: [ … ]) » ; celui-ci commence par « {} »", morceau.racine.nom)));
         }
         if !morceau.imports.is_empty() {
             return Err(refus("un morceau n'importe pas lui-même d'autres fichiers".into()));
@@ -740,7 +757,7 @@ pub fn lire(source: &str) -> Result<Programme, Erreur> {
     }
     crate::composants::poser_site(&mut programme.racine, &composants)?;
     programme.composants = composants.iter().map(|c| c.nom.clone()).collect();
-    if programme.racine.nom == "Part" {
+    if programme.racine.nom == "Component" {
         if let Some(Valeur::Nom(nom)) = programme.racine.argument("name").map(|a| &a.valeur) {
             programme.composants.push(nom.clone());
         }
@@ -907,17 +924,17 @@ mod tests {
     #[test]
     fn deux_fichiers_importes_ne_peuvent_pas_ecrire_le_meme_style() {
         let page = "import \"a.holo\"\nimport \"b.holo\"\nPage(children: [ Use(Alpha), Use(Beta) ])";
-        let source = format!("{page}{s}a.holo{n}Part(name: Alpha, children: [ P.card(\"a\") ])\n.card {{ color: red; }}{s}b.holo{n}Part(name: Beta, children: [ P.card(\"b\") ])\n.card {{ color: blue; }}", s = FICHIER_SUIVANT, n = SEPARE_LE_NOM);
+        let source = format!("{page}{s}a.holo{n}Component(name: Alpha, children: [ P.card(\"a\") ])\n.card {{ color: red; }}{s}b.holo{n}Component(name: Beta, children: [ P.card(\"b\") ])\n.card {{ color: blue; }}", s = FICHIER_SUIVANT, n = SEPARE_LE_NOM);
         let erreur = lire(&source).unwrap_err();
         assert!(erreur.message.contains("« a.holo » et « b.holo » écrivent tous deux le style « .card »"), "{erreur}");
         // La page, elle, peut toujours réécrire un style importé : c'est le sien qui reste.
-        let source = format!("import \"a.holo\"\nPage(children: [ Use(Alpha) ])\n.card {{ color: green; }}{s}a.holo{n}Part(name: Alpha, children: [ P.card(\"a\") ])\n.card {{ color: red; }}", s = FICHIER_SUIVANT, n = SEPARE_LE_NOM);
+        let source = format!("import \"a.holo\"\nPage(children: [ Use(Alpha) ])\n.card {{ color: green; }}{s}a.holo{n}Component(name: Alpha, children: [ P.card(\"a\") ])\n.card {{ color: red; }}", s = FICHIER_SUIVANT, n = SEPARE_LE_NOM);
         assert_eq!(lire(&source).unwrap().styles.len(), 1);
     }
 
     #[test]
     fn un_fichier_importe_est_un_morceau_qu_on_pose() {
-        let commun = "Part(name: Menu, children: [ P(\"menu\"), Hr() ])\nP { color: gray; }\nH1 { color: red; }";
+        let commun = "Component(name: Menu, children: [ P(\"menu\"), Hr() ])\nP { color: gray; }\nH1 { color: red; }";
         let page = "import \"commun.holo\"\nPage(children: [ Use(Menu), H1(\"a\"), List(children: [ Use(Menu) ]) ])\nH1 { color: blue; }";
         let joint = |page: &str, nom: &str, texte: &str| format!("{page}{FICHIER_SUIVANT}{nom}{SEPARE_LE_NOM}{texte}");
         assert_eq!(imports_de(page).unwrap(), ["commun.holo"]);
@@ -932,11 +949,11 @@ mod tests {
         assert!(programme.imports.is_empty());
         for (source, message) in [
             (page.to_string(), "n'a pas été trouvé"),
-            (joint(page, "commun.holo", "Page(children: [])"), "un fichier importé est un morceau"),
-            (joint(page, "commun.holo", "Part(name: Other, children: [])"), "aucun morceau importé ne s'appelle « Menu »"),
-            (joint(page, "commun.holo", "Part(name: Menu)"), "un morceau a un nom et un contenu"),
-            (joint(page, "commun.holo", "Part(name: Menu, children: [ H9( ])"), "dans « commun.holo », ligne 1"),
-            (joint(page, "commun.holo", "import \"x.holo\"\nPart(name: Menu, children: [])"), "n'importe pas lui-même"),
+            (joint(page, "commun.holo", "Page(children: [])"), "un fichier importé est un composant"),
+            (joint(page, "commun.holo", "Component(name: Other, children: [])"), "aucun morceau importé ne s'appelle « Menu »"),
+            (joint(page, "commun.holo", "Component(name: Menu)"), "un morceau a un nom et un contenu"),
+            (joint(page, "commun.holo", "Component(name: Menu, children: [ H9( ])"), "dans « commun.holo », ligne 1"),
+            (joint(page, "commun.holo", "import \"x.holo\"\nComponent(name: Menu, children: [])"), "n'importe pas lui-même"),
             ("Page(children: [ Use(Menu) ])".to_string(), "aucun morceau importé ne s'appelle « Menu »"),
             ("import \"../secret.holo\"\nPage(children: [])".to_string(), "rangé à côté"),
             ("import \"https://x.example/a.holo\"\nPage(children: [])".to_string(), "rangé à côté"),

@@ -32,7 +32,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 22 | [Une règle qui guette](22-guetter.holo) | `When` |
 | 23 | [La rencontre de deux objets](23-rencontre.holo) | `When(…, meets:)`, `within` |
 | 24 | [Faire glisser](24-glisser.holo) | `drag` |
-| 25 | [Un morceau commun à plusieurs pages](25-imports.holo) | `import`, `Part`, `Use` |
+| 25 | [Un morceau commun à plusieurs pages](25-imports.holo) | `import`, `Component`, `Use` |
 | 26 | [Un point seul : le Big Bang](26-point-seul.holo) | `Point` à la racine, `fragments`, `brightness` |
 | 27 | [Des données venues du serveur](27-donnees.holo) | `data`, `Data`, `from`, `every` |
 | 28 | [Un son](28-son.holo) | `Sound`, `play` |
@@ -77,10 +77,11 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 67 | [Écrire un nombre joliment](67-formats.holo) | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` |
 | 68 | [Une liste qui change pendant la visite](68-liste-qui-change.holo) | `State(taches: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` |
 | 69 | [Du code enfermé : un module](69-module-enferme.holo) | `module "…"`, `Module`, `run`, `done`, `failed` |
-| 70 | [Les composants](70-composants.holo) | `parts`, `Part(params:, rules:)`, `ArticleCard(…)`, `ArticleCard { }`, `ArticleCard.promo(…)` |
+| 70 | [Les composants](70-composants.holo) | `components`, `Component(params:, rules:)`, `ArticleCard(…)`, `ArticleCard { }`, `ArticleCard.promo(…)` |
 | 71 | [Une liste à champs](71-liste-a-champs.holo) | `State(articles: [ Item(…) ])`, `{item.title}`, `Data` qui remplit une liste, `push(Item(…))` |
 | 72 | [La place qui reste, et un thème partagé](72-place-et-theme.holo) | `grow`, un fichier de styles importé, `Text.titre.discret(…)` |
+| 73 | [Valeurs par défaut et signaux](73-defauts-et-signaux.holo) | `params: [title, price: 0]`, `emits`, `emit:`, `onAdd:` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 
-Certaines leçons ont un **essai écrit** à côté (`68-liste-qui-change.essai`, `70-composants.essai`, `71-liste-a-champs.essai`) : des gestes et les valeurs attendues, que `holo essai` joue et que les tests du moteur vérifient (`ADR-054`). Pour voir les valeurs pendant qu'on essaie une leçon : ajouter `?valeurs` à son adresse.
+Certaines leçons ont un **essai écrit** à côté (`68-liste-qui-change.essai`, `70-composants.essai`, `71-liste-a-champs.essai`, `73-defauts-et-signaux.essai`) : des gestes et les valeurs attendues, que `holo essai` joue et que les tests du moteur vérifient (`ADR-054`). Pour voir les valeurs pendant qu'on essaie une leçon : ajouter `?valeurs` à son adresse.

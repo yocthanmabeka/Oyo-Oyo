@@ -1,7 +1,7 @@
 // Ce que les pages du site ont en commun : le menu, et le thème.
-// Ce fichier n'est pas une page : c'est un morceau (Part), que les pages importent.
+// Ce fichier n'est pas une page : c'est un composant (Component), que les pages importent.
 
-Part(
+Component(
   name: Menu,
   children: [
     Row(gap: 16px, align: between, children: [
