@@ -163,7 +163,7 @@ pub fn vocabulary() -> String {
         list(holo::STATES),
         list(&["add", "sub", "set", "random", "mul", "div", "push", "remove", "clear"]),
         list(&["tap", "hover", "hoverEnd", "sent", "failed", "done"]),
-        list(&["enter", "leave", "play", "portals", "open", "close", "send", "run"]),
+        list(&["enter", "leave", "play", "stop", "portals", "open", "close", "send", "run"]),
         list(state::KEYPRESSES),
         list(&[
             "true", "false", "item", "circle", "square", "triangle", "diamond", "start", "center", "end", "between", "topLeft", "top", "topRight", "left", "right", "bottomLeft", "bottom",

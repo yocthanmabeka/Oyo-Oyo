@@ -1,0 +1,41 @@
+// Leçon 78 — Apparaître en descendant
+//
+// Ce qu'on apprend :
+//   inView: true dans une entrée (leçon 32 pour Enter) : le bloc entre quand il arrive à l'écran,
+//   pas au chargement de la page.
+//     P("…", enter: Enter(y: 40px, opacity: 0, inView: true))
+//   Sans JavaScript, ou pour le visiteur qui demande moins de mouvement, tout se voit d'emblée,
+//   sans bouger. Rien ne tourne pendant qu'on lit : le navigateur prévient quand le bloc arrive.
+//
+// À essayer :
+//   Descends lentement : chaque carte entre à son tour. Remonte : elles restent là.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 78 : apparaître en descendant",
+  children: [
+    H1("Apparaître en descendant"),
+    P.loin("Descends : chaque carte entre quand elle arrive à l'écran. ↓"),
+    P.carte("Une première carte, qui monte.", enter: Enter(y: 40px, opacity: 0, inView: true)),
+    P.carte("Une deuxième, qui arrive de la gauche.", enter: Enter(x: -60px, opacity: 0, inView: true)),
+    P.carte("Une troisième, qui grandit.", enter: Enter(scale: 0.6, opacity: 0, ease: back, inView: true)),
+    Column(gap: 12px, enter: Enter(y: 30px, opacity: 0, each: 0.15s, inView: true), children: [
+      P.carte("Et trois cartes,"),
+      P.carte("l'une après"),
+      P.carte("l'autre."),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 77 : toutes les touches", to: "77-toutes-les-touches.holo"),
+      A("Leçon 79 : régler un son →", to: "79-regler-un-son.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.loin { margin: 0 0 900px 0; }
+.carte { background: #1a1a2e; border: 1px solid #E9B44C; border-radius: 12px; padding: 16px 20px; margin: 0 0 200px 0; }

@@ -84,6 +84,11 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 74 | [Un champ dans une ligne](74-champ-dans-une-ligne.holo) | `If(item.done, …)`, `item.done.set(1)`, les lignes gardées |
 | 75 | [Le contenu d'un composant](75-contenu-d-un-composant.holo) | `params: [title, children]`, `children` posé seul, `Encadre(children: [ … ])` |
 | 76 | [Envoyer un fichier](76-envoyer-un-fichier.holo) | `Input(type: file, accept: image, max: 2MB)` dans un `Form` |
+| 77 | [Toutes les touches utiles du clavier](77-toutes-les-touches.holo) | `Key.enter`, `Key.escape`, `Key.a` à `Key.z`, `Key.digit0` à `Key.digit9` |
+| 78 | [Apparaître en descendant](78-apparaitre-en-descendant.holo) | `Enter(…, inView: true)` |
+| 79 | [Régler un son](79-regler-un-son.holo) | `Sound(volume:, loop:)`, `stop` |
+| 80 | [Des tailles qui suivent le visiteur](80-tailles-qui-suivent.holo) | les pixels écrits en rem, `height: screen` |
+| 81 | [La vue points se lit aussi](81-vue-points-et-lecteur-d-ecran.holo) | le lecteur d'écran en vue points (rien à écrire) |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 

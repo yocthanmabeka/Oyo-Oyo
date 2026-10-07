@@ -77,6 +77,11 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `module "…"`, `Module`, `run`, `done`, `failed` | `<script src>`, `new Worker`, `WebAssembly.instantiate` | changé : annoncé en haut du fichier, enfermé (un fil à part, une mémoire plafonnée, rien d'autre), arrêté s'il dure trop |
 | `bridge js`, `bridge css` | `<script>`, `<link>` vers du code existant | refusés (`ADR-011`, partie B) |
 | `mul`, `div` | `*=`, `/=`, `Math.floor` | changé : deux demandes, en nombres entiers |
+| `Key.enter`, `Key.escape`, `Key.a` à `Key.z`, `Key.digit0` à `Key.digit9` | `KeyboardEvent.key`, `KeyboardEvent.code` | changé : un nom par touche ; les lettres par ce qui est écrit sur la touche, les chiffres par leur place (un clavier français marche sans Maj) ; jamais Tab ; les touches à une lettre se coupent (WCAG 2.1.4) |
+| `inView:` dans `Enter` | `IntersectionObserver`, `animation-timeline: view()` | nouveau : un mot, et rien qui tourne pendant qu'on défile |
+| `volume:`, `loop:` dans `Sound`, `stop` | `audio.volume` (seulement en JavaScript), `loop`, `pause()` puis `currentTime = 0` | repris, et `stop` qui manque au web |
+| `screen` dans `height:` | `100vh`, `100dvh` | changé : un mot ; la hauteur vraiment visible sur un téléphone |
+| les pixels écrits en `rem` | `rem`, `em`, `vw`, `ch`… (douze unités) | changé : on écrit des pixels, le navigateur reçoit des `rem` |
 | `{n:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | `padStart`, `Intl.NumberFormat`, `toLocaleDateString` | changé : un mot après deux-points ; la langue vient de la page |
 | `Form`, `send`, `sent`, `failed` | `form`, `fetch(…, { method: "POST" })`, `.then`, `.catch` | changé : une règle envoie, deux signaux répondent ; la page ne recharge jamais |
 | `Dialog`, `open`, `close` | `dialog`, `showModal()`, `close()` | repris, ouvert et fermé par des règles |

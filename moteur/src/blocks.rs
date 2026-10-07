@@ -34,7 +34,7 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     ("A", &["name", "to"]),
     ("Button", &["name", "text"]),
     ("Image", &["name", "source", "weight", "alt", "phone", "caption"]),
-    ("Sound", &["name", "source", "weight", "label"]),
+    ("Sound", &["name", "source", "weight", "label", "volume", "loop"]),
     ("Shape", &["name", "form", "color", "size"]),
     ("List", &["name", "children", "ordered"]),
     ("Hr", &["name"]),
