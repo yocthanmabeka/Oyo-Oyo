@@ -6,6 +6,18 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Un fichier de thème se vérifie aussi en ligne de commande
+
+- Yocthan : « Oui, commence le point 1 et 2. » Le point 2 : `holo check 72-theme.holo` refusait le thème de la leçon 72 (un fichier de styles seuls, `ADR-052`), que l'éditeur, lui, acceptait.
+- Corrigé : le moteur sait dire si un fichier est un fichier de styles seuls (`is_styles_file`) ; la ligne de commande le vérifie alors comme l'éditeur. Corrigé en même temps : la faute d'un thème était annoncée à une colonne fausse (48 au lieu de 6), dans l'éditeur aussi, parce que le moteur ajoutait un morceau vide devant le texte, sur la même ligne ; il l'ajoute maintenant sur une ligne à part, et retire cette ligne de la position.
+- Vérifié : 124 tests (un essai de plus sur la place de la faute) ; `holo check` sur le thème : « ok : un fichier de styles » ; un thème fautif : « ligne 2, colonne 6 : réglage inconnu « colour » », en ligne de commande comme dans l'éditeur ; les fichiers `.holo` du dépôt : les 23 refus voulus, plus aucun autre.
+
+**Trouvé en route, à corriger à part**
+
+- Un monde seul (un fichier qui commence par `Point(`) n'est pas vérifié pareil dans l'éditeur et en ligne de commande. L'éditeur refuse `budget:` (le cas valide `experiments/conformite-v0.1/cas/valides/04-budget-respecte.holo`) ; la ligne de commande laisse passer `seed: auto` (le cas refusé `E04-graine-non-fixee.holo`). Chacun a raison sur un cas et tort sur l'autre. J'ai d'abord voulu faire passer la ligne de commande par la vérification de l'éditeur, ce qui montrait l'écart : je ne l'ai pas gardé, pour ne pas changer deux comportements sans décision. La suite de conformité de GitHub, en Python, n'est pas touchée.
+
+---
+
 ## 2026-10-07 — La pile, après le passage en anglais
 
 - En relisant les outils renommés dans la nuit (`ADR-060`), trois restes de l'ancien nom : `show.mjs` ouvrait `/pile` (devenue `/stack`, donc une page introuvable) avec `voir=` au lieu de `show=` ; la pile passait la clé de l'éditeur sous `cle=` alors que l'éditeur lit `key=` (on ne pouvait plus enregistrer depuis la pile) ; le serveur affichait encore l'adresse `/pile`.
