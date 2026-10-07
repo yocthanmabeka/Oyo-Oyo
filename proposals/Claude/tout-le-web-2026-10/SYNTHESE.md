@@ -66,6 +66,7 @@ Le web sera dit viable quand ces dix parcours marcheront, chacun au clavier seul
 ## Ce que Yocthan doit décider
 
 1. **Ce plan en neuf lots, et son ordre.** Et quand la 3D commence : après le lot 7 (le serveur et les comptes), ou après le lot 9 ?
+   **Décidé par Yocthan le 2026-10-07 : la 3D commence après le lot 9.** « que la 3D commence après les lots 9. Au lieu de s'empresser, c'est mieux qu'on puisse terminer le lot 9 et ensuite commencer la 3D tranquillement ».
 2. **Les dix parcours** comme définition du web viable.
 3. **La règle du même résultat**, reformulée.
 4. **Les valeurs calculées** : une seule notion pour chercher, filtrer, trier et calculer (pistes 1 et 10 de l'exploration).

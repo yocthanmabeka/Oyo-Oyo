@@ -6,6 +6,14 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — La 3D attendra la fin du web
+
+- Yocthan : « que la 3D commence après les lots 9. Au lieu de s'empresser, c'est mieux qu'on puisse terminer le lot 9 et ensuite commencer la 3D tranquillement ».
+- Noté dans la synthèse des avis (décision 1), dans le plan de la 3D (sa date de départ) et dans `AGENTS.md`. Le contenu des étapes de la 3D reste à valider ; les neuf lots du web passent avant.
+- État au moment de la décision : lots 1, 2 et 3 faits (environ 27 % du plan, en séances estimées) ; prochain : le lot 4, la mise en page d'ordinateur et de téléphone.
+
+---
+
 ## 2026-10-07 — Sur le téléphone : une fenêtre fermée couvrait les liens (leçon 63)
 
 - Vu par Yocthan sur son Galaxy Z Flip 5, pendant la séance d'essais au doigt : à la leçon 63, le lien vers la leçon 64 ne se laissait pas toucher.

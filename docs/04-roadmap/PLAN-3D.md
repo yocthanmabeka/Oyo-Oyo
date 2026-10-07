@@ -3,6 +3,7 @@
 - Auteur : Claude
 - Date : 2026-10-07
 - Statut : **PROPOSITION**, à valider par Yocthan avant toute construction.
+- **Quand** : après les neuf lots du web (`proposals/Claude/tout-le-web-2026-10/SYNTHESE.md`), décidé par Yocthan le 2026-10-07 : « que la 3D commence après les lots 9. Au lieu de s'empresser, c'est mieux qu'on puisse terminer le lot 9 et ensuite commencer la 3D tranquillement ». Le contenu des étapes reste à valider.
 - Repose sur : `ADR-048` (une qualité, jamais une technique), `ADR-049` (objets préparés à l'avance, paliers qui bougent, WebGL 2 obligatoire), `ADR-053` (le dessin à part, chargé quand il sert), `ADR-056` (le mot `Part` gardé pour la 3D) ; la veille du 2026-10-06 ; les avis de Gemini, ChatGPT et Codex.
 
 ## Le but
