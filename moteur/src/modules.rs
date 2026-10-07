@@ -95,7 +95,7 @@ fn a_module<'a>(block: &'a Block, is_number: &dyn Fn(&str) -> bool) -> Result<Mo
             (Some("input"), Value::Name(v)) if is_number(v) => entry = Some(v.as_str()),
             (Some("output"), Value::Name(v)) if is_number(v) && !crate::state::CLOCK.contains(&v.as_str()) => output = Some(v.as_str()),
             (Some(p @ ("input" | "output")), _) => return Err(error(format!("« Module({p}: …) » attend le nom d'un nombre de la page : un module reçoit un nombre et rend un nombre"), a.pos)),
-            (Some("time"), Value::Number { value, unit: Some(u) }) if u == "ms" || u == "s" => {
+            (Some("time"), Value::Number { value, unit: Some(u), .. }) if u == "ms" || u == "s" => {
                 let ms = if u == "s" { value * 1000.0 } else { *value };
                 if !(TIME_MIN as f64..=TIME_MAX as f64).contains(&ms) {
                     return Err(error(format!("« Module(time: …) » va de {TIME_MIN}ms à 5s : au-delà, le module est arrêté"), a.pos));
@@ -103,7 +103,7 @@ fn a_module<'a>(block: &'a Block, is_number: &dyn Fn(&str) -> bool) -> Result<Mo
                 time = ms.round() as u64;
             }
             (Some("time"), _) => return Err(error("« Module(time: …) » attend une durée, comme 100ms".into(), a.pos)),
-            (Some("memory"), Value::Number { value, unit: Some(u) }) if u == "KB" || u == "MB" => {
+            (Some("memory"), Value::Number { value, unit: Some(u), .. }) if u == "KB" || u == "MB" => {
                 let bytes = if u == "MB" { value * 1e6 } else { value * 1e3 };
                 let wanted_ones = (bytes / PAGE as f64).ceil() as u64;
                 if !(1..=PAGES_MAX).contains(&wanted_ones) {

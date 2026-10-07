@@ -325,7 +325,7 @@ fn replace_in_text(text: &str, element: &Element) -> Result<String, Error> {
             match element.fields.iter().find(|(known, _)| *known == name).map(|(_, v)| *v) {
                 Some(Value::Text(t)) => output.push_str(t),
                 Some(Value::Integer(n)) => output.push_str(&n.to_string()),
-                Some(Value::Number { value, unit }) => output.push_str(&format!("{value}{}", unit.as_deref().unwrap_or(""))),
+                Some(Value::Number { value, unit, .. }) => output.push_str(&format!("{value}{}", unit.as_deref().unwrap_or(""))),
                 Some(Value::Name(n)) => output.push_str(n),
                 Some(Value::Bool(b)) => output.push_str(if *b { "true" } else { "false" }),
                 Some(_) | None if name == "key" && element.key.is_some() => output.push_str(element.key.unwrap_or_default()),

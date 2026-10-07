@@ -111,7 +111,7 @@ fn error(message: String, block: &Block) -> Error {
 fn number(value: &Value) -> Option<(f64, Option<&str>)> {
     match value {
         Value::Integer(n) => Some((*n as f64, None)),
-        Value::Number { value, unit } => Some((*value, unit.as_deref())),
+        Value::Number { value, unit, .. } => Some((*value, unit.as_deref())),
         _ => None,
     }
 }

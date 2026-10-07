@@ -201,6 +201,7 @@ pub fn check(program: &Program) -> Result<(), Error> {
         match &filter.limit {
             None => {}
             Some(Value::Integer(n)) if (1..=ELEMENTS_MAX as u64).contains(n) => {}
+            Some(Value::Name(n)) if crate::state::places(program, n) > 0 => return error(format!("« Filter(limit: {n}) » : « {n} » a des chiffres après la virgule ; on montre un nombre entier d'éléments")),
             Some(Value::Name(n)) if numbers.iter().any(|(m, _)| m == n) => {}
             Some(Value::Name(n)) => return error(format!("« Filter(limit: {n}) » : aucun nombre ne s'appelle « {n} » ; déclare-le, state: State({n}: 12)")),
             Some(_) => return error(format!("« Filter(limit: …) » attend un nombre entier de 1 à {ELEMENTS_MAX}, ou le nom d'un nombre de la page")),

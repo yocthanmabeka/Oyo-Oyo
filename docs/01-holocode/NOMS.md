@@ -51,6 +51,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `letters:`, `each:` | du JavaScript qui coupe le texte en `span`, et un délai par `span` | nouveaux |
 | `If(…, rules:)` | `if (…) { … }` autour d'un `setInterval` ; `clearInterval` à ne pas oublier | changé : les règles rangées dedans ne valent que si la condition est vraie |
 | `If(size, is: "L")`, `When(answer, is: "Paris", …)` | `size === "L"`, un écouteur `input` qui compare | changé : à la lettre près ; un texte ne se compare pas à un nombre (`ADR-063`, à valider) |
+| `State(price: 12.50)`, `{price}` | `Number`, `toFixed(2)`, `Intl.NumberFormat` | changé : exact (gardé à l'échelle), les chiffres fixés à la déclaration, la virgule de la langue d'office (`ADR-066`, à valider) |
 | `Repeat(over: tasks, key: id)` | la `key` de React, `:key` de Vue | repris ; sans clé, le moteur prend le contenu, et le clavier est gardé quand même (`ADR-065`, à valider) |
 | `total:` dans `Filter` | `filtered.length` avant `slice` | changé : un réglage, qui se montre et se compare (`ADR-065`, à valider) |
 | `Data(name: Shop)`, `Shop.done`, `Shop.failed`, `Shop.refresh` | `fetch().then().catch()`, `response.ok`, `AbortController`, un bouton qui rappelle `fetch` | changé : un échec couvre l'erreur du serveur, le fichier trop gros ou illisible, et 10 secondes ; relectures espacées d'office (`ADR-064`, à valider) |

@@ -423,6 +423,26 @@ const tests = [
     const ok = moved && where === "k:t2-0 Undo" && removed && after.endsWith(" Drop");
     return [ok, `la tâche descend : ${moved} ; le clavier est sur : ${where} ; retirée : ${removed} ; puis sur : ${after}`];
   }],
+  ["des nombres à virgule, exacts (12,50 × 4 = 50,00)", async (p) => {
+    await p.open("/exemples/lecons/86-nombres-a-virgule.holo");
+    const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;
+    // Comme un visiteur : le clavier sur le champ, on l'efface, on écrit (la page ne récrit jamais
+    // le champ où l'on écrit).
+    const write = async (bind, text) => {
+      await p.value(`(() => { const i = document.querySelector('input[data-bind="${bind}"]'); i.focus(); i.value = ""; i.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+      await p.type(`input[data-bind="${bind}"]`, text);
+    };
+    const start = (await p.value(has("Prix : 12,50 €"))) && (await p.value(`document.querySelector('input[data-bind="price"]').value === "12.50"`));
+    await write("qty", "4");
+    await p.click('[data-name="Compute"]');
+    const fifty = await p.until(`${has("Total : 50,00 €")} && ${has("Livraison offerte.")}`);
+    await p.click('[data-name="Tip"]');
+    const tip = await p.until(has("Total : 55,00 €"));
+    await write("price", "9.99");
+    const price = await p.until(has("Prix : 9,99 €"));
+    const ok = start && fifty && tip && price;
+    return [ok, `départ « 12,50 » : ${start} ; ×4 = 50,00 et livraison offerte : ${fifty} ; +10 % = 55,00 : ${tip} ; prix 9,99 : ${price}`];
+  }],
   ["un formulaire envoie son message", async (p) => {
     await p.open("/exemples/lecons/64-formulaire.holo");
     await p.type("#page input", "Ada");

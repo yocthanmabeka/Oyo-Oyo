@@ -567,7 +567,12 @@
       else if (field.type === "radio") field.checked = field.value === values.get(field.dataset.bind);
       // Un fichier choisi ne se récrit pas ; une règle peut seulement le vider : photo.set("").
       else if (field.type === "file") { if (values.get(field.dataset.bind) === "") field.value = ""; }
-      else if (field !== document.activeElement) field.value = values.get(field.dataset.bind);
+      // Un nombre à virgule voyage à son échelle, 12,50 → 1250 (ADR-066) : le champ montre 12.50.
+      else if (field !== document.activeElement) {
+        const raw = values.get(field.dataset.bind);
+        const places = Number(field.dataset.places ?? 0);
+        field.value = places ? (Number(raw) / 10 ** places).toFixed(places) : raw;
+      }
     }
     // Une barre de progression suit sa valeur : Progress(value: lives) (ADR-042).
     for (const bar of or_.querySelectorAll("[data-progress]")) {

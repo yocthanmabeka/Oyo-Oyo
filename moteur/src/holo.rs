@@ -19,7 +19,9 @@ pub enum Value {
     /// Un entier écrit sans point ni unité, gardé exact : une graine ne passe jamais par
     /// un nombre flottant (revue Codex : 2^53 + 1 devenait 2^53).
     Integer(u64),
-    Number { value: f64, unit: Option<String> },
+    /// Un nombre à virgule, ou avec une unité. `places` : les chiffres écrits après la virgule
+    /// (`12.50` en a deux) ; une valeur décimale garde cette précision (ADR-066).
+    Number { value: f64, unit: Option<String>, places: u8 },
     Bool(bool),
     /// Un nom, éventuellement à points : `Atelier`, `Ouvrir.touche`, `auto`.
     Name(String),
@@ -133,7 +135,7 @@ const UNITS: &[&str] = &["mm", "cm", "m", "km", "ms", "s", "min", "h", "B", "KB"
 enum Word {
     Name(String),
     Integer(u64),
-    Number(f64, Option<String>),
+    Number(f64, Option<String>, u8),
     Text(String),
     Sign(char),
     End,
@@ -254,6 +256,8 @@ impl<'a> Reader<'a> {
             self.i += 1;
         }
         let number_text = &self.text[start..self.i];
+        // Les chiffres écrits après la virgule : `12.50` en a deux, et les garde (ADR-066).
+        let places = number_text.split_once('.').map_or(0, |(_, after)| after.len().min(255) as u8);
         let unit_start = self.i;
         while self.i < self.src.len() && self.src[self.i].is_ascii_alphabetic() {
             self.i += 1;
@@ -264,7 +268,7 @@ impl<'a> Reader<'a> {
                 return Ok(Word::Integer(integer));
             }
             let value: f64 = number_text.parse().map_err(|_| self.error("nombre mal formé"))?;
-            return Ok(Word::Number(value, None));
+            return Ok(Word::Number(value, None, places));
         }
         let value: f64 = number_text.parse().map_err(|_| self.error("nombre mal formé"))?;
         if !UNITS.contains(&unit) {
@@ -273,7 +277,7 @@ impl<'a> Reader<'a> {
                 pos: Pos { line: self.line, column: (unit_start - self.line_start) as u32 + 1 },
             });
         }
-        Ok(Word::Number(value, Some(unit.to_string())))
+        Ok(Word::Number(value, Some(unit.to_string()), places))
     }
 
     /// Lit les styles qui suivent le bloc racine. L'écriture est celle du CSS de base :
@@ -613,9 +617,9 @@ impl Parser {
                 self.advance();
                 Ok(Value::Integer(integer))
             }
-            Word::Number(value, unit) => {
+            Word::Number(value, unit, places) => {
                 self.advance();
-                Ok(Value::Number { value, unit })
+                Ok(Value::Number { value, unit, places })
             }
             Word::Text(t) => {
                 self.advance();
@@ -654,8 +658,8 @@ fn describe(word: &Word) -> String {
     match word {
         Word::Name(n) => format!("« {n} »"),
         Word::Integer(v) => format!("« {v} »"),
-        Word::Number(v, Some(u)) => format!("« {v}{u} »"),
-        Word::Number(v, None) => format!("« {v} »"),
+        Word::Number(v, Some(u), _) => format!("« {v}{u} »"),
+        Word::Number(v, None, _) => format!("« {v} »"),
         Word::Text(_) => "un texte".into(),
         Word::Sign(c) => format!("« {c} »"),
         Word::End => "la fin du fichier".into(),
@@ -847,7 +851,7 @@ mod tests {
         assert_eq!(p.root.argument("name").unwrap().value, Value::Name("Origin".into()));
         assert_eq!(p.root.argument("seed").unwrap().value, Value::Integer(1));
         assert_eq!(p.root.argument("fragments").unwrap().value, Value::Integer(12));
-        assert_eq!(p.root.argument("brightness").unwrap().value, Value::Number { value: 1.0, unit: None });
+        assert_eq!(p.root.argument("brightness").unwrap().value, Value::Number { value: 1.0, unit: None, places: 1 });
     }
 
     #[test]
@@ -880,7 +884,7 @@ mod tests {
             _ => panic!(),
         }
         match &content[1] {
-            Value::Block(b) => assert_eq!(b.argument("budget").unwrap().value, Value::Number { value: 500.0, unit: Some("KB".into()) }),
+            Value::Block(b) => assert_eq!(b.argument("budget").unwrap().value, Value::Number { value: 500.0, unit: Some("KB".into()), places: 0 }),
             _ => panic!(),
         }
     }

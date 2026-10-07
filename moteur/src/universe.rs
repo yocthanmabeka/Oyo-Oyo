@@ -61,7 +61,7 @@ pub fn point_from(program: &Program) -> Result<PointDecl, Error> {
             }
             ("seed", Value::Integer(seed)) => decl.seed = *seed,
             ("seed", _) => return Err(expected("seed", "un nombre entier positif, sans unité, jusqu'à 18446744073709551615", arg.pos)),
-            ("brightness", Value::Number { value, unit: None }) if (0.0..=1.0).contains(value) => decl.light = *value as f32,
+            ("brightness", Value::Number { value, unit: None, .. }) if (0.0..=1.0).contains(value) => decl.light = *value as f32,
             ("brightness", Value::Integer(e)) if *e <= 1 => decl.light = *e as f32,
             ("brightness", _) => return Err(expected("brightness", "un nombre entre 0 et 1, sans unité", arg.pos)),
             ("fragments", Value::Integer(n)) if (1..=u64::from(SHATTER_MAX)).contains(n) => decl.shatter = *n as u32,
