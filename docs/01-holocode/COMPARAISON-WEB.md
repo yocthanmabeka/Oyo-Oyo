@@ -158,6 +158,7 @@ Légende : **fait** (un mot existe et le moteur l'affiche) ; **exprès** (absent
 | Garder une valeur, l'afficher (un panier) | `State(cart: 0)`, `{cart}`, `cart.add(1)` | fait : des nombres entiers ; avec `Prices`, le moteur calcule `{count}` et `{total}` |
 | Afficher sous condition | `If(cart, is: 0, children: [...])` | fait |
 | Des nombres à virgule (`Number`, `toFixed`, `Intl.NumberFormat`) | `State(price: 12.50)`, `{price}`, `sum.mul(1.1)`, `If(sum, over: 49.99)` | fait (`ADR-066`, à valider) : exacts ; pas encore de nombre négatif |
+| Un formulaire qui vérifie (`required`, `type="email"`, `minlength`, messages, Entrée, un envoi, délai) | `Input(required: true, type: email, min: 2)`, `Form(…)` | fait (`ADR-068`, à valider) ; vérifié aussi au serveur |
 | Une clé stable par ligne (`key` de React), le focus gardé quand la liste change | `Repeat(over: tasks, key: id, …)` ; le clavier suit la ligne, rien à écrire | fait (`ADR-065`, à valider) |
 | Pagination : le total avant de couper, « 4 sur 6 » | `Filter(…, limit: shown, total: matching)`, `{matching}`, `If(shown, under: matching, …)` | fait (`ADR-065`, à valider) |
 | Dire « chargement » et « échec », réessayer (`fetch`, `response.ok`, `AbortController`) | `Data(name: Shop, …)`, `On(Shop.done, …)`, `On(Shop.failed, …)`, `Shop.refresh` | fait (`ADR-064`, à valider) ; 10 secondes au plus ; une lecture à la fois |

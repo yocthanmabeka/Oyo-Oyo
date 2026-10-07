@@ -1,0 +1,49 @@
+// Leçon 88 — Un formulaire qui vérifie
+//
+// Ce qu'on apprend :
+//   Input(value: name, label: "…", required: true, min: 2)        obligatoire, 2 caractères au moins
+//   Input(value: email, label: "…", type: email, required: true)  une adresse e-mail
+//   Input(value: message, label: "…", lines: 4, required: true, min: 10, max: 500)
+//   Checkbox(value: accept, label: "…", required: true)           une case à cocher
+//   À l'envoi (Contact.send), le moteur vérifie chaque champ. Ce qui ne va pas s'écrit sous le
+//   champ, et un lecteur d'écran le lit ; le premier champ à corriger reçoit le clavier. Le
+//   message s'efface dès qu'on corrige.
+//   Entrée, dans un champ, envoie le formulaire. Un seul envoi à la fois, 15 secondes au plus.
+//   Le serveur vérifie à nouveau : une page contournée n'envoie pas n'importe quoi.
+//
+// À essayer :
+//   Touche « Envoyer » sans rien écrire : quatre messages. Corrige-les un par un, puis touche
+//   Entrée dans un champ.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 88 : un formulaire qui vérifie",
+  state: State(name: "", email: "", message: "", accept: 0, sent: 0, failed: 0),
+  children: [
+    H1("Écris-nous"),
+    Form(name: Contact, children: [
+      Input(value: name, label: "Ton nom", required: true, min: 2),
+      Input(value: email, label: "Ton e-mail", type: email, required: true),
+      Input(value: message, label: "Ton message", lines: 4, required: true, min: 10, max: 500),
+      Checkbox(value: accept, label: "J'accepte qu'on me réponde par e-mail", required: true),
+      Button(name: Send, text: "Envoyer"),
+    ]),
+    If(sent, is: 1, children: [ P("Merci, ton message est arrivé.") ]),
+    If(failed, is: 1, children: [ P("Le message n'est pas parti : réessaie plus tard.") ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 87 : des dates", to: "87-des-dates.holo"),
+    ]),
+  ],
+  rules: [
+    On(Send.tap, effect: Contact.send),
+    On(Contact.sent, effect: [sent.set(1), failed.set(0)]),
+    On(Contact.failed, effect: [failed.set(1), sent.set(0)]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

@@ -39,6 +39,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 86 : des nombres à virgule", to: "86-nombres-a-virgule.holo"),
+      A("Leçon 88 : un formulaire qui vérifie →", to: "88-un-formulaire-qui-verifie.holo"),
     ]),
   ],
   rules: [

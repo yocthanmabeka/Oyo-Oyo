@@ -1419,6 +1419,35 @@ Page(
 
 Cette écriture est décidée (`ADR-045`). La leçon est `69-module-enferme.holo` ; ses trois modules, dans `exemples/lecons/modules/`.
 
+## 6 quinvicies. Des formulaires qui vérifient
+
+```holo
+Page(
+  title: "Contact",
+  state: State(name: "", email: "", message: "", accept: 0, sent: 0),
+  children: [
+    Form(name: Contact, children: [
+      Input(value: name, label: "Your name", required: true, min: 2),
+      Input(value: email, label: "Your e-mail", type: email, required: true),
+      Input(value: message, label: "Your message", lines: 4, required: true, min: 10, max: 500),
+      Checkbox(value: accept, label: "You may answer me by e-mail", required: true),
+      Button(name: Send, text: "Send"),
+    ]),
+    If(sent, is: 1, children: [ "Thank you." ]),
+  ],
+  rules: [ On(Send.tap, effect: Contact.send), On(Contact.sent, effect: sent.set(1)) ],
+)
+```
+
+- **`required: true`** : un texte rempli, une case cochée, une réponse choisie (`Choice`). Un nombre n'est jamais vide : on le borne, `min: 1`. Un champ obligatoire vit dans un `Form`.
+- **`type: email`** : le clavier des adresses ; l'adresse doit être plausible (`nom@exemple.fr`).
+- **`min:` et `max:`** sur un texte : sa longueur, en caractères.
+- À l'envoi, le moteur vérifie chaque champ. **Ce qui ne va pas s'écrit sous le champ**, dans la langue de la page, et un lecteur d'écran le lit ; le premier champ à corriger reçoit le clavier. Les messages suivent ce qu'on corrige.
+- **Entrée** dans un champ envoie le formulaire (son premier bouton). **Un seul envoi à la fois**, **15 secondes au plus** : sinon, `Contact.failed`.
+- **Le serveur vérifie à nouveau**, avec les mêmes règles : un message forgé reçoit 422.
+
+Cette écriture est proposée (`ADR-068`) et attend la validation de Yocthan. La leçon est `88-un-formulaire-qui-verifie.holo`.
+
 ## 6 quatervicies. Des dates
 
 ```holo

@@ -984,7 +984,8 @@ pub fn input_text(program: &Program, texts: &Texts, name: &str, written: &str) -
         }
         return texts;
     }
-    if let Some(kind) = kind {
+    // Un e-mail s'écrit comme un texte (ADR-068) : il est vérifié à l'envoi, pas lettre à lettre.
+    if let Some(kind) = kind.filter(|k| k != "email") {
         let digits = |t: &str, template: &str| t.len() == template.len() && t.chars().zip(template.chars()).all(|(c, g)| if g == '9' { c.is_ascii_digit() } else { c == g });
         let correct = written.is_empty()
             || match kind.as_str() {
@@ -2757,6 +2758,44 @@ mod tests {
                 m if m.contains("due:00") => "est une date ; formats possibles",
                 _ => "elle ne se garde pas",
             };
+            assert!(error.message.contains(expected), "{message}\n→ {error}");
+        }
+    }
+
+    #[test]
+    fn a_form_is_checked_before_sending_and_again_by_the_server() {
+        // ADR-068 : obligatoire, e-mail, longueurs ; les mêmes règles au serveur.
+        let source = include_str!("../../exemples/lecons/88-un-formulaire-qui-verifie.holo");
+        let program = page(source).unwrap();
+        let (numbers, texts) = (initial(&program).unwrap(), initial_texts(&program));
+        let empty = form_errors(&program, &numbers, &texts, "Contact");
+        assert_eq!(empty.iter().map(|(f, _)| f.as_str()).collect::<Vec<_>>(), ["name", "email", "message", "accept"]);
+        assert_eq!(empty[3].1, "Cette case doit être cochée.");
+        let english = page(&source.replace("title: \"Leçon 88", "lang: \"en\", title: \"Leçon 88")).unwrap();
+        assert_eq!(form_errors(&english, &numbers, &texts, "Contact")[0].1, "This field is required.");
+        assert!(is_email("ada@exemple.fr") && !is_email("ada@") && !is_email("a b@c.fr") && !is_email("@c.fr") && !is_email("a@b") && !is_email("a@b..fr"));
+        // Le serveur : un bon message passe ; un message forgé est refusé, champ par champ.
+        let good = r#"{"form":"Contact","values":{"name":"Ada","email":"ada@exemple.fr","message":"Bonjour, un essai.","accept":1}}"#;
+        assert!(check_submission(&program, good).is_empty(), "{:?}", check_submission(&program, good));
+        let forged = r#"{"form":"Contact","values":{"name":"","email":"x","message":"court","accept":0,"admin":1}}"#;
+        let errors = check_submission(&program, forged);
+        assert_eq!(errors.len(), 5, "{errors:?}");
+        assert!(errors.iter().any(|(f, m)| f == "admin" && m == "champ inconnu"));
+        assert!(errors.iter().any(|(f, m)| f == "message" && m == "Au moins 10 caractères."));
+        assert_eq!(check_submission(&program, "pas du json")[0].1, "message illisible");
+        assert_eq!(check_submission(&program, r#"{"form":"Autre","values":{}}"#)[0].1, "aucun formulaire de ce nom");
+        // Un nombre à virgule part comme on l'écrit (défaut du lot 2f : il partait « 1250 »).
+        let order = "Page(state: State(price: 12.50), children: [ Form(name: Order, children: [ Input(value: price, label: \"Prix\"), Button(name: Go, text: \"OK\") ]) ], rules: [ On(Go.tap, effect: Order.send) ])";
+        let order = page(order).unwrap();
+        assert_eq!(submission(&order, &initial(&order).unwrap(), &initial_texts(&order), "Order").unwrap(), r#"{"form":"Order","values":{"price":12.50}}"#);
+        // Les refus, avec leur raison.
+        for (wrong, message) in [
+            ("Input(value: name, label: \"Ton nom\", required: true, min: 2)", "Input(value: sent, label: \"x\", required: true)"),
+            ("Form(name: Contact, children: [", "Input(value: name, label: \"Dehors\", required: true), Form(name: Contact, children: ["),
+            ("type: email, required: true", "type: email, required: oui"),
+        ] {
+            let error = page(&source.replace(wrong, message)).unwrap_err();
+            let expected = if message.contains("sent") { "un nombre n'est jamais vide" } else if message.contains("Dehors") { "est vérifié à l'envoi d'un formulaire" } else { "attend true ou false" };
             assert!(error.message.contains(expected), "{message}\n→ {error}");
         }
     }

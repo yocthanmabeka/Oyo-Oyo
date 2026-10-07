@@ -465,6 +465,71 @@ const tests = [
     const ok = today && arrival && week && price && refused;
     return [ok, `aujourd'hui « ${french(0)} » : ${today} ; arrivée ${iso(3)} : ${arrival} ; une semaine → 7 nuits : ${week} ; 560,00 € : ${price} ; hier refusé : ${refused}`];
   }],
+  ["un formulaire qui vérifie : messages, Entrée, un envoi, délai, serveur (leçon 88)", async (p, b) => {
+    await p.open("/exemples/lecons/88-un-formulaire-qui-verifie.holo");
+    await p.until("window.__holoStarted");
+    const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;
+    const write = async (bind, text) => {
+      await p.value(`(() => { const i = document.querySelector('[data-bind="${bind}"]'); i.focus(); i.value = ""; i.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+      await p.type(`[data-bind="${bind}"]`, text);
+    };
+    const errors = () => p.value(`[...document.querySelectorAll(".holo-error")].map((e) => e.textContent).join(" | ")`);
+    // Le serveur, imité par Chrome : on compte les envois ; « lent » ne répond jamais.
+    let posts = 0;
+    let mode = "";
+    b.on("Fetch.requestPaused", ({ requestId, request }) => {
+      // Seulement les envois : la page relit aussi son fichier, et cette lecture doit passer.
+      if (request.method !== "POST") return b.send("Fetch.continueRequest", { requestId });
+      posts += 1;
+      if (mode === "lent") return;
+      setTimeout(() => b.send("Fetch.fulfillRequest", { requestId, responseCode: 204 }), 800);
+    });
+    await b.send("Fetch.enable", { patterns: [{ urlPattern: "*88-un-formulaire-qui-verifie.holo*", requestStage: "Request" }] });
+    const seen = [];
+    try {
+      // Rien d'écrit : quatre messages, le clavier sur le premier champ, rien n'est parti.
+      await p.click('[data-name="Send"]');
+      await p.until(`document.querySelectorAll(".holo-error").length === 4`, 5000);
+      const four = await errors();
+      const focus = await p.value(`(() => { const a = document.activeElement; return [a.dataset.bind, a.getAttribute("aria-invalid"), document.getElementById(a.getAttribute("aria-describedby"))?.textContent].join(" / "); })()`);
+      seen.push(`vide → ${four} ; clavier sur ${focus} ; envois : ${posts}`);
+      const emptyOk = four.split(" | ").length === 4 && focus.startsWith("name / true / Ce champ est obligatoire.") && posts === 0;
+      // Les messages suivent ce qu'on corrige.
+      await write("name", "A");
+      const short = await p.until(`${has("Au moins 2 caractères.")}`, 3000);
+      await write("name", "Ada");
+      await write("email", "ada@");
+      const email = await p.until(`${has("Écris une adresse e-mail")} && !${has("Au moins 2 caractères.")}`, 3000);
+      await write("email", "ada@exemple.fr");
+      await write("message", "Bonjour, un essai du formulaire.");
+      await p.click('input[data-bind="accept"]');
+      const clean = await p.until(`document.querySelectorAll(".holo-error").length === 0`, 3000);
+      seen.push(`« A » → trop court : ${short} ; « ada@ » → e-mail : ${email} ; tout corrigé : ${clean}`);
+      // Entrée dans un champ envoie ; deux touches rapprochées, un seul envoi.
+      await p.value(`document.querySelector('[data-bind="name"]').focus()`);
+      await p.key("Enter", "Enter", 13, "\r");
+      await p.click('[data-name="Send"]');
+      const sent = await p.until(has("Merci, ton message est arrivé."), 5000);
+      seen.push(`Entrée → envoyé : ${sent} ; envois : ${posts}`);
+      const once = posts === 1;
+      // Un serveur qui ne répond pas : un échec après 15 secondes.
+      mode = "lent";
+      await p.click('[data-name="Send"]');
+      const started = Date.now();
+      const late = await p.until(has("Le message n'est pas parti"), 20000);
+      seen.push(`serveur muet → échec : ${late} (après ${((Date.now() - started) / 1000).toFixed(1)} s)`);
+      await b.send("Fetch.disable");
+      b.on("Fetch.requestPaused", null);
+      // Le serveur vérifie à nouveau : un message forgé, sans passer par la page, est refusé.
+      const forged = await p.value(`fetch(location.pathname, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ form: "Contact", values: { name: "", email: "pas-une-adresse", message: "court", accept: 0, admin: 1 } }) }).then(async (r) => r.status + " " + (await r.text()).split("\\n").length + " erreur(s)")`);
+      seen.push(`message forgé → ${forged}`);
+      const ok = emptyOk && short && email && clean && sent && once && late && forged.startsWith("422 ");
+      return [ok, seen.join(" ; ")];
+    } finally {
+      await b.send("Fetch.disable").catch(() => {});
+      b.on("Fetch.requestPaused", null);
+    }
+  }],
   ["un formulaire envoie son message", async (p) => {
     await p.open("/exemples/lecons/64-formulaire.holo");
     await p.type("#page input", "Ada");
