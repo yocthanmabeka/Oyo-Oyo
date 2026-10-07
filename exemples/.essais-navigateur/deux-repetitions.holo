@@ -1,0 +1,18 @@
+// Une page d'essai (moteur/outils/browser-tests.mjs), pas une leçon : deux répétitions de la même
+// liste gardent chacune son modèle quand la liste change (avant : la seconde recevait les lignes
+// de la première).
+
+Page(
+  title: "Essai : deux répétitions d'une liste",
+  state: State(draft: "", tasks: [ "Pain" ]),
+  children: [
+    Input(value: draft, label: "Tâche"),
+    Button(name: Add, text: "Ajouter"),
+    Column.a(children: [ Repeat(over: tasks, children: [ Text("A: {item}") ]) ]),
+    Column.b(children: [ Repeat(over: tasks, children: [ Text("B: {item}") ]) ]),
+  ],
+  rules: [ On(Add.tap, effect: [tasks.push(draft), draft.set("")]) ],
+)
+
+.a { color: #1f6feb; }
+.b { color: #a0522d; }

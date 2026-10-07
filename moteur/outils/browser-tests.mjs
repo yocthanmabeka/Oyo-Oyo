@@ -292,12 +292,13 @@ const tests = [
     await p.click('input[type=radio][value="huile"]');
     const filtered = await p.until(`document.querySelectorAll(".holo-line").length === 3`);
     await p.click('[data-name="Toutes"]');
+    const before = await p.value(`document.getElementById("page").innerText.includes("4 œuvre(s) sur 6")`);
     await p.click('[data-name="Plus"]');
-    const more = await p.until(`document.querySelectorAll(".holo-line").length === 6`);
+    const more = await p.until(`document.querySelectorAll(".holo-line").length === 6 && document.getElementById("page").innerText.includes("6 œuvre(s) sur 6") && !document.querySelector('[data-name="Plus"]')?.offsetParent`);
     await p.type("#page input:not([type=radio])", "zzz");
     const empty = await p.until(`document.querySelector(".holo-empty")?.textContent === "Aucune œuvre ne correspond."`);
-    const ok = start === "Le phare | Orage | Élan du matin | La rivière" && searched && afterSearch === "La rivière | Rizières" && filtered && more && empty;
-    return [ok, `départ : ${start} ; « RI » : ${afterSearch} ; huile : ${filtered} ; montrer plus : ${more} ; « zzz » vide : ${empty}`];
+    const ok = start === "Le phare | Orage | Élan du matin | La rivière" && searched && afterSearch === "La rivière | Rizières" && filtered && before && more && empty;
+    return [ok, `départ : ${start} ; « RI » : ${afterSearch} ; huile : ${filtered} ; « 4 sur 6 » : ${before} ; montrer plus, puis caché : ${more} ; « zzz » vide : ${empty}`];
   }],
   ["comparer des textes (If et When)", async (p) => {
     await p.open("/exemples/lecons/83-comparer-des-textes.holo");
@@ -393,6 +394,34 @@ const tests = [
       await b.send("Fetch.disable");
       b.on("Fetch.requestPaused", null);
     }
+  }],
+  ["deux répétitions d'une liste gardent chacune leur modèle", async (p) => {
+    await p.open("/exemples/.essais-navigateur/deux-repetitions.holo");
+    const read = (rank) => p.value(`[...document.querySelectorAll('[data-list="tasks"]')[${rank}].querySelectorAll(".holo-line")].map((l) => l.innerText.trim()).join(" | ")`);
+    await p.type('input[data-bind="draft"]', "Lait");
+    await p.click('[data-name="Add"]');
+    await p.until(`document.querySelectorAll('[data-list="tasks"]')[1]?.querySelectorAll(".holo-line").length === 2`);
+    const [a, b] = [await read(0), await read(1)];
+    const ok = a === "A: Pain | A: Lait" && b === "B: Pain | B: Lait";
+    return [ok, `première : ${a} ; seconde : ${b}`];
+  }],
+  ["le clavier reste sur la ligne refaite (Repeat key)", async (p) => {
+    await p.open("/exemples/lecons/85-une-cle-pour-chaque-element.holo");
+    // Le clavier sur « Fait » de « Appeler Ada » (2e ligne), puis Entrée : la tâche descend en bas.
+    await p.until(`document.querySelectorAll(".holo-line").length === 3`);
+    await p.value(`document.querySelectorAll(".holo-line")[1].querySelector('[data-name="Done"]').focus()`);
+    await p.key("Enter", "Enter", 13, "\r");
+    const moved = await p.until(`document.querySelectorAll(".holo-line")[2]?.innerText.includes("Appeler Ada")`);
+    await pause(300);
+    const where = await p.value(`(() => { const a = document.activeElement; const line = a?.closest(".holo-line"); return line ? line.dataset.key + " " + a.dataset.name : (a?.tagName ?? "rien"); })()`);
+    // « Retirer » sur cette ligne, au clavier : elle part, le clavier va à la ligne qui prend sa place (la dernière).
+    await p.value(`document.activeElement.closest(".holo-line").querySelector('[data-name="Drop"]').focus()`);
+    await p.key("Enter", "Enter", 13, "\r");
+    const removed = await p.until(`document.querySelectorAll(".holo-line").length === 2`);
+    await pause(300);
+    const after = await p.value(`(() => { const a = document.activeElement; return a?.closest(".holo-line") ? a.closest(".holo-line").innerText.split(String.fromCharCode(10))[0] + " " + a.dataset.name : (a?.tagName ?? "rien"); })()`);
+    const ok = moved && where === "k:t2-0 Undo" && removed && after.endsWith(" Drop");
+    return [ok, `la tâche descend : ${moved} ; le clavier est sur : ${where} ; retirée : ${removed} ; puis sur : ${after}`];
   }],
   ["un formulaire envoie son message", async (p) => {
     await p.open("/exemples/lecons/64-formulaire.holo");

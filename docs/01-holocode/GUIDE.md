@@ -1387,7 +1387,7 @@ Page(
 
 - **`If(item.done, is: 1, …)`** dans une ligne : on montre l'un ou l'autre selon un champ de l'élément. Un nombre se compare avec `is`, `not`, `over`, `under` ; un texte avec `is` et `not` (`If(item.state, is: "late")`). Le champ doit exister.
 - **`item.done.set(1)`** dans les règles de la ligne change ce champ de l'élément touché ; **`item.likes.add(1)`** et **`.sub(1)`** pour un nombre ; `set` prend aussi un texte ou le nom d'une valeur de la page.
-- **Les lignes qui n'ont pas changé restent telles quelles.** Chaque ligne a une clé tirée de son contenu ; quand la liste change, la page ne remplace que les lignes nouvelles ou changées. Un pli ouvert, un champ où l'on écrit, le focus restent où ils sont.
+- **Les lignes qui n'ont pas changé restent telles quelles.** Chaque ligne a une clé tirée de son contenu ; quand la liste change, la page ne remplace que les lignes nouvelles ou changées. Un pli ouvert, un champ où l'on écrit, le focus restent où ils sont. Une ligne refaite garde aussi le clavier : il passe au même bouton de la nouvelle ligne (voir « Les lignes d'une liste », `ADR-065`).
 
 Cette écriture est décidée (`ADR-057`). La leçon est `74-champ-dans-une-ligne.holo`.
 
@@ -1418,6 +1418,42 @@ Page(
 - `bridge js` et `bridge css` sont refusés : un pont ferait entrer du code sans garantie.
 
 Cette écriture est décidée (`ADR-045`). La leçon est `69-module-enferme.holo` ; ses trois modules, dans `exemples/lecons/modules/`.
+
+## 6 duovicies. Les lignes d'une liste : une clé, le clavier gardé, le total
+
+```holo
+Page(
+  title: "Tasks",
+  state: State(shown: 2, tasks: [
+    Item(id: "t1", title: "Buy bread", done: 0),
+    Item(id: "t2", title: "Call Ada", done: 0),
+    Item(id: "t3", title: "Water the plants", done: 0),
+  ]),
+  computed: [ Filter(name: ordered, from: tasks, sortBy: done, limit: shown, total: all) ],
+  children: [
+    P("{ordered} of {all}"),
+    Repeat(over: ordered, key: id, children: [
+      Text("{item.title}"),
+      If(item.done, is: 1, children: [ Button(name: Undo, text: "Reopen") ], else: [ Button(name: Done, text: "Done") ]),
+      Button(name: Drop, text: "Remove"),
+    ], rules: [
+      On(Done.tap, effect: item.done.set(1)),
+      On(Undo.tap, effect: item.done.set(0)),
+      On(Drop.tap, effect: tasks.remove(item)),
+    ]),
+    If(shown, under: all, children: [ Button(name: More, text: "Show more") ]),
+  ],
+  rules: [ On(More.tap, effect: shown.add(2)) ],
+)
+```
+
+- **`key: id`** : chaque ligne est reconnue par le champ `id` de son élément, même quand le reste change ou qu'elle change de place. Le champ doit exister ; une liste de textes n'en a pas besoin.
+- **Le clavier reste** quand une ligne est refaite : il passe au même bouton de la nouvelle ligne, ou au premier bouton de la ligne. Avec une clé, il suit l'élément là où il va (une tâche faite descend) ; sans clé, il reste au même rang. Une ligne retirée laisse le clavier à la ligne qui prend sa place. Rien à écrire.
+- **Une règle des lignes d'une liste calculée change l'élément d'origine** : `item.done.set(1)` change la tâche de `tasks`, `tasks.remove(item)` la retire de `tasks`.
+- **`total: all`** dans un `Filter` : le nombre trouvé avant de couper. `{all}` le montre ; `If(shown, under: all, …)` cache « Show more » quand tout est montré.
+- Deux répétitions de la même liste gardent chacune leur modèle.
+
+Cette écriture est proposée (`ADR-065`) et attend la validation de Yocthan. La leçon est `85-une-cle-pour-chaque-element.holo` ; le total est dans `82-chercher-filtrer-trier.holo`.
 
 ## 6 unvicies. Comparer des textes
 
@@ -1476,7 +1512,8 @@ Page(
 - `field: kind, is: chosen` ne garde que les éléments dont le champ vaut cette valeur. `sortBy: price` trie (des nombres comme des nombres) ; `reverse: true`, du plus grand au plus petit. `limit: shown` n'en montre que `shown` : une règle l'augmente pour « montrer plus ».
 - **Une valeur vide ne filtre pas** : un champ de recherche vide montre tout.
 - `Repeat(empty: "…")` dit ce qu'on écrit quand la liste est vide ; un lecteur d'écran l'annonce.
-- Une liste calculée ne se change pas par une demande, et ne se garde pas : on change ou on garde sa source.
+- Une liste calculée ne se change pas par une demande, et ne se garde pas : on change ou on garde sa source. Mais une règle écrite dans ses lignes change l'élément d'origine : `item.done.set(1)`, `tasks.remove(item)` (`ADR-065`).
+- `total: matching` donne le nombre trouvé avant de couper : « {found} sur {matching} » ; `If(shown, under: matching, …)` cache « Show more » quand tout est montré (`ADR-065`).
 
 L'écriture `Filter`, `computed`, `contains`, `in`, `sortBy`, `limit`, `empty` est choisie par Yocthan (`ADR-062`) ; `field`, `is` et `reverse` attendent sa validation. La leçon est `82-chercher-filtrer-trier.holo`.
 

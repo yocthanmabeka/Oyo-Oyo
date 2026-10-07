@@ -1,0 +1,51 @@
+// Leçon 85 — Une clé pour chaque élément
+//
+// Ce qu'on apprend :
+//   Repeat(over: ordered, key: id, …) : chaque ligne est reconnue par le champ « id » de son
+//   élément. Quand un autre champ change (une tâche faite), c'est encore la même ligne, même si
+//   la liste se réordonne : le clavier reste sur elle.
+//   Sans clé, une ligne est reconnue par tout son contenu, et par son rang.
+//   Une règle écrite dans la répétition d'une liste calculée change l'élément d'origine :
+//     On(Done.tap, effect: item.done.set(1))     la tâche de « tasks » est faite
+//     On(Drop.tap, effect: tasks.remove(item))   elle est retirée de « tasks »
+//
+// À essayer :
+//   Avec la touche Tab, va sur « Fait » de « Appeler Ada », puis touche Entrée : la tâche
+//   descend en bas de la liste, et le clavier la suit, sur « Rouvrir ».
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 85 : une clé pour chaque élément",
+  state: State(tasks: [
+    Item(id: "t1", title: "Acheter du pain", done: 0),
+    Item(id: "t2", title: "Appeler Ada", done: 0),
+    Item(id: "t3", title: "Arroser les plantes", done: 0),
+  ]),
+  computed: [ Filter(name: ordered, from: tasks, sortBy: done) ],
+  children: [
+    H1("Une clé pour chaque élément"),
+    P("Les tâches faites descendent en bas de la liste."),
+    Repeat(over: ordered, key: id, empty: "Plus rien à faire.", children: [
+      Row.tache(gap: 12px, align: between, children: [
+        Text("{item.title}"),
+        If(item.done, is: 1, children: [ Button(name: Undo, text: "Rouvrir") ], else: [ Button(name: Done, text: "Fait") ]),
+        Button(name: Drop, text: "Retirer"),
+      ]),
+    ], rules: [
+      On(Done.tap, effect: item.done.set(1)),
+      On(Undo.tap, effect: item.done.set(0)),
+      On(Drop.tap, effect: tasks.remove(item)),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 84 : des données qui arrivent, ou pas", to: "84-donnees-arrivees-ou-pas.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.tache { background: #1a1a2e; border-radius: 8px; padding: 6px 12px; }

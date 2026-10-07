@@ -155,7 +155,7 @@ pub fn vocabulary() -> String {
     let mut cycle: Vec<&str> = MOVEMENT.to_vec();
     cycle.push("back");
     let others: [(&str, &[&str]); 10] = [
-        ("Repeat", &["items", "over", "children", "rules"]),
+        ("Repeat", &["items", "over", "key", "empty", "children", "rules"]),
         ("Item", &["key"]),
         ("Data", &["name", "from", "every"]),
         ("Enter", MOVEMENT),
@@ -240,8 +240,11 @@ fn write_all(program: &Program, numbers: &state::State, texts: &state::Texts, li
     let sounds = if capabilities.is_empty() { String::new() } else { format!("!={}", capabilities.join(",")) };
     // Les listes calculées suivent l'état : la page les montre comme les autres, l'arbitre ne
     // les relit jamais (il les refait).
-    let computed = lists::write(&computed::apply(program, numbers, texts, lists));
-    [state::write(&state::to_show(program, numbers)), state::write_texts(texts), lists::write(lists), computed, sounds].into_iter().filter(|chunk| !chunk.is_empty()).collect::<Vec<_>>().join(";")
+    let (computed_lists, totals) = computed::apply_with_totals(program, numbers, texts, lists);
+    let computed = lists::write(&computed_lists);
+    // Leurs totaux aussi (`total: matching`) : des nombres que la page montre, jamais relus.
+    let totals = state::write(&totals);
+    [state::write(&state::to_show(program, numbers)), state::write_texts(texts), lists::write(lists), computed, totals, sounds].into_iter().filter(|chunk| !chunk.is_empty()).collect::<Vec<_>>().join(";")
 }
 
 /// Les valeurs d'une page à leur départ, écrites `cart=0;likes=3`, suivies de celles que le
@@ -431,7 +434,9 @@ pub fn conditions(source: &str, state: &str) -> String {
             let mut shown = state::to_show(&program, &numbers);
             shown.extend(lists::counts(&lists));
             // Une liste calculée n'est pas relue de l'état : elle se refait d'après lui (ADR-062).
-            shown.extend(lists::counts(&computed::apply(&program, &numbers, &texts, &lists)));
+            let (computed_lists, totals) = computed::apply_with_totals(&program, &numbers, &texts, &lists);
+            shown.extend(lists::counts(&computed_lists));
+            shown.extend(totals);
             state::conditions(&program, &shown, &texts).iter().map(|(key, real_one)| format!("{key}:{}", u8::from(*real_one))).collect::<Vec<_>>().join(";")
         }
         Err(_) => String::new(),

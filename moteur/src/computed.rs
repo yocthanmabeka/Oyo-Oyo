@@ -22,7 +22,7 @@ use crate::lists::{fields, text_of, Lists, ELEMENTS_MAX};
 use crate::state::{State, Texts};
 
 /// Les réglages d'un `Filter`.
-pub const PARAMS: &[&str] = &["name", "from", "contains", "in", "field", "is", "sortBy", "reverse", "limit"];
+pub const PARAMS: &[&str] = &["name", "from", "contains", "in", "field", "is", "sortBy", "reverse", "limit", "total"];
 
 /// Une liste calculée, lue dans le fichier.
 #[derive(Debug, Clone, PartialEq)]
@@ -36,6 +36,8 @@ pub struct Filter {
     sort_by: Option<String>,
     reverse: bool,
     limit: Option<Value>,
+    /// Le nombre d'éléments trouvés avant de couper, sous ce nom : « 12 sur 40 ».
+    pub total: Option<String>,
 }
 
 /// Les `Filter` de la page, dans l'ordre écrit (un filtre peut partir d'un filtre écrit avant lui).
@@ -66,6 +68,7 @@ fn read(block: &Block) -> Filter {
         sort_by: name_of("sortBy"),
         reverse: matches!(block.argument("reverse").map(|a| &a.value), Some(Value::Bool(true))),
         limit: block.argument("limit").map(|a| a.value.clone()),
+        total: name_of("total"),
     }
 }
 
@@ -77,6 +80,11 @@ pub fn filters(program: &Program) -> Vec<Filter> {
 /// Le nom des listes calculées.
 pub fn names(program: &Program) -> Vec<String> {
     filters(program).into_iter().map(|f| f.name).collect()
+}
+
+/// Le nom des totaux des listes calculées, `total: matching` : des nombres que la page montre.
+pub fn total_names(program: &Program) -> Vec<String> {
+    filters(program).into_iter().filter_map(|f| f.total).collect()
 }
 
 pub fn is_computed(program: &Program, name: &str) -> bool {
@@ -197,6 +205,15 @@ pub fn check(program: &Program) -> Result<(), Error> {
             Some(Value::Name(n)) => return error(format!("« Filter(limit: {n}) » : aucun nombre ne s'appelle « {n} » ; déclare-le, state: State({n}: 12)")),
             Some(_) => return error(format!("« Filter(limit: …) » attend un nombre entier de 1 à {ELEMENTS_MAX}, ou le nom d'un nombre de la page")),
         }
+        if let Some(a) = block.argument("total") {
+            let taken = |n: &str| numbers.iter().any(|(m, _)| m == n) || texts.iter().any(|(t, _)| t == n) || crate::lists::initial(program).iter().any(|(l, _)| l == n) || known.iter().any(|k| k == n) || n == filter.name;
+            match &a.value {
+                Value::Name(n) if !n.starts_with(|c: char| c.is_ascii_lowercase()) => return Err(Error { message: format!("« Filter(total: {n}) » : le nom d'un nombre s'écrit en minuscules au début, comme total: matching"), pos: a.pos }),
+                Value::Name(n) if taken(n) => return Err(Error { message: format!("« {n} » est déjà le nom d'une valeur : le total d'une liste calculée a son propre nom"), pos: a.pos }),
+                Value::Name(n) => known.push(n.clone()),
+                _ => return Err(Error { message: "« Filter(total: …) » attend un nom, celui du nombre d'éléments trouvés avant de couper : total: matching".into(), pos: a.pos }),
+            }
+        }
         known.push(filter.name.clone());
     }
     Ok(())
@@ -224,7 +241,19 @@ pub fn fold(text: &str) -> String {
 
 /// Calcule les listes de la page, dans l'ordre écrit. Rien n'est lu que la page ne déclare.
 pub fn apply(program: &Program, numbers: &State, texts: &Texts, lists: &Lists) -> Lists {
+    apply_with_totals(program, numbers, texts, lists).0
+}
+
+/// Le total de chaque liste calculée qui le demande (`total: matching`) : le nombre d'éléments
+/// trouvés avant de couper.
+pub fn totals(program: &Program, numbers: &State, texts: &Texts, lists: &Lists) -> State {
+    apply_with_totals(program, numbers, texts, lists).1
+}
+
+/// Les listes calculées, et leurs totaux.
+pub fn apply_with_totals(program: &Program, numbers: &State, texts: &Texts, lists: &Lists) -> (Lists, State) {
     let mut computed: Lists = Vec::new();
+    let mut totals: State = Vec::new();
     for filter in filters(program) {
         let source = lists.iter().chain(computed.iter()).find(|(n, _)| *n == filter.from).map(|(_, e)| e.clone()).unwrap_or_default();
         let text_value = |name: &str| texts.iter().find(|(n, _)| n == name).map(|(_, v)| v.clone());
@@ -281,12 +310,15 @@ pub fn apply(program: &Program, numbers: &State, texts: &Texts, lists: &Lists) -
             Some(Value::Name(n)) => number_value(n).map(|v| v as usize),
             _ => None,
         };
+        if let Some(total) = filter.total {
+            totals.push((total, elements.len() as u64));
+        }
         if let Some(limit) = limit {
             elements.truncate(limit.min(ELEMENTS_MAX));
         }
         computed.push((filter.name, elements));
     }
-    computed
+    (computed, totals)
 }
 
 #[cfg(test)]
@@ -350,6 +382,71 @@ mod tests {
         ] {
             let error = crate::check_page(&source).unwrap_err();
             assert!(error.message.contains(message), "{source}\n→ {error}");
+        }
+    }
+
+    #[test]
+    fn a_line_of_a_computed_list_changes_its_source() {
+        // Une liste triée par « done » : toucher « Fait » sur une ligne change la tâche d'origine,
+        // qui descend ; « x » la retire de « tasks » (avant : le geste ne changeait rien).
+        let source = r#"Page(
+  state: State(tasks: [ Item(id: "t1", title: "Pain", done: 0), Item(id: "t2", title: "Lait", done: 0), Item(id: "t3", title: "Thé", done: 0) ]),
+  computed: [ Filter(name: ordered, from: tasks, sortBy: done) ],
+  children: [
+    Repeat(over: ordered, key: id, children: [ Text("{item.title}"), Button(name: Done, text: "Fait"), Button(name: Drop, text: "x") ],
+           rules: [ On(Done.tap, effect: item.done.set(1)), On(Drop.tap, effect: tasks.remove(item)) ]),
+  ],
+)"#;
+        let program = crate::check_page(source).unwrap();
+        let titles = |state: &str, list: &str| -> Vec<String> {
+            let numbers = crate::state::reread(&program, state);
+            let texts = crate::state::reread_texts(&program, state);
+            let lists = crate::lists::reread(&program, state);
+            let all: Vec<(String, Vec<String>)> = lists.iter().cloned().chain(apply(&program, &numbers, &texts, &lists)).collect();
+            all.into_iter().find(|(n, _)| n == list).unwrap().1.iter().map(|e| {
+                let f = fields(e);
+                let get = |k: &str| f.iter().find(|(c, _)| c == k).map(|(_, v)| v.clone()).unwrap_or_default();
+                format!("{}{}", get("title"), if get("done") == "1" { "✓" } else { "" })
+            }).collect()
+        };
+        let start = crate::initial_state(source);
+        // « Fait » sur la deuxième ligne de la liste triée : « Lait » est fait, et passe en bas.
+        let done = crate::arbitrate(source, &start, "Done.tap@1");
+        assert_eq!(titles(&done, "tasks"), ["Pain", "Lait✓", "Thé"]);
+        assert_eq!(titles(&done, "ordered"), ["Pain", "Thé", "Lait✓"]);
+        // La ligne du bas de la liste triée est « Lait » : « x » le retire de « tasks ».
+        let dropped = crate::arbitrate(source, &done, "Drop.tap@2");
+        assert_eq!(titles(&dropped, "tasks"), ["Pain", "Thé"]);
+        // Sa clé est restée « t2 » quand il a changé : la page a gardé la ligne.
+        assert!(crate::list_html(source, "", &done, "ordered").contains(r#"data-rank="2" data-key="k:t2-0""#));
+    }
+
+    #[test]
+    fn the_total_before_the_limit_is_shown_and_compared() {
+        // `total: matching` : combien d'éléments sont trouvés avant de couper (« 3 sur 4 »).
+        let source = PAGE.replace("limit: shown),", "limit: shown, total: matching),").replace(
+            "children: [ Repeat",
+            "children: [ Input(value: search, label: \"Chercher\"), P(\"{found} sur {matching}\"), If(shown, under: matching, children: [ Button(name: More, text: \"Plus\") ]), Repeat",
+        );
+        let start = crate::initial_state(&source);
+        assert!(start.contains("found=[") && start.contains("matching=4"), "{start}");
+        let html = crate::flat_view(&source, "").unwrap();
+        assert!(html.contains(r#"<span data-state="found">3</span> sur <span data-state="matching">4</span>"#), "{html}");
+        assert!(html.contains(r#"data-if="shown|under=matching"><button"#), "{html}");
+        // Chercher « ri » : une seule trouvée (« La rivière »), moins que les trois montrées ; le bouton se cache.
+        let typed = crate::input(&source, &start, "search", "ri");
+        assert!(typed.contains("matching=1"), "{typed}");
+        assert_eq!(crate::conditions(&source, &typed), "shown|under=matching:0");
+        assert_eq!(crate::conditions(&source, &start), "shown|under=matching:1");
+        // Les refus : un nom déjà pris, une majuscule, autre chose qu'un nom.
+        for (wrong, message) in [
+            ("total: search", "déjà le nom d'une valeur"),
+            ("total: found", "déjà le nom d'une valeur"),
+            ("total: Matching", "en minuscules"),
+            ("total: 3", "attend un nom"),
+        ] {
+            let error = crate::check_page(&source.replace("total: matching", wrong)).unwrap_err();
+            assert!(error.message.contains(message), "{wrong}\n→ {error}");
         }
     }
 
