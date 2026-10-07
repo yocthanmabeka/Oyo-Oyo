@@ -27,7 +27,7 @@ C'est déjà vrai pour ce qui existe aujourd'hui :
 |---|---|---|
 | Lancer le site sur son PC | `python manage.py runserver` | `holo serve` |
 | La base de données | un fichier `db.sqlite3` dans le projet | un fichier SQLite dans le dossier du site |
-| Les comptes | intégrés (`django.contrib.auth`), mots de passe chiffrés | intégrés au moteur, dans ta base |
+| Les comptes | intégrés (`django.contrib.auth`), mots de passe hachés | intégrés au moteur, dans ta base |
 | La double authentification | un paquet libre à ajouter (`django-otp`), sans prestataire | intégrée : un code à 6 chiffres, sans prestataire |
 | Les e-mails pendant le développement | affichés dans le terminal | le lien de connexion affiché dans le terminal |
 | Google, Apple, GitHub | en option, plus tard | en option, plus tard, si l'auteur le veut |
@@ -98,7 +98,7 @@ Toutes ces façons de se connecter seraient dans le moteur, et toutes marchent s
 
 | Façon de se connecter | Ce que garde ton serveur, dans ta base | Un prestataire ? |
 |---|---|---|
-| **Mot de passe + code à 6 chiffres** | le mot de passe chiffré (Argon2) et le secret du code | aucun : le code, qui change toutes les 30 secondes, est calculé par une appli du visiteur (Aegis, FreeOTP, ou une autre), sans Internet ; c'est une norme ouverte (RFC 6238) |
+| **Mot de passe + code à 6 chiffres** | le mot de passe haché (Argon2id : une empreinte qu'on ne peut pas défaire ; corrigé le 2026-10-07 sur la remarque de Codex) et le secret du code | aucun : le code, qui change toutes les 30 secondes, est calculé par une appli du visiteur (Aegis, FreeOTP, ou une autre), sans Internet ; c'est une norme ouverte (RFC 6238) |
 | **Clé d'accès** | une clé publique, rien de secret | aucun : c'est une norme ouverte du web (WebAuthn, du W3C, comme le HTML) ; la clé secrète reste chez le visiteur |
 | **Lien par e-mail** | l'adresse | sur le PC : le lien s'affiche dans le terminal, comme Django ; en ligne : ton propre serveur de mail, ou un service, au choix |
 | **« Se connecter avec Google, Apple, GitHub »** | un identifiant | oui, le leur : plus tard, en option, seulement si l'auteur le veut |

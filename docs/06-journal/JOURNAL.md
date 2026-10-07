@@ -6,6 +6,18 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — La réponse de Codex, et la synthèse des deux avis
+
+- Yocthan a collé la réponse de Codex au prompt « tout le web » ; Codex a aussi ouvert sa revue complète (PR 144, fusionnée). Rangée : `docs/05-discussions/reponses/2026-10-07-codex-tout-le-web.md`, avec la lecture de Claude.
+- Écrit : `proposals/Claude/tout-le-web-2026-10/SYNTHESE.md`, en proposition. Ce sur quoi Codex, Gemini et l'exploration de l'issue #82 sont d'accord (l'ordre données, formulaires, mise en page ; le serveur avant la 3D ; des modules enfermés élargis ; l'appareil seulement sur permission) ; là où ils divergent (les essais dans un navigateur d'abord ; 24 séances pour Gemini, 44 à 64 pour Codex) ; un plan en neuf lots, environ 46 à 68 séances avant la 3D ; dix parcours qui définiraient le « web viable ». Tout attend la décision de Yocthan.
+- Corrigé sur la remarque de Codex : un mot de passe est **haché** (Argon2id), pas chiffré, dans la proposition de serveur.
+
+**Erreurs relevées par Codex**
+
+- Notre prompt disait « mot de passe chiffré », et présentait « 77 % » trop vite comme un chiffre : c'est une estimation de Claude. Le résumé du grand tableau additionne 129 éléments sur 130 : il oublie le seul « sans objet ». À corriger dans le tableau.
+
+---
+
 ## 2026-10-07 — Les dix pistes de Codex, explorées (issue #82)
 
 - Yocthan : « Oui, commence le point 1 et 2. » Le point 1 : l'issue #82, explorer les dix pistes de Codex pour un site web complet.
