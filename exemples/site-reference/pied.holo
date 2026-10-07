@@ -1,6 +1,6 @@
 // Le pied de page de toutes les pages : un morceau à lui seul.
 
-Part(
+Component(
   name: Pied,
   children: [
     // Le pied de page est un repère.

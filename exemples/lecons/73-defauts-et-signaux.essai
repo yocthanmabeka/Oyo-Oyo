@@ -1,0 +1,11 @@
+// L'essai de la leçon 73 : chaque copie fait ce que la page a branché.
+tap AddSunrise
+expect cart = 12000
+tap LikeSunrise
+expect likes = 1
+tap AddGift
+expect cart = 13000
+expect likes = 2
+// La carte « Gift card » n'a pas de onLike : son bouton ne change rien.
+tap LikeGift
+expect likes = 2

@@ -379,6 +379,11 @@
   if (panneauDesValeurs) {
     Object.assign(panneauDesValeurs.style, { position: "fixed", left: "8px", bottom: "8px", zIndex: 30, maxWidth: "min(92vw, 360px)", maxHeight: "40vh", overflow: "auto", font: "13px/1.5 ui-monospace, Consolas, monospace", background: "#000c", color: "#e8e8e8", border: "1px solid #888", borderRadius: "8px", padding: "8px 10px", whiteSpace: "pre-wrap" });
   }
+  // Le dernier geste (ADR-056) : son signal, et ce qu'il a changé.
+  let dernierGeste = null;
+  function lesValeurs(ecrit) {
+    return new Map(ecrit.split(";").filter(Boolean).filter((m) => !m.startsWith("!=")).map((m) => [m.slice(0, m.indexOf("=")), m.slice(m.indexOf("=") + 1)]));
+  }
   function montrerLePanneau(ecrit) {
     if (!panneauDesValeurs) return;
     const lignes = ecrit.split(";").filter(Boolean).filter((m) => !m.startsWith("!=")).map((morceau) => {
@@ -392,7 +397,14 @@
       }
       return `${nom} = ${brut}`;
     });
-    panneauDesValeurs.textContent = `Valeurs de la page\n${lignes.join("\n") || "(aucune)"}`;
+    let geste = "";
+    if (dernierGeste) {
+      const avant = lesValeurs(dernierGeste.avant), apres = lesValeurs(dernierGeste.apres);
+      const lisible = (v) => (v === undefined ? "—" : v.startsWith("'") ? `"${decodeURIComponent(v.slice(1))}"` : v.startsWith("[") ? `${v.slice(1, -1).split(",").filter(Boolean).length} élément(s)` : v);
+      const changes = [...apres.keys()].filter((n) => avant.get(n) !== apres.get(n)).map((n) => `  ${n} : ${lisible(avant.get(n))} → ${lisible(apres.get(n))}`);
+      geste = `\n\nDernier geste : ${dernierGeste.signal}\n${changes.join("\n") || "  (rien n'a changé)"}`;
+    }
+    panneauDesValeurs.textContent = `Valeurs de la page\n${lignes.join("\n") || "(aucune)"}${geste}`;
   }
 
   // Écrit les valeurs de la page là où ses textes les montrent : « {cart} ».
@@ -450,6 +462,7 @@
   function emettre(signal) {
     const avant = etats.get(chemin) ?? "";
     const apres = ranger(arbitrer(source, avant, signal));
+    if (panneauDesValeurs) dernierGeste = { signal, avant, apres };
     // Ce qui apparaît ou disparaît déplace le reste de la page : changerLEtat replace les pixels.
     if (apres !== avant) changerLEtat(apres);
     relancerLesHorloges(signal);

@@ -6,6 +6,17 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — `Component`, des valeurs par défaut, des signaux branchés par la page
+
+- Yocthan : les propositions de Gemini et Codex validées ; « on doit prendre Component, vu qu'on aura besoin de Part pour la 3D » ; et pour l'essai au TalkBack : « c'est déjà bon » (noté tel quel ; aucun tableau de résultats n'a été rendu).
+- Fait (`ADR-056`) : `Component` et `components:` remplacent `Part` et `parts:` (l'ancienne écriture est refusée avec le bon mot) ; `params: [title, price: 0, image: "…"]` ; `emits: [add]`, `On(Add.tap, emit: add)`, et `onAdd: cart.add(1)` à l'appel ; le panneau `?valeurs` montre le dernier geste et ce qu'il a changé.
+- Migrés : les leçons 25 et 70, `exemples/site/commun.holo`, `site-reference/commun.holo` et `pied.holo`, le guide, `NOMS.md`, le serveur et l'audit d'accessibilité. Leçon 73 et son essai écrit.
+- Vérifié : tous les tests du moteur ; la leçon 73 dans Chrome avec `?valeurs` (« Dernier geste : AddGift.tap ; cart : 12000 → 13000 ; likes : 0 → 1 »).
+
+![La leçon 73 et le panneau du dernier geste](images/2026-10-07-defauts-et-signaux.png)
+
+---
+
 ## 2026-10-07 — Une idée gardée au chaud : le langage, le socle et le framework
 
 - Yocthan demande s'il faudra séparer HoloCode en un langage et un framework, comme Dart et Flutter, et si les blocs de base doivent devenir des composants (réponse : non, ce sont les briques des composants).

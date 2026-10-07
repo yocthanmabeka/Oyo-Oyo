@@ -1,6 +1,6 @@
 # ADR-050 — Les composants, faits pour le web
 
-- Statut : ACCEPTÉ
+- Statut : ACCEPTÉ ; `Part` renommé `Component` le 2026-10-07 (`ADR-056`), qui ajoute aussi les valeurs par défaut et les signaux émis
 - Date : 2026-10-06
 - Responsable : Yocthan Mabeka
 - Discussions sources : `docs/01-holocode/COMPARATIF-LANGAGES-WEB.md` (les composants, note la plus basse de HoloCode : 45) ; la demande de Yocthan du 2026-10-06 ; les prompts envoyés à Gemini et Codex le même jour (`docs/05-discussions/prompts/2026-10-06-*-composants-et-comparatif.md`), dont les réponses sont encore attendues

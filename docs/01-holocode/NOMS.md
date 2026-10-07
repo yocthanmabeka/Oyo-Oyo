@@ -91,9 +91,9 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `key:` dans `Item` | `key` de React et de Vue | repris : c'est aussi le nom d'une valeur de la page, et il donne leur nom aux blocs de la copie |
 | `year`, `month`, `day`, `weekday`, `hour`, `minute` | `new Date()`, `getFullYear()`, `getMonth() + 1`, `getDay()` | changé : six valeurs qu'on lit, sans objet ni calcul ; le mois va de 1 à 12, la semaine commence le lundi |
 | `Board` | `position: relative` et `absolute` | changé : un bloc, des places de 0 à 100 |
-| `Part`, `Use` | `template`, les composants de React ou de Vue | changés : un morceau nommé, posé par son nom ; `Use(Menu)` pour un morceau sans paramètres |
+| `Component`, `Use` | les composants de React, Vue, Angular ; `template` | changés : un composant nommé, posé par son nom ; `Use(Menu)` pour un composant sans paramètres. Anciennement `Part`, renommé pour garder `Part` à la 3D (ADR-056) |
 | `grow` | `flex-grow` (CSS), `Expanded` (Flutter) | changé : un réglage d'un bloc rangé dans `Row` ou `Column` (ADR-052) |
-| `parts`, `params`, et le composant posé par son nom : `ArticleCard(title: …)` | les composants de React, Vue, Svelte ; les widgets de Flutter ; les Web Components | changés : un composant se pose comme un bloc, à la manière de Flutter, et se restyle par le CSS (`ArticleCard { … }`, `ArticleCard.promo(…)`, ses variables) ; `props` et `slot` ne sont pas repris (ADR-050) |
+| `components`, `params` (avec des valeurs par défaut), `emits`, `emit`, `onAdd`, et le composant posé par son nom : `ArticleCard(title: …)` | les composants de React, Vue, Svelte ; les widgets de Flutter ; les Web Components | changés : un composant se pose comme un bloc, à la manière de Flutter, et se restyle par le CSS (`ArticleCard { … }`, `ArticleCard.promo(…)`, ses variables) ; `props` et `slot` ne sont pas repris ; les signaux émis comme `emit` de Vue, branchés par `onAdd:` (ADR-050, ADR-056) |
 | `If` | `if` en JavaScript, `v-if`, `{#if}` | repris, devenu un bloc |
 | `Hr` | `hr` | repris, avec une majuscule |
 | `Quote` | `blockquote`, `q`, `cite` | changé : un mot au lieu de trois |

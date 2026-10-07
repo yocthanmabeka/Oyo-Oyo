@@ -21,7 +21,7 @@ const depot = resolve(new URL("../..", import.meta.url).pathname);
 const chemin = resolve(depot, dossier);
 const adresse = `http://localhost:${process.env.PORT ?? 8080}/${chemin.slice(depot.length + 1).replaceAll("\\", "/")}/`;
 // Les morceaux et les thèmes s'importent dans une page : ils ne s'ouvrent pas seuls.
-const pages = readdirSync(chemin).filter((f) => f.endsWith(".holo") && !/^\s*(\/\/[^\n]*\n|\s)*(import[^\n]*\n\s*)*Part\s*\(/.test(readFileSync(join(chemin, f), "utf8")) && /\(/.test(readFileSync(join(chemin, f), "utf8"))).sort();
+const pages = readdirSync(chemin).filter((f) => f.endsWith(".holo") && !/^\s*(\/\/[^\n]*\n|\s)*(import[^\n]*\n\s*)*Component\s*\(/.test(readFileSync(join(chemin, f), "utf8")) && /\(/.test(readFileSync(join(chemin, f), "utf8"))).sort();
 const navigateur = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
 const page = await navigateur.newPage({ viewport: { width: Number(process.env.LARGEUR ?? 1000), height: 800 }, colorScheme: process.env.SOMBRE ? "dark" : "light" });
 let defauts = 0;

@@ -216,8 +216,8 @@ async function laPile() {
       if (genre !== ".holo" && genre !== ".html") continue;
       const texte = await readFile(plein, "utf8").catch(() => "");
       const sansCommentaires = texte.replace(/\/\/.*$/gm, "");
-      // Un morceau (Part) ne s'ouvre pas seul : la pile le montre dans l'éditeur.
-      const morceau = genre === ".holo" && /^\s*(import\s[^\n]*\n\s*)*Part\s*\(/.test(sansCommentaires);
+      // Un morceau (Component) ne s'ouvre pas seul : la pile le montre dans l'éditeur.
+      const morceau = genre === ".holo" && /^\s*(import\s[^\n]*\n\s*)*Component\s*\(/.test(sansCommentaires);
       const titre = genre === ".holo" ? /title:\s*"([^"]*)"/.exec(sansCommentaires)?.[1] : /<title>([^<]*)<\/title>/i.exec(texte)?.[1];
       const cheminGit = prefixeGit + e.name;
       const date = dates.has(cheminGit) && !changes.has(cheminGit) ? dates.get(cheminGit) : (await stat(plein)).mtime.toISOString();

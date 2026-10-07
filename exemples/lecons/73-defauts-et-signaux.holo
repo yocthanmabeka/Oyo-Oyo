@@ -1,0 +1,55 @@
+// Leçon 73 — Un composant : des valeurs par défaut, et des signaux que la page branche
+//
+// Ce qu'on apprend :
+//   params: [title, price: 0, image: "etoile-petite.svg"]
+//                              price et image ont une valeur par défaut : on peut les oublier à l'appel
+//   emits: [add, like]         les signaux que le composant émet
+//   On(Add.tap, emit: add)     le bouton du composant émet « add » ; il ne touche pas lui-même aux valeurs
+//   onAdd: cart.add(12000)     la page décide de ce que fait « add », copie par copie
+//   onLike: [likes.add(1), …]  une liste de demandes ; un signal que la page ne branche pas ne fait rien
+//
+// À essayer :
+//   Ouvre cette page avec ?valeurs à la fin de l'adresse : le panneau montre le dernier geste
+//   et ce qu'il a changé. Puis branche onLike sur la carte « Gift card ».
+
+Page(
+  title: "Leçon 73 : valeurs par défaut et signaux",
+  state: State(cart: 0, likes: 0),
+  components: [
+    Component(
+      name: ArticleCard,
+      params: [title, price: 0, image: "etoile-petite.svg"],
+      emits: [add, like],
+      children: [
+        Column(gap: 8px, children: [
+          Image(source: image, alt: ""),
+          H2("{title}"),
+          Text("{price:cents} euros"),
+          Row(gap: 8px, children: [
+            Button(name: Add, text: "Ajouter"),
+            Button(name: Like, text: "J'aime"),
+          ]),
+        ]),
+      ],
+      rules: [ On(Add.tap, emit: add), On(Like.tap, emit: like) ],
+    ),
+  ],
+  children: [
+    H1("Valeurs par défaut et signaux"),
+    P("Panier : {cart:cents} euros. J'aime : {likes}."),
+    Grid(columns: 2, children: [
+      ArticleCard(name: Sunrise, title: "Sunrise", price: 12000, onAdd: cart.add(12000), onLike: likes.add(1)),
+      ArticleCard(name: Gift, title: "Gift card", onAdd: [cart.add(1000), likes.add(1)]),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 72 : la place qui reste", to: "72-place-et-theme.holo"),
+    ]),
+  ],
+)
+
+Page { --accent: #E9B44C; background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: --accent; font-size: 28px; }
+A { color: #8fd3ff; }
+ArticleCard { border: 1px solid --accent; border-radius: 12px; padding: 12px 16px; }

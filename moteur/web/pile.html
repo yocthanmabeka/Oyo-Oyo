@@ -127,7 +127,7 @@ function nomDuJour(date) {
   const nom = formatJour.format(date);
   return nom[0].toUpperCase() + nom.slice(1);
 }
-// Un morceau (Part) ne s'ouvre pas seul : on le montre dans l'éditeur.
+// Un morceau (Component) ne s'ouvre pas seul : on le montre dans l'éditeur.
 const adresseDe = (chose) => (chose.morceau ? avecCle(`/editeur?fichier=${encodeURIComponent(chose.chemin)}`) : chose.chemin);
 const adresseDeLaPile = (chemin) => avecCle(chemin ? `/pile?voir=${encodeURIComponent(chemin)}` : "/pile");
 

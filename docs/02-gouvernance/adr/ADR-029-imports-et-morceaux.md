@@ -1,5 +1,6 @@
 # ADR-029 — Les imports : un morceau (`Part`) qu'on pose (`Use`)
 
+- Note du 2026-10-07 : `Part` s'appelle maintenant `Component` (`ADR-056`).
 - Statut : ACCEPTÉ
 - Date : 2026-10-04
 - Responsable : Yocthan Mabeka

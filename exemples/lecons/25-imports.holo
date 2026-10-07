@@ -2,7 +2,7 @@
 //
 // Ce qu'on apprend :
 //   « import "25-imports-morceau.holo" », tout en haut, rend un autre fichier disponible.
-//   Ce fichier est un morceau : Part(name: Entete, children: [...]), avec ses styles.
+//   Ce fichier est un morceau : Component(name: Entete, children: [...]), avec ses styles.
 //   Use(Entete) pose le morceau à cet endroit.
 //   Les styles du morceau viennent avec lui ; si la page écrit le même style, le sien reste.
 //

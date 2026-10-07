@@ -22,7 +22,7 @@ Si le fichier contient une erreur, la page affiche le message du moteur, avec la
 
 **Les outils de l'auteur** (`ADR-054`) :
 
-- **Voir les valeurs** : ajouter `?valeurs` à l'adresse (`…/ma-page.holo?valeurs`). Un petit panneau, en bas à gauche, montre les valeurs de la page (`cart = 18000`, une liste et ses éléments) et se met à jour à chaque geste.
+- **Voir les valeurs** : ajouter `?valeurs` à l'adresse (`…/ma-page.holo?valeurs`). Un petit panneau, en bas à gauche, montre les valeurs de la page (`cart = 18000`, une liste et ses éléments), puis le dernier geste et ce qu'il a changé (`cart : 12000 → 13000`).
 - **Remettre en forme** : `moteur/target/release/holo fmt ma-page.holo`. Deux espaces de plus après une ligne qui ouvre, deux de moins quand elle se referme ; seuls les blancs changent.
 - **Des essais écrits** : un fichier `ma-page.essai` à côté de la page, puis `holo essai ma-page.holo ma-page.essai`. Une ligne par geste ou par vérification :
 
@@ -814,14 +814,14 @@ Limites : pas de liste de choix, pas d'envoi à un serveur ; ce qui est gardé r
 
 Cette écriture est décidée (`ADR-027`).
 
-## 6 sexies. Un site de plusieurs pages : `import`, `Part`, `Use`
+## 6 sexies. Un site de plusieurs pages : `import`, `Component`, `Use`
 
 Le menu et le thème d'un site s'écrivent une seule fois, dans un fichier à part. L'exemple est dans `exemples/site/`.
 
-Le fichier commun, `commun.holo`, est un **morceau** :
+Le fichier commun, `commun.holo`, est un **composant** (un morceau, sans paramètres) :
 
 ```holo
-Part(
+Component(
   name: Menu,
   children: [
     Row(gap: 16px, children: [
@@ -852,7 +852,7 @@ Page(
 ```
 
 - `import "commun.holo"` s'écrit tout en haut. Le fichier est rangé à côté de la page.
-- `Part(name: Menu, children: [...])` : un morceau a un nom et un contenu. Ce n'est pas une page.
+- `Component(name: Menu, children: [...])` : un morceau a un nom et un contenu. Ce n'est pas une page.
 - `Use(Menu)` pose les blocs du morceau à cet endroit.
 - Les styles du morceau viennent avec lui. Si la page écrit le même style, c'est le sien qui reste.
 - Un bouton écrit dans un morceau garde son nom : une règle de la page peut l'écouter.
@@ -869,8 +869,8 @@ Un composant est un bloc qu'on écrit soi-même, une fois, avec des **paramètre
 Page(
   title: "Shop",
   state: State(cart: 0, sunrise: 0, night: 0),
-  parts: [
-    Part(
+  components: [
+    Component(
       name: ArticleCard,
       params: [title, price, qty],
       children: [
@@ -898,7 +898,7 @@ ArticleCard { border: 1px solid --accent; border-radius: 12px; padding: 12px 16p
 
 **Écrire le composant.**
 
-- `parts: [ Part(…) ]` dans la page, ou un fichier importé qui commence par `Part(…)` (§ 6 sexies).
+- `components: [ Component(…) ]` dans la page, ou un fichier importé qui commence par `Component(…)` (§ 6 sexies). L'ancien mot `Part` est refusé avec « écris Component » : il est gardé pour la 3D (`ADR-056`).
 - `name:` son nom, comme un bloc : une majuscule au début et à chaque mot (`ArticleCard`). Un mot du langage (`Text`, `Button`…) est refusé.
 - `params:` ses paramètres, en minuscules (`title`, `oldPrice`) : ce qui change d'une copie à l'autre. Seize au plus. Un paramètre ne peut pas porter le nom d'une valeur de la page, ni un mot du langage.
 - `children:` son contenu : **un seul bloc racine**, comme le widget que rend Flutter. Pour plusieurs blocs, range-les dans `Column(children: [ … ])`.
@@ -916,6 +916,10 @@ ArticleCard { border: 1px solid --accent; border-radius: 12px; padding: 12px 16p
 - `name:` donne un nom à la copie : le bouton `Add` du composant devient `AddSunrise`, qu'une règle de la page peut écouter (`On(AddSunrise.tap, …)`). Si le composant nomme des blocs, chaque copie doit avoir son nom (une seule peut s'en passer).
 - Un composant peut en poser un autre, mais jamais lui-même ; huit niveaux au plus.
 - Dans une répétition, on lui donne les champs de l'élément : `Repeat(items: [ … ], children: [ ArticleCard(title: item.title, price: item.price, qty: item) ])`.
+
+**Des valeurs par défaut** (`ADR-056`) : `params: [title, price: 0, image: "placeholder.svg"]`. Un paramètre qui a une valeur par défaut peut être oublié à l'appel.
+
+**Des signaux, que la page branche** (`ADR-056`) : le composant déclare ce qu'il émet, `emits: [add]`, et sa règle émet au lieu d'agir, `On(Add.tap, emit: add)`. À l'appel, la page décide : `ArticleCard(title: "Sunrise", onAdd: cart.add(12000))`, ou une liste de demandes, `onAdd: [cart.add(1000), likes.add(1)]`. Un signal que la page ne branche pas ne fait rien. La leçon est `73-defauts-et-signaux.holo`.
 
 **Changer son apparence, de l'extérieur.**
 
@@ -1324,7 +1328,7 @@ Page(
 
 - `Header` : l'en-tête ; `Nav` : un menu ; `Main` : le contenu principal ; `Footer` : le pied de page.
 - `Header` et `Footer` posés directement dans la page sortent du contenu principal, comme il se doit. `Main` ne se pose que directement dans la page. Sans `Main`, tout le contenu de la page est le contenu principal.
-- Ils vont bien dans un morceau partagé (`Part`) : le menu d'un site s'écrit une fois.
+- Ils vont bien dans un composant partagé (`Component`) : le menu d'un site s'écrit une fois.
 
 **La superposition.** `Stack` pose ses enfants les uns sur les autres. Le premier donne la taille ; les autres se posent dessus, à la place dite par `align:` (`topLeft`, `top`, `topRight`, `left`, `center`, `right`, `bottomLeft`, `bottom`, `bottomRight` ; au centre sans rien dire).
 
@@ -1570,7 +1574,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Board` | `children`, `height`, `name` ; ses enfants prennent `x`, `y` et `drag` | Dans `children` |
 | `Input` | `value`, `label`, `max`, `lines`, `type` (`date`, `time`, `color`), `name` | Dans `children` |
 | `Checkbox` | `value`, `label`, `name` | Dans `children` |
-| `Part` | `name`, `params`, `children`, `rules` | Dans `parts:` d'une `Page`, ou à la racine d'un fichier importé |
+| `Component` | `name`, `params` (avec des valeurs par défaut), `emits`, `children`, `rules` | Dans `components:` d'une `Page`, ou à la racine d'un fichier importé |
 | un composant (`ArticleCard`) | `name`, et ses paramètres ; des noms de style à l'appel (`ArticleCard.promo`) | Dans `children` |
 | `Use` | le nom d'un morceau importé | Dans `children` |
 | `On` | le signal, puis `effect:` | Dans `rules` |
@@ -1614,8 +1618,8 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Afficher une valeur | `{cart}` dans un texte | fait |
 | Changer une valeur | les demandes `add`, `sub`, `set` | fait |
 | Recevoir des valeurs d'un serveur | `data: Data(from: "stock.json", every: 30s)` | fait |
-| Réutiliser un morceau de page et un thème | `import "commun.holo"`, `Part(name:)`, `Use(Menu)` | fait |
-| Un composant à paramètres, restylé par le CSS | `Part(name:, params:, children:, rules:)`, `ArticleCard(…)`, `ArticleCard { }`, `ArticleCard.promo(…)` | fait |
+| Réutiliser un morceau de page et un thème | `import "commun.holo"`, `Component(name:)`, `Use(Menu)` | fait |
+| Un composant à paramètres, restylé par le CSS | `Component(name:, params:, emits:, children:, rules:)`, `ArticleCard(…)`, `ArticleCard { }`, `ArticleCard.promo(…)` | fait |
 | Plusieurs noms de style sur un bloc | `P.card.big(…)` | fait |
 | Répéter une règle dans le temps | `Every(1s, effect:)` | fait |
 | Le clavier | `On(Key.left, effect:)` | fait |

@@ -94,12 +94,12 @@ pub fn a_besoin_du_dessin(source: &str) -> bool {
 
 /// L'éditeur (ADR-046) : le fichier est-il juste ? `ok`, ou la première faute, telle que le
 /// moteur la refuse : `ligne 7, colonne 5 : « h1 » : … écris « H1 »`. Un point seul (`Point(…)`)
-/// se vérifie comme un monde ; un morceau importé (`Part(…)`), pour ses blocs et ses styles :
+/// se vérifie comme un monde ; un morceau importé (`Component(…)`), pour ses blocs et ses styles :
 /// le reste se vérifie dans la page qui l'importe.
 pub fn verifier_texte(source: &str) -> String {
     // Un fichier de styles seuls (ADR-052) : ses styles se vérifient comme ceux d'un morceau.
     if holo::lire(source).is_err() {
-        let styles = format!("Part(name: HoloStyles, children: []) {source}");
+        let styles = format!("Component(name: HoloStyles, children: []) {source}");
         if let Ok(p) = holo::lire(&styles) {
             if !p.styles.is_empty() {
                 return match styles::verifier_styles(&p) {
@@ -112,11 +112,11 @@ pub fn verifier_texte(source: &str) -> String {
     let racine = holo::lire(source).map(|p| p.racine.nom);
     let resultat = match racine.as_deref() {
         Ok("Point") => verifier(source).map(|_| ()),
-        Ok("Part") => holo::lire(source).and_then(|p| blocs::verifier_blocs(&p).and_then(|()| styles::verifier_styles(&p))),
+        Ok("Component") => holo::lire(source).and_then(|p| blocs::verifier_blocs(&p).and_then(|()| styles::verifier_styles(&p))),
         _ => verifier_page(source).map(|_| ()),
     };
     match resultat {
-        Ok(()) if racine.as_deref() == Ok("Part") => "ok : un morceau, à vérifier aussi dans la page qui l'importe".into(),
+        Ok(()) if racine.as_deref() == Ok("Component") => "ok : un morceau, à vérifier aussi dans la page qui l'importe".into(),
         Ok(()) => "ok".into(),
         Err(erreur) => erreur.to_string(),
     }
@@ -436,7 +436,7 @@ mod editeur {
         assert_eq!(crate::verifier_texte("Page(children: [ H1(\"a\") ])"), "ok");
         assert_eq!(crate::verifier_texte("Page(children: [ h1(\"a\") ])"), "ligne 1, colonne 18 : « h1 » : un nom de bloc commence par une majuscule, écris « H1 »");
         assert!(crate::verifier_texte("Point(name: A, seed: 1)").starts_with("ok"));
-        assert!(crate::verifier_texte("Part(name: Menu, children: [ P(\"x\") ])").starts_with("ok : un morceau"));
+        assert!(crate::verifier_texte("Component(name: Menu, children: [ P(\"x\") ])").starts_with("ok : un morceau"));
         let mots = crate::vocabulaire();
         for attendu in ["\"blocs\":[\"Page\",", "\"Page\":[\"name\",", "\"Repeat\":[\"items\"", "\"hoverEnd\"", "\"topRight\"", "\"letter-spacing\"", "\"dark\"", "\"cents\""] {
             assert!(mots.contains(attendu), "manque {attendu} dans {mots}");
@@ -486,7 +486,7 @@ mod tests {
             let debut = exemple.trim_start();
             let resultat = if debut.starts_with("Point(") {
                 verifier(exemple).map(|_| ())
-            } else if debut.starts_with("Part(") {
+            } else if debut.starts_with("Component(") {
                 verifier_page(exemple).map(|_| ())
             } else {
                 vue_a_plat(exemple, "").map(|_| ())
@@ -523,7 +523,7 @@ mod tests {
                 Ok(())
             } else if debut.starts_with("Point(") {
                 verifier(&source).map(|_| ())
-            } else if debut.starts_with("Part(") {
+            } else if debut.starts_with("Component(") {
                 verifier_page(&source).map(|_| ())
             } else {
                 vue_a_plat(&source, "").map(|_| ())
