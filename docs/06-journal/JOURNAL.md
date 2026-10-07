@@ -6,6 +6,34 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Lot 2, septième partie : des dates (le lot 2 est terminé)
+
+- Fait (`ADR-067`, PROPOSITION : Yocthan n'a pas encore validé) :
+  - une date reste un texte « AAAA-MM-JJ », celui du champ date et des données JSON ;
+  - `today`, la date du jour, que la page tient à jour et qui passe minuit ;
+  - `{arrival:date}` donne « 10 octobre 2026 » (« 1er octobre » le premier du mois), `{arrival:weekday}` donne « samedi » ;
+  - deux dates se comparent : `If(departure, over: arrival)`, `If(arrival, under: today)` ;
+  - `due.add(7)`, `due.sub(1)`, `due.set(today)` ;
+  - `Days(name: nights, from: arrival, to: departure)` compte les jours, et sert dans `total.mul(nights)` ;
+  - `Input(type: date, min: today, max: "2026-12-31")`.
+- Corrigé en chemin : le champ date acceptait « 2026-13-45 », pourvu que les chiffres soient à leur place. Il ne prend plus qu'un vrai jour du calendrier.
+- Ajouté en chemin : `min:` sur un champ de nombre (`Input(value: quantity, min: 1)`). Il était refusé ; c'est un besoin du web (`<input type=number min>`). La longueur minimale d'un texte viendra avec les formulaires (lot 3), et elle est refusée avec cette raison.
+- Le calendrier est dans `moteur/src/dates.rs`, d'après les algorithmes de Howard Hinnant, et vérifié jour par jour de 1900 à 2100.
+- Leçon 87. Un essai de plus dans Chrome.
+- Exécuté :
+  - `cargo test --release` → 139 tests passent (3 nouveaux : le calendrier, les dates, les nuits) ;
+  - le moteur léger fait 534 927 octets (521 785 avant ce lot) ;
+  - l'essai de la leçon 87 dans Chrome : « 7 octobre 2026 », une arrivée dans trois jours, 7 nuits, 560,00 €, une arrivée hier refusée ;
+  - `node outils/browser-tests.mjs` → 87 leçons ouvertes sans erreur, et les 22 essais passent, en 149 secondes.
+
+**Erreurs en route**
+
+- Un ancien essai attendait « over compare des nombres » sur un texte : le message dit maintenant « des nombres, ou deux dates ».
+- Un autre attendait que `min:` soit refusé sur un champ de nombre ; il est maintenant permis. L'essai vérifie à la place le refus sur un texte, et « min doit être plus petit que max ».
+- `Days` et `min` manquaient d'abord à la table des réglages des blocs : la vérification refusait avant même de lire ma règle.
+
+---
+
 ## 2026-10-07 — Lot 2, sixième partie : des nombres à virgule, exacts
 
 - Fait (`ADR-066`, PROPOSITION : Yocthan n'a pas encore validé) : `State(price: 12.50)` garde deux chiffres après la virgule, et reste exact. Le moteur garde 12,50 en nombre entier « à l'échelle » (1250) : 12,50 × 3 font 37,50.

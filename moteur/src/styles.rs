@@ -515,6 +515,7 @@ mod tests {
             include_str!("../../exemples/lecons/69-module-enferme.holo"),
             include_str!("../../exemples/lecons/82-chercher-filtrer-trier.holo"),
             include_str!("../../exemples/lecons/84-donnees-arrivees-ou-pas.holo"),
+            include_str!("../../exemples/lecons/87-des-dates.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();

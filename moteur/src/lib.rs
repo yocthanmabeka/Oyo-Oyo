@@ -16,6 +16,7 @@
 pub mod blocks;
 pub mod components;
 pub mod computed;
+pub mod dates;
 pub mod state;
 pub mod files;
 pub mod format;
@@ -242,7 +243,10 @@ fn write_all(program: &Program, numbers: &state::State, texts: &state::Texts, li
     // les relit jamais (il les refait).
     let (computed_lists, totals) = computed::apply_with_totals(program, numbers, texts, lists);
     let computed = lists::write(&computed_lists);
-    // Leurs totaux aussi (`total: matching`) : des nombres que la page montre, jamais relus.
+    // Leurs totaux aussi (`total: matching`), et les nombres de jours (`Days`, ADR-067) : des
+    // nombres que la page montre, jamais relus.
+    let mut totals = totals;
+    totals.extend(computed::days_values(program, texts));
     let totals = state::write(&totals);
     [state::write(&state::to_show(program, numbers)), state::write_texts(texts), lists::write(lists), computed, totals, sounds].into_iter().filter(|chunk| !chunk.is_empty()).collect::<Vec<_>>().join(";")
 }
@@ -437,6 +441,7 @@ pub fn conditions(source: &str, state: &str) -> String {
             let (computed_lists, totals) = computed::apply_with_totals(&program, &numbers, &texts, &lists);
             shown.extend(lists::counts(&computed_lists));
             shown.extend(totals);
+            shown.extend(computed::days_values(&program, &texts));
             state::conditions(&program, &shown, &texts).iter().map(|(key, real_one)| format!("{key}:{}", u8::from(*real_one))).collect::<Vec<_>>().join(";")
         }
         Err(_) => String::new(),

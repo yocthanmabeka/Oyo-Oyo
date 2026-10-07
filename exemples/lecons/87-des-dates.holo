@@ -1,0 +1,52 @@
+// Leçon 87 — Des dates
+//
+// Ce qu'on apprend :
+//   Une date est un texte « AAAA-MM-JJ », celui que donne un champ date :
+//     Input(value: arrival, label: "Arrivée", type: date, min: today)    pas avant aujourd'hui
+//   today est la date du jour, donnée par l'appareil du visiteur.
+//   {arrival:date} la montre dans la langue de la page : « 10 octobre 2026 » ; {arrival:weekday} :
+//   « samedi ».
+//   Deux dates se comparent dans le temps : If(departure, over: arrival, …), If(arrival, under: today, …).
+//   Une date avance ou recule de jours : departure.add(7), departure.sub(1), arrival.set(today).
+//   computed: [ Days(name: nights, from: arrival, to: departure) ] compte les jours entre deux
+//   dates ; {nights} le montre, total.mul(nights) s'en sert.
+//
+// À essayer :
+//   Choisis une arrivée : le jour de la semaine s'écrit. Touche « Une semaine » : le départ passe
+//   sept jours plus tard. Touche « Calculer le prix ».
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 87 : des dates",
+  state: State(arrival: "", departure: "", price: 80.00, total: 0.00),
+  computed: [ Days(name: nights, from: arrival, to: departure) ],
+  children: [
+    H1("Réserver une chambre"),
+    P("Nous sommes le {today:date}."),
+    Input(value: arrival, label: "Arrivée", type: date, min: today),
+    Input(value: departure, label: "Départ", type: date, min: today),
+    Button(name: Week, text: "Une semaine"),
+    If(arrival, not: "", children: [ P("Arrivée le {arrival:weekday} {arrival:date}.") ]),
+    If(departure, not: "", children: [
+      If(departure, over: arrival, children: [
+        P("{nights} nuit(s) à {price} € la nuit."),
+        Button(name: Compute, text: "Calculer le prix"),
+        If(total, over: 0, children: [ P("Prix du séjour : {total} €.") ]),
+      ], else: [ P("Le départ doit venir après l'arrivée.") ]),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 86 : des nombres à virgule", to: "86-nombres-a-virgule.holo"),
+    ]),
+  ],
+  rules: [
+    On(Week.tap, effect: [departure.set(arrival), departure.add(7)]),
+    On(Compute.tap, effect: [total.set(price), total.mul(nights)]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
