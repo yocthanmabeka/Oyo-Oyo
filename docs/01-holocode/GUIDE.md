@@ -1033,6 +1033,7 @@ Page(
 - `Shop.refresh` les relit. Une seule lecture à la fois : pendant une lecture, la lecture en cours répondra. Une seconde au moins entre deux lectures : une demande trop proche attend son tour, elle n'est pas perdue.
 - « Loading… » est une valeur de la page, à 1 au départ, que les deux signaux remettent à 0.
 - Sans `name`, rien ne change : la page lit ses données sans rien dire.
+- **La page arrive déjà avec ses données.** Le serveur lit le fichier de `Data(from:)`, rangé à côté du `.holo`, et fabrique la page avec, puis `Shop.done`. Un robot de recherche, ou un visiteur dont le moteur tarde, voit donc les nouvelles tout de suite, sans « Loading… ». Le navigateur rejoue la même réception et part du même état, puis relit les données comme d'habitude. Un fichier absent, trop gros ou illisible : la page de départ.
 
 Cette écriture est proposée (`ADR-064`) et attend la validation de Yocthan. La leçon est `84-donnees-arrivees-ou-pas.holo`.
 
@@ -1903,7 +1904,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 ## 11. Ce qui n'existe pas encore
 
 - Un module n'échange encore qu'un nombre contre un nombre.
-- Les données venues d'un autre serveur ; les comptes ; la page fabriquée par le serveur avec ses données (elle part des valeurs de départ, puis les données arrivent dans le navigateur).
+- Les données venues d'un autre serveur ; les comptes.
 - Pour les valeurs : des nombres entiers, des textes et des listes ; pas de nombre à virgule (les prix s'écrivent en centimes, `{price:cents}`), pas de calcul sur les dates, pas de clé choisie par l'auteur pour une ligne.
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.

@@ -362,6 +362,11 @@ pub fn receive(program: &Program, lists: &Lists, json: &str) -> Lists {
     lists
 }
 
+/// Ce texte est-il un objet JSON, `{ "stock": 4 }`, que la page sait lire ?
+pub fn is_json_object(json: &str) -> bool {
+    json.len() <= crate::state::DATA_BYTES && matches!(Json::read(json), Some(Json::Object(_)))
+}
+
 /// Une valeur JSON, juste ce qu'il faut pour des données de page : textes, nombres entiers,
 /// tableaux et objets, trois niveaux au plus. Le reste ne donne rien.
 #[derive(Debug, Clone, PartialEq)]

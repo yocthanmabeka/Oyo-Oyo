@@ -207,6 +207,25 @@ pub fn flat_view_of(source: &str, base: &str, path: &str) -> Result<String, Erro
     flat::site_html(&program, site, base, path.rsplit('/').next().unwrap_or(""))
 }
 
+/// La page fabriquée par le serveur avec ses données (ADR-064). Le serveur a lu le fichier de
+/// `Data(from:)` ; l'arbitre le range, comme dans le navigateur, puis `Shop.done` si les données
+/// ont un nom. La page garde ce qu'elle a reçu dans `data-received` : le navigateur rejoue la même
+/// réception et part du même état. Des données illisibles : la page de départ, sans rien.
+pub fn flat_view_with_data(source: &str, base: &str, json: &str) -> Result<String, Error> {
+    let program = check_page(source)?;
+    if state::data_source(&program).ok().flatten().is_none() || !lists::is_json_object(json) {
+        return flat_view(source, base);
+    }
+    let mut written = receive(source, &initial_state(source), json);
+    if let Some(name) = state::data_name(&program) {
+        written = arbitrate(source, &written, &format!("{name}.done"));
+    }
+    let start = (state::reread(&program, &written), state::reread_texts(&program, &written), lists::reread(&program, &written));
+    let html = flat::site_html_from(&program, &program.root, base, "", Some(&start))?;
+    let received = json.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
+    Ok(html.replacen(" data-title=\"", &format!(" data-received=\"{received}\" data-title=\""), 1))
+}
+
 /// Les effets que les règles du fichier demandent pour un signal, comme `Open.tap`.
 pub fn effects(source: &str, signal: &str) -> Vec<String> {
     check_page(source).map(|program| rules::effects(&program, signal)).unwrap_or_default()
@@ -516,6 +535,38 @@ mod tests {
         // Une autre page a un autre lieu.
         assert_ne!(home_world("Page(name: Blog)").unwrap(), home);
         assert!(home_world("Page(children: [ Div() ])").is_none());
+    }
+
+    #[test]
+    fn the_server_page_starts_with_its_data() {
+        // ADR-064 : la page fabriquée par le serveur contient déjà ses données, rangées par
+        // l'arbitre, puis `Shop.done` ; une liste calculée suit les données reçues.
+        let source = r#"Page(
+  state: State(loading: 1, news: "", visitors: 0, works: [ Item(title: "Au départ", image: "a.png") ]),
+  data: Data(name: Shop, from: "shop.json"),
+  computed: [ Filter(name: sorted, from: works, sortBy: title) ],
+  children: [
+    If(loading, is: 1, children: [ "Loading…" ]),
+    Text("{news} · {visitors}"),
+    Repeat(over: sorted, children: [ Text("{item.title}") ]),
+  ],
+  rules: [ On(Shop.done, effect: loading.set(0)) ],
+)"#;
+        let json = r#"{ "news": "Open <today>", "visitors": 42, "works": [ {"title": "Zèbre", "image": "z.png"}, {"title": "Arbre", "image": "b.png"} ] }"#;
+        let html = flat_view_with_data(source, "", json).unwrap();
+        assert!(html.contains(r#"data-if="loading|is=1" hidden>"#), "{html}");
+        assert!(html.contains(r#"<span data-state="news">Open &lt;today&gt;</span>"#) && html.contains(r#"<span data-state="visitors">42</span>"#), "{html}");
+        let main = &html[html.find("<main>").unwrap()..];
+        let (first, last) = (main.find("Arbre").unwrap(), main.find("Zèbre").unwrap());
+        assert!(first < last && !html.contains("Au départ"), "{html}");
+        assert!(html.contains(r#" data-received="{ &quot;news&quot;: &quot;Open &lt;today&gt;&quot;"#), "{html}");
+        // Des données illisibles, ou une page sans `Data` : la page de départ, telle quelle.
+        let plain = flat_view(source, "").unwrap();
+        assert_eq!(flat_view_with_data(source, "", "{ pas du json").unwrap(), plain);
+        assert_eq!(flat_view_with_data(source, "", "[1, 2]").unwrap(), plain);
+        assert!(plain.contains(r#"data-if="loading|is=1">"#) && !plain.contains("data-received") && plain.contains("Au départ"));
+        let without = source.replace("data: Data(name: Shop, from: \"shop.json\"),", "").replace("rules: [ On(Shop.done, effect: loading.set(0)) ],", "");
+        assert_eq!(flat_view_with_data(&without, "", json).unwrap(), flat_view(&without, "").unwrap());
     }
 
     #[test]

@@ -325,7 +325,12 @@ const tests = [
   ["des données disent « arrivées » ou « échec », et se relisent (Data)", async (p, b) => {
     await p.open("/exemples/.essais-navigateur/donnees-nommees.holo");
     const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;
-    const arrived = await p.until(`${has("lectures 1 ; échecs 0")} && document.querySelectorAll(".holo-line").length === 3 && !${has("Chargement")}`);
+    // La page arrive du serveur avec ses données (une lecture), puis le navigateur relit (une
+    // de plus) ; sans `holo` compilé, seule la seconde a lieu. On part du compte, quel qu'il soit.
+    const count = () => p.value(`Number((document.getElementById("page").innerText.match(/lectures (\\d+)/) ?? [])[1] ?? -1)`);
+    const arrived = await p.until(`window.__holoStarted && ${has("échecs 0")} && document.querySelectorAll(".holo-line").length === 3 && !${has("Chargement")}`);
+    await pause(1500);
+    const reads = await count();
     // Les réponses du serveur, imitées par Chrome lui-même (son domaine Fetch) : un fichier
     // absent, illisible, trop gros, ou qui ne vient jamais.
     let mode = "";
@@ -361,14 +366,33 @@ const tests = [
     mode = "";
     await pause(1100);
     await p.click('[data-name="Again"]');
-    const back = await p.until(has("lectures 2 ; échecs 5"));
+    const back = await p.until(has(`lectures ${reads + 1} ; échecs 5`));
     await b.send("Fetch.disable");
     b.on("Fetch.requestPaused", null);
     // La leçon 84 : les nouvelles arrivent, « Chargement… » disparaît.
     await p.open("/exemples/lecons/84-donnees-arrivees-ou-pas.holo");
     const lesson = await p.until(`${has("42 visiteurs aujourd'hui.")} && !${has("Chargement")}`);
-    const ok = arrived && seen.every((s) => s.endsWith("true") || s.includes("true (après")) && back && lesson;
-    return [ok, `arrivées : ${arrived} ; ${seen.join(" ; ")} ; relues ensuite : ${back} ; leçon 84 : ${lesson}`];
+    const ok = arrived && reads >= 1 && seen.every((s) => s.endsWith("true") || s.includes("true (après")) && back && lesson;
+    return [ok, `arrivées : ${arrived} (lectures : ${reads}) ; ${seen.join(" ; ")} ; relues ensuite : ${back} ; leçon 84 : ${lesson}`];
+  }],
+  ["la page du serveur arrive avec ses données, et le navigateur part du même état", async (p, b) => {
+    // Le fichier de données ne répond jamais au navigateur (Chrome le retient) : ce que la page
+    // montre vient donc du serveur, puis de la réception rejouée par le navigateur (ADR-064).
+    b.on("Fetch.requestPaused", () => { /* aucune réponse */ });
+    await b.send("Fetch.enable", { patterns: [{ urlPattern: "*84-boutique.json*" }] });
+    try {
+      await p.open("/exemples/lecons/84-donnees-arrivees-ou-pas.holo");
+      const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;
+      const fromServer = await p.value(`fetch(location.pathname, { headers: { accept: "text/html" } }).then((r) => r.text())`);
+      const served = fromServer.includes(`<span data-state="visitors">42</span> visiteurs`) && fromServer.includes(`data-if="loading|is=1" hidden`) && fromServer.includes("data-received=");
+      const started = await p.until("window.__holoStarted === true");
+      await pause(500);
+      const kept = await p.value(`${has("42 visiteurs aujourd'hui.")} && !${has("Chargement")}`);
+      return [served && started && kept, `page du serveur avec les données : ${served} ; moteur arrivé : ${started} ; données gardées sans les relire : ${kept}`];
+    } finally {
+      await b.send("Fetch.disable");
+      b.on("Fetch.requestPaused", null);
+    }
   }],
   ["un formulaire envoie son message", async (p) => {
     await p.open("/exemples/lecons/64-formulaire.holo");
