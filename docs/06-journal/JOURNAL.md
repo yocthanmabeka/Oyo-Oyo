@@ -6,6 +6,19 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Lot 9, premier pas : des modules qui reçoivent une liste et rendent plusieurs valeurs
+
+- Pris par la session du nuage, selon le tableau « Qui fait quoi » relu sur `main` après la PR 170.
+- Fait (`ADR-077`) : `Module(input: [notes], output: [moyenne, meilleure, nombre])` ; des nombres à virgule, des textes, des listes. Le second contrat : le module offre `alloc` et `run(adresse, taille)` et échange un texte JSON ; le moteur relit sa réponse comme des données d'un serveur, et refuse toute la réponse si une valeur n'est pas annoncée ou n'a pas la bonne sorte. Le premier contrat (un nombre, un nombre) marche toujours. Leçon 97, avec deux modules en Rust : `bulletin.rs` et un `menteur.rs`, exprès.
+- Vérifié : tous les tests du moteur ; dans Chrome, « 3 notes ; moyenne : 13,5 », puis 14,6 avec une note dont la matière contient des guillemets et des accolades ; le module menteur refusé (« admin »), rien de changé ; la leçon 69 rend toujours 5 050.
+- Raté puis corrigé : le module de la leçon cherchait un guillemet avec une fonction qui saute les textes, et ne trouvait donc jamais de champ ; puis il prenait la liste entière pour le premier élément. Essayé dans Node avant le navigateur, avec des matières piégées.
+- Corrigé au passage, dans les leçons du lot 8 (session du nuage) : la leçon 95 renvoyait à la leçon 88 au lieu de la 94 (relevé par la session du PC) ; la 96 mène maintenant à la 97.
+- Audit axe-core : 97 leçons, 0 défaut en clair. En sombre sur téléphone (390 px), un défaut, dans la leçon 90 du lot 4 (session du PC) : la boîte qui défile (`.boite`) n'est pas atteignable au clavier (« scrollable-region-focusable »). Noté pour la session du PC, sans le corriger (règle du tableau « Qui fait quoi »).
+
+![La leçon 97 : le module a rendu trois valeurs ; la réponse du module qui ment est refusée](images/2026-10-07-web-lot9-un-module-qui-recoit-une-liste.png)
+
+---
+
 ## 2026-10-07 — Les lots 5 à 7 à la session du PC, le lot 9 au nuage ; des règles pour ne plus s'entremêler
 
 - Les deux sessions avaient pris les lots 5 à 7 à quelques minutes d'écart. Yocthan a décidé : « que vous ne puissiez plus vous entremêler entre les lots ; que chacun puisse avoir un lot différent ». La session du PC, inscrite la première sur `main` (PR 166), garde les lots 5 à 7 et analyse le travail de la session du nuage ; la session du nuage prend le lot 9.

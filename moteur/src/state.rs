@@ -611,11 +611,18 @@ pub fn read_data(json: &str) -> Vec<(String, Datum)> {
 /// que la page déclare, de la bonne sorte (un nombre dans un nombre, un texte dans un texte),
 /// et dans leurs bornes. Puis les règles qui guettent ont leur mot à dire.
 pub fn receive(program: &Program, state: &State, texts: &Texts, json: &str) -> (State, Texts) {
+    if data_source(program).ok().flatten().is_none() {
+        return (state.clone(), texts.clone());
+    }
+    take_values(program, state, texts, json)
+}
+
+/// Range des valeurs reçues, d'un serveur (`Data`) ou d'un module (ADR-077) : seulement dans des
+/// valeurs que la page déclare, de la bonne sorte, dans leurs bornes ; puis les règles qui
+/// guettent.
+pub fn take_values(program: &Program, state: &State, texts: &Texts, json: &str) -> (State, Texts) {
     let (before, texts_before) = (state.clone(), texts.clone());
     let (mut state, mut texts) = (state.clone(), texts.clone());
-    if data_source(program).ok().flatten().is_none() {
-        return (state, texts);
-    }
     for (key, datum) in read_data(json) {
         let places = places(program, &key);
         match datum {

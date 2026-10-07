@@ -101,7 +101,8 @@ pub fn delays(source: &str, state: &str) -> String {
     crate::delays(source, state)
 }
 
-/// Ce qu'il faut pour faire tourner un module : `somme.wasm|10|100|16`.
+/// Ce qu'il faut pour faire tourner un module : `somme.wasm|10|100|16|1` (le dernier chiffre : le
+/// premier contrat suffit, ADR-077).
 #[wasm_bindgen]
 pub fn module_info(source: &str, state: &str, name: &str) -> String {
     crate::module_info(source, state, name)
@@ -111,6 +112,18 @@ pub fn module_info(source: &str, state: &str, name: &str) -> String {
 #[wasm_bindgen]
 pub fn module_finished(source: &str, state: &str, name: &str, value: f64) -> String {
     crate::module_finished(source, state, name, value.max(0.0) as u64)
+}
+
+/// Ce que reçoit un module du second contrat, en JSON (ADR-077).
+#[wasm_bindgen]
+pub fn module_input(source: &str, state: &str, name: &str) -> String {
+    crate::module_input(source, state, name)
+}
+
+/// La réponse d'un module du second contrat : le nouvel état, ou la raison du refus.
+#[wasm_bindgen]
+pub fn module_received(source: &str, state: &str, name: &str, json: &str) -> Result<String, JsValue> {
+    crate::module_received(source, state, name, json).map_err(|reason| JsValue::from_str(&reason))
 }
 
 /// Les lignes d'une liste pour cet état.

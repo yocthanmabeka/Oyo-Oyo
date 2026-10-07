@@ -104,6 +104,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 94 | [Décrocher la page](94-decrocher-la-page.holo) | `Zoom(detach: true)`, « Décrocher », « Accrocher » |
 | 95 | [Un article long](95-un-article-long.holo) | `Aside`, `A(newTab: true)`, `A(download: true)`, `print: { … }`, les images qui viennent en approchant |
 | 96 | [Une vidéo sous-titrée](96-une-video-sous-titree.holo) | `Video(captions: "film.vtt")` |
+| 97 | [Un module qui reçoit une liste](97-un-module-qui-recoit-une-liste.holo) | `Module(input: [notes], output: [moyenne, meilleure, nombre])`, le second contrat, une réponse refusée |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 

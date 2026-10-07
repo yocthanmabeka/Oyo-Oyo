@@ -37,7 +37,7 @@ Page(
 
     Hr(),
     Row(gap: 16px, align: between, children: [
-      A("← Leçon 88 : un formulaire qui vérifie", to: "88-un-formulaire-qui-verifie.holo"),
+      A("← Leçon 94 : décrocher la page", to: "94-decrocher-la-page.holo"),
       A("Leçon 96 : une vidéo sous-titrée →", to: "96-une-video-sous-titree.holo"),
     ]),
   ],

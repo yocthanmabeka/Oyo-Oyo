@@ -12,8 +12,8 @@
 | **HoloCode** | 377 mots | 344 décidés, 33 à l’essai |
 | HTML | 62 éléments | 51 oui, 5 en partie, 3 non, 3 refusés |
 | CSS | 34 éléments | 28 oui, 4 en partie, 0 non, 2 refusés |
-| JavaScript | 34 éléments | 15 oui, 11 en partie, 6 non, 1 refusés, 1 sans objet |
-| HTML, CSS, JS ensemble | 130 éléments | 94 oui, 20 en partie, 9 non, 6 refusés, 1 sans objet |
+| JavaScript | 34 éléments | 16 oui, 10 en partie, 6 non, 1 refusés, 1 sans objet |
+| HTML, CSS, JS ensemble | 130 éléments | 95 oui, 19 en partie, 9 non, 6 refusés, 1 sans objet |
 
 # Partie 1 — Les mots de HoloCode
 
@@ -438,13 +438,13 @@
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `Module` | Du code WebAssembly enfermé : un fil à part, une mémoire plafonnée, arrêté s'il dure trop | `new Worker, WebAssembly` | Décidé (ADR-045) |
+| `Module` | Du code WebAssembly enfermé : un fil à part, une mémoire plafonnée, arrêté s'il dure trop ; il reçoit et rend des nombres, des textes et des listes, en JSON relu avec méfiance | `new Worker, WebAssembly` | Décidé (ADR-045, ADR-077) |
 
 ## Paramètres : la page
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `modules, input, output, time, memory` | Les modules de la page ; ce qu'un module reçoit, rend, et ses limites | — | Décidé (ADR-045) |
+| `modules, input, output, time, memory` | Les modules de la page ; ce qu'un module reçoit, rend (un nom, ou une liste de noms), et ses limites | — | Décidé (ADR-045, ADR-077) |
 | `components, params, emits` | Les composants de la page ; leurs paramètres (avec valeurs par défaut) ; les signaux qu'ils émettent | `props, emit` | Décidé (ADR-050, ADR-056) |
 | `children (dans un composant)` | L'emplacement où va le contenu donné à l'appel | `slot, children` | Décidé (ADR-058) |
 
@@ -638,7 +638,7 @@
 | `If(…, else: […]), When(…) ; un texte : If(size, is: "L")` | `if, else` | décider | Oui | Déjà là | Le « sinon » ajouté le 2026-10-06 (ADR-039) ; comparer des textes, If(size, is: "L") et When(answer, is: "Paris"), le 2026-10-07 (ADR-063, à valider). |
 | `State(articles: [ Item(…) ]), push(Item(…)), item.done.set(1)` | `tableaux, objets` | des listes de valeurs | Oui | Déjà là | Des listes à champs, qui changent pendant la visite (ADR-044, ADR-051, ADR-057). |
 | `Repeat(items:, children:, rules:) ; Filter(…) pour chercher, filtrer, trier` | `for, map` | répéter pour chaque élément | Oui | Déjà là | Déplié à la lecture (ADR-040) ; des listes calculées pour chercher, filtrer, trier et montrer plus (ADR-062). |
-| `Module(…) : du code WebAssembly enfermé` | `fonctions` | du calcul réutilisable | En partie | Déjà là | Ajouté le 2026-10-06 (ADR-045) : un nombre en entrée, un nombre en sortie, arrêté s'il dure trop. |
+| `Module(…) : du code WebAssembly enfermé` | `fonctions` | du calcul réutilisable | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-045) : un nombre en entrée, un nombre en sortie, arrêté s'il dure trop. Le 2026-10-07 (ADR-077) : des nombres à virgule, des textes et des listes, en entrée et en sortie. |
 | `{nom} dans un texte` | `texte (majuscules, longueur, découper)` | travailler un texte | En partie | Plus tard | — |
 | `random, rejouable` | `Math.random` | le hasard | Oui | Déjà là | Mieux pour un jeu : la même partie se rejoue. |
 | `{weekday:name} {day} {month:name} {year}, {hour} h {minute:00}` | `Date` | la date et l'heure du jour | En partie | Déjà là | ADR-039 et ADR-043. Pas encore de calcul sur les dates (un compte à rebours). |
