@@ -34,9 +34,9 @@ if (path) {
   }
 }
 // Aucune pile ouverte : Chrome l'ouvre, dans un onglet de la fenêtre déjà là s'il y en a une.
-const key = process.env.HOLO_KEY ? `cle=${encodeURIComponent(process.env.HOLO_KEY)}` : "";
-const search = [path && `voir=${encodeURIComponent(path)}`, key].filter(Boolean).join("&");
-const address = `http://localhost:${port}/pile${search ? `?${search}` : ""}`;
+const key = process.env.HOLO_KEY ? `key=${encodeURIComponent(process.env.HOLO_KEY)}` : "";
+const search = [path && `show=${encodeURIComponent(path)}`, key].filter(Boolean).join("&");
+const address = `http://localhost:${port}/stack${search ? `?${search}` : ""}`;
 const chrome = [process.env.CHROME, "C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe"].find((c) => c && existsSync(c));
 if (chrome) spawn(chrome, [address], { detached: true, stdio: "ignore" }).unref();
 else spawn("cmd", ["/c", "start", "", address.replace(/&/g, "^&")], { detached: true, stdio: "ignore" }).unref();

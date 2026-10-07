@@ -107,7 +107,7 @@ const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 // La clé de l'éditeur, quand la pile a été ouverte avec elle : pour enregistrer depuis l'éditeur.
 const key = params.get("key") ?? "";
-const withKey = (address) => (key ? `${address}${address.includes("?") ? "&" : "?"}cle=${encodeURIComponent(key)}` : address);
+const withKey = (address) => (key ? `${address}${address.includes("?") ? "&" : "?"}key=${encodeURIComponent(key)}` : address);
 $("editor").href = withKey("/editor");
 
 let things = [];

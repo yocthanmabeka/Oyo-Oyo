@@ -411,7 +411,7 @@ createServer(async (req, res) => {
   console.log(renderer ? `Pages fabriquées d'avance par : ${renderer}` : "Pages fabriquées dans le navigateur (pour les fabriquer d'avance : cargo build --release --bin holo)");
   console.log(`Sur ce PC      : http://localhost:${port}`);
   console.log(`L'éditeur      : http://localhost:${port}/editor?key=${editorKey}   (la clé permet d'enregistrer ; sans elle, on lit et on essaie)`);
-  console.log(`La pile        : http://localhost:${port}/pile?key=${editorKey}   (tout ce qui a été créé, dans un seul onglet)`);
+  console.log(`La pile        : http://localhost:${port}/stack?key=${editorKey}   (tout ce qui a été créé, dans un seul onglet)`);
   for (const ip of fps) console.log(`Sur le téléphone (même Wi-Fi) : http://${ip}:${port}`);
   console.log("WebGPU exige une page sécurisée : sur le téléphone, voir « Tester sur le téléphone » dans moteur/README.md.");
 });

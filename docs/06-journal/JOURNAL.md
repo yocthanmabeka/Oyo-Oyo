@@ -6,6 +6,13 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — La pile, après le passage en anglais
+
+- En relisant les outils renommés dans la nuit (`ADR-060`), trois restes de l'ancien nom : `show.mjs` ouvrait `/pile` (devenue `/stack`, donc une page introuvable) avec `voir=` au lieu de `show=` ; la pile passait la clé de l'éditeur sous `cle=` alors que l'éditeur lit `key=` (on ne pouvait plus enregistrer depuis la pile) ; le serveur affichait encore l'adresse `/pile`.
+- Corrigé. Vérifié dans Chrome sans fenêtre : `/stack?show=…&key=…` ouvre la leçon 81 et le lien de l'éditeur garde la clé ; 109 pages dans la pile.
+
+---
+
 ## 2026-10-07 — Lot 9 : la fin du web
 
 - Yocthan, sur les manques du grand tableau : « Le seul manque en priorité […] si tu le fais, tu me dis quand est-ce que je veux le voir » ; « Plus de touches du clavier. Faire apparaître un bloc quand on descend. Régler un son. Bref, oui, oui. Ça, il faut le faire » ; « tu valides déjà le tout ».
