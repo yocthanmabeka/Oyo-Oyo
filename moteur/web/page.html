@@ -114,6 +114,8 @@
     border-radius:10px;background:#2a1212;color:#ffd6d6;border:1px solid #f88;font:14px system-ui,sans-serif}
   #outage[hidden]{display:none}
   #outage button{padding:6px 12px;border-radius:6px;border:1px solid #ffd6d6;background:none;color:inherit;font:inherit;cursor:pointer}
+  /* Sur papier (ADR-073) : seule la page s'imprime, sans les outils du moteur. */
+  @media print{#menu,#crossroads,#origin,#outage,#status,#area,#image,#holo-values{display:none!important}}
 </style>
 </head><body><canvas id="area" aria-hidden="true"></canvas><div id="page"></div>
 <img id="image" alt=""><div id="status"></div><div id="announcement" class="for-reader" role="status" aria-live="polite"></div>

@@ -19,7 +19,7 @@ Décidé par Yocthan le 2026-10-07 (« Vas-y, commence […] il faut qu'on aille
 | Lot | Session | Branches | Décisions réservées | Leçons réservées | État |
 |---|---|---|---|---|---|
 | 4 — mise en page d'ordinateur et de téléphone | la session du PC de Yocthan | `langage/lot4-…` | ADR-069 à ADR-072 | 89 à 94 | à faire |
-| 8 — le HTML et les médias qui manquent | la session du nuage | `langage/lot8-…` | ADR-073 à ADR-077 | 95 à 99 | en cours |
+| 8 — le HTML et les médias qui manquent | la session du nuage | `langage/lot8-…` | ADR-073 (utilisée) à ADR-077 | 95, 96 (utilisées) à 99 | fait (`ADR-073`) ; l'historique dans une page attend le lot 5 |
 | 5, 6, 7 — serveur, valeurs partagées, comptes | une seule session, la première libre | — | à réserver ici | à réserver ici | à faire, après le lot 4 ou le lot 8 |
 | 9 — les capacités larges | l'autre session | — | à réserver ici | à réserver ici | à faire |
 

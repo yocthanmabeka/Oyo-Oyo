@@ -285,7 +285,7 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
     // Cacher un bloc sur un téléphone : seulement dans « phone: { … } » (ADR-041).
     if name == "display" {
         return match (state, setting.value.as_str()) {
-            (Some("phone"), "none") => Ok(()),
+            (Some("phone" | "print"), "none") => Ok(()),
             (Some("phone"), _) => refusal("dans « phone: { … } », « display » ne prend que « none » : cacher le bloc sur un téléphone".into()),
             _ => refusal("« display » règle la disposition, pas l'apparence : la disposition vient des blocs ; pour cacher un bloc sur un téléphone : « phone: { display: none; } » ; selon une valeur : If (ADR-017, ADR-041)".into()),
         };
@@ -516,6 +516,8 @@ mod tests {
             include_str!("../../exemples/lecons/82-chercher-filtrer-trier.holo"),
             include_str!("../../exemples/lecons/84-donnees-arrivees-ou-pas.holo"),
             include_str!("../../exemples/lecons/87-des-dates.holo"),
+            include_str!("../../exemples/lecons/95-un-article-long.holo"),
+            include_str!("../../exemples/lecons/96-une-video-sous-titree.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();

@@ -466,7 +466,7 @@
 | `Page(lang:)` | `lang` | la langue de la page | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
 | `Header, Footer, Main` | `header, footer, main` | en-tête, pied, contenu principal | Oui | Déjà là | Ajoutés le 2026-10-06 (ADR-036). |
 | `Nav` | `nav` | le menu de navigation | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-036). |
-| — | `aside` | un encadré à part | Non | Plus tard | — |
+| `Aside(children:)` | `aside` | un encadré à part | Oui | Déjà là | Ajouté le 2026-10-07 (ADR-073). |
 | `les titres H1 à H3` | `section, article` | des parties de page | Refusé exprès | Non | Jugement de Claude, sans décision : les titres donnent déjà le plan. Soumis à Codex et Gemini. |
 | — | `div` | une boîte sans sens | Refusé exprès | Non | Refusé par Yocthan (ADR-009) : chaque bloc dit ce qu'il est. |
 | `Text` | `span` | un bout de texte | Oui | Déjà là | — |
@@ -497,7 +497,7 @@
 | — | `dl, dt, dd` | liste de définitions | Non | Plus tard | Un glossaire, une fiche technique. |
 | `A("…", to:)` | `a href` | un lien | Oui | Déjà là | — |
 | `A(to: "#Horaires")` | `a vers un endroit de la page` | sauter plus bas dans la page | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). Un nom qui n'existe pas est refusé. |
-| — | `a target, download` | nouvel onglet, télécharger | Non | Plus tard | — |
+| `A(newTab: true)`, `A(download: true)` | `a target, download` | nouvel onglet, télécharger | Oui | Déjà là | Ajouté le 2026-10-07 (ADR-073) : `noopener` et l'annonce au lecteur d'écran d'office. |
 
 ## HTML — Images et médias
 
@@ -507,7 +507,7 @@
 | `Image(alt:), obligatoire` | `img alt` | le texte pour qui ne voit pas | Oui | Déjà là | Obligatoire depuis le 2026-10-06 ; alt: "" pour un décor (ADR-038). |
 | `Image(phone: "petite.jpg")` | `picture, srcset` | une image plus légère sur téléphone | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). Un seul seuil, celui de la page. |
 | `Image(caption:)` | `figure, figcaption` | une image et sa légende | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
-| `Video(source:, label:)` | `video` | une vidéo | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). Pas encore de sous-titres. |
+| `Video(source:, label:, captions:)` | `video`, `track` | une vidéo, ses sous-titres | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038) ; les sous-titres le 2026-10-07 (ADR-073). |
 | `Sound(…) et .play ; Sound(label:) pour un lecteur` | `audio` | un son, un lecteur | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
 | `Point, World, Shape` | `canvas, WebGL` | un dessin libre, de la 3D | En partie | Oui, utile | Des points et quatre formes ; pas de dessin libre ni de modèles 3D. |
 | `comme fichier d'image` | `svg dans la page` | un dessin vectoriel | En partie | Plus tard | — |

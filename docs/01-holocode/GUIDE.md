@@ -1419,6 +1419,34 @@ Page(
 
 Cette écriture est décidée (`ADR-045`). La leçon est `69-module-enferme.holo` ; ses trois modules, dans `exemples/lecons/modules/`.
 
+## 6 duodetricies. Un article long : un encadré, des liens, des sous-titres, l'impression
+
+```holo
+Page(
+  title: "Shooting stars",
+  lang: "en",
+  children: [
+    H1("Shooting stars"),
+    Image(source: "star.png", alt: "A golden star"),
+    Aside(children: [ H2("Did you know?"), P("A shooting star is a grain smaller than a pea.") ]),
+    A("Read more on Wikipedia", to: "https://en.wikipedia.org/wiki/Perseids", newTab: true),
+    A("Download the programme", to: "programme.txt", download: true),
+    Video(source: "film.mp4", label: "The sky at night", captions: "film.vtt"),
+  ],
+)
+
+Aside { print: { display: none; } }
+```
+
+- **`Aside(children: [ … ])`** : un encadré à part ; le lecteur d'écran l'annonce comme un contenu complémentaire.
+- **`newTab: true`** : un nouvel onglet ; le lecteur d'écran l'annonce, et la page ouverte ne peut pas toucher à celle-ci.
+- **`download: true`** : un fichier rangé à côté se télécharge ; ni une page `.holo`, ni une adresse du web.
+- **`captions: "film.vtt"`** : des sous-titres WebVTT, montrés d'emblée, dans la langue de la page.
+- Les images plus bas dans la page ne viennent qu'en approchant de l'écran ; la première vient tout de suite. Rien à écrire.
+- **`print: { … }`** dans un style : ce qui change sur papier ; `print: { display: none; }` cache un bloc. Le moteur cache de lui-même ses outils et écrit l'adresse des liens du web.
+
+Cette écriture est décidée (`ADR-073`). Les leçons sont `95-un-article-long.holo` et `96-une-video-sous-titree.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo

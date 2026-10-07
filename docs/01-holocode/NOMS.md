@@ -31,6 +31,10 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Page` | `html`, `head`, `body`, `main` | changé : un seul bloc au lieu de quatre balises |
 | `H1` à `H6` | `h1` à `h6` | repris, avec une majuscule |
 | `Video` | `video controls` | repris ; jamais de lecture automatique ; `label` obligatoire |
+| `Video(captions:)` | `track kind="captions"` | changé : un paramètre, la langue prise dans la page |
+| `Aside` | `aside` | repris |
+| `A(newTab: true)`, `A(download: true)` | `target="_blank" rel="noopener"`, `download` | changé : `noopener` et l'annonce au lecteur d'écran viennent d'office |
+| `print: { … }` dans un style | `@media print` | changé : un état, comme `dark:` et `phone:` |
 | `Table` et `caption:`, `head:`, `rows:` | `table`, `caption`, `thead`, `th`, `tbody`, `tr`, `td` | changé : trois paramètres au lieu de sept balises |
 | `Choice` et `options:`, `menu:` | `input type="radio"`, `select`, `option` | changé : un seul bloc pour les deux ; `menu: true` pour la liste déroulante |
 | `Input(lines:)` | `textarea` | changé : le même champ, sur plusieurs lignes |

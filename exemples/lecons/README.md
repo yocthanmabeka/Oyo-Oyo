@@ -92,6 +92,8 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 82 | [Chercher, filtrer, trier, montrer plus](82-chercher-filtrer-trier.holo) | `computed: [ Filter(…, total: matching) ]`, `Repeat(over: found, empty:)`, `{found} sur {matching}` |
 | 83 | [Comparer des textes](83-comparer-des-textes.holo) | `If(size, is: "L")`, `If(again, is: email)`, `When(answer, is: "Paris", …)` |
 | 84 | [Des données qui arrivent, ou pas](84-donnees-arrivees-ou-pas.holo) | `Data(name: Shop, …)`, `On(Shop.done, …)`, `On(Shop.failed, …)`, `Shop.refresh` |
+| 96 | [Une vidéo sous-titrée](96-une-video-sous-titree.holo) | `Video(captions: "film.vtt")` |
+| 95 | [Un article long](95-un-article-long.holo) | `Aside`, `A(newTab: true)`, `A(download: true)`, `print: { … }`, les images qui viennent en approchant |
 | 88 | [Un formulaire qui vérifie](88-un-formulaire-qui-verifie.holo) | `required: true`, `type: email`, `min:`, les messages sous les champs, Entrée, un envoi, 15 secondes |
 | 87 | [Des dates](87-des-dates.holo) | `today`, `{arrival:date}`, `If(departure, over: arrival)`, `departure.add(7)`, `Days(…)`, `Input(type: date, min: today)` |
 | 86 | [Des nombres à virgule](86-nombres-a-virgule.holo) | `State(price: 12.50)`, `{price}`, `sum.mul(1.1)`, `If(sum, over: 49.99)` |
