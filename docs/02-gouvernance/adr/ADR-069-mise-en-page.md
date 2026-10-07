@@ -19,7 +19,7 @@
 
 1. **Téléphone, ordinateur** : dans un style, `phone: { … }` (un écran plus étroit que la page, 640px) et, nouveau, `computer: { … }` (un écran de 1024px ou plus).
    - `Page { max-width: 960px; }`, ou la même chose dans `computer:`, élargit la colonne de la page (640px sans rien écrire).
-   - `display: none` cache un bloc, dans `phone:`, `computer:` et `narrow:` seulement.
+   - `display: none` cache un bloc, dans `phone:`, `computer:` et `narrow:` seulement ; jamais ce qui agit (un bouton, un lien, un champ, un formulaire, un bloc qu'une règle écoute) : décision de Yocthan du 2026-10-07, sa règle de parité (« Refuser pour ce qui agit »). Le message dit quel bloc agit, et sur quel appareil il manquerait.
 2. **La place** : `narrow: { … }` vaut quand la case de `Grid` où se trouve le bloc fait moins de 320px de large (20rem : le seuil grandit avec le texte du visiteur), quel que soit l'écran. La page mesure elle-même les cases ; le style vaut pour la case et pour ce qu'elle contient.
 3. **Ce qui dépasse** :
    - sans rien écrire, un mot trop long passe à la ligne ;
@@ -79,7 +79,7 @@ Chaque refus dit pourquoi, ou donne le bon mot.
 - La pile de feuilles derrière une page décrochée attend la 3D.
 - La taille d'une image de curseur n'est pas vérifiée (le navigateur la limite).
 - Une zone qui défile (`overflow: auto`) ne reçoit pas le clavier dans tous les navigateurs : Chrome le fait seul depuis 2024, pas Safari.
-- À trancher avec Yocthan : `display: none` dans `phone:` ou `computer:` peut cacher un bouton sur un seul appareil, ce que sa règle de parité interdirait. Pour une phrase, seule l'allure change.
+- La parité ne voit pas l'intérieur d'un composant : `Component` caché sur un téléphone n'est vérifié que par ce qu'on lui passe à l'appel.
 
 ## Critères de validation
 

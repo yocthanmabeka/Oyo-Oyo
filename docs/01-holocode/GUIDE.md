@@ -1444,7 +1444,7 @@ H2 { font-size: 22px; narrow: { font-size: 16px; } }
 
 - **`phone: { … }`** vaut sur un écran plus étroit que la page (640px) ; **`computer: { … }`**, sur un écran de 1024px ou plus. `Page { max-width: 960px; }`, ou la même chose dans `computer:`, élargit la page (640px sans rien écrire).
 - **`narrow: { … }`** vaut quand la case de `Grid` où se trouve le bloc fait moins de 320px, quel que soit l'écran : c'est la place du bloc qui compte. Rien à déclarer : la page mesure chaque case.
-- **`display: none`** cache un bloc, dans `phone:`, `computer:` et `narrow:` seulement.
+- **`display: none`** cache un bloc, dans `phone:`, `computer:` et `narrow:` seulement ; jamais ce qui agit (un bouton, un lien, un champ, un formulaire, un bloc qu'une règle écoute) : décision de Yocthan du 2026-10-07, sa règle de parité. Une phrase ou une image peuvent se cacher sur un seul appareil.
 
 ```holo
 Page(

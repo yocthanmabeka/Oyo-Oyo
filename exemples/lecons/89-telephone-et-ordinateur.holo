@@ -15,7 +15,8 @@
 //   une case ne peut pas se mesurer elle-même. Ici, rien à déclarer : le moteur mesure chaque
 //   case de grille.)
 //   « display: none » cache un bloc, mais seulement dans phone:, computer: ou narrow: (la
-//   disposition vient des blocs, ADR-017).
+//   disposition vient des blocs, ADR-017). Une phrase, une image : oui. Ce qui agit (un bouton,
+//   un lien, un champ) : jamais, il doit exister sur tous les appareils (la règle de parité).
 //
 // À essayer :
 //   Sur l'ordinateur, rétrécis la fenêtre : sous 1024px, la page redevient étroite et le

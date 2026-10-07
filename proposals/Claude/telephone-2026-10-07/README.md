@@ -58,7 +58,7 @@ Posée par Yocthan ce soir-là : « si la fonction existe sur téléphone, elle 
 
 - Ce que le clavier ou la souris font sur l'ordinateur, le doigt doit pouvoir le faire sur le téléphone, et l'inverse.
 - Appliquée dans le lot 4 : les touches à l'écran (leçon 77) ; TalkBack (Android) et VoiceOver (iPhone) expliqués à côté du Narrateur de Windows (leçons 35 et 81) ; « Décrocher / Accrocher » dans le même menu ☰ sur les deux.
-- À trancher : la leçon 89 (lot 4) permet de cacher un bloc sur un seul appareil (`display: none` dans `phone:` ou `computer:`). Pour une phrase, c'est l'allure qui change ; pour un bouton, ce serait une fonction d'un seul côté.
+- **Décidé par Yocthan** le même soir (« Refuser pour ce qui agit ») : `display: none` dans `phone:`, `computer:` ou `narrow:` peut cacher une phrase ou une image sur un seul appareil, jamais un bouton, un lien, un champ, un formulaire ou un bloc qu'une règle écoute ; le moteur le refuse, avec la raison.
 
 ## Ce qui a été mesuré par le câble
 
