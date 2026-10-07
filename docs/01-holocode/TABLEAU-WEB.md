@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
-- Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-06). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (311 mots : tous décidés), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
+- Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-07). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
+- D’abord **tous les mots de HoloCode** (333 mots : tous décidés), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
 - **Couverture** : la part de ce que fait l’élément web qu’on obtient en HoloCode aujourd’hui. Estimation de Claude, non mesurée.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,11 +9,11 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 311 mots | tous décidés |
-| HTML | 82 % de couverture | 47 oui, 6 en partie, 6 non, 3 refusés |
-| CSS | 78 % de couverture | 24 oui, 6 en partie, 2 non, 2 refusés |
-| JavaScript | 54 % de couverture | 14 oui, 11 en partie, 7 non, 1 refusés |
-| HTML, CSS, JS ensemble | 74 % de couverture | 85 oui, 23 en partie, 15 non, 6 refusés |
+| **HoloCode** | 333 mots | tous décidés |
+| HTML | 84 % de couverture | 49 oui, 5 en partie, 5 non, 3 refusés |
+| CSS | 80 % de couverture | 25 oui, 5 en partie, 2 non, 2 refusés |
+| JavaScript | 59 % de couverture | 15 oui, 11 en partie, 6 non, 1 refusés |
+| HTML, CSS, JS ensemble | 77 % de couverture | 89 oui, 21 en partie, 13 non, 6 refusés |
 
 # Partie 1 — Les mots de HoloCode
 
@@ -23,8 +23,8 @@
 |---|---|---|---|
 | `Page` | La page entière, le bloc racine d'un fichier | `html, head, body, main` | Décidé (ADR-009) |
 | `World` | Le monde qui est dans un point | — | Décidé (ADR-009) |
-| `Part` | Un morceau réutilisable, dans un fichier importé | `template` | Décidé (ADR-029) |
-| `Use` | Pose un morceau importé, Use(Menu) | `slot, include` | Décidé (ADR-029) |
+| `Component` | Un composant : écrit une fois, posé comme un bloc, avec ses paramètres | `template, composants React ou Vue` | Décidé (ADR-050, ADR-056) |
+| `Use` | Pose un morceau sans paramètres, Use(Menu) | `slot, include` | Décidé (ADR-029) |
 
 ## Blocs : les repères
 
@@ -162,6 +162,7 @@
 | `height` | La hauteur d'un plateau ou de scènes | `height` | Décidé (ADR-026) |
 | `x, y, drag` | La place sur un plateau, et le glissement | `left, top, draggable` | Décidé (ADR-026, ADR-028) |
 | `align (dans Stack)` | La place d'un bloc posé sur un autre | `top, right, bottom, left` | Décidé (ADR-036) |
+| `grow` | Prendre la place qui reste dans un Row ou une Column | `flex-grow` | Décidé (ADR-052) |
 
 ## Paramètres : agir
 
@@ -196,6 +197,7 @@
 | `at, for, ease` | Quand il part, combien de temps, quel caractère | `animation-delay, -duration, -timing-function` | Décidé (ADR-034) |
 | `letters, each, back, repeat` | Lettre à lettre, enfant après enfant, sans retour, sans fin | `du JavaScript` | Décidé (ADR-034) |
 | `opacity, x, y, scale, rotate, flip, tilt, blur, hue, round` | Ce qui bouge | `opacity, transform, filter, border-radius` | Décidé (ADR-034) |
+| `inView` | Une entrée qui attend que le bloc arrive à l'écran | `IntersectionObserver` | Décidé (ADR-061) |
 
 ## Paramètres : la vue
 
@@ -224,9 +226,11 @@
 |---|---|---|---|
 | `tap` | Un toucher, un clic | `click` | Décidé (ADR-015) |
 | `Key.left, Key.right, Key.up, Key.down, Key.space` | Les touches du clavier | `keydown` | Décidé (ADR-028) |
+| `Key.enter, Key.escape, Key.a … Key.z, Key.digit0 … Key.digit9` | Entrée, Échap, les lettres, les chiffres ; les touches à une lettre se coupent dans le menu ; jamais Tab | `KeyboardEvent.key, .code` | Décidé (ADR-061) |
 | `enter, leave` | Entrer dans un point, en sortir | `un routeur` | Décidé (ADR-022) |
 | `portals` | Ouvrir le carrefour | — | Décidé (ADR-021) |
 | `play` | Faire entendre un son | `audio.play()` | Décidé (ADR-031) |
+| `stop` | Arrêter un son et le remettre au début | `pause(), currentTime = 0` | Décidé (ADR-061) |
 
 ## Demandes
 
@@ -256,7 +260,7 @@
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `px, deg` | Pixels, degrés | `px, deg` | Décidé (ADR-009) |
+| `px, deg` | Pixels (le navigateur reçoit des rem : ils suivent le texte du visiteur), degrés | `px, deg` | Décidé (ADR-009, ADR-061) |
 | `ms, s, min, h` | Les durées | `ms, s` | Décidé (ADR-009) |
 | `mm, cm, m, km` | Les longueurs (pour les mondes) | `mm, cm` | Décidé (ADR-009) |
 | `B, KB, MB, GB` | Les poids (B = octet) | — | Décidé (ADR-009, ADR-037) |
@@ -312,6 +316,7 @@
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `item` | L'élément en cours, dans le modèle : {item.title}, item.add(1) | `item => …` | Décidé (ADR-040) |
+| `screen` | height: screen : tout l'écran, au moins | `100dvh` | Décidé (ADR-061) |
 
 ## Styles
 
@@ -356,12 +361,14 @@
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `caption, phone` | La légende d'une image ; l'image pour un téléphone | `figcaption, picture` | Décidé (ADR-042) |
+| `volume, loop` | Le volume d'un son (de 0 à 1) ; un son qui recommence sans fin | `audio.volume, loop` | Décidé (ADR-061) |
 
 ## Paramètres : agir
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `type, min, summary, open` | date, time, color ; le minimum d'une glissière ; le résumé d'un pli, ouvert au départ | `type, min, summary, open` | Décidé (ADR-042) |
+| `type: file, accept` | Choisir un fichier à envoyer par un formulaire : image ou pdf, avec une taille maximale | `input type=file, accept` | Décidé (ADR-059) |
 
 ## Paramètres : la page
 
@@ -399,12 +406,15 @@
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `push, remove, clear` | Ajouter à une liste, retirer la ligne touchée, tout vider | `push, splice, length = 0` | Décidé (ADR-044) |
+| `push(Item(…)), item.done.set(1)` | Ajouter un élément à champs ; changer un champ de la ligne touchée | `push, objet.champ = …` | Décidé (ADR-051, ADR-057) |
 
 ## Paramètres : les valeurs
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `over` | La liste qui change, montrée ligne par ligne : Repeat(over: tasks) | `map, innerHTML` | Décidé (ADR-044) |
+| `onAdd:, emit:` | Brancher un signal d'un composant ; l'émettre dans sa règle | `addEventListener, dispatchEvent` | Décidé (ADR-056) |
+| `Item (dans State), item.title` | Les éléments à champs d'une liste, et leurs champs dans une ligne | `objets JavaScript` | Décidé (ADR-051) |
 
 ## Blocs : les règles
 
@@ -417,6 +427,8 @@
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `modules, input, output, time, memory` | Les modules de la page ; ce qu'un module reçoit, rend, et ses limites | — | Décidé (ADR-045) |
+| `components, params, emits` | Les composants de la page ; leurs paramètres (avec valeurs par défaut) ; les signaux qu'ils émettent | `props, emit` | Décidé (ADR-050, ADR-056) |
+| `children (dans un composant)` | L'emplacement où va le contenu donné à l'appel | `slot, children` | Décidé (ADR-058) |
 
 ## Signaux et capacités
 
@@ -503,13 +515,13 @@
 | En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|---|
 | `Button(name:, text:)` | `button` | un bouton | Oui | 100 % | Déjà là | — |
-| `Form(name:), Contact.send, sent, failed` | `form (envoyer)` | envoyer des réponses à un serveur | Oui | 85 % | Déjà là | Ajouté le 2026-10-06 (ADR-042). Vers un fichier du serveur local (décision de Yocthan) ; pas encore d'envoi de fichier. |
+| `Form(name:), Contact.send, sent, failed` | `form (envoyer)` | envoyer des réponses à un serveur | Oui | 90 % | Déjà là | Vers le serveur local (décision de Yocthan), un fichier compris (ADR-042, ADR-059). |
 | `Input(value:, label:, max:)` | `input texte, nombre` | un champ | Oui | 100 % | Déjà là | — |
 | `Checkbox(value:, label:)` | `input checkbox` | une case à cocher | Oui | 100 % | Déjà là | — |
 | `Choice(value:, label:, options:)` | `input radio` | un choix parmi plusieurs | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
 | `Slider(value:, label:, min:, max:)` | `input range` | un curseur à glisser | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
 | `Input(type: date | time | color)` | `input date, heure, couleur` | choisir une date, une couleur | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
-| — | `input email, mot de passe, fichier` | adresse, secret, envoi de fichier | Non | 0 % | Plus tard | Seulement avec l'envoi au serveur et des comptes. |
+| `Input(type: file, accept:, max:) dans un Form` | `input email, mot de passe, fichier` | adresse, secret, envoi de fichier | En partie | 35 % | Déjà là | Le fichier : ajouté le 2026-10-07 (ADR-059). Le courriel et le mot de passe viendront avec des comptes. |
 | `label: (obligatoire)` | `label` | le nom d'un champ | Oui | 100 % | Déjà là | Mieux que HTML : impossible de l'oublier. |
 | `Input(…, lines: 5)` | `textarea` | un texte long | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
 | `Choice(…, menu: true)` | `select, option` | une liste déroulante | Oui | 100 % | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
@@ -529,10 +541,10 @@
 | En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|---|
 | `styles après la page` | `style` | les styles | Oui | 100 % | Déjà là | — |
-| `import "commun.holo"` | `link stylesheet` | un fichier de styles partagé | En partie | 70 % | Déjà là | Les styles viennent avec un morceau ; pas de fichier de styles seul. |
+| `import "theme.holo"` | `link stylesheet` | un fichier de styles partagé | Oui | 95 % | Déjà là | Un fichier de styles seuls est un thème ; la page garde les siens (ADR-052). |
 | — | `script` | du code dans la page | Refusé exprès | — | Non | Refusé (ADR-015) : aucun code libre, pour la sécurité. |
-| `Part et Use ; Repeat pour un modèle à champs` | `template, slot` | un morceau réutilisable | Oui | 85 % | Déjà là | Repeat ajouté le 2026-10-06 (ADR-040). Pas encore de Use(Card, title: …). |
-| `les repères, et quelques attributs ajoutés par le moteur` | `attributs aria, tabindex` | l'accessibilité fine | En partie | 45 % | Oui, en priorité | En vue points, un lecteur d'écran ne voit toujours rien. |
+| `Component(params:, emits:, children), Use ; Repeat` | `template, slot` | un morceau réutilisable | Oui | 95 % | Déjà là | Des composants à paramètres, valeurs par défaut, signaux et emplacement (ADR-050, ADR-056, ADR-058). |
+| `les repères, les étiquettes obligatoires ; la vue points lue au lecteur d'écran` | `attributs aria, tabindex` | l'accessibilité fine | Oui | 80 % | Déjà là | En vue points, la page reste dessous, lisible, et « Vue points » est annoncé (ADR-061) ; le contraste trop faible est refusé, un audit vérifie chaque leçon (ADR-055). |
 
 ## CSS — Couleurs et texte
 
@@ -560,14 +572,14 @@
 | `opacity` | `opacity` | la transparence | Oui | 100 % | Déjà là | — |
 | — | `overflow` | ce qui dépasse | Non | 0 % | Plus tard | — |
 | — | `cursor` | la forme du curseur | Non | 0 % | Plus tard | — |
-| `automatique pour le texte : px → rem, grands titres en clamp` | `unités %, rem, vw, clamp` | des tailles qui s'adaptent à l'écran | En partie | 60 % | Oui, utile | Le texte suit le réglage du visiteur ; les autres tailles restent en px. |
+| `px et % ; le navigateur reçoit des rem ; height: screen` | `unités %, rem, vw, clamp` | des tailles qui s'adaptent à l'écran | Oui | 85 % | Déjà là | Le texte, les marges, les largeurs, les coins suivent le réglage du visiteur ; height: screen remplit l'écran sans le défaut de 100vh (ADR-061). |
 
 ## CSS — Disposition
 
 | En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|---|
 | — | `display, position, float, z-index` | placer à la main | Refusé exprès | — | Non | Refusé (ADR-017) : la disposition vient des blocs. |
-| `Row, Column (gap, align)` | `flexbox (en ligne, en colonne)` | côte à côte, l'un sous l'autre | Oui | 80 % | Déjà là | Pas d'élément qui prend la place qui reste. |
+| `Row, Column (gap, align, grow)` | `flexbox (en ligne, en colonne)` | côte à côte, l'un sous l'autre | Oui | 95 % | Déjà là | grow: prend la place qui reste (ADR-052). |
 | `Grid(columns:, gap:)` | `grid` | une grille | En partie | 70 % | Déjà là | Pas de zones nommées ni de case sur deux colonnes. |
 | `automatique, et phone: { … }` | `@media (s'adapter à l'écran)` | changer selon la taille | Oui | 85 % | Déjà là | Ajouté le 2026-10-06 (ADR-041). Un seul seuil : celui de la page. |
 | `Board (automatique)` | `aspect-ratio` | garder des proportions | En partie | 30 % | Plus tard | — |
@@ -593,9 +605,9 @@
 | En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|---|
 | `On(Nom.tap, effect:)` | `clic` | réagir à un toucher | Oui | 100 % | Déjà là | — |
-| `On(Key.left…)` | `clavier` | réagir aux touches | En partie | 40 % | Oui, utile | Seulement les flèches et l'espace. |
+| `On(Key.left…), Key.enter, Key.escape, Key.a … Key.z, Key.digit0 … Key.digit9` | `clavier` | réagir aux touches | Oui | 85 % | Déjà là | Toutes les touches utiles ; jamais Tab ; les touches à une lettre se coupent dans le menu (ADR-061). |
 | `On(Carte.hover), On(Carte.hoverEnd)` | `survol, approche (mouseenter)` | quand la souris passe dessus | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-039) : à la souris, au clavier et au doigt. L'approche d'un personnage, en profondeur, reste à faire. |
-| — | `défilement (scroll)` | réagir quand on descend | Non | 0 % | Oui, utile | Faire apparaître en descendant. |
+| `Enter(…, inView: true)` | `défilement (scroll)` | réagir quand on descend | En partie | 50 % | Déjà là | Apparaître en arrivant à l'écran (ADR-061). Pas encore la position du défilement comme valeur. |
 | `drag: true sur un plateau` | `glisser-déposer` | faire glisser | En partie | 50 % | Déjà là | Sur un plateau seulement. |
 | `le zoom du moteur` | `pincer, zoomer` | le zoom à deux doigts | Oui | 100 % | Déjà là | Le cœur du métavers. |
 
@@ -603,10 +615,10 @@
 
 | En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|---|
-| `State(…)` | `variables` | garder une valeur | En partie | 70 % | Déjà là | Nombres entiers et textes ; pas de décimaux. |
+| `State(…)` | `variables` | garder une valeur | En partie | 80 % | Déjà là | Nombres entiers, textes, listes (à champs) ; pas de nombre à virgule. |
 | `add, sub, mul, div, set, random` | `calcul (+ − × ÷)` | calculer | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-043). En nombres entiers ; pas de pourcentage ni de racine. |
 | `If(…, else: […]), When(…)` | `if, else` | décider | Oui | 100 % | Déjà là | Le « sinon » ajouté le 2026-10-06 (ADR-039). |
-| `Repeat(items:) ; State(tasks: []), push, remove, clear` | `tableaux, objets` | des listes de valeurs | Oui | 75 % | Déjà là | Une liste écrite dans le fichier (ADR-040) ; une liste de textes qui change pendant la visite (ADR-044). Pas encore d'éléments à champs. |
+| `State(articles: [ Item(…) ]), push(Item(…)), item.done.set(1)` | `tableaux, objets` | des listes de valeurs | Oui | 90 % | Déjà là | Des listes à champs, qui changent pendant la visite (ADR-044, ADR-051, ADR-057). |
 | `Repeat(items:, children:, rules:)` | `for, map` | répéter pour chaque élément | Oui | 90 % | Déjà là | Ajouté le 2026-10-06 (ADR-040) : déplié à la lecture, la page reste du HTML ordinaire. |
 | `Module(…) : du code WebAssembly enfermé` | `fonctions` | du calcul réutilisable | En partie | 40 % | Déjà là | Ajouté le 2026-10-06 (ADR-045) : un nombre en entrée, un nombre en sortie, arrêté s'il dure trop. |
 | `{nom} dans un texte` | `texte (majuscules, longueur, découper)` | travailler un texte | En partie | 20 % | Plus tard | — |
@@ -626,7 +638,7 @@
 
 | En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|---|
-| `Data(from:, every:)` | `fetch (lire)` | lire des données d'un serveur | En partie | 40 % | Déjà là | JSON plat, même serveur, pas de liste. |
+| `Data(from:, every:)` | `fetch (lire)` | lire des données d'un serveur | En partie | 65 % | Déjà là | Des valeurs et des listes d'objets JSON (ADR-051) ; seulement le serveur d'où vient la page. |
 | `Contact.send` | `fetch (envoyer)` | envoyer au serveur | Oui | 80 % | Déjà là | Ajouté le 2026-10-06 (ADR-042). Les valeurs d'un formulaire, au serveur d'où vient la page. |
 | — | `WebSocket` | parler en direct avec un serveur | Non | 0 % | Plus tard | Pour le jeu à plusieurs, après votre validation locale. |
 | `keep: [panier]` | `localStorage` | garder dans le navigateur | Oui | 80 % | Déjà là | — |
@@ -645,7 +657,7 @@
 
 | En HoloCode | Élément du web | Rôle | Existe ? | Couverture | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|---|
-| `Sound.play` | `Web Audio` | jouer, régler un son | En partie | 30 % | Oui, utile | Pas de volume, pas de boucle, pas d'arrêt. |
+| `Sound(volume:, loop:), play, stop` | `Web Audio` | jouer, régler un son | En partie | 55 % | Déjà là | Volume, boucle, arrêt (ADR-061). Pas de mélange ni d'effets. |
 | `Shape` | `Canvas 2D` | dessiner librement | En partie | 10 % | Plus tard | — |
 | `le moteur dessine des points` | `WebGL, WebGPU` | la 3D | En partie | 30 % | Oui, utile | Pas encore d'objets pleins : l'essai de la chaise. |
 | — | `géolocalisation, caméra, vibration` | l'appareil du visiteur | Non | 0 % | Plus tard | — |

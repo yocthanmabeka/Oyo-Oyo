@@ -100,6 +100,8 @@ pub struct Movement {
     each: Option<f64>,
     /// Une boucle revient-elle à son point de départ (aller-retour) ? Sinon elle recommence.
     back: bool,
+    /// `Enter(inView: true)` : l'entrée attend que le bloc arrive à l'écran (ADR-061).
+    in_view: bool,
 }
 
 fn error(message: String, block: &Block) -> Error {
@@ -141,12 +143,14 @@ pub fn read(value: &Value, param: &str) -> Result<Movement, Error> {
         }
     };
     let cycle = expected == "Loop";
-    let mut movement = Movement { cycle, placed: Placed::default(), a: 0.0, duration: if cycle { 1.0 } else { 0.8 }, curve: if cycle { CURVES[1].1 } else { CURVES[2].1 }, letters: None, each: None, back: true };
+    let mut movement = Movement { cycle, placed: Placed::default(), a: 0.0, duration: if cycle { 1.0 } else { 0.8 }, curve: if cycle { CURVES[1].1 } else { CURVES[2].1 }, letters: None, each: None, back: true, in_view: false };
     let possible = || {
         let mut names: Vec<&str> = PROPERTIES.iter().map(|(n, ..)| *n).collect();
         names.extend(["at", "for", "ease", "letters", "each"]);
         if cycle {
             names.push("back");
+        } else {
+            names.push("inView");
         }
         names.join(", ")
     };
@@ -171,6 +175,10 @@ pub fn read(value: &Value, param: &str) -> Result<Movement, Error> {
             "back" if cycle => match v {
                 Value::Bool(b) => movement.back = *b,
                 _ => return Err(outside("« Loop(back: …) » attend true ou false".into())),
+            },
+            "inView" if !cycle => match v {
+                Value::Bool(b) => movement.in_view = *b,
+                _ => return Err(outside("« Enter(inView: …) » attend true ou false : le bloc entre quand il arrive à l'écran".into())),
             },
             _ => match PROPERTIES.iter().find(|(known, ..)| *known == name) {
                 Some((property, unit, min, max)) => {
@@ -399,7 +407,9 @@ pub fn wrap(movements: &[Movement], inside: String, children: usize, output: &mu
             let _ = write!(css, ".{name}{{{rounded}animation:{rule}}}");
         }
         add(&css);
-        html = format!("<div class=\"holo-animated {name}\">{html}</div>");
+        // Une entrée qui attend d'être vue : la page la met en route quand le bloc arrive à l'écran.
+        let in_view = if m.in_view { " holo-in-view" } else { "" };
+        html = format!("<div class=\"holo-animated{in_view} {name}\">{html}</div>");
     }
     output.push_str(&html);
 }
@@ -437,6 +447,7 @@ pub const BASE: &str = ":where(.holo-animated){display:block}\
 :where(.holo-Scenes){position:relative;overflow:hidden;width:100%}\
 :where(.holo-Scene){position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;opacity:0;padding:16px;box-sizing:border-box}\
 :where(.holo-Scene)>*{margin:0}\
+.holo-js .holo-in-view:not(.holo-seen),.holo-js .holo-in-view:not(.holo-seen) *{animation-play-state:paused}\
 @media (prefers-reduced-motion:reduce){.holo-animated,.holo-animated *,.holo-Scene{animation:none!important}.holo-Scene{opacity:0;visibility:hidden}.holo-Scene:last-child{opacity:1;visibility:visible}}";
 
 #[cfg(test)]

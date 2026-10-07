@@ -408,7 +408,7 @@ L'exemple complet : [`exemples/maison/`](../../exemples/maison/salon.holo), un s
 
 - `On(Open.tap, effect: Workshop.enter)` : quand le bouton `Open` est touché, on entre dans le point `Workshop`.
 - Signaux : `tap` (un `Button` ou un `Point` touché).
-- Capacités : `enter` et `leave` (pour un `Point`), `portals` (pour la `Page` : ouvrir son carrefour), `play` (pour un `Sound`).
+- Capacités : `enter` et `leave` (pour un `Point`), `portals` (pour la `Page` : ouvrir son carrefour), `play` et `stop` (pour un `Sound`).
 - Toucher un point y fait entrer, sans règle à écrire.
 
 ### Planter un site dans un pixel de la page
@@ -695,8 +695,11 @@ Page(
 |---|---|
 | `Key.left`, `Key.right`, `Key.up`, `Key.down` | les quatre flèches |
 | `Key.space` | la barre d'espace |
+| `Key.enter`, `Key.escape` | Entrée, Échap |
+| `Key.a` à `Key.z` | une lettre : celle écrite sur la touche |
+| `Key.digit0` à `Key.digit9` | un chiffre : rangée du haut ou pavé numérique, avec ou sans Maj (un clavier français marche sans Maj) |
 
-Seules les touches que le fichier écoute sont prises. Les autres gardent leur rôle.
+Seules les touches que le fichier écoute sont prises. Les autres gardent leur rôle. Jamais Tab : elle sert à passer d'un bouton à l'autre. Une page qui écoute des lettres ou des chiffres ajoute au menu ☰ « Touches à une lettre » : le visiteur peut les couper, pour qu'un logiciel de dictée ne les tape pas sans le vouloir (`ADR-061`).
 
 Un plateau garde ses proportions : 640 de large, `height` de haut. Sur un téléphone il rétrécit, et tout ce qu'il contient avec lui ; sur un grand écran il ne dépasse pas la largeur de la page, ni les quatre cinquièmes de la hauteur de l'écran. Une partie se joue donc pareil partout : la pomme touche le panier au même moment sur un téléphone et sur un ordinateur.
 
@@ -1026,8 +1029,7 @@ Page(
 - `Ding.play` le fait entendre. Cela s'écrit dans l'effet d'une règle, seul ou dans une liste.
 - Les trois sortes de règles peuvent jouer un son : `On`, `Every`, `When`.
 - Un navigateur ne joue un son qu'après un premier geste du visiteur.
-
-Limites : ni boucle, ni volume, ni arrêt.
+- `volume: 0.4` : de 0 (muet) à 1 (le plus fort), comme l'opacité. `loop: true` : il recommence sans fin. `Rain.stop` l'arrête et le remet au début, aussi dans une règle `Every`, `After` ou `When` (`ADR-061`).
 
 Cette écriture est décidée (`ADR-031`). La leçon est `exemples/lecons/28-son.holo`.
 
@@ -1387,6 +1389,41 @@ Page(
 
 Cette écriture est décidée (`ADR-045`). La leçon est `69-module-enferme.holo` ; ses trois modules, dans `exemples/lecons/modules/`.
 
+## 6 undevicies. La fin du web : toutes les touches, apparaître en descendant, le son réglé, des tailles qui suivent le visiteur
+
+```holo
+Page(
+  title: "Rain",
+  state: State(score: 0),
+  children: [
+    Column.hero(children: [ H1("Rain") ]),
+    P("Press P to count, Escape to start again: {score}.", enter: Enter(y: 40px, opacity: 0, inView: true)),
+    Sound(name: Rain, source: "rain.mp3", volume: 0.4, loop: true),
+    Row(gap: 12px, children: [
+      Button(name: Start, text: "Rain"),
+      Button(name: Quiet, text: "Silence"),
+    ]),
+  ],
+  rules: [
+    On(Key.p, effect: score.add(1)),
+    On(Key.digit5, effect: score.add(5)),
+    On(Key.escape, effect: score.set(0)),
+    On(Start.tap, effect: Rain.play),
+    On(Quiet.tap, effect: Rain.stop),
+  ],
+)
+
+.hero { height: screen; padding: 24px; }
+```
+
+- **Toutes les touches utiles** : en plus des flèches et de l'espace, `Key.enter`, `Key.escape`, les lettres `Key.a` à `Key.z`, les chiffres `Key.digit0` à `Key.digit9`. Jamais Tab. Les lettres et les chiffres se coupent dans le menu ☰ (« Touches à une lettre »).
+- **Apparaître en descendant** : `inView: true` dans une entrée. Le bloc entre quand il arrive à l'écran ; sans JavaScript, ou pour qui demande moins de mouvement, tout se voit d'emblée.
+- **Le son réglé** : `volume:` de 0 à 1, `loop: true`, et la capacité `stop`.
+- **Des tailles qui suivent le visiteur** : on écrit des pixels ; le moteur écrit des `rem` pour les marges, les largeurs, les hauteurs, les coins et les écarts, qui grandissent avec le texte choisi par le visiteur. Les traits, les ombres et l'écart entre les lettres restent en pixels. `height: screen` : tout l'écran, au moins ; sur un téléphone, la hauteur vraiment visible.
+- **La vue points se lit au lecteur d'écran** : rien à écrire. La page reste sous les points, invisible mais lisible ; le lecteur annonce « Vue points » et « Vue web » ; Tab ramène la vue web.
+
+Ces ajouts sont décidés (`ADR-061`). Les leçons vont de `77-toutes-les-touches.holo` à `81-vue-points-et-lecteur-d-ecran.holo`.
+
 ## 6 undecies. Les repères, la superposition, le survol, le texte qui grandit
 
 **Les repères.** Une personne aveugle saute d'un repère à l'autre avec son lecteur d'écran. Rien ne change à l'œil.
@@ -1611,7 +1648,8 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 
 | Unités | Pour |
 |---|---|
-| `px`, `%` | Les tailles à l'écran |
+| `px`, `%` | Les tailles à l'écran. Écrites en pixels, elles suivent la taille du texte choisie par le visiteur : le moteur les écrit en `rem` (`ADR-061`) |
+| `screen` | `height: screen` : tout l'écran, au moins |
 | `deg` | Les angles |
 | `B`, `KB`, `MB`, `GB` | Les poids (décimaux : 1 KB = 1 000 octets) |
 | `mm`, `cm`, `m`, `km`, `ms`, `s`, `min`, `h` | Longueurs et durées : lues par le moteur, pas encore employées |
@@ -1701,7 +1739,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Un composant à paramètres, restylé par le CSS | `Component(name:, params:, emits:, children:, rules:)`, `ArticleCard(…)`, `ArticleCard { }`, `ArticleCard.promo(…)` | fait |
 | Plusieurs noms de style sur un bloc | `P.card.big(…)` | fait |
 | Répéter une règle dans le temps | `Every(1s, effect:)` | fait |
-| Le clavier | `On(Key.left, effect:)` | fait |
+| Le clavier | `On(Key.left, effect:)`, `Key.enter`, `Key.escape`, `Key.a` à `Key.z`, `Key.digit0` à `Key.digit9` | fait |
 | Agir au moment où une valeur atteint quelque chose | `When(lives, is: 0, effect:)` | fait |
 | La rencontre de deux objets | `When(Basket, meets: Apple, within:, effect:)` | fait |
 | Faire glisser un objet | `drag: true` sur un bloc d'un `Board` | fait |
@@ -1726,7 +1764,10 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | La durée d'ouverture d'un portail | `Portals(duration:)` | fait |
 | Le poids permis | `budget`, `weight` | fait |
 | Le toucher | le signal `tap` | fait |
-| Le son | `Sound(name:, source:)`, et la capacité `play` | fait |
+| Le son | `Sound(name:, source:, volume:, loop:)`, les capacités `play` et `stop` | fait |
+| Apparaître en descendant | `Enter(…, inView: true)` | fait |
+| Des tailles qui suivent le visiteur, tout l'écran | les pixels écrits en `rem`, `height: screen` | fait |
+| La vue points au lecteur d'écran | rien à écrire | fait |
 | Une forme simple | `Shape(form:, color:, size:)` | fait |
 | Comparer deux valeurs, fixer d'après une autre | `over: best`, `best.set(score)` | fait |
 | Le survol | `On(Carte.hover, …)`, `On(Carte.hoverEnd, …)` | fait |
@@ -1749,7 +1790,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | L'écart et le placement | `gap:`, `align:`, `columns:` | fait |
 | La place qui reste | `grow:` dans `Row` ou `Column` | fait |
 | Un thème partagé par les pages | un fichier de styles seuls, `import "theme.holo"` | fait |
-| Réutiliser un morceau de fichier (les imports) | `import` est lu, pas appliqué | à faire |
+| Réutiliser un morceau de fichier (les imports) | `import "commun.holo"`, `Component`, `Use` | fait |
 | Le personnage | aucun | à faire |
 
 L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../exemples/boutique-comparee/boutique.holo).

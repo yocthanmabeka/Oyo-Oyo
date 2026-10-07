@@ -95,22 +95,38 @@ pub fn needs_drawing(source: &str) -> bool {
     drawing
 }
 
+/// Un fichier de styles seuls (ADR-052) ne se lit pas comme une page : ses styles se lisent
+/// derrière un morceau vide, écrit sur une ligne à part, pour que les fautes gardent leur ligne
+/// (moins une) et leur colonne.
+fn styles_only(source: &str) -> Option<holo::Program> {
+    if holo::read(source).is_ok() {
+        return None;
+    }
+    let program = holo::read(&format!("Component(name: HoloStyles, children: [])
+{source}")).ok()?;
+    (!program.styles.is_empty()).then_some(program)
+}
+
+/// Pour la ligne de commande : ce fichier est-il un fichier de styles seuls (un thème) ?
+pub fn is_styles_file(source: &str) -> bool {
+    styles_only(source).is_some()
+}
+
 /// L'éditeur (ADR-046) : le fichier est-il juste ? `ok`, ou la première faute, telle que le
 /// moteur la refuse : `ligne 7, colonne 5 : « h1 » : … écris « H1 »`. Un point seul (`Point(…)`)
 /// se vérifie comme un monde ; un morceau importé (`Component(…)`), pour ses blocs et ses styles :
 /// le reste se vérifie dans la page qui l'importe.
 pub fn check_text(source: &str) -> String {
     // Un fichier de styles seuls (ADR-052) : ses styles se vérifient comme ceux d'un morceau.
-    if holo::read(source).is_err() {
-        let styles = format!("Component(name: HoloStyles, children: []) {source}");
-        if let Ok(p) = holo::read(&styles) {
-            if !p.styles.is_empty() {
-                return match styles::check_styles(&p) {
-                    Ok(()) => "ok : un fichier de styles, à importer dans une page".into(),
-                    Err(e) => e.to_string(),
-                };
+    if let Some(program) = styles_only(source) {
+        return match styles::check_styles(&program) {
+            Ok(()) => "ok : un fichier de styles, à importer dans une page".into(),
+            // La ligne ajoutée devant ne compte pas : la faute garde sa place dans le fichier.
+            Err(mut error) => {
+                error.pos.line = error.pos.line.saturating_sub(1);
+                error.to_string()
             }
-        }
+        };
     }
     let root = holo::read(source).map(|p| p.root.name);
     let result = match root.as_deref() {
@@ -163,7 +179,7 @@ pub fn vocabulary() -> String {
         list(holo::STATES),
         list(&["add", "sub", "set", "random", "mul", "div", "push", "remove", "clear"]),
         list(&["tap", "hover", "hoverEnd", "sent", "failed", "done"]),
-        list(&["enter", "leave", "play", "portals", "open", "close", "send", "run"]),
+        list(&["enter", "leave", "play", "stop", "portals", "open", "close", "send", "run"]),
         list(state::KEYPRESSES),
         list(&[
             "true", "false", "item", "circle", "square", "triangle", "diamond", "start", "center", "end", "between", "topLeft", "top", "topRight", "left", "right", "bottomLeft", "bottom",

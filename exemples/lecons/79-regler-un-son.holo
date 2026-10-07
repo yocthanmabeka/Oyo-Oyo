@@ -1,0 +1,48 @@
+// Leçon 79 — Régler un son : son volume, sa boucle, son arrêt
+//
+// Ce qu'on apprend :
+//   Sound(name: Doux, source: "28-son.wav", volume: 0.3)   de 0 (muet) à 1 (le plus fort),
+//                                                          comme l'opacité
+//   Sound(name: Pluie, source: "28-son.wav", loop: true)   il recommence sans fin…
+//   On(Arreter.tap, effect: Pluie.stop)                     …jusqu'à ce qu'on l'arrête
+//   stop marche aussi dans une règle de temps (Every, After) ou qui guette (When).
+//   Un navigateur ne joue un son qu'après un premier geste du visiteur : jamais à l'ouverture.
+//
+// À essayer :
+//   Compare « Doucement » et « Fort ». Lance la boucle, puis arrête-la.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 79 : régler un son",
+  children: [
+    H1("Régler un son"),
+    Sound(name: Doux, source: "28-son.wav", volume: 0.3),
+    Sound(name: Fort, source: "28-son.wav", volume: 1),
+    Sound(name: Pluie, source: "28-son.wav", volume: 0.6, loop: true),
+    Row(gap: 12px, children: [
+      Button(name: JouerDoux, text: "Doucement"),
+      Button(name: JouerFort, text: "Fort"),
+    ]),
+    Row(gap: 12px, children: [
+      Button(name: Lancer, text: "En boucle"),
+      Button(name: Arreter, text: "Arrêter"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 78 : apparaître en descendant", to: "78-apparaitre-en-descendant.holo"),
+      A("Leçon 80 : des tailles qui suivent le visiteur →", to: "80-tailles-qui-suivent.holo"),
+    ]),
+  ],
+  rules: [
+    On(JouerDoux.tap, effect: Doux.play),
+    On(JouerFort.tap, effect: Fort.play),
+    On(Lancer.tap, effect: Pluie.play),
+    On(Arreter.tap, effect: Pluie.stop),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

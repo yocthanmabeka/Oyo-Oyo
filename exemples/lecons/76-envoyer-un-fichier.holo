@@ -35,6 +35,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 75 : le contenu d'un composant", to: "75-contenu-d-un-composant.holo"),
+      A("Leçon 77 : toutes les touches →", to: "77-toutes-les-touches.holo"),
     ]),
   ],
   rules: [

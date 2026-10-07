@@ -133,6 +133,17 @@ fn main() -> ExitCode {
         println!("{response}");
         return if response.starts_with("ok") { ExitCode::SUCCESS } else { ExitCode::FAILURE };
     }
+    // Un fichier de styles seuls (ADR-052) se vérifie comme dans l'éditeur : c'est un thème, que
+    // des pages importent, pas une page.
+    if command == "check" && holo_engine::is_styles_file(&source) {
+        let response = holo_engine::check_text(&source);
+        if response.starts_with("ok") {
+            println!("{response}");
+            return ExitCode::SUCCESS;
+        }
+        eprintln!("{file} : {response}");
+        return ExitCode::FAILURE;
+    }
     let result = match command {
         "check" => holo_engine::check_page(&source).map(|_| "ok".to_string()),
         // Pour le serveur : les fichiers qu'un formulaire de la page peut envoyer (ADR-059).
