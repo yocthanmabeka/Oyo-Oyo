@@ -6,6 +6,16 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Chez soi d'abord : la règle de Yocthan dans la proposition serveur et comptes
+
+- Yocthan demande si HoloCode permet de tout faire d'abord sur son propre ordinateur, sans passer par Google, Apple, Microsoft ou un autre prestataire, comme avec Django ; il veut que l'auteur reste libre, comme dans l'open source. Il demande aussi ce que veut dire « partagé ».
+- Réponse : oui. Ce qui existe tourne déjà entièrement sur le PC (pages, formulaires, fichiers envoyés), et le moteur refuse de charger une police, une image, un son, une vidéo ou un module depuis un autre site.
+- Révisé : la proposition commence par sa règle ; un tableau la compare à Django ; les comptes sont tous gérés par le serveur de l'auteur (mot de passe et code à 6 chiffres, clé d'accès, lien affiché dans le terminal), « Se connecter avec Google » seulement plus tard, en option ; une section explique « partagé » (`keep`, `shared`, `mine`) avec l'exemple du tableau réservé de la leçon 75 ; l'hébergement passe à « plus tard ». Trois questions au lieu de quatre.
+- Noté honnêtement : le dépôt est privé et sans licence (`UNLICENSED`) ; HoloCode ne sera libre qu'avec une licence choisie par Yocthan, le jour de la publication.
+- Nouvelle consigne de Yocthan : chaque proposition s'affiche en entier dans la conversation.
+
+---
+
 ## 2026-10-07 — Tout le code du moteur passe en anglais
 
 - Yocthan : « le code doit être 100 % en anglais, bien sûr. […] le commentaire, tu le mets en français pour que je comprenne ». Puis : « Oui, fais comme je le dis. »
