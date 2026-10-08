@@ -6,6 +6,18 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-08 — Qui fusionne quand le PC dort ; une file de travail pour toutes les IA
+
+- Yocthan : « dès que tu es en mode remote control, c'est toi qui fais la fusion ; si mon PC s'arrête ou passe en veille, c'est à la session qui est sur le téléphone de faire les fusions », puis « une sorte de queue, pour que chaque IA que je vais brancher puisse avoir le travail qui n'est pas encore fait », sans « vous entremêler », pour aller plus vite et consommer moins.
+- Écrit dans `AGENTS.md` (« Qui fusionne, et la file de travail »), dans la passation et dans `GEMINI.md` :
+  - la session du PC fusionne tant qu'elle tourne ;
+  - PC éteint ou en veille, la session du nuage fusionne, avec les mêmes règles ;
+  - Gemini, ChatGPT et Codex ne fusionnent jamais.
+- La file se trouve dans les issues GitHub : une tâche par issue, avec ses chemins réservés, ses numéros et ce qu'elle attend. On la prend par une étiquette (`etat:en-cours`) et un commentaire « Pris par … ». Si on s'arrête, on la rend. Créées : les issues 180 à 189, dont sept à prendre et trois déjà en cours (le lot 7, les parcours du web viable, le lot 9 du nuage).
+- Fusionnée le même jour : la PR 153 de Codex (« Holoverse de 1970 à 2026 », une proposition) ; ses six tests sont verts, et la fusion porte l'adresse `noreply`.
+
+---
+
 ## 2026-10-08 — Lot 6 : des valeurs partagées, en direct
 
 - Fait (`ADR-079`, PROPOSITION ; le sens de « partager » est celui décidé par Yocthan le 2026-10-08) : `shared: Shared(seats: 20, likes: 0)` à côté de `state:`. Le serveur garde ces valeurs pour tout le monde, une fois par adresse (`/concert/12` et `/concert/13` ont chacune leurs places) ; seul un toucher les change, et c'est le serveur qui l'arbitre, avec le même moteur, chacun son tour ; les changements arrivent en direct dans toutes les pages ouvertes ; sans JavaScript, la page reste juste (le formulaire des gestes, `ADR-074`).

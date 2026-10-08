@@ -12,16 +12,33 @@ Tu arrives sur **Holoverse / HoloCode**, le projet de Yocthan Mabeka : réinvent
 
 Si tu n'as pas accès à GitHub (c'est le cas de Gemini), demande à Yocthan le fichier unique qui rassemble ces documents : Claude sait le préparer.
 
-## Seule la session Claude du PC fusionne (Yocthan, 2026-10-08)
+## Qui fusionne, et la file de travail (Yocthan, 2026-10-08)
 
-Si la session Claude du PC de Yocthan s'arrête (par exemple son quota épuisé), une autre IA peut reprendre : Gemini par Antigravity, ChatGPT, Codex. Elle ne fusionne jamais et ne touche jamais à `main`. Lis d'abord [`proposals/Claude/passation-2026-10-08.md`](proposals/Claude/passation-2026-10-08.md).
+Une IA que Yocthan branche (Gemini par Antigravity, ChatGPT, Codex) reprend le travail **sans jamais fusionner ni toucher à `main`**. Avant de commencer, lis [`proposals/Claude/passation-2026-10-08.md`](proposals/Claude/passation-2026-10-08.md) : ton propre dossier, ta propre branche, une pull request avec les résultats exacts des essais.
 
-En bref :
+**Qui fusionne** :
 
-- ton propre dossier, ta propre branche ;
-- une pull request en brouillon, avec les résultats exacts des essais ;
-- seule la session Claude du PC fusionne, après relecture (Yocthan : « c'est toi qui seras le seul à faire de fusion »). C'est vrai aussi pour la session Claude du nuage ;
+- La session Claude du PC de Yocthan fusionne tant qu'elle tourne, en Remote Control (Yocthan : « c'est toi qui seras le seul à faire de fusion »).
+- Si le PC est éteint ou en veille, la session Claude du nuage, celle du téléphone de Yocthan, fusionne à sa place, avec les mêmes règles : relire, ne fusionner que ce qui est vert, par `outils/fusionner.sh`. Elle le sait quand Yocthan le lui dit, ou quand une pull request verte, relue et sans conflit attend depuis plus d'une heure.
+- Gemini, ChatGPT, Codex et toute autre IA ne fusionnent jamais.
 - `main` est protégée sur GitHub : un envoi direct y est refusé, et une pull request n'y entre qu'avec ses trois tests verts.
+
+**La file de travail** (Yocthan : pour aller plus vite, consommer moins, et ne jamais s'entremêler). Tout ce qui reste à faire est dans [les issues marquées `etat:a-prendre`](https://github.com/yocthanmabeka/Oyo-Oyo/issues?q=is%3Aopen+label%3Aetat%3Aa-prendre). Il y a une tâche par issue, avec :
+
+- ses chemins réservés ;
+- ses numéros de décision et de leçon ;
+- ce qu'elle attend (« Après »).
+
+Chaque IA branchée y prend son travail elle-même :
+
+1. **Choisis** la plus ancienne issue `etat:a-prendre` qui remplit trois conditions :
+   - tout ce qu'elle attend est fait ;
+   - ses chemins ne recoupent ceux d'aucune issue `etat:en-cours` ;
+   - elle ne réserve pas la tâche à une autre IA (« Claude seulement »).
+2. **Prends-la** : `gh issue edit <N> --add-label etat:en-cours --remove-label etat:a-prendre`, puis un commentaire « Pris par <toi>, branche <branche> ». Relis ensuite les commentaires : si quelqu'un l'a prise avant toi, laisse-la et prends la suivante.
+3. **Ne touche que ses chemins réservés**, dans ton dossier, sur ta branche. Ta pull request dit « Ferme #<N> ». Quand elle est prête, mets `etat:revue`.
+4. **Si tu t'arrêtes avant la fin** (quota, panne), écris en commentaire « Rendue : <où j'en suis, branche> », et remets `etat:a-prendre`.
+5. **Seul Yocthan ajoute une tâche à la file**, ou une session Claude à sa demande.
 
 ## Qui fait quoi (deux sessions Claude en même temps)
 
@@ -45,10 +62,10 @@ Le 2026-10-07, les deux sessions ont inscrit les lots 5 à 7 à quelques minutes
 
 **Pour ne plus s'entremêler** (Yocthan, le même soir : « que vous ne puissiez plus vous entremêler entre les lots ; que chacun puisse avoir un lot différent ») :
 
-1. **Seul Yocthan donne un lot**, à une session nommée : « la session du PC » ou « la session du nuage ». Plus jamais « la première libre » ni « l'autre session » : c'est ce qui a fait prendre les lots 5 à 7 aux deux sessions le même soir.
+1. **Seul Yocthan donne un lot**, à une session nommée : « la session du PC » ou « la session du nuage ». Plus jamais « la première libre » ni « l'autre session » : c'est ce qui a fait prendre les lots 5 à 7 aux deux sessions le même soir. Depuis le 2026-10-08, la file de travail remplace « la première libre ». Une tâche s'y prend par une étiquette et un commentaire, et ses chemins sont réservés (voir plus haut).
 2. **Avant d'écrire du code**, relire ce tableau sur `origin/main` (`git fetch origin main`, puis `git show origin/main:AGENTS.md`), jamais sa copie locale. Si la ligne ne te nomme pas, tu ne commences pas.
 3. **Changer ce tableau** (prendre, rendre, échanger un lot) se fait par une petite PR de coordination, sans code, fusionnée avant tout code. Si elle est en conflit, l'autre session l'a changé avant : relire, ne pas forcer.
-4. **Une session qui a fini ses lots ne prend rien d'elle-même** : elle le dit à Yocthan, qui écrit la suite ici.
+4. **Une session qui a fini ses lots ne prend rien hors de la file** : elle prend la tâche libre suivante de la file, ou le dit à Yocthan, qui écrit la suite.
 5. **Si deux sessions touchent le même lot par erreur**, celle dont la ligne est arrivée la première sur `main` le garde ; l'autre s'arrête, ne fusionne plus rien de ce lot, et laisse son travail en PR ouverte avec une note de passation.
 
 Règles : relire `main` avant chaque travail, et fusionner `main` dans sa branche avant de demander la fusion ; des petites PR, fusionnées vite ; ne pas toucher au lot de l'autre ; un défaut trouvé dans le lot de l'autre se note dans le journal, sans le corriger soi-même.
@@ -59,7 +76,7 @@ Règles : relire `main` avant chaque travail, et fusionner `main` dans sa branch
 - **Le langage HoloCode** : des blocs nommés par leur sens, imbriqués comme en Flutter, avec le texte en Markdown dans les blocs (`ADR-009`). Le vocabulaire est **en anglais**, et un mot que les programmeurs connaissent garde son sens (`ADR-016`) : `Page`, `Text`, `P`, `H1`, `Button`, `Point`, `World`, `On`, `name`, `seed`, `children`, `rules`. `Text` est du texte sans rôle ; `P` et `H1` à `H3` sont un `Text` avec un rôle ; un bloc commence par une majuscule, un réglage par une minuscule (`ADR-020`). Une phrase entre guillemets est un paragraphe (`ADR-019`). La façon dont une page se regarde (limites et vitesse du zoom, pixels qui deviennent des points, relief, rotation à activer, jusqu'à en faire le tour, carrefour) s'écrit dans la page : `Zoom`, `Points`, `Relief`, `Portals` (`ADR-021`). À chaque ajout au langage : comparer les options, et vérifier qu'on ne répète pas un défaut de HTML, de CSS ou de JavaScript. La forme : des styles écrits comme en CSS après le bloc racine (`P { … }`, `.card { … }`, posé par `P.card(...)`), qui ne disent que l'apparence, jamais la disposition, et où tout est vérifié (`ADR-017`). L'auteur n'écrit jamais de HTML, de CSS ni de JavaScript. Tout changement d'état passe par un arbitre ; pas de code libre dans un bloc (`ADR-015`) ; une page retient des valeurs par `State`, changées par des demandes (`ADR-023`, décidé). Description honnête du paradigme : des objets sans méthodes, des règles au niveau du monde, et des relations. Rien de nouveau dans les briques ; la valeur est dans ce qui est interdit.
 - **Le moteur** : en Rust, compilé en WebAssembly pour les navigateurs d'aujourd'hui, en natif demain pour un navigateur propre au projet (`ADR-010`, accepté après mesure sur téléphone). Première réalisation : [`moteur/`](moteur/README.md), le sprint Big Bang.
 - **Le `Point`** est le pixel de l'Holoverse : la plus petite unité visible, qui révèle un monde quand on zoome dessus (`ADR-016`).
-- **La règle de fusion** : on ne fusionne dans `main` que ce qui marche. Celui qui fusionne vérifie l'auteur et la branche, jamais seulement le numéro, et a lu la pull request en entier. **Depuis le 2026-10-08, seule la session Claude du PC de Yocthan fusionne** : ses propres pull requests quand les tests sont verts, et celles des autres après les avoir relues. Une pull request d'une autre IA, ou qui change une décision, attend en plus l'accord de Yocthan. On fusionne par `outils/fusionner.sh <numéro>`, qui attend la fin des tests et refuse s'ils ne sont pas tous verts (le 2026-10-04, une pull request a été fusionnée avant la fin de ses tests). Les tests s'exécutent automatiquement sur chaque pull request (`.github/workflows/tests.yml`) ; un README qui annonce un résultat ne vaut rien, seul le test exécuté compte.
+- **La règle de fusion** : on ne fusionne dans `main` que ce qui marche. Celui qui fusionne vérifie l'auteur et la branche, jamais seulement le numéro, et a lu la pull request en entier. **Depuis le 2026-10-08, seule la session Claude du PC de Yocthan fusionne** : ses propres pull requests quand les tests sont verts, et celles des autres après les avoir relues. Quand le PC est éteint ou en veille, la session Claude du nuage le fait à sa place (voir « Qui fusionne »). Une pull request d'une autre IA, ou qui change une décision, attend en plus l'accord de Yocthan. On fusionne par `outils/fusionner.sh <numéro>`, qui attend la fin des tests et refuse s'ils ne sont pas tous verts (le 2026-10-04, une pull request a été fusionnée avant la fin de ses tests). Les tests s'exécutent automatiquement sur chaque pull request (`.github/workflows/tests.yml`) ; un README qui annonce un résultat ne vaut rien, seul le test exécuté compte.
 
 ## Comment contribuer
 
