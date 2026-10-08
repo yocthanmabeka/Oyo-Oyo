@@ -96,7 +96,8 @@ export function webTests({ repo, engine, phone, page, startHoloServe, startChrom
       check(await q.until(state("matching", "1") + ' && ' + has("Produit 200")), "la recherche ne trouve pas le dernier produit");
       await activate(q, '[data-name="All"]');
       check(await q.until(state("matching", "200")), "le filtre vide ne rend pas les 200 produits");
-      await q.value('const choice = document.querySelector(\'[data-bind="chosen"]\'); choice.value = "livre"; choice.dispatchEvent(new Event("change", {bubbles:true}));');
+      await tabTo(q, 'select[data-bind="chosen"]');
+      await q.key("ArrowDown", "ArrowDown", 40);
       check(await q.until(state("matching", "100") + ' && ' + has("Produit 199")), "le filtre de catégorie ne trouve pas 100 livres");
       await activate(q, '[data-name="All"]');
       for (let i = 0; i < 9; i++) {
