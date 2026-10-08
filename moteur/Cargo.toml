@@ -45,6 +45,8 @@ getrandom = "0.2"
 argon2 = { version = "0.6", default-features = false, features = ["alloc", "password-hash"] }
 hmac = "0.13"
 sha1 = { version = "0.11", default-features = false }
+# Le QR du compte, produit localement ; aucune bibliothèque image et rien dans le WASM.
+qrcode = { version = "=0.14.1", default-features = false }
 
 [profile.release]
 opt-level = "s"

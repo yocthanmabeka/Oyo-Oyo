@@ -282,3 +282,5 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 - Mots changés : environ 30.
 - Mots nouveaux : environ 30, presque tous autour du point, du monde et de la façon de regarder la page.
 - Noms contestés : aucun. Les quatorze sont tranchés le 2026-10-06 (`ADR-047`).
+
+Proposition ADR-083 : aucun nouveau mot HoloCode pour le secours ou l'effacement. Les pages réservées du moteur sont `/account/code/setup`, `/account/code` et `/account/delete`. Les champs de leurs formulaires ne deviennent pas des réglages du langage.
