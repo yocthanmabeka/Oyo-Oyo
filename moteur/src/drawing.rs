@@ -14,6 +14,12 @@
 //! Les mesures sont dans les unités du dessin : `width` sur `height`, comme une feuille ; le dessin
 //! garde ses proportions et rétrécit avec l'écran. Une mesure peut être le nom d'un nombre entier
 //! de la page (`y: sun`) : la forme bouge quand il change.
+//!
+//! Des formes peuvent aussi venir d'une liste à champs (`shapes: flower`, ADR-088) : un élément par
+//! forme, `Item(form: "circle", x: 10, y: 20, r: 5, fill: "#E9B44C")`. Un module enfermé qui
+//! « dessine » rend cette liste, comme n'importe quelle valeur : il ne touche jamais au vrai dessin
+//! du navigateur. Le moteur vérifie chaque élément comme une forme écrite ; un élément faux est
+//! laissé de côté.
 
 use crate::holo::{Block, Error, Program, Value};
 
@@ -35,10 +41,10 @@ pub const PATH_MAX: usize = 4000;
 const MARK: char = '\u{1}';
 
 /// Le dessin entier, en SVG.
-pub fn html(block: &Block, classes: &str, name: &str) -> Result<String, Error> {
+pub fn html(block: &Block, classes: &str, name: &str, lists: &crate::lists::Lists) -> Result<String, Error> {
     let error = |message: String, pos| Error { message, pos };
     let example = "Drawing(label: \"Un paysage\", width: 200, height: 100, children: [ Circle(x: 50, y: 50, r: 20) ])";
-    let (mut label, mut width, mut height) = (None, None, None);
+    let (mut label, mut width, mut height, mut listed) = (None, None, None, None);
     for argument in &block.arguments {
         match (argument.name.as_deref(), &argument.value) {
             (Some("name" | "children"), _) => {}
@@ -52,7 +58,9 @@ pub fn html(block: &Block, classes: &str, name: &str) -> Result<String, Error> {
                 }
             }
             (Some(side @ ("width" | "height")), _) => return Err(error(format!("« Drawing({side}: …) » attend un nombre entier de 1 à {SIZE_MAX} : les unités du dessin"), argument.pos)),
-            (Some(other), _) => return Err(error(format!("« Drawing » n'a pas de paramètre « {other} » ; paramètres possibles : label, width, height, children, name"), argument.pos)),
+            (Some("shapes"), Value::Name(list)) => listed = Some(list.as_str()),
+            (Some("shapes"), _) => return Err(error("« Drawing(shapes: …) » attend le nom d'une liste à champs, une forme par élément : shapes: flower".into(), argument.pos)),
+            (Some(other), _) => return Err(error(format!("« Drawing » n'a pas de paramètre « {other} » ; paramètres possibles : label, width, height, children, shapes, name"), argument.pos)),
             (None, _) => return Err(error(format!("chaque paramètre de « Drawing » est nommé : {example}"), argument.pos)),
         }
     }
@@ -74,8 +82,75 @@ pub fn html(block: &Block, classes: &str, name: &str) -> Result<String, Error> {
         };
         output.push_str(&shape_html(shape)?);
     }
+    // Les formes d'une liste passent devant celles qui sont écrites ; la page les redessine quand
+    // la liste change.
+    if let Some(list) = listed {
+        let Some((_, elements)) = lists.iter().find(|(known, _)| known == list) else {
+            return Err(error(format!("« Drawing(shapes: {list}) » : aucune liste ne s'appelle « {list} » ; déclare-la, state: State({list}: [])"), block.pos));
+        };
+        if elements.first().is_some_and(|e| !e.starts_with(crate::lists::RECORD)) {
+            return Err(error(format!("« Drawing(shapes: {list}) » attend une liste à champs : Item(form: \"circle\", x: 10, y: 20, r: 5)"), block.pos));
+        }
+        output.push_str(&format!("<g class=\"holo-shapes\" data-shapes=\"{list}\">{}</g>", listed_shapes(elements)));
+    }
     output.push_str("</svg>");
     Ok(output)
+}
+
+/// Les formes d'une liste (ADR-088), vérifiées une à une comme des formes écrites : la sorte
+/// (`form`), des mesures de 0 à 4 000, des couleurs, un tracé filtré. Un élément faux est laissé
+/// de côté, sans arrêter les autres : ces formes arrivent pendant la visite.
+pub fn listed_shapes(elements: &[String]) -> String {
+    let mut output = String::new();
+    for element in elements.iter().take(SHAPES_MAX) {
+        let fields = crate::lists::fields(element);
+        let field = |name: &str| fields.iter().find(|(known, _)| known == name).map(|(_, v)| v.as_str());
+        let measure = |name: &str| field(name).and_then(|v| v.trim().parse::<f64>().ok()).filter(|n| (0.0..=f64::from(SIZE_MAX)).contains(n));
+        let (tag, geometry): (&str, Vec<(&str, &str)>) = match field("form") {
+            Some("rect") => ("rect", vec![("x", "x"), ("y", "y"), ("width", "width"), ("height", "height")]),
+            Some("circle") => ("circle", vec![("cx", "x"), ("cy", "y"), ("r", "r")]),
+            Some("line") => ("line", vec![("x1", "x1"), ("y1", "y1"), ("x2", "x2"), ("y2", "y2")]),
+            Some("path") => ("path", Vec::new()),
+            _ => continue,
+        };
+        let mut attributes = String::new();
+        let mut complete = true;
+        for (attribute, name) in &geometry {
+            match measure(name) {
+                Some(n) => attributes.push_str(&format!(" {attribute}=\"{n}\"")),
+                None => complete = false,
+            }
+        }
+        if tag == "rect" {
+            if let Some(radius) = measure("radius") {
+                attributes.push_str(&format!(" rx=\"{radius}\""));
+            }
+        }
+        if tag == "path" {
+            match field("d").filter(|d| is_path(d)) {
+                Some(d) => attributes.push_str(&format!(" d=\"{d}\"")),
+                None => complete = false,
+            }
+        }
+        if !complete {
+            continue;
+        }
+        if let Some(opacity) = field("opacity").and_then(|v| v.trim().parse::<f64>().ok()).filter(|o| (0.0..=1.0).contains(o)) {
+            attributes.push_str(&format!(" opacity=\"{opacity}\""));
+        }
+        let paint = |name: &str| field(name).filter(|c| is_paint(c));
+        let thickness = measure("thickness").map_or("1".to_string(), |t| t.to_string());
+        if tag == "line" {
+            attributes.push_str(&format!(" stroke=\"{}\" stroke-width=\"{thickness}\"", paint("stroke").unwrap_or("currentColor")));
+        } else {
+            attributes.push_str(&format!(" fill=\"{}\"", paint("fill").unwrap_or("currentColor")));
+            if let Some(stroke) = paint("stroke") {
+                attributes.push_str(&format!(" stroke=\"{stroke}\" stroke-width=\"{thickness}\""));
+            }
+        }
+        output.push_str(&format!("<{tag}{attributes}/>"));
+    }
+    output
 }
 
 /// Une forme, en SVG. Ses mesures liées à des valeurs de la page sont notées dans `data-svg`
@@ -241,7 +316,17 @@ mod tests {
         // La page part des valeurs du serveur, comme le reste.
         let shown = crate::flat_view_with_data(&source.replace("Page(", "Page(data: Data(from: \"d.json\"), "), "", r#"{"sun": 25}"#).unwrap();
         assert!(shown.contains("cy=\"25\""), "{shown}");
+        // Des formes venues d'une liste : vérifiées une à une, les fausses laissées de côté.
+        let listed = "Page(state: State(flower: []), data: Data(from: \"f.json\"), children: [ Drawing(label: \"Une fleur\", width: 100, height: 100, shapes: flower, children: [ Rect(x: 0, y: 0, width: 100, height: 100, fill: \"#101020\") ]) ])";
+        let json = r##"{"flower": [{"form": "circle", "x": "10", "y": "20", "r": "5", "fill": "#E9B44C"}, {"form": "line", "x1": 0, "y1": 0, "x2": 9, "y2": 9, "stroke": "red"}, {"form": "circle", "x": "10", "y": "-3", "r": "5"}, {"form": "path", "d": "<script>"}, {"form": "star", "x": 1}, {"form": "rect", "x": 1, "y": 1, "width": 3, "height": 3, "fill": "url(#a)", "opacity": "0.5"}]}"##;
+        let html = crate::flat_view_with_data(listed, "", json).unwrap();
+        assert!(html.contains("<rect x=\"0\" y=\"0\" width=\"100\" height=\"100\" fill=\"#101020\"/><g class=\"holo-shapes\" data-shapes=\"flower\"><circle cx=\"10\" cy=\"20\" r=\"5\" fill=\"#E9B44C\"/><line x1=\"0\" y1=\"0\" x2=\"9\" y2=\"9\" stroke=\"red\" stroke-width=\"1\"/><rect x=\"1\" y=\"1\" width=\"3\" height=\"3\" opacity=\"0.5\" fill=\"currentColor\"/></g></svg>"), "{html}");
+        // Redessinées quand la liste change.
+        assert_eq!(crate::shapes_html(listed, "flower=[%1Dform%3Dcircle%26x%3D1%26y%3D2%26r%3D3]", "flower"), "<circle cx=\"1\" cy=\"2\" r=\"3\" fill=\"currentColor\"/>");
+        assert_eq!(crate::shapes_html(listed, "", "absent"), "");
         for (source, message) in [
+            ("Page(children: [ Drawing(label: \"x\", width: 10, height: 10, shapes: rien, children: []) ])", "aucune liste ne s'appelle « rien »"),
+            ("Page(state: State(t: [\"a\"]), children: [ Drawing(label: \"x\", width: 10, height: 10, shapes: t, children: []) ])", "attend une liste à champs"),
             ("Page(children: [ Drawing(width: 10, height: 10, children: []) ])", "attend label, width et height"),
             ("Page(children: [ Drawing(label: \"x\", width: 0, height: 10, children: []) ])", "un nombre entier de 1 à 4000"),
             ("Page(children: [ Circle(x: 1, y: 1, r: 1) ])", "se dessine dans un Drawing"),

@@ -78,6 +78,7 @@ Ce registre empêche une proposition séduisante de devenir accidentellement une
 | [`ADR-077`](adr/ADR-077-modules-second-contrat.md) | Lot 9, premier pas : des modules qui reçoivent et rendent des textes, des listes et des nombres à virgule (un texte JSON, relu avec méfiance) ; le premier contrat inchangé | `ACCEPTÉ` | Yocthan, 2026-10-07 | HoloCode, HoloEngine |
 | [`ADR-086`](adr/ADR-086-dessin-vectoriel.md) | Lot 9, deuxième pas : le dessin vectoriel déclaré, `Drawing` et ses formes `Rect`, `Circle`, `Line`, `Path`, en SVG ; une mesure peut suivre un nombre de la page | `ACCEPTÉ` | Yocthan, 2026-10-07 | HoloCode, HoloEngine |
 | [`ADR-087`](adr/ADR-087-graphiques.md) | Lot 9, troisième pas : les graphiques, `Chart(kind: bars \| line \| pie, over:, value:, label:, title:)`, en SVG, avec un tableau caché pour le lecteur d'écran ; une page servie avec ses données ne les relit plus aussitôt | `ACCEPTÉ` | Yocthan, 2026-10-07 | HoloCode, HoloEngine |
+| [`ADR-088`](adr/ADR-088-formes-d-une-liste.md) | Lot 9, quatrième pas : `Drawing(shapes: liste)`, des formes venues d'une liste à champs, vérifiées une à une ; un module qui dessine rend cette liste | `ACCEPTÉ` | Yocthan, 2026-10-08 | HoloCode, HoloEngine |
 
 `ADR-003` à `ADR-006` ont été proposées par ChatGPT. Le 2026-09-21, Yocthan a accepté `ADR-003` (reformulée par Claude), `ADR-004` (telle quelle) et `ADR-005` (complétée par les chiffres de sa vision), et a laissé `ADR-006` en proposition. ChatGPT est invité à réagir aux reformulations.
 

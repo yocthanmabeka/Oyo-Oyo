@@ -1,4 +1,4 @@
-# Les modules des leçons 69 et 97
+# Les modules des leçons 69, 97 et 110
 
 Trois modules d'essai, une dizaine de lignes de Rust chacun, sans bibliothèque (`no_std`) :
 
@@ -29,3 +29,11 @@ rustc --edition 2021 --target wasm32-unknown-unknown -O --crate-type cdylib -C p
 ```
 
 `-zstack-size=65536` : une pile de 64 Ko au lieu d'1 Mo ; le module tient alors dans deux pages de mémoire, bien sous son plafond.
+
+## Un module qui dessine (leçon 110, ADR-088)
+
+- `fleur.rs` : reçoit un nombre de pétales (`{"petales":6}`) et rend une liste de formes (`{"fleur":[{"form":"circle",…}]}`), que le moteur vérifie avant de les dessiner. Le sinus et le cosinus sont calculés sans bibliothèque (une série de Taylor).
+
+```text
+rustc --edition 2021 --target wasm32-unknown-unknown -O --crate-type cdylib -C panic=abort -C link-arg=--import-memory -C link-arg=--strip-all -C link-arg=-zstack-size=65536 fleur.rs -o ../110-fleur.wasm
+```

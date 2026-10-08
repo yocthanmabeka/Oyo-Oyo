@@ -1075,7 +1075,7 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
         // Un graphique (ADR-087) : une liste à champs, en barres, en courbe ou en parts.
         "Chart" => output.push_str(&crate::chart::html(block, &classes, &name, &crate::lists::running())?),
         // Un dessin vectoriel (ADR-086) : des formes, fabriquées en SVG.
-        "Drawing" => output.push_str(&crate::drawing::html(block, &classes, &name)?),
+        "Drawing" => output.push_str(&crate::drawing::html(block, &classes, &name, &crate::lists::running())?),
         "Rect" | "Circle" | "Line" | "Path" => {
             return Err(Error { message: format!("« {} » se dessine dans un Drawing : Drawing(label: \"…\", width: 200, height: 100, children: [ {}(…) ])", block.name, block.name), pos: block.pos })
         }

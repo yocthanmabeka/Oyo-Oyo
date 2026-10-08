@@ -5,7 +5,7 @@
   // dessin (les points, les mondes, la vue points) est un second moteur, chargé seulement quand
   // la page s'en sert : une page qui ne fait que bouger ne le télécharge jamais.
   import init, {
-    flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, chart_html, module_info, module_finished, module_input, module_received, delays, reads_time, set_now, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
+    flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, chart_html, shapes_html, module_info, module_finished, module_input, module_received, delays, reads_time, set_now, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
   } from "/pkg-light/holo_engine.js";
   let drawing = null;
   let drawingLoading = null;
@@ -680,6 +680,13 @@
         const [attribute, name] = pair.split(":");
         if (values.has(name)) shape.setAttribute(attribute, Math.min(4000, Number(values.get(name))));
       }
+    }
+    // Les formes d'un dessin venues d'une liste suivent elle aussi (ADR-088).
+    for (const group of or_.querySelectorAll("[data-shapes]")) {
+      const list = written.split(";").find((chunk) => chunk.startsWith(`${group.dataset.shapes}=[`)) ?? "";
+      if (group.dataset.drawn === list) continue;
+      group.innerHTML = shapes_html(fileText, written, group.dataset.shapes);
+      group.dataset.drawn = list;
     }
     // Un graphique suit sa liste (ADR-087) : le moteur le redessine quand elle change.
     for (const chart of or_.querySelectorAll("[data-chart]")) {

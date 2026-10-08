@@ -107,6 +107,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 97 | [Un module qui reçoit une liste](97-un-module-qui-recoit-une-liste.holo) | `Module(input: [notes], output: [moyenne, meilleure, nombre])`, le second contrat, une réponse refusée |
 | 98 | [Un dessin](98-un-dessin.holo) | `Drawing`, `Rect`, `Circle`, `Line`, `Path`, `fill`, `stroke`, `thickness`, une mesure qui suit une valeur |
 | 99 | [Un tableau de bord](99-un-tableau-de-bord.holo) | `Chart(kind: bars \| line \| pie, over:, value:, label:, title:)`, des données reçues, dessinées |
+| 110 | [Un module qui dessine](110-un-module-qui-dessine.holo) | `Drawing(shapes: fleur)`, une liste de formes rendue par un module |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 
