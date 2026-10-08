@@ -261,7 +261,7 @@ export function webTests({ repo, engine, phone, page, startHoloServe, startChrom
         await b.send("Emulation.setScriptExecutionDisabled",{value:!scripts});
         await q.open("/dashboard.holo",200);
         check(await q.until('document.querySelectorAll(".holo-Chart:first-of-type svg rect").length===3'),"trois ventes absentes");
-        await text(q,"day","Jeudi");await text(q,"amount","180");await activate(q,'[data-name="AddSale"]');
+        await text(q,"dayName","Jeudi");await text(q,"amount","180");await activate(q,'[data-name="AddSale"]');
         check(await q.until('document.querySelectorAll(".holo-Chart:first-of-type svg rect").length===4 && document.querySelectorAll(".holo-Chart:nth-of-type(2) svg path").length===4',10000),"vente absente du dessin, JS="+scripts);
         check(await q.value('document.querySelector(".holo-Chart table").textContent.includes("Jeudi180")'),"chiffres absents du tableau accessible");
         const ax=await b.send("Accessibility.getFullAXTree");
