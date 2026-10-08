@@ -68,10 +68,14 @@ function searchWord(text, word, since) {
 }
 
 // Ce que le fichier déclare : ses valeurs (State), les noms de ses blocs.
+// Les valeurs de la page : celles de State, et celles qu'elle partage, Shared (ADR-079).
 export function declaredValues(text) {
-  const state = /State\s*\(([\s\S]*?)\)\s*,?\s*(?:\n|[a-z]+:)/.exec(text);
-  if (!state) return [];
-  return [...state[1].matchAll(/([a-z][A-Za-z0-9]*)\s*:/g)].map((m) => m[1]);
+  const names = [];
+  for (const declared of [/\bState\s*\(([\s\S]*?)\)\s*,?\s*(?:\n|[a-z]+:)/, /\bShared\s*\(([\s\S]*?)\)\s*,?\s*(?:\n|[a-z]+:)/]) {
+    const found = declared.exec(text);
+    if (found) names.push(...[...found[1].matchAll(/([a-z][A-Za-z0-9]*)\s*:/g)].map((m) => m[1]));
+  }
+  return names;
 }
 export const blockNames = (text) => [...text.matchAll(/name:\s*([A-Z][A-Za-z0-9]*)/g)].map((m) => m[1]);
 

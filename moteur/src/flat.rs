@@ -232,7 +232,7 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
         footer = footer.replace(&empty, &full_one);
     }
     // Une page vivante bouge ou écoute sans qu'on la touche : une horloge, le clavier, des
-    // données à recevoir, un bloc à faire glisser. (Des valeurs gardées, `keep`, ne la rendent
+    // données à recevoir, un bloc à faire glisser, des valeurs partagées. (Des valeurs gardées, `keep`, ne la rendent
     // pas vivante : la page légère regarde s'il y a vraiment quelque chose de gardé.) Le moteur doit
     // alors arriver tout de suite. Les autres pages s'affichent seules : le moteur n'est
     // téléchargé qu'au premier geste qui en a besoin (ADR-033).
@@ -241,7 +241,9 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
         || crate::state::reads_time(program)
         || !crate::state::keypresses(program).is_empty()
         || crate::state::data_source(program).ok().flatten().is_some()
-        || body.contains("data-drag=");
+        || body.contains("data-drag=")
+        // Une page qui partage des valeurs écoute le serveur, pour les voir changer en direct (ADR-079).
+        || !program.shared.is_empty();
     let live = if live { " data-live" } else { "" };
     // Qui grossit la page quand on zoome (ADR-069) ? Par défaut, le navigateur, comme pour
     // n'importe quel site : la page reste à sa place. Le moteur, seulement si l'auteur l'a

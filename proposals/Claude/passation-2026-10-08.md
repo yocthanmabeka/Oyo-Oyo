@@ -50,10 +50,10 @@ Décision de Yocthan, le 2026-10-08 : « reprendre à la main sans pour autant c
 - **Les lots 1 à 5 et 8 du web** sont faits.
 - **Lot 6, des valeurs partagées en direct**, gardées par le serveur pour tout le monde (décision de Yocthan) :
   - branche `langage/lot6-partage` ; numéros `ADR-079` et `ADR-080`, leçons 101 à 103 ;
-  - en cours, arrêté pour le quota ; l'état est dans sa pull request en brouillon.
+  - fait et fusionné (PR 179) ; ses dettes sont dans `ADR-079`.
 - **Lot 7, des comptes chez l'auteur**, par un mot de passe et un code à 6 chiffres, puis des clés d'accès :
   - branche `langage/lot7-comptes`, PR 177 ; numéros `ADR-081` à `ADR-083`, leçons 104 à 107 ;
-  - à relire par Claude avant toute fusion.
+  - construit, 166 tests Rust et 34 essais dans Chrome verts sur le PC ; à fusionner par la session Claude du PC, après avoir résolu ses conflits avec le lot 6 (`server.rs`, `page-engine.js`, `browser-tests.mjs`, le renvoi des touchers à unifier avec celui du lot 6).
 - **Lot 9, et les tâches confiées le 2026-10-08** (les secondes et un chronomètre, des polices libres, l'historique dans une page, trois dettes) : à la session Claude du nuage. Ses PR 171, 172 et 174 sont ouvertes : n'y touche pas.
 - **PR 153 (Codex)** : attend la décision de Yocthan.
 - **Les mesures du téléphone** (vitesse, mémoire, batterie) sont remises : le câble a pris l'humidité. La marche à suivre est dans `proposals/Claude/telephone-2026-10-07/README.md`.
