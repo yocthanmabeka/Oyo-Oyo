@@ -6,6 +6,18 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-08 — Seule la session Claude du PC fusionne ; la passation pour les autres IA
+
+- Le quota de Claude est utilisé à 95 %. Yocthan veut que les autres IA puissent reprendre, par exemple Gemini par Antigravity, « sans pour autant commettre de fautes, ni pour autant qu'ils fassent des fusions. […] C'est toi qui seras le seul à faire de fusion », sans « déranger la version principale ».
+- Écrits :
+  - `proposals/Claude/passation-2026-10-08.md` : les dix règles, où en est le projet, ce qu'on peut faire sans risque ;
+  - `GEMINI.md` à la racine, lu par les outils de Gemini ;
+  - une section en haut d'`AGENTS.md`.
+- `main` est protégée sur GitHub : envoi direct refusé, envoi forcé et effacement refusés, et une pull request n'entre qu'avec ses trois tests verts (« Moteur Rust », « Suite de conformité », « Navigateur »). La règle « personne d'autre ne fusionne » ne peut pas être imposée par GitHub, car toutes les IA passent par le même compte : c'est une consigne écrite.
+- Les deux agents des lots 6 et 7 ont reçu l'ordre d'enregistrer et d'envoyer leur travail tel quel, sans rien fusionner, puis de s'arrêter. Lot 7 : PR 177. Lot 6 : branche `langage/lot6-partage`, PR en brouillon.
+
+---
+
 ## 2026-10-08 — Les mesures du téléphone remises, la mesure de la batterie prête
 
 - Yocthan voulait mesurer la vitesse, la mémoire et la batterie, « jamais faite jusqu'au bout ». Le téléphone n'est plus apparu au PC : le câble avait pris un peu d'humidité. Yocthan : « n'attends pas mon téléphone […] il n'y en a pas aujourd'hui ».
