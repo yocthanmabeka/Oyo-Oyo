@@ -581,7 +581,7 @@ pub fn module_received(source: &str, state: &str, name: &str, json: &str) -> Res
     let program = check_page(source).map_err(|e| e.message)?;
     state::requested_capabilities();
     let (numbers, texts, lists) = modules::received(&program, &state::reread(&program, state), &state::reread_texts(&program, state), &lists::reread(&program, state), name, json)?;
-    Ok(write_all(&program, &numbers, &texts, &lists))
+    Ok(arbitrate(source, &write_all(&program, &numbers, &texts, &lists), &format!("{name}.done")))
 }
 
 /// Un transfert local, exporté seulement d'après les valeurs annoncées.
