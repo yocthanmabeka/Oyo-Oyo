@@ -9,3 +9,4 @@ Page(title: "Notifications locales", children: [
 ], rules: [On(Notify.tap, effect: Reminder.show), On(Cancel.tap, effect: Reminder.stop)])
 Page { background: white; color: #17202a; max-width: 900px; padding: 24px; dark: { background: #17202a; color: white; } }
 Button { background: #174d70; color: white; padding: 12px; border-radius: 8px; }
+A { color: #174d70; dark: { color: #8fd3ff; } }
