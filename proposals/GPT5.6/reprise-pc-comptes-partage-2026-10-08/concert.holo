@@ -12,10 +12,12 @@ Page(
         If(seats, over: 0, children: [
           If(booked, is: 0, children: [Button(name: Book, text: "Réserver")])
         ]),
+        Button(name: Add, text: "Ajouter"),
         Button(name: Like, text: "J'aime"),
       ],
       rules: [
         On(Book.tap, effect: [seats.sub(1), booked.set(1), last.set(note)]),
+        On(Add.tap, effect: cart.add(1)),
         On(Like.tap, effect: likes.add(1)),
       ],
     )
