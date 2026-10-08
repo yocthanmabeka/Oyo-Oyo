@@ -138,7 +138,7 @@ fn consume(base:&Connection,cookie_header:&str,op:&str,origin:&str,now:u64)->Opt
  let row:Option<(i64,String,String,String,String,i64)>=base.query_row("SELECT account,challenge,operation,origin,bound,created FROM passkey_challenges WHERE session=?1",params![key],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?))).optional().ok()?;
  // Même la réponse refusée consomme son défi : jamais deux essais de signature sur un nonce.
  base.execute("DELETE FROM passkey_challenges WHERE session=?1",params![key]).ok()?;
- let(account,challenge,known,issued,bound,created)=row?;(known==op&&issued==origin&&(op!="create"||accounts::session_binding(cookie_header).as_deref()==Some(bound.as_str()))&&now.saturating_sub(created as u64)<=300).then_some((account,challenge))
+ let(account,challenge,known,issued,bound,created)=row?;(known==op&&issued==origin&&(op!="create"||accounts::session_binding(cookie_header).as_deref()==Some(bound.as_str()))&&now as i64>=created&&now.saturating_sub(created as u64)<=300).then_some((account,challenge))
 }
 
 pub fn answer(site:&Site,ask:&Ask,path:&str)->Option<Reply>{
@@ -285,7 +285,7 @@ mod tests{
  }
  #[test]fn a_challenge_is_single_use_bound_and_expiring(){
   let base=Connection::open_in_memory().unwrap();prepare(&base,1000).unwrap();
-  let token="123456789abcdef0123456789abcdef01";let header=format!("{COOKIE}={token}");
+  let token="0123456789abcdef0123456789abcdef";let header=format!("{COOKIE}={token}");
   base.execute("INSERT INTO passkey_challenges VALUES(?1,2,'nonce','get','http://localhost','',1000)",params![session(token)]).unwrap();
   assert_eq!(consume(&base,&header,"get","http://localhost",1001),Some((2,"nonce".into())));
   assert_eq!(consume(&base,&header,"get","http://localhost",1001),None);
