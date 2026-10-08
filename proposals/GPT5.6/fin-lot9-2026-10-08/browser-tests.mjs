@@ -39,7 +39,7 @@ export function capabilityTests({engine,phone,pause}) {
    writeFileSync(file," ".repeat(65537));
    await p.click("[data-name=Import]");await p.until("document.querySelector('input[data-holo-import]')");await choose(p,b,file);
    const limited=await p.until(status("File")+".includes('64 Ko')");
-   return [exported.note==="Bonjour"&&exported.notes.length===1&&imported&&refused&&intact&&limited&&await p.value("document.getElementById('page').innerText.includes('Transferts terminés : 2')"),"fichier exporté relu ; import 2 lignes ; clé forgée refusée sans mutation ; 65 537 octets refusés"];
+   return [exported.note==="Bonjour"&&exported.notes.length===1&&imported&&refused&&intact&&limited&&await p.value("document.getElementById('page').innerText.includes('Transferts terminés : 2')"),JSON.stringify({exported,imported,refused,intact,limited,dom:await p.value("({note:document.querySelector('input[data-bind=note]').value,lines:document.querySelectorAll('.holo-line').length,text:document.getElementById('page').innerText})")})];
   }finally{await b.send("Page.setInterceptFileChooserDialog",{enabled:false});await b.send("Browser.setDownloadBehavior",{behavior:"default"});rmSync(folder,{recursive:true,force:true});}
  }],
  ["lot9 : presse-papiers Chrome, écriture puis lecture",async(p,b)=>{
