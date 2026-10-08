@@ -87,5 +87,5 @@ Pour comparer, la mesure du 2026-10-04 sur ce même téléphone (détail dans `m
 - **Ni secondes ni millisecondes** (leçon 48) : proposé pour le lot 7.
 - **Pas de polices libres prêtes à l'emploi** (leçon 54) : proposé pour le lot 7.
 - **Rien de mesuré par le câble** : la suite `--telephone` est prête, à relancer avec le téléphone branché.
-- **Le lot 4 n'a pas encore été vu au doigt** (leçons 7, 26, 35, 77, 81, 89 à 94) : à revoir sur le téléphone.
+- ~~Le lot 4 n'a pas encore été vu au doigt~~ : fait le 2026-10-08, Yocthan a essayé au doigt les leçons 1 à 100, les lots 4 et 5 compris : « tout marche ».
 - **Cacher un bouton sur un seul appareil** (leçon 89) contredirait la parité : à trancher.
