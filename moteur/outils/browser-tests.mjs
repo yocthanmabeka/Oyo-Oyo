@@ -298,6 +298,24 @@ const tests = [
     const ok = svg === "img|Un paysage : une maison, une colline, et le soleil|7" && named && start === "70" && raised && shape === 2;
     return [ok, `SVG : ${svg} ; nommé pour le lecteur d'écran : ${named} ; soleil ${start} → 30 : ${raised} ; proportions : ${shape}`];
   }],
+  ["un tableau de bord : des données reçues, dessinées en barres et en parts, qui suivent la liste (leçon 99)", async (p) => {
+    await p.open("/exemples/lecons/99-un-tableau-de-bord.holo");
+    const count = (selector) => p.value(`document.querySelectorAll(${JSON.stringify(selector)}).length`);
+    const bars = await count('.holo-Chart:first-of-type svg rect');
+    const parts = await count('.holo-Chart:nth-of-type(2) svg path');
+    const captions = await p.value(`[...document.querySelectorAll(".holo-Chart figcaption")].map((c) => c.textContent).join(" | ")`);
+    await p.type('[data-bind="jour"]', "Samedi");
+    await p.type('[data-bind="montant"]', "180");
+    await p.click('[data-name="Ajouter"]');
+    const grown = await p.until(`document.querySelectorAll(".holo-Chart:first-of-type svg rect").length === 6 && document.querySelectorAll(".holo-Chart:nth-of-type(2) svg path").length === 6`, 40000);
+    // Les données du serveur ne reviennent pas effacer la vente ajoutée.
+    await pause(1500);
+    const kept = await p.value(`document.querySelectorAll(".holo-Chart:first-of-type svg rect").length === 6`);
+    const table = await p.value(`document.querySelector(".holo-Chart table").textContent`);
+    const hidden = await p.value(`(() => { const t = document.querySelector(".holo-Chart .holo-hidden").getBoundingClientRect(); return t.width <= 1 && t.height <= 1 && document.documentElement.scrollWidth <= innerWidth; })()`);
+    const ok = bars === 5 && parts === 5 && captions === "Les ventes de la semaine, en euros | La part de chaque jour" && grown && kept && table.includes("Samedi180") && hidden;
+    return [ok, `5 barres et 5 parts au départ : ${bars}, ${parts} ; titres : ${captions} ; une vente ajoutée, 6 et 6 : ${grown}, gardée : ${kept} ; tableau caché, « Samedi 180 » : ${table.includes("Samedi180")}, caché : ${hidden}`];
+  }],
   ["un module enfermé rend son nombre", async (p) => {
     await p.open("/exemples/lecons/69-module-enferme.holo");
     await p.click('[data-name="Calculer"]');

@@ -50,6 +50,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Shape` | `div` avec du CSS, ou `svg` | changé : quatre formes nommées |
 | `Drawing` | `svg role="img" aria-label` | changé : le nom (`label`) est obligatoire ; les mesures sont celles du dessin, qui garde ses proportions |
 | `Rect`, `Circle`, `Line`, `Path` | `rect`, `circle`, `line`, `path` | repris, avec des mots lisibles : `x`, `y`, `r`, `radius`, `from`, `to`, `thickness` au lieu de `cx`, `rx`, `x1`, `stroke-width` ; un tracé filtré |
+| `Chart` | une bibliothèque de graphiques en JavaScript (Chart.js), ou `svg` à la main | nouveau : un mot pour une intention fréquente ; dessiné par le moteur, avec un tableau caché pour le lecteur d'écran |
 | `Enter` | `@keyframes` + `animation` (de… vers…), ou `element.animate()` | changé : on écrit seulement d'où le bloc part |
 | `Loop` | `animation: … infinite alternate` | changé : on écrit seulement où il va |
 | `Scenes`, `Scene` | une suite de `animation-delay` calculés à la main, ou un chef d'orchestre en JavaScript | changé : les scènes s'enchaînent seules |

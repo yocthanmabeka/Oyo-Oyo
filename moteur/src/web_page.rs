@@ -126,6 +126,12 @@ pub fn module_received(source: &str, state: &str, name: &str, json: &str) -> Res
     crate::module_received(source, state, name, json).map_err(|reason| JsValue::from_str(&reason))
 }
 
+/// Le dessin d'un graphique pour cet état (ADR-087).
+#[wasm_bindgen]
+pub fn chart_html(source: &str, state: &str, spec: &str) -> String {
+    crate::chart_html(source, state, spec)
+}
+
 /// Les lignes d'une liste pour cet état.
 #[wasm_bindgen]
 pub fn list_html(source: &str, base: &str, state: &str, name: &str) -> String {

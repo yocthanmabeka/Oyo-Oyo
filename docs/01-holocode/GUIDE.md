@@ -1554,6 +1554,32 @@ Page(
 
 La leçon est `98-un-dessin.holo`.
 
+## 6 tricies. Un tableau de bord : `Chart`
+
+Un graphique, dessiné par le moteur d'après une liste à champs (`ADR-087`).
+
+```holo
+Page(
+  title: "Sales",
+  state: State(sales: [], period: "", amount: ""),
+  data: Data(from: "sales.json"),
+  children: [
+    Chart(kind: bars, over: sales, value: amount, label: period, title: "Sales of the week"),
+    Chart(kind: pie, over: sales, value: amount, label: period, title: "Share of each day"),
+    Input(value: period, label: "Period"),
+    Input(value: amount, label: "Amount"),
+    Button(name: Add, text: "Add a sale"),
+  ],
+  rules: [ On(Add.tap, effect: [sales.push(Item(period: period, amount: amount)), period.set(""), amount.set("")]) ],
+)
+```
+
+- **`kind`** : `bars` (des barres), `line` (une courbe) ou `pie` (des parts) ; **`over`** : la liste ; **`value`** : le champ du nombre ; **`label`** : le champ du nom ; **`title`** : le titre, obligatoire ; **`color`** : la couleur des barres ou de la courbe.
+- Le lecteur d'écran lit un tableau caché, avec les mêmes chiffres.
+- Le graphique suit sa liste : des données reçues, une liste calculée, un élément ajouté.
+
+La leçon est `99-un-tableau-de-bord.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo
@@ -2078,6 +2104,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Module` | `name`, `source`, `input`, `output` (un nom, ou une liste de noms, `ADR-077`), `time`, `memory` ; capacité `run` ; signaux `done`, `failed` | Dans `modules:` d'une `Page` ; annoncé en haut du fichier, `module "…"` |
 | `Drawing` | `label`, `width`, `height`, `children` | Partout dans `children` ; contient des formes |
 | `Rect`, `Circle`, `Line`, `Path` | `x`, `y`, `width`, `height`, `radius` ; `r` ; `from`, `to` ; `d` ; et `fill`, `stroke`, `thickness`, `opacity` | Seulement dans un `Drawing` |
+| `Chart` | `kind` (`bars`, `line`, `pie`), `over`, `value`, `label`, `title`, `color` | Partout dans `children` |
 | `Item` | `key`, et les champs de l'élément | Dans `items` d'un `Repeat` |
 | `Repeat(over:)` | `over` (une liste de la page), `children`, `rules` | Dans `children` |
 | `When` | le nom d'une valeur, puis `is`, `not`, `over`, `under` ; ou le nom d'un bloc, puis `meets` et `within` ; et `effect:` | Dans `rules` |

@@ -14,6 +14,7 @@
 //! compilée que pour WebAssembly.
 
 pub mod blocks;
+pub mod chart;
 pub mod components;
 pub mod computed;
 pub mod dates;
@@ -432,6 +433,20 @@ pub fn list_html(source: &str, base: &str, state: &str, name: &str) -> String {
     let computed = computed::apply(&program, &numbers, &texts, &lists);
     lists.extend(computed);
     flat::list_lines(&program, base, &numbers, &texts, &lists, name)
+}
+
+/// Le dessin d'un graphique pour cet état (ADR-087) : la page le pose à la place de l'ancien
+/// quand sa liste change. `spec` est celui que la page a reçu (`bars|sales|amount|day|`) ; vide
+/// s'il ne désigne pas une liste de la page.
+pub fn chart_html(source: &str, state: &str, spec: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    let Some(spec) = chart::Spec::read(spec) else { return String::new() };
+    let (numbers, texts) = (state::reread(&program, state), state::reread_texts(&program, state));
+    let mut lists = lists::reread(&program, state);
+    let computed = computed::apply(&program, &numbers, &texts, &lists);
+    lists.extend(computed);
+    let Some((_, elements)) = lists.iter().find(|(name, _)| name == spec.over) else { return String::new() };
+    chart::drawing(&spec, elements)
 }
 
 /// Les valeurs qu'un signal fait changer (`time;score`) : leurs horloges repartent de zéro.

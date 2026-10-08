@@ -43,7 +43,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 97 : un module qui reçoit une liste", to: "97-un-module-qui-recoit-une-liste.holo"),
-      A("Leçon 1 : une page →", to: "01-page.holo"),
+      A("Leçon 99 : un tableau de bord →", to: "99-un-tableau-de-bord.holo"),
     ]),
   ],
   rules: [
