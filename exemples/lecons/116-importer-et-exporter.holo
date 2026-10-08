@@ -10,3 +10,4 @@ Page(title: "Importer et exporter", state: State(note: "Bonjour", notes: ["Premi
 ], rules: [On(Export.tap, effect: File.export), On(Import.tap, effect: File.import), On(File.done, effect: finished.add(1))])
 Page { background: white; color: #17202a; max-width: 900px; padding: 24px; dark: { background: #17202a; color: white; } }
 Button { background: #174d70; color: white; padding: 12px; border-radius: 8px; }
+A { color: #174d70; dark: { color: #8fd3ff; } }

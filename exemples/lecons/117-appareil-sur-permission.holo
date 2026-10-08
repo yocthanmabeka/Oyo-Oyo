@@ -15,3 +15,4 @@ Page(title: "Appareil sur permission", state: State(result: "", copied: "Bonjour
 ], rules: [On(Locate.tap, effect: Position.request), On(Read.tap, effect: Clipboard.request), On(Write.tap, effect: Clipboard.write), On(StartCamera.tap, effect: Camera.request), On(StopCamera.tap, effect: Camera.stop), On(StartMic.tap, effect: Microphone.request), On(StopMic.tap, effect: Microphone.stop)])
 Page { background: white; color: #17202a; max-width: 900px; padding: 24px; dark: { background: #17202a; color: white; } }
 Button { background: #174d70; color: white; padding: 12px; border-radius: 8px; }
+A { color: #174d70; dark: { color: #8fd3ff; } }
