@@ -62,6 +62,9 @@ pub struct Program {
     pub styles: Vec<StyleRule>,
     /// Les noms des composants du fichier (ADR-050) : un style peut les viser, `ArticleCard { … }`.
     pub components: Vec<String>,
+    /// Les valeurs qui viennent de l'adresse de la page (`profil/{id}.holo`, ADR-078) : la page
+    /// les lit, sans pouvoir les changer.
+    pub address: Vec<String>,
 }
 
 /// Ce qu'un style vise : un type de bloc (`P`) ou un nom à point (`.card`). Rien d'autre.
@@ -529,7 +532,7 @@ impl Parser {
         if self.current().word != Word::End {
             return Err(self.error(format!("un seul bloc racine par fichier ; {} trouvé après lui", describe(&self.current().word))));
         }
-        Ok(Program { imports, root, styles: Vec::new(), components: Vec::new() })
+        Ok(Program { imports, root, styles: Vec::new(), components: Vec::new(), address: Vec::new() })
     }
 
     fn block(&mut self) -> Result<Block, Error> {
@@ -787,6 +790,10 @@ pub fn read(source: &str) -> Result<Program, Error> {
     styles.append(&mut program.styles);
     program.styles = styles;
     program.imports.retain(|i| i.kind != "import");
+    // Les valeurs de l'adresse, jointes après la page et ses imports (ADR-078).
+    if let Some((_, text)) = provided.iter().find(|(name, _)| *name == crate::address::ADDRESS_FILE) {
+        crate::address::inject(&mut program, text)?;
+    }
     Ok(program)
 }
 

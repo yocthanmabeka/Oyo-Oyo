@@ -74,7 +74,8 @@ async function startHoloServe(files) {
   server.stderr.on("data", (d) => { output += d; });
   for (let i = 0; i < 100 && !output.includes(`localhost:${port}`); i++) await pause(100);
   if (!output.includes(`localhost:${port}`)) throw new Error(`holo serve ne démarre pas :\n${output}`);
-  return { base: `http://localhost:${port}`, stop: () => { server.kill(); rmSync(folder, { recursive: true, force: true }); } };
+  // Sous Windows, la base reste prise un instant après l'arrêt du serveur : l'effacement réessaie.
+  return { base: `http://localhost:${port}`, folder, stop: () => { server.kill(); try { rmSync(folder, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); } catch { /* le dossier temporaire restera */ } } };
 }
 
 // Lance Chrome sans fenêtre. Il choisit lui-même un port libre (`--remote-debugging-port=0`)
@@ -729,6 +730,64 @@ const tests = [
       await b.send("Emulation.clearDeviceMetricsOverride");
     }
   }],
+  ["holo serve sert une adresse qui porte une valeur, et un formulaire envoyé de cette adresse (serve, ADR-078)", async (p, b) => {
+    // Le vrai serveur (ADR-074) : un modèle `profils/{nom}.holo`, ouvert à `/profils/ada`. La page
+    // fabriquée par le serveur, le moteur qui garde la valeur, le message rangé avec son modèle.
+    const binary = ["holo", "holo.exe"].map((name) => join(engine, "target", "release", name)).find(existsSync);
+    if (!binary) return [false, "holo n'est pas construit : cargo build --release --bin holo"];
+    const folder = mkdtempSync(join(tmpdir(), "holo-serve-"));
+    mkdirSync(join(folder, "profils"));
+    writeFileSync(join(folder, "profils", "{nom}.holo"), [
+      'Page(title: "Profil", state: State(email: "", sent: 0), children: [',
+      '  H1("Bonjour, {nom}"),',
+      '  If(nom, is: "ada", children: [ P.ada("Ada a écrit le premier programme.") ]),',
+      '  Form(name: Contact, children: [ Input(value: email, type: email, label: "Ton e-mail", required: true), Button(name: Send, text: "Envoyer") ]),',
+      '  If(sent, is: 1, children: [ P("Merci, ton message est arrivé.") ]),',
+      '], rules: [ On(Send.tap, effect: Contact.send), On(Contact.sent, effect: sent.set(1)) ])',
+      '.ada { color: #8fd3ff; }',
+    ].join("\n"));
+    const port = 22000 + Math.floor(Math.random() * 2000);
+    const server = spawn(binary, ["serve", folder, String(port)], { cwd: engine, stdio: ["ignore", "pipe", "pipe"] });
+    let output = "";
+    server.stdout.on("data", (d) => { output += d; });
+    server.stderr.on("data", (d) => { output += d; });
+    try {
+      for (let i = 0; i < 100 && !output.includes(`localhost:${port}`); i++) await pause(100);
+      if (!output.includes(`localhost:${port}`)) return [false, `holo serve ne démarre pas : ${output.trim()}`];
+      const q = page(b, `http://localhost:${port}`);
+      // La page fabriquée par le serveur, avant le moteur.
+      await q.open("/profils/ada", 300);
+      const made = await q.value(`document.querySelector("#page h1")?.textContent`);
+      const shown = await q.value(`(() => { const e = document.querySelector(".holo-s-ada"); return !!e && getComputedStyle(e).display !== "none"; })()`);
+      const named = await q.value(`document.querySelector('meta[name="holo-file"]')?.content`);
+      // Le moteur arrive (le menu le fait venir) : la même valeur, aucune erreur.
+      await q.click("#toggle");
+      const engineThere = await q.until(`document.getElementById("tools") && !document.getElementById("tools").hidden`, 40000);
+      const kept = await q.value(`document.querySelector("#page h1")?.textContent`);
+      const errors = b.errors.join(" | ");
+      // Le formulaire, envoyé par le moteur à l'adresse : vérifié avec la valeur, rangé avec son modèle.
+      await q.type('#page input[type=email]', "ada@example.org");
+      await q.click('[data-name="Send"]');
+      const thanked = await q.until(`document.getElementById("page").innerText.includes("Merci, ton message est arrivé.")`, 15000);
+      let stored = "base non lue (node:sqlite absent)";
+      try {
+        const { DatabaseSync } = await import("node:sqlite");
+        const base = new DatabaseSync(join(folder, "holo-data", "site.sqlite"));
+        const row = base.prepare("SELECT page, model FROM messages").get();
+        base.close();
+        stored = row ? `${row.page} ${row.model}` : "aucun message";
+      } catch (error) {
+        if (!String(error).includes("node:sqlite")) stored = `base illisible : ${error.message}`;
+      }
+      const ok = made === "Bonjour, ada" && shown === true && named === "/profils/{nom}.holo" && engineThere && kept === "Bonjour, ada" && !errors && thanked
+        && (stored === "/profils/ada /profils/{nom}.holo" || stored.startsWith("base non lue"));
+      return [ok, `fabriquée : « ${made} » ; paragraphe d'Ada : ${shown} ; fichier nommé : ${named} ; moteur : ${engineThere}, « ${kept} »${errors ? ` ; erreurs : ${errors}` : ""} ; message : ${thanked ? "Merci" : "pas de Merci"} ; rangé : ${stored}`];
+    } finally {
+      server.kill();
+      await pause(300);
+      try { rmSync(folder, { recursive: true, force: true }); } catch { /* tant pis */ }
+    }
+  }],
   ["une fenêtre fermée ne couvre pas la page (leçon 63, vu sur le téléphone)", async (p) => {
     // Trouvé par Yocthan sur son téléphone, le 2026-10-07 : le lien vers la leçon 64 ne se
     // laissait pas toucher, la fenêtre fermée restait posée dessus.
@@ -829,6 +888,115 @@ const tests = [
       await b.send("Emulation.setScriptExecutionDisabled", { value: false });
       served.stop();
     }
+  }],
+  ["un formulaire reçu par holo serve, avec ou sans JavaScript (serve)", async (_, b) => {
+    const served = await startHoloServe(["88-un-formulaire-qui-verifie.holo"]);
+    const q = page(b, served.base);
+    const thanks = `document.getElementById("page").innerText.includes("Merci, ton message est arrivé.")`;
+    try {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+      await q.open("/88-un-formulaire-qui-verifie.holo", 300);
+      // Envoyer vide : les messages sous les champs, écrits par le serveur.
+      await q.click('[data-name="Send"]');
+      await q.until(`document.readyState === "complete" && document.querySelectorAll(".holo-error").length > 0`, 5000);
+      const errors = await q.value(`[...document.querySelectorAll(".holo-error")].map((e) => e.textContent).join(" | ")`);
+      const linked = await q.value(`document.querySelector('[data-bind="name"]').getAttribute("aria-describedby") === document.querySelector(".holo-error").id`);
+      // Tout remplir : envoyé, rangé, merci.
+      await q.type('[data-bind="name"]', "Ada");
+      await q.type('[data-bind="email"]', "ada@exemple.fr");
+      await q.type('[data-bind="message"]', "Bonjour, une question.");
+      await q.click('[data-bind="accept"]');
+      await q.click('[data-name="Send"]');
+      const sentWithout = await q.until(`document.readyState === "complete" && ${thanks}`, 5000);
+      const noErrors = await q.value(`document.querySelectorAll(".holo-error").length === 0`);
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      // Avec JavaScript, un nouveau visiteur : le moteur envoie en JSON, holo serve range et répond 204.
+      await b.send("Network.clearBrowserCookies");
+      await q.open("/88-un-formulaire-qui-verifie.holo", 300);
+      await q.value("window.__stayed = true");
+      await q.type('[data-bind="name"]', "Bob");
+      await q.until("window.__holoStarted", 40000);
+      for (const [bind, text] of [["email", "bob@exemple.fr"], ["message", "Une autre question."]]) await q.type(`[data-bind="${bind}"]`, text);
+      await q.click('[data-bind="accept"]');
+      await q.click('[data-name="Send"]');
+      const sentWith = await q.until(thanks, 15000);
+      const stayed = await q.value("window.__stayed === true");
+      const kept = spawnSync(["holo", "holo.exe"].map((name) => join(engine, "target", "release", name)).find(existsSync), ["messages", served.folder], { encoding: "utf8" }).stdout.trim().split("\n").filter(Boolean);
+      const ok = errors.includes("Ce champ est obligatoire.") && linked && sentWithout && noErrors && sentWith && stayed && kept.length === 2 && kept[0].includes('"name":"Ada"') && kept[1].includes('"name":"Bob"');
+      return [ok, `sans JavaScript, erreurs : ${errors.split(" | ").length} (reliées : ${linked}) ; envoyé : ${sentWithout} ; avec JavaScript, envoyé : ${sentWith}, sans recharger : ${stayed} ; messages rangés : ${kept.length}`];
+    } finally {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      served.stop();
+    }
+  }],
+  ["une adresse porte une valeur (leçon 100), et un formulaire part de cette adresse", async (p, b) => {
+    // Le fichier 100-profils/{nom}.holo sert …/100-profils/ada, …/yocthan, …/Adé (ADR-078).
+    const faults = [];
+    const check = (name, ok, seen) => { if (!ok) faults.push(`${name} : ${seen}`); };
+    const title = () => p.value(`document.querySelector("#page h1")?.textContent ?? "(pas de titre)"`);
+    const engineAsked = () => p.value(`!!document.querySelector('script[src^="/page-engine.js"]')`);
+    const refused = () => p.value(`document.getElementById("error")?.textContent ?? ""`);
+    // Le bloc de l'If est invisible lui-même (display: contents) : on regarde son paragraphe.
+    const yocthanSeen = () => p.value(`(() => { const b = document.querySelector('#page [data-if^="nom|"]'); const p = b?.querySelector("p"); return !!p && !b.hidden && p.getClientRects().length > 0; })()`);
+    const startEngine = async () => {
+      await p.click("#toggle");
+      return p.until("window.__holoStarted === true", 20000);
+    };
+    // Le serveur fabrique la page avec la valeur de l'adresse : le titre est là avant le moteur.
+    await p.open("/exemples/lecons/100-profils/ada", 600);
+    const served = await title();
+    check("ada, page du serveur", served === "Bonjour, ada" && !(await engineAsked()), `« ${served} », moteur déjà demandé : ${await engineAsked()}`);
+    check("ada, le paragraphe de Yocthan reste caché", (await yocthanSeen()) === false, "il se voit");
+    // Le menu fait venir le moteur : il lit le modèle (holo-file), avec la même valeur.
+    const started = await startEngine();
+    const taken = await title();
+    check("ada, avec le moteur", started && taken === "Bonjour, ada" && !(await refused()) && b.errors.length === 0, `moteur arrivé : ${started} ; « ${taken} » ; ${(await refused()) || b.errors.join(" | ") || "aucune erreur"}`);
+    // Yocthan : le paragraphe de l'If se voit.
+    await p.open("/exemples/lecons/100-profils/yocthan", 600);
+    check("yocthan, le paragraphe se voit", (await title()) === "Bonjour, yocthan" && (await yocthanSeen()) === true, `« ${await title()} », paragraphe : ${await yocthanSeen()}`);
+    // Un nom accentué, encodé dans l'adresse : décodé par le moteur, au serveur puis dans la page.
+    await p.open("/exemples/lecons/100-profils/Ad%C3%A9", 600);
+    const accent = await title();
+    const accentStarted = await startEngine();
+    const accentTaken = await title();
+    check("Adé, le nom accentué", accent === "Bonjour, Adé" && accentStarted && accentTaken === "Bonjour, Adé" && !(await refused()) && b.errors.length === 0, `serveur « ${accent} » ; moteur « ${accentTaken} » ; ${(await refused()) || b.errors.join(" | ") || "aucune erreur"}`);
+    // Les liens : de la leçon vers le nom accentué, puis du modèle vers la leçon (« ../ »).
+    await p.open("/exemples/lecons/100-une-adresse-qui-porte-une-valeur.holo", 600);
+    await p.click('#page a[href$="100-profils/Adé"]');
+    const followed = await p.until(`location.pathname.endsWith("/100-profils/Ad%C3%A9") && document.querySelector("#page h1")?.textContent === "Bonjour, Adé"`, 8000);
+    check("le lien vers Adé", followed, await p.value("location.pathname"));
+    await p.click('#page a[href$="100-une-adresse-qui-porte-une-valeur.holo"]');
+    const back = await p.until(`location.pathname === "/exemples/lecons/100-une-adresse-qui-porte-une-valeur.holo"`, 8000);
+    check("le lien de retour à la leçon", back, await p.value("location.pathname"));
+    // Une adresse que rien ne sert : pas de page.
+    const missing = await p.value(`fetch("/exemples/lecons/100-profils/a/b", { headers: { accept: "text/html" } }).then((r) => r.status)`);
+    check("a/b, pas de page", missing === 404, missing);
+    // L'éditeur vérifie le modèle comme holo check : un nom vide.
+    await p.open(`/editor?file=${encodeURIComponent("/exemples/lecons/100-profils/{nom}.holo")}`, 600);
+    const edited = await p.until(`document.getElementById("status").textContent.startsWith("✓")`, 15000);
+    check("l'éditeur accepte le modèle", edited, `${await p.value(`document.getElementById("status").textContent`)} ; ${b.errors.join(" | ") || "aucune erreur"}`);
+    // Un formulaire envoyé depuis une adresse : il part vers l'adresse, où le serveur retrouve le
+    // modèle et la valeur ; le message garde son adresse. Un message forgé est vérifié de même.
+    await p.open("/exemples/.essais-navigateur/adresse/ada", 600);
+    await startEngine();
+    const written = `Un essai depuis l'adresse, ${Date.now()}`;
+    await p.type('[data-bind="message"]', written);
+    await p.click('[data-name="Send"]');
+    const sent = await p.until(`document.getElementById("page").innerText.includes("Message envoyé.")`, 10000);
+    // Le dernier message rangé (un fichier par modèle, dans messages/ du dépôt) ; pas lu avec
+    // --telephone, où le serveur 8080 peut servir un autre dossier.
+    let recorded = true;
+    let record = "le fichier des messages n'est pas lu avec --telephone";
+    if (!phone) {
+      const lines = readFileSync(join(repo, "messages", "exemples_essais-navigateur_adresse_nom_.jsonl"), "utf8").trim().split("\n");
+      const message = JSON.parse(lines.at(-1));
+      recorded = message.page === "/exemples/.essais-navigateur/adresse/ada" && message.values?.message === written;
+      record = `rangé : ${lines.at(-1)}`;
+    }
+    check("le formulaire part de l'adresse", sent && recorded, `envoyé : ${sent} ; ${record}`);
+    const forged = await p.value(`fetch(location.pathname, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ form: "Contact", values: { message: "" } }) }).then((r) => r.status)`);
+    check("un message forgé, refusé", forged === 422, forged);
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : "ada, yocthan et Adé, servis puis repris par le moteur ; les liens ; a/b sans page ; l'éditeur ; un formulaire envoyé à l'adresse, un message forgé refusé"];
   }],
 ];
 

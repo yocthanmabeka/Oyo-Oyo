@@ -6,12 +6,58 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-08 — Le dépôt devient public, sous un autre nom : `Oyo-Oyo`
+
+- Décidé par Yocthan : passer le dépôt en public, pour que les tests de GitHub repartent (ils sont gratuits pour un dépôt public ; les minutes gratuites d'un dépôt privé étaient épuisées), et le renommer pour qu'il attire moins l'œil. Son choix : « Oyo Oyo ». GitHub n'accepte pas d'espace : `yocthanmabeka/Oyo-Oyo`. L'ancienne adresse redirige.
+- Vérifié avant : les 462 enregistrements de l'histoire ne contiennent aucune clé, aucun mot de passe, aucun jeton, aucun fichier sensible (base, messages reçus, secrets), aucun e-mail personnel ni numéro de téléphone. Dit à Yocthan : son nom figure dans 77 fichiers (et dans le nom du compte), le métavers à 248 endroits ; un dépôt public peut être lu et gardé par n'importe qui, même s'il redevient privé.
+- Ajouté (ses demandes) : `LICENSE`, « tous droits réservés », en français et en anglais (la police Carlito garde sa licence OFL) ; les tests des trois premiers prototypes dans leur propre fichier, lancés seulement si leur dossier change ; une nouvelle version d'une pull request annule les tests de l'ancienne.
+- Gardé tel quel : l'ancienne adresse dans les messages d'archive aux autres IA et dans les transcriptions (ce sont des traces) ; seule la règle de synchronisation (`GITHUB-SYNC-POLICY.md`) dit le nouveau nom.
+
+---
+
+## 2026-10-08 — Lot 5 : des adresses qui portent des valeurs, dans le `holo serve` de la session du nuage
+
+- Fait (`ADR-078`, PROPOSITION ; la forme est celle choisie par Yocthan, « le nom du fichier ») : un fichier `profil/{id}.holo` sert `/profil/123` ; la page lit `{id}` comme ses autres valeurs, sans pouvoir la changer. Le serveur, le moteur de la page, le serveur d'essai, l'éditeur, l'extension VS Code et `holo check` reçoivent les mêmes valeurs, jointes au texte de la page comme un petit fichier `@adresse`.
+- **Deux serveurs, un seul gardé.** Pendant que la session du PC écrivait son `holo serve`, la session du nuage a fusionné le sien (PR 167, `ADR-074` : les boutons marchent sans JavaScript, l'état de chaque visiteur dans SQLite, quatre fils), puis a passé la main : Yocthan a confié les lots 5 à 7 à la session du PC. Son serveur fait plus que le mien : je l'ai gardé, j'ai repris ses PR 168 (les formulaires) et 169 (les sauvegardes), et j'ai porté les adresses dedans. Mon serveur est retiré.
+- Les liens remontent d'un dossier (`../accueil.holo`), comme sur le web : **un retour sur une ancienne règle**, à valider par Yocthan.
+- Leçon 100. Un agent a écrit le côté navigateur (la page, le serveur d'essai, l'éditeur, l'extension, la leçon et son essai) pendant que j'écrivais le moteur et le serveur.
+- Exécuté : `cargo test --release` → 156 tests passent (trois nouveaux : les adresses, et dans le serveur, une adresse avec et sans JavaScript) ; dans Chrome, les essais du serveur (« holo serve sert une adresse qui porte une valeur » : « Bonjour, ada » fabriqué par le serveur, le moteur qui garde la valeur, le message rangé avec son modèle ; les boutons sans JavaScript ; les formulaires) et celui de la leçon 100 passent ; la suite entière → 31 essais `OK`, aucun raté, 97 leçons ouvertes sans erreur.
+- **GitHub ne lance plus les tests** depuis cette nuit : « un paiement récent du compte a échoué, ou la limite de dépenses doit être augmentée ». Les minutes gratuites de GitHub Actions sont sans doute épuisées. Rien n'est fusionné sans eux : à Yocthan de décider (la limite de dépenses, rendre le dépôt public, ou attendre le mois suivant).
+
+**Erreurs en route**
+
+- Deux sessions ont écrit chacune leur `holo serve` en même temps : le tableau « Qui fait quoi » disait « la première libre », et chacune s'est crue la bonne. Une heure de travail en double ; la règle est maintenant qu'un lot porte le nom d'une seule session.
+- Mon premier essai de `holo serve` dans Chrome a raté : le moteur de la page ne savait lire que les adresses en `.holo`. Toute page fabriquée nomme maintenant son fichier (`<meta name="holo-file">`).
+- Trois défauts de mon premier serveur, relevés par l'agent : un « & » dans une valeur ouvrait une autre valeur ; un dossier accentué ne correspondait jamais ; une page refusée ne nommait pas son fichier. La jonction et la comparaison des adresses sont corrigées dans le moteur, et servent au serveur gardé.
+- Le quota de messages se comptait par adresse : on pouvait remplir la base en inventant des adresses. Il se compte par modèle.
+- Un essai du serveur de la session du nuage ratait sous Windows : il effaçait le dossier d'essai pendant que la base était encore prise. L'effacement réessaie.
+- Mon assertion sur une page fabriquée était fausse : le contenu d'un `If` faux reste dans la page, caché (`hidden`).
+- Trouvés en passant par l'agent : le bouton ▶ de l'extension VS Code ne marchait plus depuis la traduction en anglais ; une adresse mal encodée donnait 500 au lieu de 400 au serveur d'essai. Corrigés.
+
+---
+
 ## 2026-10-07 — Les lots 5 à 7 à la session du PC, le lot 9 au nuage ; des règles pour ne plus s'entremêler
 
 - Les deux sessions avaient pris les lots 5 à 7 à quelques minutes d'écart. Yocthan a décidé : « que vous ne puissiez plus vous entremêler entre les lots ; que chacun puisse avoir un lot différent ». La session du PC, inscrite la première sur `main` (PR 166), garde les lots 5 à 7 et analyse le travail de la session du nuage ; la session du nuage prend le lot 9.
 - Raté : en trouvant le doublon, Claude (nuage) a demandé à Yocthan qui gardait les lots ; sans réponse tranchée, il a choisi le nuage et l'a écrit dans le tableau de la PR 167. Le programme de fusion automatique a fusionné cette PR quand sa CI est passée au vert, quelques minutes avant la décision de Yocthan. `holo serve` et les boutons sans JavaScript (`ADR-074`) sont donc sur `main`. Les PR 168 (les formulaires, `ADR-075`) et 169 (les sauvegardes, `ADR-076`) restent ouvertes, sans fusion automatique.
 - Fait : le tableau « Qui fait quoi » corrigé ; cinq règles pour ne plus s'entremêler (seul Yocthan donne un lot, à une session nommée ; relire le tableau sur `origin/main` avant le code ; changer le tableau par une petite PR fusionnée avant le code ; une session qui a fini demande à Yocthan ; en cas de doublon, la première ligne arrivée sur `main` garde le lot) ; la passation pour la session du PC, `proposals/Claude/passation-lot5-2026-10-07.md`.
 - Leçon : « la première libre » et « l'autre session » laissaient deux sessions se croire chacune la bonne. Une ligne du tableau nomme désormais une seule session.
+
+---
+
+## 2026-10-07 — Lot 5, troisième pas : les sauvegardes
+
+- Fait (`ADR-076`) : `holo serve` sauvegarde sa base au démarrage (si la dernière copie a plus d'un jour) puis chaque jour ; `holo backup` en fait une tout de suite. Une copie entière, cohérente même pendant les écritures, dans `holo-data/backups/` ; les quatorze plus récentes restent.
+- Vérifié : la copie se relit et contient la valeur d'un visiteur ; avec vingt vieilles copies, il en reste quatorze ; à la main, « Sauvegarde : … » au démarrage, et `holo backup`.
+- Reste du lot 5 : les adresses `profil/{id}.holo`. Leur écriture dans la page est une décision de langage : proposée à Yocthan avant de construire.
+
+---
+
+## 2026-10-07 — Lot 5, deuxième pas : les formulaires reçus par `holo serve`, avec ou sans JavaScript
+
+- Fait (`ADR-075`) : `holo serve` reçoit les formulaires `Form` comme `outils/server.mjs` (vérifiés à nouveau, fichiers reconnus à leurs octets), et les range dans sa base SQLite ; `holo messages` les affiche. Sans JavaScript, « Envoyer » part au serveur : les messages d'erreur reviennent sous les champs, puis « Merci » une fois corrigé. C'est le « commander » de la condition du lot 5.
+- Vérifié : 152 tests du moteur ; dans Chrome, la leçon 88 sans JavaScript (quatre messages reliés à leurs champs, puis envoyé) et avec (envoyé sans recharger) ; deux messages rangés.
+- Raté puis corrigé : dans l'essai avec JavaScript, « Merci » venait de la visite précédente, gardée par le serveur ; l'essai efface maintenant les cookies pour être un nouveau visiteur. Et le petit programme qui fusionne après la CI aurait fusionné sans aucune vérification si GitHub n'en lançait pas (conflit) : il exige maintenant cinq vérifications, toutes vertes.
 
 ---
 

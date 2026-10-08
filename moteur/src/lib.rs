@@ -13,6 +13,7 @@
 //! La partie qui parle au navigateur et à la carte graphique (`web`, `rendu`) n'est
 //! compilée que pour WebAssembly.
 
+pub mod address;
 pub mod blocks;
 pub mod components;
 pub mod computed;
@@ -234,12 +235,20 @@ pub fn flat_view_with_data(source: &str, base: &str, json: &str) -> Result<Strin
 /// La page d'un visiteur que `holo serve` connaît (ADR-074) : fabriquée avec ses valeurs, et
 /// prête à renvoyer ses gestes au serveur si le navigateur ne lance pas le moteur. La page garde
 /// cet état dans `data-visit` : avec JavaScript, le moteur repart de là.
-pub fn visitor_page(source: &str, base: &str, state: &str) -> Result<String, Error> {
+///
+/// `tried` : les formulaires qu'il a essayé d'envoyer sans y arriver ; leurs messages d'erreur
+/// sont écrits sous les champs, d'après ses valeurs d'aujourd'hui (ADR-075).
+pub fn visitor_page(source: &str, base: &str, state: &str, tried: &[String]) -> Result<String, Error> {
     let program = check_page(source)?;
     let start = (state::reread(&program, state), state::reread_texts(&program, state), lists::reread(&program, state));
     let html = flat::site_html_from(&program, &program.root, base, "", Some(&start))?;
     let written = state.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
-    Ok(gestures::without_script(&html.replacen(" data-title=\"", &format!(" data-visit=\"{written}\" data-title=\""), 1)))
+    let mut page = gestures::without_script(&html.replacen(" data-title=\"", &format!(" data-visit=\"{written}\" data-title=\""), 1));
+    for form in tried {
+        let errors: Vec<(String, String)> = form_errors(source, state, form).lines().filter_map(|line| line.split_once('|')).map(|(bind, message)| (bind.to_string(), message.to_string())).collect();
+        page = gestures::with_errors(&page, form, &errors);
+    }
+    Ok(page)
 }
 
 /// Ce que devient l'état d'un visiteur quand il envoie un formulaire des gestes, sans
@@ -643,6 +652,11 @@ mod tests {
 ").skip(1).map(|suite| suite.split("```").next().unwrap()).collect();
         assert!(examples.len() >= 11, "le guide a perdu ses exemples : {}", examples.len());
         for example in examples {
+            // Un modèle d'adresse se nomme sur sa première ligne, `// profil/{id}.holo` (ADR-078) :
+            // il se vérifie comme `holo check`, chaque nom valant un texte vide.
+            let file = example.trim_start().strip_prefix("// ").and_then(|l| l.lines().next()).unwrap_or("");
+            let joined = if file.ends_with(".holo") && !address::names(file).is_empty() { address::joined(example, &address::empty_values(file)) } else { example.to_string() };
+            let example = joined.as_str();
             // Une page passe toutes les vérifications et se fabrique ; un point seul s'ouvre en
             // profondeur ; un morceau (un fichier fait pour être importé) est vérifié sans être affiché.
             let start = example.trim_start();

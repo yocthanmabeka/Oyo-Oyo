@@ -11,6 +11,12 @@ on:
 permissions:
   contents: read
 
+# Une nouvelle version de la même pull request annule les tests de l'ancienne : on ne teste que
+# la dernière (recommandation de Claude, le 2026-10-08).
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   tests:
     name: ${{ matrix.nom }}
@@ -18,16 +24,9 @@ jobs:
     strategy:
       fail-fast: false # l'échec d'une proposition ne cache pas le résultat des autres
       matrix:
+        # Les trois premiers prototypes ont leur propre fichier, prototypes.yml : ils ne tournent
+        # que si leur dossier change.
         include:
-          - nom: GPT5.6 — HoloCode v0.1
-            dossier: proposals/GPT5.6/holocode-v0.1
-            commande: python -m unittest discover -s tests -v
-          - nom: Claude — HoloCode v0.1
-            dossier: proposals/Claude/holocode-v0.1
-            commande: python -m unittest discover -s tests -v
-          - nom: Gemini — HoloFractal v0.1
-            dossier: proposals/Gemini
-            commande: python -m unittest test_fractal.py -v
           - nom: Suite de conformité
             dossier: experiments/conformite-v0.1
             commande: python verifier_suite.py

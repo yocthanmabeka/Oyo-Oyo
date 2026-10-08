@@ -224,6 +224,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `//` | `//` en JavaScript | repris |
 | `**gras**`, `*italique*` | `strong`, `em` | changés : l'écriture de Markdown |
 | `import`, `module`, `bridge js`, `bridge css` | `import`, `link`, `script` | repris ou changés ; lus, pas encore appliqués |
+| `{id}` dans le nom d'un fichier, `profil/{id}.holo` | `[id]` (Next.js, SvelteKit), `:id` (Express) | changé : les accolades de HoloCode, les mêmes que dans un texte ; la page lit `{id}`, sans pouvoir le changer (`ADR-078`, à valider) |
 
 ## 2. Les mots du web qu'on n'a pas pris
 

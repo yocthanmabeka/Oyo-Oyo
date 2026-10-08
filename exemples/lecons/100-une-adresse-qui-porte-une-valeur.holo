@@ -1,0 +1,41 @@
+// Leçon 100 — Une adresse qui porte une valeur
+//
+// Ce qu'on apprend :
+//   Un fichier dont le nom a des accolades sert toutes les adresses qui lui ressemblent :
+//   100-profils/{nom}.holo sert …/100-profils/ada, …/100-profils/yocthan, …/100-profils/Adé.
+//   La fin de l'adresse devient une valeur de la page, « nom », qui se lit comme les autres :
+//     H1("Bonjour, {nom}")                        dans un texte
+//     If(nom, is: "yocthan", children: [ … ])    dans une condition
+//   La page la lit, sans pouvoir la changer : ni une règle ni un champ n'y touchent.
+//   Le serveur fabrique la page avec cette valeur, puis le moteur la reprend avec la même.
+//   Ouvert lui-même, le fichier {nom}.holo reçoit un nom vide : c'est ainsi que holo check le
+//   vérifie. C'est la décision de Yocthan du 2026-10-07 : l'adresse se dit par le nom du fichier.
+//
+// À essayer :
+//   Touche les trois liens : le même fichier dit bonjour à chacun, et un peu plus à Yocthan.
+//   Change la fin de l'adresse dans la barre du navigateur : la page prend le nouveau nom.
+//   Une adresse plus longue (…/100-profils/a/b) ne mène à aucune page.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 100 : une adresse qui porte une valeur",
+  children: [
+    H1("Une adresse qui porte une valeur"),
+    P("Ces trois adresses n'ont pas chacune leur fichier : un seul les sert, rangé dans le dossier 100-profils. La fin de l'adresse devient le nom que la page affiche."),
+    List(children: [
+      A("Le profil d'Ada", to: "100-profils/ada"),
+      A("Le profil de Yocthan", to: "100-profils/yocthan"),
+      A("Le profil d'Adé, avec un accent", to: "100-profils/Adé"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 96 : une vidéo sous-titrée", to: "96-une-video-sous-titree.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
