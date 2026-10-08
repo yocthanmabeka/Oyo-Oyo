@@ -184,9 +184,9 @@ mod tests {
         let source = r#"Page(state: State(count: 0, rows: [Item(title: "A", price: 1)]), children: [H1("Essai"), Transfer(name: File, label: "Mes valeurs", file: "rows.json", values: [rows]), Button(name: Load, text: "Importer")], rules: [On(Load.tap, effect: File.import), On(File.done, effect: count.add(1))])"#;
         let state = crate::capability_received(source, "", "File", r#"{"rows":[{"title":"B","price":"2"}]}"#).unwrap();
         let p = crate::check_page(source).unwrap();
-        assert_eq!(state::reread(&p, &state).iter().find(|(k,_)| k == "count").unwrap().1, 0);
+        assert_eq!(crate::state::reread(&p, &state).iter().find(|(k,_)| k == "count").unwrap().1, 0);
         let after = crate::arbitrate(source, &state, "File.done");
-        assert_eq!(state::reread(&p, &after).iter().find(|(k,_)| k == "count").unwrap().1, 1);
+        assert_eq!(crate::state::reread(&p, &after).iter().find(|(k,_)| k == "count").unwrap().1, 1);
         for bad in [r#"{"rows":["wrong kind"]}"#, r#"{"rows":[{"title":"B"}]}"#, r#"{"rows":[{"title":"B","price":"2","extra":"x"}]}"#, r#"{"rows":[{"title":"B","price":"2","price":"3"}]}"#] {
             assert!(crate::capability_received(source, &after, "File", bad).is_err(), "{bad}");
         }
