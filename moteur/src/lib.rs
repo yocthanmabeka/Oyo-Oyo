@@ -581,7 +581,7 @@ pub fn module_received(source: &str, state: &str, name: &str, json: &str) -> Res
     let program = check_page(source).map_err(|e| e.message)?;
     state::requested_capabilities();
     let (numbers, texts, lists) = modules::received(&program, &state::reread(&program, state), &state::reread_texts(&program, state), &lists::reread(&program, state), name, json)?;
-    Ok(arbitrate(source, &write_all(&program, &numbers, &texts, &lists), &format!("{name}.done")))
+    Ok(write_all(&program, &numbers, &texts, &lists))
 }
 
 /// Un transfert local, exporté seulement d'après les valeurs annoncées.
@@ -594,7 +594,7 @@ pub fn capability_received(source: &str, state: &str, name: &str, json: &str) ->
     let program = check_page(source).map_err(|e| e.message)?;
     state::requested_capabilities();
     let (numbers, texts, lists) = capabilities::received(&program, state, name, json)?;
-    Ok(arbitrate(source, &write_all(&program, &numbers, &texts, &lists), &format!("{name}.done")))
+    Ok(write_all(&program, &numbers, &texts, &lists))
 }
 
 /// Les lignes d'une liste pour cet état (ADR-044) : la page les pose à la place des anciennes.

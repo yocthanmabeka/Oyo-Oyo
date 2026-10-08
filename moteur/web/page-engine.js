@@ -10,11 +10,11 @@
   } from "/pkg-light/holo_engine.js";
   let host = null;
   const prepareHost = async () => {
-    if (!root.querySelector("[data-browser-capability]")) return;
+    if (host || !root.querySelector("[data-browser-capability]")) return;
     const {browserCapabilities} = await import("/capabilities.js");
     host = browserCapabilities({root,source:()=>source,state:()=>states.get(path)??"",
       receive:capability_received,exported:capability_export,
-      change:written=>changeState(store(written)),emit,pageKey:()=>arrival});
+      change:written=>changeState(store(written)),emit,pageKey:()=>addressOf(path)});
   };
   let drawing = null;
   let drawingLoading = null;
@@ -309,6 +309,7 @@
       history.pushState({ since }, "", fromElsewhere(file) ? `#@${fullAddress(file)}` : addressOf(file) + (sitePath ? `#${sitePath}` : ""));
     }
     displaySite(sitePath, { inHistory: false });
+    await prepareHost();
     return true;
   }
 

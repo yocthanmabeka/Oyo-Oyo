@@ -23,6 +23,7 @@ export function capabilityTests({engine,phone,pause}) {
   const folder=mkdtempSync(join(tmpdir(),"holo-transfer-"));
   try{
    await ready(p,116);
+   await b.send("Page.setInterceptFileChooserDialog",{enabled:true});
    await b.send("Browser.setDownloadBehavior",{behavior:"allow",downloadPath:folder});
    await p.click("[data-name=Export]");
    if(!await p.until(status("File")+".includes('Terminé')"))throw Error("export non terminé");
@@ -38,8 +39,20 @@ export function capabilityTests({engine,phone,pause}) {
    writeFileSync(file," ".repeat(65537));
    await p.click("[data-name=Import]");await p.until("document.querySelector('input[data-holo-import]')");await choose(p,b,file);
    const limited=await p.until(status("File")+".includes('64 Ko')");
-   return [exported.note==="Bonjour"&&exported.notes.length===1&&imported&&refused&&intact&&limited,"fichier exporté relu ; import 2 lignes ; clé forgée refusée sans mutation ; 65 537 octets refusés"];
-  }finally{await b.send("Browser.setDownloadBehavior",{behavior:"default"});rmSync(folder,{recursive:true,force:true});}
+   return [exported.note==="Bonjour"&&exported.notes.length===1&&imported&&refused&&intact&&limited&&await p.value("document.getElementById('page').innerText.includes('Transferts terminés : 2')"),"fichier exporté relu ; import 2 lignes ; clé forgée refusée sans mutation ; 65 537 octets refusés"];
+  }finally{await b.send("Page.setInterceptFileChooserDialog",{enabled:false});await b.send("Browser.setDownloadBehavior",{behavior:"default"});rmSync(folder,{recursive:true,force:true});}
+ }],
+ ["lot9 : presse-papiers Chrome, écriture puis lecture",async(p,b)=>{
+  await b.send("Browser.grantPermissions",{permissions:["clipboardReadWrite","clipboardSanitizedWrite"]});
+  try{
+   await ready(p,117);await p.click("[data-name=Write]");
+   const written=await p.until(status("Clipboard")+".includes('Terminé')");
+   await p.value("document.querySelector('input[data-bind=copied]').value=''");
+   await p.value("document.querySelector('input[data-bind=copied]').dispatchEvent(new Event('input',{bubbles:true}))");
+   await p.click("[data-name=Read]");
+   const read=await p.until("document.querySelector('input[data-bind=copied]').value==='Bonjour'");
+   return [written&&read,"API Chrome réelle, presse-papiers de la machine de CI ; aucun téléphone"];
+  }finally{await b.send("Browser.resetPermissions");}
  }],
  ["lot9 : position via API Chrome et refus de permission",async(p,b)=>{
   await b.send("Browser.grantPermissions",{permissions:["geolocation"]});
@@ -63,18 +76,24 @@ export function capabilityTests({engine,phone,pause}) {
   const mic=await p.until(status("Microphone")+".includes('actif')");
   await p.click("[data-name=StopMic]");
   const all=await p.value("window.__tracks.every(t=>t.readyState==='ended')");
-  return [active&&stopped&&mic&&all,"flux de canvas simulant l'appareil ; toutes les pistes arrêtées par le bouton ; aucun matériel réel"];
+  await p.value("navigator.mediaDevices.getUserMedia=()=>new Promise(ok=>{window.__grant=ok})");
+  await p.click("[data-name=StartCamera]");await p.click("[data-name=StopCamera]");
+  await p.value("(()=>{const c=document.createElement('canvas');const s=c.captureStream(1);window.__tracks.push(...s.getTracks());window.__grant(s);})()");
+  await pause(200);const late=await p.value("window.__tracks.every(t=>t.readyState==='ended') && !document.querySelector('[data-name=Camera] video')");
+  return [active&&stopped&&mic&&all&&late,"flux de canvas simulant l'appareil ; toutes les pistes arrêtées par le bouton, aussi après une permission tardive ; aucun matériel réel"];
  }],
  ["lot9 : notification locale autorisée puis refusée (API simulée)",async(p,b)=>{
   await ready(p,118);
   await p.value("(()=>{window.__notifications=[];Object.defineProperty(Notification,'permission',{configurable:true,get:()=> 'granted'});ServiceWorkerRegistration.prototype.showNotification=async function(title,options){window.__notifications.push({title,options});};})()");
+  await p.click("[data-name=Notify]");await p.click("[data-name=Cancel]");await pause(3200);
+  const cancelled=await p.value("window.__notifications.length===0");
   await p.click("[data-name=Notify]");
   const sent=await p.until("window.__notifications.length===1");
   const title=await p.value("window.__notifications[0]?.title");
   await p.value("Object.defineProperty(Notification,'permission',{configurable:true,get:()=> 'denied'})");
   await p.click("[data-name=Notify]");
   const denied=await p.until(status("Reminder")+".includes('refusée')");
-  return [sent&&title==="Pause"&&denied,"service worker réel ; affichage système simulé ; permission refusée annoncée sans planter la page"];
+  return [cancelled&&sent&&title==="Pause"&&denied,"service worker réel ; affichage système simulé ; permission refusée annoncée sans planter la page"];
  }],
  ["lot9 : copie hors-ligne, rechargement réel sans réseau et effacement",async(p,b)=>{
   await b.send("Network.enable");

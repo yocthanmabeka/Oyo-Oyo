@@ -74,9 +74,9 @@ pub fn check(program: &Program) -> Result<(), Error> {
                 if files.len() > 16 || files.iter().any(|v| !matches!(v, Value::Text(f) if crate::flat::path_on(f) && !f.contains('?') && !f.contains('#') && !f.ends_with(".holo") && !f.ends_with(".html") && !f.ends_with(".js") && !f.ends_with(".wasm"))) {
                     return Err(error("16 ressources locales au plus ; pas d'autres pages, scripts ou modules : ceux du moteur sont ajoutés par le moteur"));
                 }
-                let mut private = program.root.argument("access").is_some() || !program.shared.is_empty() || program.root.argument("modules").is_some() || program.root.argument("keep").is_some();
+                let mut private = program.root.argument("access").is_some() || !program.shared.is_empty() || program.root.argument("modules").is_some() || program.root.argument("keep").is_some() || program.root.argument("data").is_some() || !program.imports.is_empty();
                 rules::for_each_block(&program.root, &mut |b| { private |= matches!(b.name.as_str(), "Form" | "Point" | "World" | "Sound" | "Video" | "Device" | "Notification" | "Transfer"); Ok(()) })?;
-                if private { return Err(error("le premier hors-ligne garde une page publique locale : pas de compte, partage, formulaire, module, capture, son, vidéo ou autre capacité dans cette page")); }
+                if private { return Err(error("le premier hors-ligne garde une page publique locale : pas de compte, partage, données reçues, import, formulaire, module, capture, son, vidéo ou autre capacité dans cette page")); }
                 let source = format!("{:?}", program.root);
                 if source.contains("signedIn") || source.contains("account") { return Err(error("une page hors-ligne ne lit pas un compte")); }
             }
@@ -129,11 +129,26 @@ pub fn received(program: &Program, written: &str, name: &str, json: &str) -> Res
             (Some(modules::Sort::Number), Json::Number(n)) => *n <= state::VALUE_MAX,
             (Some(modules::Sort::Number), Json::Decimal(d)) => state::places(program, key) > 0 && state::parse_decimal(d, state::places(program, key)).is_some_and(|n| n <= state::VALUE_MAX),
             (Some(modules::Sort::Text), Json::Text(t)) => t.chars().count() <= 200 && !t.contains('\0'),
-            (Some(modules::Sort::List), Json::Table(vs)) => vs.len() <= lists::ELEMENTS_MAX && vs.iter().all(|v| match v {
-                Json::Text(t) => t.chars().count() <= lists::ELEMENT_MAX,
-                Json::Object(fields) => fields.len() <= lists::FIELDS_MAX && fields.iter().all(|(_,v)| matches!(v, Json::Text(t) if t.chars().count() <= lists::ELEMENT_MAX)),
-                _ => false
-            }),
+            (Some(modules::Sort::List), Json::Table(vs)) => {
+                let kind = lists::kind(program, key).ok_or("liste inconnue")?;
+                let clean = |t: &str| t.chars().count() <= lists::ELEMENT_MAX && !t.chars().any(char::is_control);
+                vs.len() <= lists::ELEMENTS_MAX && vs.iter().all(|v| match (v, &kind) {
+                    (Json::Text(t), lists::Kind::Texts | lists::Kind::Free) => !t.is_empty() && clean(t),
+                    (Json::Object(fields), lists::Kind::Records(_) | lists::Kind::Free) => {
+                        let mut seen = Vec::new();
+                        !fields.is_empty() && fields.len() <= lists::FIELDS_MAX
+                            && fields.iter().all(|(k,v)| {
+                                let unique = !seen.contains(&k.as_str()); seen.push(k.as_str());
+                                unique && k.len() <= 40 && k != "key"
+                                    && k.starts_with(|c: char| c.is_ascii_lowercase())
+                                    && k.chars().all(|c| c.is_ascii_alphanumeric())
+                                    && matches!(v, Json::Text(t) if clean(t))
+                            })
+                            && match &kind { lists::Kind::Records(expected) => fields.len() == expected.len() && expected.iter().all(|n| fields.iter().any(|(k,_)| k == n)), _ => true }
+                    }
+                    _ => false
+                })
+            },
             _ => false
         };
         if !valid { return Err(format!("« {key} » : mauvaise sorte ou limite dépassée")); }
@@ -163,6 +178,18 @@ mod tests {
         assert!(super::received(&p, "", "File", &huge).is_err());
         let forged = source.replace("On(Load.tap, effect: File.import)", "Every(1s, effect: File.import)");
         assert!(crate::check_page(&forged).is_err());
+    }
+    #[test]
+    fn imports_do_not_fire_completion_twice_or_drop_record_fields() {
+        let source = r#"Page(state: State(count: 0, rows: [Item(title: "A", price: 1)]), children: [H1("Essai"), Transfer(name: File, label: "Mes valeurs", file: "rows.json", values: [rows]), Button(name: Load, text: "Importer")], rules: [On(Load.tap, effect: File.import), On(File.done, effect: count.add(1))])"#;
+        let state = crate::capability_received(source, "", "File", r#"{"rows":[{"title":"B","price":"2"}]}"#).unwrap();
+        let p = crate::check_page(source).unwrap();
+        assert_eq!(state::reread(&p, &state).iter().find(|(k,_)| k == "count").unwrap().1, 0);
+        let after = crate::arbitrate(source, &state, "File.done");
+        assert_eq!(state::reread(&p, &after).iter().find(|(k,_)| k == "count").unwrap().1, 1);
+        for bad in [r#"{"rows":["wrong kind"]}"#, r#"{"rows":[{"title":"B"}]}"#, r#"{"rows":[{"title":"B","price":"2","extra":"x"}]}"#, r#"{"rows":[{"title":"B","price":"2","price":"3"}]}"#] {
+            assert!(crate::capability_received(source, &after, "File", bad).is_err(), "{bad}");
+        }
     }
     #[test]
     fn a_permission_never_comes_from_a_timer_or_completion() {

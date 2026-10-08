@@ -116,6 +116,11 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 114 | [L'historique dans une page](114-l-historique-dans-une-page.holo) | `address: [onglet, page]` : les valeurs dans l'adresse, un pas d'historique par toucher, une adresse qui se partage |
 | 115 | [Des polices pour toutes les écritures](115-des-polices-pour-toutes-les-ecritures.holo) | `Font(family: "Inter")` sans fichier : les polices libres du moteur, l'arabe, le devanagari, le japonais, l'éthiopien |
 
+| 116 | [Importer et exporter](116-importer-et-exporter.holo) | Un fichier JSON local ; valeurs annoncées, import complet ou refusé |
+| 117 | [L'appareil sur permission](117-appareil-sur-permission.holo) | Position, presse-papiers, caméra et microphone locaux ; arrêt explicite |
+| 118 | [Notifications locales](118-notifications-locales.holo) | Rappel limité à la page ouverte ; permission et refus |
+| 119 | [Une page hors-ligne](119-une-page-hors-ligne.holo) | Copie publique bornée ; rechargement sans réseau, effacement |
+
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 
 Certaines leçons ont un **essai écrit** à côté (`68-liste-qui-change.test`, `70-composants.test`, `71-liste-a-champs.test`, `73-defauts-et-signaux.test`, `74-champ-dans-une-ligne.test`, `75-contenu-d-un-composant.test`, `76-envoyer-un-fichier.test`) : des gestes et les valeurs attendues, que `holo test` joue et que les tests du moteur vérifient (`ADR-054`). Pour voir les valeurs pendant qu'on essaie une leçon : ajouter `?values` à son adresse.

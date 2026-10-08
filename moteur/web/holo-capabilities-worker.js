@@ -21,7 +21,15 @@ async function save(data){
  const entries=[];let bytes=0;
  for(const url of urls){
   const item=await bounded(await fetch(url,{credentials:"omit",cache:"no-store",headers:{accept:url===page.href?"text/html":"*/*"}}),MAX_BYTES-bytes);bytes+=item.size;
-  if(url===page.href){const html=await item.response.clone().text();if(!html.includes("data-browser-capability=")||!html.includes("holo-Offline")||html.includes("holo-account")||html.includes("data-shared=")||html.includes("data-visit="))throw Error("Cette page ne déclare pas une copie publique hors-ligne.");}
+  if(url===page.href){
+   const html=await item.response.clone().text();
+   if(!html.includes("holo-Offline")||html.includes("holo-account")||html.includes("data-shared=")||html.includes("data-visit="))throw Error("Cette page ne déclare pas une copie publique hors-ligne.");
+   const decode=s=>s.replace(/&quot;/g,'"').replace(/&#39;|&#x27;/g,"'").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&");
+   const declared=[...html.matchAll(/data-browser-capability="([^"]*)"/g)].map(m=>JSON.parse(decode(m[1]))).filter(s=>s.type==="Offline");
+   if(declared.length!==1||!Array.isArray(declared[0].files))throw Error("Une seule déclaration hors-ligne est attendue.");
+   const expected=[...new Set([...required,...declared[0].files.map(f=>new URL(f,page).href)])];
+   if(urls.length!==expected.length||urls.some(u=>!expected.includes(u)))throw Error("Seules les ressources déclarées par cette page se sauvegardent.");
+  }
   entries.push([url,item.response]);
  }
  const raw=await bounded(await fetch(page.href,{credentials:"omit",cache:"no-store",headers:{accept:"text/plain"}}),MAX_BYTES-bytes);bytes+=raw.size;entries.push([sourceKey(page.href),raw.response]);
@@ -34,7 +42,7 @@ self.addEventListener("message",e=>{
  const d=e.data,p=e.ports[0];if(!p||!["save","remove"].includes(d?.type))return;
  e.waitUntil((async()=>{
   const client=await self.clients.get(e.source.id);if(!client||new URL(client.url).origin!==self.location.origin)throw Error("Client inconnu.");
-  const page=new URL(d.page);if(page.origin!==self.location.origin)throw Error("Une page de ce site est attendue.");
+  const page=new URL(d.page);if(page.origin!==self.location.origin||new URL(client.url).pathname!==page.pathname)throw Error("Seule la page affichée se sauvegarde ou s'efface.");
   if(locks.size)throw Error("Une copie est déjà en cours.");locks.set(page.href,true);
   try{p.postMessage(d.type==="remove"?{ok:await caches.delete(keyFor(page.href))||true}:await save(d));}finally{locks.delete(page.href);}
  })().catch(error=>p.postMessage({ok:false,error:error.message})));

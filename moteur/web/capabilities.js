@@ -71,11 +71,11 @@ export function browserCapabilities({root,source,state,receive,exported,change,e
         finish(e,name,true,action==="remove"?"Copie hors-ligne effacée.":"Copie hors-ligne prête ("+saved.bytes+" octets).",stamp);return true;
       }else return false;
       finish(e,name,true,"Terminé.",stamp);
-    }catch(error){closeStream(name);finish(e,name,false,error?.message||"Permission refusée ou appareil indisponible.",stamp);}
+    }catch(error){if(token.cancelled||stamp!==epoch)return true;closeStream(name);finish(e,name,false,error?.message||"Permission refusée ou appareil indisponible.",stamp);}
     finally{if(busy.get(name)===token)busy.delete(name);}
     return true;
   }
-  function stop(){epoch++;for(const name of streams.keys())closeStream(name);for(const t of timers.values())clearTimeout(t);timers.clear();for(const t of busy.values())t.cancel?.();busy.clear();}
-  addEventListener("pagehide",stop);document.addEventListener("visibilitychange",()=>{if(document.hidden)for(const n of streams.keys())closeStream(n);});
+  function stop(){epoch++;for(const name of streams.keys())closeStream(name);for(const t of timers.values())clearTimeout(t);timers.clear();for(const t of busy.values()){t.cancelled=true;t.cancel?.();}busy.clear();}
+  addEventListener("pagehide",stop);document.addEventListener("visibilitychange",()=>{if(document.hidden){for(const n of streams.keys())closeStream(n);for(const [name,t] of busy){const e=[...root.querySelectorAll("[data-browser-capability]")].find(e=>e.dataset.name===name);if(e && ["camera","microphone"].includes(JSON.parse(e.dataset.browserCapability).kind)){t.cancelled=true;busy.delete(name);status(e,"Capture arrêtée : page cachée.");}}}});
   return {run,stop};
 }

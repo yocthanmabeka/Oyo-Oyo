@@ -4,6 +4,7 @@ Page(title: "Appareil sur permission", state: State(result: "", copied: "Bonjour
  H1("Mon appareil reste à moi"), P("Rien n'est envoyé au serveur."),
  Device(name: Position, kind: position, value: result, label: "Ma position"),
  Button(name: Locate, text: "Demander ma position"), P("{result}"),
+ Input(label: "Texte à copier", value: copied),
  Device(name: Clipboard, kind: clipboard, value: copied, label: "Mon presse-papiers"),
  Button(name: Read, text: "Lire le presse-papiers"), Button(name: Write, text: "Copier Bonjour"), P("{copied}"),
  Device(name: Camera, kind: camera, label: "Aperçu local de ma caméra"),
