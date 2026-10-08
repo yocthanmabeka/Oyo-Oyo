@@ -6,6 +6,15 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-08 — Le dépôt devient public, sous un autre nom : `Oyo-Oyo`
+
+- Décidé par Yocthan : passer le dépôt en public, pour que les tests de GitHub repartent (ils sont gratuits pour un dépôt public ; les minutes gratuites d'un dépôt privé étaient épuisées), et le renommer pour qu'il attire moins l'œil. Son choix : « Oyo Oyo ». GitHub n'accepte pas d'espace : `yocthanmabeka/Oyo-Oyo`. L'ancienne adresse redirige.
+- Vérifié avant : les 462 enregistrements de l'histoire ne contiennent aucune clé, aucun mot de passe, aucun jeton, aucun fichier sensible (base, messages reçus, secrets), aucun e-mail personnel ni numéro de téléphone. Dit à Yocthan : son nom figure dans 77 fichiers (et dans le nom du compte), le métavers à 248 endroits ; un dépôt public peut être lu et gardé par n'importe qui, même s'il redevient privé.
+- Ajouté (ses demandes) : `LICENSE`, « tous droits réservés », en français et en anglais (la police Carlito garde sa licence OFL) ; les tests des trois premiers prototypes dans leur propre fichier, lancés seulement si leur dossier change ; une nouvelle version d'une pull request annule les tests de l'ancienne.
+- Gardé tel quel : l'ancienne adresse dans les messages d'archive aux autres IA et dans les transcriptions (ce sont des traces) ; seule la règle de synchronisation (`GITHUB-SYNC-POLICY.md`) dit le nouveau nom.
+
+---
+
 ## 2026-10-08 — Lot 5 : des adresses qui portent des valeurs, dans le `holo serve` de la session du nuage
 
 - Fait (`ADR-078`, PROPOSITION ; la forme est celle choisie par Yocthan, « le nom du fichier ») : un fichier `profil/{id}.holo` sert `/profil/123` ; la page lit `{id}` comme ses autres valeurs, sans pouvoir la changer. Le serveur, le moteur de la page, le serveur d'essai, l'éditeur, l'extension VS Code et `holo check` reçoivent les mêmes valeurs, jointes au texte de la page comme un petit fichier `@adresse`.

@@ -1,0 +1,59 @@
+# Les tests des trois premiers prototypes en Python (ChatGPT, Claude, Gemini). Ils ne changent
+# presque plus : ils ne tournent que si leur dossier change, pour ne pas dépenser des minutes à
+# chaque pull request (recommandation de Claude, le 2026-10-08).
+name: Prototypes
+
+on:
+  pull_request:
+    paths:
+      - "proposals/GPT5.6/holocode-v0.1/**"
+      - "proposals/Claude/holocode-v0.1/**"
+      - "proposals/Gemini/**"
+      - ".github/workflows/prototypes.yml"
+  push:
+    branches: [main]
+    paths:
+      - "proposals/GPT5.6/holocode-v0.1/**"
+      - "proposals/Claude/holocode-v0.1/**"
+      - "proposals/Gemini/**"
+      - ".github/workflows/prototypes.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Une nouvelle version de la même pull request annule les tests de l'ancienne.
+concurrency:
+  group: prototypes-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prototypes:
+    name: ${{ matrix.nom }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # l'échec d'un prototype ne cache pas le résultat des autres
+      matrix:
+        include:
+          - nom: GPT5.6 — HoloCode v0.1
+            dossier: proposals/GPT5.6/holocode-v0.1
+            commande: python -m unittest discover -s tests -v
+          - nom: Claude — HoloCode v0.1
+            dossier: proposals/Claude/holocode-v0.1
+            commande: python -m unittest discover -s tests -v
+          - nom: Gemini — HoloFractal v0.1
+            dossier: proposals/Gemini
+            commande: python -m unittest test_fractal.py -v
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Lancer les tests
+        run: |
+          if [ ! -d "${{ matrix.dossier }}" ]; then
+            echo "Le dossier ${{ matrix.dossier }} n'existe pas sur cette branche : rien à tester."
+            exit 0
+          fi
+          cd "${{ matrix.dossier }}"
+          ${{ matrix.commande }}
