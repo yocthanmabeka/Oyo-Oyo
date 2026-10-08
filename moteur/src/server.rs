@@ -1419,27 +1419,7 @@ mod tests {
     }
 
 
-    const MEMBER_CONCERT: &str = r#"Page(
-      title: "Concert des membres", access: members,
-      state: State(booked: 0, cart: 0, note: "", price: 12.50, agreed: 0, level: 0, size: "S"),
-      shared: Shared(seats: 3, likes: 0, last: ""),
-      children: [
-        H1("Concert"), P("{seats} places"), P("{cart} articles"),
-        Input(value: note, label: "Nom", max: 5),
-        Input(value: price, label: "Montant", max: 20),
-        Checkbox(value: agreed, label: "Accord"),
-        Slider(value: level, label: "Niveau", min: 0, max: 10),
-        Choice(value: size, label: "Taille", options: ["S", "L"]),
-        If(seats, over: 0, children: [
-          If(booked, is: 0, children: [Button(name: Book, text: "Réserver")])
-        ]),
-        Button(name: Like, text: "J'aime"),
-      ],
-      rules: [
-        On(Book.tap, effect: [seats.sub(1), booked.set(1), last.set(note)]),
-        On(Like.tap, effect: likes.add(1)),
-      ],
-    )"#;
+    const MEMBER_CONCERT: &str = include_str!("../../proposals/GPT5.6/reprise-pc-comptes-partage-2026-10-08/concert.holo");
 
     fn concert_member(site: &Site, name: &str) -> String {
         let body = format!("name={name}&password=une+phrase+assez+longue&again=une+phrase+assez+longue");
@@ -1549,7 +1529,7 @@ mod tests {
             }
         });
         let base = site.base.lock().unwrap();
-        assert_eq!(shared_in(&base, "/member-concert.holo"), ("seats=2;last='".into(), 1));
+        assert_eq!(shared_in(&base, "/member-concert.holo"), ("seats=2;likes=0;last='".into(), 1));
         drop(base);
         assert!(member_state(&site, &ada).contains("booked=1;cart=0"));
         drop(site);
