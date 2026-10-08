@@ -1,0 +1,21 @@
+// Leçon 102 — Une liste partagée : les ajouts sont arbitrés par le serveur.
+// Cinquante textes au plus ; 16 Kio codés pour toutes les valeurs partagées.
+// Ouvre deux pages avec holo serve ; chaque ajout arrive dans l'autre.
+// Retirer une ligne attend des identifiants stables dans les requêtes.
+Page(
+ title: "Leçon 102 : une liste partagée",
+ state: State(note: "", sent: 0),
+ shared: Shared(names: []),
+ children: [
+  H1("Notre livre public"),
+  Input(value: note, label: "Un nom ou un message", max: 200),
+  Button(name: Add, text: "Ajouter le message"),
+  Button(name: Clear, text: "Effacer la liste publique"),
+  P("Mes envois : {sent}"),
+  Repeat(over: names, empty: "Aucun message", children: [P("{item}")]),
+  P("60 touchers par visiteur et minute ; 180 par IP. Le serveur compte, pas la page."),
+ ],
+ rules: [On(Add.tap, effect: [names.push(note), note.set(""), sent.add(1)]), On(Clear.tap, effect: names.clear)],
+)
+Page { background: #101020; color: white; padding: 24px 16px; max-width: 720px; }
+Button { background: #E9B44C; color: #101020; padding: 12px; }

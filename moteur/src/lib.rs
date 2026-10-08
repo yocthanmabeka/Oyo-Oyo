@@ -307,7 +307,7 @@ pub fn shared_names(source: &str) -> String {
 /// Les valeurs partagées d'un état, écrites comme l'état : `seats=19;likes=3;last='Ada` (ADR-079).
 pub fn shared_of(source: &str, state: &str) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
-    shared::written(&program, &state::reread(&program, state), &state::reread_texts(&program, state))
+    shared::written(&program, &state::reread(&program, state), &state::reread_texts(&program, state), &lists::reread(&program,state))
 }
 
 /// L'état d'un visiteur avec les valeurs partagées que le serveur garde (ADR-079) : celles de
@@ -317,7 +317,8 @@ pub fn with_shared(source: &str, state: &str, shared: &str) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
     state::requested_capabilities();
     let (numbers, texts, lists) = (state::reread(&program, state), state::reread_texts(&program, state), lists::reread(&program, state));
-    let (merged_numbers, merged_texts) = shared::merged(&program, &numbers, &texts, shared);
+    let (merged_numbers, merged_texts, lists) = shared::merged(&program, &numbers, &texts, &lists, shared);
+    lists::set_running(lists.clone());
     let after = state::after_change(&program, numbers, &texts, merged_numbers, &merged_texts);
     write_all(&program, &after, &merged_texts, &lists)
 }
@@ -340,8 +341,9 @@ pub fn share(source: &str, state: &str, shared: &str, signal: &str) -> (String, 
     if !gestures::is_tap(signal) || !shared::shown(&program, &merged, signal) {
         return (merged, false);
     }
-    match arbitrate(source, &merged, signal) {
-        after if after.is_empty() => (merged, false),
+    let prepared=shared::with_drafts(&program,state,signal);
+    match arbitrate_program(&prepared, &merged, signal) {
+        after if after.is_empty() || !shared::within_budget(&program,&after) => (merged, false),
         after => (cut_shared(&program, &after), true),
     }
 }
@@ -470,6 +472,9 @@ pub fn initial_state(source: &str) -> String {
 /// reçu est relu avec méfiance : rien n'y passe que la page ne déclare.
 pub fn arbitrate(source: &str, state: &str, signal: &str) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
+    arbitrate_program(&program,state,signal)
+}
+fn arbitrate_program(program:&Program,state:&str,signal:&str)->String{
     state::requested_capabilities();
     // Un geste d'une ligne (`Done.tap@2`) : les nombres changent comme pour `Done.tap` ; les
     // listes et les textes savent de quelle ligne il vient (ADR-044).
