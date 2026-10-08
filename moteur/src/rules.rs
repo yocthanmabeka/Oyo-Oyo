@@ -24,7 +24,7 @@ fn signals(block: &str) -> &'static [&'static str] {
 }
 
 /// Les blocs qui ne se voient pas, ou qui ne sont pas une boîte à l'écran : on ne les survole pas.
-const INVISIBLE: &[&str] = &["Page", "World", "Main", "On", "Every", "When", "After", "State", "Prices", "Data", "Zoom", "Points", "Relief", "Portals", "Component", "Use", "Sound", "Scene", "Enter", "Loop", "If", "Repeat", "Item", "Font", "Module"];
+const INVISIBLE: &[&str] = &["Page", "World", "Main", "On", "Every", "When", "After", "State", "Shared", "Prices", "Data", "Zoom", "Points", "Relief", "Portals", "Component", "Use", "Sound", "Scene", "Enter", "Loop", "If", "Repeat", "Item", "Font", "Module"];
 
 /// Le survol : la souris arrive sur le bloc (`hover`), puis le quitte (`hoverEnd`).
 pub const HOVER: &[&str] = &["hover", "hoverEnd"];

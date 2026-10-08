@@ -265,12 +265,17 @@ pub fn take_components(page: &mut Block) -> Result<Vec<Component>, Error> {
     Ok(components)
 }
 
-/// Les noms des valeurs de la page (`State(cart: 0)`) : un paramètre ne peut pas en porter un.
+/// Les noms des valeurs de la page (`State(cart: 0)`), et de celles qu'elle partage
+/// (`Shared(seats: 20)`, ADR-079) : un paramètre ne peut pas en porter un.
 fn page_values(page: &Block) -> Vec<String> {
-    match page.argument("state").map(|a| &a.value) {
-        Some(Value::Block(state)) => state.arguments.iter().filter_map(|a| a.name.clone()).collect(),
-        _ => Vec::new(),
-    }
+    ["state", "shared"]
+        .into_iter()
+        .filter_map(|param| match page.argument(param).map(|a| &a.value) {
+            Some(Value::Block(values)) => Some(values.arguments.iter().filter_map(|a| a.name.clone()).collect::<Vec<_>>()),
+            _ => None,
+        })
+        .flatten()
+        .collect()
 }
 
 /// Pose les composants d'un site (une page, ou un monde) et de tout ce qu'il contient.

@@ -481,7 +481,7 @@ function inCode(t, pos, before) {
   const { block, list } = whereAreWe(t, pos);
   // Dans une liste : les blocs qu'on y range (keep: [ … ] prend des valeurs).
   if (list !== null && list !== "keep") {
-    const blocks = LISTS_CONTENT[list] ?? vocab.blocks.filter((b) => !["Page", "State", "Prices", "Data", "Zoom", "Points", "Relief", "Portals", "Item", "Font", "Module", "On", "Every", "When", "After", "Scene"].includes(b));
+    const blocks = LISTS_CONTENT[list] ?? vocab.blocks.filter((b) => !["Page", "State", "Shared", "Prices", "Data", "Zoom", "Points", "Relief", "Portals", "Item", "Font", "Module", "On", "Every", "When", "After", "Scene"].includes(b));
     return sort(chunk, blocks).map((word) => ({ word, suite: "(" }));
   }
   if (list === "keep") return sort(chunk, declaredValues(t)).map((word) => ({ word }));
