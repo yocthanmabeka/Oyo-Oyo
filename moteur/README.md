@@ -137,6 +137,8 @@ Pour mesurer le mode de secours (WebGL 2) sur un appareil qui a WebGPU, ajouter 
 
 Pour refaire les mesures : `adb reverse tcp:8080 tcp:8080`, `adb forward tcp:9222 localabstract:chrome_devtools_remote`, ouvrir la page dans Chrome sur le téléphone (écran allumé et déverrouillé), puis `node outils/measure-phone.mjs big-bang.holo @outils/mesures/big-bang.js` ou `node outils/measure-phone.mjs boutique.holo @outils/mesures/vue-points.js`.
 
+Pour la batterie et la chaleur dans la durée : sur le Big Bang, `node outils/measure-phone.mjs big-bang.holo @outils/mesures/duree.js`, puis débrancher le câble pendant 15 minutes. L'écran reste allumé, et la page zoome et dézoome toute seule. En rebranchant, on lit les chiffres minute par minute avec `node outils/measure-phone.mjs big-bang.holo "JSON.stringify(window.__duree, null, 1)"`. Tant que le câble est branché, le téléphone se recharge : la batterie ne se mesure que débranché.
+
 ## Captures (Chrome sans fenêtre, rendu WebGL 2 logiciel)
 
 | Zoom 0 | Zoom 0,8 | Zoom 3,4 | Zoom 4,6 |

@@ -62,7 +62,21 @@ Posée par Yocthan ce soir-là : « si la fonction existe sur téléphone, elle 
 
 ## Ce qui a été mesuré par le câble
 
-**Rien encore.** La suite automatique (`node outils/browser-tests.mjs --telephone`, dans la même pull request que ce compte rendu) a été arrêtée pendant que Yocthan essayait, pour ne pas changer les pages sous ses doigts. Elle sera relancée après.
+**Rien encore.** La suite automatique (`node outils/browser-tests.mjs --telephone`, dans la même pull request que ce compte rendu) a été arrêtée pendant que Yocthan essayait, pour ne pas changer les pages sous ses doigts. Le 2026-10-08, les mesures ont été remises : le câble avait pris un peu d'humidité, et le téléphone n'apparaissait plus au PC.
+
+**Prêt pour la prochaine fois** (dans `moteur/`, téléphone branché ; on ne le déverrouille jamais à la place de Yocthan) :
+
+1. `adb reverse tcp:8080 tcp:8080`, `adb forward tcp:9222 localabstract:chrome_devtools_remote`, puis `adb shell svc power stayon usb`, en notant la valeur d'avant (`adb shell settings get global stay_on_while_plugged_in`). **Le 2026-10-07, elle valait 0 et n'a pas pu être remise** : le téléphone est parti avant la fin.
+2. Les mesures courtes : `node outils/measure-phone.mjs boutique.holo @outils/mesures/vue-points.js`, puis `node outils/measure-phone.mjs big-bang.holo @outils/mesures/big-bang.js` ; la mémoire de l'onglet (`adb shell dumpsys meminfo | grep -i chrome`) ; la batterie et la chaleur (`adb shell dumpsys battery`, `adb shell dumpsys thermalservice`).
+3. **La batterie, vraiment** : câble branché, le téléphone se recharge, donc elle ne se mesure que débranché.
+   - Ouvrir le Big Bang et lancer `node outils/measure-phone.mjs big-bang.holo @outils/mesures/duree.js`.
+   - Relever `dumpsys battery`, puis **débrancher le câble 15 minutes**, sans toucher au téléphone : l'écran reste allumé, et le Big Bang zoome et dézoome tout seul.
+   - Rebrancher, relever `dumpsys battery` et `dumpsys thermalservice`.
+   - Lire les chiffres minute par minute (images par seconde, image la plus lente, tas JavaScript, batterie) : `node outils/measure-phone.mjs big-bang.holo "JSON.stringify(window.__duree, null, 1)"`.
+
+   Le script a tourné une minute sur le PC, dans Chrome sans fenêtre, le 2026-10-08 : il compte, garde l'écran allumé et rend ses chiffres.
+4. La suite entière : `node outils/browser-tests.mjs --telephone`.
+5. À la fin : « rester allumé » remis à 0, puis `adb reverse --remove-all` et `adb forward --remove-all`.
 
 À mesurer :
 
