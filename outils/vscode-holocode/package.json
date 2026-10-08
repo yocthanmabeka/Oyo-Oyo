@@ -22,18 +22,18 @@
       { "language": "holo", "scopeName": "source.holo", "path": "./syntaxes/holo.tmLanguage.json" }
     ],
     "commands": [
-      { "command": "holocode.ouvrir", "title": "HoloCode : ouvrir dans le navigateur", "icon": "$(play)" }
+      { "command": "holocode.open", "title": "HoloCode : ouvrir dans le navigateur", "icon": "$(play)" }
     ],
     "menus": {
       "editor/title": [
-        { "command": "holocode.ouvrir", "when": "resourceLangId == holo", "group": "navigation" }
+        { "command": "holocode.open", "when": "resourceLangId == holo", "group": "navigation" }
       ],
       "explorer/context": [
-        { "command": "holocode.ouvrir", "when": "resourceExtname == .holo", "group": "navigation" }
+        { "command": "holocode.open", "when": "resourceExtname == .holo", "group": "navigation" }
       ]
     },
     "keybindings": [
-      { "command": "holocode.ouvrir", "key": "ctrl+alt+h", "when": "editorLangId == holo" }
+      { "command": "holocode.open", "key": "ctrl+alt+h", "when": "editorLangId == holo" }
     ],
     "configuration": {
       "title": "HoloCode",

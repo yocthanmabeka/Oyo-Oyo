@@ -1,0 +1,61 @@
+// Leçon 101 — Une valeur partagée
+//
+// Ce qu'on apprend :
+//   « shared: Shared(seats: 20, likes: 0) », à côté de « state: State(…) », déclare des valeurs
+//   que le serveur garde pour tout le monde : les places restantes, un compteur de « J'aime ».
+//   Elles se lisent et se changent comme les autres :
+//     P("Places restantes : {seats}")                    dans un texte
+//     If(seats, over: 0, children: [ … ])                 dans une condition
+//     On(Book.tap, effect: [seats.sub(1), booked.set(1)])  par un toucher
+//   « booked » est dans State : elle n'est qu'à toi. « seats » est dans Shared : tout le monde
+//   voit la même. Quand tu touches « Réserver », la page ne décide rien : elle demande au
+//   serveur, qui arbitre avec le même moteur, chacun son tour, puis envoie la nouvelle valeur à
+//   toutes les pages ouvertes, en direct. Un bouton caché ne se touche pas : quand il n'y a plus
+//   de place, même une demande forgée est refusée par le serveur.
+//   Seul un toucher change une valeur partagée : ni une horloge, ni un champ, ni une règle qui
+//   guette (le moteur les refuse, avec la raison).
+//
+// À essayer :
+//   Ouvre cette page sur ton téléphone et sur ton ordinateur (le même Wi-Fi). Réserve sur l'un :
+//   l'autre voit la place partir tout de suite, sans recharger.
+//   Touche « J'aime » plusieurs fois, sur les deux à la fois : aucun n'est perdu.
+//   Recharge la page : les places restent comptées. Le serveur d'essai les oublie quand il
+//   s'arrête ; holo serve les garde dans sa base.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 101 : une valeur partagée",
+  state: State(booked: 0),
+  shared: Shared(seats: 20, likes: 0),
+  children: [
+    H1("Une valeur partagée"),
+    P("Le serveur garde ces nombres pour tout le monde. Ouvre cette page sur ton téléphone et sur ton ordinateur : quand l'un réserve, l'autre le voit tout de suite."),
+    H2("Le concert de ce soir"),
+    P.places("Places restantes : {seats}"),
+    If(seats, over: 0,
+      children: [ If(booked, is: 0, children: [ Button(name: Book, text: "Réserver une place") ]) ],
+      else: [ P("Complet : il n'y a plus de place.") ]),
+    If(booked, is: 1, children: [
+      P("Ta place est gardée. Les autres pages voient une place de moins."),
+      Button(name: Cancel, text: "Rendre ma place"),
+    ]),
+    Button(name: Like, text: "J'aime ({likes})"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 100 : une adresse qui porte une valeur", to: "100-une-adresse-qui-porte-une-valeur.holo"),
+      A("Leçon 110 : un module qui dessine →", to: "110-un-module-qui-dessine.holo"),
+    ]),
+  ],
+  rules: [
+    On(Book.tap, effect: [seats.sub(1), booked.set(1)]),
+    On(Cancel.tap, effect: [seats.add(1), booked.set(0)]),
+    On(Like.tap, effect: likes.add(1)),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.places { font-size: 22px; }

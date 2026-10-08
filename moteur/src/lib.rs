@@ -13,6 +13,7 @@
 //! La partie qui parle au navigateur et à la carte graphique (`web`, `rendu`) n'est
 //! compilée que pour WebAssembly.
 
+pub mod address;
 pub mod blocks;
 pub mod chart;
 pub mod components;
@@ -34,6 +35,7 @@ pub mod tools;
 pub mod flat;
 pub mod rules;
 pub mod repeat;
+pub mod shared;
 pub mod styles;
 pub mod universe;
 pub mod view;
@@ -65,6 +67,8 @@ pub fn check_page(source: &str) -> Result<Program, Error> {
     let program = holo::read(source)?;
     blocks::check_blocks(&program)?;
     styles::check_styles(&program)?;
+    // Les valeurs partagées (ADR-079) : rien ne les change sans passer par le serveur.
+    shared::check(&program)?;
     // Les listes calculées (lot 2 du web) : d'abord, car les lignes et les règles les nomment.
     computed::check(&program)?;
     state::check_state(&program)?;
@@ -238,12 +242,20 @@ pub fn flat_view_with_data(source: &str, base: &str, json: &str) -> Result<Strin
 /// La page d'un visiteur que `holo serve` connaît (ADR-074) : fabriquée avec ses valeurs, et
 /// prête à renvoyer ses gestes au serveur si le navigateur ne lance pas le moteur. La page garde
 /// cet état dans `data-visit` : avec JavaScript, le moteur repart de là.
-pub fn visitor_page(source: &str, base: &str, state: &str) -> Result<String, Error> {
+///
+/// `tried` : les formulaires qu'il a essayé d'envoyer sans y arriver ; leurs messages d'erreur
+/// sont écrits sous les champs, d'après ses valeurs d'aujourd'hui (ADR-075).
+pub fn visitor_page(source: &str, base: &str, state: &str, tried: &[String]) -> Result<String, Error> {
     let program = check_page(source)?;
     let start = (state::reread(&program, state), state::reread_texts(&program, state), lists::reread(&program, state));
-    let html = flat::site_html_from(&program, &program.root, base, "", Some(&start))?;
+    let html = with_shared_mark(&program, flat::site_html_from(&program, &program.root, base, "", Some(&start))?, state);
     let written = state.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
-    Ok(gestures::without_script(&html.replacen(" data-title=\"", &format!(" data-visit=\"{written}\" data-title=\""), 1)))
+    let mut page = gestures::without_script(&html.replacen(" data-title=\"", &format!(" data-visit=\"{written}\" data-title=\""), 1));
+    for form in tried {
+        let errors: Vec<(String, String)> = form_errors(source, state, form).lines().filter_map(|line| line.split_once('|')).map(|(bind, message)| (bind.to_string(), message.to_string())).collect();
+        page = gestures::with_errors(&page, form, &errors);
+    }
+    Ok(page)
 }
 
 /// Ce que devient l'état d'un visiteur quand il envoie un formulaire des gestes, sans
@@ -272,6 +284,146 @@ pub fn visitor_gesture(source: &str, state: &str, fields: &[(String, String)]) -
 /// Les effets que les règles du fichier demandent pour un signal, comme `Open.tap`.
 pub fn effects(source: &str, signal: &str) -> Vec<String> {
     check_page(source).map(|program| rules::effects(&program, signal)).unwrap_or_default()
+}
+
+/// Les valeurs que la page partage (ADR-079), `seats;likes` ; vide si elle n'en partage pas.
+pub fn shared_names(source: &str) -> String {
+    check_page(source).map(|program| program.shared.join(";")).unwrap_or_default()
+}
+
+/// Les valeurs partagées d'un état, écrites comme l'état : `seats=19;likes=3;last='Ada` (ADR-079).
+pub fn shared_of(source: &str, state: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    shared::written(&program, &state::reread(&program, state), &state::reread_texts(&program, state))
+}
+
+/// L'état d'un visiteur avec les valeurs partagées que le serveur garde (ADR-079) : celles de
+/// `shared` remplacent les siennes, et une valeur absente vaut son départ. Puis les règles qui
+/// guettent ont leur mot à dire, comme après des données reçues : `When(seats, is: 0, …)`.
+pub fn with_shared(source: &str, state: &str, shared: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    state::requested_capabilities();
+    let (numbers, texts, lists) = (state::reread(&program, state), state::reread_texts(&program, state), lists::reread(&program, state));
+    let (merged_numbers, merged_texts) = shared::merged(&program, &numbers, &texts, shared);
+    let after = state::after_change(&program, numbers, &texts, merged_numbers, &merged_texts);
+    write_all(&program, &after, &merged_texts, &lists)
+}
+
+/// Ce geste change-t-il une valeur partagée ? Un toucher dont une règle demande de la changer
+/// (ADR-079) : la page l'envoie alors au serveur, qui l'arbitre, au lieu de l'arbitrer seule.
+pub fn touches_shared(source: &str, signal: &str) -> bool {
+    let Ok(program) = check_page(source) else { return false };
+    gestures::is_tap(signal) && state::touched_ones(&program, lists::signal_and_line(signal).0).iter().any(|value| program.shared.contains(value))
+}
+
+/// Le serveur arbitre un geste sur une page qui partage des valeurs (ADR-079). `state` est l'état
+/// du visiteur : il a pu le forger, il est donc relu avec méfiance, et ses valeurs partagées sont
+/// remplacées par `shared`, celles que le serveur garde. Seul le toucher d'un bouton que la page
+/// montre, pour ces valeurs, est arbitré ; sinon rien ne change. Rend l'état d'après, et si le
+/// geste a été accepté. Les sons demandés (« ! ») restent dans l'état : la page du visiteur les joue.
+pub fn share(source: &str, state: &str, shared: &str, signal: &str) -> (String, bool) {
+    let merged = with_shared(source, state, shared);
+    let Ok(program) = check_page(source) else { return (merged, false) };
+    if !gestures::is_tap(signal) || !shared::shown(&program, &merged, signal) {
+        return (merged, false);
+    }
+    match arbitrate(source, &merged, signal) {
+        after if after.is_empty() => (merged, false),
+        after => (cut_shared(&program, &after), true),
+    }
+}
+
+/// Un texte partagé ne dépasse pas sa longueur permise, même dans l'état du visiteur qui vient
+/// de l'écrire (`last.set(name)`) : il voit ce que les autres pages reçoivent.
+fn cut_shared(program: &Program, written: &str) -> String {
+    written
+        .split(';')
+        .map(|chunk| match chunk.split_once("='") {
+            Some((name, code)) if program.shared.iter().any(|known| known == name) => {
+                let text = state::decode(code).unwrap_or_default();
+                format!("{name}='{}", state::encode(&text.chars().take(shared::SHARED_TEXT_MAX).collect::<String>()))
+            }
+            _ => chunk.to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join(";")
+}
+
+/// Un geste partagé envoyé par le moteur de la page, en JSON (ADR-079) :
+/// `{"signal": "Book.tap", "state": "…"}`. Rend le signal et l'état, ou rien s'il est mal formé.
+pub fn read_gesture(json: &str) -> Option<(String, String)> {
+    let lists::Json::Object(top) = lists::Json::read(json)? else { return None };
+    let text = |key: &str| match top.iter().find(|(known, _)| known == key).map(|(_, value)| value) {
+        Some(lists::Json::Text(text)) => Some(text.clone()),
+        None => Some(String::new()),
+        Some(_) => None,
+    };
+    let signal = text("signal").filter(|signal| !signal.is_empty())?;
+    Some((signal, text("state")?))
+}
+
+/// `holo share` (ADR-079), pour un serveur qui ne parle au moteur que par la ligne de commande
+/// (le serveur d'essai) : reçoit `{"shared": "seats=20", "state": "…", "signal": "Book.tap"}`,
+/// rend `{"accepted": true, "changed": true, "state": "…", "shared": "…"}`. Sans signal, l'état est seulement
+/// complété des valeurs partagées. Sans `shared`, elles valent leur départ.
+pub fn share_command(source: &str, json: &str) -> Result<String, String> {
+    let program = check_page(source).map_err(|e| e.to_string())?;
+    if program.shared.is_empty() {
+        return Err("cette page ne partage aucune valeur : shared: Shared(seats: 20)".into());
+    }
+    let Some(lists::Json::Object(top)) = lists::Json::read(json) else { return Err("demande illisible : un objet JSON, {\"shared\": …, \"state\": …, \"signal\": …}".into()) };
+    let text = |key: &str| match top.iter().find(|(known, _)| known == key).map(|(_, value)| value) {
+        Some(lists::Json::Text(text)) => Ok(text.clone()),
+        None => Ok(String::new()),
+        Some(_) => Err(format!("« {key} » attend un texte")),
+    };
+    let (shared, visitor, signal) = (text("shared")?, text("state")?, text("signal")?);
+    if !signal.is_empty() && !touches_shared(source, &signal) {
+        return Err(format!("« {signal} » ne change aucune valeur partagée : la page le fait seule"));
+    }
+    let visitor = if visitor.is_empty() { initial_state(source) } else { visitor };
+    let (after, accepted) = if signal.is_empty() { (with_shared(source, &visitor, &shared), false) } else { share(source, &visitor, &shared, &signal) };
+    // Les valeurs partagées ont-elles changé ? Le serveur les range et les envoie alors en direct.
+    let now_shared = shared_of(source, &after);
+    let changed = accepted && now_shared != shared_of(source, &with_shared(source, "", &shared));
+    Ok(format!("{{\"accepted\":{accepted},\"changed\":{changed},\"state\":{},\"shared\":{}}}", json_text(&after), json_text(&now_shared)))
+}
+
+/// Un texte écrit en JSON, entre guillemets.
+pub fn json_text(text: &str) -> String {
+    let mut written = String::with_capacity(text.len() + 2);
+    written.push('"');
+    for c in text.chars() {
+        match c {
+            '"' => written.push_str("\\\""),
+            '\\' => written.push_str("\\\\"),
+            c if (c as u32) < 0x20 => written.push_str(&format!("\\u{:04x}", c as u32)),
+            c => written.push(c),
+        }
+    }
+    written.push('"');
+    written
+}
+
+/// La page fabriquée avec les valeurs partagées du moment (ADR-079), pour un serveur qui ne
+/// connaît pas le visiteur (le serveur d'essai) : l'état de départ, avec ces valeurs.
+pub fn shared_page(source: &str, base: &str, shared: &str) -> Result<String, Error> {
+    let program = check_page(source)?;
+    let written = with_shared(source, &initial_state(source), shared);
+    let start = (state::reread(&program, &written), state::reread_texts(&program, &written), lists::reread(&program, &written));
+    let html = flat::site_html_from(&program, &program.root, base, "", Some(&start))?;
+    Ok(with_shared_mark(&program, html, &written))
+}
+
+/// Une page qui partage des valeurs garde celles du moment dans `data-shared` : le moteur du
+/// navigateur part d'elles, puis les reçoit en direct (ADR-079).
+fn with_shared_mark(program: &Program, html: String, written: &str) -> String {
+    if program.shared.is_empty() {
+        return html;
+    }
+    let values = shared::written(program, &state::reread(program, written), &state::reread_texts(program, written));
+    let values = values.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
+    html.replacen(" data-title=\"", &format!(" data-shared=\"{values}\" data-title=\""), 1)
 }
 
 /// L'état entier, tel qu'il voyage entre le moteur et la page : les nombres, ce que le moteur
@@ -492,7 +644,10 @@ pub fn data(source: &str) -> String {
 pub fn receive(source: &str, state: &str, json: &str) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
     state::requested_capabilities();
-    let (numbers, texts) = state::receive(&program, &state::reread(&program, state), &state::reread_texts(&program, state), json);
+    let (before_numbers, before_texts) = (state::reread(&program, state), state::reread_texts(&program, state));
+    let (numbers, texts) = state::receive(&program, &before_numbers, &before_texts, json);
+    // Des données reçues ne changent pas une valeur partagée : seul le serveur la change (ADR-079).
+    let (numbers, texts) = if program.shared.is_empty() { (numbers, texts) } else { shared::merged(&program, &numbers, &texts, &shared::written(&program, &before_numbers, &before_texts)) };
     // Les listes aussi : un tableau de textes, ou d'objets (ADR-051).
     let lists = lists::receive(&program, &lists::reread(&program, state), json);
     write_all(&program, &numbers, &texts, &lists)
@@ -688,6 +843,11 @@ mod tests {
 ").skip(1).map(|suite| suite.split("```").next().unwrap()).collect();
         assert!(examples.len() >= 11, "le guide a perdu ses exemples : {}", examples.len());
         for example in examples {
+            // Un modèle d'adresse se nomme sur sa première ligne, `// profil/{id}.holo` (ADR-078) :
+            // il se vérifie comme `holo check`, chaque nom valant un texte vide.
+            let file = example.trim_start().strip_prefix("// ").and_then(|l| l.lines().next()).unwrap_or("");
+            let joined = if file.ends_with(".holo") && !address::names(file).is_empty() { address::joined(example, &address::empty_values(file)) } else { example.to_string() };
+            let example = joined.as_str();
             // Une page passe toutes les vérifications et se fabrique ; un point seul s'ouvre en
             // profondeur ; un morceau (un fichier fait pour être importé) est vérifié sans être affiché.
             let start = example.trim_start();

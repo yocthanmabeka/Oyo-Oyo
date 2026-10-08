@@ -27,6 +27,7 @@ let vocab = { blocks: [], params: {}, settings: [], states: [], requests: [], si
 
 const NEXT_FILE = "\u001e";
 const NAME_SEPARATOR = "\u001f";
+const ADDRESS_FILE = "@adresse"; // les valeurs d'une adresse, pour le moteur (ADR-078)
 const MODEL = 'Page(\n  title: "Ma page",\n  children: [\n    H1("Ma page"),\n    "Écris ici.",\n  ],\n)\n';
 const folderOf = (c) => c.slice(0, c.lastIndexOf("/") + 1);
 const escape = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -108,6 +109,10 @@ async function withImports(text) {
     const content = await importedOnes.get(address);
     if (content !== null) complete += NEXT_FILE + name + NAME_SEPARATOR + content;
   }
+  // Un modèle d'adresse (profil/{id}.holo, ADR-078) n'a pas d'adresse ici : chaque nom vaut un
+  // texte vide, comme pour holo check. Joint après la page et ses imports, comme le fait la page.
+  const addressNames = path.replace(/%7B/gi, "{").replace(/%7D/gi, "}").replace(/\.holo$/, "").split("/").map((piece) => /^\{(.*)\}$/.exec(piece)?.[1]).filter((name) => name !== undefined);
+  if (addressNames.length) complete += NEXT_FILE + ADDRESS_FILE + NAME_SEPARATOR + addressNames.map((name) => `${name}=`).join("&");
   return complete;
 }
 
@@ -476,7 +481,7 @@ function inCode(t, pos, before) {
   const { block, list } = whereAreWe(t, pos);
   // Dans une liste : les blocs qu'on y range (keep: [ … ] prend des valeurs).
   if (list !== null && list !== "keep") {
-    const blocks = LISTS_CONTENT[list] ?? vocab.blocks.filter((b) => !["Page", "State", "Prices", "Data", "Zoom", "Points", "Relief", "Portals", "Item", "Font", "Module", "On", "Every", "When", "After", "Scene"].includes(b));
+    const blocks = LISTS_CONTENT[list] ?? vocab.blocks.filter((b) => !["Page", "State", "Shared", "Prices", "Data", "Zoom", "Points", "Relief", "Portals", "Item", "Font", "Module", "On", "Every", "When", "After", "Scene"].includes(b));
     return sort(chunk, blocks).map((word) => ({ word, suite: "(" }));
   }
   if (list === "keep") return sort(chunk, declaredValues(t)).map((word) => ({ word }));

@@ -6,6 +6,7 @@
   // la page s'en sert : une page qui ne fait que bouger ne le télécharge jamais.
   import init, {
     flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, chart_html, shapes_html, module_info, module_finished, module_input, module_received, delays, reads_time, set_now, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
+    shared_names, with_shared, touches_shared,
   } from "/pkg-light/holo_engine.js";
   let drawing = null;
   let drawingLoading = null;
@@ -28,12 +29,57 @@
   window.__holoImages = frames_drawn; // combien d'images le moteur a dessinées : pour vérifier la sobriété
   const params = new URLSearchParams(location.search);
   window.__holoWithoutWebGPU = params.has("webgl"); // ?webgl : mesurer le mode de secours, WebGL 2
-  // L'adresse est celle du fichier .holo lui-même ; sinon ?world=… ou la boutique d'exemple.
+  // Le fichier de la page : celui que le serveur nomme dans l'en-tête (<meta name="holo-file">),
+  // quand l'adresse n'est pas celle du fichier (/contact → /contact.holo ; /profil/ada → son
+  // modèle /profil/{id}.holo, ADR-078). Sinon l'adresse est celle du fichier .holo lui-même ;
+  // sinon ?world=… ou la boutique d'exemple.
   // Ce fichier peut changer en cours de route : on passe d'un fichier à l'autre par un point,
   // sans recharger la page.
-  let path = location.pathname.endsWith(".holo") ? location.pathname : params.get("world") ?? "/exemples/boutique-comparee/boutique.holo";
+  const named = document.querySelector('meta[name="holo-file"]')?.getAttribute("content") || "";
+  let path = named || (location.pathname.endsWith(".holo") ? location.pathname : params.get("world") ?? "/exemples/boutique-comparee/boutique.holo");
   let base = path.slice(0, path.lastIndexOf("/") + 1);
   const folderOf = (file) => file.slice(0, file.lastIndexOf("/") + 1);
+  // Le fichier de la page et l'adresse où l'on est arrivé. Quand le serveur les distingue, un
+  // formulaire est envoyé à l'adresse (le serveur y retrouve les valeurs d'un modèle), et
+  // revenir à cette adresse, c'est revenir à ce fichier.
+  const pageFile = path;
+  const arrival = location.pathname;
+  const fileAt = (address) => (named && address === arrival ? pageFile : address);
+  const addressOf = (file) => (named && file === pageFile ? arrival : file);
+
+  // Les valeurs de l'adresse (ADR-078) : le modèle /profil/{id}.holo, à l'adresse /profil/ada,
+  // reçoit « id=ada », chaque valeur telle qu'elle est dans l'URL (le moteur la décode). La même
+  // règle que values() dans src/address.rs : autant de morceaux ; un morceau {nom} prend le sien,
+  // pas vide, 200 caractères au plus une fois décodé, sans caractère de contrôle ; les autres
+  // sont les mêmes. Le modèle ouvert lui-même (…/{id}.holo), ou une adresse qui ne lui correspond
+  // pas, reçoit un texte vide par nom, comme pour holo check. null : un fichier sans accolades.
+  function addressValues(file, here) {
+    const braces = (text) => text.replace(/%7B/gi, "{").replace(/%7D/gi, "}");
+    const decoded = (text) => { try { return decodeURIComponent(text); } catch { return null; } };
+    const wanted = braces(file).replace(/\.holo$/, "").replace(/^\/+/, "").split("/");
+    const nameOf = (piece) => /^\{(.*)\}$/.exec(piece)?.[1];
+    const names = wanted.map(nameOf).filter((name) => name !== undefined);
+    if (!names.length) return null;
+    const empty = names.map((name) => `${name}=`).join("&");
+    const got = here.replace(/^\/+/, "").replace(/\/+$/, "").split("/");
+    if (braces(file) === braces(here) || got.length !== wanted.length) return empty;
+    const values = [];
+    for (const [rank, piece] of wanted.entries()) {
+      const name = nameOf(piece);
+      const value = decoded(got[rank]);
+      if (name === undefined) {
+        if (value === null || value !== decoded(piece)) return empty;
+      } else if (!/^[a-z][A-Za-z0-9]{0,39}$/.test(name) || !value || [...value].length > 200 || /\p{Cc}/u.test(value)) {
+        return empty;
+      } else {
+        // « & » et « = » séparent les valeurs et leurs noms pour le moteur : dans une valeur,
+        // ils s'écrivent %26 et %3D (le même texte, une fois décodé).
+        values.push(`${name}=${got[rank].replaceAll("&", "%26").replaceAll("=", "%3D")}`);
+      }
+    }
+    return values.join("&");
+  }
+  const pageAddress = addressValues(pageFile, arrival);
   // Les fichiers déjà lus, par adresse : leur texte, ou null s'ils sont introuvables ou refusés.
   const readFiles = new Map();
   // Garde-fou : on ne garde en mémoire que les derniers fichiers lus. On peut passer d'un
@@ -61,6 +107,18 @@
   // Les valeurs de chaque fichier ouvert (State) : « cart=2 ». Elles suivent le visiteur tant
   // qu'il ne recharge pas la page : il peut entrer dans un monde, passer ailleurs, revenir.
   const states = new Map();
+  // Les valeurs partagées (ADR-079) : le serveur les garde pour tout le monde. Un toucher qui en
+  // change une part au serveur, qui l'arbitre ; les changements des autres visiteurs arrivent en
+  // direct, par un flux du serveur (EventSource), tant que la page est ouverte.
+  let sharedNames = [];
+  let live = null;            // l'écoute en direct de l'adresse affichée
+  let liveFor = "";
+  let sharedVersion = -1;     // le numéro du dernier changement reçu, et ses valeurs
+  let sharedLatest = "";
+  let sharedQueue = Promise.resolve();
+  let sharedWaiting = 0;
+  const SHARED_WAITING_MAX = 20; // des touchers en attente du serveur, au plus
+  window.__holoLive = () => live?.readyState === 1; // la page écoute-t-elle ? (pour les essais)
   const atHome = (host) => host === "localhost" || host === "127.0.0.1";
   // En http, on ne va que vers sa propre machine, et seulement si l'on y est déjà : une page
   // publique ne fait pas partir de requêtes vers le réseau privé du visiteur.
@@ -130,6 +188,9 @@
         if (response.ok) all += `\u001e${name}\u001f${(await response.text()).slice(0, BYTES_MAX)}`;
       } catch { /* introuvable : le moteur le dira, avec la ligne de l'import */ }
     }
+    // Les valeurs de l'adresse (ADR-078), jointes après la page et ses imports comme un fichier
+    // nommé « @adresse » : seulement pour le fichier de la page, pas pour un autre lu en route.
+    if (file === pageFile && pageAddress !== null) all += `\u001e@adresse\u001f${pageAddress}`;
     return all;
   }
 
@@ -197,6 +258,8 @@
       states.set(path, resume(source, kept));
     }
     setClocks();
+    sharedNames = shared_names(source).split(";").filter(Boolean);
+    listenShared();
     document.documentElement.style.setProperty("--duration", `${portalDuration}ms`);
     density = requestedDensity;
     reduce = reduce === 1;
@@ -230,7 +293,7 @@
     // y était. Pour un fichier d'ailleurs, l'adresse garde donc le fichier de départ, suivi de
     // #@ et de l'adresse où l'on est vraiment.
     if (inHistory) {
-      history.pushState({ since }, "", fromElsewhere(file) ? `#@${fullAddress(file)}` : file + (sitePath ? `#${sitePath}` : ""));
+      history.pushState({ since }, "", fromElsewhere(file) ? `#@${fullAddress(file)}` : addressOf(file) + (sitePath ? `#${sitePath}` : ""));
     }
     displaySite(sitePath, { inHistory: false });
     return true;
@@ -716,6 +779,8 @@
   // Un signal est émis (Add.tap) : l'arbitre du moteur dit ce que deviennent les valeurs, puis
   // les autres effets demandés par les règles sont appliqués.
   function emit(signal) {
+    // Un toucher qui change une valeur partagée : c'est le serveur qui arbitre (ADR-079).
+    if (sharedNames.length && touches_shared(source, signal)) return shareGesture(signal);
     const before = states.get(path) ?? "";
     const after = store(arbitrate(source, before, signal));
     if (valuesPanel) lastGesture = { signal, before, after };
@@ -725,6 +790,109 @@
     for (const effect of effects(source, signal).split(",").filter(Boolean)) {
       apply(effect, signal);
     }
+  }
+
+  // Écoute en direct l'adresse de la page affichée, si elle partage des valeurs (ADR-079). Le
+  // premier message porte les valeurs du moment, puis chaque changement suit, numéroté : un
+  // message plus ancien que ce qu'on a déjà ne passe pas. Seulement chez soi : on n'ouvre pas de
+  // connexion durable vers le serveur de quelqu'un d'autre.
+  function listenShared() {
+    const address = addressOf(path);
+    if (live && liveFor === address && sharedNames.length) return;
+    live?.close();
+    [live, liveFor, sharedVersion, sharedLatest] = [null, "", -1, ""];
+    if (!sharedNames.length || fromElsewhere(path) || typeof EventSource !== "function") return;
+    const for_ = path;
+    live = new EventSource(address);
+    liveFor = address;
+    // Une connexion faite, ou refaite : son premier message vaut, quel que soit son numéro.
+    live.addEventListener("open", () => { sharedVersion = -1; });
+    live.addEventListener("shared", (event) => {
+      if (for_ !== path) return;
+      const version = Number(event.lastEventId);
+      if (version < sharedVersion) return;
+      [sharedVersion, sharedLatest] = [version, event.data];
+      const before = states.get(path) ?? "";
+      const after = store(with_shared(source, before, event.data));
+      if (after && after !== before) changeState(after);
+    });
+  }
+  // Une page qu'on quitte cesse d'écouter ; revenue par le bouton « retour », elle reprend.
+  addEventListener("pagehide", () => {
+    live?.close();
+    [live, liveFor] = [null, ""];
+  });
+  addEventListener("pageshow", (event) => { if (event.persisted) listenShared(); });
+
+  // Un toucher qui change une valeur partagée (ADR-079) : la page ne décide rien. Elle envoie le
+  // signal et son état au serveur, à l'adresse de la page, et attend sa réponse, en montrant
+  // qu'elle attend ; puis elle prend l'état qu'il rend, et fait les autres effets du toucher. Les
+  // touchers partent dans l'ordre, un à la fois : aucun n'est perdu. Sans réponse, rien ne
+  // change, et la page le dit.
+  function shareGesture(signal) {
+    if (sharedWaiting >= SHARED_WAITING_MAX) return;
+    sharedWaiting += 1;
+    const for_ = path;
+    const name = signal.split(".")[0];
+    for (const block of root.querySelectorAll(`[data-name="${CSS.escape(name)}"]`)) block.classList.add("holo-waiting");
+    root.setAttribute("aria-busy", "true");
+    sharedQueue = sharedQueue.then(async () => {
+      let reply = null;
+      let status = 0;
+      const sent = states.get(for_) ?? "";
+      const stop = new AbortController();
+      const late = setTimeout(() => stop.abort(), 10000);
+      try {
+        const response = await fetch(addressOf(for_), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ signal, state: sent }), signal: stop.signal });
+        status = response.status;
+        if (response.ok || status === 409) reply = await response.json();
+      } catch { /* pas de serveur, ou trop lent : rien ne change */ }
+      clearTimeout(late);
+      sharedWaiting -= 1;
+      if (!sharedWaiting) {
+        for (const block of root.querySelectorAll(".holo-waiting")) block.classList.remove("holo-waiting");
+        root.removeAttribute("aria-busy");
+      }
+      if (for_ !== path) return;
+      if (typeof reply?.state !== "string") return note(status ? "Le serveur a refusé ce geste : rien n'a changé." : "Le serveur n'a pas répondu : rien n'a changé. Réessaie dans un instant.");
+      // Ce que le geste a changé chez le visiteur (la réponse, comparée à l'état envoyé) se pose sur
+      // l'état d'aujourd'hui : ce qu'il a écrit pendant l'attente reste. Les valeurs partagées sont
+      // celles du serveur, sauf si un changement plus récent est déjà arrivé en direct.
+      const version = Number(reply.version ?? -1);
+      if (sharedVersion <= version) [sharedVersion, sharedLatest] = [version, String(reply.shared ?? "")];
+      const before = states.get(path) ?? "";
+      const after = store(with_shared(source, gestureOn(before, sent, store(reply.state)), sharedLatest));
+      if (valuesPanel) lastGesture = { signal, before, after };
+      if (after && after !== before) changeState(after);
+      if (!reply.accepted) return note("Ce bouton n'était plus là pour le serveur : rien n'a changé.");
+      restartClocks(signal);
+      for (const effect of effects(source, signal).split(",").filter(Boolean)) apply(effect, signal);
+    });
+  }
+
+  // Les changements d'un geste (de `sent` à `replied`) posés sur l'état `now` : une valeur que le
+  // geste a changée prend sa nouvelle valeur, les autres restent celles de `now`. Le moteur relit
+  // ensuite le tout avec méfiance (with_shared) et refait ce qu'il calcule.
+  function gestureOn(now, sent, replied) {
+    const read = (written) => new Map(written.split(";").filter(Boolean).map((chunk) => [chunk.slice(0, chunk.indexOf("=")), chunk.slice(chunk.indexOf("=") + 1)]));
+    const [before, after, current] = [read(sent), read(replied), read(now)];
+    for (const [name, value] of after) if (before.get(name) !== value) current.set(name, value);
+    return [...current].map(([name, value]) => `${name}=${value}`).join(";");
+  }
+
+  // Un message court, à l'écran et pour un lecteur d'écran (role="status"), qui s'efface seul.
+  let noteTimer = 0;
+  function note(text) {
+    let box = document.getElementById("holo-note");
+    if (!box) {
+      box = document.body.appendChild(Object.assign(document.createElement("div"), { id: "holo-note" }));
+      box.setAttribute("role", "status");
+      Object.assign(box.style, { position: "fixed", left: "12px", right: "76px", bottom: "12px", zIndex: 10, padding: "10px 14px", borderRadius: "10px", background: "#1d1d2b", color: "#fff", border: "1px solid #E9B44C", font: "14px system-ui, sans-serif" });
+    }
+    box.textContent = text;
+    box.hidden = false;
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(() => { box.hidden = true; }, 6000);
   }
 
   // `reprendre` : la page est déjà là, fabriquée par le serveur (ADR-033). Le moteur la prend
@@ -1385,7 +1553,8 @@
     const stop = new AbortController();
     const late = setTimeout(() => stop.abort(), 15000);
     try {
-      const response = await fetch(path, { ...request, signal: stop.signal });
+      // À l'adresse de la page : pour un modèle (ADR-078), le serveur y retrouve les valeurs.
+      const response = await fetch(addressOf(path), { ...request, signal: stop.signal });
       arrived = response.ok;
     } catch { /* pas de réseau, pas de serveur pour recevoir, ou trop lent */ }
     clearTimeout(late);
@@ -1560,6 +1729,10 @@
       if (replayed && dataName) replayed = arbitrate(source, replayed, `${dataName}.done`);
       if (replayed) states.set(path, replayed.split(";").filter((chunk) => !chunk.startsWith("!=")).join(";"));
     }
+    // Les valeurs partagées du moment, que le serveur a mises dans la page (ADR-079) : le moteur
+    // part d'elles, puis les reçoit en direct.
+    const sharedNow = !location.hash.slice(1) && root.querySelector(".holo-Page")?.dataset.shared;
+    if (sharedNow && sharedNames.length) states.set(path, with_shared(source, states.get(path) ?? "", sharedNow).split(";").filter((chunk) => !chunk.startsWith("!=")).join(";"));
     // Une page qui montrera des points ou des mondes fait venir le dessin tout de suite, sans
     // l'attendre : il sera prêt quand le visiteur zoomera.
     if (needs_drawing(source)) loadDrawing().catch(() => {});
@@ -1574,15 +1747,16 @@
     // Une adresse en #@… désigne le fichier d'un autre serveur : on propose le passage.
     if (siteStart.startsWith("@")) proposePassage(siteStart.slice(1));
     // « Revenir » : par où l'on est venu, ou, si l'on est arrivé directement, au fichier de départ.
-    document.querySelector("#origin button").addEventListener("click", () => (history.state?.since ? history.back() : openFile(location.pathname)));
+    document.querySelector("#origin button").addEventListener("click", () => (history.state?.since ? history.back() : openFile(fileAt(location.pathname))));
     // Le bouton « retour » du navigateur, ou une adresse changée à la main.
     addEventListener("popstate", () => {
       const sitePath = decodeURIComponent(location.hash.slice(1));
+      const here = fileAt(location.pathname);
       // L'adresse désigne un autre fichier : on y passe, toujours sans recharger.
       // Un fichier d'ailleurs déjà lu pendant cette visite : le visiteur l'avait choisi. Sinon, on propose.
       if (sitePath.startsWith("@") && readFiles.has(sitePath.slice(1))) openFile(sitePath.slice(1), "", { inHistory: false });
       else if (sitePath.startsWith("@")) proposePassage(sitePath.slice(1));
-      else if (location.pathname !== path && location.pathname.endsWith(".holo")) openFile(location.pathname, sitePath, { inHistory: false });
+      else if (here !== path && here.endsWith(".holo")) openFile(here, sitePath, { inHistory: false });
       // Un lien vers un endroit de la page (ADR-042) : le navigateur y descend, rien d'autre.
       else if (pageSpot(sitePath)) return;
       else displaySite(sitePath, { inHistory: false });

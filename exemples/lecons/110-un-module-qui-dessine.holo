@@ -35,7 +35,7 @@ Page(
 
     Hr(),
     Row(gap: 16px, align: between, children: [
-      A("← Leçon 99 : un tableau de bord", to: "99-un-tableau-de-bord.holo"),
+      A("← Leçon 101 : une valeur partagée", to: "101-une-valeur-partagee.holo"),
       A("Leçon 1 : une page →", to: "01-page.holo"),
     ]),
   ],

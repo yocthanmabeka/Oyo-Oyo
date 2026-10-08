@@ -2,7 +2,7 @@
 
 ## Principe
 
-GitHub est la source visible et versionnée du projet Metaverse. Une modification n'est considérée comme livrée que lorsqu'elle existe sur le dépôt `yocthanmabeka/Metaverse`.
+GitHub est la source visible et versionnée du projet Metaverse. Une modification n'est considérée comme livrée que lorsqu'elle existe sur le dépôt `yocthanmabeka/Oyo-Oyo` (nommé `Metaverse` jusqu'au 2026-10-08 ; GitHub redirige l'ancienne adresse).
 
 ## Workflow obligatoire
 

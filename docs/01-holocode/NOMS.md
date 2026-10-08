@@ -2,7 +2,7 @@
 
 Deux listes. La première part de HoloCode : pour chaque mot, celui du web qui lui correspond, et ce qu'on en a fait. La seconde part du web : les mots qu'on n'a pas pris.
 
-Mis à jour le 2026-10-07.
+Mis à jour le 2026-10-08.
 
 **L'écriture des noms** (`ADR-037`, décidé par Yocthan le 2026-10-06) : celle de Flutter. La casse compte ; une seule écriture par mot ; deux mots se joignent par une majuscule (`appleX`, `topRight`, `BlueDoor`), jamais par `_` ; les styles gardent l'écriture du CSS (`font-size`).
 
@@ -126,6 +126,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Quote` | `blockquote`, `q`, `cite` | changé : un mot au lieu de trois |
 | `Code` | `pre`, `code` | repris |
 | `State` | `let`, `useState`, les signaux | changé : une déclaration, pas une variable libre |
+| `Shared`, `shared:` | une base et une API côté serveur, puis `fetch`, un `WebSocket` ou un `EventSource` côté page (Firebase, Meteor, Phoenix LiveView) | nouveau : une déclaration ; le serveur de l'auteur garde la valeur pour tous, l'arbitre avec le même moteur que la page, et l'envoie en direct (`ADR-079`, à valider) |
 | `Data` | `fetch`, puis `JSON.parse`, puis la mise à jour de la page | changé : une déclaration ; l'arbitre range ce qui arrive |
 | `Prices` | un objet JavaScript `{ sunrise: 120 }` | changé : une table déclarée |
 | `Zoom` | `meta viewport`, la propriété `zoom` | changé |
@@ -227,6 +228,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `//` | `//` en JavaScript | repris |
 | `**gras**`, `*italique*` | `strong`, `em` | changés : l'écriture de Markdown |
 | `import`, `module`, `bridge js`, `bridge css` | `import`, `link`, `script` | repris ou changés ; lus, pas encore appliqués |
+| `{id}` dans le nom d'un fichier, `profil/{id}.holo` | `[id]` (Next.js, SvelteKit), `:id` (Express) | changé : les accolades de HoloCode, les mêmes que dans un texte ; la page lit `{id}`, sans pouvoir le changer (`ADR-078`, à valider) |
 
 ## 2. Les mots du web qu'on n'a pas pris
 
