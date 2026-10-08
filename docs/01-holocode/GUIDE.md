@@ -1443,6 +1443,41 @@ Page(
 
 Cette écriture est proposée (`ADR-078`) ; la forme, l'adresse dite par le nom du fichier, est celle choisie par Yocthan. La leçon est `100-une-adresse-qui-porte-une-valeur.holo`.
 
+## 6 tricies. Des valeurs partagées, en direct : `Shared`
+
+Une valeur que le serveur garde pour tout le monde : les places restantes, un compteur de « J'aime ». Chaque visiteur la voit changer en direct, sans recharger la page.
+
+```holo
+Page(
+  title: "Concert",
+  state: State(booked: 0),
+  shared: Shared(seats: 20, likes: 0),
+  children: [
+    H1("Tonight's concert"),
+    P("Seats left: {seats}"),
+    If(seats, over: 0,
+      children: [ If(booked, is: 0, children: [ Button(name: Book, text: "Book a seat") ]) ],
+      else: [ P("Sold out.") ]),
+    If(booked, is: 1, children: [ P("Your seat is kept.") ]),
+    Button(name: Like, text: "Like ({likes})"),
+  ],
+  rules: [
+    On(Book.tap, effect: [seats.sub(1), booked.set(1)]),
+    On(Like.tap, effect: likes.add(1)),
+  ],
+)
+```
+
+- **`shared: Shared(seats: 20, likes: 0)`**, à côté de `state:` : des nombres entiers, des nombres à virgule, des textes (200 caractères au plus) ; seize au plus. La valeur de départ est celle du fichier. `booked`, dans `State`, n'est qu'à un visiteur ; `seats`, dans `Shared`, est la même pour tous.
+- Elles se lisent comme les autres valeurs (`{seats}`, `If(seats, over: 0, …)`) et se changent **par un toucher** : `On(Book.tap, effect: seats.sub(1))`.
+- **C'est le serveur qui arbitre**, avec le même moteur : la page lui envoie le geste et attend sa réponse ; il range la nouvelle valeur, puis l'envoie à toutes les pages ouvertes à cette adresse. Deux visiteurs en même temps : chacun son tour, rien n'est perdu. **Un bouton caché ne se touche pas** : quand `If(seats, over: 0, …)` cache « Book a seat », le serveur refuse ce toucher, même forgé ; c'est ainsi qu'une condition garde la dernière place.
+- Une valeur partagée vaut **pour une adresse** : avec `concert/{id}.holo` (§ 6 undetricies), `/concert/12` et `/concert/13` ont chacune leurs places.
+- **Sans JavaScript**, la page reste juste : le toucher part au serveur (`holo serve`), et la page revient à jour.
+- Refusé, avec la raison : le même nom dans `State` ou dans l'adresse ; une horloge (`Every`, `After`), une règle qui guette (`When`), une touche, un survol, des données, un module ou un glissement qui la changerait ; `keep` ; un champ lié à elle et une liste partagée (pas encore).
+- `holo serve` les garde dans sa base (`holo-data/site.sqlite`, table `shared`) ; le serveur d'essai, en mémoire, jusqu'à son arrêt.
+
+Cette écriture est proposée (`ADR-079`). La leçon est `101-une-valeur-partagee.holo` : ouvre-la sur ton téléphone et sur ton ordinateur.
+
 ## 6 untricies. Des comptes : se connecter, une page réservée, le panier qui suit le compte
 
 Avec `holo serve`, un site a des comptes, gardés par le serveur de l'auteur, dans la base du site : ni Google, ni Apple, ni adresse e-mail. Une page sait si le visiteur est connecté, et sous quel nom :
@@ -2049,7 +2084,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 
 | Bloc | Réglages | Où |
 |---|---|---|
-| `Page` | `name`, `title`, `lang`, `description`, `image`, `icon`, `fonts`, `children`, `pixels`, `rules`, `state`, `prices`, `keep`, `data`, `zoom`, `points`, `relief`, `portals` | À la racine |
+| `Page` | `name`, `title`, `lang`, `description`, `image`, `icon`, `fonts`, `children`, `pixels`, `rules`, `state`, `shared`, `prices`, `keep`, `data`, `zoom`, `points`, `relief`, `portals` | À la racine |
 | `H1` à `H6`, `P`, `Text` | le texte entre guillemets ; `name` | Dans `children` |
 | `Header`, `Nav`, `Footer` | `children`, `name` | Dans `children` ; `Header` et `Footer` posés directement dans la page en sont l'en-tête et le pied |
 | `Main` | `children`, `name` | Directement dans la page |
@@ -2095,6 +2130,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Repeat(over:)` | `over` (une liste de la page), `children`, `rules` | Dans `children` |
 | `When` | le nom d'une valeur, puis `is`, `not`, `over`, `under` ; ou le nom d'un bloc, puis `meets` et `within` ; et `effect:` | Dans `rules` |
 | `State` | les valeurs et leur départ : `cart: 0` | Dans `state:` d'une `Page` |
+| `Shared` | les valeurs que le serveur garde pour tous, et leur départ : `seats: 20` | Dans `shared:` d'une `Page` |
 | `Data` | `name`, `from`, `every` | Dans `data:` d'une `Page` |
 | `Prices` | le prix de chaque article : `sunrise: 120` | Dans `prices:` d'une `Page` |
 | `Zoom`, `Points`, `Relief`, `Portals` | voir la partie 7 | Dans `zoom:`, `points:`, `relief:`, `portals:` d'une `Page` |
@@ -2175,6 +2211,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait |
 | Une liste qui change pendant la visite | `State(tasks: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` | fait |
 | Une liste d'articles à champs, aussi reçue du serveur | `State(articles: [ Item(…) ])`, `{item.title}`, `push(Item(…))`, `Data` | fait |
+| Une valeur partagée par tous les visiteurs, vue en direct | `shared: Shared(seats: 20)`, `seats.sub(1)` par un toucher | fait |
 | Du code enfermé (un module WebAssembly) | `module "…"`, `Module(…)`, `run`, `done`, `failed` | fait |
 | Une fenêtre, un pli, une glissière, une barre | `Dialog`, `Details`, `Slider`, `Progress` | fait |
 | Réagir au zoom par une règle (« quand on zoome, alors… ») | aucun | à faire |
@@ -2191,6 +2228,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 
 - Un module n'échange encore qu'un nombre contre un nombre.
 - Les données venues d'un autre serveur.
+- Pour les valeurs partagées : un champ qui en change une, une liste partagée, une limite au nombre de touchers d'un visiteur.
 - Pour les comptes (`ADR-081`) : pas encore de clés d'accès (passkeys), de QR code pour activer le code, de codes de secours, ni de mot de passe changé ou de compte effacé par son membre.
 - Pour les valeurs : pas de nombre négatif ; une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).

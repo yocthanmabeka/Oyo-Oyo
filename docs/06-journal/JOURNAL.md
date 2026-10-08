@@ -6,6 +6,55 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-08 — Le lot 7 rejoint le lot 6 : la fusion de `main` dans `langage/lot7-comptes`
+
+- Yocthan : « fais la fusion de tout ce qui est bien ». Le lot 6 est sur `main` (PR 179) ; `main` est fusionnée dans la branche du lot 7 (PR 177), qui sera fusionnée par la session principale.
+- Onze fichiers en conflit, tous résolus en gardant les deux lots : `server.rs`, `page-engine.js`, `browser-tests.mjs`, `server.mjs`, `blocks.rs`, `holo.rs` ; le guide, les décisions, l'index des leçons, `AGENTS.md`, ce journal.
+- Les deux chemins de la page vers le serveur restent deux : le geste partagé (lot 6 : la page attend, le serveur arbitre les valeurs partagées) et le toucher renvoyé d'un membre (`?mirror`, lot 7 : après coup, pour son état). Ils ne font pas le même travail, et un toucher ne prend que l'un des deux : rien n'est joué deux fois. La dette (pour un membre, que le serveur prenne l'état de son compte plutôt que celui envoyé par la page) est écrite dans l'`ADR-081`.
+- Ajouté pendant la fusion : le geste partagé d'un membre est arbitré avec son nom (`signedIn`, `{account}`) et gardé sous son compte ; une page réservée ne reçoit ni geste partagé ni écoute en direct sans être membre, dans `holo serve` comme dans le serveur d'essai. Un nouveau test le garde : un bouton montré aux seuls membres (`If(signedIn, is: 1, …)`) ne se touche pas avec un état forgé `signedIn=1`. Les leçons s'enchaînent : 100, 101, 104, 105, 106.
+- Exécuté, après une reconstruction complète (`moteur/target` avait été effacé) : les deux WebAssembly et `holo` se construisent sans avertissement ; `cargo test --release` → 173 tests passent (166 du lot 7, 6 du lot 6, 1 nouveau) ; `cargo test` en mode debug → 173 ; la suite entière dans Chrome → 36 essais `OK`, aucun raté, 101 leçons ouvertes sans erreur (269 s).
+
+**Erreurs en route**
+
+- Le serveur du lot 6 construisait deux demandes (`Ask`) sans le champ `referer` du lot 7 : elles ne compilaient plus. Ajouté.
+- Sans y prendre garde, la fusion laissait la page réservée écoutable en direct, et ses valeurs partagées lisibles par tous : vu en relisant `live_page`, corrigé, essayé.
+
+---
+
+## 2026-10-08 — Lot 6 : des valeurs partagées, en direct
+
+- Fait (`ADR-079`, PROPOSITION ; le sens de « partager » est celui décidé par Yocthan le 2026-10-08) : `shared: Shared(seats: 20, likes: 0)` à côté de `state:`. Le serveur garde ces valeurs pour tout le monde, une fois par adresse (`/concert/12` et `/concert/13` ont chacune leurs places) ; seul un toucher les change, et c'est le serveur qui l'arbitre, avec le même moteur, chacun son tour ; les changements arrivent en direct dans toutes les pages ouvertes ; sans JavaScript, la page reste juste (le formulaire des gestes, `ADR-074`).
+- `holo serve` : une table `shared` dans sa base ; le geste partagé arrive en JSON (avec JavaScript) ou par le formulaire des gestes (sans) ; le direct passe par un flux du serveur, chaque page avec son fil, et les changements partent dans l'ordre, sous le verrou de la base. Le serveur d'essai fait pareil avec le même moteur, par une nouvelle commande, `holo share`. Leçon 101 : une réservation de places, et un « J'aime ».
+- Mes choix, à valider : **les Server-Sent Events plutôt qu'un WebSocket** (une seule direction suffit, du HTTP ordinaire, la reconnexion offerte par le navigateur, rien à ajouter au serveur ; un WebSocket demandait une poignée de main SHA-1 à écrire ou une bibliothèque) ; **`Request::into_writer`** de `tiny_http` plutôt que `Request::upgrade` (fait pour un WebSocket, il annonce `Connection: upgrade`) ; et une règle que la commande ne demandait pas : **un bouton caché ne se touche pas**. Sans elle, d'après les règles de la leçon, deux visiteurs qui touchent la dernière place en même temps la réserveraient tous les deux (le second garderait `booked=1` sans place). Avec elle, essayé : le second reçoit « refusé » et voit « Complet ».
+- Écrit honnêtement dans l'ADR : l'état personnel qu'envoie la page peut être forgé ; avant les comptes (lot 7), une condition sur une valeur personnelle qui garde une valeur partagée se contourne ; rien ne limite encore le nombre de touchers d'un visiteur.
+- Exécuté : `cargo test --release` → 162 tests passent (6 nouveaux : quatre pour le moteur, deux pour le serveur, dont huit gestes au même instant reçus dans l'ordre) ; `cargo test` (comme GitHub) → 162 ; `node outils/browser-tests.mjs partag` → 2 essais `OK` (deux onglets à la même adresse avec le serveur d'essai ; trois onglets avec `holo serve`, dont un sans JavaScript) ; la suite entière → 33 essais `OK`, aucun raté, 98 leçons ouvertes sans erreur (248 s), avant d'y fusionner `main` (qui n'avait changé que la documentation).
+- Vérifié que l'essai sait échouer : l'envoi en direct coupé dans le serveur d'essai, l'essai rate (« l'autre page : 20 (attendu 19) »).
+
+![La leçon 101, servie par le serveur d'essai](images/2026-10-08-lot6-lecon-101.png)
+
+**Erreurs en route**
+
+- Le premier essai des tests du moteur a raté : un test exige que chaque bloc du langage figure dans un exemple, et `Shared` n'y était pas avant que la leçon 101 rejoigne sa liste.
+- Ma première version de la page prenait la réponse du serveur telle quelle : ce que le visiteur écrivait pendant l'attente aurait été effacé. Vu en relisant ; la page pose maintenant les seuls changements du geste sur son état du moment. Aucun essai ne le garde : la course est difficile à provoquer à coup sûr.
+- Un texte partagé écrit d'après un texte trop long (un état forgé) était coupé pour les autres pages, pas dans la réponse à celui qui l'avait écrit. Corrigé et essayé.
+- Le serveur d'essai renvoyait l'erreur du moteur avec le chemin du fichier sur le PC. Retiré.
+- Dans un essai, j'avais écrit une attente qui n'attendait pas (`until("true")` rend la main tout de suite) ; elle attend maintenant la ligne du serveur qui compte les pages à l'écoute.
+- La commande proposait `Request::upgrade` : en le lisant dans `tiny_http`, il est fait pour un WebSocket ; `into_writer` rend le même flux, sans en-tête de trop.
+
+---
+
+## 2026-10-08 — Seule la session Claude du PC fusionne ; la passation pour les autres IA
+
+- Le quota de Claude est utilisé à 95 %. Yocthan veut que les autres IA puissent reprendre, par exemple Gemini par Antigravity, « sans pour autant commettre de fautes, ni pour autant qu'ils fassent des fusions. […] C'est toi qui seras le seul à faire de fusion », sans « déranger la version principale ».
+- Écrits :
+  - `proposals/Claude/passation-2026-10-08.md` : les dix règles, où en est le projet, ce qu'on peut faire sans risque ;
+  - `GEMINI.md` à la racine, lu par les outils de Gemini ;
+  - une section en haut d'`AGENTS.md`.
+- `main` est protégée sur GitHub : envoi direct refusé, envoi forcé et effacement refusés, et une pull request n'entre qu'avec ses trois tests verts (« Moteur Rust », « Suite de conformité », « Navigateur »). La règle « personne d'autre ne fusionne » ne peut pas être imposée par GitHub, car toutes les IA passent par le même compte : c'est une consigne écrite.
+- Les deux agents des lots 6 et 7 ont reçu l'ordre d'enregistrer et d'envoyer leur travail tel quel, sans rien fusionner, puis de s'arrêter. Lot 7 : PR 177. Lot 6 : branche `langage/lot6-partage`, PR en brouillon.
+
+---
+
 ## 2026-10-08 — Lot 7 : des comptes chez l'auteur, une page réservée, le panier qui suit le compte
 
 - Décidé par Yocthan le 2026-10-08 (« je suis d'accord avec tes recommandations ») : se connecter par **un mot de passe puis un code à 6 chiffres**, les clés d'accès ensuite ; **tout chez l'auteur**, comme Django, sans prestataire ; des pages qui marchent aussi sans JavaScript.
@@ -31,6 +80,15 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 - En relisant le diff : pour un membre connecté, toutes les réponses étaient marquées « jamais en cache », le moteur et son WebAssembly compris ; seules les pages et leurs textes le sont maintenant.
 - Sur les captures : la page « Se connecter » ne disait pas pourquoi on y arrivait depuis une page réservée ; et « Le compte n'est pas créé : Le mot de passe… » était mal ponctué. Corrigés.
 - Une de mes assertions attendait les attributs d'un champ dans le mauvais ordre.
+
+---
+
+## 2026-10-08 — Les mesures du téléphone remises, la mesure de la batterie prête
+
+- Yocthan voulait mesurer la vitesse, la mémoire et la batterie, « jamais faite jusqu'au bout ». Le téléphone n'est plus apparu au PC : le câble avait pris un peu d'humidité. Yocthan : « n'attends pas mon téléphone […] il n'y en a pas aujourd'hui ».
+- Prêt pour la prochaine fois : `moteur/outils/mesures/duree.js`. Il fait zoomer et dézoomer le Big Bang 15 minutes, 6 secondes dans chaque sens, et garde l'écran allumé (Wake Lock). Il relève, minute par minute, les images par seconde, l'image la plus lente, le tas JavaScript et la batterie. Lancé par le câble, il continue seul câble débranché, car branché le téléphone se recharge et la batterie ne se mesure pas. Essayé une minute sur le PC, dans Chrome sans fenêtre : il compte, garde l'écran et rend ses chiffres. La marche à suivre complète est dans `proposals/Claude/telephone-2026-10-07/README.md`.
+- Resté sur le téléphone depuis le 2026-10-07 : « rester allumé » (`stay_on_while_plugged_in`) vaut 2 au lieu de 0, car le téléphone est parti avant la fin. À remettre au prochain branchement, ou par Yocthan dans les options de développement.
+- Erreur commise et corrigée : un commit de cette étape portait l'adresse e-mail personnelle de Yocthan, alors que le dépôt est public. Il a été refait avec l'adresse `noreply` de GitHub avant tout envoi, et la consigne a été donnée aux deux agents des lots 6 et 7. Sur la recommandation de Claude, Yocthan a coché « Keep my email addresses private » dans GitHub : les fusions faites par GitHub portaient jusque-là l'adresse de son compte.
 
 ---
 

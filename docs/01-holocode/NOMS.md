@@ -123,6 +123,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Quote` | `blockquote`, `q`, `cite` | changé : un mot au lieu de trois |
 | `Code` | `pre`, `code` | repris |
 | `State` | `let`, `useState`, les signaux | changé : une déclaration, pas une variable libre |
+| `Shared`, `shared:` | une base et une API côté serveur, puis `fetch`, un `WebSocket` ou un `EventSource` côté page (Firebase, Meteor, Phoenix LiveView) | nouveau : une déclaration ; le serveur de l'auteur garde la valeur pour tous, l'arbitre avec le même moteur que la page, et l'envoie en direct (`ADR-079`, à valider) |
 | `Data` | `fetch`, puis `JSON.parse`, puis la mise à jour de la page | changé : une déclaration ; l'arbitre range ce qui arrive |
 | `Prices` | un objet JavaScript `{ sunrise: 120 }` | changé : une table déclarée |
 | `Zoom` | `meta viewport`, la propriété `zoom` | changé |

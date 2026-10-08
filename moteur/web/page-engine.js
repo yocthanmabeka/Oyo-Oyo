@@ -6,6 +6,7 @@
   // la page s'en sert : une page qui ne fait que bouger ne le télécharge jamais.
   import init, {
     flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, module_info, module_finished, delays, reads_time, set_now, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
+    shared_names, with_shared, touches_shared,
   } from "/pkg-light/holo_engine.js";
   let drawing = null;
   let drawingLoading = null;
@@ -111,6 +112,18 @@
   // Les valeurs de chaque fichier ouvert (State) : « cart=2 ». Elles suivent le visiteur tant
   // qu'il ne recharge pas la page : il peut entrer dans un monde, passer ailleurs, revenir.
   const states = new Map();
+  // Les valeurs partagées (ADR-079) : le serveur les garde pour tout le monde. Un toucher qui en
+  // change une part au serveur, qui l'arbitre ; les changements des autres visiteurs arrivent en
+  // direct, par un flux du serveur (EventSource), tant que la page est ouverte.
+  let sharedNames = [];
+  let live = null;            // l'écoute en direct de l'adresse affichée
+  let liveFor = "";
+  let sharedVersion = -1;     // le numéro du dernier changement reçu, et ses valeurs
+  let sharedLatest = "";
+  let sharedQueue = Promise.resolve();
+  let sharedWaiting = 0;
+  const SHARED_WAITING_MAX = 20; // des touchers en attente du serveur, au plus
+  window.__holoLive = () => live?.readyState === 1; // la page écoute-t-elle ? (pour les essais)
   const atHome = (host) => host === "localhost" || host === "127.0.0.1";
   // En http, on ne va que vers sa propre machine, et seulement si l'on y est déjà : une page
   // publique ne fait pas partir de requêtes vers le réseau privé du visiteur.
@@ -252,6 +265,8 @@
       states.set(path, resume(source, kept));
     }
     setClocks();
+    sharedNames = shared_names(source).split(";").filter(Boolean);
+    listenShared();
     document.documentElement.style.setProperty("--duration", `${portalDuration}ms`);
     density = requestedDensity;
     reduce = reduce === 1;
@@ -742,6 +757,8 @@
   // Un signal est émis (Add.tap) : l'arbitre du moteur dit ce que deviennent les valeurs, puis
   // les autres effets demandés par les règles sont appliqués.
   function emit(signal) {
+    // Un toucher qui change une valeur partagée : c'est le serveur qui arbitre (ADR-079).
+    if (sharedNames.length && touches_shared(source, signal)) return shareGesture(signal);
     const before = states.get(path) ?? "";
     const after = store(arbitrate(source, before, signal));
     if (valuesPanel) lastGesture = { signal, before, after };
@@ -758,7 +775,9 @@
   // avec les champs, comme le ferait la page sans JavaScript (ADR-074). Le serveur le rejoue avec le
   // même arbitre sur l'état gardé par le compte, sans rien envoyer d'autre (`?mirror`) : le panier
   // suit le membre sur ses autres appareils. Il ne reçoit que des gestes, jamais des valeurs. Un
-  // toucher après l'autre, dans l'ordre ; une panne du réseau ne change rien à la page.
+  // toucher après l'autre, dans l'ordre ; une panne du réseau ne change rien à la page. Un toucher
+  // qui change une valeur partagée ne passe pas par ici : il part au serveur, qui l'arbitre et garde
+  // aussi l'état du compte (shareGesture, ADR-079).
   let mirrored = Promise.resolve();
   function mirror(signal) {
     if (!member || path !== pageFile || !/^[A-Z][A-Za-z0-9]{0,63}\.tap(@\d{1,6})?$/.test(signal)) return;
@@ -774,6 +793,109 @@
     const body = fields.toString();
     mirrored = mirrored.then(() => fetch(`${addressOf(path)}?mirror`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body }).catch(() => {}));
     window.__holoMirrored = mirrored; // pour les essais : le dernier toucher renvoyé
+  }
+
+  // Écoute en direct l'adresse de la page affichée, si elle partage des valeurs (ADR-079). Le
+  // premier message porte les valeurs du moment, puis chaque changement suit, numéroté : un
+  // message plus ancien que ce qu'on a déjà ne passe pas. Seulement chez soi : on n'ouvre pas de
+  // connexion durable vers le serveur de quelqu'un d'autre.
+  function listenShared() {
+    const address = addressOf(path);
+    if (live && liveFor === address && sharedNames.length) return;
+    live?.close();
+    [live, liveFor, sharedVersion, sharedLatest] = [null, "", -1, ""];
+    if (!sharedNames.length || fromElsewhere(path) || typeof EventSource !== "function") return;
+    const for_ = path;
+    live = new EventSource(address);
+    liveFor = address;
+    // Une connexion faite, ou refaite : son premier message vaut, quel que soit son numéro.
+    live.addEventListener("open", () => { sharedVersion = -1; });
+    live.addEventListener("shared", (event) => {
+      if (for_ !== path) return;
+      const version = Number(event.lastEventId);
+      if (version < sharedVersion) return;
+      [sharedVersion, sharedLatest] = [version, event.data];
+      const before = states.get(path) ?? "";
+      const after = store(with_shared(source, before, event.data));
+      if (after && after !== before) changeState(after);
+    });
+  }
+  // Une page qu'on quitte cesse d'écouter ; revenue par le bouton « retour », elle reprend.
+  addEventListener("pagehide", () => {
+    live?.close();
+    [live, liveFor] = [null, ""];
+  });
+  addEventListener("pageshow", (event) => { if (event.persisted) listenShared(); });
+
+  // Un toucher qui change une valeur partagée (ADR-079) : la page ne décide rien. Elle envoie le
+  // signal et son état au serveur, à l'adresse de la page, et attend sa réponse, en montrant
+  // qu'elle attend ; puis elle prend l'état qu'il rend, et fait les autres effets du toucher. Les
+  // touchers partent dans l'ordre, un à la fois : aucun n'est perdu. Sans réponse, rien ne
+  // change, et la page le dit.
+  function shareGesture(signal) {
+    if (sharedWaiting >= SHARED_WAITING_MAX) return;
+    sharedWaiting += 1;
+    const for_ = path;
+    const name = signal.split(".")[0];
+    for (const block of root.querySelectorAll(`[data-name="${CSS.escape(name)}"]`)) block.classList.add("holo-waiting");
+    root.setAttribute("aria-busy", "true");
+    sharedQueue = sharedQueue.then(async () => {
+      let reply = null;
+      let status = 0;
+      const sent = states.get(for_) ?? "";
+      const stop = new AbortController();
+      const late = setTimeout(() => stop.abort(), 10000);
+      try {
+        const response = await fetch(addressOf(for_), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ signal, state: sent }), signal: stop.signal });
+        status = response.status;
+        if (response.ok || status === 409) reply = await response.json();
+      } catch { /* pas de serveur, ou trop lent : rien ne change */ }
+      clearTimeout(late);
+      sharedWaiting -= 1;
+      if (!sharedWaiting) {
+        for (const block of root.querySelectorAll(".holo-waiting")) block.classList.remove("holo-waiting");
+        root.removeAttribute("aria-busy");
+      }
+      if (for_ !== path) return;
+      if (typeof reply?.state !== "string") return note(status ? "Le serveur a refusé ce geste : rien n'a changé." : "Le serveur n'a pas répondu : rien n'a changé. Réessaie dans un instant.");
+      // Ce que le geste a changé chez le visiteur (la réponse, comparée à l'état envoyé) se pose sur
+      // l'état d'aujourd'hui : ce qu'il a écrit pendant l'attente reste. Les valeurs partagées sont
+      // celles du serveur, sauf si un changement plus récent est déjà arrivé en direct.
+      const version = Number(reply.version ?? -1);
+      if (sharedVersion <= version) [sharedVersion, sharedLatest] = [version, String(reply.shared ?? "")];
+      const before = states.get(path) ?? "";
+      const after = store(with_shared(source, gestureOn(before, sent, store(reply.state)), sharedLatest));
+      if (valuesPanel) lastGesture = { signal, before, after };
+      if (after && after !== before) changeState(after);
+      if (!reply.accepted) return note("Ce bouton n'était plus là pour le serveur : rien n'a changé.");
+      restartClocks(signal);
+      for (const effect of effects(source, signal).split(",").filter(Boolean)) apply(effect, signal);
+    });
+  }
+
+  // Les changements d'un geste (de `sent` à `replied`) posés sur l'état `now` : une valeur que le
+  // geste a changée prend sa nouvelle valeur, les autres restent celles de `now`. Le moteur relit
+  // ensuite le tout avec méfiance (with_shared) et refait ce qu'il calcule.
+  function gestureOn(now, sent, replied) {
+    const read = (written) => new Map(written.split(";").filter(Boolean).map((chunk) => [chunk.slice(0, chunk.indexOf("=")), chunk.slice(chunk.indexOf("=") + 1)]));
+    const [before, after, current] = [read(sent), read(replied), read(now)];
+    for (const [name, value] of after) if (before.get(name) !== value) current.set(name, value);
+    return [...current].map(([name, value]) => `${name}=${value}`).join(";");
+  }
+
+  // Un message court, à l'écran et pour un lecteur d'écran (role="status"), qui s'efface seul.
+  let noteTimer = 0;
+  function note(text) {
+    let box = document.getElementById("holo-note");
+    if (!box) {
+      box = document.body.appendChild(Object.assign(document.createElement("div"), { id: "holo-note" }));
+      box.setAttribute("role", "status");
+      Object.assign(box.style, { position: "fixed", left: "12px", right: "76px", bottom: "12px", zIndex: 10, padding: "10px 14px", borderRadius: "10px", background: "#1d1d2b", color: "#fff", border: "1px solid #E9B44C", font: "14px system-ui, sans-serif" });
+    }
+    box.textContent = text;
+    box.hidden = false;
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(() => { box.hidden = true; }, 6000);
   }
 
   // `reprendre` : la page est déjà là, fabriquée par le serveur (ADR-033). Le moteur la prend
@@ -1585,6 +1707,10 @@
       if (replayed && dataName) replayed = arbitrate(source, replayed, `${dataName}.done`);
       if (replayed) states.set(path, replayed.split(";").filter((chunk) => !chunk.startsWith("!=")).join(";"));
     }
+    // Les valeurs partagées du moment, que le serveur a mises dans la page (ADR-079) : le moteur
+    // part d'elles, puis les reçoit en direct.
+    const sharedNow = !location.hash.slice(1) && root.querySelector(".holo-Page")?.dataset.shared;
+    if (sharedNow && sharedNames.length) states.set(path, with_shared(source, states.get(path) ?? "", sharedNow).split(";").filter((chunk) => !chunk.startsWith("!=")).join(";"));
     // Une page qui montrera des points ou des mondes fait venir le dessin tout de suite, sans
     // l'attendre : il sera prêt quand le visiteur zoomera.
     if (needs_drawing(source)) loadDrawing().catch(() => {});

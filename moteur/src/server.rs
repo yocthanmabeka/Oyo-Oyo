@@ -10,11 +10,14 @@
 //! Il reçoit aussi les formulaires `Form` (ADR-075), envoyés par le moteur du navigateur ou sans
 //! JavaScript, et les range dans la même base ; `holo messages` les montre à l'auteur.
 //!
-//! Les valeurs de chaque visiteur sont à lui seul : rien n'est encore partagé entre visiteurs
-//! (ce sera le lot 6). Un visiteur qui a un compte (ADR-081, `accounts.rs`) et s'est connecté
-//! retrouve les siennes sur tous ses appareils : elles sont gardées sous son compte.
+//! Les valeurs de chaque visiteur sont à lui seul, sauf celles que la page partage
+//! (`Shared`, ADR-079) : le serveur les garde pour tout le monde, une fois par adresse, arbitre
+//! chaque geste qui les change, chacun son tour, et les envoie en direct à toutes les pages
+//! ouvertes à cette adresse (`text/event-stream`). Un visiteur qui a un compte (ADR-081,
+//! `accounts.rs`) et s'est connecté retrouve les siennes sur tous ses appareils : elles sont
+//! gardées sous son compte.
 
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -38,6 +41,15 @@ const WITH_FILES_MAX: u64 = 4 * 10_000_000 + 65_536;
 /// Ce qu'une page garde de messages, et de fichiers, au plus.
 const MESSAGES_PER_PAGE_MAX: i64 = 5_000_000;
 const FILES_PER_PAGE_MAX: u64 = 500_000_000;
+/// Les pages ouvertes en direct (ADR-079), au plus, pour tout le site : chacune tient une
+/// connexion et un fil du serveur.
+const LIVE_MAX: usize = 128;
+/// Un battement toutes les dix secondes vers chaque page en direct : une page fermée est oubliée
+/// au plus tard au second battement qui ne passe pas.
+const HEARTBEAT: u64 = 10;
+/// Les changements qu'une page en direct peut avoir en retard ; au-delà, elle est coupée (elle se
+/// reconnecte d'elle-même et reçoit les valeurs du moment).
+const LIVE_QUEUE: usize = 64;
 
 /// Ce que le serveur garde d'un visiteur sur une page : ses valeurs, et les formulaires qu'il a
 /// essayé d'envoyer sans y arriver (leurs messages d'erreur suivent ce qu'il corrige).
@@ -55,6 +67,23 @@ pub struct Site {
     web: PathBuf,
     /// La base : un seul fichier, `holo-data/site.sqlite`.
     pub(crate) base: Mutex<Connection>,
+    /// Les pages ouvertes en direct (ADR-079) : chacune reçoit les valeurs partagées de son
+    /// adresse quand elles changent. On prend toujours la base avant cette liste, jamais l'inverse.
+    lives: Arc<Mutex<Lives>>,
+}
+
+/// Les pages ouvertes en direct, et le numéro de la prochaine.
+#[derive(Default)]
+struct Lives {
+    pages: Vec<Live>,
+    next: u64,
+}
+
+/// Une page ouverte en direct : son adresse, et ce qui porte les changements jusqu'à son fil.
+struct Live {
+    id: u64,
+    key: String,
+    sender: std::sync::mpsc::SyncSender<String>,
 }
 
 /// Une demande, réduite à ce que le serveur lit.
@@ -108,6 +137,14 @@ impl Site {
                  form TEXT NOT NULL,
                  submission TEXT NOT NULL,
                  files TEXT NOT NULL DEFAULT '[]'
+             );
+             CREATE TABLE IF NOT EXISTS shared (
+                 page TEXT NOT NULL,
+                 name TEXT NOT NULL,
+                 value TEXT NOT NULL,
+                 version INTEGER NOT NULL,
+                 updated INTEGER NOT NULL,
+                 PRIMARY KEY (page, name)
              );",
         )
         .map_err(|e| e.to_string())?;
@@ -120,7 +157,7 @@ impl Site {
         base.execute("DELETE FROM visits WHERE updated < ?1 AND visitor NOT LIKE 'account:%'", params![now().saturating_sub(FORGET_AFTER) as i64]).map_err(|e| e.to_string())?;
         // Les comptes, les sessions, le frein contre les essais répétés (ADR-081).
         crate::accounts::prepare(&base, now())?;
-        Ok(Site { folder, web: web.to_path_buf(), base: Mutex::new(base) })
+        Ok(Site { folder, web: web.to_path_buf(), base: Mutex::new(base), lives: Arc::default() })
     }
 
     /// Répond à une demande. Tout passe par ici : c'est ce que les essais éprouvent.
@@ -197,6 +234,12 @@ impl Site {
         if member.is_none() && members_only(&file, &values) {
             return Reply::text(401, "page réservée aux membres : connecte-toi d'abord");
         }
+        // Un geste partagé envoyé par le moteur de la page, en JSON (ADR-079) : il porte un signal.
+        if ask.content_type.starts_with("application/json") && ask.body.len() as u64 <= BODY_MAX {
+            if let Some((signal, state)) = crate::read_gesture(&String::from_utf8_lossy(ask.body)) {
+                return self.shared_gesture(ask, path, &file, &holo, &values, &signal, &state, member.as_ref());
+            }
+        }
         // Un formulaire envoyé par le moteur, en JSON, avec ou sans fichiers (ADR-075).
         if ask.content_type.starts_with("application/json") || ask.content_type.starts_with("multipart/form-data") {
             return self.message(ask, path, &holo, &file, &values, member.as_ref());
@@ -220,10 +263,28 @@ impl Site {
         let mirror = ask.url.split_once('?').is_some_and(|(_, query)| query.split('&').any(|part| part == "mirror"));
         let mut visit = self.stored(&visitor, path).unwrap_or_else(|| Visit { state: starting_state(&source, &file), tried: Vec::new() });
         let fields = crate::gestures::read_form(&String::from_utf8_lossy(ask.body));
-        visit.state = crate::visitor_gesture(&source, &visit.state, &fields);
+        let tap = fields.iter().find(|(name, signal)| name == crate::gestures::SIGNAL && crate::gestures::is_tap(signal)).map(|(_, signal)| signal.as_str()).unwrap_or("");
+        // Une page qui partage des valeurs (ADR-079) : les champs, puis le toucher, arbitré avec les
+        // valeurs que le serveur garde, chacun son tour ; un bouton caché ne se touche pas.
+        let signal = if crate::shared_names(&source).is_empty() {
+            visit.state = crate::visitor_gesture(&source, &visit.state, &fields);
+            tap
+        } else {
+            let inputs: Vec<(String, String)> = fields.iter().filter(|(name, _)| name != crate::gestures::SIGNAL).cloned().collect();
+            let Ok(base) = self.base.lock() else { return Reply::text(500, "base indisponible") };
+            let key = shared_key(&holo, &values);
+            let (current, version) = shared_in(&base, &key);
+            visit.state = crate::visitor_gesture(&source, &crate::with_shared(&source, &visit.state, &current), &inputs);
+            let (after, accepted) = if tap.is_empty() { (visit.state.clone(), false) } else { crate::share(&source, &visit.state, &current, tap) };
+            if accepted {
+                visit.state = without_sounds(&after);
+                self.changed(&base, &key, &source, &current, &visit.state, version);
+            }
+            if accepted { tap } else { "" }
+        };
         // Un toucher qui envoie un formulaire (`On(Send.tap, effect: Contact.send)`) : le serveur
         // vérifie, range le message, puis `Contact.sent` ; ou garde les messages d'erreur.
-        let signal = fields.iter().find(|(name, signal)| name == crate::gestures::SIGNAL && crate::gestures::is_tap(signal)).map(|(_, signal)| signal.as_str()).unwrap_or("");
+        // Un toucher renvoyé par le moteur (`?mirror`, ADR-081) : le moteur a déjà fait l'envoi.
         for form in crate::effects(&source, signal).iter().filter(|_| !mirror).filter_map(|effect| effect.strip_suffix(".send")) {
             visit.tried.retain(|tried| tried != form);
             if !crate::form_errors(&source, &visit.state, form).is_empty() {
@@ -313,30 +374,177 @@ impl Site {
         // au serveur, qui les garde sous son compte.
         let signed = member.map(|member| format!("<meta name=\"holo-account\" content=\"{}\">", crate::flat::escape(&member.name))).unwrap_or_default();
         let template = template.replacen("<title>HoloCode</title>", &format!("<title>HoloCode</title><meta name=\"holo-file\" content=\"{}\">{signed}", crate::flat::escape(holo)), 1);
+        // Les valeurs partagées du moment, gardées pour cette adresse (ADR-079).
+        let mut visit = visit;
+        if !crate::shared_names(&source).is_empty() {
+            let (current, _) = self.base.lock().map(|base| shared_in(&base, &shared_key(holo, values))).unwrap_or_default();
+            visit.state = crate::with_shared(&source, &visit.state, &current);
+        }
         // Un fichier refusé : la page d'entrée seule, qui affichera l'erreur du moteur.
         let Ok(html) = crate::visitor_page(&source, base, &visit.state, &visit.tried) else { return Ok(template) };
         Ok(filled_template(&template, &html))
     }
 
     fn stored(&self, visitor: &str, page: &str) -> Option<Visit> {
-        let base = self.base.lock().ok()?;
-        base.query_row("SELECT state, tried FROM visits WHERE visitor = ?1 AND page = ?2", params![visitor, page], |row| {
-            let tried: String = row.get(1)?;
-            Ok(Visit { state: row.get(0)?, tried: tried.split(',').filter(|t| !t.is_empty()).map(str::to_string).collect() })
-        })
-        .optional()
-        .ok()
-        .flatten()
+        stored_in(&*self.base.lock().ok()?, visitor, page)
     }
 
     fn store(&self, visitor: &str, page: &str, visit: &Visit) {
         if let Ok(base) = self.base.lock() {
+            store_in(&base, visitor, page, visit);
+        }
+    }
+
+    /// Un geste partagé envoyé par le moteur de la page (ADR-079) : `{"signal": "Book.tap",
+    /// "state": "…"}`. Le serveur prend la base, arbitre avec les valeurs qu'il garde (l'état du
+    /// visiteur, qu'il a pu forger, n'en change aucune), range les nouvelles, les envoie en direct
+    /// à toutes les pages ouvertes à cette adresse, garde l'état du visiteur comme sans JavaScript,
+    /// et répond l'état d'après : `200`, ou `409` si le geste est refusé (un bouton caché).
+    ///
+    /// Un membre connecté (ADR-081) : la page est lue avec son nom (`signedIn`, `{account}` : un
+    /// bouton montré aux seuls membres se touche), et son état est gardé sous son compte.
+    #[allow(clippy::too_many_arguments)]
+    fn shared_gesture(&self, ask: &Ask, path: &str, file: &Path, holo: &str, values: &[(String, String)], signal: &str, state: &str, member: Option<&crate::accounts::Member>) -> Reply {
+        let Ok(source) = source_for(file, values, member) else { return Reply::text(404, "page introuvable") };
+        if crate::shared_names(&source).is_empty() {
+            return Reply::text(400, "cette page ne partage aucune valeur");
+        }
+        if !crate::touches_shared(&source, signal) {
+            return Reply::text(400, "ce geste ne change aucune valeur partagée : la page le fait seule");
+        }
+        set_clock();
+        let (visitor, new_visitor) = match visit_key(member, ask.cookie) {
+            Some(key) => (key, false),
+            None => (new_visitor(), true),
+        };
+        let Ok(base) = self.base.lock() else { return Reply::text(500, "base indisponible") };
+        let key = shared_key(holo, values);
+        let (current, mut version) = shared_in(&base, &key);
+        let (after, accepted) = crate::share(&source, state, &current, signal);
+        if accepted {
+            version = self.changed(&base, &key, &source, &current, &after, version);
+        }
+        // L'état du visiteur après ce geste, gardé comme sans JavaScript (ADR-074) : il le retrouve
+        // en revenant.
+        let mut visit = stored_in(&base, &visitor, path).unwrap_or_default();
+        visit.state = without_sounds(&after);
+        if visit.state.len() <= STATE_MAX {
+            store_in(&base, &visitor, path, &visit);
+        }
+        drop(base);
+        let body = format!("{{\"accepted\":{accepted},\"state\":{},\"shared\":{},\"version\":{version}}}", crate::json_text(&after), crate::json_text(&crate::shared_of(&source, &after)));
+        let mut headers = vec![("Content-Type".to_string(), "application/json; charset=utf-8".to_string())];
+        if new_visitor {
+            headers.push(("Set-Cookie".into(), format!("{COOKIE}={visitor}; Path=/; HttpOnly; SameSite=Lax; Max-Age={FORGET_AFTER}")));
+        }
+        headers.extend(common_headers());
+        Reply { status: if accepted { 200 } else { 409 }, headers, body: body.into_bytes() }
+    }
+
+    /// Les valeurs partagées après un geste accepté : si elles ont changé, elles sont rangées sous
+    /// un nouveau numéro et envoyées en direct, pendant que la base est encore prise (ADR-079) :
+    /// deux gestes ne se croisent jamais, et chaque page reçoit les changements dans l'ordre. Rend
+    /// le numéro des valeurs du moment.
+    fn changed(&self, base: &Connection, key: &str, source: &str, current: &str, after: &str, version: i64) -> i64 {
+        let before = crate::shared_of(source, &crate::with_shared(source, "", current));
+        let now_shared = crate::shared_of(source, after);
+        if now_shared == before {
+            return version;
+        }
+        let version = version + 1;
+        let stamp = now() as i64;
+        for chunk in now_shared.split(';').filter(|chunk| !chunk.is_empty()) {
+            let (name, value) = chunk.split_once('=').unwrap_or((chunk, ""));
             let _ = base.execute(
-                "INSERT INTO visits (visitor, page, state, tried, updated) VALUES (?1, ?2, ?3, ?4, ?5)
-                 ON CONFLICT (visitor, page) DO UPDATE SET state = excluded.state, tried = excluded.tried, updated = excluded.updated",
-                params![visitor, page, visit.state, visit.tried.join(","), now() as i64],
+                "INSERT INTO shared (page, name, value, version, updated) VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT (page, name) DO UPDATE SET value = excluded.value, version = excluded.version, updated = excluded.updated",
+                params![key, name, value, version, stamp],
             );
         }
+        self.broadcast(key, &now_shared, version);
+        version
+    }
+
+    /// Envoie les valeurs partagées d'une adresse à toutes les pages qui l'écoutent. Une page qui
+    /// ne suit plus (fermée, ou trop en retard) est retirée.
+    fn broadcast(&self, key: &str, written: &str, version: i64) {
+        let event = live_event(written, version);
+        if let Ok(mut lives) = self.lives.lock() {
+            let before = lives.pages.len();
+            lives.pages.retain(|live| live.key != key || live.sender.try_send(event.clone()).is_ok());
+            if lives.pages.len() != before {
+                println!("Direct          : {key}, {} page(s) à l'écoute", lives.pages.iter().filter(|live| live.key == key).count());
+            }
+        }
+    }
+
+    /// Une adresse que le navigateur veut écouter en direct (`Accept: text/event-stream`,
+    /// ADR-079) : une page qui partage des valeurs. Rend l'adresse sous laquelle elles sont gardées
+    /// et le texte de la page, ou le refus.
+    pub fn live_page(&self, ask: &Ask) -> Result<(String, String), Reply> {
+        let Some(path) = url_path(ask.url) else { return Err(Reply::text(400, "adresse illisible")) };
+        let path = if path == "/" { "/index.holo".to_string() } else { path };
+        let raw = ask.url.split(['?', '#']).next().unwrap_or("/");
+        if !ask.origin.is_empty() && ask.origin.split("://").nth(1) != Some(ask.host) {
+            return Err(Reply::text(403, "cette page est écoutée depuis un autre site"));
+        }
+        let Some((file, holo, values)) = self.locate(&path, raw) else { return Err(Reply::text(404, "introuvable")) };
+        // Les valeurs partagées d'une page réservée ne s'écoutent qu'en membre (ADR-081).
+        if crate::accounts::member_of(self, ask.cookie).is_none() && members_only(&file, &values) {
+            return Err(Reply::text(401, "page réservée aux membres : connecte-toi d'abord"));
+        }
+        let source = source_at(&file, &values).map_err(|_| Reply::text(404, "introuvable"))?;
+        if !holo.ends_with(".holo") || crate::shared_names(&source).is_empty() {
+            return Err(Reply::text(404, "cette page ne partage aucune valeur à écouter"));
+        }
+        Ok((shared_key(&holo, &values), source))
+    }
+
+    /// Une page écoute son adresse en direct : elle reçoit d'abord les valeurs du moment, puis
+    /// chaque changement, et un battement de temps en temps. Son propre fil écrit pour elle : les
+    /// quatre fils du serveur restent libres, et une page lente ne retient personne.
+    pub fn listen(&self, key: &str, source: &str, mut writer: Box<dyn Write + Send>) {
+        let Ok(base) = self.base.lock() else { return };
+        let Ok(mut lives) = self.lives.lock() else { return };
+        // Une page fermée s'est déjà retirée elle-même : son fil le fait en s'arrêtant.
+        if lives.pages.len() >= LIVE_MAX {
+            let refusal = "trop de pages ouvertes en direct";
+            let _ = write!(writer, "HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{refusal}", refusal.len());
+            let _ = writer.flush();
+            return;
+        }
+        // Les valeurs du moment : rien ne peut changer entre elles et l'inscription (la base est prise).
+        let (current, version) = shared_in(&base, key);
+        let now_shared = crate::shared_of(source, &crate::with_shared(source, "", &current));
+        let (sender, receiver) = std::sync::mpsc::sync_channel::<String>(LIVE_QUEUE);
+        let _ = sender.try_send(live_event(&now_shared, version));
+        let id = lives.next;
+        lives.next += 1;
+        lives.pages.push(Live { id, key: key.to_string(), sender });
+        println!("Direct          : {key}, {} page(s) à l'écoute", lives.pages.iter().filter(|live| live.key == key).count());
+        drop(lives);
+        drop(base);
+        let (lives, key) = (Arc::clone(&self.lives), key.to_string());
+        std::thread::spawn(move || {
+            let head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream; charset=utf-8\r\nCache-Control: no-cache\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\nretry: 3000\n\n";
+            let mut alive = writer.write_all(head.as_bytes()).and_then(|()| writer.flush()).is_ok();
+            while alive {
+                let chunk = match receiver.recv_timeout(std::time::Duration::from_secs(HEARTBEAT)) {
+                    Ok(event) => event,
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => ":\n\n".to_string(),
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+                };
+                alive = writer.write_all(chunk.as_bytes()).and_then(|()| writer.flush()).is_ok();
+            }
+            // La page est fermée, ou ne suit plus : elle est oubliée.
+            if let Ok(mut lives) = lives.lock() {
+                let before = lives.pages.len();
+                lives.pages.retain(|live| live.id != id);
+                if lives.pages.len() != before {
+                    println!("Direct          : {key}, {} page(s) à l'écoute", lives.pages.iter().filter(|live| live.key == key).count());
+                }
+            }
+        });
     }
 
     /// Un formulaire envoyé par le moteur du navigateur (ADR-042, ADR-059), reçu ici (ADR-075) :
@@ -412,6 +620,57 @@ impl Site {
         println!("Message reçu : {path} ({form})");
         Ok(())
     }
+}
+
+fn stored_in(base: &Connection, visitor: &str, page: &str) -> Option<Visit> {
+    base.query_row("SELECT state, tried FROM visits WHERE visitor = ?1 AND page = ?2", params![visitor, page], |row| {
+        let tried: String = row.get(1)?;
+        Ok(Visit { state: row.get(0)?, tried: tried.split(',').filter(|t| !t.is_empty()).map(str::to_string).collect() })
+    })
+    .optional()
+    .ok()
+    .flatten()
+}
+
+fn store_in(base: &Connection, visitor: &str, page: &str, visit: &Visit) {
+    let _ = base.execute(
+        "INSERT INTO visits (visitor, page, state, tried, updated) VALUES (?1, ?2, ?3, ?4, ?5)
+         ON CONFLICT (visitor, page) DO UPDATE SET state = excluded.state, tried = excluded.tried, updated = excluded.updated",
+        params![visitor, page, visit.state, visit.tried.join(","), now() as i64],
+    );
+}
+
+/// Les valeurs partagées gardées pour une adresse, écrites comme l'état (`seats=19;likes=3`), et
+/// le numéro de leur dernier changement (0 : jamais changées, elles valent leur départ).
+fn shared_in(base: &Connection, key: &str) -> (String, i64) {
+    let Ok(mut query) = base.prepare("SELECT name, value, version FROM shared WHERE page = ?1 ORDER BY rowid") else { return (String::new(), 0) };
+    let rows: Vec<(String, String, i64)> = query.query_map(params![key], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))).map(|rows| rows.flatten().collect()).unwrap_or_default();
+    let version = rows.iter().map(|(_, _, version)| *version).max().unwrap_or(0);
+    (rows.iter().map(|(name, value, _)| format!("{name}={value}")).collect::<Vec<_>>().join(";"), version)
+}
+
+/// L'adresse sous laquelle une page garde ses valeurs partagées (ADR-079) : celle de son fichier
+/// (`/salle.holo`, même ouvert par `/salle`), ou, pour un modèle, l'adresse avec ses valeurs
+/// décodées (`/concert/12` pour `/concert/{id}.holo`) : `/concert/12` et `/concert/13` ont
+/// chacune leurs places. Une barre ou un « % » dans une valeur reste écrit `%2F`, `%25`.
+fn shared_key(holo: &str, values: &[(String, String)]) -> String {
+    if values.iter().all(|(_, raw)| raw.is_empty()) {
+        return holo.to_string();
+    }
+    let pattern = holo.strip_suffix(".holo").unwrap_or(holo);
+    pattern
+        .split('/')
+        .map(|part| match part.strip_prefix('{').and_then(|p| p.strip_suffix('}')) {
+            Some(name) => values.iter().find(|(known, _)| known == name).and_then(|(_, raw)| crate::address::decode(raw)).unwrap_or_default().replace('%', "%25").replace('/', "%2F"),
+            None => part.to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+/// Un changement envoyé en direct : son numéro, puis les valeurs (ADR-079).
+fn live_event(written: &str, version: i64) -> String {
+    format!("event: shared\nid: {version}\ndata: {written}\n\n")
 }
 
 /// Combien de sauvegardes garder : les plus récentes ; les plus anciennes sont effacées.
@@ -527,6 +786,24 @@ fn reply_to(site: &Site, mut request: tiny_http::Request) {
     let (accept, cookie, content_type, origin, host, referer) = (header("Accept"), header("Cookie"), header("Content-Type"), header("Origin"), header("Host"), header("Referer"));
     let method = request.method().as_str().to_string();
     let url = request.url().to_string();
+    // Une page qui écoute ses valeurs partagées en direct (ADR-079) : la connexion reste ouverte,
+    // tenue par un fil à elle ; ce fil-ci retourne aussitôt servir les autres.
+    if method == "GET" && accept.contains("text/event-stream") {
+        let ask = Ask { method: &method, url: &url, accept: &accept, cookie: &cookie, content_type: &content_type, origin: &origin, host: &host, referer: &referer, body: &[] };
+        match site.live_page(&ask) {
+            Ok((key, source)) => site.listen(&key, &source, request.into_writer()),
+            Err(reply) => {
+                let mut response = tiny_http::Response::from_data(reply.body).with_status_code(reply.status);
+                for (name, value) in reply.headers {
+                    if let Ok(header) = tiny_http::Header::from_bytes(name.as_bytes(), value.as_bytes()) {
+                        response.add_header(header);
+                    }
+                }
+                let _ = request.respond(response);
+            }
+        }
+        return;
+    }
     let mut body = Vec::new();
     if method == "POST" {
         let limit = if content_type.starts_with("multipart/form-data") { WITH_FILES_MAX } else { BODY_MAX };
@@ -1014,6 +1291,173 @@ mod tests {
         // Un cookie inventé n'est pas un visiteur.
         assert_eq!(visitor_of("holo_visitor=../../etc"), None);
         assert_eq!(visitor_of("a=1; holo_visitor=0123456789abcdef0123456789abcdef").as_deref(), Some("0123456789abcdef0123456789abcdef"));
+        let _ = std::fs::remove_dir_all(folder);
+    }
+
+    const CONCERT: &str = "Page(\n  title: \"Concert\",\n  state: State(booked: 0),\n  shared: Shared(seats: 2, likes: 0),\n  children: [\n    H1(\"Concert\"),\n    P(\"{seats} place(s)\"),\n    If(seats, over: 0, children: [ If(booked, is: 0, children: [ Button(name: Book, text: \"Réserver\") ]) ], else: [ P(\"Complet\") ]),\n    If(booked, is: 1, children: [ P(\"Ta place est gardée\") ]),\n    Button(name: Like, text: \"J'aime ({likes})\"),\n  ],\n  rules: [ On(Book.tap, effect: [seats.sub(1), booked.set(1)]), On(Like.tap, effect: likes.add(1)) ],\n)\n";
+
+    fn json<'a>(url: &'a str, cookie: &'a str, body: &'a [u8]) -> Ask<'a> {
+        let mut asked = ask("POST", url, cookie, body);
+        asked.content_type = "application/json";
+        asked
+    }
+
+    fn cookie_of(reply: &Reply) -> String {
+        reply.headers.iter().find(|(n, _)| n == "Set-Cookie").map(|(_, v)| v.split(';').next().unwrap().to_string()).unwrap_or_default()
+    }
+
+    #[test]
+    fn shared_values_are_kept_for_everyone_with_and_without_javascript() {
+        // ADR-079 : le serveur garde les places pour tout le monde, arbitre chaque geste, chacun son
+        // tour ; un bouton caché ne se touche pas ; chaque adresse a ses valeurs.
+        let (site, folder) = site();
+        std::fs::write(folder.join("concert.holo"), CONCERT).unwrap();
+        let first = String::from_utf8(site.answer(&ask("GET", "/concert.holo", "", b"")).body).unwrap();
+        assert!(first.contains("<span data-state=\"seats\">2</span> place(s)") && first.contains(" data-shared=\"seats=2;likes=0\"") && first.contains(" data-live"), "{first}");
+        // Sans JavaScript, Ada réserve : la page revient avec sa place, et tout le monde voit une place de moins.
+        let ada = site.answer(&ask("POST", "/concert.holo", "", b"signal=Book.tap"));
+        assert_eq!(ada.status, 303);
+        let ada = cookie_of(&ada);
+        let seen = String::from_utf8(site.answer(&ask("GET", "/concert.holo", &ada, b"")).body).unwrap();
+        assert!(seen.contains("<span data-state=\"seats\">1</span> place(s)") && seen.contains("data-if=\"booked|is=1\">"), "{seen}");
+        let other = String::from_utf8(site.answer(&ask("GET", "/concert.holo", "", b"")).body).unwrap();
+        assert!(other.contains("<span data-state=\"seats\">1</span> place(s)") && other.contains("data-if=\"booked|is=1\" hidden>"), "{other}");
+        // Avec JavaScript, Grace envoie son geste et un état forgé (99 places) : le serveur garde les siennes.
+        let grace = site.answer(&json("/concert.holo", "", br#"{"signal":"Book.tap","state":"booked=0;seats=99;likes=0"}"#));
+        assert_eq!(grace.status, 200);
+        assert_eq!(String::from_utf8(grace.body).unwrap(), r#"{"accepted":true,"state":"booked=1;seats=0;likes=0","shared":"seats=0;likes=0","version":2}"#);
+        // Hedy arrive trop tard : le bouton est caché pour le serveur, le geste est refusé (409).
+        let hedy = site.answer(&json("/concert.holo", "", br#"{"signal":"Book.tap","state":""}"#));
+        assert_eq!(hedy.status, 409);
+        assert!(String::from_utf8(hedy.body).unwrap().starts_with(r#"{"accepted":false,"state":"booked=0;seats=0;likes=0""#));
+        // Sans JavaScript non plus : la page revient telle quelle.
+        let late = site.answer(&ask("POST", "/concert.holo", "", b"signal=Book.tap"));
+        let late = String::from_utf8(site.answer(&ask("GET", "/concert.holo", &cookie_of(&late), b"")).body).unwrap();
+        assert!(late.contains("<span data-state=\"seats\">0</span> place(s)") && late.contains("data-if=\"booked|is=1\" hidden>"), "{late}");
+        // Un geste qui n'est pas un toucher, ou qui ne change rien de partagé : refusé.
+        assert_eq!(site.answer(&json("/concert.holo", "", br#"{"signal":"Like.hover","state":""}"#)).status, 400);
+        assert_eq!(site.answer(&json("/concert.holo", "", br#"{"signal":"Nobody.tap","state":""}"#)).status, 400);
+        assert_eq!(site.answer(&json("/shop.holo", "", br#"{"signal":"Add.tap","state":""}"#)).status, 400);
+        // Une demande trop lourde.
+        let heavy = format!(r#"{{"signal":"Like.tap","state":"{}"}}"#, "a".repeat(BODY_MAX as usize));
+        assert_eq!(site.answer(&json("/concert.holo", "", heavy.as_bytes())).status, 413);
+        // Chaque adresse a ses valeurs : /salle/12 et /salle/13.
+        std::fs::create_dir_all(folder.join("salle")).unwrap();
+        std::fs::write(folder.join("salle").join("{id}.holo"), "Page(title: \"Salle\", shared: Shared(likes: 0), children: [ H1(\"Salle {id}\"), P(\"{likes} j'aime\"), Button(name: Like, text: \"J'aime\") ], rules: [ On(Like.tap, effect: likes.add(1)) ])").unwrap();
+        for url in ["/salle/12", "/salle/12", "/salle/13"] {
+            assert_eq!(site.answer(&json(url, "", br#"{"signal":"Like.tap","state":""}"#)).status, 200);
+        }
+        let twelve = String::from_utf8(site.answer(&ask("GET", "/salle/12", "", b"")).body).unwrap();
+        let thirteen = String::from_utf8(site.answer(&ask("GET", "/salle/13", "", b"")).body).unwrap();
+        assert!(twelve.contains("<span data-state=\"likes\">2</span> j'aime") && thirteen.contains("<span data-state=\"likes\">1</span> j'aime"), "{twelve}\n{thirteen}");
+        // Dans la base : l'adresse, le nom, la valeur ; et un nouveau serveur s'en souvient.
+        let rows: Vec<String> = {
+            let base = site.base.lock().unwrap();
+            let mut query = base.prepare("SELECT page, name, value, version FROM shared ORDER BY page, name").unwrap();
+            query.query_map([], |row| Ok(format!("{} {}={} ({})", row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?, row.get::<_, i64>(3)?))).unwrap().flatten().collect()
+        };
+        assert_eq!(rows, ["/concert.holo likes=0 (2)", "/concert.holo seats=0 (2)", "/salle/12 likes=2 (2)", "/salle/13 likes=1 (1)"]);
+        let web = Path::new(env!("CARGO_MANIFEST_DIR")).join("web");
+        let reopened = Site::open(&folder, &web).unwrap();
+        assert!(String::from_utf8(reopened.answer(&ask("GET", "/concert.holo", "", b"")).body).unwrap().contains("<span data-state=\"seats\">0</span> place(s)"));
+        drop(reopened);
+        let _ = std::fs::remove_dir_all(folder);
+    }
+
+    /// Ce qu'une page en direct reçoit, pour les essais.
+    #[derive(Clone, Default)]
+    struct Recorder(Arc<Mutex<Vec<u8>>>);
+
+    impl Write for Recorder {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl Recorder {
+        fn text(&self) -> String {
+            String::from_utf8_lossy(&self.0.lock().unwrap()).into_owned()
+        }
+        fn waits_for(&self, expected: &str) -> bool {
+            (0..300).any(|_| {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+                self.text().contains(expected)
+            })
+        }
+    }
+
+    /// Une page fermée : rien ne passe plus.
+    struct Closed;
+
+    impl Write for Closed {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::new(std::io::ErrorKind::ConnectionReset, "page fermée"))
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn a_page_listens_live_and_a_closed_one_is_forgotten() {
+        let (site, folder) = site();
+        std::fs::write(folder.join("concert.holo"), CONCERT).unwrap();
+        // Seule une page qui partage des valeurs s'écoute ; pas depuis un autre site.
+        let listen_ask = |url: &'static str| Ask { method: "GET", url, accept: "text/event-stream", cookie: "", content_type: "", origin: "", host: "localhost:8080", referer: "", body: b"" };
+        assert_eq!(site.live_page(&listen_ask("/shop.holo")).err().map(|r| r.status), Some(404));
+        let mut foreign = listen_ask("/concert.holo");
+        foreign.origin = "https://ailleurs.example";
+        assert_eq!(site.live_page(&foreign).err().map(|r| r.status), Some(403));
+        let (key, source) = site.live_page(&listen_ask("/concert.holo")).ok().unwrap();
+        assert_eq!(key, "/concert.holo");
+        // La page reçoit d'abord les valeurs du moment, puis chaque changement.
+        let page = Recorder::default();
+        site.listen(&key, &source, Box::new(page.clone()));
+        assert!(page.waits_for("event: shared\nid: 0\ndata: seats=2;likes=0\n\n"), "{}", page.text());
+        assert!(page.text().starts_with("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream; charset=utf-8\r\n"), "{}", page.text());
+        assert_eq!(site.answer(&json("/concert.holo", "", br#"{"signal":"Like.tap","state":""}"#)).status, 200);
+        assert!(page.waits_for("id: 1\ndata: seats=2;likes=1\n\n"), "{}", page.text());
+        // Huit visiteurs touchent « J'aime » en même temps : chacun son tour, aucun n'est perdu, et
+        // la page reçoit les changements dans l'ordre.
+        std::thread::scope(|scope| {
+            for _ in 0..8 {
+                scope.spawn(|| assert_eq!(site.answer(&json("/concert.holo", "", br#"{"signal":"Like.tap","state":""}"#)).status, 200));
+            }
+        });
+        assert!(page.waits_for("id: 9\ndata: seats=2;likes=9\n\n"), "{}", page.text());
+        let seen = page.text();
+        let places: Vec<usize> = (1..=9).map(|n| seen.find(&format!("id: {n}\ndata: seats=2;likes={n}\n")).unwrap_or(usize::MAX)).collect();
+        assert!(places.windows(2).all(|w| w[0] < w[1]), "{seen}");
+        // Sans JavaScript aussi, le changement part en direct.
+        site.answer(&ask("POST", "/concert.holo", "", b"signal=Book.tap"));
+        assert!(page.waits_for("id: 10\ndata: seats=1;likes=9\n\n"), "{}", page.text());
+        // Une page fermée est oubliée ; celle qui reste écoute encore.
+        site.listen(&key, &source, Box::new(Closed));
+        let forgotten = (0..300).any(|_| {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            site.lives.lock().unwrap().pages.len() == 1
+        });
+        assert!(forgotten, "{} page(s)", site.lives.lock().unwrap().pages.len());
+        // Au-delà de 128 pages en direct, la suivante est refusée.
+        let mut kept = Vec::new();
+        {
+            let mut lives = site.lives.lock().unwrap();
+            while lives.pages.len() < LIVE_MAX {
+                let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+                kept.push(receiver);
+                let id = lives.next;
+                lives.next += 1;
+                lives.pages.push(Live { id, key: "/ailleurs.holo".into(), sender });
+            }
+        }
+        let refused = Recorder::default();
+        site.listen(&key, &source, Box::new(refused.clone()));
+        assert!(refused.text().starts_with("HTTP/1.1 503 "), "{}", refused.text());
+        drop(kept);
         let _ = std::fs::remove_dir_all(folder);
     }
 }

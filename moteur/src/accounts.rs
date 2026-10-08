@@ -1081,6 +1081,48 @@ mod tests {
     }
 
     #[test]
+    fn a_shared_value_that_only_members_change() {
+        // Avec le lot 6 (ADR-079) : un bouton montré aux seuls membres ne se touche pas sans l'être,
+        // car le serveur arbitre avec ce qu'il sait du visiteur, jamais avec ce que dit la page.
+        let (site, folder) = site();
+        std::fs::write(
+            folder.join("book.holo"),
+            "Page(title: \"Livre d'or\", state: State(signed: 0), shared: Shared(likes: 0), children: [ P(\"{likes}\"), If(signedIn, is: 1, children: [ Button(name: Like, text: \"J'aime\") ], else: [ P(\"Connecte-toi pour aimer.\") ]), Button(name: Sign, text: \"Signer\") ], rules: [ On(Like.tap, effect: likes.add(1)), On(Sign.tap, effect: signed.set(1)) ])",
+        )
+        .unwrap();
+        std::fs::write(folder.join("vip.holo"), "Page(title: \"Membres\", access: members, shared: Shared(likes: 0), children: [ P(\"{likes}\"), Button(name: Like, text: \"+\") ], rules: [ On(Like.tap, effect: likes.add(1)) ])").unwrap();
+        let json = |url: &'static str, cookie: &str, body: &'static [u8]| {
+            let mut asked = ask("POST", url, cookie, body);
+            asked.content_type = "application/json";
+            site.answer(&asked)
+        };
+        // Un visiteur qui écrit `signedIn=1` dans l'état qu'il envoie : refusé, le bouton est caché pour lui.
+        assert_eq!(json("/book.holo", "", br#"{"signal":"Like.tap","state":"signedIn=1;account='Admin"}"#).status, 409);
+        // Sans JavaScript, de même : rien ne change.
+        site.answer(&ask("POST", "/book.holo", "", b"signal=Like.tap"));
+        let likes = |cookie: &str| text(site.answer(&ask("GET", "/book.holo", cookie, b""))).split("<span data-state=\"likes\">").nth(1).and_then(|rest| rest.split('<').next()).unwrap_or("?").to_string();
+        assert_eq!(likes(""), "0");
+        // Un membre : accepté, et son état est gardé sous son compte.
+        let member = sign_up(&site, "Ada", "une+phrase+assez+longue");
+        let accepted = json("/book.holo", &member, br#"{"signal":"Like.tap","state":""}"#);
+        assert_eq!(accepted.status, 200, "{}", String::from_utf8_lossy(&accepted.body));
+        site.answer(&ask("POST", "/book.holo", &member, b"signal=Like.tap"));
+        assert_eq!(likes(""), "2");
+        let kept: i64 = site.base.lock().unwrap().query_row("SELECT COUNT(*) FROM visits WHERE visitor LIKE 'account:%' AND page = '/book.holo'", [], |row| row.get(0)).unwrap();
+        assert_eq!(kept, 1);
+        // Une page réservée : ni son geste partagé ni son direct sans être membre.
+        assert_eq!(json("/vip.holo", "", br#"{"signal":"Like.tap","state":""}"#).status, 401);
+        let mut listen = ask("GET", "/vip.holo", "", b"");
+        listen.accept = "text/event-stream";
+        assert_eq!(site.live_page(&listen).err().map(|reply| reply.status), Some(401));
+        let mut listen = ask("GET", "/vip.holo", &member, b"");
+        listen.accept = "text/event-stream";
+        assert!(site.live_page(&listen).is_ok());
+        assert_eq!(json("/vip.holo", &member, br#"{"signal":"Like.tap","state":""}"#).status, 200);
+        let _ = std::fs::remove_dir_all(folder);
+    }
+
+    #[test]
     fn a_stolen_session_expires() {
         let (site, folder) = site();
         let cookie = sign_up(&site, "Ada", "une+phrase+assez+longue");

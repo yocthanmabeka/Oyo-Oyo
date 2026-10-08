@@ -13,6 +13,10 @@
 //!                                     marchent même sans JavaScript (ADR-074)
 //! holo messages [dossier]             les messages reçus par ses formulaires, en JSON (ADR-075)
 //! holo backup [dossier]               sauvegarde sa base dans holo-data/backups/ (ADR-076)
+//! holo share page.holo < geste.json   un geste sur une page qui partage des valeurs (ADR-079) :
+//!                                     reçoit {"shared":…,"state":…,"signal":…}, rend
+//!                                     {"accepted":…,"changed":…,"state":…,"shared":…} ; le serveur d'essai
+//!                                     s'en sert pour arbitrer avec le même moteur
 //! ```
 //!
 //! C'est le même code Rust que dans le navigateur. Le serveur s'en sert pour envoyer la page
@@ -136,8 +140,8 @@ fn main() -> ExitCode {
         [command, file, folder] => (command.as_str(), file, folder.as_str()),
         _ => ("", &String::new(), ""),
     };
-    if command != "check" && command != "html" && command != "files" && command != "form" {
-        eprintln!("usage : holo check file.holo | holo check - [folder] | holo html file.holo [folder] | holo files page.holo | holo form page.holo < message.json | holo fmt file.holo | holo test page.holo page.test | holo serve [folder] [port] | holo messages [folder] | holo backup [folder] | holo vocabulary");
+    if command != "check" && command != "html" && command != "files" && command != "form" && command != "share" {
+        eprintln!("usage : holo check file.holo | holo check - [folder] | holo html file.holo [folder] | holo files page.holo | holo form page.holo < message.json | holo share page.holo < gesture.json | holo fmt file.holo | holo test page.holo page.test | holo serve [folder] [port] | holo messages [folder] | holo backup [folder] | holo vocabulary");
         return ExitCode::from(2);
     }
     // `-` : le texte arrive par l'entrée standard, tel qu'il est dans l'éditeur (ADR-046).
@@ -240,8 +244,31 @@ fn main() -> ExitCode {
             }
         };
     }
+    // Pour le serveur d'essai (ADR-079) : un geste sur une page qui partage des valeurs, arbitré
+    // par le même moteur que la page et que holo serve.
+    if command == "share" {
+        let mut gesture = String::new();
+        if std::io::stdin().read_to_string(&mut gesture).is_err() {
+            eprintln!("le geste reçu n'est pas lisible");
+            return ExitCode::from(2);
+        }
+        return match holo_engine::share_command(&source, &gesture) {
+            Ok(answer) => {
+                println!("{answer}");
+                ExitCode::SUCCESS
+            }
+            Err(error) => {
+                eprintln!("{file} : {error}");
+                ExitCode::FAILURE
+            }
+        };
+    }
+    // Les valeurs partagées du moment (HOLO_SHARED=seats=19;likes=3), que le serveur d'essai
+    // garde : la page est fabriquée avec elles (ADR-079).
+    let shared = std::env::var("HOLO_SHARED").ok().filter(|_| command == "html" && !holo_engine::shared_names(&source).is_empty());
     let result = match command {
         "check" => holo_engine::check_page(&source).map(|_| "ok".to_string()),
+        _ if shared.is_some() => holo_engine::shared_page(&source, folder, shared.as_deref().unwrap_or("")),
         // Pour le serveur : les fichiers qu'un formulaire de la page peut envoyer (ADR-059).
         "files" => holo_engine::files_for_server(&source),
         // La page fabriquée avec ses données (ADR-064) : le fichier de `Data(from:)`, rangé à

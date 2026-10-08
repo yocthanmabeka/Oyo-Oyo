@@ -105,6 +105,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 95 | [Un article long](95-un-article-long.holo) | `Aside`, `A(newTab: true)`, `A(download: true)`, `print: { … }`, les images qui viennent en approchant |
 | 96 | [Une vidéo sous-titrée](96-une-video-sous-titree.holo) | `Video(captions: "film.vtt")` |
 | 100 | [Une adresse qui porte une valeur](100-une-adresse-qui-porte-une-valeur.holo) | un fichier nommé `100-profils/{nom}.holo`, `{nom}` dans un texte, `If(nom, is: "yocthan")` ; la valeur se lit, ne se change pas |
+| 101 | [Une valeur partagée](101-une-valeur-partagee.holo) | `shared: Shared(seats: 20, likes: 0)`, `{seats}`, `If(seats, over: 0, …)`, `seats.sub(1)` par un toucher ; le serveur arbitre et l'envoie en direct à toutes les pages ouvertes |
 | 104 | [Se connecter : un compte gardé chez toi](104-se-connecter.holo) | `signedIn`, `{account}`, `A(to: "/account/signin")` ; les pages de compte et le code à 6 chiffres, fabriqués par le moteur (avec `holo serve`) |
 | 105 | [Une page réservée aux membres](105-une-page-reservee.holo) | `Page(access: members)` ; sans être connecté, on est mené à « Se connecter », puis ramené |
 | 106 | [Le panier qui suit le compte](106-le-panier-qui-suit-le-compte.holo) | rien à écrire : connecté, le panier est gardé par le compte, sur le téléphone comme sur l'ordinateur, avec ou sans JavaScript |

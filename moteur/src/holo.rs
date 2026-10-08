@@ -65,6 +65,9 @@ pub struct Program {
     /// Les valeurs qui viennent de l'adresse de la page (`profil/{id}.holo`, ADR-078) : la page
     /// les lit, sans pouvoir les changer.
     pub address: Vec<String>,
+    /// Les valeurs partagées (`shared: Shared(seats: 20)`, ADR-079) : le serveur les garde pour
+    /// tous les visiteurs ; elles rejoignent les valeurs de la page à la lecture.
+    pub shared: Vec<String>,
 }
 
 /// Ce qu'un style vise : un type de bloc (`P`) ou un nom à point (`.card`). Rien d'autre.
@@ -532,7 +535,7 @@ impl Parser {
         if self.current().word != Word::End {
             return Err(self.error(format!("un seul bloc racine par fichier ; {} trouvé après lui", describe(&self.current().word))));
         }
-        Ok(Program { imports, root, styles: Vec::new(), components: Vec::new(), address: Vec::new() })
+        Ok(Program { imports, root, styles: Vec::new(), components: Vec::new(), address: Vec::new(), shared: Vec::new() })
     }
 
     fn block(&mut self) -> Result<Block, Error> {
@@ -794,8 +797,11 @@ pub fn read(source: &str) -> Result<Program, Error> {
     if let Some((_, text)) = provided.iter().find(|(name, _)| *name == crate::address::ADDRESS_FILE) {
         crate::address::inject(&mut program, text)?;
     }
+    // Les valeurs partagées rejoignent celles de la page, après celles de l'adresse (ADR-079).
+    crate::shared::inject(&mut program)?;
     // Ce que la page sait du visiteur connecté (ADR-081), si elle le lit : le nom joint par le
-    // serveur, sinon un visiteur qui n'est pas connecté.
+    // serveur, sinon un visiteur qui n'est pas connecté. Après les valeurs partagées : un nom
+    // donné par le serveur ne peut être ni dans State ni dans Shared.
     let account = provided.iter().find(|(name, _)| *name == crate::account::ACCOUNT_FILE).map(|(_, text)| *text);
     crate::account::inject(&mut program, account)?;
     Ok(program)
