@@ -16,6 +16,8 @@ fn signals(block: &str) -> &'static [&'static str] {
         "Module" => &["done", "failed"],
         // Les données de la page disent si elles sont arrivées, ou non (ADR-064).
         "Data" => &["done", "failed"],
+        // Un chronomètre dit qu'il s'est arrêté : son temps est arrivé (ADR-089).
+        "Stopwatch" => &["stopped", "hover", "hoverEnd"],
         // Tout bloc qui se voit peut être survolé (ADR-039) : la souris arrive dessus, le
         // clavier s'y pose, ou le doigt le touche sur un téléphone.
         other if crate::blocks::BLOCKS.contains(&other) && !INVISIBLE.contains(&other) => &["hover", "hoverEnd"],
@@ -42,6 +44,8 @@ fn capabilities(block: &str) -> &'static [&'static str] {
         "Module" => &["run"],
         // Relire les données : On(Retry.tap, effect: Stock.refresh) (ADR-064).
         "Data" => &["refresh"],
+        // Démarrer, arrêter, remettre à zéro un chronomètre (ADR-089).
+        "Stopwatch" => &["start", "stop", "reset"],
         _ => &[],
     }
 }

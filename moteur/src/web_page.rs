@@ -101,6 +101,24 @@ pub fn delays(source: &str, state: &str) -> String {
     crate::delays(source, state)
 }
 
+/// La seconde de l'appareil du visiteur (ADR-089).
+#[wasm_bindgen]
+pub fn set_second(second: u32) {
+    crate::set_second(u64::from(second));
+}
+
+/// Le fichier lit-il la seconde ? (ADR-089)
+#[wasm_bindgen]
+pub fn reads_seconds(source: &str) -> bool {
+    crate::reads_seconds(source)
+}
+
+/// Un chronomètre s'est arrêté : son temps final, en millisecondes (ADR-089).
+#[wasm_bindgen]
+pub fn stopwatch_stopped(source: &str, state: &str, name: &str, milliseconds: f64) -> String {
+    crate::stopwatch_stopped(source, state, name, milliseconds.max(0.0) as u64)
+}
+
 /// Ce qu'il faut pour faire tourner un module : `somme.wasm|10|100|16|1` (le dernier chiffre : le
 /// premier contrat suffit, ADR-077).
 #[wasm_bindgen]

@@ -21,6 +21,7 @@ pub mod computed;
 pub mod dates;
 pub mod drawing;
 pub mod state;
+pub mod stopwatch;
 pub mod files;
 pub mod format;
 pub mod gestures;
@@ -80,6 +81,8 @@ pub fn check_page(source: &str) -> Result<Program, Error> {
     drawing::check(&program)?;
     // Les fichiers qu'un formulaire envoie (ADR-059).
     files::files(&program)?;
+    // Les chronomètres et la valeur de leur temps (ADR-089).
+    stopwatch::check(&program)?;
     // Ce que l'affichage refuserait (une adresse en `javascript:`, une image hors du dossier)
     // est refusé dès la vérification : on fabrique la page à blanc (revue Codex, B-11).
     if program.root.name == "Page" {
@@ -610,6 +613,28 @@ pub fn shapes_html(source: &str, state: &str, list: &str) -> String {
     let computed = computed::apply(&program, &numbers, &texts, &lists);
     lists.extend(computed);
     lists.iter().find(|(name, _)| name == list).map(|(_, elements)| drawing::listed_shapes(elements)).unwrap_or_default()
+}
+
+/// La seconde de l'appareil du visiteur, de 0 à 59 (ADR-089).
+pub fn set_second(second: u64) {
+    state::set_second(second);
+}
+
+/// Le fichier lit-il la seconde ? La page donne alors l'heure chaque seconde (ADR-089).
+pub fn reads_seconds(source: &str) -> bool {
+    check_page(source).is_ok_and(|program| state::reads_seconds(&program))
+}
+
+/// Un chronomètre s'est arrêté (ADR-089) : son temps final, en millisecondes, va dans sa valeur,
+/// bornée, et les règles qui la guettent répondent ; puis `Chrono.stopped`.
+pub fn stopwatch_stopped(source: &str, state: &str, name: &str, milliseconds: u64) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    state::requested_capabilities();
+    let (mut numbers, texts, lists) = (state::reread(&program, state), state::reread_texts(&program, state), lists::reread(&program, state));
+    if let Some(value) = stopwatch::value_of(&program, name) {
+        numbers = state::received_number(&program, &numbers, &texts, value, milliseconds);
+    }
+    arbitrate(source, &write_all(&program, &numbers, &texts, &lists), &format!("{name}.stopped"))
 }
 
 /// Les valeurs qu'un signal fait changer (`time;score`) : leurs horloges repartent de zéro.
