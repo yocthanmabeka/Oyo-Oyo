@@ -561,7 +561,7 @@ fn account_page(member: &Member, active: bool, done: &str, alert: &str, back: Op
         notice(alert, done),
         escape(&member.name),
     );
-    page(if alert.is_empty() { 200 } else { 401 }, "Ton compte", &main, &[])
+    page(if alert.is_empty() { 200 } else { 422 }, "Ton compte", &main, &[])
 }
 
 // ---------------------------------------------------------------- les demandes

@@ -6,6 +6,34 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-08 — Lot 7 : des comptes chez l'auteur, une page réservée, le panier qui suit le compte
+
+- Décidé par Yocthan le 2026-10-08 (« je suis d'accord avec tes recommandations ») : se connecter par **un mot de passe puis un code à 6 chiffres**, les clés d'accès ensuite ; **tout chez l'auteur**, comme Django, sans prestataire ; des pages qui marchent aussi sans JavaScript.
+- Fait (`ADR-081`, PROPOSITION) : `holo serve` garde les comptes dans la base du site. Le mot de passe n'y est jamais en clair (son empreinte Argon2id) ; le code à 6 chiffres suit la RFC 6238, calculé par une application du téléphone (Aegis, FreeOTP…), sans Internet ni SMS ; un code ne sert qu'une fois ; cinq essais ratés, puis une attente qui double ; le même message pour un nom ou un mot de passe faux, et le même temps de réponse ; une session de 128 bits tirée au hasard, cookie `HttpOnly; SameSite=Lax`, dont la base ne garde que l'empreinte, oubliée après 14 jours sans visite, effacée en se déconnectant.
+- Les pages de compte (`/account/signup`, `/account/signin`, `/account/code`, `/account`) sont fabriquées par le moteur, en HTML ordinaire, sans script, accessibles (étiquettes, erreurs reliées aux champs et lues par un lecteur d'écran, `autocomplete`).
+- Dans la page : `Page(access: members)` ; `signedIn` et `{account}`, lus comme les autres valeurs, jamais changés. Les liens vers `/account`, `/account/signin`, `/account/signup` sont les seuls qui partent de la racine du site.
+- Le panier suit le compte : sans JavaScript par les touchers, comme avant ; avec JavaScript, la page renvoie chaque toucher au serveur (`?mirror`), qui le rejoue avec le même arbitre sur l'état du compte. Jamais de valeurs. Ce qui était dans le panier avant la connexion suit aussi.
+- Bibliothèques ajoutées, pour le PC seulement : `argon2` 0.6, `hmac` 0.13, `sha1` 0.11 (RustCrypto, la nouvelle génération). Pas de QR code (aucune bibliothèque de plus) : la clé se recopie, ou s'ouvre par un lien `otpauth://` sur le téléphone. Les clés d'accès restent la prochaine étape : il faudra `p256` et `sha2`, à accepter par Yocthan.
+- Leçons 104 (se connecter), 105 (une page réservée), 106 (le panier qui suit le compte). Le serveur d'essai dit qu'il faut `holo serve` à la place des pages de compte et des pages réservées.
+- Pour la fusion avec le lot 6 (construit en même temps) : la leçon 104 revient à la leçon 100 (les leçons 101 à 103 viendront entre les deux) ; la section du guide s'appelle « 6 untricies » pour ne pas prendre le nom que le lot 6 choisira.
+- Exécuté : `cargo test --release` → 166 tests passent (dix nouveaux, dont les valeurs de référence de la RFC 6238) ; `cargo test` en mode debug, celui de GitHub : les tests des comptes en 5 secondes ; dans Chrome, `node outils/browser-tests.mjs compte` → 3 essais `OK` (le serveur d'essai ; un compte, son code calculé par l'essai, une page réservée, avec et sans JavaScript ; le panier sur trois appareils, avec et sans JavaScript) ; les essais `serve` → 8 `OK` ; la suite entière → 34 essais `OK`, aucun raté, 100 leçons ouvertes sans erreur (263 s).
+
+![La page réservée mène à « Se connecter », qui dit pourquoi](images/2026-10-08-lot7-se-connecter.png)
+
+![Créer un compte : un mot de passe trop court, refusé, le message sous le champ](images/2026-10-08-lot7-mot-de-passe-trop-court.png)
+
+![Activer le code à 6 chiffres : la clé à recopier dans l'application](images/2026-10-08-lot7-activer-le-code.png)
+
+**Erreurs en route**
+
+- Une erreur de compilation : j'avais écrit l'empreinte « pour rien » (un nom inconnu) de façon que Rust croie que l'empreinte d'un vrai compte devait vivre aussi longtemps que le programme.
+- La vérification « on le lit, on ne le change pas » ne se faisait que si la page lisait `signedIn` : une page qui l'écrivait sans le lire passait jusqu'à une autre erreur, moins claire. Le test l'a vu ; la vérification se fait maintenant toujours.
+- En relisant le diff : pour un membre connecté, toutes les réponses étaient marquées « jamais en cache », le moteur et son WebAssembly compris ; seules les pages et leurs textes le sont maintenant.
+- Sur les captures : la page « Se connecter » ne disait pas pourquoi on y arrivait depuis une page réservée ; et « Le compte n'est pas créé : Le mot de passe… » était mal ponctué. Corrigés.
+- Une de mes assertions attendait les attributs d'un champ dans le mauvais ordre.
+
+---
+
 ## 2026-10-08 — Le dépôt devient public, sous un autre nom : `Oyo-Oyo`
 
 - Décidé par Yocthan : passer le dépôt en public, pour que les tests de GitHub repartent (ils sont gratuits pour un dépôt public ; les minutes gratuites d'un dépôt privé étaient épuisées), et le renommer pour qu'il attire moins l'œil. Son choix : « Oyo Oyo ». GitHub n'accepte pas d'espace : `yocthanmabeka/Oyo-Oyo`. L'ancienne adresse redirige.
