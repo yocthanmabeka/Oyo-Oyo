@@ -28,7 +28,7 @@ pub const GIVEN: &[&str] = &[NAME, SIGNED_IN];
 /// Les pages du serveur où un lien peut mener : les seuls liens qui partent de la racine du site
 /// (`A(to: "/account")`). Ce sont les pages de holo serve, pas celles du site : elles sont toujours
 /// à la racine, où que soit rangée la page qui y mène.
-pub const LINKS: &[&str] = &["/account", "/account/signin", "/account/signup"];
+pub const LINKS: &[&str] = &["/account", "/account/signin", "/account/signup", "/account/passkeys"];
 
 /// Un nom de compte : de 3 à 30 caractères, des lettres sans accent, des chiffres, « . », « - »
 /// et « _ », une lettre ou un chiffre d'abord. Sans accent : deux écritures d'un « é » (une lettre,

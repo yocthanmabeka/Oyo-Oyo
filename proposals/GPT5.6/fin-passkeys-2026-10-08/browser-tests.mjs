@@ -2,12 +2,15 @@
 import {readFileSync} from "node:fs";
 import {join} from "node:path";
 import {DatabaseSync} from "node:sqlite";
+import {spawnSync} from "node:child_process";
 export function passkeyTests({engine,phone,page,startHoloServe}){
  if(phone)return [];
  const check=(ok,message)=>{if(!ok)throw Error(message);};
  return [["clés d'accès : créer, signer, refuser, révoquer",async(_,b)=>{
   // Le verrou sera enregistré depuis le résultat réel de Cargo, sans version devinée.
   console.log("PASSKEY_LOCK_JSON "+JSON.stringify(readFileSync(join(engine,"Cargo.lock"),"utf8")));
+  const formatted=spawnSync("rustfmt",["--edition","2021",join(engine,"src","passkeys.rs")],{encoding:"utf8",timeout:10000});
+  check(formatted.status===0,"rustfmt indisponible : "+formatted.stderr);console.log("PASSKEY_SOURCE_JSON "+JSON.stringify(readFileSync(join(engine,"src","passkeys.rs"),"utf8")));
   const served=await startHoloServe(["104-se-connecter.holo","107-se-connecter-par-une-cle.holo"]);
   const base=served.base.replace("127.0.0.1","localhost"),q=page(b,base);
   let authenticator;
