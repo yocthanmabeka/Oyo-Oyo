@@ -71,7 +71,7 @@ export function browserCapabilities({root,source,state,receive,exported,change,e
         finish(e,name,true,action==="remove"?"Copie hors-ligne effacée.":"Copie hors-ligne prête ("+saved.bytes+" octets).",stamp);return true;
       }else return false;
       finish(e,name,true,"Terminé.",stamp);
-    }catch(error){if(token.cancelled||stamp!==epoch)return true;closeStream(name);finish(e,name,false,error?.message||"Permission refusée ou appareil indisponible.",stamp);}
+    }catch(error){if(token.cancelled||stamp!==epoch)return true;closeStream(name);finish(e,name,false,(typeof error==="string"?error:error?.message)||"Permission refusée ou appareil indisponible.",stamp);}
     finally{if(busy.get(name)===token)busy.delete(name);}
     return true;
   }
