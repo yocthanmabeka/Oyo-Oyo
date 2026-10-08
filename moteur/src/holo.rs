@@ -794,6 +794,10 @@ pub fn read(source: &str) -> Result<Program, Error> {
     if let Some((_, text)) = provided.iter().find(|(name, _)| *name == crate::address::ADDRESS_FILE) {
         crate::address::inject(&mut program, text)?;
     }
+    // Ce que la page sait du visiteur connecté (ADR-081), si elle le lit : le nom joint par le
+    // serveur, sinon un visiteur qui n'est pas connecté.
+    let account = provided.iter().find(|(name, _)| *name == crate::account::ACCOUNT_FILE).map(|(_, text)| *text);
+    crate::account::inject(&mut program, account)?;
     Ok(program)
 }
 

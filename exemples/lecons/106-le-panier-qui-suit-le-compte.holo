@@ -1,0 +1,51 @@
+// Leçon 106 — Le panier qui suit le compte
+//
+// Ce qu'on apprend :
+//   Rien de nouveau à écrire : un panier ordinaire, State(panier: 0) et ses règles.
+//   Avec holo serve, quand le visiteur est connecté, les valeurs de la page sont gardées par son
+//   compte, dans la base du site : il retrouve son panier sur son téléphone et sur son ordinateur.
+//   Ce qu'il avait mis dans le panier avant de se connecter le suit aussi.
+//   Sans JavaScript, chaque toucher part au serveur, qui fait le calcul (le même arbitre) ; avec
+//   JavaScript, la page fait le calcul tout de suite, puis renvoie le toucher au serveur, qui le
+//   rejoue sur le panier du compte. Le serveur ne reçoit jamais de valeurs : seulement des gestes.
+//   Pas connecté : le panier reste sur cet appareil.
+//
+// À essayer (avec holo serve, voir la leçon 104) :
+//   Connecte-toi, mets deux tableaux dans le panier.
+//   Ouvre la même page sur ton téléphone (même Wi-Fi), connecte-toi : le panier y est.
+//   Déconnecte-toi : cet appareil repart d'un panier vide ; ton compte garde le sien.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 106 : le panier qui suit le compte",
+  state: State(panier: 0),
+  children: [
+    H1("Le panier qui suit le compte"),
+    P("Dans le panier : {panier} tableau(x)."),
+    Row(gap: 8px, children: [
+      Button(name: Ajouter, text: "Ajouter un tableau"),
+      Button(name: Retirer, text: "En retirer un"),
+    ]),
+    If(signedIn, is: 1, children: [
+      P("Tu es connecté sous le nom {account} : ton panier est gardé par ton compte. Ouvre cette page sur un autre appareil et connecte-toi : il y est."),
+      A("Mon compte", to: "/account"),
+    ], else: [
+      P("Tu n'es pas connecté : ton panier reste sur cet appareil."),
+      A("Se connecter", to: "/account/signin"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 105 : une page réservée", to: "105-une-page-reservee.holo"),
+    ]),
+  ],
+  rules: [
+    On(Ajouter.tap, effect: panier.add(1)),
+    On(Retirer.tap, effect: panier.sub(1)),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

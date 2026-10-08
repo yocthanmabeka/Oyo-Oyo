@@ -79,6 +79,11 @@
     return values.join("&");
   }
   const pageAddress = addressValues(pageFile, arrival);
+  // Le membre connecté (ADR-081) : holo serve le nomme dans l'en-tête (<meta name="holo-account">).
+  // La page lit son nom ({account}) et signedIn comme le serveur les a lus ; et ses touchers
+  // repartent vers le serveur (mirror, plus bas), qui les rejoue sur l'état gardé par son compte :
+  // il le retrouve sur ses autres appareils. Sans en-tête : un visiteur qui n'est pas connecté.
+  const member = document.querySelector('meta[name="holo-account"]')?.getAttribute("content") ?? "";
   // Les fichiers déjà lus, par adresse : leur texte, ou null s'ils sont introuvables ou refusés.
   const readFiles = new Map();
   // Garde-fou : on ne garde en mémoire que les derniers fichiers lus. On peut passer d'un
@@ -178,6 +183,8 @@
     // Les valeurs de l'adresse (ADR-078), jointes après la page et ses imports comme un fichier
     // nommé « @adresse » : seulement pour le fichier de la page, pas pour un autre lu en route.
     if (file === pageFile && pageAddress !== null) all += `\u001e@adresse\u001f${pageAddress}`;
+    // Le nom du membre connecté (ADR-081), joint de même : seulement pour la page que le serveur a faite.
+    if (file === pageFile && member) all += `\u001e@account\u001fname=${encodeURIComponent(member)}`;
     return all;
   }
 
@@ -741,9 +748,32 @@
     // Ce qui apparaît ou disparaît déplace le reste de la page : changerLEtat replace les pixels.
     if (after !== before) changeState(after);
     restartClocks(signal);
+    mirror(signal);
     for (const effect of effects(source, signal).split(",").filter(Boolean)) {
       apply(effect, signal);
     }
+  }
+
+  // Un membre connecté (ADR-081) : chaque toucher de la page, déjà joué ici, repart vers holo serve
+  // avec les champs, comme le ferait la page sans JavaScript (ADR-074). Le serveur le rejoue avec le
+  // même arbitre sur l'état gardé par le compte, sans rien envoyer d'autre (`?mirror`) : le panier
+  // suit le membre sur ses autres appareils. Il ne reçoit que des gestes, jamais des valeurs. Un
+  // toucher après l'autre, dans l'ordre ; une panne du réseau ne change rien à la page.
+  let mirrored = Promise.resolve();
+  function mirror(signal) {
+    if (!member || path !== pageFile || !/^[A-Z][A-Za-z0-9]{0,63}\.tap(@\d{1,6})?$/.test(signal)) return;
+    const fields = new URLSearchParams();
+    for (const field of root.querySelectorAll("input[data-bind], textarea[data-bind], select[data-bind]")) {
+      const bind = field.dataset.bind;
+      if (!/^[A-Za-z0-9]+$/.test(bind) || field.type === "file") continue;
+      if (field.type === "radio") { if (field.checked) fields.set(bind, field.value); }
+      else if (field.type === "checkbox") fields.set(bind, field.checked ? "1" : "0");
+      else fields.set(bind, field.value);
+    }
+    fields.set("signal", signal);
+    const body = fields.toString();
+    mirrored = mirrored.then(() => fetch(`${addressOf(path)}?mirror`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body }).catch(() => {}));
+    window.__holoMirrored = mirrored; // pour les essais : le dernier toucher renvoyé
   }
 
   // `reprendre` : la page est déjà là, fabriquée par le serveur (ADR-033). Le moteur la prend
