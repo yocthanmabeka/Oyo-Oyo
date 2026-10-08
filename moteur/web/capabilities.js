@@ -18,9 +18,9 @@ export function browserCapabilities({root,source,state,receive,exported,change,e
   async function run(name,action){
     const e=[...root.querySelectorAll("[data-browser-capability]")].find(e=>e.dataset.name===name);if(!e)return false;
     const spec=JSON.parse(e.dataset.browserCapability);
-    if(action==="stop"){closeStream(name);clearTimeout(timers.get(name));timers.delete(name);busy.get(name)?.cancel?.();busy.delete(name);status(e,"Arrêté.");return true;}
+    if(action==="stop"){closeStream(name);clearTimeout(timers.get(name));timers.delete(name);const pending=busy.get(name);if(pending){pending.cancelled=true;pending.cancel?.();}busy.delete(name);status(e,"Arrêté.");return true;}
     if(busy.has(name))return true;
-    const stamp=epoch,token={cancel:null};busy.set(name,token);
+    const stamp=epoch,token={cancel:null,cancelled:false};busy.set(name,token);
     try{
       if(!navigator.userActivation?.isActive)throw Error("Appuie à nouveau sur le bouton pour autoriser cette action.");
       status(e,"En attente…");
@@ -37,7 +37,7 @@ export function browserCapabilities({root,source,state,receive,exported,change,e
             });
             if(!file||file.size>65536)throw Error("Choisis un fichier JSON de 64 Ko au plus.");json=await file.text();
           }finally{picker.remove();}
-          if(stamp!==epoch)return true;change(receive(source(),state(),name,json));
+          if(stamp!==epoch||token.cancelled)return true;change(receive(source(),state(),name,json));
         }else throw Error("Action de transfert inconnue.");
       }else if(spec.type==="Device"){
         if(!isSecureContext)throw Error("L'appareil demande localhost ou HTTPS.");
@@ -45,11 +45,11 @@ export function browserCapabilities({root,source,state,receive,exported,change,e
         else if(action!=="request")throw Error("Action d'appareil inconnue.");
         else if(spec.kind==="clipboard"||spec.kind==="position"){
           const value=spec.kind==="clipboard"?await navigator.clipboard.readText():await new Promise((ok,no)=>navigator.geolocation.getCurrentPosition(p=>ok(JSON.stringify({latitude:p.coords.latitude,longitude:p.coords.longitude,accuracy:p.coords.accuracy})),no,{enableHighAccuracy:false,timeout:10000,maximumAge:0}));
-          if(stamp!==epoch)return true;change(receive(source(),state(),name,JSON.stringify({[spec.value]:value})));
+          if(stamp!==epoch||token.cancelled)return true;change(receive(source(),state(),name,JSON.stringify({[spec.value]:value})));
         }else{
           closeStream(name);
           const stream=await navigator.mediaDevices.getUserMedia(spec.kind==="camera"?{video:{width:{ideal:640},height:{ideal:480}},audio:false}:{audio:true,video:false});
-          if(stamp!==epoch||!e.isConnected){stream.getTracks().forEach(t=>t.stop());return true;}
+          if(stamp!==epoch||token.cancelled||!e.isConnected){stream.getTracks().forEach(t=>t.stop());return true;}
           let video;
           if(spec.kind==="camera"){video=document.createElement("video");video.muted=true;video.playsInline=true;video.controls=true;video.setAttribute("aria-label",spec.label);video.style.maxWidth="100%";video.srcObject=stream;e.querySelector("[data-capability-preview]").append(video);}
           streams.set(name,{stream,video,timer:setTimeout(()=>{closeStream(name);status(e,"Arrêté après une minute.");},60000)});
@@ -61,7 +61,7 @@ export function browserCapabilities({root,source,state,receive,exported,change,e
         if(!("Notification"in globalThis)||!isSecureContext)throw Error("Les notifications ne sont pas disponibles ici.");
         const permission=Notification.permission==="default"?await Notification.requestPermission():Notification.permission;
         if(permission!=="granted")throw Error("Permission refusée. La page reste utilisable.");
-        const r=await worker();if(stamp!==epoch)return true;
+        const r=await worker();if(stamp!==epoch||token.cancelled)return true;
         const show=async()=>{if(stamp!==epoch)return;timers.delete(name);try{await r.showNotification(spec.title,{body:spec.body||"",tag:"holo-"+name});finish(e,name,true,"Notification affichée.",stamp);}catch{finish(e,name,false,"Notification indisponible.",stamp);}};
         if(spec.after>0){clearTimeout(timers.get(name));timers.set(name,setTimeout(show,spec.after*1000));status(e,"Rappel programmé tant que cette page reste ouverte.");}else await show();return true;
       }else if(spec.type==="Offline"){

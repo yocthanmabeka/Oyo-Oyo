@@ -35,7 +35,7 @@ self.addEventListener("message",e=>{
  e.waitUntil((async()=>{
   const client=await self.clients.get(e.source.id);if(!client||new URL(client.url).origin!==self.location.origin)throw Error("Client inconnu.");
   const page=new URL(d.page);if(page.origin!==self.location.origin)throw Error("Une page de ce site est attendue.");
-  if(locks.has(page.href))throw Error("Une copie est déjà en cours.");locks.set(page.href,true);
+  if(locks.size)throw Error("Une copie est déjà en cours.");locks.set(page.href,true);
   try{p.postMessage(d.type==="remove"?{ok:await caches.delete(keyFor(page.href))||true}:await save(d));}finally{locks.delete(page.href);}
  })().catch(error=>p.postMessage({ok:false,error:error.message})));
 });

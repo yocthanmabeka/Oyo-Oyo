@@ -585,13 +585,11 @@ pub fn module_received(source: &str, state: &str, name: &str, json: &str) -> Res
 }
 
 /// Un transfert local, exporté seulement d'après les valeurs annoncées.
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn capability_export(source: &str, state: &str, name: &str) -> Result<String, String> {
     let program = check_page(source).map_err(|e| e.message)?;
     capabilities::export(&program, state, name)
 }
 /// Une réponse relue intégralement avant de changer l'état.
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn capability_received(source: &str, state: &str, name: &str, json: &str) -> Result<String, String> {
     let program = check_page(source).map_err(|e| e.message)?;
     state::requested_capabilities();
