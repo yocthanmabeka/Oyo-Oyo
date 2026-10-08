@@ -778,7 +778,6 @@
   // toucher après l'autre, dans l'ordre ; une panne du réseau ne change rien à la page. Un toucher
   // qui change une valeur partagée ne passe pas par ici : il part au serveur, qui l'arbitre et garde
   // aussi l'état du compte (shareGesture, ADR-079).
-  let mirrored = Promise.resolve();
   function mirror(signal) {
     if (!member || path !== pageFile || !/^[A-Z][A-Za-z0-9]{0,63}\.tap(@\d{1,6})?$/.test(signal)) return;
     const fields = new URLSearchParams();
@@ -791,8 +790,19 @@
     }
     fields.set("signal", signal);
     const body = fields.toString();
-    mirrored = mirrored.then(() => fetch(`${addressOf(path)}?mirror`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body }).catch(() => {}));
-    window.__holoMirrored = mirrored; // pour les essais : le dernier toucher renvoyé
+    const address = addressOf(path);
+    // La même file que les touchers partagés : leur arbitre doit voir le geste personnel précédent.
+    // Une réponse absente ne laisse pas toute la file attendre sans fin.
+    sharedQueue = sharedQueue.then(async () => {
+      const stop = new AbortController();
+      const late = setTimeout(() => stop.abort(), 10000);
+      try {
+        await fetch(`${address}?mirror`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body, signal: stop.signal });
+      } finally {
+        clearTimeout(late);
+      }
+    }).catch(() => {});
+    window.__holoMirrored = sharedQueue; // pour les essais : le dernier toucher renvoyé
   }
 
   // Écoute en direct l'adresse de la page affichée, si elle partage des valeurs (ADR-079). Le
