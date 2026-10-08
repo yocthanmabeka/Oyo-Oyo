@@ -774,7 +774,8 @@
   // Un membre connecté (ADR-081) : chaque toucher de la page, déjà joué ici, repart vers holo serve
   // avec les champs, comme le ferait la page sans JavaScript (ADR-074). Le serveur le rejoue avec le
   // même arbitre sur l'état gardé par le compte, sans rien envoyer d'autre (`?mirror`) : le panier
-  // suit le membre sur ses autres appareils. Il ne reçoit que des gestes, jamais des valeurs. Un
+  // suit le membre sur ses autres appareils. Il reçoit le geste et les saisies, jamais un état à
+  // remplacer. Un
   // toucher après l'autre, dans l'ordre ; une panne du réseau ne change rien à la page. Un toucher
   // qui change une valeur partagée ne passe pas par ici : il part au serveur, qui l'arbitre et garde
   // aussi l'état du compte (shareGesture, ADR-079).
