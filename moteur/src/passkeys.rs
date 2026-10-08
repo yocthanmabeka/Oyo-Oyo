@@ -67,7 +67,7 @@ fn flat_json(s:&str)->Option<Vec<(String,Atom)>>{
  if b.get(i)==Some(&b'}'){i+=1;ws(b,&mut i);return(i==b.len()).then_some(out);}
  loop{ws(b,&mut i);let k=text(b,&mut i)?;if k.len()>80||out.iter().any(|(known,_)|known==&k)||out.len()>=16{return None;}ws(b,&mut i);if b.get(i)!=Some(&b':'){return None;}i+=1;ws(b,&mut i);
  let v=if b.get(i)==Some(&b'"'){Atom::Text(text(b,&mut i)?)}else{let tail=b.get(i..)?;if tail.starts_with(b"false"){i+=5;Atom::Bool(false)}else if tail.starts_with(b"true"){i+=4;Atom::Bool(true)}else if tail.starts_with(b"null"){i+=4;Atom::Null}else{return None;}};
- out.push((k,v));ws(b,&mut i);match b.get(i){Some(b',')=>{i+=1;},Some(b'}')=>{i+=1;break;},_=>return None;}
+ out.push((k,v));ws(b,&mut i);match b.get(i){Some(b',')=>{i+=1;},Some(b'}')=>{i+=1;break;},_=>return None,}
  }ws(b,&mut i);(i==b.len()).then_some(out)
 }
 fn field<'a>(o:&'a[(String,Atom)],key:&str)->Option<&'a str>{o.iter().find(|(k,_)|k==key).and_then(|(_,v)|if let Atom::Text(s)=v{Some(s.as_str())}else{None})}
@@ -119,8 +119,8 @@ fn assertion(key:&[u8],auth:&[u8],client:&[u8],sig:&[u8],rp:&str,old:u32,backed:
 }
 fn handle(account:i64)->String{b64(&account.to_be_bytes())}
 fn descriptors(base:&Connection,account:i64)->String{
- let Ok(mut q)=base.prepare("SELECT id FROM passkeys WHERE account=?1 ORDER BY created,id")else{return"[]".into()};
- let Ok(rows)=q.query_map(params![account],|r|r.get::<_,String>(0))else{return"[]".into()};
+ let Ok(mut q)=base.prepare("SELECT id FROM passkeys WHERE account=?1 ORDER BY created,id")else{return "[]".into()};
+ let Ok(rows)=q.query_map(params![account],|r|r.get::<_,String>(0))else{return "[]".into()};
  format!("[{}]",rows.filter_map(Result::ok).map(|id|format!("{{\"type\":\"public-key\",\"id\":{}}}",quote(&id))).collect::<Vec<_>>().join(","))
 }
 fn challenge(base:&Connection,ask:&Ask,account:i64,op:&str,origin:&str,now:u64)->Result<(String,String),String>{
