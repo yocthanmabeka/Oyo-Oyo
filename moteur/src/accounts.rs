@@ -1149,7 +1149,8 @@ mod tests {
         }
         assert!(alert(sign_in(&site, "", "Personne", "x")).starts_with("Trop d'essais"));
         // Le frein du code : cinq mauvais codes, puis une attente.
-        site.base.lock().unwrap().execute("DELETE FROM attempts", []).unwrap();
+        // Nouvelle séquence : éprouver le frein du code sans atteindre d’abord celui de l’IP.
+        site.base.lock().unwrap().execute_batch("DELETE FROM attempts; DELETE FROM account_ips;").unwrap();
         let half = session(&sign_in(&site, "", "Ada", "une+phrase+assez+longue"));
         for _ in 0..FREE_TRIES {
             site.answer(&ask("POST", "/account/code", &half, format!("code={}", wrong_code(&pending, now)).as_bytes()));
