@@ -1935,7 +1935,7 @@ Page(
 | `Zoom(shrink:)` | `true` : dézoomer réduit la page jusqu'à un seul point. `false` : la page reste entière. | `true`, `false` |
 | `Zoom(levels:)` | Combien de sites peuvent s'emboîter, au plus. | 1 à 16 |
 | `Zoom(speed:)` | La vitesse du zoom à la molette. `1` : la vitesse ordinaire ; `2` : deux fois plus vite. Au doigt, la page suit toujours l'écartement des doigts. | 0.25 à 4 |
-| `Zoom(detach:)` | `true` : le menu ☰ offre « Décrocher » ; la page se détache comme une feuille, et le zoom l'approche ; « Accrocher » la remet à sa place. Refusé avec les points, `shrink: true` ou `active: false`, qui gardent le zoom au moteur. Proposé (`ADR-069`), à valider par Yocthan. | `true`, `false` |
+| `Zoom(detach:)` | `true` : le menu ☰ offre « Décrocher » ; la page se détache comme une feuille, et le zoom l'approche ; « Accrocher » la remet à sa place. Refusé avec les points, `shrink: true` ou `active: false`, qui gardent le zoom au moteur. Décidé (`ADR-069`). | `true`, `false` |
 | `Points(after:)` | Jusqu'à ce grossissement, la page reste un site ordinaire. Jamais moins de 2 : tout visiteur peut au moins doubler la taille du texte. | 2 à 16 |
 | `Points(size:)` | La taille où un pixel devient un point. | 2px à 32px |
 | `Points(fragment:)` | La taille où un point se morcelle. | 8px à 400px, au moins `size` × `divisions` |

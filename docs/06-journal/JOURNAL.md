@@ -6,6 +6,15 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-08 — Tout ce que Yocthan a validé passe en « décidé »
+
+- Yocthan, en regardant le tableau en ligne : « Pourquoi y a toujours "20 en partie" ? Tout doit être en décidé car je les ai validés », puis « Valides les "34 à l'essai" ». Il avait essayé au doigt les leçons 1 à 100 : « tout marche ».
+- Passées en `ACCEPTÉ` le 2026-10-08 : `ADR-063` à `ADR-069` (les lots 2 à 4 du web), `ADR-078` (les adresses) et `ADR-079` (les valeurs partagées). Les 34 mots « à l'essai » du tableau sont décidés : 380 mots sur 380, lot 6 compris. `ADR-006` (HoloIR) reste une proposition, car rien n'en est construit.
+- Expliqué à Yocthan : « en partie » n'est pas un statut de décision. C'est la part d'un élément de HTML, CSS ou JavaScript que HoloCode sait faire. Pour 20 éléments, il n'en fait encore qu'une partie (par exemple le dessin libre, qu'apporte le lot 9). Ce chiffre baisse en construisant, pas en validant.
+- Le tableau compte maintenant le direct : « parler en direct avec un serveur » passe de « non » à « oui » (`shared: Shared(…)`, `ADR-079`). Résultat : 95 oui, 20 en partie, 8 non, 6 refusés, 1 sans objet. La page en ligne est republiée (version 28), et `TABLEAU-WEB.md` est refait à partir d'elle.
+
+---
+
 ## 2026-10-08 — Qui fusionne quand le PC dort ; une file de travail pour toutes les IA
 
 - Yocthan : « dès que tu es en mode remote control, c'est toi qui fais la fusion ; si mon PC s'arrête ou passe en veille, c'est à la session qui est sur le téléphone de faire les fusions », puis « une sorte de queue, pour que chaque IA que je vais brancher puisse avoir le travail qui n'est pas encore fait », sans « vous entremêler », pour aller plus vite et consommer moins.

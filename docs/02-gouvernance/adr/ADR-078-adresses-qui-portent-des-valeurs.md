@@ -1,6 +1,6 @@
 # ADR-078 — Lot 5 du web : des adresses qui portent des valeurs (`profil/{id}.holo`)
 
-- Statut : PROPOSITION (construit et essayé ; la forme est celle choisie par Yocthan, le reste attend sa validation)
+- Statut : ACCEPTÉ (validé par Yocthan le 2026-10-08, après avoir essayé les leçons : « tout doit être en décidé car je les ai validés »)
 - Date : 2026-10-07 (la décision de Yocthan), 2026-10-08 (la construction)
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'ordre de Yocthan du 2026-10-07, lot 5 (« holo serve, adresses dynamiques, rendu serveur ») ; son choix, par une question à choix : « Le nom du fichier » ; la passation de la session du nuage (`proposals/Claude/passation-lot5-2026-10-07.md`), et le serveur des `ADR-074` à `ADR-076`.

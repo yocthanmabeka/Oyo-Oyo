@@ -1,6 +1,6 @@
 # ADR-067 — Des dates : aujourd'hui, comparer, avancer, compter les jours
 
-- Statut : PROPOSITION (construit et essayé ; attend la validation de Yocthan)
+- Statut : ACCEPTÉ (validé par Yocthan le 2026-10-08, après avoir essayé les leçons : « tout doit être en décidé car je les ai validés »)
 - Date : 2026-10-07
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'ordre de Yocthan du 2026-10-07 (« terminer les données : … dates ») ; `ADR-042` (le champ date, `Input(type: date)`) ; `ADR-039` (l'heure du visiteur, `{year}` … `{minute}`).
