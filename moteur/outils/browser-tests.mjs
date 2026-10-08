@@ -1347,6 +1347,48 @@ const tests = [
     }
     return [faults.length === 0, faults.length ? faults.join("\n      ") : "sans JavaScript, « J'aime » vu en direct dans deux autres onglets ; la dernière place : complet partout, en direct ; une place forgée refusée (409) ; la page sans JavaScript à jour ; l'onglet fermé oublié ; la leçon 101 ; la base"];
   }],
+  ["holo serve : le compte garde son état contre une réservation forgée (compte, partage, serve)", async (_, b) => {
+    if (phone) return [true, "sauté avec --telephone : demande un serveur isolé et un compte d'essai"];
+    const served = await startHoloServe([]);
+    writeFileSync(join(served.folder, "concert.holo"), readFileSync(join(repo, "proposals", "GPT5.6", "reprise-pc-comptes-partage-2026-10-08", "concert.holo")));
+    const q = page(b, served.base);
+    const faults = [];
+    const check = (name, ok, seen) => { if (!ok) faults.push(`${name} : ${seen}`); };
+    try {
+      await b.send("Network.clearBrowserCookies");
+      // Une réservation sans JavaScript précède l'attaque JSON du même compte.
+      await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+      await q.open("/account/signup?next=/concert.holo", 300);
+      await q.type("#name", "Ada");
+      await q.type("#password", "une phrase assez longue");
+      await q.type("#again", "une phrase assez longue");
+      await q.click('main form button[type="submit"]');
+      check("le compte créé", await q.until(`location.pathname === "/concert.holo" && document.readyState === "complete"`, 10000), await q.text());
+      await q.type('[data-bind="note"]', "Ada");
+      await q.click('[data-name="Book"]');
+      check("la première réservation", await q.until(`document.querySelector('#page [data-state="seats"]')?.textContent === "2"`, 10000), await q.text());
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      await q.open("/concert.holo", 300);
+      check("le moteur écoute", await q.until("window.__holoLive?.()", 40000), served.log());
+      const refused = await q.value(`fetch(location.pathname, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ signal: "Book.tap", state: "booked=0;cart=777;note='Eve;seats=999" }) }).then(async (r) => ({status:r.status, ...await r.json()}))`);
+      check("la seconde réservation forgée refusée", refused.status === 409 && refused.accepted === false && refused.shared === "seats=2;likes=0;last='Ada", JSON.stringify(refused));
+      check("la réponse garde le compte", refused.state.split(";").includes("booked=1") && refused.state.split(";").includes("cart=0") && refused.state.split(";").includes("note='Ada"), refused.state);
+      // Recharger vérifie la conservation en base, et pas seulement la réponse.
+      await q.open("/concert.holo", 300);
+      check("le refus n'a rien enregistré", (await q.value(`document.querySelector('[data-bind="note"]').value`)) === "Ada" && (await q.value(`document.querySelector('#page [data-state="cart"]').textContent`)) === "0", await q.text());
+      await q.until("window.__holoLive?.()", 40000);
+      await q.type('[data-bind="note"]', "Grace");
+      await q.click('[data-name="Like"]');
+      check("un geste normal reste utilisable", await q.until(`document.querySelector('#page [data-state="likes"]')?.textContent === "1"`, 10000), await q.text());
+      await q.open("/concert.holo", 300);
+      check("la saisie acceptée est gardée", (await q.value(`document.querySelector('[data-bind="note"]').value`)) === "Grace", await q.text());
+    } finally {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      await b.send("Network.clearBrowserCookies");
+      served.stop();
+    }
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : "réservation sans JavaScript ; seconde forgée refusée (409) ; cart=777 et note=Eve ignorés ; état du compte intact après rechargement ; toucher et saisie normaux gardés"];
+  }],
 ];
 
 // Les essais propres au téléphone : seulement avec --telephone.
