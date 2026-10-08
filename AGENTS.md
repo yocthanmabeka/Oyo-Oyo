@@ -12,6 +12,17 @@ Tu arrives sur **Holoverse / HoloCode**, le projet de Yocthan Mabeka : réinvent
 
 Si tu n'as pas accès à GitHub (c'est le cas de Gemini), demande à Yocthan le fichier unique qui rassemble ces documents : Claude sait le préparer.
 
+## Seule la session Claude du PC fusionne (Yocthan, 2026-10-08)
+
+Si la session Claude du PC de Yocthan s'arrête (par exemple son quota épuisé), une autre IA peut reprendre : Gemini par Antigravity, ChatGPT, Codex. Elle ne fusionne jamais et ne touche jamais à `main`. Lis d'abord [`proposals/Claude/passation-2026-10-08.md`](proposals/Claude/passation-2026-10-08.md).
+
+En bref :
+
+- ton propre dossier, ta propre branche ;
+- une pull request en brouillon, avec les résultats exacts des essais ;
+- seule la session Claude du PC fusionne, après relecture (Yocthan : « c'est toi qui seras le seul à faire de fusion »). C'est vrai aussi pour la session Claude du nuage ;
+- `main` est protégée sur GitHub : un envoi direct y est refusé, et une pull request n'y entre qu'avec ses trois tests verts.
+
 ## Qui fait quoi (deux sessions Claude en même temps)
 
 Décidé par Yocthan le 2026-10-07 (« Vas-y, commence […] il faut qu'on aille rapidement ») : les deux sessions se partagent les lots du web (`proposals/Claude/tout-le-web-2026-10/SYNTHESE.md`). **Avant de commencer un travail, relis ce tableau sur `origin/main` ; ne travaille que sur une ligne qui te nomme ; prends tes numéros de décision et de leçon dans ta réserve.**
@@ -48,7 +59,7 @@ Règles : relire `main` avant chaque travail, et fusionner `main` dans sa branch
 - **Le langage HoloCode** : des blocs nommés par leur sens, imbriqués comme en Flutter, avec le texte en Markdown dans les blocs (`ADR-009`). Le vocabulaire est **en anglais**, et un mot que les programmeurs connaissent garde son sens (`ADR-016`) : `Page`, `Text`, `P`, `H1`, `Button`, `Point`, `World`, `On`, `name`, `seed`, `children`, `rules`. `Text` est du texte sans rôle ; `P` et `H1` à `H3` sont un `Text` avec un rôle ; un bloc commence par une majuscule, un réglage par une minuscule (`ADR-020`). Une phrase entre guillemets est un paragraphe (`ADR-019`). La façon dont une page se regarde (limites et vitesse du zoom, pixels qui deviennent des points, relief, rotation à activer, jusqu'à en faire le tour, carrefour) s'écrit dans la page : `Zoom`, `Points`, `Relief`, `Portals` (`ADR-021`). À chaque ajout au langage : comparer les options, et vérifier qu'on ne répète pas un défaut de HTML, de CSS ou de JavaScript. La forme : des styles écrits comme en CSS après le bloc racine (`P { … }`, `.card { … }`, posé par `P.card(...)`), qui ne disent que l'apparence, jamais la disposition, et où tout est vérifié (`ADR-017`). L'auteur n'écrit jamais de HTML, de CSS ni de JavaScript. Tout changement d'état passe par un arbitre ; pas de code libre dans un bloc (`ADR-015`) ; une page retient des valeurs par `State`, changées par des demandes (`ADR-023`, décidé). Description honnête du paradigme : des objets sans méthodes, des règles au niveau du monde, et des relations. Rien de nouveau dans les briques ; la valeur est dans ce qui est interdit.
 - **Le moteur** : en Rust, compilé en WebAssembly pour les navigateurs d'aujourd'hui, en natif demain pour un navigateur propre au projet (`ADR-010`, accepté après mesure sur téléphone). Première réalisation : [`moteur/`](moteur/README.md), le sprint Big Bang.
 - **Le `Point`** est le pixel de l'Holoverse : la plus petite unité visible, qui révèle un monde quand on zoome dessus (`ADR-016`).
-- **La règle de fusion** : on ne fusionne dans `main` que ce qui marche. Celui qui fusionne vérifie l'auteur et la branche, jamais seulement le numéro, et a lu la pull request en entier. Claude fusionne ses propres pull requests quand les tests sont verts ; une pull request d'une autre IA, ou qui change une décision, attend l'accord de Yocthan. On fusionne par `outils/fusionner.sh <numéro>`, qui attend la fin des tests et refuse s'ils ne sont pas tous verts (le 2026-10-04, une pull request a été fusionnée avant la fin de ses tests). Les tests s'exécutent automatiquement sur chaque pull request (`.github/workflows/tests.yml`) ; un README qui annonce un résultat ne vaut rien, seul le test exécuté compte.
+- **La règle de fusion** : on ne fusionne dans `main` que ce qui marche. Celui qui fusionne vérifie l'auteur et la branche, jamais seulement le numéro, et a lu la pull request en entier. **Depuis le 2026-10-08, seule la session Claude du PC de Yocthan fusionne** : ses propres pull requests quand les tests sont verts, et celles des autres après les avoir relues. Une pull request d'une autre IA, ou qui change une décision, attend en plus l'accord de Yocthan. On fusionne par `outils/fusionner.sh <numéro>`, qui attend la fin des tests et refuse s'ils ne sont pas tous verts (le 2026-10-04, une pull request a été fusionnée avant la fin de ses tests). Les tests s'exécutent automatiquement sur chaque pull request (`.github/workflows/tests.yml`) ; un README qui annonce un résultat ne vaut rien, seul le test exécuté compte.
 
 ## Comment contribuer
 
