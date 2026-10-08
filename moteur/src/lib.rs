@@ -13,6 +13,7 @@
 //! La partie qui parle au navigateur et à la carte graphique (`web`, `rendu`) n'est
 //! compilée que pour WebAssembly.
 
+pub mod account;
 pub mod address;
 pub mod blocks;
 pub mod chart;
@@ -53,6 +54,9 @@ mod web_page;
 // Le serveur (`holo serve`, ADR-074) : seulement sur le PC.
 #[cfg(not(target_arch = "wasm32"))]
 pub mod server;
+// Les comptes de holo serve (ADR-081) : mots de passe, code à 6 chiffres, sessions. Sur le PC seulement.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod accounts;
 
 use holo::{Error, Program, Value};
 use universe::PointDecl;
@@ -207,9 +211,9 @@ pub fn vocabulary() -> String {
         list(&[
             "true", "false", "item", "circle", "square", "triangle", "diamond", "start", "center", "end", "between", "topLeft", "top", "topRight", "left", "right", "bottomLeft", "bottom",
             "bottomRight", "linear", "smooth", "out", "in", "back", "spring", "bounce", "forever", "grid", "row", "column", "diagonal", "date", "time", "color", "none", "uppercase",
-            "lowercase", "capitalize", "underline", "line-through", "bold", "italic", "normal", "solid", "dashed", "dotted",
+            "lowercase", "capitalize", "underline", "line-through", "bold", "italic", "normal", "solid", "dashed", "dotted", "members", "everyone",
         ]),
-        list(&["count", "total", "year", "month", "day", "weekday", "hour", "minute"]),
+        list(&["count", "total", "year", "month", "day", "weekday", "hour", "minute", "account", "signedIn"]),
         list(format::FORMATS),
     )
 }

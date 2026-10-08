@@ -88,6 +88,11 @@
     return values.join("&");
   }
   const pageAddress = addressValues(pageFile, arrival);
+  // Le membre connecté (ADR-081) : holo serve le nomme dans l'en-tête (<meta name="holo-account">).
+  // La page lit son nom ({account}) et signedIn comme le serveur les a lus ; et ses touchers
+  // repartent vers le serveur (mirror, plus bas), qui les rejoue sur l'état gardé par son compte :
+  // il le retrouve sur ses autres appareils. Sans en-tête : un visiteur qui n'est pas connecté.
+  const member = document.querySelector('meta[name="holo-account"]')?.getAttribute("content") ?? "";
   // Les fichiers déjà lus, par adresse : leur texte, ou null s'ils sont introuvables ou refusés.
   const readFiles = new Map();
   // Garde-fou : on ne garde en mémoire que les derniers fichiers lus. On peut passer d'un
@@ -200,6 +205,8 @@
     // Les valeurs de l'adresse (ADR-078), jointes après la page et ses imports comme un fichier
     // nommé « @adresse » : seulement pour le fichier de la page, pas pour un autre lu en route.
     if (file === pageFile && pageAddress !== null) all += `\u001e@adresse\u001f${pageAddress}`;
+    // Le nom du membre connecté (ADR-081), joint de même : seulement pour la page que le serveur a faite.
+    if (file === pageFile && member) all += `\u001e@account\u001fname=${encodeURIComponent(member)}`;
     return all;
   }
 
@@ -871,9 +878,45 @@
     // Un toucher ou une touche fait un pas dans l'historique, s'il change l'adresse (ADR-091).
     if (after !== before) changeState(after, /\.tap(@\d+)?$/.test(signal) || signal.startsWith("Key."));
     restartClocks(signal);
+    mirror(signal);
     for (const effect of effects(source, signal).split(",").filter(Boolean)) {
       apply(effect, signal);
     }
+  }
+
+  // Un membre connecté (ADR-081) : chaque toucher de la page, déjà joué ici, repart vers holo serve
+  // avec les champs, comme le ferait la page sans JavaScript (ADR-074). Le serveur le rejoue avec le
+  // même arbitre sur l'état gardé par le compte, sans rien envoyer d'autre (`?mirror`) : le panier
+  // suit le membre sur ses autres appareils. Il reçoit le geste et les saisies, jamais un état à
+  // remplacer. Un
+  // toucher après l'autre, dans l'ordre ; une panne du réseau ne change rien à la page. Un toucher
+  // qui change une valeur partagée ne passe pas par ici : il part au serveur, qui l'arbitre et garde
+  // aussi l'état du compte (shareGesture, ADR-079).
+  function mirror(signal) {
+    if (!member || path !== pageFile || !/^[A-Z][A-Za-z0-9]{0,63}\.tap(@\d{1,6})?$/.test(signal)) return;
+    const fields = new URLSearchParams();
+    for (const field of root.querySelectorAll("input[data-bind], textarea[data-bind], select[data-bind]")) {
+      const bind = field.dataset.bind;
+      if (!/^[A-Za-z0-9]+$/.test(bind) || field.type === "file") continue;
+      if (field.type === "radio") { if (field.checked) fields.set(bind, field.value); }
+      else if (field.type === "checkbox") fields.set(bind, field.checked ? "1" : "0");
+      else fields.set(bind, field.value);
+    }
+    fields.set("signal", signal);
+    const body = fields.toString();
+    const address = addressOf(path);
+    // La même file que les touchers partagés : leur arbitre doit voir le geste personnel précédent.
+    // Une réponse absente ne laisse pas toute la file attendre sans fin.
+    sharedQueue = sharedQueue.then(async () => {
+      const stop = new AbortController();
+      const late = setTimeout(() => stop.abort(), 10000);
+      try {
+        await fetch(`${address}?mirror`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body, signal: stop.signal });
+      } finally {
+        clearTimeout(late);
+      }
+    }).catch(() => {});
+    window.__holoMirrored = sharedQueue; // pour les essais : le dernier toucher renvoyé
   }
 
   // Écoute en direct l'adresse de la page affichée, si elle partage des valeurs (ADR-079). Le

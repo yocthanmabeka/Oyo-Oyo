@@ -159,6 +159,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `meets:`, `within:` | aucun | nouveaux |
 | `drag:` | `draggable`, `pointermove` | changé : un réglage, rien à programmer |
 | `keep:` | `localStorage` | changé : une liste de noms, rien à programmer |
+| `access: members` (et `everyone`, qu'on n'écrit pas) | `@login_required` (Django), `before_action :authenticate_user!` (Rails), un « middleware » (Next.js) | nouveau dans la page : ce qui la réserve est écrit sur elle, pas dans un programme à part (`ADR-081`, à valider) |
 | `address:` (sur `Page`) | `history.pushState`, `URLSearchParams`, `popstate` | changé : une liste de noms ; un toucher fait un pas d'historique, le serveur lit les mêmes valeurs (`ADR-091`, à valider) |
 | `x:`, `y:` | `left`, `top` | changés : de 0 à 100, jamais hors du plateau |
 | `by:` | `cite` | changé |
@@ -232,6 +233,8 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `**gras**`, `*italique*` | `strong`, `em` | changés : l'écriture de Markdown |
 | `import`, `module`, `bridge js`, `bridge css` | `import`, `link`, `script` | repris ou changés ; lus, pas encore appliqués |
 | `{id}` dans le nom d'un fichier, `profil/{id}.holo` | `[id]` (Next.js, SvelteKit), `:id` (Express) | changé : les accolades de HoloCode, les mêmes que dans un texte ; la page lit `{id}`, sans pouvoir le changer (`ADR-078`, à valider) |
+| `signedIn`, `{account}` | `request.user.is_authenticated` et `{{ user.username }}` (Django), `user_signed_in?` et `current_user` (Rails), `useSession()` (Auth.js) | changés : deux valeurs que le serveur donne, lues comme les autres, jamais changées par la page (`ADR-081`, à valider) |
+| `/account`, `/account/signin`, `/account/signup` | `/accounts/login/` (Django), `/users/sign_in` (Devise), `/api/auth/signin` (Auth.js) | repris : les pages de compte du serveur, fabriquées par le moteur ; les seuls liens qui partent de la racine du site (`ADR-081`, à valider) |
 
 ## 2. Les mots du web qu'on n'a pas pris
 

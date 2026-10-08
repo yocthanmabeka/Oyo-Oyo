@@ -13,10 +13,12 @@
 
 import { capabilityTests } from "../../proposals/GPT5.6/fin-lot9-2026-10-08/browser-tests.mjs";
 import { spawn, spawnSync } from "node:child_process";
+import { createHmac } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { webTests } from "../../proposals/GPT5.6/web-viable-2026-10-08/browser-tests.mjs";
 
 const engine = fileURLToPath(new URL("..", import.meta.url));
 const repo = resolve(engine, "..");
@@ -224,6 +226,35 @@ function page(browser, base) {
     text: () => value("document.getElementById('page').innerText"),
   };
   return p;
+}
+
+// Le code à 6 chiffres (ADR-081), calculé ici comme le fait l'application d'authentification du
+// visiteur : la clé lue sur la page (base 32, RFC 4648), puis la RFC 6238 (HMAC-SHA-1, 30 secondes).
+function keyBytes(key) {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  const out = [];
+  let value = 0, bits = 0;
+  for (const letter of key.replace(/[\s=]/g, "").toUpperCase()) {
+    value = ((value << 5) | alphabet.indexOf(letter)) & 0xffff;
+    bits += 5;
+    if (bits >= 8) { bits -= 8; out.push((value >>> bits) & 255); }
+  }
+  return Buffer.from(out);
+}
+function totp(key, step) {
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(step));
+  const print = createHmac("sha1", keyBytes(key)).update(counter).digest();
+  return String((print.readUInt32BE(print[19] & 15) & 0x7fffffff) % 1e6).padStart(6, "0");
+}
+const stepNow = () => Math.floor(Date.now() / 30000);
+// Un code qui n'est celui d'aucun pas proche : le serveur doit le refuser.
+function wrongCode(key) {
+  const near = [-2, -1, 0, 1, 2].map((d) => totp(key, stepNow() + d));
+  for (let n = 1; ; n++) {
+    const code = String((Number(near[0]) + n * 7919) % 1e6).padStart(6, "0");
+    if (!near.includes(code)) return code;
+  }
 }
 
 // Ce que dit un serveur des pages qui écoutent une adresse en direct (ADR-079) : sa dernière
@@ -1188,6 +1219,173 @@ const tests = [
     check("un message forgé, refusé", forged === 422, forged);
     return [faults.length === 0, faults.length ? faults.join("\n      ") : "ada, yocthan et Adé, servis puis repris par le moteur ; les liens ; a/b sans page ; l'éditeur ; un formulaire envoyé à l'adresse, un message forgé refusé"];
   }],
+  // Les comptes (ADR-081) : seulement dans holo serve ; le serveur d'essai le dit.
+  ["les comptes demandent holo serve : le serveur d'essai le dit (leçons 104 à 106)", async (p) => {
+    await p.open("/account/signin", 300);
+    const told = await p.value("document.body.innerText");
+    const status = await p.value(`fetch("/account/signup").then((r) => r.status)`);
+    await p.open("/exemples/lecons/105-une-page-reservee.holo", 300);
+    const reserved = await p.value("document.body.innerText");
+    await p.open("/exemples/lecons/104-se-connecter.holo", 600);
+    const lesson = await p.text();
+    const ok = told.includes("holo serve") && status === 501 && reserved.includes("réservée aux membres") && !reserved.includes("Seules les personnes connectées voient cette page") && lesson.includes("Tu n'es pas connecté");
+    return [ok, `/account : ${told.includes("holo serve") ? "« holo serve » demandé" : told.slice(0, 80)} (${status}) ; la page réservée n'est pas montrée : ${!reserved.includes("Seules les personnes connectées")} ; leçon 104, pas connecté : ${lesson.includes("Tu n'es pas connecté")}`];
+  }],
+  ["un compte, son code à 6 chiffres, une page réservée, avec et sans JavaScript (serve)", async (_, b) => {
+    const served = await startHoloServe(["104-se-connecter.holo", "105-une-page-reservee.holo", "106-le-panier-qui-suit-le-compte.holo"]);
+    const q = page(b, served.base);
+    const faults = [];
+    const check = (name, ok, seen) => { if (!ok) faults.push(`${name} : ${seen}`); };
+    const where = () => q.value("location.pathname + location.search");
+    const words = () => q.value("document.body.innerText");
+    const after = (expression, timeout = 10000) => q.until(`document.readyState === "complete" && (${expression})`, timeout);
+    const send = async (expression) => { await q.click('main form button[type="submit"]'); return after(expression); };
+    const alert = () => q.value(`document.querySelector('[role="alert"]')?.textContent ?? ""`);
+    const password = "une phrase que je connais";
+    // Un parcours entier, pour un nom : créer le compte, activer le code, se déconnecter, se reconnecter.
+    const journey = async (name, script) => {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: !script });
+      await b.send("Network.clearBrowserCookies");
+      const how = script ? "avec JavaScript" : "sans JavaScript";
+      // La page réservée mène à « Se connecter », qui garde où revenir.
+      await q.open("/105-une-page-reservee.holo", 300);
+      check(`${how}, la page réservée mène à « Se connecter »`, (await where()) === "/account/signin?next=/105-une-page-reservee.holo&for=members" && (await words()).includes("Cette page est réservée aux membres"), await where());
+      await q.click('a[href^="/account/signup"]');
+      await after(`location.pathname === "/account/signup"`);
+      // Un mot de passe trop court : refusé, le message sous le champ, relié à lui, lu tout de suite.
+      await q.type("#name", name);
+      await q.type("#password", "court");
+      await q.type("#again", "court");
+      await send(`document.getElementById("password-error")`);
+      const short = await q.value(`[document.getElementById("password-error")?.textContent, document.getElementById("password").getAttribute("aria-describedby"), document.getElementById("password").getAttribute("aria-invalid"), document.getElementById("password").getAttribute("autocomplete")]`);
+      check(`${how}, un mot de passe trop court`, short[0] === "Le mot de passe est trop court : 12 caractères au moins." && short[1].includes("password-error") && short[2] === "true" && short[3] === "new-password" && (await alert()).includes("trop court"), JSON.stringify(short));
+      // Le bon : le compte est créé, et la page réservée s'ouvre, avec le nom.
+      await q.type("#password", password);
+      await q.type("#again", password);
+      await send(`location.pathname === "/105-une-page-reservee.holo"`);
+      check(`${how}, compte créé, la page réservée s'ouvre`, (await q.text()).includes(`Bonjour, ${name}.`), await q.text());
+      // Activer le code : la clé lue sur la page, le code calculé ici, comme le fait l'application.
+      await q.open("/account", 300);
+      await q.click('form[action="/account/code/setup"] button');
+      await after(`location.pathname === "/account/code/setup"`);
+      const key = (await q.value(`document.getElementById("key")?.textContent ?? ""`)).replace(/\s+/g, "");
+      const used = stepNow();
+      await q.type("#code", totp(key, used));
+      await send(`location.search === "?done=code"`);
+      check(`${how}, le code s'active`, key.length === 32 && (await words()).includes("Le code à 6 chiffres est activé"), `clé de ${key.length} lettres ; ${(await words()).slice(0, 120)}`);
+      // Se déconnecter : la page réservée ne s'ouvre plus.
+      await q.click('form[action="/account/signout"] button');
+      await after(`location.search === "?done=signedout"`);
+      const out = await words();
+      await q.open("/105-une-page-reservee.holo", 300);
+      check(`${how}, déconnecté`, out.includes("Tu t'es déconnecté.") && (await where()).startsWith("/account/signin"), `${out.slice(0, 80)} ; ${await where()}`);
+      // Un mauvais mot de passe, un nom inconnu : le même message, qui ne dit pas lequel est faux.
+      await q.type("#name", name);
+      await q.type("#password", "pas le bon mot de passe");
+      await send(`document.querySelector('[role="alert"]')`);
+      const wrong = await alert();
+      await q.value(`document.getElementById("name").value = ""`);
+      await q.type("#name", "Personne");
+      await q.type("#password", "pas le bon mot de passe");
+      await send(`document.querySelector('[role="alert"]') && document.getElementById("name").value === "Personne"`);
+      const nobody = await alert();
+      check(`${how}, le message ne dit pas lequel est faux`, wrong === "Ce nom et ce mot de passe ne vont pas ensemble." && nobody === wrong, `« ${wrong} » / « ${nobody} »`);
+      // Le bon mot de passe, puis le code : un mauvais, refusé ; puis le suivant (celui de
+      // l'activation a déjà servi), qui ramène à la page réservée.
+      await q.value(`document.getElementById("name").value = ""`);
+      await q.type("#name", name);
+      await q.type("#password", password);
+      await send(`location.pathname === "/account/code"`);
+      await q.type("#code", wrongCode(key));
+      await send(`document.querySelector('[role="alert"]')`);
+      const refused = await alert();
+      await q.type("#code", totp(key, used + 1));
+      await send(`location.pathname === "/105-une-page-reservee.holo"`);
+      check(`${how}, connecté avec le code`, refused.startsWith("Ce code ne va pas") && (await q.text()).includes(`Bonjour, ${name}.`), `${refused} ; ${(await q.text()).slice(0, 80)}`);
+      // Le moteur de la page prend la main : il lit le même nom (l'en-tête de holo serve).
+      if (script) {
+        await q.click("#toggle");
+        const started = await q.until("window.__holoStarted === true", 20000);
+        const fault = await q.value(`document.getElementById("error")?.textContent ?? ""`);
+        check(`${how}, le moteur garde le nom`, started && (await q.text()).includes(`Bonjour, ${name}.`) && !fault && b.errors.length === 0, `moteur : ${started} ; ${fault || b.errors.join(" | ") || "aucune erreur"}`);
+      }
+    };
+    try {
+      await journey("Ada", true);
+      await journey("Bob", false);
+      return [faults.length === 0, faults.length ? faults.join("\n      ") : "avec et sans JavaScript : la page réservée mène à « Se connecter » ; un mot de passe trop court refusé, le message relié au champ ; le compte créé ; le code activé (calculé par l'essai) ; déconnecté ; le même message pour un mauvais mot de passe et pour un nom inconnu ; un mauvais code refusé, puis connecté avec le code ; le moteur garde le nom"];
+    } finally {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      served.stop();
+    }
+  }],
+  ["le panier suit le compte, sur deux appareils, avec et sans JavaScript (serve)", async (_, b) => {
+    const served = await startHoloServe(["104-se-connecter.holo", "105-une-page-reservee.holo", "106-le-panier-qui-suit-le-compte.holo"]);
+    const q = page(b, served.base);
+    const lesson = "/106-le-panier-qui-suit-le-compte.holo";
+    const cart = () => q.value(`(document.getElementById("page")?.innerText.match(/Dans le panier : (\\d+)/) ?? [])[1] ?? "?"`);
+    const after = (expression, timeout = 10000) => q.until(`document.readyState === "complete" && (${expression})`, timeout);
+    // Un autre appareil : ni cookie, ni rien de gardé par le navigateur.
+    const newDevice = async () => {
+      await b.send("Network.clearBrowserCookies");
+      await b.send("Storage.clearDataForOrigin", { origin: served.base, storageTypes: "cookies,local_storage" });
+    };
+    const password = "une phrase que je connais";
+    const signIn = async () => {
+      await q.type("#name", "Cleo");
+      await q.type("#password", password);
+      await q.click('main form button[type="submit"]');
+      await after(`location.pathname === "${lesson}"`);
+    };
+    try {
+      // Sur le téléphone, sans JavaScript : un compte, et deux tableaux dans le panier.
+      await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+      await newDevice();
+      await q.open(`/account/signup?next=${lesson}`, 300);
+      await q.type("#name", "Cleo");
+      await q.type("#password", password);
+      await q.type("#again", password);
+      await q.click('main form button[type="submit"]');
+      await after(`location.pathname === "${lesson}"`);
+      for (const count of [1, 2]) {
+        await q.click('[data-name="Ajouter"]');
+        await after(`document.getElementById("page").innerText.includes("Dans le panier : ${count}")`);
+      }
+      const phone = await cart();
+      const named = (await q.text()).includes("Tu es connecté sous le nom Cleo");
+      // Sur l'ordinateur, un autre appareil : pas connecté, le panier est vide ; le lien « Se
+      // connecter » de la leçon y ramène, et le panier du compte y est.
+      await newDevice();
+      await q.open(lesson, 300);
+      const anonymous = await cart();
+      await q.click('#page a[href="/account/signin"]');
+      await after(`location.pathname === "/account/signin"`);
+      await signIn();
+      const computer = await cart();
+      // Avec JavaScript : un troisième tableau, compté tout de suite par la page, renvoyé au serveur.
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      await q.open(lesson, 300);
+      await q.click('[data-name="Ajouter"]');
+      const counted = await q.until(`document.getElementById("page").innerText.includes("Dans le panier : 3")`, 40000);
+      const mirrored = (await q.until("window.__holoMirrored", 5000)) && (await q.value("window.__holoMirrored.then(() => true)"));
+      // Un troisième appareil, avec JavaScript : le panier du compte y est.
+      await newDevice();
+      await q.open(`/account/signin?next=${lesson}`, 300);
+      await signIn();
+      const third = await cart();
+      // Se déconnecter : cet appareil repart d'un panier vide ; le compte garde le sien.
+      await q.open("/account", 300);
+      await q.click('form[action="/account/signout"] button');
+      await after(`location.search === "?done=signedout"`);
+      await q.open(lesson, 300);
+      const out = await cart();
+      const ok = phone === "2" && named && anonymous === "0" && computer === "2" && counted && mirrored && third === "3" && out === "0";
+      return [ok, `téléphone, sans JavaScript : ${phone} (nommé : ${named}) ; ordinateur, pas connecté : ${anonymous}, connecté : ${computer} ; avec JavaScript, compté : ${counted}, renvoyé : ${mirrored} ; un troisième appareil : ${third} ; déconnecté : ${out}`];
+    } finally {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      served.stop();
+    }
+  }],
   ["une valeur partagée change en direct dans deux pages, avec le serveur d'essai (partage, leçon 101)", async (p, b) => {
     // ADR-079 : deux onglets ouverts à la même adresse ; un toucher dans l'un, l'autre change en
     // direct, sans recharger. Le serveur arbitre, chacun son tour ; une page fermée cesse d'écouter.
@@ -1311,7 +1509,67 @@ const tests = [
     }
     return [faults.length === 0, faults.length ? faults.join("\n      ") : "sans JavaScript, « J'aime » vu en direct dans deux autres onglets ; la dernière place : complet partout, en direct ; une place forgée refusée (409) ; la page sans JavaScript à jour ; l'onglet fermé oublié ; la leçon 101 ; la base"];
   }],
+  ["holo serve : le compte garde son état contre une réservation forgée (compte, partage, serve)", async (_, b) => {
+    if (phone) return [true, "sauté avec --telephone : demande un serveur isolé et un compte d'essai"];
+    const served = await startHoloServe([]);
+    writeFileSync(join(served.folder, "concert.holo"), readFileSync(join(repo, "proposals", "GPT5.6", "reprise-pc-comptes-partage-2026-10-08", "concert.holo")));
+    const q = page(b, served.base);
+    const faults = [];
+    const check = (name, ok, seen) => { if (!ok) faults.push(`${name} : ${seen}`); };
+    try {
+      await b.send("Network.clearBrowserCookies");
+      // Une réservation sans JavaScript précède l'attaque JSON du même compte.
+      await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+      await q.open("/account/signup?next=/concert.holo", 300);
+      await q.type("#name", "Ada");
+      await q.type("#password", "une phrase assez longue");
+      await q.type("#again", "une phrase assez longue");
+      await q.click('main form button[type="submit"]');
+      check("le compte créé", await q.until(`location.pathname === "/concert.holo" && document.readyState === "complete"`, 10000), await q.text());
+      await q.type('[data-bind="note"]', "Ada");
+      await q.click('[data-name="Book"]');
+      check("la première réservation", await q.until(`document.querySelector('#page [data-state="seats"]')?.textContent === "2"`, 10000), await q.text());
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      await q.open("/concert.holo", 300);
+      check("le moteur écoute", await q.until("window.__holoLive?.()", 40000), served.log());
+      const refused = await q.value(`fetch(location.pathname, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ signal: "Book.tap", state: "booked=0;cart=777;note='Eve;seats=999" }) }).then(async (r) => ({status:r.status, ...await r.json()}))`);
+      check("la seconde réservation forgée refusée", refused.status === 409 && refused.accepted === false && refused.shared === "seats=2;likes=0;last='Ada", JSON.stringify(refused));
+      check("la réponse garde le compte", refused.state.split(";").includes("booked=1") && refused.state.split(";").includes("cart=0") && refused.state.split(";").includes("note='Ada"), refused.state);
+      // Recharger vérifie la conservation en base, et pas seulement la réponse.
+      await q.open("/concert.holo", 300);
+      check("le refus n'a rien enregistré", (await q.value(`document.querySelector('[data-bind="note"]').value`)) === "Ada" && (await q.value(`document.querySelector('#page [data-state="cart"]').textContent`)) === "0", await q.text());
+      await q.until("window.__holoLive?.()", 40000);
+      await q.value(`document.querySelector('[data-bind="note"]').select()`);
+      await q.type('[data-bind="note"]', "Grace");
+      await q.click('[data-name="Like"]');
+      check("un geste normal reste utilisable", await q.until(`document.querySelector('#page [data-state="likes"]')?.textContent === "1"`, 10000), await q.text());
+      await q.open("/concert.holo", 300);
+      const savedNote = await q.value(`document.querySelector('[data-bind="note"]').value`);
+      check("la saisie acceptée est gardée", savedNote === "Grace", savedNote);
+      await q.until("window.__holoLive?.()", 40000);
+      // Le miroir est tenu volontairement ; le toucher partagé suivant doit attendre.
+      await q.value(`window.__wire = []; window.__realFetch = window.fetch; window.fetch = async (url, options) => { const mirror = String(url).includes("?mirror"); if (mirror) await new Promise((resolve) => { window.__releaseMirror = resolve; }); window.__wire.push(mirror ? "mirror" : "shared"); return window.__realFetch(url, options); }`);
+      await q.click('[data-name="Add"]');
+      check("le miroir est en attente", await q.until('typeof window.__releaseMirror === "function"', 5000), await q.value("window.__wire"));
+      await q.click('[data-name="Like"]');
+      await pause(300);
+      check("le geste partagé attend le miroir précédent", (await q.value("window.__wire.length")) === 0, await q.value("window.__wire"));
+      await q.value("window.__releaseMirror?.()");
+      check("les deux gestes finissent", await q.until(`document.querySelector('#page [data-state="likes"]')?.textContent === "2"`, 10000), await q.text());
+      check("leur ordre et le panier sont gardés", (await q.value('window.__wire.join(",")')) === "mirror,shared" && (await q.value(`document.querySelector('#page [data-state="cart"]').textContent`)) === "1", await q.value("window.__wire"));
+      await q.value("window.fetch = window.__realFetch");
+      await q.open("/concert.holo", 300);
+      check("le panier est enregistré", (await q.value(`document.querySelector('#page [data-state="cart"]').textContent`)) === "1", await q.text());
+    } finally {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      await b.send("Network.clearBrowserCookies");
+      served.stop();
+    }
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : "réservation sans JavaScript ; seconde forgée refusée (409) ; cart=777 et note=Eve ignorés ; état du compte intact après rechargement ; toucher et saisie normaux gardés ; miroir retardé : ordre et panier gardés"];
+  }],
 ];
+
+tests.push(...webTests({ repo, engine, phone, page, startHoloServe, startChrome, pause }));
 
 tests.push(...capabilityTests({engine,phone,pause}));
 

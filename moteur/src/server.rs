@@ -13,7 +13,9 @@
 //! Les valeurs de chaque visiteur sont à lui seul, sauf celles que la page partage
 //! (`Shared`, ADR-079) : le serveur les garde pour tout le monde, une fois par adresse, arbitre
 //! chaque geste qui les change, chacun son tour, et les envoie en direct à toutes les pages
-//! ouvertes à cette adresse (`text/event-stream`). Personne n'a encore de compte (le lot 7).
+//! ouvertes à cette adresse (`text/event-stream`). Un visiteur qui a un compte (ADR-081,
+//! `accounts.rs`) et s'est connecté retrouve les siennes sur tous ses appareils : elles sont
+//! gardées sous son compte.
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -60,11 +62,15 @@ struct Visit {
 /// Ce que le serveur sait de son site.
 pub struct Site {
     /// Le dossier servi : les pages, les images, les fichiers.
-    folder: PathBuf,
+    pub(crate) folder: PathBuf,
     /// Le dossier du moteur pour le navigateur (`moteur/web`) : la page d'entrée, le moteur.
     web: PathBuf,
     /// La base : un seul fichier, `holo-data/site.sqlite`.
-    base: Mutex<Connection>,
+    pub(crate) base: Mutex<Connection>,
+    /// Un geste de page à la fois, de la lecture de la visite à son enregistrement : les envois
+    /// JSON, les formulaires et les miroirs d'un même compte ne relisent pas un état périmé.
+    /// On prend ce verrou avant la base ; les lecteurs et les comptes restent indépendants.
+    gestures: Mutex<()>,
     /// Les pages ouvertes en direct (ADR-079) : chacune reçoit les valeurs partagées de son
     /// adresse quand elles changent. On prend toujours la base avant cette liste, jamais l'inverse.
     lives: Arc<Mutex<Lives>>,
@@ -93,6 +99,8 @@ pub struct Ask<'a> {
     pub content_type: &'a str,
     pub origin: &'a str,
     pub host: &'a str,
+    /// La page d'où vient le visiteur : un lien « Se connecter » y ramène (ADR-081).
+    pub referer: &'a str,
     pub body: &'a [u8],
 }
 
@@ -149,13 +157,20 @@ impl Site {
         // Le modèle de la page qui reçoit un message (ADR-078) : le quota se compte par modèle, pour
         // qu'on ne remplisse pas la base en inventant des adresses ; chaque message garde la sienne.
         let _ = base.execute("ALTER TABLE messages ADD COLUMN model TEXT NOT NULL DEFAULT ''", []);
-        base.execute("DELETE FROM visits WHERE updated < ?1", params![now().saturating_sub(FORGET_AFTER) as i64]).map_err(|e| e.to_string())?;
-        Ok(Site { folder, web: web.to_path_buf(), base: Mutex::new(base), lives: Arc::default() })
+        // Un visiteur absent est oublié ; ce que garde un compte (`account:7`), non : il reste à lui.
+        base.execute("DELETE FROM visits WHERE updated < ?1 AND visitor NOT LIKE 'account:%'", params![now().saturating_sub(FORGET_AFTER) as i64]).map_err(|e| e.to_string())?;
+        // Les comptes, les sessions, le frein contre les essais répétés (ADR-081).
+        crate::accounts::prepare(&base, now())?;
+        Ok(Site { folder, web: web.to_path_buf(), base: Mutex::new(base), gestures: Mutex::new(()), lives: Arc::default() })
     }
 
     /// Répond à une demande. Tout passe par ici : c'est ce que les essais éprouvent.
     pub fn answer(&self, ask: &Ask) -> Reply {
         let Some(path) = url_path(ask.url) else { return Reply::text(400, "adresse illisible") };
+        // Les pages de compte (ADR-081) : créer un compte, se connecter, le code, se déconnecter.
+        if let Some(reply) = crate::accounts::answer(self, ask, &path) {
+            return reply;
+        }
         let path = if path == "/" { "/index.holo".to_string() } else { path };
         // L'adresse telle qu'elle est dans l'URL, encodée : les valeurs d'un modèle en viennent (ADR-078).
         let raw = ask.url.split(['?', '#']).next().unwrap_or("/");
@@ -184,12 +199,27 @@ impl Site {
         // Un .holo demandé pour être affiché : sa page, fabriquée pour ce visiteur. Demandé par le
         // moteur (`text/plain`), le fichier lui-même. Une adresse sans `.holo` (`/contact`, un
         // modèle `profil/{id}.holo`) est toujours une page (ADR-078).
-        if holo.ends_with(".holo") && (ask.accept.contains("text/html") || holo != path) {
-            let visit = visitor_of(ask.cookie).and_then(|visitor| self.stored(&visitor, path));
-            return match self.page(&file, path, &holo, &values, visit, query_of(ask.url)) {
+        let shown = holo.ends_with(".holo") && (ask.accept.contains("text/html") || holo != path);
+        // Le membre connecté (ADR-081). Une page réservée aux membres n'est ni fabriquée, ni donnée
+        // au moteur, pour qui ne l'est pas : il est mené à « Se connecter », puis ramené ici.
+        let member = crate::accounts::member_of(self, ask.cookie);
+        if holo.ends_with(".holo") && member.is_none() && members_only(&file, &values) {
+            if !shown {
+                return Reply::text(401, "page réservée aux membres : connecte-toi d'abord");
+            }
+            let mut headers = vec![("Location".to_string(), crate::accounts::sign_in_address(ask.url.split('#').next().unwrap_or(raw)))];
+            headers.extend(member_headers());
+            return Reply { status: 303, headers, body: Vec::new() };
+        }
+        // Une page faite pour un membre, ou son texte, n'est jamais gardée en cache ; le moteur et les
+        // images, si : ils sont les mêmes pour tous.
+        let headers = if member.is_some() && holo.ends_with(".holo") { member_headers() } else { common_headers() };
+        if shown {
+            let visit = visit_key(member.as_ref(), ask.cookie).and_then(|key| self.stored(&key, path));
+            return match self.page(&file, path, &holo, &values, visit, member.as_ref(), query_of(ask.url)) {
                 Ok(html) => {
                     let mut reply = Reply { status: 200, headers: vec![("Content-Type".into(), "text/html; charset=utf-8".into())], body: html.into_bytes() };
-                    reply.headers.extend(common_headers());
+                    reply.headers.extend(headers);
                     reply
                 }
                 Err(message) => Reply::text(500, &message),
@@ -197,9 +227,9 @@ impl Site {
         }
         match std::fs::read(&file) {
             Ok(bytes) => {
-                let mut headers = vec![("Content-Type".to_string(), content_type(&file).to_string())];
-                headers.extend(common_headers());
-                Reply { status: 200, headers, body: bytes }
+                let mut all = vec![("Content-Type".to_string(), content_type(&file).to_string())];
+                all.extend(headers);
+                Reply { status: 200, headers: all, body: bytes }
             }
             Err(_) => Reply::text(404, "introuvable"),
         }
@@ -216,15 +246,20 @@ impl Site {
         if !ask.origin.is_empty() && ask.origin.split("://").nth(1) != Some(ask.host) {
             return Reply::text(403, "ce geste vient d'un autre site");
         }
+        // Une page réservée aux membres ne reçoit ni geste ni message de qui ne l'est pas (ADR-081).
+        let member = crate::accounts::member_of(self, ask.cookie);
+        if member.is_none() && members_only(&file, &values) {
+            return Reply::text(401, "page réservée aux membres : connecte-toi d'abord");
+        }
         // Un geste partagé envoyé par le moteur de la page, en JSON (ADR-079) : il porte un signal.
         if ask.content_type.starts_with("application/json") && ask.body.len() as u64 <= BODY_MAX {
             if let Some((signal, state)) = crate::read_gesture(&String::from_utf8_lossy(ask.body)) {
-                return self.shared_gesture(ask, path, &file, &holo, &values, &signal, &state);
+                return self.shared_gesture(ask, path, &file, &holo, &values, &signal, &state, member.as_ref());
             }
         }
         // Un formulaire envoyé par le moteur, en JSON, avec ou sans fichiers (ADR-075).
         if ask.content_type.starts_with("application/json") || ask.content_type.starts_with("multipart/form-data") {
-            return self.message(ask, path, &holo, &file, &values);
+            return self.message(ask, path, &holo, &file, &values, member.as_ref());
         }
         if !ask.content_type.starts_with("application/x-www-form-urlencoded") {
             return Reply::text(415, "un geste, ou un formulaire en JSON");
@@ -232,12 +267,18 @@ impl Site {
         if ask.body.len() as u64 > BODY_MAX {
             return Reply::text(413, "formulaire trop lourd");
         }
-        let Ok(source) = source_at(&file, &values) else { return Reply::text(404, "page introuvable") };
+        let Ok(_gesture) = self.gestures.lock() else { return Reply::text(500, "arbitre indisponible") };
+        let Ok(source) = source_for(&file, &values, member.as_ref()) else { return Reply::text(404, "page introuvable") };
         set_clock();
-        let (visitor, new_visitor) = match visitor_of(ask.cookie) {
-            Some(visitor) => (visitor, false),
+        // L'état d'un membre est gardé sous son compte ; celui d'un visiteur, sous son cookie.
+        let (visitor, new_visitor) = match visit_key(member.as_ref(), ask.cookie) {
+            Some(key) => (key, false),
             None => (new_visitor(), true),
         };
+        // Un toucher que le moteur du navigateur a déjà joué (`?mirror`, ADR-081) : le serveur le
+        // rejoue sur l'état qu'il garde, pour que le compte le retrouve ailleurs. Il n'envoie rien
+        // (le moteur s'en charge), et répond sans renvoyer la page.
+        let mirror = ask.url.split_once('?').is_some_and(|(_, query)| query.split('&').any(|part| part == "mirror"));
         let mut visit = self.stored(&visitor, path).unwrap_or_else(|| Visit { state: starting_state(&source, &file), tried: Vec::new() });
         // Le geste part de la page que montre le navigateur, avec les valeurs de son adresse
         // (ADR-091), même si le visiteur est revenu en arrière depuis.
@@ -264,7 +305,8 @@ impl Site {
         };
         // Un toucher qui envoie un formulaire (`On(Send.tap, effect: Contact.send)`) : le serveur
         // vérifie, range le message, puis `Contact.sent` ; ou garde les messages d'erreur.
-        for form in crate::effects(&source, signal).iter().filter_map(|effect| effect.strip_suffix(".send")) {
+        // Un toucher renvoyé par le moteur (`?mirror`, ADR-081) : le moteur a déjà fait l'envoi.
+        for form in crate::effects(&source, signal).iter().filter(|_| !mirror).filter_map(|effect| effect.strip_suffix(".send")) {
             visit.tried.retain(|tried| tried != form);
             if !crate::form_errors(&source, &visit.state, form).is_empty() {
                 visit.tried.push(form.to_string());
@@ -281,12 +323,12 @@ impl Site {
         // « Précédent » revient à l'onglet d'avant.
         let query = crate::address_query(&source, &visit.state);
         let location = if query.is_empty() { path.to_string() } else { format!("{path}?{query}") };
-        let mut headers = vec![("Location".to_string(), location)];
+        let mut headers = if mirror { Vec::new() } else { vec![("Location".to_string(), location)] };
         if new_visitor {
             headers.push(("Set-Cookie".into(), format!("{COOKIE}={visitor}; Path=/; HttpOnly; SameSite=Lax; Max-Age={FORGET_AFTER}")));
         }
         headers.extend(common_headers());
-        Reply { status: 303, headers, body: Vec::new() }
+        Reply { status: if mirror { 204 } else { 303 }, headers, body: Vec::new() }
     }
 
     /// Le fichier d'une page, et ce qui la décrit (ADR-078) : le fichier même de l'adresse ; sinon
@@ -341,8 +383,8 @@ impl Site {
 
     /// La page d'entrée, avec la page du fichier déjà fabriquée dedans, comme le fait
     /// outils/server.mjs. Un fichier de points (`Point`) ouvre la porte des mondes.
-    fn page(&self, file: &Path, path: &str, holo: &str, values: &[(String, String)], visit: Option<Visit>, query: &str) -> Result<String, String> {
-        let source = source_at(file, values).map_err(|e| e.to_string())?;
+    fn page(&self, file: &Path, path: &str, holo: &str, values: &[(String, String)], visit: Option<Visit>, member: Option<&crate::accounts::Member>, query: &str) -> Result<String, String> {
+        let source = source_for(file, values, member).map_err(|e| e.to_string())?;
         if source.lines().map(|line| line.split("//").next().unwrap_or("").trim()).find(|line| !line.is_empty()).is_some_and(|line| line.starts_with("Point")) {
             return std::fs::read_to_string(self.web.join("index.html")).map_err(|e| e.to_string());
         }
@@ -356,7 +398,10 @@ impl Site {
         let base = &holo[..=holo.rfind('/').unwrap_or(0)];
         // Le fichier de la page (ADR-078) : le moteur du navigateur y lit son texte, même quand
         // l'adresse ne le dit pas (`/contact`, un modèle `profil/{id}.holo`).
-        let template = template.replacen("<title>HoloCode</title>", &format!("<title>HoloCode</title><meta name=\"holo-file\" content=\"{}\">", crate::flat::escape(holo)), 1);
+        // Le membre connecté (ADR-081) : le moteur du navigateur lit son nom, et renvoie ses touchers
+        // au serveur, qui les garde sous son compte.
+        let signed = member.map(|member| format!("<meta name=\"holo-account\" content=\"{}\">", crate::flat::escape(&member.name))).unwrap_or_default();
+        let template = template.replacen("<title>HoloCode</title>", &format!("<title>HoloCode</title><meta name=\"holo-file\" content=\"{}\">{signed}", crate::flat::escape(holo)), 1);
         // Les valeurs partagées du moment, gardées pour cette adresse (ADR-079).
         let mut visit = visit;
         if !crate::shared_names(&source).is_empty() {
@@ -383,9 +428,15 @@ impl Site {
     /// visiteur, qu'il a pu forger, n'en change aucune), range les nouvelles, les envoie en direct
     /// à toutes les pages ouvertes à cette adresse, garde l'état du visiteur comme sans JavaScript,
     /// et répond l'état d'après : `200`, ou `409` si le geste est refusé (un bouton caché).
+    ///
+    /// Un membre connecté (ADR-081) : son état vient de la base, jamais de la copie envoyée par
+    /// la page. Seules les valeurs liées à un champ passent par la validation des saisies.
+    /// Un geste refusé ne garde rien. Pour un visiteur sans compte, l'état personnel reste fourni
+    /// par sa page (limite d'ADR-079) ; ses valeurs partagées viennent toujours de la base.
     #[allow(clippy::too_many_arguments)]
-    fn shared_gesture(&self, ask: &Ask, path: &str, file: &Path, holo: &str, values: &[(String, String)], signal: &str, state: &str) -> Reply {
-        let Ok(source) = source_at(file, values) else { return Reply::text(404, "page introuvable") };
+    fn shared_gesture(&self, ask: &Ask, path: &str, file: &Path, holo: &str, values: &[(String, String)], signal: &str, state: &str, member: Option<&crate::accounts::Member>) -> Reply {
+        let Ok(_gesture) = self.gestures.lock() else { return Reply::text(500, "arbitre indisponible") };
+        let Ok(source) = source_for(file, values, member) else { return Reply::text(404, "page introuvable") };
         if crate::shared_names(&source).is_empty() {
             return Reply::text(400, "cette page ne partage aucune valeur");
         }
@@ -393,23 +444,34 @@ impl Site {
             return Reply::text(400, "ce geste ne change aucune valeur partagée : la page le fait seule");
         }
         set_clock();
-        let (visitor, new_visitor) = match visitor_of(ask.cookie) {
-            Some(visitor) => (visitor, false),
+        let (visitor, new_visitor) = match visit_key(member, ask.cookie) {
+            Some(key) => (key, false),
             None => (new_visitor(), true),
         };
         let Ok(base) = self.base.lock() else { return Reply::text(500, "base indisponible") };
         let key = shared_key(holo, values);
         let (current, mut version) = shared_in(&base, &key);
-        let (after, accepted) = crate::share(&source, state, &current, signal);
+        let mut visit = stored_in(&base, &visitor, path).unwrap_or_else(|| Visit { state: starting_state(&source, file), tried: Vec::new() });
+        let before = crate::with_shared(&source, &visit.state, &current);
+        let candidate = if member.is_some() {
+            // La copie de la page n'est qu'un transport pour ses champs : elle ne peut ni remettre
+            // booked à zéro, ni changer une liste, un score, le compte ou le compteur de hasard.
+            crate::visitor_gesture(&source, &before, &inputs_from_state(&source, state))
+        } else {
+            state.to_string()
+        };
+        let (mut after, accepted) = crate::share(&source, &candidate, &current, signal);
         if accepted {
+            let saved = without_sounds(&after);
+            if saved.len() > STATE_MAX {
+                return Reply::text(413, "état trop lourd");
+            }
             version = self.changed(&base, &key, &source, &current, &after, version);
-        }
-        // L'état du visiteur après ce geste, gardé comme sans JavaScript (ADR-074) : il le retrouve
-        // en revenant.
-        let mut visit = stored_in(&base, &visitor, path).unwrap_or_default();
-        visit.state = without_sounds(&after);
-        if visit.state.len() <= STATE_MAX {
+            visit.state = saved;
             store_in(&base, &visitor, path, &visit);
+        } else if member.is_some() {
+            // Le refus ne valide pas non plus les saisies jointes ; la réponse rend l'état gardé.
+            after = before;
         }
         drop(base);
         let body = format!("{{\"accepted\":{accepted},\"state\":{},\"shared\":{},\"version\":{version}}}", crate::json_text(&after), crate::json_text(&crate::shared_of(&source, &after)));
@@ -469,6 +531,10 @@ impl Site {
             return Err(Reply::text(403, "cette page est écoutée depuis un autre site"));
         }
         let Some((file, holo, values)) = self.locate(&path, raw) else { return Err(Reply::text(404, "introuvable")) };
+        // Les valeurs partagées d'une page réservée ne s'écoutent qu'en membre (ADR-081).
+        if crate::accounts::member_of(self, ask.cookie).is_none() && members_only(&file, &values) {
+            return Err(Reply::text(401, "page réservée aux membres : connecte-toi d'abord"));
+        }
         let source = source_at(&file, &values).map_err(|_| Reply::text(404, "introuvable"))?;
         if !holo.ends_with(".holo") || crate::shared_names(&source).is_empty() {
             return Err(Reply::text(404, "cette page ne partage aucune valeur à écouter"));
@@ -526,7 +592,7 @@ impl Site {
     /// Un formulaire envoyé par le moteur du navigateur (ADR-042, ADR-059), reçu ici (ADR-075) :
     /// vérifié à nouveau par le moteur (la page peut être contournée, le serveur non), ses
     /// fichiers reconnus à leurs premiers octets, puis rangé dans la base. `204`, ou le refus.
-    fn message(&self, ask: &Ask, path: &str, holo: &str, file: &Path, values: &[(String, String)]) -> Reply {
+    fn message(&self, ask: &Ask, path: &str, holo: &str, file: &Path, values: &[(String, String)], member: Option<&crate::accounts::Member>) -> Reply {
         let multipart = ask.content_type.starts_with("multipart/form-data");
         if ask.body.len() as u64 > if multipart { WITH_FILES_MAX } else { MESSAGE_MAX as u64 } {
             return Reply::text(413, "message trop long");
@@ -539,7 +605,7 @@ impl Site {
         } else {
             (String::from_utf8_lossy(ask.body).into_owned(), Vec::new())
         };
-        let Ok(source) = source_at(file, values) else { return Reply::text(404, "page introuvable") };
+        let Ok(source) = source_for(file, values, member) else { return Reply::text(404, "page introuvable") };
         match crate::check_submission(&source, &json) {
             Ok(errors) if errors.is_empty() => {}
             Ok(errors) => return Reply::text(422, &errors),
@@ -759,13 +825,13 @@ pub fn serve(folder: &Path, web: &Path, port: u16) -> Result<(), String> {
 
 fn reply_to(site: &Site, mut request: tiny_http::Request) {
     let header = |name: &str| request.headers().iter().find(|h| h.field.as_str().as_str().eq_ignore_ascii_case(name)).map(|h| h.value.as_str().to_string()).unwrap_or_default();
-    let (accept, cookie, content_type, origin, host) = (header("Accept"), header("Cookie"), header("Content-Type"), header("Origin"), header("Host"));
+    let (accept, cookie, content_type, origin, host, referer) = (header("Accept"), header("Cookie"), header("Content-Type"), header("Origin"), header("Host"), header("Referer"));
     let method = request.method().as_str().to_string();
     let url = request.url().to_string();
     // Une page qui écoute ses valeurs partagées en direct (ADR-079) : la connexion reste ouverte,
     // tenue par un fil à elle ; ce fil-ci retourne aussitôt servir les autres.
     if method == "GET" && accept.contains("text/event-stream") {
-        let ask = Ask { method: &method, url: &url, accept: &accept, cookie: &cookie, content_type: &content_type, origin: &origin, host: &host, body: &[] };
+        let ask = Ask { method: &method, url: &url, accept: &accept, cookie: &cookie, content_type: &content_type, origin: &origin, host: &host, referer: &referer, body: &[] };
         match site.live_page(&ask) {
             Ok((key, source)) => site.listen(&key, &source, request.into_writer()),
             Err(reply) => {
@@ -785,7 +851,7 @@ fn reply_to(site: &Site, mut request: tiny_http::Request) {
         let limit = if content_type.starts_with("multipart/form-data") { WITH_FILES_MAX } else { BODY_MAX };
         let _ = request.as_reader().take(limit + 1).read_to_end(&mut body);
     }
-    let reply = site.answer(&Ask { method: &method, url: &url, accept: &accept, cookie: &cookie, content_type: &content_type, origin: &origin, host: &host, body: &body });
+    let reply = site.answer(&Ask { method: &method, url: &url, accept: &accept, cookie: &cookie, content_type: &content_type, origin: &origin, host: &host, referer: &referer, body: &body });
     let mut response = tiny_http::Response::from_data(if method == "HEAD" { Vec::new() } else { reply.body }).with_status_code(reply.status);
     for (name, value) in reply.headers {
         if let Ok(header) = tiny_http::Header::from_bytes(name.as_bytes(), value.as_bytes()) {
@@ -863,6 +929,29 @@ fn common_headers() -> Vec<(String, String)> {
     vec![("Cache-Control".into(), "no-cache".into()), ("X-Content-Type-Options".into(), "nosniff".into()), ("Referrer-Policy".into(), "same-origin".into())]
 }
 
+/// Les en-têtes d'une réponse faite pour un membre connecté (ADR-081) : elle porte son nom et ses
+/// valeurs, elle n'est donc jamais gardée (un ordinateur partagé, le bouton « retour » après s'être
+/// déconnecté).
+fn member_headers() -> Vec<(String, String)> {
+    common_headers().into_iter().map(|(name, value)| if name == "Cache-Control" { (name, "private, no-store".to_string()) } else { (name, value) }).collect()
+}
+
+/// La clé sous laquelle l'état d'une visite est gardé : le compte d'un membre connecté (ses valeurs
+/// le suivent sur tous ses appareils, ADR-081), sinon le numéro du cookie du visiteur.
+fn visit_key(member: Option<&crate::accounts::Member>, cookie: &str) -> Option<String> {
+    member.map(crate::accounts::Member::visit_key).or_else(|| visitor_of(cookie))
+}
+
+/// Une page réservée aux membres (`access: members`, ADR-081) ? Lue avec ses imports et son
+/// adresse ; une page que le moteur refuse reste réservée si son texte le dit.
+fn members_only(file: &Path, values: &[(String, String)]) -> bool {
+    let Ok(source) = source_at(file, values) else { return false };
+    match crate::holo::read(&source) {
+        Ok(program) => crate::account::members_only(&program),
+        Err(_) => crate::account::members_in_text(&source),
+    }
+}
+
 /// Le chemin d'une adresse, décodé (`/le%20site.holo` → `/le site.holo`), sans sa question.
 fn url_path(url: &str) -> Option<String> {
     let path = url.split(['?', '#']).next().unwrap_or("");
@@ -874,7 +963,7 @@ fn url_path(url: &str) -> Option<String> {
 }
 
 /// Le numéro du visiteur, dans son cookie : 32 chiffres hexadécimaux, sinon aucun.
-fn visitor_of(cookie: &str) -> Option<String> {
+pub(crate) fn visitor_of(cookie: &str) -> Option<String> {
     cookie
         .split(';')
         .filter_map(|pair| pair.trim().split_once('='))
@@ -918,10 +1007,51 @@ fn starting_state(source: &str, file: &Path) -> String {
     without_sounds(&state)
 }
 
+/// Extrait d'une copie d'état seulement les saisies que la page déclare. Leur validation
+/// (bornes, longueur, options, dates) reste celle de `visitor_gesture`. Les nombres de l'état
+/// sont à l'échelle : 1250 pour un champ déclaré à 12.50 devient « 12.50 », pas « 1250 ».
+/// Une valeur absente ou mal codée ne remet pas le champ à sa valeur de départ.
+fn inputs_from_state(source: &str, state: &str) -> Vec<(String, String)> {
+    let Ok(program) = crate::check_page(source) else { return Vec::new() };
+    let numbers = crate::state::initial(&program).unwrap_or_default();
+    let texts = crate::state::initial_texts(&program);
+    let mut names: Vec<String> = Vec::new();
+    let _ = crate::rules::for_each_block(&program.root, &mut |block| {
+        if matches!(block.name.as_str(), "Input" | "Checkbox" | "Slider" | "Choice") {
+            if let Some(crate::holo::Value::Name(name)) = block.argument("value").map(|argument| &argument.value) {
+                if name != crate::gestures::SIGNAL && !program.shared.contains(name) && !names.contains(name) {
+                    names.push(name.clone());
+                }
+            }
+        }
+        Ok(())
+    });
+    names.into_iter().filter_map(|name| {
+        let written = state.split(';').rev().find_map(|chunk| {
+            let (known, written) = chunk.split_once('=')?;
+            (known == name).then_some(written)
+        })?;
+        let value = if texts.iter().any(|(known, _)| *known == name) {
+            crate::state::decode(written.strip_prefix('\'')?)?
+        } else if numbers.iter().any(|(known, _)| *known == name) {
+            crate::state::format_decimal(written.parse().ok()?, crate::state::places(&program, &name))
+        } else {
+            return None;
+        };
+        Some((name, value))
+    }).collect()
+}
+
 /// Le texte d'une page, avec ses imports, puis les valeurs de son adresse (ADR-078).
 fn source_at(file: &Path, values: &[(String, String)]) -> std::io::Result<String> {
     let source = read_with_imports(file)?;
     Ok(if values.is_empty() { source } else { crate::address::joined(&source, values) })
+}
+
+/// Le texte d'une page pour ce visiteur : `source_at`, puis le nom du membre connecté (ADR-081),
+/// que la page lit (`{account}`, `signedIn`) sans pouvoir le changer ; vide pour un visiteur.
+fn source_for(file: &Path, values: &[(String, String)], member: Option<&crate::accounts::Member>) -> std::io::Result<String> {
+    Ok(crate::account::joined(&source_at(file, values)?, member.map_or("", |member| member.name.as_str())))
 }
 
 /// Le dossier `{x}`, ou pour le dernier morceau le fichier `{x}.holo`, d'un dossier ; le premier
@@ -1001,7 +1131,7 @@ fn set_clock() {
     crate::set_now(crate::state::from_unix_seconds(now()));
 }
 
-fn now() -> u64 {
+pub(crate) fn now() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs())
 }
 
@@ -1047,7 +1177,7 @@ mod tests {
     }
 
     fn ask<'a>(method: &'a str, url: &'a str, cookie: &'a str, body: &'a [u8]) -> Ask<'a> {
-        Ask { method, url, accept: "text/html", cookie, content_type: "application/x-www-form-urlencoded", origin: "", host: "localhost:8080", body }
+        Ask { method, url, accept: "text/html", cookie, content_type: "application/x-www-form-urlencoded", origin: "", host: "localhost:8080", referer: "", body }
     }
 
     #[test]
@@ -1349,6 +1479,124 @@ mod tests {
         let _ = std::fs::remove_dir_all(folder);
     }
 
+
+    const MEMBER_CONCERT: &str = include_str!("../../proposals/GPT5.6/reprise-pc-comptes-partage-2026-10-08/concert.holo");
+
+    fn concert_member(site: &Site, name: &str) -> String {
+        let body = format!("name={name}&password=une+phrase+assez+longue&again=une+phrase+assez+longue");
+        let reply = site.answer(&ask("POST", "/account/signup", "", body.as_bytes()));
+        assert_eq!(reply.status, 303, "{}", String::from_utf8_lossy(&reply.body));
+        let cookie = cookie_of(&reply);
+        assert!(cookie.starts_with("holo_session="), "{cookie}");
+        cookie
+    }
+
+    fn member_state(site: &Site, cookie: &str) -> String {
+        let member = crate::accounts::member_of(site, cookie).unwrap();
+        site.stored(&member.visit_key(), "/member-concert.holo").unwrap().state
+    }
+
+    #[test]
+    fn a_member_cannot_reserve_twice_by_forging_the_json_state() {
+        let (site, folder) = site();
+        crate::check_page(MEMBER_CONCERT).unwrap();
+        std::fs::write(folder.join("member-concert.holo"), MEMBER_CONCERT).unwrap();
+        let ada = concert_member(&site, "Ada");
+        assert_eq!(site.answer(&ask("POST", "/member-concert.holo", &ada, b"signal=Book.tap")).status, 303);
+        let saved = member_state(&site, &ada);
+        let forged = br#"{"signal":"Book.tap","state":"booked=0;cart=777;seats=999;likes=0"}"#;
+        let refused = site.answer(&json("/member-concert.holo", &ada, forged));
+        assert_eq!(refused.status, 409, "{}", String::from_utf8_lossy(&refused.body));
+        assert_eq!(member_state(&site, &ada), saved);
+        assert!(String::from_utf8(refused.body).unwrap().contains("\"shared\":\"seats=2;likes=0;last='\""));
+        // Un geste accepté ne reprend pas davantage cart=777.
+        assert_eq!(site.answer(&json("/member-concert.holo", &ada, br#"{"signal":"Like.tap","state":"booked=0;cart=777;likes=999"}"#)).status, 200);
+        assert!(member_state(&site, &ada).contains("booked=1;cart=0"), "{}", member_state(&site, &ada));
+        let grace = concert_member(&site, "Grace");
+        assert_eq!(site.answer(&json("/member-concert.holo", &grace, forged)).status, 200);
+        assert!(member_state(&site, &grace).contains("booked=1;cart=0"), "{}", member_state(&site, &grace));
+        drop(site);
+        std::fs::remove_dir_all(folder).unwrap();
+    }
+
+    #[test]
+    fn a_refused_member_gesture_saves_neither_forged_state_nor_inputs() {
+        let (site, folder) = site();
+        std::fs::write(folder.join("member-concert.holo"), MEMBER_CONCERT).unwrap();
+        let ada = concert_member(&site, "Ada");
+        site.answer(&ask("POST", "/member-concert.holo", &ada, b"note=Ada&signal=Book.tap"));
+        let saved = member_state(&site, &ada);
+        let body = br#"{"signal":"Book.tap","state":"booked=1;cart=777;note='Eve;price=99999"}"#;
+        let refused = site.answer(&json("/member-concert.holo", &ada, body));
+        assert_eq!(refused.status, 409);
+        assert_eq!(member_state(&site, &ada), saved);
+        assert!(String::from_utf8(refused.body).unwrap().contains(&crate::json_text(&saved)));
+        drop(site);
+        std::fs::remove_dir_all(folder).unwrap();
+    }
+
+    #[test]
+    fn member_json_inputs_use_the_normal_validation_and_decimal_scale() {
+        let (site, folder) = site();
+        std::fs::write(folder.join("member-concert.holo"), MEMBER_CONCERT).unwrap();
+        let ada = concert_member(&site, "Ada");
+        // Les champs restent utilisables sans attendre leur miroir. Le texte est nettoyé et
+        // borné, les décimales gardent leur échelle, la glissière et le choix gardent leurs bornes.
+        let body = br#"{"signal":"Book.tap","state":"booked=0;cart=777;note='Ad%C3%A8leOK;price=1350;agreed=1;level=999;size='XL;seats=999;last='Eve"}"#;
+        let reply = site.answer(&json("/member-concert.holo", &ada, body));
+        assert_eq!(reply.status, 200, "{}", String::from_utf8_lossy(&reply.body));
+        let saved = member_state(&site, &ada);
+        for chunk in ["booked=1", "cart=0", "price=1350", "agreed=1", "level=10", "size='S", "note='Ad%C3%A8le", "last='Ad%C3%A8le", "seats=2"] {
+            assert!(saved.split(';').any(|part| part == chunk), "{chunk}: {saved}");
+        }
+        assert!(inputs_from_state(MEMBER_CONCERT, "cart=777;booked=0;price=oops;note='%ZZ;last='Eve").is_empty());
+        assert!(inputs_from_state(MEMBER_CONCERT, "").is_empty());
+        drop(site);
+        std::fs::remove_dir_all(folder).unwrap();
+    }
+
+    #[test]
+    fn a_refused_guest_json_gesture_does_not_create_a_saved_visit() {
+        let (site, folder) = site();
+        std::fs::write(folder.join("concert.holo"), CONCERT).unwrap();
+        let reply = site.answer(&json("/concert.holo", "", br#"{"signal":"Book.tap","state":"booked=1;seats=999"}"#));
+        assert_eq!(reply.status, 409);
+        let visitor = visitor_of(&cookie_of(&reply)).unwrap();
+        assert!(site.stored(&visitor, "/concert.holo").is_none());
+        drop(site);
+        std::fs::remove_dir_all(folder).unwrap();
+    }
+
+    #[test]
+    fn concurrent_form_and_json_taps_of_one_account_reserve_one_seat() {
+        let (site, folder) = site();
+        std::fs::write(folder.join("member-concert.holo"), MEMBER_CONCERT).unwrap();
+        let ada = concert_member(&site, "Ada");
+        let barrier = std::sync::Barrier::new(8);
+        std::thread::scope(|scope| {
+            for rank in 0..8 {
+                let barrier = &barrier;
+                let site = &site;
+                let ada = &ada;
+                scope.spawn(move || {
+                    barrier.wait();
+                    if rank % 2 == 0 {
+                        assert_eq!(site.answer(&ask("POST", "/member-concert.holo", ada, b"signal=Book.tap")).status, 303);
+                    } else {
+                        let status = site.answer(&json("/member-concert.holo", ada, br#"{"signal":"Book.tap","state":"booked=0;seats=999"}"#)).status;
+                        assert!(status == 200 || status == 409, "{status}");
+                    }
+                });
+            }
+        });
+        let base = site.base.lock().unwrap();
+        assert_eq!(shared_in(&base, "/member-concert.holo"), ("seats=2;likes=0;last='".into(), 1));
+        drop(base);
+        assert!(member_state(&site, &ada).contains("booked=1;cart=0"));
+        drop(site);
+        std::fs::remove_dir_all(folder).unwrap();
+    }
+
     /// Ce qu'une page en direct reçoit, pour les essais.
     #[derive(Clone, Default)]
     struct Recorder(Arc<Mutex<Vec<u8>>>);
@@ -1392,7 +1640,7 @@ mod tests {
         let (site, folder) = site();
         std::fs::write(folder.join("concert.holo"), CONCERT).unwrap();
         // Seule une page qui partage des valeurs s'écoute ; pas depuis un autre site.
-        let listen_ask = |url: &'static str| Ask { method: "GET", url, accept: "text/event-stream", cookie: "", content_type: "", origin: "", host: "localhost:8080", body: b"" };
+        let listen_ask = |url: &'static str| Ask { method: "GET", url, accept: "text/event-stream", cookie: "", content_type: "", origin: "", host: "localhost:8080", referer: "", body: b"" };
         assert_eq!(site.live_page(&listen_ask("/shop.holo")).err().map(|r| r.status), Some(404));
         let mut foreign = listen_ask("/concert.holo");
         foreign.origin = "https://ailleurs.example";

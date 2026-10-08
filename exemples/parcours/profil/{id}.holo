@@ -1,0 +1,10 @@
+Page(title: "Profil public", lang: "fr", description: "Un profil public de l'atelier.", image: "apercu.svg",
+children: [H1("Profil {id}"), P("Adresse stable, partageable. Aucune donnée privée de compte ici."),
+Image(source: "apercu.svg", alt: "Le signe lumineux de l'atelier"),
+A("Accueil des parcours", to: "../index.holo")])
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; computer: { max-width: 960px; } print: { background: white; color: black; } }
+H1 { color: #E9B44C; font-size: 28px; print: { color: black; } }
+H2 { color: #E9B44C; font-size: 22px; print: { color: black; } }
+A { color: #8fd3ff; print: { color: black; } }
+.card { background: #22223a; padding: 16px; border-radius: 8px; }
+Nav { print: { display: none; } }

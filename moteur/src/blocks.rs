@@ -20,7 +20,7 @@ pub fn check_blocks(program: &Program) -> Result<(), Error> {
 /// absents de cette liste vérifient leurs réglages eux-mêmes (`State`, `Shared`, `Prices`, `Data`,
 /// `Zoom`, `Points`, `Relief`, `Portals`, `Enter`, `Loop`, `Use`).
 const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
-    ("Page", &["name", "title", "children", "pixels", "rules", "state", "shared", "prices", "keep", "data", "zoom", "points", "relief", "portals", "lang", "description", "image", "fonts", "icon", "modules", "components", "computed", "address"]),
+    ("Page", &["name", "title", "children", "pixels", "rules", "state", "shared", "prices", "keep", "data", "zoom", "points", "relief", "portals", "lang", "description", "image", "fonts", "icon", "modules", "components", "computed", "address", "access"]),
     ("World", &["name", "children", "pixels", "rules"]),
     ("Component", &["name", "params", "emits", "children", "rules"]),
     ("Text", &["name"]),

@@ -38,6 +38,13 @@ web-sys = { version = "0.3", features = [
 tiny_http = "0.12"
 rusqlite = { version = "0.32", features = ["bundled"] }
 getrandom = "0.2"
+# Les comptes (ADR-081), seulement pour le PC : la cryptographie ne s'écrit jamais à la main.
+# Trois bibliothèques de RustCrypto, éprouvées et très employées : Argon2id pour les mots de passe
+# (une empreinte lente, qu'on ne peut pas défaire) ; HMAC et SHA-1 pour le code à 6 chiffres
+# (RFC 6238, celui que calculent les applications d'authentification).
+argon2 = { version = "0.6", default-features = false, features = ["alloc", "password-hash"] }
+hmac = "0.13"
+sha1 = { version = "0.11", default-features = false }
 
 [profile.release]
 opt-level = "s"

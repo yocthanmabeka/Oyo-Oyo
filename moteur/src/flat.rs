@@ -1697,6 +1697,10 @@ fn text_of(block: &Block) -> Result<&str, Error> {
 /// site de la page (`#Workshop`), ou une adresse du web en http ou https. Rien d'autre : pas
 /// de `javascript:`, pas de caractères qui sortiraient de l'attribut.
 fn safe_address(address: &str, base: &str) -> Option<String> {
+    // Les pages de compte de holo serve (ADR-081) : toujours à la racine du site.
+    if crate::account::LINKS.contains(&address) {
+        return Some(address.to_string());
+    }
     if address.starts_with("https://") || address.starts_with("http://") {
         return web_address(address).then(|| address.to_string());
     }

@@ -1,0 +1,20 @@
+Page(title: "Les parcours du web", lang: "fr", description: "Recette du web HoloCode.",
+children: [H1("Les parcours du web"), P("Un site de recette, hébergé chez toi par holo serve. Les données sont fictives."),
+Nav(children: [Column(gap: 12px, children: [
+A("1 — Catalogue de 200 produits", to: "catalogue.holo"),
+A("2 — Fiche et panier", to: "fiche.holo"),
+A("3 — Inscription vérifiée", to: "inscription.holo"),
+A("4 — Contact avec image", to: "contact.holo"),
+A("5 — Petit et grand écran", to: "disposition.holo"),
+A("6 — Réservation en direct", to: "reservation.holo"),
+A("7 — Compte local et panier", to: "/account/signup"),
+A("8 — Profil public 123", to: "profil/123"),
+A("9 — Article et vidéo sous-titrée", to: "article.holo"),
+A("10 — Tableau de bord", to: "dashboard.holo"),
+])]), P("Les essais au TalkBack et sur un téléphone réel restent nécessaires.")])
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; computer: { max-width: 960px; } print: { background: white; color: black; } }
+H1 { color: #E9B44C; font-size: 28px; print: { color: black; } }
+H2 { color: #E9B44C; font-size: 22px; print: { color: black; } }
+A { color: #8fd3ff; print: { color: black; } }
+.card { background: #22223a; padding: 16px; border-radius: 8px; }
+Nav { print: { display: none; } }

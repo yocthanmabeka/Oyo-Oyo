@@ -1534,6 +1534,45 @@ Page(
 
 Cette écriture est proposée (`ADR-079`). La leçon est `101-une-valeur-partagee.holo` : ouvre-la sur ton téléphone et sur ton ordinateur.
 
+## 6 untricies. Des comptes : se connecter, une page réservée, le panier qui suit le compte
+
+Avec `holo serve`, un site a des comptes, gardés par le serveur de l'auteur, dans la base du site : ni Google, ni Apple, ni adresse e-mail. Une page sait si le visiteur est connecté, et sous quel nom :
+
+```holo
+Page(
+  title: "Shop",
+  state: State(cart: 0),
+  children: [
+    H1("The shop"),
+    P("Cart: {cart}"),
+    Button(name: Add, text: "Add"),
+    If(signedIn, is: 1, children: [
+      P("Hello, {account}: your cart follows you."),
+      A("My account", to: "/account"),
+    ], else: [
+      A("Sign in", to: "/account/signin"),
+    ]),
+  ],
+  rules: [ On(Add.tap, effect: cart.add(1)) ],
+)
+```
+
+Et une page peut être réservée aux personnes connectées :
+
+```holo
+Page(title: "Members", access: members, children: [ H1("Hello, {account}") ])
+```
+
+- **`signedIn`** (1 quand le visiteur est connecté, 0 sinon) et **`{account}`** (son nom, vide sinon) : la page les lit comme ses autres valeurs, sans pouvoir les changer ni les garder (`signedIn.set(1)`, `Input(value: account)`, `State(account: …)` et `keep: [account]` sont refusés). C'est le serveur qui les donne.
+- **`access: members`** : la page n'est montrée qu'aux personnes connectées ; les autres sont menées à « Se connecter », puis ramenées. Rien de la page ne leur arrive avant, pas même son texte. Sans `access`, la page est à tout le monde.
+- **Les pages de compte sont fabriquées par le moteur**, en HTML ordinaire, accessibles, sans JavaScript : `/account/signup` (créer un compte), `/account/signin` (se connecter), `/account` (activer le code à 6 chiffres, se déconnecter). Ce sont les seuls liens qui partent de la racine du site.
+- **Se connecter** : un nom et un mot de passe (12 caractères au moins), puis, si on l'a activé, le code à 6 chiffres d'une application d'authentification du téléphone (Aegis, FreeOTP, Google Authenticator…), calculé sans Internet ni SMS. Un code ne sert qu'une fois ; cinq essais ratés, puis une attente.
+- **Le panier suit le compte** : connecté, les valeurs d'une page sont gardées par le compte ; on les retrouve sur son téléphone et sur son ordinateur, avec ou sans JavaScript. Ce qu'on avait fait avant de se connecter suit aussi.
+- Le mot de passe n'est jamais gardé en clair (son empreinte Argon2id seulement) ; la session est un numéro tiré au hasard, dans un cookie que la page ne lit pas, oublié après 14 jours sans visite ; se déconnecter l'efface.
+- Le serveur d'essai (`node outils/server.mjs`) n'a pas de comptes : à la place des pages de compte et des pages réservées, il dit qu'il faut `holo serve`.
+
+Cette écriture est proposée (`ADR-081`) ; se connecter par un mot de passe puis un code à 6 chiffres, tout chez l'auteur, est le choix de Yocthan (2026-10-08). Les leçons sont `104-se-connecter.holo`, `105-une-page-reservee.holo` et `106-le-panier-qui-suit-le-compte.holo`.
+
 ## 6 sexvicies. La mise en page : téléphone, ordinateur, la place, ce qui dépasse, les proportions, le curseur, justifié, décrocher
 
 ```holo
@@ -2284,6 +2323,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Sa propre police | `fonts: [ Font(family:, source:) ]` | fait |
 | Une police du moteur, pour toutes les écritures | `fonts: [ Font(family: "Inter") ]` | fait (`ADR-092`) |
 | Envoyer un formulaire | `Form(name:)`, `Contact.send`, `sent`, `failed` | fait |
+| Un compte, une page réservée aux membres | `Page(access: members)`, `signedIn`, `{account}`, `A(to: "/account/signin")` | fait, avec `holo serve` (`ADR-081`, proposé) |
 | Multiplier, diviser | les demandes `mul`, `div` | fait |
 | Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait |
 | Une liste qui change pendant la visite | `State(tasks: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` | fait |
@@ -2304,8 +2344,9 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 ## 11. Ce qui n'existe pas encore
 
 - Un dessin n'a pas encore de texte ni de dégradé ; une liste de formes en garde cent au plus.
-- Les données venues d'un autre serveur ; les comptes.
+- Les données venues d'un autre serveur.
 - Pour les valeurs partagées : un champ qui en change une, une liste partagée, une limite au nombre de touchers d'un visiteur.
+- Pour les comptes (`ADR-081`) : pas encore de clés d'accès (passkeys), de QR code pour activer le code, de codes de secours, ni de mot de passe changé ou de compte effacé par son membre.
 - Pour les valeurs : pas de nombre négatif ; une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
