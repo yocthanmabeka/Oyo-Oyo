@@ -1,0 +1,58 @@
+// Leçon 115 — Des polices pour toutes les écritures
+//
+// Ce qu'on apprend :
+//   Font(family: "Inter") charge une police du moteur, sans fichier à ranger à côté. Le moteur
+//   en garde une trentaine, libres (licence SIL Open Font License), pour les écritures du monde
+//   entier : le latin, le cyrillique, le grec, l'arabe, l'hébreu, le devanagari, le bengali, le
+//   tamoul, le thaï, l'éthiopien, l'adlam, le n'ko, le tifinagh, le chinois, le japonais, le
+//   coréen. La liste est dans moteur/web/fonts/README.md.
+//   Le navigateur ne télécharge que les morceaux dont la page a besoin : pour le japonais,
+//   quelques morceaux sur 124. Une page qui ne nomme aucune police n'en charge aucune.
+//   Une page charge au plus 8 polices.
+//
+// À essayer :
+//   Remplace « Caveat » par « Kalam », ou « Literata » par « EB Garamond ».
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 115 : des polices pour toutes les écritures",
+  fonts: [
+    Font(family: "Inter"),
+    Font(family: "Literata"),
+    Font(family: "Caveat"),
+    Font(family: "JetBrains Mono"),
+    Font(family: "Noto Sans Arabic"),
+    Font(family: "Noto Sans Devanagari"),
+    Font(family: "Noto Sans JP"),
+    Font(family: "Noto Sans Ethiopic"),
+  ],
+  children: [
+    H1("Des polices pour toutes les écritures"),
+    P.lecture("Literata, pour lire longtemps : une police faite pour les livres."),
+    P.main("Caveat, écrite à la main : un mot doux sur une carte."),
+    P.code("JetBrains Mono : let total = prix * quantite;"),
+    P.etiquette("« Bienvenue dans l'atelier », en arabe, en hindi, en japonais et en amharique :"),
+    P.arabe("مرحبا بكم في الورشة"),
+    P.hindi("कार्यशाला में आपका स्वागत है"),
+    P.japonais("アトリエへようこそ"),
+    P.amharique("እንኳን ወደ ስቱዲዮ በደህና መጡ"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 114 : l'historique dans une page", to: "114-l-historique-dans-une-page.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Inter, sans-serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; font-weight: bold; }
+A { color: #8fd3ff; }
+.lecture { font-family: Literata, Georgia, serif; font-size: 20px; }
+.main { font-family: Caveat, cursive; font-size: 28px; }
+.code { font-family: "JetBrains Mono", monospace; font-size: 16px; }
+.etiquette { opacity: 0.8; }
+.arabe { font-family: "Noto Sans Arabic", sans-serif; font-size: 24px; text-align: right; }
+.hindi { font-family: "Noto Sans Devanagari", sans-serif; font-size: 22px; }
+.japonais { font-family: "Noto Sans JP", sans-serif; font-size: 22px; }
+.amharique { font-family: "Noto Sans Ethiopic", sans-serif; font-size: 22px; }

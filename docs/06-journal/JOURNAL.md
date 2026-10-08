@@ -6,6 +6,15 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-08 — Des polices libres pour toutes les écritures : `Font(family: "Inter")`
+
+- Fait (`ADR-092`, PROPOSITION ; une des tâches confiées par Yocthan à la session du nuage, sa demande de la leçon 54) : 32 polices libres gardées dans le projet (`moteur/web/fonts/`), nommées sans fichier. Le latin, le cyrillique, le grec, l'arabe, l'hébreu, le devanagari, le bengali, le tamoul, le thaï, l'éthiopien, l'adlam, le n'ko, le tifinagh, le chinois, le japonais, le coréen. Le navigateur ne télécharge que les morceaux dont la page a besoin : la phrase japonaise de la leçon 115 fait venir 1 morceau sur 124. Leçon 115.
+- Licences vérifiées : toutes sous l'OFL 1.1. Quatre avaient un « nom réservé », que la licence interdit de garder sur des fichiers découpés pour le web : Lora, Merriweather, Playfair Display et Dancing Script sont remplacées par Literata, Noto Serif, Fraunces et Kalam. Le fichier `LICENSE` du dépôt dit que ces polices gardent leur licence.
+- 20 Mo dans le dépôt, dont 12,6 Mo pour le chinois, le japonais et le coréen ; aucun visiteur ne les télécharge toutes. À valider par Yocthan : la sélection.
+- Exécuté : `cargo test` → 162 tests passent (deux nouveaux) ; dans Chrome, l'essai de la leçon 115 passe ; une capture sur un téléphone de 412px montre les huit écritures de la leçon.
+
+---
+
 ## 2026-10-08 — L'historique dans une page : `address: [onglet, page]`
 
 - Fait (`ADR-091`, PROPOSITION ; une des tâches confiées par Yocthan à la session du nuage, laissée par le lot 8 en attendant le serveur) : `Page(address: [onglet, page])` écrit ces valeurs dans l'adresse, après le `?`. Un toucher qui les change fait un pas que « Précédent » défait ; une adresse partagée arrive sur les mêmes valeurs, fabriquée par le serveur d'essai, par `holo serve` et par `holo html` ; sans JavaScript, `holo serve` mène chaque toucher à l'adresse des nouvelles valeurs. Un seul chemin dans le moteur (`src/history.rs`). Leçon 114.

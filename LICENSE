@@ -7,7 +7,8 @@ ni utilisé ailleurs, en tout ou en partie.
 
 Les fichiers qui portent leur propre licence la gardent : par exemple la police Carlito
 (exemples/lecons/carlito.woff2), sous la licence SIL Open Font License 1.1
-(exemples/lecons/carlito-LICENCE.txt).
+(exemples/lecons/carlito-LICENCE.txt), et les polices du moteur (moteur/web/fonts/), chacune
+sous la licence SIL Open Font License 1.1 (le fichier LICENSE.txt de son dossier).
 
 ---
 
@@ -20,4 +21,5 @@ used elsewhere, in whole or in part.
 
 Files that carry their own license keep it: for example the Carlito font
 (exemples/lecons/carlito.woff2), under the SIL Open Font License 1.1
-(exemples/lecons/carlito-LICENCE.txt).
+(exemples/lecons/carlito-LICENCE.txt), and the engine's fonts (moteur/web/fonts/), each under
+the SIL Open Font License 1.1 (the LICENSE.txt file in its folder).

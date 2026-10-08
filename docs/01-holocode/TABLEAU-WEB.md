@@ -346,7 +346,7 @@
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `Font` | Une police rangée à côté, chargée par la page | `@font-face` | Décidé (ADR-041) |
+| `Font` | Une police rangée à côté, ou une des polices libres du moteur, chargée par la page | `@font-face` | Décidé (ADR-041) ; les polices du moteur proposées (ADR-092) |
 
 ## Paramètres : la page
 
@@ -580,6 +580,7 @@
 | `line-height (sans unité), letter-spacing` | `line-height, letter-spacing` | l'interligne, l'espacement | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
 | `text-transform, text-decoration` | `text-transform, text-decoration` | majuscules, souligné | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
 | `Page(fonts: [ Font(family:, source:) ])` | `@font-face` | charger sa propre police | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). Toujours font-display: swap ; une graisse par fichier. |
+| `Page(fonts: [ Font(family: "Inter") ])` | `Google Fonts, unicode-range` | une police libre, sans fichier, pour toutes les écritures | Oui | Déjà là | 32 polices gardées dans le projet, licences vérifiées ; seuls les morceaux utiles sont téléchargés ; aucun service extérieur (ADR-092). |
 | `linear-gradient, radial-gradient, url("fond.jpg")` | `dégradés, image de fond` | fond en dégradé ou en image | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). L'image couvre toujours le bloc. |
 | `box-shadow, text-shadow` | `box-shadow, text-shadow` | les ombres | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). |
 | `Page { --or: … } puis color: --or` | `variables (--couleur)` | une couleur nommée, réutilisée | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-041). Une variable inconnue est refusée. |
