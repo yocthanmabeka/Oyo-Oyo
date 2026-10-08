@@ -19,7 +19,8 @@ Les formulaires relisaient la visite avant de prendre le verrou des valeurs part
 2. Les valeurs liées à `Input`, `Checkbox`, `Slider` et `Choice` restent modifiables. Elles repassent par la validation des saisies existante. Le texte est décodé, les nombres à virgule gardent leur échelle ; les champs absents ou mal codés ne sont pas remis à zéro.
 3. Un JSON refusé ne garde aucun nouvel état, même pour un visiteur sans compte. Pour un membre, sa réponse rend l'état gardé, avec les valeurs partagées actuelles.
 4. Les gestes JSON, les formulaires ordinaires et les miroirs sont exécutés un à un, de la lecture de l'état jusqu'à son enregistrement. Ce verrou est distinct de celui de la base ; les lectures et les pages de compte ne le prennent pas.
-5. Un état trop lourd est refusé avant de modifier les valeurs partagées.
+5. Le navigateur met les miroirs personnels et les gestes partagés dans la même file. Un geste partagé attend donc le miroir précédent ; les miroirs ont une limite d'attente de dix secondes.
+6. Un état JSON trop lourd est refusé avant de modifier les valeurs partagées.
 
 Il n'y a aucun nouveau mot du langage, aucune dépendance et aucune migration de base. Les demandes JSON existantes restent lisibles. Le moteur WebAssembly et son dessin ne changent pas.
 
@@ -32,7 +33,7 @@ Il n'y a aucun nouveau mot du langage, aucune dépendance et aucune migration de
 | Rust : saisies normales | Texte borné à cinq caractères, montant 13,50 exact, case cochée, glissière bornée, option inconnue refusée ; champs absents ou mal codés ignorés. |
 | Rust : visiteur refusé | Le refus JSON ne crée pas de visite enregistrée. |
 | Rust : huit demandes simultanées | Quatre formulaires et quatre JSON du même compte, démarrés ensemble : une seule place consommée, une seule version partagée. |
-| Chrome et HTTP réel | Compte créé, réservation sans JavaScript, attaque JSON du même compte refusée, rechargement qui prouve la conservation en base, puis toucher et saisie ordinaires avec JavaScript. |
+| Chrome et HTTP réel | Compte créé, réservation sans JavaScript, attaque JSON du même compte refusée, rechargement qui prouve la conservation en base, puis toucher et saisie ordinaires avec JavaScript ; miroir tenu en attente, toucher partagé qui attend, ordre et panier conservés. |
 
 La même page `concert.holo` est utilisée par les essais Rust et Chrome. Elle est une sonde, pas une nouvelle leçon officielle.
 
@@ -46,6 +47,7 @@ Le terminal local ne démarre pas (`helper_unknown_error: setup refresh had erro
 
 - Un visiteur sans compte fournit toujours son état personnel au protocole JSON d'ADR-079. Cette correction ne promet aucune identité ni réservation unique pour une personne anonyme. Un site qui exige une réservation par compte utilise `access: members`.
 - Un auteur qui rend une valeur sensible modifiable par un champ, ou par une règle déclenchée par ce champ, l'autorise lui-même. La correction ne remplace pas les règles métier du site.
+- Un miroir qui échoue ou dépasse dix secondes est encore ignoré par la page, comme avant : la synchronisation du compte n'est pas garantie hors connexion. Il ne bloque plus la file sans fin.
 - Le serveur garde les gestes des membres qu'il reçoit. Le temps, certaines touches et les glissements ne sont toujours pas rejoués : dette déjà annoncée par la PR #177.
 - Le verrou des gestes est global au site, dans cette première correction. Il favorise la justesse et peut limiter le débit ; aucune mesure de débit n'est annoncée. Une file par compte/adresse demande une expérience séparée.
 - L'atomicité face à une panne SQLite ou à plusieurs processus serveur n'est pas ajoutée. Les écritures existantes ignorent encore certains échecs. Le verrou protège les demandes d'une même instance ; il n'est pas une transaction SQLite.
@@ -53,7 +55,7 @@ Le terminal local ne démarre pas (`helper_unknown_error: setup refresh had erro
 
 ## Remise et suite
 
-Fichiers de code modifiés : `moteur/src/server.rs`, `moteur/outils/browser-tests.mjs`. Fichiers propres à Codex : ce compte rendu et `concert.holo`.
+Fichiers de code modifiés : `moteur/src/server.rs`, `moteur/web/page-engine.js`, `moteur/outils/browser-tests.mjs`. Fichiers propres à Codex : ce compte rendu et `concert.holo`.
 
 Claude PC doit relire cette correction, l'intégrer à la PR #177, reprendre `main` dans sa branche et exécuter ses contrôles avant une éventuelle fusion. Le journal et le guide pourront alors préciser l'autorité du compte ; leurs mises à jour restent à Claude. Aucun fichier transversal n'est modifié ici.
 
