@@ -95,7 +95,11 @@ pub fn prepare(base: &Connection, now: u64) -> Result<(), String> {
              failures INTEGER NOT NULL,
              until INTEGER NOT NULL,
              updated INTEGER NOT NULL
-         );",
+         );
+         CREATE TABLE IF NOT EXISTS recoveries(account INTEGER NOT NULL, fingerprint TEXT NOT NULL, PRIMARY KEY(account,fingerprint));
+         CREATE TABLE IF NOT EXISTS account_ips(ip TEXT PRIMARY KEY, started INTEGER NOT NULL, requests INTEGER NOT NULL);
+         CREATE TABLE IF NOT EXISTS erased_accounts(id INTEGER PRIMARY KEY, at INTEGER NOT NULL);
+         CREATE TABLE IF NOT EXISTS account_erased_files(path TEXT PRIMARY KEY);",
     )
     .map_err(|e| e.to_string())?;
     let ago = |seconds: u64| now.saturating_sub(seconds) as i64;
@@ -515,10 +519,10 @@ fn signup_page(next: &str, name: &str, errors: &[(&str, String)]) -> Reply {
 
 fn code_page(next: &str, alert: &str) -> Reply {
     let main = format!(
-        "<h1>Le code à 6 chiffres</h1><p>Ton mot de passe est le bon. Ouvre ton application d'authentification, et écris le code qu'elle montre pour ce site : il change toutes les 30 secondes.</p>{}<form method=\"post\" action=\"/account/code\" novalidate>{}{}<button type=\"submit\">Continuer</button></form><p><a href=\"/account/signin{}\">Recommencer</a></p>",
+        "<h1>Le code à 6 chiffres</h1><p>Ton mot de passe est le bon. Ouvre ton application d'authentification, et écris le code qu'elle montre pour ce site : il change toutes les 30 secondes. Si ton téléphone est perdu, utilise un de tes codes de secours encore inutilisés.</p>{}<form method=\"post\" action=\"/account/code\" novalidate>{}{}<button type=\"submit\">Continuer</button></form><p><a href=\"/account/signin{}\">Recommencer</a></p>",
         notice(alert, ""),
         hidden_next(next),
-        field(&Field { id: "code", label: "Code", kind: "text", autocomplete: "one-time-code", value: "", hint: "", error: "", more: "inputmode=\"numeric\" maxlength=\"7\" spellcheck=\"false\"" }, true),
+        field(&Field { id: "code", label: "Code à 6 chiffres ou code de secours", kind: "text", autocomplete: "one-time-code", value: "", hint: "", error: "", more: "maxlength=\"40\" spellcheck=\"false\"" }, true),
         with_next(next),
     );
     page(if alert.is_empty() { 200 } else { 401 }, "Le code à 6 chiffres", &main, &[])
@@ -543,6 +547,7 @@ Sur ce téléphone, tu peux aussi <a href=\"{}\">l'ouvrir directement dans l'app
         escape(&link),
         field(&Field { id: "code", label: "Code", kind: "text", autocomplete: "one-time-code", value: "", hint: "", error: "", more: "inputmode=\"numeric\" maxlength=\"7\" spellcheck=\"false\"" }, !alert.is_empty()),
     );
+    let main=main.replace("<li>Ajoute un compte", &format!("<li>Scanne ce QR ou recopie la clé : {} Ajoute un compte",qr_svg(&link)));
     page(if alert.is_empty() { 200 } else { 422 }, "Activer le code à 6 chiffres", &main, &[])
 }
 
@@ -561,6 +566,7 @@ fn account_page(member: &Member, active: bool, done: &str, alert: &str, back: Op
         notice(alert, done),
         escape(&member.name),
     );
+    let main=format!("{main}<h2>Effacer mon compte</h2><p><a href=\"/account/delete\">Effacer mon compte et ses données</a></p>");
     page(if alert.is_empty() { 200 } else { 422 }, "Ton compte", &main, &[])
 }
 
@@ -594,6 +600,10 @@ pub fn answer(site: &Site, ask: &Ask, path: &str) -> Option<Reply> {
         }
     }
     let now = crate::server::now();
+    if ask.method == "POST" {
+        let Ok(base)=site.base.lock() else {return Some(refused(500,"base indisponible"))};
+        if !ip_allowed(&base,ask.peer,now) {let mut reply=refused(429,"Trop de demandes depuis cette adresse : attends une minute.");reply.headers.push(("Retry-After".into(),"60".into()));return Some(reply);}
+    }
     let member = member_of(site, ask.cookie);
     let base = || site.base.lock().ok();
     let reply = match (ask.method, path) {
@@ -635,6 +645,14 @@ pub fn answer(site: &Site, ask: &Ask, path: &str) -> Option<Reply> {
             Some(member) => remove_code(site, ask, member, &posted, now),
             None => redirect("/account/signin?next=/account", &[]),
         },
+        ("GET" | "HEAD", "/account/delete") => match &member {
+            Some(member) => {
+                let active=base().and_then(|base|account_where(&base,"id",&member.id)).is_some_and(|a|a.secret.is_some());
+                deletion_page(member,active,"")
+            },
+            None => redirect("/account/signin?next=/account",&[]),
+        },
+        ("POST", "/account/delete") => match &member {Some(member)=>delete_account(site,ask,member,&posted,now),None=>redirect("/account/signin?next=/account",&[])},
         ("POST", "/account/signout") => {
             if let Some(base) = base() {
                 forget_session(&base, ask.cookie);
@@ -687,7 +705,8 @@ fn sign_up(site: &Site, ask: &Ask, posted: &[(String, String)], next: &str, now:
     // L'empreinte se calcule sans bloquer la base : elle prend un instant, exprès.
     let Ok(print) = password_print(password) else { return refused(500, "empreinte impossible") };
     let Ok(base) = site.base.lock() else { return refused(500, "base indisponible") };
-    if base.execute("INSERT INTO accounts (name, key, password, created) VALUES (?1, ?2, ?3, ?4)", params![name, key, print, now as i64]).is_err() {
+    let id: i64=base.query_row("SELECT MAX(id)+1 FROM (SELECT COALESCE(MAX(id),0) AS id FROM accounts UNION ALL SELECT COALESCE(MAX(id),0) AS id FROM erased_accounts)",[],|r|r.get(0)).unwrap_or(i64::MAX);
+    if base.execute("INSERT INTO accounts (id, name, key, password, created) VALUES (?1, ?2, ?3, ?4, ?5)", params![id, name, key, print, now as i64]).is_err() {
         // Deux demandes pour le même nom au même instant : la seconde trouve le nom pris.
         return signup_page(next, name, &[("name", "Ce nom est déjà pris : choisis-en un autre.".into())]);
     }
@@ -717,7 +736,7 @@ fn sign_in(site: &Site, ask: &Ask, posted: &[(String, String)], next: &str, now:
     };
     let matches = password_matches(password, print);
     let Ok(base) = site.base.lock() else { return refused(500, "base indisponible") };
-    let Some(account) = account.filter(|_| matches && !password.is_empty()) else {
+    let Some(account) = account.filter(|a| matches && !password.is_empty() && account_where(&base,"id",&a.id).is_some()) else {
         failed(&base, &throttle, now);
         return signin_page(next, name, "Ce nom et ce mot de passe ne vont pas ensemble.", "");
     };
@@ -746,14 +765,14 @@ fn second_step(site: &Site, ask: &Ask, posted: &[(String, String)], next: &str, 
     let typed = posted.iter().find(|(known, _)| known == "code").map_or("", |(_, value)| value.as_str());
     let step = match read_code(typed).and_then(|code| step_of(secret, code, now)) {
         Some(step) if step as i64 <= account.step => return code_page(next, "Ce code a déjà servi : attends que l'application en montre un nouveau."),
-        Some(step) => step,
-        None => {
-            failed(&base, &throttle, now);
-            return code_page(next, "Ce code ne va pas : écris les 6 chiffres que l'application montre maintenant pour ce site.");
-        }
+        Some(step) => Some(step),
+        None if use_recovery(&base, account.id, secret, typed) => None,
+        None => {failed(&base,&throttle,now);return code_page(next,"Ce code ne va pas : utilise un code actuel ou un code de secours encore inutilisé.");}
     };
-    succeeded(&base, &throttle);
-    let _ = base.execute("UPDATE accounts SET code_step = ?1 WHERE id = ?2", params![step as i64, account.id]);
+    succeeded(&base,&throttle);
+    if let Some(step)=step {
+        if base.execute("UPDATE accounts SET code_step=?1 WHERE id=?2",params![step as i64,account.id]).is_err(){return refused(500,"base indisponible");}
+    }
     let Some(cookie) = open_session(&base, ask.cookie, account.id, false, now) else { return refused(500, "session impossible") };
     bring_visits(&base, ask.cookie, account.id);
     redirect(if next.is_empty() { "/account" } else { next }, &[cookie])
@@ -762,7 +781,7 @@ fn second_step(site: &Site, ask: &Ask, posted: &[(String, String)], next: &str, 
 /// Activer le code : sans code envoyé, une nouvelle clé attend (montrée par `/account/code/setup`) ;
 /// avec le premier code que montre l'application, elle devient la clé du compte.
 fn set_up_code(site: &Site, member: &Member, posted: &[(String, String)], now: u64) -> Reply {
-    let Ok(base) = site.base.lock() else { return refused(500, "base indisponible") };
+    let Ok(mut base) = site.base.lock() else { return refused(500, "base indisponible") };
     let Some(account) = account_where(&base, "id", &member.id) else { return redirect("/account/signin", &[cleared_cookie()]) };
     if account.secret.is_some() {
         return redirect("/account", &[]);
@@ -786,11 +805,10 @@ fn set_up_code(site: &Site, member: &Member, posted: &[(String, String)], now: u
         return setup_page(&issuer(site), member, secret, "Ce code ne va pas : vérifie la clé recopiée, puis écris les 6 chiffres que l'application montre maintenant.");
     };
     succeeded(&base, &throttle);
-    if base.execute("UPDATE accounts SET code_secret = code_pending, code_pending = NULL, code_step = ?1 WHERE id = ?2", params![step as i64, account.id]).is_err() {
-        return refused(500, "base indisponible");
-    }
-    println!("Code à 6 chiffres activé : {}", member.name);
-    redirect("/account?done=code", &[])
+    let Ok(tx)=base.transaction() else{return refused(500,"base indisponible")};
+    let Ok(clear)=new_recoveries(&tx,account.id,secret) else{return refused(500,"codes de secours impossibles")};
+    if tx.execute("UPDATE accounts SET code_secret=code_pending,code_pending=NULL,code_step=?1 WHERE id=?2",params![step as i64,account.id]).is_err() || tx.commit().is_err() {return refused(500,"base indisponible");}
+    recovery_page(member,&clear)
 }
 
 /// Retirer le code : il faut le code du moment (un téléphone perdu : l'auteur du site le retire
@@ -809,6 +827,7 @@ fn remove_code(site: &Site, ask: &Ask, member: &Member, posted: &[(String, Strin
         Some(step) if step as i64 > account.step => {
             succeeded(&base, &throttle);
             let _ = base.execute("UPDATE accounts SET code_secret = NULL, code_step = ?1 WHERE id = ?2", params![step as i64, account.id]);
+            let _ = base.execute("DELETE FROM recoveries WHERE account=?1",params![account.id]);
             redirect("/account?done=removed", &[])
         }
         Some(_) => account_page(member, true, "", "Ce code a déjà servi : attends que l'application en montre un nouveau.", back.as_deref()),
@@ -817,6 +836,132 @@ fn remove_code(site: &Site, ask: &Ask, member: &Member, posted: &[(String, Strin
             account_page(member, true, "", "Ce code ne va pas : le code n'est pas retiré.", back.as_deref())
         }
     }
+}
+
+
+// Une seconde protection : tous les POST de compte d'une même IP, même sous des noms différents.
+const IP_REQUESTS_MAX: i64 = 30;
+const IP_WINDOW: u64 = 60;
+fn ip_allowed(base: &Connection, peer: &str, now: u64) -> bool {
+    let Ok(ip) = peer.parse::<std::net::IpAddr>() else { return false };
+    let key = ip.to_string();
+    let _ = base.execute("DELETE FROM account_ips WHERE started < ?1", params![now.saturating_sub(IP_WINDOW) as i64]);
+    let old: Option<(i64,i64)> = base.query_row("SELECT started, requests FROM account_ips WHERE ip = ?1", params![key], |r| Ok((r.get(0)?,r.get(1)?))).optional().ok().flatten();
+    let (start,count) = match old { Some((s,n)) if now.saturating_sub(s as u64) < IP_WINDOW => (s,n), _ => (now as i64,0) };
+    if count >= IP_REQUESTS_MAX { return false; }
+    if old.is_none() && base.query_row("SELECT COUNT(*) FROM account_ips", [], |r| r.get::<_,i64>(0)).unwrap_or(10_000) >= 10_000 { return false; }
+    base.execute("INSERT INTO account_ips(ip,started,requests) VALUES(?1,?2,?3) ON CONFLICT(ip) DO UPDATE SET started=excluded.started, requests=excluded.requests", params![key,start,count+1]).is_ok()
+}
+
+fn recovery_print(secret: &[u8], token: &str) -> Option<String> {
+    let clear: String = token.chars().filter(|c| *c != '-').collect();
+    if clear.len() != 32 || !clear.bytes().all(|c| c.is_ascii_hexdigit()) { return None; }
+    let mut mac = <Hmac<Sha1> as KeyInit>::new_from_slice(secret).ok()?;
+    mac.update(b"holocode-recovery-v1:"); mac.update(clear.to_ascii_lowercase().as_bytes());
+    Some(mac.finalize().into_bytes().iter().map(|b| format!("{b:02x}")).collect())
+}
+fn new_recoveries(base: &Connection, account: i64, secret: &[u8]) -> Result<Vec<String>, rusqlite::Error> {
+    base.execute("DELETE FROM recoveries WHERE account=?1",params![account])?;
+    let mut clear = Vec::new();
+    for _ in 0..10 {
+        let token=random_hex(16);
+        let print=recovery_print(secret,&token).expect("un code tiré par le système est valide");
+        base.execute("INSERT INTO recoveries(account,fingerprint) VALUES(?1,?2)",params![account,print])?;
+        clear.push(token.as_bytes().chunks(8).map(|c| String::from_utf8_lossy(c).into_owned()).collect::<Vec<_>>().join("-"));
+    }
+    Ok(clear)
+}
+fn use_recovery(base: &Connection, account: i64, secret: &[u8], code: &str) -> bool {
+    recovery_print(secret,code).is_some_and(|p| base.execute("DELETE FROM recoveries WHERE account=?1 AND fingerprint=?2",params![account,p]).is_ok_and(|n|n==1))
+}
+fn recovery_page(member: &Member, clear: &[String]) -> Reply {
+    let codes=clear.iter().map(|c| format!("<li><code data-recovery>{}</code></li>",escape(c))).collect::<Vec<_>>().join("");
+    page(200,"Garder tes codes de secours",&format!("<h1>Garde tes dix codes de secours</h1><p>Le code à 6 chiffres est activé. Cette liste est montrée une seule fois. Copie-la dans un endroit sûr, séparé de ton téléphone. Chaque code sert une seule fois, après ton mot de passe.</p><p>Compte : {}</p><ol>{codes}</ol><p>Un rechargement ne les montre plus. Aucun code en clair n'est gardé dans la base.</p><p><a href=\"/account\">Continuer vers mon compte</a></p>",escape(&member.name)),&[])
+}
+fn qr_svg(link: &str) -> String {
+    let Ok(code)=qrcode::QrCode::new(link.as_bytes()) else { return "<p>QR indisponible ; recopie la clé.</p>".into() };
+    let width=code.width();let size=width+8;let mut path=String::new();
+    for y in 0..width { for x in 0..width { if code[(x,y)]==qrcode::Color::Dark { path.push_str(&format!("M{} {}h1v1h-1z",x+4,y+4)); }}}
+    format!("<svg id=\"setup-qr\" role=\"img\" aria-label=\"Scanner cette clé dans ton application d'authentification\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {size} {size}\" width=\"280\" height=\"280\" style=\"max-width:100%;height:auto\" shape-rendering=\"crispEdges\"><rect width=\"{size}\" height=\"{size}\" fill=\"white\"/><path fill=\"black\" d=\"{path}\"/></svg>")
+}
+fn deletion_page(member: &Member, active: bool, alert: &str) -> Reply {
+    let factor=if active {field(&Field{id:"code",label:"Code à 6 chiffres ou code de secours",kind:"text",autocomplete:"one-time-code",value:"",hint:"",error:"",more:"maxlength=\"40\" spellcheck=\"false\""},false)}else{String::new()};
+    let main=format!("<h1>Effacer mon compte</h1>{}<p>Cette action efface ton compte, ses sessions, ses paniers et les messages et fichiers qui lui sont associés dans la base active et les sauvegardes locales du moteur. Les copies sorties de ce dossier restent à l'auteur. Le contenu public partagé appartient à la page.</p><form method=\"post\" action=\"/account/delete\" novalidate>{}{}{factor}<label for=\"confirm\">Pour confirmer, écris ton nom : {}</label><input id=\"confirm\" name=\"confirm\" autocomplete=\"off\" maxlength=\"30\" required><button type=\"submit\">Effacer définitivement mon compte</button></form><p><a href=\"/account\">Garder mon compte</a></p>",notice(alert,""),field(&Field{id:"password",label:"Ton mot de passe",kind:"password",autocomplete:"current-password",value:"",hint:"",error:"",more:"maxlength=\"128\""},true), "", escape(&member.name));
+    page(if alert.is_empty(){200}else{422},"Effacer mon compte",&main,&[])
+}
+// Les chemins du moteur, jamais un chemin fourni librement par le navigateur.
+pub(crate) fn retry_erased_files(folder: &std::path::Path, base: &Connection) -> Result<(), String> { erase_files(&folder.join(crate::server::DATA_FOLDER),base) }
+fn erase_files(data: &std::path::Path, base: &Connection) -> Result<(), String> {
+    let mut stmt=base.prepare("SELECT path FROM account_erased_files").map_err(|e| e.to_string())?;
+    let paths=stmt.query_map([],|r|r.get::<_,String>(0)).map_err(|e|e.to_string())?.collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?;drop(stmt);
+    for relative in paths {
+        let parts:Vec<&str>=relative.split('/').collect();
+        if parts.len()!=3||parts[0]!="files"||parts[1..].iter().any(|p|p.is_empty()||*p=="."||*p==".."||!p.bytes().all(|c|c.is_ascii_alphanumeric()||b"-_.".contains(&c))) {return Err("chemin de fichier privé refusé".into());}
+        let path=data.join(&relative);
+        if path.exists() {
+            let root=data.join("files").canonicalize().map_err(|e|e.to_string())?;
+            let target=path.canonicalize().map_err(|e|e.to_string())?;
+            if !target.starts_with(root) || std::fs::symlink_metadata(&path).map_err(|e|e.to_string())?.file_type().is_symlink() {return Err("fichier privé hors du dossier".into());}
+            std::fs::remove_file(&path).map_err(|e|e.to_string())?;
+        }
+        base.execute("DELETE FROM account_erased_files WHERE path=?1",params![relative]).map_err(|e|e.to_string())?;
+    }
+    Ok(())
+}
+fn erase_in(base: &mut Connection, member: &Member, at: u64, extra_files: &[String]) -> Result<(), String> {
+    let tx=base.transaction().map_err(|e|e.to_string())?;
+    let mut query=tx.prepare("SELECT files FROM messages WHERE account=?1").map_err(|e|e.to_string())?;
+    let messages=query.query_map(params![member.id],|r|r.get::<_,String>(0)).map_err(|e|e.to_string())?.collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?;drop(query);
+    for path in extra_files {tx.execute("INSERT OR IGNORE INTO account_erased_files(path) VALUES(?1)",params![path]).map_err(|e|e.to_string())?;}
+    for encoded in messages {
+        if let Some(crate::lists::Json::Table(files))=crate::lists::Json::read(&encoded) {
+            for file in files {if let crate::lists::Json::Object(fields)=file {if let Some(crate::lists::Json::Text(path))=fields.iter().find(|(k,_)|k=="file").map(|(_,v)|v) {tx.execute("INSERT OR IGNORE INTO account_erased_files(path) VALUES(?1)",params![path]).map_err(|e|e.to_string())?;}}}
+        }
+    }
+    tx.execute("INSERT OR IGNORE INTO erased_accounts(id,at) VALUES(?1,?2)",params![member.id,at as i64]).map_err(|e|e.to_string())?;
+    tx.execute("DELETE FROM sessions WHERE account=?1",params![member.id]).map_err(|e|e.to_string())?;
+    tx.execute("DELETE FROM recoveries WHERE account=?1",params![member.id]).map_err(|e|e.to_string())?;
+    tx.execute("DELETE FROM visits WHERE visitor=?1",params![member.visit_key()]).map_err(|e|e.to_string())?;
+    tx.execute("DELETE FROM messages WHERE account=?1",params![member.id]).map_err(|e|e.to_string())?;
+    tx.execute("DELETE FROM attempts WHERE key=?1 OR key=?2 OR key=?3",params![name_key(&member.name),format!("code:{}",member.id),format!("delete:{}",member.id)]).map_err(|e|e.to_string())?;
+    tx.execute("DELETE FROM accounts WHERE id=?1",params![member.id]).map_err(|e|e.to_string())?;
+    tx.commit().map_err(|e|e.to_string())?;
+    Ok(())
+}
+fn delete_account(site: &Site, ask: &Ask, member: &Member, fields: &[(String,String)], now: u64) -> Reply {
+    let value=|key:&str|fields.iter().find(|(k,_)|k==key).map_or("",|(_,v)|v.as_str());
+    let Ok(_gesture)=site.gestures.lock() else{return refused(500,"arbitre indisponible")};
+    let Ok(mut base)=site.base.lock() else{return refused(500,"base indisponible")};
+    let Some(account)=account_where(&base,"id",&member.id) else{return redirect("/account/signin",&[cleared_cookie()])};
+    let throttle=format!("delete:{}",member.id);
+    if waiting(&base,&throttle,now).is_some() {return deletion_page(member,account.secret.is_some(),"Trop d'essais : attends une minute.");}
+    if value("confirm")!=member.name||!password_matches(value("password"),&account.password) {failed(&base,&throttle,now);return deletion_page(member,account.secret.is_some(),"Le nom de confirmation ou le mot de passe ne va pas.");}
+    if let Some(secret)=account.secret.as_deref() {
+        let valid=read_code(value("code")).and_then(|code|step_of(secret,code,now)).is_some_and(|step|step as i64>account.step)||use_recovery(&base,account.id,secret,value("code"));
+        if !valid {failed(&base,&throttle,now);return deletion_page(member,true,"Le code ne va pas, ou il a déjà servi.");}
+    }
+    let data=site.folder.join(crate::server::DATA_FOLDER);let backups=data.join("backups");
+    // Préparer et vérifier les copies gérées par ce moteur avant de retirer le compte actif.
+    let paths=match std::fs::read_dir(&backups){Ok(entries)=>entries.filter_map(Result::ok).map(|e|e.path()).filter(|p|p.file_name().and_then(|n|n.to_str()).is_some_and(|n|n.starts_with("site-")&&n.ends_with(".sqlite"))).collect::<Vec<_>>(),Err(e) if e.kind()==std::io::ErrorKind::NotFound=>Vec::new(),Err(_)=>return refused(500,"sauvegardes illisibles : compte conservé")};
+    let mut backup_files=Vec::new();
+    for path in paths {
+        let Ok(meta)=std::fs::symlink_metadata(&path) else{return refused(500,"sauvegarde illisible : compte conservé")};
+        if !meta.is_file()||meta.file_type().is_symlink() {return refused(500,"sauvegarde refusée : compte conservé");}
+        let Ok(mut copy)=Connection::open(&path) else{return refused(500,"sauvegarde indisponible : compte conservé")};
+        if prepare(&copy,now).is_err(){return refused(500,"sauvegarde indisponible : compte conservé");}
+        let _=copy.execute("ALTER TABLE messages ADD COLUMN account INTEGER",[]);
+        if erase_in(&mut copy,member,now,&[]).is_err(){return refused(500,"effacement d'une sauvegarde impossible : compte conservé");}
+        let Ok(mut query)=copy.prepare("SELECT path FROM account_erased_files") else{return refused(500,"fichiers de sauvegarde illisibles : compte conservé")};
+        let Ok(rows)=query.query_map([],|r|r.get::<_,String>(0)) else{return refused(500,"fichiers de sauvegarde illisibles : compte conservé")};
+        for row in rows {if let Ok(path)=row {backup_files.push(path);}else{return refused(500,"fichier de sauvegarde illisible : compte conservé");}}
+    }
+    if erase_in(&mut base,member,now,&backup_files).is_err(){return refused(500,"effacement impossible : compte conservé");}
+    let files_done=erase_files(&data,&base).is_ok();
+    forget_session(&base,ask.cookie);
+    let note=if files_done{"Ton compte et ses données ont été effacés."}else{"Le compte est effacé. Un fichier privé attend encore l'effacement par le serveur."};
+    let _=base.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
+    let mut reply=page(200,"Compte effacé",&format!("<h1>Compte effacé</h1><p>{note}</p><p><a href=\"/account/signup\">Créer un nouveau compte</a></p>"),&[]);
+    reply.headers.push(("Set-Cookie".into(),cleared_cookie()));reply
 }
 
 #[cfg(test)]
@@ -881,7 +1026,7 @@ mod tests {
     }
 
     fn ask<'a>(method: &'a str, url: &'a str, cookie: &'a str, body: &'a [u8]) -> Ask<'a> {
-        Ask { method, url, accept: "text/html", cookie, content_type: "application/x-www-form-urlencoded", origin: "", host: "localhost:8080", referer: "", body }
+        Ask { method, url, accept: "text/html", cookie, content_type: "application/x-www-form-urlencoded", origin: "", host: "localhost:8080", referer: "", peer: "127.0.0.1", body }
     }
 
     fn header<'a>(reply: &'a Reply, name: &str) -> &'a str {
@@ -954,7 +1099,8 @@ mod tests {
         assert_eq!(refused.status, 422);
         let used = now / STEP;
         let activated = site.answer(&ask("POST", "/account/code/setup", &first, format!("code={:06}", code_at(&pending, used, 6)).as_bytes()));
-        assert_eq!(header(&activated, "Location"), "/account?done=code");
+        assert_eq!(activated.status,200);
+        assert_eq!(text(activated).matches("data-recovery").count(),10);
         assert_eq!(secret_of(&site, "Ada", "code_secret"), pending);
         assert!(text(site.answer(&ask("GET", "/account?done=code", &first, b""))).contains("Le code à 6 chiffres est activé"));
 
@@ -1166,4 +1312,73 @@ mod tests {
         assert_eq!(wait_message(61), "Trop d'essais : attends 2 minutes avant de réessayer.");
         assert_eq!(wait_message(30), "Trop d'essais : attends 1 minute avant de réessayer.");
     }
+    #[test]
+    fn recoveries_are_shown_once_hashed_and_single_use_after_password() {
+        let (site,folder)=site();let password="une phrase locale de secours";
+        let cookie=sign_up(&site,"Rescue",password);
+        assert_eq!(site.answer(&ask("POST","/account/code/setup",&cookie,b"")).status,303);
+        let secret=secret_of(&site,"Rescue","code_pending");
+        let now=crate::server::now();
+        let reply=site.answer(&ask("POST","/account/code/setup",&cookie,format!("code={:06}",code_at(&secret,now/STEP,6)).as_bytes()));
+        assert_eq!(reply.status,200);
+        let html=text(reply);
+        let clear:Vec<String>=html.split("<code data-recovery>").skip(1).map(|c|c.split("</code>").next().unwrap().to_string()).collect();
+        assert_eq!(clear.len(),10);assert_eq!(clear.iter().collect::<std::collections::HashSet<_>>().len(),10);
+        assert!(!text(site.answer(&ask("GET","/account/code/setup",&cookie,b""))).contains("data-recovery"));
+        {
+            let base=site.base.lock().unwrap();
+            let mut q=base.prepare("SELECT fingerprint FROM recoveries").unwrap();
+            let prints=q.query_map([],|r|r.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+            assert_eq!(prints.len(),10);assert!(!prints.iter().any(|p|clear.iter().any(|c|c.replace('-',"")==*p)));
+        }
+        site.answer(&ask("POST","/account/signout",&cookie,b""));
+        let first=site.answer(&ask("POST","/account/signin","",format!("name=Rescue&password={password}").as_bytes()));let waiting=session(&first);
+        assert_eq!(header(&first,"Location"),"/account/code");
+        let accepted=site.answer(&ask("POST","/account/code",&waiting,format!("code={}",clear[0]).as_bytes()));
+        assert_eq!(accepted.status,303);assert!(!session(&accepted).is_empty());
+        let next=site.answer(&ask("POST","/account/signin","",format!("name=Rescue&password={password}").as_bytes()));let waiting=session(&next);
+        assert_eq!(site.answer(&ask("POST","/account/code",&waiting,format!("code={}",clear[0]).as_bytes())).status,401);
+        assert_eq!(site.base.lock().unwrap().query_row("SELECT COUNT(*) FROM recoveries",[],|r|r.get::<_,i64>(0)).unwrap(),9);
+        drop(site);std::fs::remove_dir_all(folder).unwrap();
+    }
+    #[test]
+    fn ip_limits_ignore_changed_account_names_and_expire() {
+        let base=Connection::open_in_memory().unwrap();prepare(&base,1000).unwrap();
+        for _ in 0..IP_REQUESTS_MAX {assert!(ip_allowed(&base,"192.0.2.1",1000));}
+        assert!(!ip_allowed(&base,"192.0.2.1",1001));assert!(ip_allowed(&base,"192.0.2.2",1001));
+        assert!(ip_allowed(&base,"192.0.2.1",1060));assert!(!ip_allowed(&base,"not-an-ip",1060));
+    }
+    #[test]
+    fn deleting_requires_confirmation_and_cleans_live_data_backups_and_files() {
+        let (site,folder)=site();let password="une phrase locale pour effacer";
+        let cookie=sign_up(&site,"Erase",password);let member=member_of(&site,&cookie).unwrap();
+        let other=sign_up(&site,"Remain",password);let bob=member_of(&site,&other).unwrap();
+        let data=folder.join(crate::server::DATA_FOLDER);
+        std::fs::create_dir_all(data.join("files").join("cart")).unwrap();
+        std::fs::write(data.join("files/cart/photo.png"),b"personal").unwrap();
+        {
+            let base=site.base.lock().unwrap();
+            base.execute("INSERT INTO visits(visitor,page,state,updated) VALUES(?1,'/cart.holo','cart=2',1)",params![member.visit_key()]).unwrap();
+            base.execute("INSERT INTO messages(received,page,form,submission,files,account) VALUES(1,'/cart.holo','Order','{}',?1,?2)",params![r#"[{"file":"files/cart/photo.png"}]"#,member.id]).unwrap();
+            new_recoveries(&base,member.id,b"secret").unwrap();
+        }
+        let backup=crate::server::backup(&folder).unwrap();
+        assert_eq!(site.answer(&ask("GET","/account/delete",&cookie,b"")).status,200);
+        assert_eq!(site.answer(&ask("POST","/account/delete",&cookie,b"confirm=Erase&password=wrong")).status,422);
+        assert!(member_of(&site,&cookie).is_some());
+        let body=format!("confirm=Erase&password={password}");
+        let erased=site.answer(&ask("POST","/account/delete",&cookie,body.as_bytes()));assert_eq!(erased.status,200);
+        assert!(member_of(&site,&cookie).is_none());assert!(member_of(&site,&other).is_some());
+        assert!(!data.join("files/cart/photo.png").exists());
+        for db in [Connection::open(data.join("site.sqlite")).unwrap(),Connection::open(&backup).unwrap()] {
+            for sql in ["SELECT COUNT(*) FROM accounts WHERE id=?1","SELECT COUNT(*) FROM sessions WHERE account=?1","SELECT COUNT(*) FROM recoveries WHERE account=?1","SELECT COUNT(*) FROM messages WHERE account=?1"]{
+                assert_eq!(db.query_row(sql,params![member.id],|r|r.get::<_,i64>(0)).unwrap(),0, "{sql}");
+            }
+            assert_eq!(db.query_row("SELECT COUNT(*) FROM visits WHERE visitor=?1",params![member.visit_key()],|r|r.get::<_,i64>(0)).unwrap(),0);
+            assert_eq!(db.query_row("SELECT COUNT(*) FROM accounts WHERE id=?1",params![bob.id],|r|r.get::<_,i64>(0)).unwrap(),1);
+        }
+        let new=sign_up(&site,"Erase",password);assert!(member_of(&site,&new).unwrap().id>member.id);
+        drop(site);std::fs::remove_dir_all(folder).unwrap();
+    }
+
 }

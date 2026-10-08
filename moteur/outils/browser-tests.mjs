@@ -11,6 +11,7 @@
 // donne son chemin ; sinon l'emplacement habituel sous Windows, ou google-chrome sous Linux.
 // Rend « OK » ou « RATÉ » par essai, et un code de sortie 1 s'il y a un raté.
 
+import { accountDebtTests } from "../../proposals/GPT5.6/fin-comptes-2026-10-08/browser-tests.mjs";
 import { capabilityTests } from "../../proposals/GPT5.6/fin-lot9-2026-10-08/browser-tests.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { createHmac } from "node:crypto";
@@ -1271,7 +1272,8 @@ const tests = [
       const key = (await q.value(`document.getElementById("key")?.textContent ?? ""`)).replace(/\s+/g, "");
       const used = stepNow();
       await q.type("#code", totp(key, used));
-      await send(`location.search === "?done=code"`);
+      await send(`document.querySelectorAll("[data-recovery]").length === 10`);
+      await q.click('a[href="/account"]');await after(`location.pathname === "/account"`);
       check(`${how}, le code s'active`, key.length === 32 && (await words()).includes("Le code à 6 chiffres est activé"), `clé de ${key.length} lettres ; ${(await words()).slice(0, 120)}`);
       // Se déconnecter : la page réservée ne s'ouvre plus.
       await q.click('form[action="/account/signout"] button');
@@ -1569,6 +1571,7 @@ const tests = [
   }],
 ];
 
+tests.push(...accountDebtTests({engine,phone,page,startHoloServe,pause,totp,stepNow}));
 tests.push(...webTests({ repo, engine, phone, page, startHoloServe, startChrome, pause }));
 
 tests.push(...capabilityTests({engine,phone,pause}));

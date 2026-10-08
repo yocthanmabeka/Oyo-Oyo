@@ -70,7 +70,7 @@ pub struct Site {
     /// Un geste de page à la fois, de la lecture de la visite à son enregistrement : les envois
     /// JSON, les formulaires et les miroirs d'un même compte ne relisent pas un état périmé.
     /// On prend ce verrou avant la base ; les lecteurs et les comptes restent indépendants.
-    gestures: Mutex<()>,
+    pub(crate) gestures: Mutex<()>,
     /// Les pages ouvertes en direct (ADR-079) : chacune reçoit les valeurs partagées de son
     /// adresse quand elles changent. On prend toujours la base avant cette liste, jamais l'inverse.
     lives: Arc<Mutex<Lives>>,
@@ -101,6 +101,8 @@ pub struct Ask<'a> {
     pub host: &'a str,
     /// La page d'où vient le visiteur : un lien « Se connecter » y ramène (ADR-081).
     pub referer: &'a str,
+    /// Adresse du pair TCP, jamais un en-tête fourni par le visiteur.
+    pub peer: &'a str,
     pub body: &'a [u8],
 }
 
@@ -161,6 +163,8 @@ impl Site {
         base.execute("DELETE FROM visits WHERE updated < ?1 AND visitor NOT LIKE 'account:%'", params![now().saturating_sub(FORGET_AFTER) as i64]).map_err(|e| e.to_string())?;
         // Les comptes, les sessions, le frein contre les essais répétés (ADR-081).
         crate::accounts::prepare(&base, now())?;
+        let _=base.execute("ALTER TABLE messages ADD COLUMN account INTEGER",[]);
+        crate::accounts::retry_erased_files(&folder,&base)?;
         Ok(Site { folder, web: web.to_path_buf(), base: Mutex::new(base), gestures: Mutex::new(()), lives: Arc::default() })
     }
 
@@ -238,6 +242,7 @@ impl Site {
     /// Un toucher envoyé sans JavaScript (ADR-074) : le même arbitre, puis la page à jour par
     /// une nouvelle demande (`303`), pour qu'un rechargement ne rejoue pas le geste.
     fn gesture(&self, ask: &Ask, path: &str, raw: &str) -> Reply {
+        let Ok(_gesture)=self.gestures.lock() else{return Reply::text(500,"arbitre indisponible")};
         let Some((file, holo, values)) = self.locate(path, raw) else { return Reply::text(404, "page introuvable") };
         if !holo.ends_with(".holo") {
             return Reply::text(405, "seule une page .holo reçoit des gestes");
@@ -267,7 +272,6 @@ impl Site {
         if ask.body.len() as u64 > BODY_MAX {
             return Reply::text(413, "formulaire trop lourd");
         }
-        let Ok(_gesture) = self.gestures.lock() else { return Reply::text(500, "arbitre indisponible") };
         let Ok(source) = source_for(&file, &values, member.as_ref()) else { return Reply::text(404, "page introuvable") };
         set_clock();
         // L'état d'un membre est gardé sous son compte ; celui d'un visiteur, sous son cookie.
@@ -313,7 +317,7 @@ impl Site {
                 continue;
             }
             let submission = crate::submission(&source, &visit.state, form);
-            let outcome = if self.keep_message(path, &holo, form, &submission, "[]").is_ok() { "sent" } else { "failed" };
+            let outcome = if self.keep_message(path, &holo, form, &submission, "[]", member.as_ref().map(|m|m.id)).is_ok() { "sent" } else { "failed" };
             visit.state = without_sounds(&crate::arbitrate(&source, &visit.state, &format!("{form}.{outcome}")));
         }
         if visit.state.len() <= STATE_MAX {
@@ -435,7 +439,6 @@ impl Site {
     /// par sa page (limite d'ADR-079) ; ses valeurs partagées viennent toujours de la base.
     #[allow(clippy::too_many_arguments)]
     fn shared_gesture(&self, ask: &Ask, path: &str, file: &Path, holo: &str, values: &[(String, String)], signal: &str, state: &str, member: Option<&crate::accounts::Member>) -> Reply {
-        let Ok(_gesture) = self.gestures.lock() else { return Reply::text(500, "arbitre indisponible") };
         let Ok(source) = source_for(file, values, member) else { return Reply::text(404, "page introuvable") };
         if crate::shared_names(&source).is_empty() {
             return Reply::text(400, "cette page ne partage aucune valeur");
@@ -644,20 +647,20 @@ impl Site {
             }
             kept.push(format!("{{\"field\":\"{field}\",\"file\":\"files/{}/{name}\",\"size\":{}}}", page_name(path), bytes.len()));
         }
-        match self.keep_message(path, holo, form, &json, &format!("[{}]", kept.join(","))) {
+        match self.keep_message(path, holo, form, &json, &format!("[{}]", kept.join(",")), member.map(|m|m.id)) {
             Ok(()) => Reply { status: 204, headers: common_headers(), body: Vec::new() },
             Err(reply) => reply,
         }
     }
 
     /// Range un message dans la base, sauf si la page en garde déjà trop.
-    fn keep_message(&self, path: &str, model: &str, form: &str, submission: &str, files: &str) -> Result<(), Reply> {
+    fn keep_message(&self, path: &str, model: &str, form: &str, submission: &str, files: &str, account: Option<i64>) -> Result<(), Reply> {
         let base = self.base.lock().map_err(|_| Reply::text(500, "base indisponible"))?;
         let already: i64 = base.query_row("SELECT COALESCE(SUM(LENGTH(submission)), 0) FROM messages WHERE model = ?1", params![model], |row| row.get(0)).map_err(|_| Reply::text(500, "base illisible"))?;
         if already > MESSAGES_PER_PAGE_MAX {
             return Err(Reply::text(507, "trop de messages gardés pour cette page"));
         }
-        base.execute("INSERT INTO messages (received, page, model, form, submission, files) VALUES (?1, ?2, ?3, ?4, ?5, ?6)", params![now() as i64, path, model, form, submission, files])
+        base.execute("INSERT INTO messages (received, page, model, form, submission, files, account) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)", params![now() as i64, path, model, form, submission, files, account])
             .map_err(|_| Reply::text(500, "message impossible à ranger"))?;
         println!("Message reçu : {path} ({form})");
         Ok(())
@@ -826,12 +829,13 @@ pub fn serve(folder: &Path, web: &Path, port: u16) -> Result<(), String> {
 fn reply_to(site: &Site, mut request: tiny_http::Request) {
     let header = |name: &str| request.headers().iter().find(|h| h.field.as_str().as_str().eq_ignore_ascii_case(name)).map(|h| h.value.as_str().to_string()).unwrap_or_default();
     let (accept, cookie, content_type, origin, host, referer) = (header("Accept"), header("Cookie"), header("Content-Type"), header("Origin"), header("Host"), header("Referer"));
+    let peer=request.remote_addr().map(|p|p.ip().to_string()).unwrap_or_default();
     let method = request.method().as_str().to_string();
     let url = request.url().to_string();
     // Une page qui écoute ses valeurs partagées en direct (ADR-079) : la connexion reste ouverte,
     // tenue par un fil à elle ; ce fil-ci retourne aussitôt servir les autres.
     if method == "GET" && accept.contains("text/event-stream") {
-        let ask = Ask { method: &method, url: &url, accept: &accept, cookie: &cookie, content_type: &content_type, origin: &origin, host: &host, referer: &referer, body: &[] };
+        let ask = Ask { method: &method, url: &url, accept: &accept, cookie: &cookie, content_type: &content_type, origin: &origin, host: &host, referer: &referer, peer: &peer, body: &[] };
         match site.live_page(&ask) {
             Ok((key, source)) => site.listen(&key, &source, request.into_writer()),
             Err(reply) => {
@@ -851,7 +855,7 @@ fn reply_to(site: &Site, mut request: tiny_http::Request) {
         let limit = if content_type.starts_with("multipart/form-data") { WITH_FILES_MAX } else { BODY_MAX };
         let _ = request.as_reader().take(limit + 1).read_to_end(&mut body);
     }
-    let reply = site.answer(&Ask { method: &method, url: &url, accept: &accept, cookie: &cookie, content_type: &content_type, origin: &origin, host: &host, referer: &referer, body: &body });
+    let reply = site.answer(&Ask { method: &method, url: &url, accept: &accept, cookie: &cookie, content_type: &content_type, origin: &origin, host: &host, referer: &referer, peer: &peer, body: &body });
     let mut response = tiny_http::Response::from_data(if method == "HEAD" { Vec::new() } else { reply.body }).with_status_code(reply.status);
     for (name, value) in reply.headers {
         if let Ok(header) = tiny_http::Header::from_bytes(name.as_bytes(), value.as_bytes()) {
@@ -1177,7 +1181,7 @@ mod tests {
     }
 
     fn ask<'a>(method: &'a str, url: &'a str, cookie: &'a str, body: &'a [u8]) -> Ask<'a> {
-        Ask { method, url, accept: "text/html", cookie, content_type: "application/x-www-form-urlencoded", origin: "", host: "localhost:8080", referer: "", body }
+        Ask { method, url, accept: "text/html", cookie, content_type: "application/x-www-form-urlencoded", origin: "", host: "localhost:8080", referer: "", peer: "127.0.0.1", body }
     }
 
     #[test]
@@ -1640,7 +1644,7 @@ mod tests {
         let (site, folder) = site();
         std::fs::write(folder.join("concert.holo"), CONCERT).unwrap();
         // Seule une page qui partage des valeurs s'écoute ; pas depuis un autre site.
-        let listen_ask = |url: &'static str| Ask { method: "GET", url, accept: "text/event-stream", cookie: "", content_type: "", origin: "", host: "localhost:8080", referer: "", body: b"" };
+        let listen_ask = |url: &'static str| Ask { method: "GET", url, accept: "text/event-stream", cookie: "", content_type: "", origin: "", host: "localhost:8080", referer: "", peer: "127.0.0.1", body: b"" };
         assert_eq!(site.live_page(&listen_ask("/shop.holo")).err().map(|r| r.status), Some(404));
         let mut foreign = listen_ask("/concert.holo");
         foreign.origin = "https://ailleurs.example";

@@ -295,3 +295,6 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | save / remove / show | sauvegarder la copie, l'effacer, afficher la notification | contexte explicite |
 
 Blocs en UpperCamelCase, réglages et actions en lowerCamelCase ; noms courants gardant leur sens (ADR-016, ADR-037). Rien ne renomme un mot décidé.
+
+
+Proposition ADR-083 : aucun nouveau mot HoloCode pour le secours ou l'effacement. Les pages réservées du moteur sont `/account/code/setup`, `/account/code` et `/account/delete`. Les champs de leurs formulaires ne deviennent pas des réglages du langage.

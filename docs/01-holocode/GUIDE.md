@@ -2367,3 +2367,14 @@ Ces quatre ajouts sont proposés, sans modification d'un statut de décision. Le
 Une page Offline revient à ses valeurs initiales lors du rechargement ; les changements sont locaux pendant la visite. Le réseau reste prioritaire ; si le réseau manque, seules les ressources explicitement sauvegardées sont servies. Une erreur HTTP du serveur reste une erreur. Une écriture n'est jamais remise en attente ni rejouée. Les pages personnelles, les réponses private/no-store, les redirections et les adresses de compte sont refusées. Le moteur léger et sa porte d'entrée font partie de la copie. Le service worker s'installe seulement quand le visiteur demande une copie ou une notification.
 
 Le résultat d'une position est un texte JSON latitude/longitude/accuracy, car le langage ne représente pas encore les nombres négatifs. Le presse-papiers se lit ou s'écrit sur un geste et dans un texte de 200 caractères au plus. La caméra donne un aperçu vidéo local. Le microphone donne seulement son activation locale ; il ne produit pas encore un fichier audio. Ces limites sont explicites.
+
+
+### Les protections du compte (proposition ADR-083)
+
+Avec `holo serve`, la page `/account` permet d'activer le code à six chiffres. Le QR est fabriqué sur le PC de l'auteur ; sa clé n'est envoyée à personne. La clé écrite reste disponible si tu ne peux pas scanner.
+
+Après activation, dix codes de secours sont affichés une seule fois. Garde-les ailleurs que sur ton téléphone. Chacun s'utilise après le mot de passe, une seule fois, dans le même champ que le code actuel. Leur empreinte seule est gardée dans la base.
+
+`/account/delete` montre la confirmation d'effacement ; un GET n'efface jamais. Le POST demande le nom exact, le mot de passe et, si le code est activé, un code actuel ou un secours inutilisé. Le serveur retire le compte, ses sessions, ses paniers, ses messages associés et leurs fichiers privés, et nettoie ses sauvegardes locales. Les anciens messages anonymes n'ont pas d'appartenance retrouvable ; les copies sorties du dossier et les traces du disque ne sont pas un effacement physique garanti. Le contenu public partagé appartient à la page.
+
+Le serveur freine aussi les POST de compte d'une même IP TCP : trente par minute au plus, même sous des noms différents. Il ignore les en-têtes de proxy fournis par le visiteur. Un serveur placé derrière un proxy voit son IP ; ce premier frein peut donc regrouper plusieurs visiteurs, et demande une configuration future explicite du proxy.
