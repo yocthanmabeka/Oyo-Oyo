@@ -105,6 +105,7 @@ pub fn prepare(base: &Connection, now: u64) -> Result<(), String> {
     let ago = |seconds: u64| now.saturating_sub(seconds) as i64;
     base.execute("DELETE FROM sessions WHERE seen < ?1 OR created < ?2 OR (pending = 1 AND created < ?3)", params![ago(SESSION_IDLE), ago(SESSION_MAX), ago(PENDING_MAX)]).map_err(|e| e.to_string())?;
     base.execute("DELETE FROM attempts WHERE updated < ?1", params![ago(24 * 3600)]).map_err(|e| e.to_string())?;
+    crate::passkeys::prepare(base,now)?;
     Ok(())
 }
 
@@ -250,7 +251,7 @@ fn halfway(base: &Connection, cookie: &str, now: u64) -> Option<i64> {
 
 /// Ouvre une session pour ce compte (`pending` : le code reste à donner), et rend le cookie à poser.
 /// La session que portait le navigateur, s'il y en avait une, est oubliée : jamais deux à la fois.
-fn open_session(base: &Connection, cookie: &str, account: i64, pending: bool, now: u64) -> Option<String> {
+pub(crate) fn open_session(base: &Connection, cookie: &str, account: i64, pending: bool, now: u64) -> Option<String> {
     forget_session(base, cookie);
     let token = random_hex(16);
     base.execute("INSERT INTO sessions (fingerprint, account, pending, created, seen) VALUES (?1, ?2, ?3, ?4, ?4)", params![fingerprint(&token), account, i64::from(pending), now as i64]).ok()?;
@@ -272,7 +273,7 @@ fn cleared_cookie() -> String {
 /// Ce qu'un visiteur a fait avant de se connecter (son panier, sans JavaScript) suit son compte,
 /// pour chaque page où le compte n'avait encore rien ; il quitte son cookie de visiteur. Après la
 /// déconnexion, cet appareil repart donc d'une visite neuve.
-fn bring_visits(base: &Connection, cookie: &str, member: i64) {
+pub(crate) fn bring_visits(base: &Connection, cookie: &str, member: i64) {
     if let Some(visitor) = crate::server::visitor_of(cookie) {
         let key = format!("account:{member}");
         let _ = base.execute("INSERT OR IGNORE INTO visits (visitor, page, state, tried, updated) SELECT ?1, page, state, tried, updated FROM visits WHERE visitor = ?2", params![key, visitor]);
@@ -367,7 +368,7 @@ fn with_next(next: &str) -> String {
 /// Les en-têtes d'une page de compte : jamais gardée en cache (un ordinateur partagé), jamais
 /// posée dans le cadre d'un autre site (on ne fait pas toucher ses boutons à son insu), sans aucun
 /// script ni aucune ressource d'ailleurs.
-fn private_headers() -> Vec<(String, String)> {
+pub(crate) fn private_headers() -> Vec<(String, String)> {
     vec![
         ("Cache-Control".into(), "no-store".into()),
         ("X-Content-Type-Options".into(), "nosniff".into()),
@@ -377,7 +378,7 @@ fn private_headers() -> Vec<(String, String)> {
     ]
 }
 
-fn page(status: u16, title: &str, main: &str, cookies: &[String]) -> Reply {
+pub(crate) fn page(status: u16, title: &str, main: &str, cookies: &[String]) -> Reply {
     let mut headers = vec![("Content-Type".to_string(), "text/html; charset=utf-8".to_string())];
     headers.extend(private_headers());
     headers.extend(cookies.iter().map(|cookie| ("Set-Cookie".to_string(), cookie.clone())));
@@ -388,7 +389,7 @@ fn page(status: u16, title: &str, main: &str, cookies: &[String]) -> Reply {
     Reply { status, headers, body: body.into_bytes() }
 }
 
-fn redirect(location: &str, cookies: &[String]) -> Reply {
+pub(crate) fn redirect(location: &str, cookies: &[String]) -> Reply {
     let mut headers = vec![("Location".to_string(), location.to_string())];
     headers.extend(private_headers());
     headers.extend(cookies.iter().map(|cookie| ("Set-Cookie".to_string(), cookie.clone())));
@@ -491,7 +492,7 @@ fn news(done: &str) -> &'static str {
 fn signin_page(next: &str, name: &str, alert: &str, done: &str) -> Reply {
     let focus_password = !name.is_empty();
     let main = format!(
-        "<h1>Se connecter</h1>{}<form method=\"post\" action=\"/account/signin\" novalidate>{}{}{}<button type=\"submit\">Se connecter</button></form><p>Pas encore de compte ? <a href=\"/account/signup{}\">Créer un compte</a></p>",
+        "<h1>Se connecter</h1>{}<form method=\"post\" action=\"/account/signin\" novalidate>{}{}{}<button type=\"submit\">Se connecter</button></form><p><a href=\"/account/passkeys\">Se connecter par une clé d’accès</a></p><p>Pas encore de compte ? <a href=\"/account/signup{}\">Créer un compte</a></p>",
         notice(alert, done),
         hidden_next(next),
         field(&Field { id: "name", label: "Nom", kind: "text", autocomplete: "username", value: name, hint: "", error: "", more: "autocapitalize=\"none\" spellcheck=\"false\"" }, !focus_password),
@@ -566,7 +567,7 @@ fn account_page(member: &Member, active: bool, done: &str, alert: &str, back: Op
         notice(alert, done),
         escape(&member.name),
     );
-    let main=format!("{main}<h2>Effacer mon compte</h2><p><a href=\"/account/delete\">Effacer mon compte et ses données</a></p>");
+    let main=format!("{main}<h2>Clés d’accès</h2><p><a href=\"/account/passkeys\">Mes clés d’accès</a></p><h2>Effacer mon compte</h2><p><a href=\"/account/delete\">Effacer mon compte et ses données</a></p>");
     page(if alert.is_empty() { 200 } else { 422 }, "Ton compte", &main, &[])
 }
 
@@ -580,6 +581,7 @@ pub fn answer(site: &Site, ask: &Ask, path: &str) -> Option<Reply> {
     if path != "/account" && !path.starts_with("/account/") {
         return None;
     }
+    if let Some(reply)=crate::passkeys::answer(site,ask,path){return Some(reply);}
     let query = ask.url.split_once('?').map_or("", |(_, query)| query.split('#').next().unwrap_or(""));
     let asked = crate::gestures::read_form(query);
     let posted = if ask.method == "POST" { crate::gestures::read_form(&String::from_utf8_lossy(ask.body)) } else { Vec::new() };
@@ -842,7 +844,7 @@ fn remove_code(site: &Site, ask: &Ask, member: &Member, posted: &[(String, Strin
 // Une seconde protection : tous les POST de compte d'une même IP, même sous des noms différents.
 const IP_REQUESTS_MAX: i64 = 30;
 const IP_WINDOW: u64 = 60;
-fn ip_allowed(base: &Connection, peer: &str, now: u64) -> bool {
+pub(crate) fn ip_allowed(base: &Connection, peer: &str, now: u64) -> bool {
     let Ok(ip) = peer.parse::<std::net::IpAddr>() else { return false };
     let key = ip.to_string();
     let _ = base.execute("DELETE FROM account_ips WHERE started < ?1", params![now.saturating_sub(IP_WINDOW) as i64]);
@@ -920,6 +922,8 @@ fn erase_in(base: &mut Connection, member: &Member, at: u64, extra_files: &[Stri
     }
     tx.execute("INSERT OR IGNORE INTO erased_accounts(id,at) VALUES(?1,?2)",params![member.id,at as i64]).map_err(|e|e.to_string())?;
     tx.execute("DELETE FROM sessions WHERE account=?1",params![member.id]).map_err(|e|e.to_string())?;
+    tx.execute("DELETE FROM passkeys WHERE account=?1",params![member.id]).map_err(|e|e.to_string())?;
+    tx.execute("DELETE FROM passkey_challenges WHERE account=?1",params![member.id]).map_err(|e|e.to_string())?;
     tx.execute("DELETE FROM recoveries WHERE account=?1",params![member.id]).map_err(|e|e.to_string())?;
     tx.execute("DELETE FROM visits WHERE visitor=?1",params![member.visit_key()]).map_err(|e|e.to_string())?;
     tx.execute("DELETE FROM messages WHERE account=?1",params![member.id]).map_err(|e|e.to_string())?;
@@ -1414,3 +1418,18 @@ mod tests {
     }
 
 }
+
+/// Une opération sensible confirme le mot de passe et le second facteur, pas le seul cookie.
+pub(crate) fn reauthenticate(base:&Connection,member:&Member,password:&str,code:&str,now:u64)->bool{
+ let throttle=format!("passkey:{}",member.id);
+ if waiting(base,&throttle,now).is_some(){return false;}
+ let Some(a)=account_where(base,"id",&member.id)else{return false;};
+ if password.is_empty()||!password_matches(password,&a.password){failed(base,&throttle,now);return false;}
+ if let Some(secret)=a.secret.as_deref(){
+  if let Some(step)=read_code(code).and_then(|c|step_of(secret,c,now)).filter(|step|*step as i64>a.step){
+   if base.execute("UPDATE accounts SET code_step=?1 WHERE id=?2",params![step as i64,member.id]).is_err(){return false;}
+  }else if !use_recovery(base,member.id,secret,code){failed(base,&throttle,now);return false;}
+ }
+ succeeded(base,&throttle);true
+}
+pub(crate) fn session_binding(cookie:&str)->Option<String>{cookie_value(cookie,SESSION_COOKIE).map(fingerprint)}

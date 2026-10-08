@@ -2381,3 +2381,8 @@ Après activation, dix codes de secours sont affichés une seule fois. Garde-les
 `/account/delete` montre la confirmation d'effacement ; un GET n'efface jamais. Le POST demande le nom exact, le mot de passe et, si le code est activé, un code actuel ou un secours inutilisé. Le serveur retire le compte, ses sessions, ses paniers, ses messages associés et leurs fichiers privés, et nettoie ses sauvegardes locales. Les anciens messages anonymes n'ont pas d'appartenance retrouvable ; les copies sorties du dossier et les traces du disque ne sont pas un effacement physique garanti. Le contenu public partagé appartient à la page.
 
 Le serveur freine aussi les POST de compte d'une même IP TCP : trente par minute au plus, même sous des noms différents. Il ignore les en-têtes de proxy fournis par le visiteur. Un serveur placé derrière un proxy voit son IP ; ce premier frein peut donc regrouper plusieurs visiteurs, et demande une configuration future explicite du proxy.
+
+
+### Clés d’accès chez l’auteur — proposition de #181
+
+Le serveur propose `/account/passkeys`. Confirme le mot de passe et le code actif pour ajouter ou retirer une clé. Ensuite la clé permet la connexion sans mot de passe, par WebAuthn ES256. Huit clés au plus. Sur PC, ouvre localhost ; sur téléphone, l’auteur sert HTTPS par son proxy local et fixe `HOLO_ORIGIN=https://son-domaine`. Une adresse IP HTTP ne suffit pas. Le mot de passe reste utilisable sans JavaScript. La biométrie ne quitte pas l’appareil. Voir la leçon 107 et le compte rendu de Codex, dont les limites et les essais physiques à faire.

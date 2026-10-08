@@ -284,3 +284,6 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 - Noms contestés : aucun. Les quatorze sont tranchés le 2026-10-06 (`ADR-047`).
 
 Proposition ADR-083 : aucun nouveau mot HoloCode pour le secours ou l'effacement. Les pages réservées du moteur sont `/account/code/setup`, `/account/code` et `/account/delete`. Les champs de leurs formulaires ne deviennent pas des réglages du langage.
+
+
+Clés d’accès proposées dans #181 : aucun nouveau mot de HoloCode. `/account/passkeys` appartient au serveur. `HOLO_ORIGIN` est sa configuration d’adresse HTTPS, fixée chez l’auteur. Leçon 107.

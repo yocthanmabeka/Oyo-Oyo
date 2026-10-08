@@ -56,6 +56,8 @@ pub mod server;
 // Les comptes de holo serve (ADR-081) : mots de passe, code à 6 chiffres, sessions. Sur le PC seulement.
 #[cfg(not(target_arch = "wasm32"))]
 pub mod accounts;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod passkeys;
 
 use holo::{Error, Program, Value};
 use universe::PointDecl;
