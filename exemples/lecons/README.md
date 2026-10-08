@@ -112,6 +112,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 104 | [Se connecter : un compte gardé chez toi](104-se-connecter.holo) | `signedIn`, `{account}`, `A(to: "/account/signin")` ; les pages de compte et le code à 6 chiffres, fabriqués par le moteur (avec `holo serve`) |
 | 105 | [Une page réservée aux membres](105-une-page-reservee.holo) | `Page(access: members)` ; sans être connecté, on est mené à « Se connecter », puis ramené |
 | 106 | [Le panier qui suit le compte](106-le-panier-qui-suit-le-compte.holo) | rien à écrire : connecté, le panier est gardé par le compte, sur le téléphone comme sur l'ordinateur, avec ou sans JavaScript |
+| 107 | [Une clé d’accès](107-se-connecter-par-une-cle.holo) | WebAuthn vérifié localement ; localhost ou HTTPS ; ajouter et retirer après confirmation |
 | 108 | [Protéger et effacer son compte](108-proteger-et-effacer-son-compte.holo) | QR local, dix codes de secours à usage unique, effacement confirmé, frein par IP |
 | 109 | [Un catalogue page par page](109-un-catalogue-page-par-page.holo) | Filter(offset:), 200 produits, tri avant pagination, total avant coupe |
 | 110 | [Un module qui dessine](110-un-module-qui-dessine.holo) | `Drawing(shapes: fleur)`, une liste de formes rendue par un module |

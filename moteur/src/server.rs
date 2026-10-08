@@ -61,6 +61,8 @@ struct Visit {
 
 /// Ce que le serveur sait de son site.
 pub struct Site {
+    /// Origine publique fixée par l'auteur ; HTTPS arrive par son proxy local.
+    pub(crate) passkeys_origin: Option<String>,
     /// Le dossier servi : les pages, les images, les fichiers.
     pub(crate) folder: PathBuf,
     /// Le dossier du moteur pour le navigateur (`moteur/web`) : la page d'entrée, le moteur.
@@ -165,7 +167,7 @@ impl Site {
         crate::accounts::prepare(&base, now())?;
         let _=base.execute("ALTER TABLE messages ADD COLUMN account INTEGER",[]);
         crate::accounts::retry_erased_files(&folder,&base)?;
-        Ok(Site { folder, web: web.to_path_buf(), base: Mutex::new(base), gestures: Mutex::new(()), lives: Arc::default() })
+        Ok(Site { passkeys_origin: crate::passkeys::configured_origin()?, folder, web: web.to_path_buf(), base: Mutex::new(base), gestures: Mutex::new(()), lives: Arc::default() })
     }
 
     /// Répond à une demande. Tout passe par ici : c'est ce que les essais éprouvent.

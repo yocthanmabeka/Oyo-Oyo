@@ -1,0 +1,20 @@
+// Leçon 107 — Se connecter par une clé d'accès
+// Ce qu'on apprend : aucun nouveau bloc. Le serveur de l'auteur vérifie une clé WebAuthn.
+// Sur le PC : holo serve exemples/lecons, puis http://localhost:8080/107-se-connecter-par-une-cle.holo.
+// Sur le téléphone : même domaine HTTPS fixé par HOLO_ORIGIN, proxy HTTPS chez l'auteur.
+// L'adresse IP en HTTP ne suffit pas ; la biométrie reste dans l'appareil.
+// Le mot de passe et les secours restent disponibles, même sans JavaScript.
+Page(
+ title: "Leçon 107 : une clé d'accès",
+ children: [
+  H1("Une clé d'accès"),
+  P("Crée ton compte, puis ouvre ses clés d'accès. Confirme ton mot de passe et ton code, si activé, avant d'ajouter une clé."),
+  A("Mes clés d'accès", to: "/account/passkeys"),
+  P("À la prochaine connexion, choisis la clé. Ton appareil vérifie ton identité ; le serveur vérifie sa signature sans recevoir ta biométrie."),
+  P("Une clé perdue se retire dans le compte. Garde ton mot de passe et tes codes de secours. JavaScript sert à la clé ; le mot de passe fonctionne sans lui."),
+  A("Mon compte", to: "/account"),
+  A("Retour à la leçon 106", to: "106-le-panier-qui-suit-le-compte.holo"),
+ ],
+)
+Page { background: #101020; color: white; padding: 24px 16px; max-width: 720px; }
+A { color: #8fd3ff; }
