@@ -1382,12 +1382,26 @@ const tests = [
       check("un geste normal reste utilisable", await q.until(`document.querySelector('#page [data-state="likes"]')?.textContent === "1"`, 10000), await q.text());
       await q.open("/concert.holo", 300);
       check("la saisie acceptée est gardée", (await q.value(`document.querySelector('[data-bind="note"]').value`)) === "Grace", await q.text());
+      await q.until("window.__holoLive?.()", 40000);
+      // Le miroir est tenu volontairement ; le toucher partagé suivant doit attendre.
+      await q.value(`window.__wire = []; window.__realFetch = window.fetch; window.fetch = async (url, options) => { const mirror = String(url).includes("?mirror"); if (mirror) await new Promise((resolve) => { window.__releaseMirror = resolve; }); window.__wire.push(mirror ? "mirror" : "shared"); return window.__realFetch(url, options); }`);
+      await q.click('[data-name="Add"]');
+      check("le miroir est en attente", await q.until('typeof window.__releaseMirror === "function"', 5000), await q.value("window.__wire"));
+      await q.click('[data-name="Like"]');
+      await pause(300);
+      check("le geste partagé attend le miroir précédent", (await q.value("window.__wire.length")) === 0, await q.value("window.__wire"));
+      await q.value("window.__releaseMirror?.()");
+      check("les deux gestes finissent", await q.until(`document.querySelector('#page [data-state="likes"]')?.textContent === "2"`, 10000), await q.text());
+      check("leur ordre et le panier sont gardés", (await q.value('window.__wire.join(",")')) === "mirror,shared" && (await q.value(`document.querySelector('#page [data-state="cart"]').textContent`)) === "1", await q.value("window.__wire"));
+      await q.value("window.fetch = window.__realFetch");
+      await q.open("/concert.holo", 300);
+      check("le panier est enregistré", (await q.value(`document.querySelector('#page [data-state="cart"]').textContent`)) === "1", await q.text());
     } finally {
       await b.send("Emulation.setScriptExecutionDisabled", { value: false });
       await b.send("Network.clearBrowserCookies");
       served.stop();
     }
-    return [faults.length === 0, faults.length ? faults.join("\n      ") : "réservation sans JavaScript ; seconde forgée refusée (409) ; cart=777 et note=Eve ignorés ; état du compte intact après rechargement ; toucher et saisie normaux gardés"];
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : "réservation sans JavaScript ; seconde forgée refusée (409) ; cart=777 et note=Eve ignorés ; état du compte intact après rechargement ; toucher et saisie normaux gardés ; miroir retardé : ordre et panier gardés"];
   }],
 ];
 
