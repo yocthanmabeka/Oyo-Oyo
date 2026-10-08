@@ -7,10 +7,15 @@
 //! sans JavaScript touche un bouton, le formulaire des gestes part, le serveur calcule le nouvel
 //! état, le range dans SQLite sous le numéro du visiteur, et renvoie la page à jour.
 //!
-//! Les valeurs de chaque visiteur sont à lui seul : rien n'est encore partagé entre visiteurs
-//! (ce sera le lot 6), et personne n'a de compte (le lot 7).
+//! Il reçoit aussi les formulaires `Form` (ADR-075), envoyés par le moteur du navigateur ou sans
+//! JavaScript, et les range dans la même base ; `holo messages` les montre à l'auteur.
+//!
+//! Les valeurs de chaque visiteur sont à lui seul, sauf celles que la page partage
+//! (`Shared`, ADR-079) : le serveur les garde pour tout le monde, une fois par adresse, arbitre
+//! chaque geste qui les change, chacun son tour, et les envoie en direct à toutes les pages
+//! ouvertes à cette adresse (`text/event-stream`). Personne n'a encore de compte (le lot 7).
 
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -27,6 +32,30 @@ const STATE_MAX: usize = 262_144;
 const FORGET_AFTER: u64 = 30 * 24 * 3600;
 /// Le nom du cookie qui porte le numéro du visiteur.
 const COOKIE: &str = "holo_visitor";
+/// Un message d'un formulaire, en JSON : 16 Ko au plus (ADR-042).
+const MESSAGE_MAX: usize = 16_384;
+/// Un envoi avec des fichiers : quatre fichiers de 10 Mo, et le message (ADR-059).
+const WITH_FILES_MAX: u64 = 4 * 10_000_000 + 65_536;
+/// Ce qu'une page garde de messages, et de fichiers, au plus.
+const MESSAGES_PER_PAGE_MAX: i64 = 5_000_000;
+const FILES_PER_PAGE_MAX: u64 = 500_000_000;
+/// Les pages ouvertes en direct (ADR-079), au plus, pour tout le site : chacune tient une
+/// connexion et un fil du serveur.
+const LIVE_MAX: usize = 128;
+/// Un battement toutes les dix secondes vers chaque page en direct : une page fermée est oubliée
+/// au plus tard au second battement qui ne passe pas.
+const HEARTBEAT: u64 = 10;
+/// Les changements qu'une page en direct peut avoir en retard ; au-delà, elle est coupée (elle se
+/// reconnecte d'elle-même et reçoit les valeurs du moment).
+const LIVE_QUEUE: usize = 64;
+
+/// Ce que le serveur garde d'un visiteur sur une page : ses valeurs, et les formulaires qu'il a
+/// essayé d'envoyer sans y arriver (leurs messages d'erreur suivent ce qu'il corrige).
+#[derive(Default)]
+struct Visit {
+    state: String,
+    tried: Vec<String>,
+}
 
 /// Ce que le serveur sait de son site.
 pub struct Site {
@@ -36,6 +65,23 @@ pub struct Site {
     web: PathBuf,
     /// La base : un seul fichier, `holo-data/site.sqlite`.
     base: Mutex<Connection>,
+    /// Les pages ouvertes en direct (ADR-079) : chacune reçoit les valeurs partagées de son
+    /// adresse quand elles changent. On prend toujours la base avant cette liste, jamais l'inverse.
+    lives: Arc<Mutex<Lives>>,
+}
+
+/// Les pages ouvertes en direct, et le numéro de la prochaine.
+#[derive(Default)]
+struct Lives {
+    pages: Vec<Live>,
+    next: u64,
+}
+
+/// Une page ouverte en direct : son adresse, et ce qui porte les changements jusqu'à son fil.
+struct Live {
+    id: u64,
+    key: String,
+    sender: std::sync::mpsc::SyncSender<String>,
 }
 
 /// Une demande, réduite à ce que le serveur lit.
@@ -79,31 +125,55 @@ impl Site {
                  state TEXT NOT NULL,
                  updated INTEGER NOT NULL,
                  PRIMARY KEY (visitor, page)
+             );
+             CREATE TABLE IF NOT EXISTS messages (
+                 id INTEGER PRIMARY KEY,
+                 received INTEGER NOT NULL,
+                 page TEXT NOT NULL,
+                 form TEXT NOT NULL,
+                 submission TEXT NOT NULL,
+                 files TEXT NOT NULL DEFAULT '[]'
+             );
+             CREATE TABLE IF NOT EXISTS shared (
+                 page TEXT NOT NULL,
+                 name TEXT NOT NULL,
+                 value TEXT NOT NULL,
+                 version INTEGER NOT NULL,
+                 updated INTEGER NOT NULL,
+                 PRIMARY KEY (page, name)
              );",
         )
         .map_err(|e| e.to_string())?;
+        // Une base faite avant les formulaires (ADR-075) reçoit leur colonne.
+        let _ = base.execute("ALTER TABLE visits ADD COLUMN tried TEXT NOT NULL DEFAULT ''", []);
+        // Le modèle de la page qui reçoit un message (ADR-078) : le quota se compte par modèle, pour
+        // qu'on ne remplisse pas la base en inventant des adresses ; chaque message garde la sienne.
+        let _ = base.execute("ALTER TABLE messages ADD COLUMN model TEXT NOT NULL DEFAULT ''", []);
         base.execute("DELETE FROM visits WHERE updated < ?1", params![now().saturating_sub(FORGET_AFTER) as i64]).map_err(|e| e.to_string())?;
-        Ok(Site { folder, web: web.to_path_buf(), base: Mutex::new(base) })
+        Ok(Site { folder, web: web.to_path_buf(), base: Mutex::new(base), lives: Arc::default() })
     }
 
     /// Répond à une demande. Tout passe par ici : c'est ce que les essais éprouvent.
     pub fn answer(&self, ask: &Ask) -> Reply {
         let Some(path) = url_path(ask.url) else { return Reply::text(400, "adresse illisible") };
         let path = if path == "/" { "/index.holo".to_string() } else { path };
+        // L'adresse telle qu'elle est dans l'URL, encodée : les valeurs d'un modèle en viennent (ADR-078).
+        let raw = ask.url.split(['?', '#']).next().unwrap_or("/");
         match ask.method {
-            "GET" | "HEAD" => self.get(ask, &path),
-            "POST" => self.gesture(ask, &path),
+            "GET" | "HEAD" => self.get(ask, &path, raw),
+            "POST" => self.gesture(ask, &path, raw),
             _ => Reply::text(405, "seuls GET et POST sont reçus"),
         }
     }
 
-    fn get(&self, ask: &Ask, path: &str) -> Reply {
-        let Some(file) = self.find(path) else { return Reply::text(404, "introuvable") };
+    fn get(&self, ask: &Ask, path: &str, raw: &str) -> Reply {
+        let Some((file, holo, values)) = self.locate(path, raw) else { return Reply::text(404, "introuvable") };
         // Un .holo demandé pour être affiché : sa page, fabriquée pour ce visiteur. Demandé par le
-        // moteur (`text/plain`), le fichier lui-même.
-        if path.ends_with(".holo") && ask.accept.contains("text/html") {
-            let state = visitor_of(ask.cookie).and_then(|visitor| self.stored(&visitor, path));
-            return match self.page(&file, path, state) {
+        // moteur (`text/plain`), le fichier lui-même. Une adresse sans `.holo` (`/contact`, un
+        // modèle `profil/{id}.holo`) est toujours une page (ADR-078).
+        if holo.ends_with(".holo") && (ask.accept.contains("text/html") || holo != path) {
+            let visit = visitor_of(ask.cookie).and_then(|visitor| self.stored(&visitor, path));
+            return match self.page(&file, path, &holo, &values, visit) {
                 Ok(html) => {
                     let mut reply = Reply { status: 200, headers: vec![("Content-Type".into(), "text/html; charset=utf-8".into())], body: html.into_bytes() };
                     reply.headers.extend(common_headers());
@@ -124,32 +194,72 @@ impl Site {
 
     /// Un toucher envoyé sans JavaScript (ADR-074) : le même arbitre, puis la page à jour par
     /// une nouvelle demande (`303`), pour qu'un rechargement ne rejoue pas le geste.
-    fn gesture(&self, ask: &Ask, path: &str) -> Reply {
-        if !path.ends_with(".holo") {
+    fn gesture(&self, ask: &Ask, path: &str, raw: &str) -> Reply {
+        let Some((file, holo, values)) = self.locate(path, raw) else { return Reply::text(404, "page introuvable") };
+        if !holo.ends_with(".holo") {
             return Reply::text(405, "seule une page .holo reçoit des gestes");
         }
-        let Some(file) = self.find(path) else { return Reply::text(404, "page introuvable") };
         // Une page d'un autre site ne fait pas toucher les boutons de celle-ci.
         if !ask.origin.is_empty() && ask.origin.split("://").nth(1) != Some(ask.host) {
             return Reply::text(403, "ce geste vient d'un autre site");
         }
+        // Un geste partagé envoyé par le moteur de la page, en JSON (ADR-079) : il porte un signal.
+        if ask.content_type.starts_with("application/json") && ask.body.len() as u64 <= BODY_MAX {
+            if let Some((signal, state)) = crate::read_gesture(&String::from_utf8_lossy(ask.body)) {
+                return self.shared_gesture(ask, path, &file, &holo, &values, &signal, &state);
+            }
+        }
+        // Un formulaire envoyé par le moteur, en JSON, avec ou sans fichiers (ADR-075).
+        if ask.content_type.starts_with("application/json") || ask.content_type.starts_with("multipart/form-data") {
+            return self.message(ask, path, &holo, &file, &values);
+        }
         if !ask.content_type.starts_with("application/x-www-form-urlencoded") {
-            return Reply::text(415, "un formulaire `Form` part encore par outils/server.mjs ; holo serve ne reçoit que les gestes");
+            return Reply::text(415, "un geste, ou un formulaire en JSON");
         }
         if ask.body.len() as u64 > BODY_MAX {
             return Reply::text(413, "formulaire trop lourd");
         }
-        let Ok(source) = read_with_imports(&file) else { return Reply::text(404, "page introuvable") };
+        let Ok(source) = source_at(&file, &values) else { return Reply::text(404, "page introuvable") };
         set_clock();
         let (visitor, new_visitor) = match visitor_of(ask.cookie) {
             Some(visitor) => (visitor, false),
             None => (new_visitor(), true),
         };
-        let before = self.stored(&visitor, path).unwrap_or_else(|| starting_state(&source, &file));
+        let mut visit = self.stored(&visitor, path).unwrap_or_else(|| Visit { state: starting_state(&source, &file), tried: Vec::new() });
         let fields = crate::gestures::read_form(&String::from_utf8_lossy(ask.body));
-        let after = crate::visitor_gesture(&source, &before, &fields);
-        if after.len() <= STATE_MAX {
-            self.store(&visitor, path, &after);
+        let tap = fields.iter().find(|(name, signal)| name == crate::gestures::SIGNAL && crate::gestures::is_tap(signal)).map(|(_, signal)| signal.as_str()).unwrap_or("");
+        // Une page qui partage des valeurs (ADR-079) : les champs, puis le toucher, arbitré avec les
+        // valeurs que le serveur garde, chacun son tour ; un bouton caché ne se touche pas.
+        let signal = if crate::shared_names(&source).is_empty() {
+            visit.state = crate::visitor_gesture(&source, &visit.state, &fields);
+            tap
+        } else {
+            let inputs: Vec<(String, String)> = fields.iter().filter(|(name, _)| name != crate::gestures::SIGNAL).cloned().collect();
+            let Ok(base) = self.base.lock() else { return Reply::text(500, "base indisponible") };
+            let key = shared_key(&holo, &values);
+            let (current, version) = shared_in(&base, &key);
+            visit.state = crate::visitor_gesture(&source, &crate::with_shared(&source, &visit.state, &current), &inputs);
+            let (after, accepted) = if tap.is_empty() { (visit.state.clone(), false) } else { crate::share(&source, &visit.state, &current, tap) };
+            if accepted {
+                visit.state = without_sounds(&after);
+                self.changed(&base, &key, &source, &current, &visit.state, version);
+            }
+            if accepted { tap } else { "" }
+        };
+        // Un toucher qui envoie un formulaire (`On(Send.tap, effect: Contact.send)`) : le serveur
+        // vérifie, range le message, puis `Contact.sent` ; ou garde les messages d'erreur.
+        for form in crate::effects(&source, signal).iter().filter_map(|effect| effect.strip_suffix(".send")) {
+            visit.tried.retain(|tried| tried != form);
+            if !crate::form_errors(&source, &visit.state, form).is_empty() {
+                visit.tried.push(form.to_string());
+                continue;
+            }
+            let submission = crate::submission(&source, &visit.state, form);
+            let outcome = if self.keep_message(path, &holo, form, &submission, "[]").is_ok() { "sent" } else { "failed" };
+            visit.state = without_sounds(&crate::arbitrate(&source, &visit.state, &format!("{form}.{outcome}")));
+        }
+        if visit.state.len() <= STATE_MAX {
+            self.store(&visitor, path, &visit);
         }
         let mut headers = vec![("Location".to_string(), path.to_string())];
         if new_visitor {
@@ -157,6 +267,46 @@ impl Site {
         }
         headers.extend(common_headers());
         Reply { status: 303, headers, body: Vec::new() }
+    }
+
+    /// Le fichier d'une page, et ce qui la décrit (ADR-078) : le fichier même de l'adresse ; sinon
+    /// la même adresse avec `.holo` (`/contact` → `contact.holo`) ; sinon un modèle
+    /// (`profil/{id}.holo` pour `/profil/123`). Rend le fichier, son adresse `.holo` (celle que le
+    /// moteur du navigateur lit) et les valeurs de l'adresse.
+    fn locate(&self, path: &str, raw: &str) -> Option<(PathBuf, String, Vec<(String, String)>)> {
+        if let Some(file) = self.find(path) {
+            // Un modèle ouvert lui-même : un texte vide par nom, comme `holo check`.
+            return Some((file, path.to_string(), crate::address::empty_values(path)));
+        }
+        if !path.ends_with(".holo") {
+            let plain = format!("{path}.holo");
+            if let Some(file) = self.find(&plain) {
+                return Some((file, plain, Vec::new()));
+            }
+        }
+        self.template(raw)
+    }
+
+    /// Le modèle d'une adresse : morceau par morceau, le dossier du même nom, sinon un dossier
+    /// `{x}` ; pour le dernier, un fichier `{x}.holo`. Jamais la base, ni un dossier caché.
+    fn template(&self, raw: &str) -> Option<(PathBuf, String, Vec<(String, String)>)> {
+        let parts: Vec<&str> = raw.trim_start_matches('/').trim_end_matches('/').split('/').collect();
+        let mut folder = self.folder.clone();
+        let mut pattern = String::new();
+        for (i, part) in parts.iter().enumerate() {
+            let last = i + 1 == parts.len();
+            let decoded = crate::address::decode(part)?;
+            if decoded.is_empty() || decoded.starts_with('.') || decoded.contains(['\\', ':']) || (i == 0 && decoded == DATA_FOLDER) {
+                return None;
+            }
+            let exact = folder.join(&decoded);
+            let name = if !last && exact.is_dir() { decoded } else { holder(&folder, last)? };
+            folder = folder.join(&name);
+            pattern.push('/');
+            pattern.push_str(&name);
+        }
+        let values = crate::address::values(&pattern, raw)?;
+        Some((folder, pattern, values))
     }
 
     /// Le fichier d'une adresse : dans le site d'abord, puis dans le moteur. Jamais la base, un
@@ -171,34 +321,375 @@ impl Site {
 
     /// La page d'entrée, avec la page du fichier déjà fabriquée dedans, comme le fait
     /// outils/server.mjs. Un fichier de points (`Point`) ouvre la porte des mondes.
-    fn page(&self, file: &Path, path: &str, state: Option<String>) -> Result<String, String> {
-        let source = read_with_imports(file).map_err(|e| e.to_string())?;
+    fn page(&self, file: &Path, path: &str, holo: &str, values: &[(String, String)], visit: Option<Visit>) -> Result<String, String> {
+        let source = source_at(file, values).map_err(|e| e.to_string())?;
         if source.lines().map(|line| line.split("//").next().unwrap_or("").trim()).find(|line| !line.is_empty()).is_some_and(|line| line.starts_with("Point")) {
             return std::fs::read_to_string(self.web.join("index.html")).map_err(|e| e.to_string());
         }
         let template = std::fs::read_to_string(self.web.join("page.html")).map_err(|e| format!("page d'entrée du moteur introuvable : {e}"))?;
         set_clock();
-        let start = state.unwrap_or_else(|| starting_state(&source, file));
-        let base = &path[..=path.rfind('/').unwrap_or(0)];
+        let visit = visit.unwrap_or_else(|| Visit { state: starting_state(&source, file), tried: Vec::new() });
+        let _ = path;
+        let base = &holo[..=holo.rfind('/').unwrap_or(0)];
+        // Le fichier de la page (ADR-078) : le moteur du navigateur y lit son texte, même quand
+        // l'adresse ne le dit pas (`/contact`, un modèle `profil/{id}.holo`).
+        let template = template.replacen("<title>HoloCode</title>", &format!("<title>HoloCode</title><meta name=\"holo-file\" content=\"{}\">", crate::flat::escape(holo)), 1);
+        // Les valeurs partagées du moment, gardées pour cette adresse (ADR-079).
+        let mut visit = visit;
+        if !crate::shared_names(&source).is_empty() {
+            let (current, _) = self.base.lock().map(|base| shared_in(&base, &shared_key(holo, values))).unwrap_or_default();
+            visit.state = crate::with_shared(&source, &visit.state, &current);
+        }
         // Un fichier refusé : la page d'entrée seule, qui affichera l'erreur du moteur.
-        let Ok(html) = crate::visitor_page(&source, base, &start) else { return Ok(template) };
+        let Ok(html) = crate::visitor_page(&source, base, &visit.state, &visit.tried) else { return Ok(template) };
         Ok(filled_template(&template, &html))
     }
 
-    fn stored(&self, visitor: &str, page: &str) -> Option<String> {
-        let base = self.base.lock().ok()?;
-        base.query_row("SELECT state FROM visits WHERE visitor = ?1 AND page = ?2", params![visitor, page], |row| row.get(0)).optional().ok().flatten()
+    fn stored(&self, visitor: &str, page: &str) -> Option<Visit> {
+        stored_in(&*self.base.lock().ok()?, visitor, page)
     }
 
-    fn store(&self, visitor: &str, page: &str, state: &str) {
+    fn store(&self, visitor: &str, page: &str, visit: &Visit) {
         if let Ok(base) = self.base.lock() {
-            let _ = base.execute(
-                "INSERT INTO visits (visitor, page, state, updated) VALUES (?1, ?2, ?3, ?4)
-                 ON CONFLICT (visitor, page) DO UPDATE SET state = excluded.state, updated = excluded.updated",
-                params![visitor, page, state, now() as i64],
-            );
+            store_in(&base, visitor, page, visit);
         }
     }
+
+    /// Un geste partagé envoyé par le moteur de la page (ADR-079) : `{"signal": "Book.tap",
+    /// "state": "…"}`. Le serveur prend la base, arbitre avec les valeurs qu'il garde (l'état du
+    /// visiteur, qu'il a pu forger, n'en change aucune), range les nouvelles, les envoie en direct
+    /// à toutes les pages ouvertes à cette adresse, garde l'état du visiteur comme sans JavaScript,
+    /// et répond l'état d'après : `200`, ou `409` si le geste est refusé (un bouton caché).
+    #[allow(clippy::too_many_arguments)]
+    fn shared_gesture(&self, ask: &Ask, path: &str, file: &Path, holo: &str, values: &[(String, String)], signal: &str, state: &str) -> Reply {
+        let Ok(source) = source_at(file, values) else { return Reply::text(404, "page introuvable") };
+        if crate::shared_names(&source).is_empty() {
+            return Reply::text(400, "cette page ne partage aucune valeur");
+        }
+        if !crate::touches_shared(&source, signal) {
+            return Reply::text(400, "ce geste ne change aucune valeur partagée : la page le fait seule");
+        }
+        set_clock();
+        let (visitor, new_visitor) = match visitor_of(ask.cookie) {
+            Some(visitor) => (visitor, false),
+            None => (new_visitor(), true),
+        };
+        let Ok(base) = self.base.lock() else { return Reply::text(500, "base indisponible") };
+        let key = shared_key(holo, values);
+        let (current, mut version) = shared_in(&base, &key);
+        let (after, accepted) = crate::share(&source, state, &current, signal);
+        if accepted {
+            version = self.changed(&base, &key, &source, &current, &after, version);
+        }
+        // L'état du visiteur après ce geste, gardé comme sans JavaScript (ADR-074) : il le retrouve
+        // en revenant.
+        let mut visit = stored_in(&base, &visitor, path).unwrap_or_default();
+        visit.state = without_sounds(&after);
+        if visit.state.len() <= STATE_MAX {
+            store_in(&base, &visitor, path, &visit);
+        }
+        drop(base);
+        let body = format!("{{\"accepted\":{accepted},\"state\":{},\"shared\":{},\"version\":{version}}}", crate::json_text(&after), crate::json_text(&crate::shared_of(&source, &after)));
+        let mut headers = vec![("Content-Type".to_string(), "application/json; charset=utf-8".to_string())];
+        if new_visitor {
+            headers.push(("Set-Cookie".into(), format!("{COOKIE}={visitor}; Path=/; HttpOnly; SameSite=Lax; Max-Age={FORGET_AFTER}")));
+        }
+        headers.extend(common_headers());
+        Reply { status: if accepted { 200 } else { 409 }, headers, body: body.into_bytes() }
+    }
+
+    /// Les valeurs partagées après un geste accepté : si elles ont changé, elles sont rangées sous
+    /// un nouveau numéro et envoyées en direct, pendant que la base est encore prise (ADR-079) :
+    /// deux gestes ne se croisent jamais, et chaque page reçoit les changements dans l'ordre. Rend
+    /// le numéro des valeurs du moment.
+    fn changed(&self, base: &Connection, key: &str, source: &str, current: &str, after: &str, version: i64) -> i64 {
+        let before = crate::shared_of(source, &crate::with_shared(source, "", current));
+        let now_shared = crate::shared_of(source, after);
+        if now_shared == before {
+            return version;
+        }
+        let version = version + 1;
+        let stamp = now() as i64;
+        for chunk in now_shared.split(';').filter(|chunk| !chunk.is_empty()) {
+            let (name, value) = chunk.split_once('=').unwrap_or((chunk, ""));
+            let _ = base.execute(
+                "INSERT INTO shared (page, name, value, version, updated) VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT (page, name) DO UPDATE SET value = excluded.value, version = excluded.version, updated = excluded.updated",
+                params![key, name, value, version, stamp],
+            );
+        }
+        self.broadcast(key, &now_shared, version);
+        version
+    }
+
+    /// Envoie les valeurs partagées d'une adresse à toutes les pages qui l'écoutent. Une page qui
+    /// ne suit plus (fermée, ou trop en retard) est retirée.
+    fn broadcast(&self, key: &str, written: &str, version: i64) {
+        let event = live_event(written, version);
+        if let Ok(mut lives) = self.lives.lock() {
+            let before = lives.pages.len();
+            lives.pages.retain(|live| live.key != key || live.sender.try_send(event.clone()).is_ok());
+            if lives.pages.len() != before {
+                println!("Direct          : {key}, {} page(s) à l'écoute", lives.pages.iter().filter(|live| live.key == key).count());
+            }
+        }
+    }
+
+    /// Une adresse que le navigateur veut écouter en direct (`Accept: text/event-stream`,
+    /// ADR-079) : une page qui partage des valeurs. Rend l'adresse sous laquelle elles sont gardées
+    /// et le texte de la page, ou le refus.
+    pub fn live_page(&self, ask: &Ask) -> Result<(String, String), Reply> {
+        let Some(path) = url_path(ask.url) else { return Err(Reply::text(400, "adresse illisible")) };
+        let path = if path == "/" { "/index.holo".to_string() } else { path };
+        let raw = ask.url.split(['?', '#']).next().unwrap_or("/");
+        if !ask.origin.is_empty() && ask.origin.split("://").nth(1) != Some(ask.host) {
+            return Err(Reply::text(403, "cette page est écoutée depuis un autre site"));
+        }
+        let Some((file, holo, values)) = self.locate(&path, raw) else { return Err(Reply::text(404, "introuvable")) };
+        let source = source_at(&file, &values).map_err(|_| Reply::text(404, "introuvable"))?;
+        if !holo.ends_with(".holo") || crate::shared_names(&source).is_empty() {
+            return Err(Reply::text(404, "cette page ne partage aucune valeur à écouter"));
+        }
+        Ok((shared_key(&holo, &values), source))
+    }
+
+    /// Une page écoute son adresse en direct : elle reçoit d'abord les valeurs du moment, puis
+    /// chaque changement, et un battement de temps en temps. Son propre fil écrit pour elle : les
+    /// quatre fils du serveur restent libres, et une page lente ne retient personne.
+    pub fn listen(&self, key: &str, source: &str, mut writer: Box<dyn Write + Send>) {
+        let Ok(base) = self.base.lock() else { return };
+        let Ok(mut lives) = self.lives.lock() else { return };
+        // Une page fermée s'est déjà retirée elle-même : son fil le fait en s'arrêtant.
+        if lives.pages.len() >= LIVE_MAX {
+            let refusal = "trop de pages ouvertes en direct";
+            let _ = write!(writer, "HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{refusal}", refusal.len());
+            let _ = writer.flush();
+            return;
+        }
+        // Les valeurs du moment : rien ne peut changer entre elles et l'inscription (la base est prise).
+        let (current, version) = shared_in(&base, key);
+        let now_shared = crate::shared_of(source, &crate::with_shared(source, "", &current));
+        let (sender, receiver) = std::sync::mpsc::sync_channel::<String>(LIVE_QUEUE);
+        let _ = sender.try_send(live_event(&now_shared, version));
+        let id = lives.next;
+        lives.next += 1;
+        lives.pages.push(Live { id, key: key.to_string(), sender });
+        println!("Direct          : {key}, {} page(s) à l'écoute", lives.pages.iter().filter(|live| live.key == key).count());
+        drop(lives);
+        drop(base);
+        let (lives, key) = (Arc::clone(&self.lives), key.to_string());
+        std::thread::spawn(move || {
+            let head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream; charset=utf-8\r\nCache-Control: no-cache\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\nretry: 3000\n\n";
+            let mut alive = writer.write_all(head.as_bytes()).and_then(|()| writer.flush()).is_ok();
+            while alive {
+                let chunk = match receiver.recv_timeout(std::time::Duration::from_secs(HEARTBEAT)) {
+                    Ok(event) => event,
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => ":\n\n".to_string(),
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+                };
+                alive = writer.write_all(chunk.as_bytes()).and_then(|()| writer.flush()).is_ok();
+            }
+            // La page est fermée, ou ne suit plus : elle est oubliée.
+            if let Ok(mut lives) = lives.lock() {
+                let before = lives.pages.len();
+                lives.pages.retain(|live| live.id != id);
+                if lives.pages.len() != before {
+                    println!("Direct          : {key}, {} page(s) à l'écoute", lives.pages.iter().filter(|live| live.key == key).count());
+                }
+            }
+        });
+    }
+
+    /// Un formulaire envoyé par le moteur du navigateur (ADR-042, ADR-059), reçu ici (ADR-075) :
+    /// vérifié à nouveau par le moteur (la page peut être contournée, le serveur non), ses
+    /// fichiers reconnus à leurs premiers octets, puis rangé dans la base. `204`, ou le refus.
+    fn message(&self, ask: &Ask, path: &str, holo: &str, file: &Path, values: &[(String, String)]) -> Reply {
+        let multipart = ask.content_type.starts_with("multipart/form-data");
+        if ask.body.len() as u64 > if multipart { WITH_FILES_MAX } else { MESSAGE_MAX as u64 } {
+            return Reply::text(413, "message trop long");
+        }
+        let (json, sent_files) = if multipart {
+            let Some(parts) = read_multipart(ask.body, ask.content_type) else { return Reply::text(400, "message mal formé") };
+            let Some(values) = parts.iter().find(|part| part.name == "submission").filter(|part| part.bytes.len() <= MESSAGE_MAX) else { return Reply::text(400, "message mal formé") };
+            let json = String::from_utf8_lossy(&values.bytes).into_owned();
+            (json, parts.into_iter().filter(|part| part.name != "submission" && !part.bytes.is_empty()).collect::<Vec<_>>())
+        } else {
+            (String::from_utf8_lossy(ask.body).into_owned(), Vec::new())
+        };
+        let Ok(source) = source_at(file, values) else { return Reply::text(404, "page introuvable") };
+        match crate::check_submission(&source, &json) {
+            Ok(errors) if errors.is_empty() => {}
+            Ok(errors) => return Reply::text(422, &errors),
+            Err(_) => return Reply::text(400, "page refusée par le moteur"),
+        }
+        let Some(crate::lists::Json::Object(top)) = crate::lists::Json::read(&json) else { return Reply::text(400, "message illisible") };
+        let Some(crate::lists::Json::Text(form)) = top.iter().find(|(key, _)| key == "form").map(|(_, value)| value) else { return Reply::text(400, "message mal formé") };
+        // Les fichiers : ce que la page permet, demandé au moteur, jamais à ce que dit le navigateur.
+        let allowed = crate::files_for_server(&source).unwrap_or_default();
+        let folder = self.folder.join(DATA_FOLDER).join("files").join(page_name(path));
+        let mut place = FILES_PER_PAGE_MAX.saturating_sub(folder_size(&folder));
+        let mut ready = Vec::new();
+        for part in &sent_files {
+            let rule = allowed.lines().map(|line| line.split('|').collect::<Vec<_>>()).find(|rule| rule.len() == 4 && rule[0] == form && rule[1] == part.name);
+            let Some(rule) = rule.filter(|_| !ready.iter().any(|(field, _, _): &(String, &[u8], &str)| *field == part.name)) else {
+                return Reply::text(400, &format!("aucun champ de fichier « {} » dans ce formulaire", part.name));
+            };
+            if part.bytes.len() as u64 > rule[3].parse::<u64>().unwrap_or(0) {
+                return Reply::text(413, "fichier trop lourd");
+            }
+            let Some(extension) = file_kind(&part.bytes).filter(|(kind, _)| rule[2].split(',').any(|k| k == *kind)).map(|(_, extension)| extension) else {
+                return Reply::text(415, "sorte de fichier refusée");
+            };
+            place = match place.checked_sub(part.bytes.len() as u64) {
+                Some(rest) => rest,
+                None => return Reply::text(507, "trop de fichiers gardés pour cette page"),
+            };
+            ready.push((part.name.clone(), part.bytes.as_slice(), extension));
+        }
+        // Tout est vérifié : on range. Le nom donné par le visiteur n'est gardé que dans le message.
+        let mut kept = Vec::new();
+        for (field, bytes, extension) in ready {
+            let name = format!("{}-{}.{extension}", now(), &new_visitor()[..12]);
+            if std::fs::create_dir_all(&folder).and_then(|_| std::fs::write(folder.join(&name), bytes)).is_err() {
+                return Reply::text(500, "fichier impossible à ranger");
+            }
+            kept.push(format!("{{\"field\":\"{field}\",\"file\":\"files/{}/{name}\",\"size\":{}}}", page_name(path), bytes.len()));
+        }
+        match self.keep_message(path, holo, form, &json, &format!("[{}]", kept.join(","))) {
+            Ok(()) => Reply { status: 204, headers: common_headers(), body: Vec::new() },
+            Err(reply) => reply,
+        }
+    }
+
+    /// Range un message dans la base, sauf si la page en garde déjà trop.
+    fn keep_message(&self, path: &str, model: &str, form: &str, submission: &str, files: &str) -> Result<(), Reply> {
+        let base = self.base.lock().map_err(|_| Reply::text(500, "base indisponible"))?;
+        let already: i64 = base.query_row("SELECT COALESCE(SUM(LENGTH(submission)), 0) FROM messages WHERE model = ?1", params![model], |row| row.get(0)).map_err(|_| Reply::text(500, "base illisible"))?;
+        if already > MESSAGES_PER_PAGE_MAX {
+            return Err(Reply::text(507, "trop de messages gardés pour cette page"));
+        }
+        base.execute("INSERT INTO messages (received, page, model, form, submission, files) VALUES (?1, ?2, ?3, ?4, ?5, ?6)", params![now() as i64, path, model, form, submission, files])
+            .map_err(|_| Reply::text(500, "message impossible à ranger"))?;
+        println!("Message reçu : {path} ({form})");
+        Ok(())
+    }
+}
+
+fn stored_in(base: &Connection, visitor: &str, page: &str) -> Option<Visit> {
+    base.query_row("SELECT state, tried FROM visits WHERE visitor = ?1 AND page = ?2", params![visitor, page], |row| {
+        let tried: String = row.get(1)?;
+        Ok(Visit { state: row.get(0)?, tried: tried.split(',').filter(|t| !t.is_empty()).map(str::to_string).collect() })
+    })
+    .optional()
+    .ok()
+    .flatten()
+}
+
+fn store_in(base: &Connection, visitor: &str, page: &str, visit: &Visit) {
+    let _ = base.execute(
+        "INSERT INTO visits (visitor, page, state, tried, updated) VALUES (?1, ?2, ?3, ?4, ?5)
+         ON CONFLICT (visitor, page) DO UPDATE SET state = excluded.state, tried = excluded.tried, updated = excluded.updated",
+        params![visitor, page, visit.state, visit.tried.join(","), now() as i64],
+    );
+}
+
+/// Les valeurs partagées gardées pour une adresse, écrites comme l'état (`seats=19;likes=3`), et
+/// le numéro de leur dernier changement (0 : jamais changées, elles valent leur départ).
+fn shared_in(base: &Connection, key: &str) -> (String, i64) {
+    let Ok(mut query) = base.prepare("SELECT name, value, version FROM shared WHERE page = ?1 ORDER BY rowid") else { return (String::new(), 0) };
+    let rows: Vec<(String, String, i64)> = query.query_map(params![key], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))).map(|rows| rows.flatten().collect()).unwrap_or_default();
+    let version = rows.iter().map(|(_, _, version)| *version).max().unwrap_or(0);
+    (rows.iter().map(|(name, value, _)| format!("{name}={value}")).collect::<Vec<_>>().join(";"), version)
+}
+
+/// L'adresse sous laquelle une page garde ses valeurs partagées (ADR-079) : celle de son fichier
+/// (`/salle.holo`, même ouvert par `/salle`), ou, pour un modèle, l'adresse avec ses valeurs
+/// décodées (`/concert/12` pour `/concert/{id}.holo`) : `/concert/12` et `/concert/13` ont
+/// chacune leurs places. Une barre ou un « % » dans une valeur reste écrit `%2F`, `%25`.
+fn shared_key(holo: &str, values: &[(String, String)]) -> String {
+    if values.iter().all(|(_, raw)| raw.is_empty()) {
+        return holo.to_string();
+    }
+    let pattern = holo.strip_suffix(".holo").unwrap_or(holo);
+    pattern
+        .split('/')
+        .map(|part| match part.strip_prefix('{').and_then(|p| p.strip_suffix('}')) {
+            Some(name) => values.iter().find(|(known, _)| known == name).and_then(|(_, raw)| crate::address::decode(raw)).unwrap_or_default().replace('%', "%25").replace('/', "%2F"),
+            None => part.to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+/// Un changement envoyé en direct : son numéro, puis les valeurs (ADR-079).
+fn live_event(written: &str, version: i64) -> String {
+    format!("event: shared\nid: {version}\ndata: {written}\n\n")
+}
+
+/// Combien de sauvegardes garder : les plus récentes ; les plus anciennes sont effacées.
+const BACKUPS_KEPT: usize = 14;
+/// Une sauvegarde par jour tant que le serveur tourne.
+const BACKUP_EVERY: u64 = 24 * 3600;
+
+/// Sauvegarde la base d'un site (ADR-076) : une copie entière et cohérente, même pendant que le
+/// serveur écrit (`VACUUM INTO`), dans `holo-data/backups/site-2026-10-07-2215-09.sqlite`
+/// (l'heure universelle). Garde les quatorze plus récentes. Rend le chemin de la copie.
+pub fn backup(folder: &Path) -> Result<PathBuf, String> {
+    let data = folder.join(DATA_FOLDER);
+    if !data.join("site.sqlite").is_file() {
+        return Err("aucune base : ce dossier n'a jamais été servi par holo serve".into());
+    }
+    let base = Connection::open(data.join("site.sqlite")).map_err(|e| e.to_string())?;
+    backup_into(&base, &data)
+}
+
+fn backup_into(base: &Connection, data: &Path) -> Result<PathBuf, String> {
+    let backups = data.join("backups");
+    std::fs::create_dir_all(&backups).map_err(|e| format!("{} : {e}", backups.display()))?;
+    let seconds = now();
+    let [year, month, day, _, hour, minute] = crate::state::from_unix_seconds(seconds);
+    let target = backups.join(format!("site-{year}-{month:02}-{day:02}-{hour:02}{minute:02}-{:02}.sqlite", seconds % 60));
+    if target.exists() {
+        return Ok(target);
+    }
+    base.execute("VACUUM INTO ?1", params![target.to_string_lossy()]).map_err(|e| e.to_string())?;
+    let mut kept: Vec<PathBuf> = std::fs::read_dir(&backups)
+        .map_err(|e| e.to_string())?
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| path.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("site-") && n.ends_with(".sqlite")))
+        .collect();
+    kept.sort();
+    let surplus = kept.len().saturating_sub(BACKUPS_KEPT);
+    for old in &kept[..surplus] {
+        let _ = std::fs::remove_file(old);
+    }
+    Ok(target)
+}
+
+/// La date de la dernière sauvegarde, en secondes, d'après le fichier le plus récent.
+fn last_backup(data: &Path) -> Option<u64> {
+    std::fs::read_dir(data.join("backups"))
+        .ok()?
+        .flatten()
+        .filter_map(|entry| entry.metadata().ok()?.modified().ok()?.duration_since(UNIX_EPOCH).ok())
+        .map(|age| age.as_secs())
+        .max()
+}
+
+/// Les messages reçus par un site, du plus ancien au plus récent, une ligne JSON chacun : ce que
+/// `holo messages` affiche à l'auteur (ADR-075).
+pub fn messages(folder: &Path) -> Result<Vec<String>, String> {
+    let base = Connection::open(folder.join(DATA_FOLDER).join("site.sqlite")).map_err(|e| e.to_string())?;
+    let mut query = base.prepare("SELECT received, page, form, submission, files FROM messages ORDER BY id").map_err(|_| "aucun message reçu".to_string())?;
+    let rows = query
+        .query_map([], |row| {
+            let (received, page, form, submission, files): (i64, String, String, String, String) = (row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?);
+            let quoted = |text: &str| text.replace('\\', "\\\\").replace('"', "\\\"");
+            Ok(format!("{{\"received\":{received},\"page\":\"{}\",\"form\":\"{}\",\"submission\":{submission},\"files\":{files}}}", quoted(&page), quoted(&form)))
+        })
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
 }
 
 /// Lance le serveur et ne rend plus la main. `0.0.0.0` : un téléphone sur le même Wi-Fi le voit.
@@ -209,6 +700,24 @@ pub fn serve(folder: &Path, web: &Path, port: u16) -> Result<(), String> {
     println!("Sa base         : {}", site.folder.join(DATA_FOLDER).join("site.sqlite").display());
     println!("Sur ce PC       : http://localhost:{port}");
     println!("Sur le téléphone (même Wi-Fi) : http://<adresse de ce PC>:{port}");
+    // Une sauvegarde au départ si la dernière a plus d'un jour, puis une par jour (ADR-076).
+    {
+        let site = Arc::clone(&site);
+        std::thread::spawn(move || loop {
+            let data = site.folder.join(DATA_FOLDER);
+            let wait = match last_backup(&data) {
+                Some(last) if now().saturating_sub(last) < BACKUP_EVERY => BACKUP_EVERY - now().saturating_sub(last),
+                _ => {
+                    match site.base.lock().map_err(|_| "base indisponible".to_string()).and_then(|base| backup_into(&base, &data)) {
+                        Ok(path) => println!("Sauvegarde      : {}", path.display()),
+                        Err(error) => eprintln!("Sauvegarde impossible : {error}"),
+                    }
+                    BACKUP_EVERY
+                }
+            };
+            std::thread::sleep(std::time::Duration::from_secs(wait));
+        });
+    }
     let workers: Vec<_> = (0..4)
         .map(|_| {
             let (site, server) = (Arc::clone(&site), Arc::clone(&server));
@@ -230,9 +739,28 @@ fn reply_to(site: &Site, mut request: tiny_http::Request) {
     let (accept, cookie, content_type, origin, host) = (header("Accept"), header("Cookie"), header("Content-Type"), header("Origin"), header("Host"));
     let method = request.method().as_str().to_string();
     let url = request.url().to_string();
+    // Une page qui écoute ses valeurs partagées en direct (ADR-079) : la connexion reste ouverte,
+    // tenue par un fil à elle ; ce fil-ci retourne aussitôt servir les autres.
+    if method == "GET" && accept.contains("text/event-stream") {
+        let ask = Ask { method: &method, url: &url, accept: &accept, cookie: &cookie, content_type: &content_type, origin: &origin, host: &host, body: &[] };
+        match site.live_page(&ask) {
+            Ok((key, source)) => site.listen(&key, &source, request.into_writer()),
+            Err(reply) => {
+                let mut response = tiny_http::Response::from_data(reply.body).with_status_code(reply.status);
+                for (name, value) in reply.headers {
+                    if let Ok(header) = tiny_http::Header::from_bytes(name.as_bytes(), value.as_bytes()) {
+                        response.add_header(header);
+                    }
+                }
+                let _ = request.respond(response);
+            }
+        }
+        return;
+    }
     let mut body = Vec::new();
     if method == "POST" {
-        let _ = request.as_reader().take(BODY_MAX + 1).read_to_end(&mut body);
+        let limit = if content_type.starts_with("multipart/form-data") { WITH_FILES_MAX } else { BODY_MAX };
+        let _ = request.as_reader().take(limit + 1).read_to_end(&mut body);
     }
     let reply = site.answer(&Ask { method: &method, url: &url, accept: &accept, cookie: &cookie, content_type: &content_type, origin: &origin, host: &host, body: &body });
     let mut response = tiny_http::Response::from_data(if method == "HEAD" { Vec::new() } else { reply.body }).with_status_code(reply.status);
@@ -242,6 +770,69 @@ fn reply_to(site: &Site, mut request: tiny_http::Request) {
         }
     }
     let _ = request.respond(response);
+}
+
+/// Un morceau d'un envoi en plusieurs morceaux : son nom de champ, ses octets.
+struct Part {
+    name: String,
+    bytes: Vec<u8>,
+}
+
+/// Lit un envoi en plusieurs morceaux (`multipart/form-data`), ou rien s'il est mal formé.
+fn read_multipart(body: &[u8], content_type: &str) -> Option<Vec<Part>> {
+    let boundary = content_type.split(';').map(str::trim).find_map(|part| part.strip_prefix("boundary="))?.trim_matches('"');
+    let separator = format!("--{boundary}").into_bytes();
+    let find = |from: usize| body.get(from..).and_then(|rest| rest.windows(separator.len()).position(|w| w == separator.as_slice())).map(|at| from + at);
+    let mut parts = Vec::new();
+    let mut start = find(0)?;
+    loop {
+        start += separator.len();
+        if body.get(start..start + 2) == Some(b"--") {
+            return Some(parts);
+        }
+        let end = find(start)?;
+        // Sans le retour à la ligne de part et d'autre.
+        let chunk = body.get(start + 2..end.checked_sub(2)?)?;
+        let cut = chunk.windows(4).position(|w| w == b"\r\n\r\n")?;
+        let headers = String::from_utf8_lossy(&chunk[..cut]);
+        let name = headers.split(';').map(str::trim).find_map(|h| h.strip_prefix("name=\""))?.split('"').next()?.to_string();
+        parts.push(Part { name, bytes: chunk[cut + 4..].to_vec() });
+        if parts.len() > 64 {
+            return None;
+        }
+        start = end;
+    }
+}
+
+/// La sorte d'un fichier, lue dans ses premiers octets, jamais dans son nom (ADR-059).
+fn file_kind(bytes: &[u8]) -> Option<(&'static str, &'static str)> {
+    if bytes.starts_with(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]) {
+        Some(("image", "png"))
+    } else if bytes.starts_with(&[0xff, 0xd8, 0xff]) {
+        Some(("image", "jpg"))
+    } else if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        Some(("image", "gif"))
+    } else if bytes.starts_with(b"RIFF") && bytes.get(8..12) == Some(b"WEBP") {
+        Some(("image", "webp"))
+    } else if bytes.starts_with(b"%PDF-") {
+        Some(("pdf", "pdf"))
+    } else {
+        None
+    }
+}
+
+/// Le nom d'une page pour ranger ses fichiers : `/lecons/76-envoyer.holo` → `lecons_76-envoyer`.
+fn page_name(path: &str) -> String {
+    path.trim_start_matches('/').trim_end_matches(".holo").chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).collect()
+}
+
+fn folder_size(folder: &Path) -> u64 {
+    std::fs::read_dir(folder).map(|entries| entries.flatten().filter_map(|e| e.metadata().ok()).filter(|m| m.is_file()).map(|m| m.len()).sum()).unwrap_or(0)
+}
+
+/// Les sons demandés (« ! ») ne se jouent pas sans le moteur : ils ne sont pas gardés.
+fn without_sounds(state: &str) -> String {
+    state.split(';').filter(|chunk| !chunk.starts_with("!=")).collect::<Vec<_>>().join(";")
 }
 
 /// Les en-têtes de toute réponse : pas de devinette sur le type, pas de cache périmé.
@@ -301,7 +892,30 @@ fn starting_state(source: &str, file: &Path) -> String {
             }
         }
     }
-    state.split(';').filter(|chunk| !chunk.starts_with("!=")).collect::<Vec<_>>().join(";")
+    without_sounds(&state)
+}
+
+/// Le texte d'une page, avec ses imports, puis les valeurs de son adresse (ADR-078).
+fn source_at(file: &Path, values: &[(String, String)]) -> std::io::Result<String> {
+    let source = read_with_imports(file)?;
+    Ok(if values.is_empty() { source } else { crate::address::joined(&source, values) })
+}
+
+/// Le dossier `{x}`, ou pour le dernier morceau le fichier `{x}.holo`, d'un dossier ; le premier
+/// par ordre alphabétique s'il y en a plusieurs.
+fn holder(folder: &Path, last: bool) -> Option<String> {
+    let mut found: Vec<String> = std::fs::read_dir(folder)
+        .ok()?
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| if last { entry.path().is_file() } else { entry.path().is_dir() })
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .filter(|name| {
+            let stem = if last { name.strip_suffix(".holo") } else { Some(name.as_str()) };
+            stem.and_then(|s| s.strip_prefix('{')?.strip_suffix('}')).is_some_and(crate::address::valid_name)
+        })
+        .collect();
+    found.sort();
+    found.into_iter().next()
 }
 
 /// Le texte d'un fichier, avec les fichiers qu'il importe joints à la suite, lus à côté de lui.
@@ -403,6 +1017,53 @@ mod tests {
     }
 
     #[test]
+    fn an_address_carries_a_value_with_and_without_javascript() {
+        // ADR-078 : `profils/{nom}.holo` sert `/profils/ada` ; la page lit `{nom}`, sans le changer.
+        let (site, folder) = site();
+        std::fs::create_dir_all(folder.join("profils")).unwrap();
+        std::fs::write(
+            folder.join("profils").join("{nom}.holo"),
+            "Page(title: \"Profil\", state: State(likes: 0, email: \"\"), children: [ H1(\"Bonjour, {nom}\"), If(nom, is: \"ada\", children: [ P(\"Ada a écrit le premier programme.\") ]), P(\"J'aime : {likes}\"), Button(name: Like, text: \"J'aime\"), Form(name: Contact, children: [ Input(value: email, type: email, label: \"E-mail\", required: true), Button(name: Send, text: \"Envoyer\") ]) ], rules: [ On(Like.tap, effect: likes.add(1)), On(Send.tap, effect: Contact.send) ])",
+        )
+        .unwrap();
+        std::fs::write(folder.join("contact.holo"), "Page(title: \"Contact\", children: [ H1(\"Écris-nous\") ])").unwrap();
+        // La page fabriquée par le serveur, avec la valeur, et le fichier nommé pour le moteur.
+        let page = String::from_utf8(site.answer(&ask("GET", "/profils/ada", "", b"")).body).unwrap();
+        assert!(page.contains("Bonjour, <span data-state=\"nom\">ada</span>") && page.contains("Ada a écrit le premier programme."), "{page}");
+        assert!(page.contains("<meta name=\"holo-file\" content=\"/profils/{nom}.holo\">"), "{page}");
+        let accented = String::from_utf8(site.answer(&ask("GET", "/profils/Ad%C3%A9", "", b"")).body).unwrap();
+        assert!(accented.contains(">Adé<") && accented.contains("data-if=\"nom|is=&quot;ada&quot;\" hidden"), "{accented}");
+        // Le texte du modèle, pour le moteur du navigateur ; le modèle ouvert lui-même, un nom vide.
+        let mut plain = ask("GET", "/profils/%7Bnom%7D.holo", "", b"");
+        plain.accept = "text/plain";
+        assert!(String::from_utf8(site.answer(&plain).body).unwrap().starts_with("Page(title: \"Profil\""));
+        assert!(String::from_utf8(site.answer(&ask("GET", "/profils/%7Bnom%7D.holo", "", b"")).body).unwrap().contains("Bonjour, <span data-state=\"nom\"></span>"));
+        // Une adresse sans `.holo`, et une adresse sans modèle.
+        let contact = String::from_utf8(site.answer(&ask("GET", "/contact", "", b"")).body).unwrap();
+        assert!(contact.contains("Écris-nous") && contact.contains("<meta name=\"holo-file\" content=\"/contact.holo\">"), "{contact}");
+        assert_eq!(site.answer(&ask("GET", "/profils/ada/plus", "", b"")).status, 404);
+        assert_eq!(site.answer(&ask("GET", "/holo-data/x", "", b"")).status, 404);
+        // Sans JavaScript : un toucher à l'adresse ; l'état est gardé pour cette adresse-là.
+        let touched = site.answer(&ask("POST", "/profils/ada", "", b"signal=Like.tap"));
+        assert_eq!(touched.status, 303);
+        assert!(touched.headers.iter().any(|(name, value)| name == "Location" && value == "/profils/ada"));
+        let cookie = touched.headers.iter().find(|(name, _)| name == "Set-Cookie").map(|(_, value)| value.split(';').next().unwrap().to_string()).unwrap();
+        let again = String::from_utf8(site.answer(&ask("GET", "/profils/ada", &cookie, b"")).body).unwrap();
+        assert!(again.contains("J'aime : <span data-state=\"likes\">1</span>") && again.contains(">ada<"), "{again}");
+        let other = String::from_utf8(site.answer(&ask("GET", "/profils/grace", &cookie, b"")).body).unwrap();
+        assert!(other.contains("J'aime : <span data-state=\"likes\">0</span>"), "{other}");
+        // Avec JavaScript : un formulaire envoyé à l'adresse, vérifié avec la valeur, rangé avec son modèle.
+        let mut json = ask("POST", "/profils/ada", "", br#"{"form":"Contact","values":{"email":"ada@example.org"}}"#);
+        json.content_type = "application/json";
+        assert_eq!(site.answer(&json).status, 204);
+        let base = site.base.lock().unwrap();
+        let (page, model): (String, String) = base.query_row("SELECT page, model FROM messages", [], |row| Ok((row.get(0)?, row.get(1)?))).unwrap();
+        assert_eq!((page.as_str(), model.as_str()), ("/profils/ada", "/profils/{nom}.holo"));
+        drop(base);
+        let _ = std::fs::remove_dir_all(&folder);
+    }
+
+    #[test]
     fn a_visitor_without_javascript_fills_the_cart() {
         let (site, folder) = site();
         let first = site.answer(&ask("GET", "/shop.holo", "", b""));
@@ -430,6 +1091,96 @@ mod tests {
         let _ = std::fs::remove_dir_all(folder);
     }
 
+    const CONTACT: &str = "Page(\n  title: \"Contact\",\n  state: State(name: \"\", photo: \"\", sent: 0),\n  children: [\n    Form(name: Contact, children: [\n      Input(value: name, label: \"Nom\", required: true, min: 2),\n      Input(type: file, value: photo, label: \"Photo\", accept: image, max: 500KB),\n      Button(name: Send, text: \"Envoyer\"),\n    ]),\n    If(sent, is: 1, children: [ P(\"Merci\") ]),\n  ],\n  rules: [\n    On(Send.tap, effect: Contact.send),\n    On(Contact.sent, effect: sent.set(1)),\n  ],\n)\n";
+
+    #[test]
+    fn a_form_sent_without_javascript() {
+        let (site, folder) = site();
+        std::fs::write(folder.join("contact.holo"), CONTACT).unwrap();
+        // Envoyer vide : rien n'est rangé, le message d'erreur est écrit sous le champ.
+        let reply = site.answer(&ask("POST", "/contact.holo", "", b"name=&signal=Send.tap"));
+        let cookie = reply.headers.iter().find(|(n, _)| n == "Set-Cookie").map(|(_, v)| v.split(';').next().unwrap().to_string()).unwrap();
+        let html = String::from_utf8(site.answer(&ask("GET", "/contact.holo", &cookie, b"")).body).unwrap();
+        assert!(html.contains("data-tried=\"1\"") && html.contains("aria-invalid=\"true\" aria-describedby=\"holo-error-Contact-name\"") && html.contains("<p class=\"holo-error\" id=\"holo-error-Contact-name\">"), "{html}");
+        assert!(html.contains(" data-visit=\"sent=0;"), "{html}");
+        assert!(messages(&folder).unwrap().is_empty());
+        // Corrigé : rangé, puis `Contact.sent`.
+        site.answer(&ask("POST", "/contact.holo", &cookie, b"name=Ada&signal=Send.tap"));
+        let html = String::from_utf8(site.answer(&ask("GET", "/contact.holo", &cookie, b"")).body).unwrap();
+        assert!(html.contains(" data-visit=\"sent=1;") && !html.contains("class=\"holo-error\"") && !html.contains("data-tried"), "{html}");
+        let kept = messages(&folder).unwrap();
+        assert_eq!(kept.len(), 1);
+        assert!(kept[0].contains("\"page\":\"/contact.holo\",\"form\":\"Contact\",\"submission\":{\"form\":\"Contact\",\"values\":{\"name\":\"Ada\""), "{}", kept[0]);
+        let _ = std::fs::remove_dir_all(folder);
+    }
+
+    #[test]
+    fn a_form_sent_by_the_engine() {
+        let (site, folder) = site();
+        std::fs::write(folder.join("contact.holo"), CONTACT).unwrap();
+        let json = |body: &'static [u8]| {
+            let mut asked = ask("POST", "/contact.holo", "", body);
+            asked.content_type = "application/json";
+            site.answer(&asked)
+        };
+        assert_eq!(json(br#"{"form":"Contact","values":{"name":"Ada"}}"#).status, 204);
+        let refused = json(br#"{"form":"Contact","values":{"name":"A"}}"#);
+        assert_eq!(refused.status, 422, "{}", String::from_utf8_lossy(&refused.body));
+        assert_eq!(json(br#"{"form":"Contact","values":{"admin":1}}"#).status, 422);
+        assert_eq!(json(b"pas du json").status, 422);
+        // Avec un fichier : une image reconnue à ses octets ; un faux PNG refusé.
+        let multipart = |file: &[u8]| {
+            let mut body = b"--B\r\nContent-Disposition: form-data; name=\"submission\"\r\n\r\n{\"form\":\"Contact\",\"values\":{\"name\":\"Bob\",\"photo\":\"moi.png\"}}\r\n--B\r\nContent-Disposition: form-data; name=\"photo\"; filename=\"moi.png\"\r\nContent-Type: image/png\r\n\r\n".to_vec();
+            body.extend_from_slice(file);
+            body.extend_from_slice(b"\r\n--B--\r\n");
+            body
+        };
+        let png = multipart(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+        let mut asked = ask("POST", "/contact.holo", "", &png);
+        asked.content_type = "multipart/form-data; boundary=B";
+        assert_eq!(site.answer(&asked).status, 204);
+        let fake = multipart(b"<script>alert(1)</script>");
+        let mut asked = ask("POST", "/contact.holo", "", &fake);
+        asked.content_type = "multipart/form-data; boundary=B";
+        assert_eq!(site.answer(&asked).status, 415);
+        let kept = messages(&folder).unwrap();
+        assert_eq!(kept.len(), 2);
+        let file = kept[1].split("\"file\":\"").nth(1).unwrap().split('"').next().unwrap();
+        assert!(file.starts_with("files/contact/") && file.ends_with(".png"), "{file}");
+        assert_eq!(std::fs::read(folder.join(DATA_FOLDER).join(file)).unwrap().len(), 11);
+        // Le fichier rangé n'est pas servi.
+        assert_eq!(site.answer(&ask("GET", &format!("/{DATA_FOLDER}/{file}"), "", b"")).status, 404);
+        let _ = std::fs::remove_dir_all(folder);
+    }
+
+    #[test]
+    fn a_backup_is_a_whole_copy_and_old_ones_go() {
+        let (site, folder) = site();
+        let reply = site.answer(&ask("POST", "/shop.holo", "", b"signal=Add.tap"));
+        let cookie = reply.headers.iter().find(|(n, _)| n == "Set-Cookie").map(|(_, v)| v.split(';').next().unwrap().to_string()).unwrap();
+        let copy = backup(&folder).unwrap();
+        assert!(copy.starts_with(folder.join(DATA_FOLDER).join("backups")), "{}", copy.display());
+        // La copie se relit seule : la valeur du visiteur y est.
+        let saved = Connection::open(&copy).unwrap();
+        let state: String = saved.query_row("SELECT state FROM visits WHERE visitor = ?1", params![cookie.trim_start_matches("holo_visitor=")], |row| row.get(0)).unwrap();
+        assert!(state.starts_with("cart=1;"), "{state}");
+        // Seules les quatorze plus récentes restent.
+        let backups = folder.join(DATA_FOLDER).join("backups");
+        for day in 1..=20 {
+            std::fs::write(backups.join(format!("site-2020-01-{day:02}-0000-00.sqlite")), b"").unwrap();
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        backup(&folder).unwrap();
+        let count = std::fs::read_dir(&backups).unwrap().count();
+        assert_eq!(count, BACKUPS_KEPT, "{count}");
+        assert!(!backups.join("site-2020-01-01-0000-00.sqlite").exists());
+        // Jamais servies.
+        assert_eq!(site.answer(&ask("GET", "/holo-data/backups/site-2020-01-20-0000-00.sqlite", "", b"")).status, 404);
+        // Un dossier jamais servi n'a rien à sauvegarder.
+        assert!(backup(&std::env::temp_dir().join("holo-jamais-servi")).is_err());
+        let _ = std::fs::remove_dir_all(folder);
+    }
+
     #[test]
     fn what_is_refused() {
         let (site, folder) = site();
@@ -442,10 +1193,10 @@ mod tests {
         let mut foreign = ask("POST", "/shop.holo", "", b"signal=Add.tap");
         foreign.origin = "https://ailleurs.example";
         assert_eq!(site.answer(&foreign).status, 403);
-        // Un formulaire `Form` en JSON, un corps trop lourd, une page absente, une autre méthode.
-        let mut json = ask("POST", "/shop.holo", "", b"{}");
-        json.content_type = "application/json";
-        assert_eq!(site.answer(&json).status, 415);
+        // Un corps d'une autre sorte, un corps trop lourd, une page absente, une autre méthode.
+        let mut other = ask("POST", "/shop.holo", "", b"x");
+        other.content_type = "text/plain";
+        assert_eq!(site.answer(&other).status, 415);
         let heavy = vec![b'a'; BODY_MAX as usize + 1];
         assert_eq!(site.answer(&ask("POST", "/shop.holo", "", &heavy)).status, 413);
         assert_eq!(site.answer(&ask("POST", "/absent.holo", "", b"signal=Add.tap")).status, 404);
@@ -464,6 +1215,173 @@ mod tests {
         // Un cookie inventé n'est pas un visiteur.
         assert_eq!(visitor_of("holo_visitor=../../etc"), None);
         assert_eq!(visitor_of("a=1; holo_visitor=0123456789abcdef0123456789abcdef").as_deref(), Some("0123456789abcdef0123456789abcdef"));
+        let _ = std::fs::remove_dir_all(folder);
+    }
+
+    const CONCERT: &str = "Page(\n  title: \"Concert\",\n  state: State(booked: 0),\n  shared: Shared(seats: 2, likes: 0),\n  children: [\n    H1(\"Concert\"),\n    P(\"{seats} place(s)\"),\n    If(seats, over: 0, children: [ If(booked, is: 0, children: [ Button(name: Book, text: \"Réserver\") ]) ], else: [ P(\"Complet\") ]),\n    If(booked, is: 1, children: [ P(\"Ta place est gardée\") ]),\n    Button(name: Like, text: \"J'aime ({likes})\"),\n  ],\n  rules: [ On(Book.tap, effect: [seats.sub(1), booked.set(1)]), On(Like.tap, effect: likes.add(1)) ],\n)\n";
+
+    fn json<'a>(url: &'a str, cookie: &'a str, body: &'a [u8]) -> Ask<'a> {
+        let mut asked = ask("POST", url, cookie, body);
+        asked.content_type = "application/json";
+        asked
+    }
+
+    fn cookie_of(reply: &Reply) -> String {
+        reply.headers.iter().find(|(n, _)| n == "Set-Cookie").map(|(_, v)| v.split(';').next().unwrap().to_string()).unwrap_or_default()
+    }
+
+    #[test]
+    fn shared_values_are_kept_for_everyone_with_and_without_javascript() {
+        // ADR-079 : le serveur garde les places pour tout le monde, arbitre chaque geste, chacun son
+        // tour ; un bouton caché ne se touche pas ; chaque adresse a ses valeurs.
+        let (site, folder) = site();
+        std::fs::write(folder.join("concert.holo"), CONCERT).unwrap();
+        let first = String::from_utf8(site.answer(&ask("GET", "/concert.holo", "", b"")).body).unwrap();
+        assert!(first.contains("<span data-state=\"seats\">2</span> place(s)") && first.contains(" data-shared=\"seats=2;likes=0\"") && first.contains(" data-live"), "{first}");
+        // Sans JavaScript, Ada réserve : la page revient avec sa place, et tout le monde voit une place de moins.
+        let ada = site.answer(&ask("POST", "/concert.holo", "", b"signal=Book.tap"));
+        assert_eq!(ada.status, 303);
+        let ada = cookie_of(&ada);
+        let seen = String::from_utf8(site.answer(&ask("GET", "/concert.holo", &ada, b"")).body).unwrap();
+        assert!(seen.contains("<span data-state=\"seats\">1</span> place(s)") && seen.contains("data-if=\"booked|is=1\">"), "{seen}");
+        let other = String::from_utf8(site.answer(&ask("GET", "/concert.holo", "", b"")).body).unwrap();
+        assert!(other.contains("<span data-state=\"seats\">1</span> place(s)") && other.contains("data-if=\"booked|is=1\" hidden>"), "{other}");
+        // Avec JavaScript, Grace envoie son geste et un état forgé (99 places) : le serveur garde les siennes.
+        let grace = site.answer(&json("/concert.holo", "", br#"{"signal":"Book.tap","state":"booked=0;seats=99;likes=0"}"#));
+        assert_eq!(grace.status, 200);
+        assert_eq!(String::from_utf8(grace.body).unwrap(), r#"{"accepted":true,"state":"booked=1;seats=0;likes=0","shared":"seats=0;likes=0","version":2}"#);
+        // Hedy arrive trop tard : le bouton est caché pour le serveur, le geste est refusé (409).
+        let hedy = site.answer(&json("/concert.holo", "", br#"{"signal":"Book.tap","state":""}"#));
+        assert_eq!(hedy.status, 409);
+        assert!(String::from_utf8(hedy.body).unwrap().starts_with(r#"{"accepted":false,"state":"booked=0;seats=0;likes=0""#));
+        // Sans JavaScript non plus : la page revient telle quelle.
+        let late = site.answer(&ask("POST", "/concert.holo", "", b"signal=Book.tap"));
+        let late = String::from_utf8(site.answer(&ask("GET", "/concert.holo", &cookie_of(&late), b"")).body).unwrap();
+        assert!(late.contains("<span data-state=\"seats\">0</span> place(s)") && late.contains("data-if=\"booked|is=1\" hidden>"), "{late}");
+        // Un geste qui n'est pas un toucher, ou qui ne change rien de partagé : refusé.
+        assert_eq!(site.answer(&json("/concert.holo", "", br#"{"signal":"Like.hover","state":""}"#)).status, 400);
+        assert_eq!(site.answer(&json("/concert.holo", "", br#"{"signal":"Nobody.tap","state":""}"#)).status, 400);
+        assert_eq!(site.answer(&json("/shop.holo", "", br#"{"signal":"Add.tap","state":""}"#)).status, 400);
+        // Une demande trop lourde.
+        let heavy = format!(r#"{{"signal":"Like.tap","state":"{}"}}"#, "a".repeat(BODY_MAX as usize));
+        assert_eq!(site.answer(&json("/concert.holo", "", heavy.as_bytes())).status, 413);
+        // Chaque adresse a ses valeurs : /salle/12 et /salle/13.
+        std::fs::create_dir_all(folder.join("salle")).unwrap();
+        std::fs::write(folder.join("salle").join("{id}.holo"), "Page(title: \"Salle\", shared: Shared(likes: 0), children: [ H1(\"Salle {id}\"), P(\"{likes} j'aime\"), Button(name: Like, text: \"J'aime\") ], rules: [ On(Like.tap, effect: likes.add(1)) ])").unwrap();
+        for url in ["/salle/12", "/salle/12", "/salle/13"] {
+            assert_eq!(site.answer(&json(url, "", br#"{"signal":"Like.tap","state":""}"#)).status, 200);
+        }
+        let twelve = String::from_utf8(site.answer(&ask("GET", "/salle/12", "", b"")).body).unwrap();
+        let thirteen = String::from_utf8(site.answer(&ask("GET", "/salle/13", "", b"")).body).unwrap();
+        assert!(twelve.contains("<span data-state=\"likes\">2</span> j'aime") && thirteen.contains("<span data-state=\"likes\">1</span> j'aime"), "{twelve}\n{thirteen}");
+        // Dans la base : l'adresse, le nom, la valeur ; et un nouveau serveur s'en souvient.
+        let rows: Vec<String> = {
+            let base = site.base.lock().unwrap();
+            let mut query = base.prepare("SELECT page, name, value, version FROM shared ORDER BY page, name").unwrap();
+            query.query_map([], |row| Ok(format!("{} {}={} ({})", row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?, row.get::<_, i64>(3)?))).unwrap().flatten().collect()
+        };
+        assert_eq!(rows, ["/concert.holo likes=0 (2)", "/concert.holo seats=0 (2)", "/salle/12 likes=2 (2)", "/salle/13 likes=1 (1)"]);
+        let web = Path::new(env!("CARGO_MANIFEST_DIR")).join("web");
+        let reopened = Site::open(&folder, &web).unwrap();
+        assert!(String::from_utf8(reopened.answer(&ask("GET", "/concert.holo", "", b"")).body).unwrap().contains("<span data-state=\"seats\">0</span> place(s)"));
+        drop(reopened);
+        let _ = std::fs::remove_dir_all(folder);
+    }
+
+    /// Ce qu'une page en direct reçoit, pour les essais.
+    #[derive(Clone, Default)]
+    struct Recorder(Arc<Mutex<Vec<u8>>>);
+
+    impl Write for Recorder {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl Recorder {
+        fn text(&self) -> String {
+            String::from_utf8_lossy(&self.0.lock().unwrap()).into_owned()
+        }
+        fn waits_for(&self, expected: &str) -> bool {
+            (0..300).any(|_| {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+                self.text().contains(expected)
+            })
+        }
+    }
+
+    /// Une page fermée : rien ne passe plus.
+    struct Closed;
+
+    impl Write for Closed {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::new(std::io::ErrorKind::ConnectionReset, "page fermée"))
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn a_page_listens_live_and_a_closed_one_is_forgotten() {
+        let (site, folder) = site();
+        std::fs::write(folder.join("concert.holo"), CONCERT).unwrap();
+        // Seule une page qui partage des valeurs s'écoute ; pas depuis un autre site.
+        let listen_ask = |url: &'static str| Ask { method: "GET", url, accept: "text/event-stream", cookie: "", content_type: "", origin: "", host: "localhost:8080", body: b"" };
+        assert_eq!(site.live_page(&listen_ask("/shop.holo")).err().map(|r| r.status), Some(404));
+        let mut foreign = listen_ask("/concert.holo");
+        foreign.origin = "https://ailleurs.example";
+        assert_eq!(site.live_page(&foreign).err().map(|r| r.status), Some(403));
+        let (key, source) = site.live_page(&listen_ask("/concert.holo")).ok().unwrap();
+        assert_eq!(key, "/concert.holo");
+        // La page reçoit d'abord les valeurs du moment, puis chaque changement.
+        let page = Recorder::default();
+        site.listen(&key, &source, Box::new(page.clone()));
+        assert!(page.waits_for("event: shared\nid: 0\ndata: seats=2;likes=0\n\n"), "{}", page.text());
+        assert!(page.text().starts_with("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream; charset=utf-8\r\n"), "{}", page.text());
+        assert_eq!(site.answer(&json("/concert.holo", "", br#"{"signal":"Like.tap","state":""}"#)).status, 200);
+        assert!(page.waits_for("id: 1\ndata: seats=2;likes=1\n\n"), "{}", page.text());
+        // Huit visiteurs touchent « J'aime » en même temps : chacun son tour, aucun n'est perdu, et
+        // la page reçoit les changements dans l'ordre.
+        std::thread::scope(|scope| {
+            for _ in 0..8 {
+                scope.spawn(|| assert_eq!(site.answer(&json("/concert.holo", "", br#"{"signal":"Like.tap","state":""}"#)).status, 200));
+            }
+        });
+        assert!(page.waits_for("id: 9\ndata: seats=2;likes=9\n\n"), "{}", page.text());
+        let seen = page.text();
+        let places: Vec<usize> = (1..=9).map(|n| seen.find(&format!("id: {n}\ndata: seats=2;likes={n}\n")).unwrap_or(usize::MAX)).collect();
+        assert!(places.windows(2).all(|w| w[0] < w[1]), "{seen}");
+        // Sans JavaScript aussi, le changement part en direct.
+        site.answer(&ask("POST", "/concert.holo", "", b"signal=Book.tap"));
+        assert!(page.waits_for("id: 10\ndata: seats=1;likes=9\n\n"), "{}", page.text());
+        // Une page fermée est oubliée ; celle qui reste écoute encore.
+        site.listen(&key, &source, Box::new(Closed));
+        let forgotten = (0..300).any(|_| {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            site.lives.lock().unwrap().pages.len() == 1
+        });
+        assert!(forgotten, "{} page(s)", site.lives.lock().unwrap().pages.len());
+        // Au-delà de 128 pages en direct, la suivante est refusée.
+        let mut kept = Vec::new();
+        {
+            let mut lives = site.lives.lock().unwrap();
+            while lives.pages.len() < LIVE_MAX {
+                let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+                kept.push(receiver);
+                let id = lives.next;
+                lives.next += 1;
+                lives.pages.push(Live { id, key: "/ailleurs.holo".into(), sender });
+            }
+        }
+        let refused = Recorder::default();
+        site.listen(&key, &source, Box::new(refused.clone()));
+        assert!(refused.text().starts_with("HTTP/1.1 503 "), "{}", refused.text());
+        drop(kept);
         let _ = std::fs::remove_dir_all(folder);
     }
 }

@@ -232,7 +232,7 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
         footer = footer.replace(&empty, &full_one);
     }
     // Une page vivante bouge ou écoute sans qu'on la touche : une horloge, le clavier, des
-    // données à recevoir, un bloc à faire glisser. (Des valeurs gardées, `keep`, ne la rendent
+    // données à recevoir, un bloc à faire glisser, des valeurs partagées. (Des valeurs gardées, `keep`, ne la rendent
     // pas vivante : la page légère regarde s'il y a vraiment quelque chose de gardé.) Le moteur doit
     // alors arriver tout de suite. Les autres pages s'affichent seules : le moteur n'est
     // téléchargé qu'au premier geste qui en a besoin (ADR-033).
@@ -241,7 +241,9 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
         || crate::state::reads_time(program)
         || !crate::state::keypresses(program).is_empty()
         || crate::state::data_source(program).ok().flatten().is_some()
-        || body.contains("data-drag=");
+        || body.contains("data-drag=")
+        // Une page qui partage des valeurs écoute le serveur, pour les voir changer en direct (ADR-079).
+        || !program.shared.is_empty();
     let live = if live { " data-live" } else { "" };
     // Qui grossit la page quand on zoome (ADR-069) ? Par défaut, le navigateur, comme pour
     // n'importe quel site : la page reste à sa place. Le moteur, seulement si l'auteur l'a
@@ -1627,9 +1629,21 @@ fn safe_address(address: &str, base: &str) -> Option<String> {
     let safe_anchor = anchor.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '/'));
     match (file.is_empty(), anchor.is_empty()) {
         (true, false) if safe_anchor => Some(format!("#{anchor}")),
-        (false, _) if path_on(file) && safe_anchor => Some(if anchor.is_empty() { format!("{base}{file}") } else { format!("{base}{file}#{anchor}") }),
+        (false, _) if link_on(file) && safe_anchor => Some(if anchor.is_empty() { format!("{base}{file}") } else { format!("{base}{file}#{anchor}") }),
         _ => None,
     }
+}
+
+/// Le chemin d'un lien vers une page du site (`A(to:)`) : comme un fichier rangé à côté, mais il
+/// peut aussi remonter d'un dossier (`../accueil.holo`), comme sur le web, et porter des lettres
+/// accentuées (`profils/Adé`), que le navigateur encode (ADR-078). Jamais `/` en tête, ni `..`
+/// ailleurs qu'au début.
+fn link_on(file: &str) -> bool {
+    let mut rest = file;
+    while let Some(after) = rest.strip_prefix("../") {
+        rest = after;
+    }
+    !rest.is_empty() && !rest.starts_with('/') && !rest.contains("..") && rest.chars().all(|c| c.is_alphanumeric() || matches!(c, '.' | '_' | '-' | '/'))
 }
 
 /// Une adresse du web, en http ou https, sans caractère qui sortirait d'un attribut.
@@ -1667,7 +1681,7 @@ fn checked_by_form(block: &Block) -> &'static str {
     }
 }
 
-fn escape(text: &str) -> String {
+pub(crate) fn escape(text: &str) -> String {
     text.replace(MARK, "").replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
 }
 
@@ -1932,8 +1946,12 @@ H1 { colour: red; }").split(" : ").next(), Some("ligne 2, colonne 6"));
         ] {
             assert!(html.contains(expected), "manque : {expected}\n{html}");
         }
-        // Un lien ne peut pas cacher de code, ni sortir de son dossier.
-        for bad in ["javascript:alert(1)", "../secret.holo", "https://a.example/\\\"onclick=", "data:text/html,x", ""] {
+        // Un lien peut remonter d'un dossier, comme sur le web, et porter des lettres accentuées
+        // (ADR-078) ; le serveur, lui, ne sort jamais du site.
+        let up = page("Page(children: [ A(\"Up\", to: \"../home.holo\"), A(\"Adé\", to: \"profils/Adé\") ])").unwrap();
+        assert!(up.contains("href=\"../home.holo\"") && up.contains("href=\"profils/Adé\""), "{up}");
+        // Un lien ne peut pas cacher de code, ni partir de la racine, ni remonter au milieu.
+        for bad in ["javascript:alert(1)", "/secret.holo", "a/../../secret.holo", "https://a.example/\\\"onclick=", "data:text/html,x", "a%2e%2e", ""] {
             assert!(page(&format!("Page(children: [ A(\"x\", to: \"{bad}\") ])")).is_err(), "{bad}");
         }
         assert!(page("Page(children: [ A(\"x\") ])").unwrap_err().message.contains("« to »"));

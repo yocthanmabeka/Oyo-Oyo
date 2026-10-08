@@ -1,0 +1,22 @@
+// Pour les essais dans le navigateur (moteur/outils/browser-tests.mjs) : un formulaire envoyé
+// depuis une adresse qui porte une valeur (ADR-078). Il part vers l'adresse (…/adresse/ada), où
+// le serveur retrouve le modèle et la valeur, et vérifie le message avec eux.
+
+Page(
+  title: "Essai : un formulaire depuis une adresse",
+  state: State(message: "", sent: 0, failed: 0),
+  children: [
+    H1("Écrire à {nom}"),
+    Form(name: Contact, children: [
+      Input(value: message, label: "Ton message", required: true, min: 2),
+      Button(name: Send, text: "Envoyer"),
+    ]),
+    If(sent, is: 1, children: [ P("Message envoyé.") ]),
+    If(failed, is: 1, children: [ P("Message pas envoyé.") ]),
+  ],
+  rules: [
+    On(Send.tap, effect: Contact.send),
+    On(Contact.sent, effect: [sent.set(1), failed.set(0)]),
+    On(Contact.failed, effect: [failed.set(1), sent.set(0)]),
+  ],
+)

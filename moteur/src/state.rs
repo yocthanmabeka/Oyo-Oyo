@@ -2007,6 +2007,12 @@ pub fn after_texts(program: &Program, state: State, before: &Texts, texts: &Text
     suites(program, state.clone(), before, state, texts)
 }
 
+/// Des valeurs ont changé hors de la page : les valeurs partagées que le serveur envoie
+/// (ADR-079). Les règles qui guettent ont leur mot à dire, comme après des données reçues.
+pub fn after_change(program: &Program, before: State, texts_before: &Texts, state: State, texts: &Texts) -> State {
+    suites(program, before, texts_before, state, texts)
+}
+
 fn record_draws(state: &mut State, start_value: u64, draws: u64) {
     if draws != start_value {
         match state.iter_mut().find(|(name, _)| name == DRAWS) {

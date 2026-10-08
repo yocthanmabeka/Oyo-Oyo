@@ -648,6 +648,8 @@ mod tests {
             // Les capacités larges (ADR-077, ADR-086).
             include_str!("../../exemples/lecons/97-un-module-qui-recoit-une-liste.holo"),
             include_str!("../../exemples/lecons/98-un-dessin.holo"),
+            // Les valeurs partagées (ADR-079).
+            include_str!("../../exemples/lecons/101-une-valeur-partagee.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();

@@ -6,6 +6,89 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-08 — Lot 6 : des valeurs partagées, en direct
+
+- Fait (`ADR-079`, PROPOSITION ; le sens de « partager » est celui décidé par Yocthan le 2026-10-08) : `shared: Shared(seats: 20, likes: 0)` à côté de `state:`. Le serveur garde ces valeurs pour tout le monde, une fois par adresse (`/concert/12` et `/concert/13` ont chacune leurs places) ; seul un toucher les change, et c'est le serveur qui l'arbitre, avec le même moteur, chacun son tour ; les changements arrivent en direct dans toutes les pages ouvertes ; sans JavaScript, la page reste juste (le formulaire des gestes, `ADR-074`).
+- `holo serve` : une table `shared` dans sa base ; le geste partagé arrive en JSON (avec JavaScript) ou par le formulaire des gestes (sans) ; le direct passe par un flux du serveur, chaque page avec son fil, et les changements partent dans l'ordre, sous le verrou de la base. Le serveur d'essai fait pareil avec le même moteur, par une nouvelle commande, `holo share`. Leçon 101 : une réservation de places, et un « J'aime ».
+- Mes choix, à valider : **les Server-Sent Events plutôt qu'un WebSocket** (une seule direction suffit, du HTTP ordinaire, la reconnexion offerte par le navigateur, rien à ajouter au serveur ; un WebSocket demandait une poignée de main SHA-1 à écrire ou une bibliothèque) ; **`Request::into_writer`** de `tiny_http` plutôt que `Request::upgrade` (fait pour un WebSocket, il annonce `Connection: upgrade`) ; et une règle que la commande ne demandait pas : **un bouton caché ne se touche pas**. Sans elle, d'après les règles de la leçon, deux visiteurs qui touchent la dernière place en même temps la réserveraient tous les deux (le second garderait `booked=1` sans place). Avec elle, essayé : le second reçoit « refusé » et voit « Complet ».
+- Écrit honnêtement dans l'ADR : l'état personnel qu'envoie la page peut être forgé ; avant les comptes (lot 7), une condition sur une valeur personnelle qui garde une valeur partagée se contourne ; rien ne limite encore le nombre de touchers d'un visiteur.
+- Exécuté : `cargo test --release` → 162 tests passent (6 nouveaux : quatre pour le moteur, deux pour le serveur, dont huit gestes au même instant reçus dans l'ordre) ; `cargo test` (comme GitHub) → 162 ; `node outils/browser-tests.mjs partag` → 2 essais `OK` (deux onglets à la même adresse avec le serveur d'essai ; trois onglets avec `holo serve`, dont un sans JavaScript) ; la suite entière → 33 essais `OK`, aucun raté, 98 leçons ouvertes sans erreur (248 s), avant d'y fusionner `main` (qui n'avait changé que la documentation).
+- Vérifié que l'essai sait échouer : l'envoi en direct coupé dans le serveur d'essai, l'essai rate (« l'autre page : 20 (attendu 19) »).
+
+![La leçon 101, servie par le serveur d'essai](images/2026-10-08-lot6-lecon-101.png)
+
+**Erreurs en route**
+
+- Le premier essai des tests du moteur a raté : un test exige que chaque bloc du langage figure dans un exemple, et `Shared` n'y était pas avant que la leçon 101 rejoigne sa liste.
+- Ma première version de la page prenait la réponse du serveur telle quelle : ce que le visiteur écrivait pendant l'attente aurait été effacé. Vu en relisant ; la page pose maintenant les seuls changements du geste sur son état du moment. Aucun essai ne le garde : la course est difficile à provoquer à coup sûr.
+- Un texte partagé écrit d'après un texte trop long (un état forgé) était coupé pour les autres pages, pas dans la réponse à celui qui l'avait écrit. Corrigé et essayé.
+- Le serveur d'essai renvoyait l'erreur du moteur avec le chemin du fichier sur le PC. Retiré.
+- Dans un essai, j'avais écrit une attente qui n'attendait pas (`until("true")` rend la main tout de suite) ; elle attend maintenant la ligne du serveur qui compte les pages à l'écoute.
+- La commande proposait `Request::upgrade` : en le lisant dans `tiny_http`, il est fait pour un WebSocket ; `into_writer` rend le même flux, sans en-tête de trop.
+
+---
+
+## 2026-10-08 — Seule la session Claude du PC fusionne ; la passation pour les autres IA
+
+- Le quota de Claude est utilisé à 95 %. Yocthan veut que les autres IA puissent reprendre, par exemple Gemini par Antigravity, « sans pour autant commettre de fautes, ni pour autant qu'ils fassent des fusions. […] C'est toi qui seras le seul à faire de fusion », sans « déranger la version principale ».
+- Écrits :
+  - `proposals/Claude/passation-2026-10-08.md` : les dix règles, où en est le projet, ce qu'on peut faire sans risque ;
+  - `GEMINI.md` à la racine, lu par les outils de Gemini ;
+  - une section en haut d'`AGENTS.md`.
+- `main` est protégée sur GitHub : envoi direct refusé, envoi forcé et effacement refusés, et une pull request n'entre qu'avec ses trois tests verts (« Moteur Rust », « Suite de conformité », « Navigateur »). La règle « personne d'autre ne fusionne » ne peut pas être imposée par GitHub, car toutes les IA passent par le même compte : c'est une consigne écrite.
+- Les deux agents des lots 6 et 7 ont reçu l'ordre d'enregistrer et d'envoyer leur travail tel quel, sans rien fusionner, puis de s'arrêter. Lot 7 : PR 177. Lot 6 : branche `langage/lot6-partage`, PR en brouillon.
+
+---
+
+## 2026-10-08 — Les mesures du téléphone remises, la mesure de la batterie prête
+
+- Yocthan voulait mesurer la vitesse, la mémoire et la batterie, « jamais faite jusqu'au bout ». Le téléphone n'est plus apparu au PC : le câble avait pris un peu d'humidité. Yocthan : « n'attends pas mon téléphone […] il n'y en a pas aujourd'hui ».
+- Prêt pour la prochaine fois : `moteur/outils/mesures/duree.js`. Il fait zoomer et dézoomer le Big Bang 15 minutes, 6 secondes dans chaque sens, et garde l'écran allumé (Wake Lock). Il relève, minute par minute, les images par seconde, l'image la plus lente, le tas JavaScript et la batterie. Lancé par le câble, il continue seul câble débranché, car branché le téléphone se recharge et la batterie ne se mesure pas. Essayé une minute sur le PC, dans Chrome sans fenêtre : il compte, garde l'écran et rend ses chiffres. La marche à suivre complète est dans `proposals/Claude/telephone-2026-10-07/README.md`.
+- Resté sur le téléphone depuis le 2026-10-07 : « rester allumé » (`stay_on_while_plugged_in`) vaut 2 au lieu de 0, car le téléphone est parti avant la fin. À remettre au prochain branchement, ou par Yocthan dans les options de développement.
+- Erreur commise et corrigée : un commit de cette étape portait l'adresse e-mail personnelle de Yocthan, alors que le dépôt est public. Il a été refait avec l'adresse `noreply` de GitHub avant tout envoi, et la consigne a été donnée aux deux agents des lots 6 et 7. Sur la recommandation de Claude, Yocthan a coché « Keep my email addresses private » dans GitHub : les fusions faites par GitHub portaient jusque-là l'adresse de son compte.
+
+---
+
+## 2026-10-08 — Les lots 6 et 7 commencés, d'autres tâches confiées à la session du nuage
+
+- Yocthan : « commence-les tous, et je suis d'accord avec tes recommandations », puis « utilise les agents, délaisse d'autres tâches à l'autre session pour qu'on aille rapidement ; à la fin, tu fusionnes ».
+- Ses recommandations acceptées : le lot 6 partage d'abord une valeur gardée par le serveur pour tout le monde, vue en direct, le serveur arbitrant ; le lot 7 se connecte par un mot de passe et un code à 6 chiffres, puis par des clés d'accès, tout chez l'auteur ; les liens remontent d'un dossier (`ADR-078`).
+- Deux agents de la session du PC construisent les lots 6 (`langage/lot6-partage`) et 7 (`langage/lot7-comptes`), chacun dans son dossier ; la session principale fait les mesures du téléphone, relit et fusionne.
+- Confiés à la session du nuage, en plus du lot 9 : les secondes et un chronomètre, une sélection de polices libres, l'historique dans une page, trois petites dettes des lots 4 et 5 (le tableau « Qui fait quoi »).
+- Le même soir, Yocthan a essayé au doigt les leçons 1 à 100 sur son Galaxy Z Flip 5 : tout marche, les lots 4 et 5 compris. Restent les mesures par le câble.
+
+---
+
+## 2026-10-08 — Le dépôt devient public, sous un autre nom : `Oyo-Oyo`
+
+- Décidé par Yocthan : passer le dépôt en public, pour que les tests de GitHub repartent (ils sont gratuits pour un dépôt public ; les minutes gratuites d'un dépôt privé étaient épuisées), et le renommer pour qu'il attire moins l'œil. Son choix : « Oyo Oyo ». GitHub n'accepte pas d'espace : `yocthanmabeka/Oyo-Oyo`. L'ancienne adresse redirige.
+- Vérifié avant : les 462 enregistrements de l'histoire ne contiennent aucune clé, aucun mot de passe, aucun jeton, aucun fichier sensible (base, messages reçus, secrets), aucun e-mail personnel ni numéro de téléphone. Dit à Yocthan : son nom figure dans 77 fichiers (et dans le nom du compte), le métavers à 248 endroits ; un dépôt public peut être lu et gardé par n'importe qui, même s'il redevient privé.
+- Ajouté (ses demandes) : `LICENSE`, « tous droits réservés », en français et en anglais (la police Carlito garde sa licence OFL) ; les tests des trois premiers prototypes dans leur propre fichier, lancés seulement si leur dossier change ; une nouvelle version d'une pull request annule les tests de l'ancienne.
+- Gardé tel quel : l'ancienne adresse dans les messages d'archive aux autres IA et dans les transcriptions (ce sont des traces) ; seule la règle de synchronisation (`GITHUB-SYNC-POLICY.md`) dit le nouveau nom.
+
+---
+
+## 2026-10-08 — Lot 5 : des adresses qui portent des valeurs, dans le `holo serve` de la session du nuage
+
+- Fait (`ADR-078`, PROPOSITION ; la forme est celle choisie par Yocthan, « le nom du fichier ») : un fichier `profil/{id}.holo` sert `/profil/123` ; la page lit `{id}` comme ses autres valeurs, sans pouvoir la changer. Le serveur, le moteur de la page, le serveur d'essai, l'éditeur, l'extension VS Code et `holo check` reçoivent les mêmes valeurs, jointes au texte de la page comme un petit fichier `@adresse`.
+- **Deux serveurs, un seul gardé.** Pendant que la session du PC écrivait son `holo serve`, la session du nuage a fusionné le sien (PR 167, `ADR-074` : les boutons marchent sans JavaScript, l'état de chaque visiteur dans SQLite, quatre fils), puis a passé la main : Yocthan a confié les lots 5 à 7 à la session du PC. Son serveur fait plus que le mien : je l'ai gardé, j'ai repris ses PR 168 (les formulaires) et 169 (les sauvegardes), et j'ai porté les adresses dedans. Mon serveur est retiré.
+- Les liens remontent d'un dossier (`../accueil.holo`), comme sur le web : **un retour sur une ancienne règle**, à valider par Yocthan.
+- Leçon 100. Un agent a écrit le côté navigateur (la page, le serveur d'essai, l'éditeur, l'extension, la leçon et son essai) pendant que j'écrivais le moteur et le serveur.
+- Exécuté : `cargo test --release` → 156 tests passent (trois nouveaux : les adresses, et dans le serveur, une adresse avec et sans JavaScript) ; dans Chrome, les essais du serveur (« holo serve sert une adresse qui porte une valeur » : « Bonjour, ada » fabriqué par le serveur, le moteur qui garde la valeur, le message rangé avec son modèle ; les boutons sans JavaScript ; les formulaires) et celui de la leçon 100 passent ; la suite entière → 31 essais `OK`, aucun raté, 97 leçons ouvertes sans erreur.
+- **GitHub ne lance plus les tests** depuis cette nuit : « un paiement récent du compte a échoué, ou la limite de dépenses doit être augmentée ». Les minutes gratuites de GitHub Actions sont sans doute épuisées. Rien n'est fusionné sans eux : à Yocthan de décider (la limite de dépenses, rendre le dépôt public, ou attendre le mois suivant).
+
+**Erreurs en route**
+
+- Deux sessions ont écrit chacune leur `holo serve` en même temps : le tableau « Qui fait quoi » disait « la première libre », et chacune s'est crue la bonne. Une heure de travail en double ; la règle est maintenant qu'un lot porte le nom d'une seule session.
+- Mon premier essai de `holo serve` dans Chrome a raté : le moteur de la page ne savait lire que les adresses en `.holo`. Toute page fabriquée nomme maintenant son fichier (`<meta name="holo-file">`).
+- Trois défauts de mon premier serveur, relevés par l'agent : un « & » dans une valeur ouvrait une autre valeur ; un dossier accentué ne correspondait jamais ; une page refusée ne nommait pas son fichier. La jonction et la comparaison des adresses sont corrigées dans le moteur, et servent au serveur gardé.
+- Le quota de messages se comptait par adresse : on pouvait remplir la base en inventant des adresses. Il se compte par modèle.
+- Un essai du serveur de la session du nuage ratait sous Windows : il effaçait le dossier d'essai pendant que la base était encore prise. L'effacement réessaie.
+- Mon assertion sur une page fabriquée était fausse : le contenu d'un `If` faux reste dans la page, caché (`hidden`).
+- Trouvés en passant par l'agent : le bouton ▶ de l'extension VS Code ne marchait plus depuis la traduction en anglais ; une adresse mal encodée donnait 500 au lieu de 400 au serveur d'essai. Corrigés.
+
+---
+
 ## 2026-10-07 — Lot 9, deuxième pas : le dessin vectoriel, `Drawing` ; GitHub Actions bloqué
 
 - Fait (`ADR-086`) : `Drawing(label:, width:, height:, children: [ … ])`, fabriqué en SVG, nommé pour le lecteur d'écran ; quatre formes, `Rect`, `Circle`, `Line`, `Path` ; `fill`, `stroke`, `thickness`, `opacity` ; une mesure peut être le nom d'un nombre de la page, et la forme le suit. Le dessin trait par trait reste refusé. Leçon 98 : un paysage dont le soleil se lève et se couche derrière la colline.
@@ -36,6 +119,22 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 - Raté : en trouvant le doublon, Claude (nuage) a demandé à Yocthan qui gardait les lots ; sans réponse tranchée, il a choisi le nuage et l'a écrit dans le tableau de la PR 167. Le programme de fusion automatique a fusionné cette PR quand sa CI est passée au vert, quelques minutes avant la décision de Yocthan. `holo serve` et les boutons sans JavaScript (`ADR-074`) sont donc sur `main`. Les PR 168 (les formulaires, `ADR-075`) et 169 (les sauvegardes, `ADR-076`) restent ouvertes, sans fusion automatique.
 - Fait : le tableau « Qui fait quoi » corrigé ; cinq règles pour ne plus s'entremêler (seul Yocthan donne un lot, à une session nommée ; relire le tableau sur `origin/main` avant le code ; changer le tableau par une petite PR fusionnée avant le code ; une session qui a fini demande à Yocthan ; en cas de doublon, la première ligne arrivée sur `main` garde le lot) ; la passation pour la session du PC, `proposals/Claude/passation-lot5-2026-10-07.md`.
 - Leçon : « la première libre » et « l'autre session » laissaient deux sessions se croire chacune la bonne. Une ligne du tableau nomme désormais une seule session.
+
+---
+
+## 2026-10-07 — Lot 5, troisième pas : les sauvegardes
+
+- Fait (`ADR-076`) : `holo serve` sauvegarde sa base au démarrage (si la dernière copie a plus d'un jour) puis chaque jour ; `holo backup` en fait une tout de suite. Une copie entière, cohérente même pendant les écritures, dans `holo-data/backups/` ; les quatorze plus récentes restent.
+- Vérifié : la copie se relit et contient la valeur d'un visiteur ; avec vingt vieilles copies, il en reste quatorze ; à la main, « Sauvegarde : … » au démarrage, et `holo backup`.
+- Reste du lot 5 : les adresses `profil/{id}.holo`. Leur écriture dans la page est une décision de langage : proposée à Yocthan avant de construire.
+
+---
+
+## 2026-10-07 — Lot 5, deuxième pas : les formulaires reçus par `holo serve`, avec ou sans JavaScript
+
+- Fait (`ADR-075`) : `holo serve` reçoit les formulaires `Form` comme `outils/server.mjs` (vérifiés à nouveau, fichiers reconnus à leurs octets), et les range dans sa base SQLite ; `holo messages` les affiche. Sans JavaScript, « Envoyer » part au serveur : les messages d'erreur reviennent sous les champs, puis « Merci » une fois corrigé. C'est le « commander » de la condition du lot 5.
+- Vérifié : 152 tests du moteur ; dans Chrome, la leçon 88 sans JavaScript (quatre messages reliés à leurs champs, puis envoyé) et avec (envoyé sans recharger) ; deux messages rangés.
+- Raté puis corrigé : dans l'essai avec JavaScript, « Merci » venait de la visite précédente, gardée par le serveur ; l'essai efface maintenant les cookies pour être un nouveau visiteur. Et le petit programme qui fusionne après la CI aurait fusionné sans aucune vérification si GitHub n'en lançait pas (conflit) : il exige maintenant cinq vérifications, toutes vertes.
 
 ---
 

@@ -55,7 +55,7 @@ cargo build --release --bin holo
 .\target\release\holo serve ..\exemples\lecons 8080     # http://localhost:8080/14-prix.holo
 ```
 
-Le premier vrai serveur, en Rust : il sert le dossier donné, fabrique chaque page avec les valeurs du visiteur et les range dans `holo-data/site.sqlite` (jamais servi, jamais versionné). Les boutons marchent même JavaScript coupé : le serveur fait tourner le même arbitre. Les formulaires `Form`, l'éditeur et la pile passent encore par `node outils/server.mjs`.
+Le premier vrai serveur, en Rust : il sert le dossier donné, fabrique chaque page avec les valeurs du visiteur et les range dans `holo-data/site.sqlite` (jamais servi, jamais versionné). Les boutons et les formulaires `Form` marchent même JavaScript coupé : le serveur fait tourner le même arbitre, et range les messages reçus dans la même base (`holo messages ..\exemples\lecons` les affiche, ADR-075). La base est sauvegardée au démarrage et chaque jour dans `holo-data/backups/` (les quatorze plus récentes ; `holo backup ..\exemples\lecons` en ajoute une, ADR-076) : pour revenir à une sauvegarde, arrêter le serveur et la copier à la place de `holo-data/site.sqlite`. L'éditeur et la pile passent encore par `node outils/server.mjs`.
 
 Paramètres d'adresse utiles : `?zoom=3.4` démarre à un zoom donné (pour les captures), `?world=nom` charge `mondes/nom.holo`.
 
@@ -137,6 +137,8 @@ Pour mesurer le mode de secours (WebGL 2) sur un appareil qui a WebGPU, ajouter 
 
 Pour refaire les mesures : `adb reverse tcp:8080 tcp:8080`, `adb forward tcp:9222 localabstract:chrome_devtools_remote`, ouvrir la page dans Chrome sur le téléphone (écran allumé et déverrouillé), puis `node outils/measure-phone.mjs big-bang.holo @outils/mesures/big-bang.js` ou `node outils/measure-phone.mjs boutique.holo @outils/mesures/vue-points.js`.
 
+Pour la batterie et la chaleur dans la durée : sur le Big Bang, `node outils/measure-phone.mjs big-bang.holo @outils/mesures/duree.js`, puis débrancher le câble pendant 15 minutes. L'écran reste allumé, et la page zoome et dézoome toute seule. En rebranchant, on lit les chiffres minute par minute avec `node outils/measure-phone.mjs big-bang.holo "JSON.stringify(window.__duree, null, 1)"`. Tant que le câble est branché, le téléphone se recharge : la batterie ne se mesure que débranché.
+
 ## Captures (Chrome sans fenêtre, rendu WebGL 2 logiciel)
 
 | Zoom 0 | Zoom 0,8 | Zoom 3,4 | Zoom 4,6 |
@@ -178,6 +180,6 @@ Repris de la proposition de Gemini, à vérifier sur le téléphone :
 | `web/index.html` | La seule page HTML, générée une fois pour tous les mondes |
 | `web/measures.js` | L'affichage des mesures et le bouton « Copier le rapport » |
 | `outils/server.mjs` | Serveur local avec compression Brotli ; envoie la page déjà fabriquée si `holo` est construit |
-| `src/server.rs`, `src/gestures.rs` | `holo serve` : le serveur en Rust, sa base SQLite, les gestes sans JavaScript (ADR-074) |
+| `src/server.rs`, `src/gestures.rs` | `holo serve` : le serveur en Rust, sa base SQLite, les gestes et les formulaires sans JavaScript (ADR-074, ADR-075) |
 | `src/bin/holo.rs` | Le moteur en ligne de commande, pour le PC ou un serveur : `cargo build --release --bin holo`, puis `holo check fichier.holo` (vérifier) et `holo html fichier.holo` (écrire le HTML de la page, avec les données de `Data(from:)` si le fichier est rangé à côté, `ADR-064`) |
 | `outils/build.ps1` | Construction complète |

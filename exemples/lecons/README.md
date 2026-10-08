@@ -106,6 +106,8 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 96 | [Une vidéo sous-titrée](96-une-video-sous-titree.holo) | `Video(captions: "film.vtt")` |
 | 97 | [Un module qui reçoit une liste](97-un-module-qui-recoit-une-liste.holo) | `Module(input: [notes], output: [moyenne, meilleure, nombre])`, le second contrat, une réponse refusée |
 | 98 | [Un dessin](98-un-dessin.holo) | `Drawing`, `Rect`, `Circle`, `Line`, `Path`, `fill`, `stroke`, `thickness`, une mesure qui suit une valeur |
+| 100 | [Une adresse qui porte une valeur](100-une-adresse-qui-porte-une-valeur.holo) | un fichier nommé `100-profils/{nom}.holo`, `{nom}` dans un texte, `If(nom, is: "yocthan")` ; la valeur se lit, ne se change pas |
+| 101 | [Une valeur partagée](101-une-valeur-partagee.holo) | `shared: Shared(seats: 20, likes: 0)`, `{seats}`, `If(seats, over: 0, …)`, `seats.sub(1)` par un toucher ; le serveur arbitre et l'envoie en direct à toutes les pages ouvertes |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 

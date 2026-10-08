@@ -19,13 +19,15 @@ pub const SIGNAL: &str = "signal";
 ///   ligne d'une liste, il porte aussi sa ligne (`Done.tap@2`, ADR-044) ;
 /// - un champ lié à une valeur (`data-bind`) envoie sa valeur sous ce nom ; une case à cocher
 ///   décochée envoie `0`, grâce à un champ caché placé juste avant elle ;
-/// - un bouton de point (qui ouvre un monde), un pixel de la vue points, un fichier à envoyer,
-///   et tout ce qui est dans un `Form` restent comme ils sont : ils demandent le moteur.
+/// - un bouton de point (qui ouvre un monde), un pixel de la vue points et un fichier à envoyer
+///   restent comme ils sont : ils demandent le moteur.
+///
+/// Les champs et le bouton d'un `Form` s'y rattachent aussi : « Envoyer » part comme un autre
+/// toucher, et le serveur fait l'envoi (ADR-075).
 pub fn without_script(html: &str) -> String {
     let mut output = String::with_capacity(html.len() + 256);
     // Le rang de ligne de chaque `div` ouvert, pour savoir de quelle ligne vient un bouton.
     let mut ranks: Vec<Option<String>> = Vec::new();
-    let mut in_form = 0usize;
     let mut rest = html;
     while let Some(start) = rest.find('<') {
         output.push_str(&rest[..start]);
@@ -37,14 +39,6 @@ pub fn without_script(html: &str) -> String {
             ranks.push(attribute(tag, "data-rank").map(str::to_string));
         } else if tag.starts_with("</div") {
             ranks.pop();
-        } else if tag.starts_with("<form") && tag.contains("holo-Form") {
-            in_form += 1;
-        } else if tag.starts_with("</form") {
-            in_form = in_form.saturating_sub(1);
-        }
-        if in_form > 0 {
-            output.push_str(tag);
-            continue;
         }
         if tag.starts_with("<button type=\"button\"") {
             let class = attribute(tag, "class").unwrap_or("");
@@ -80,6 +74,32 @@ pub fn without_script(html: &str) -> String {
     // champ « appuie » sur lui, et non sur le premier bouton de la page : elle envoie les champs,
     // sans toucher à rien d'autre.
     format!("<form id=\"{FORM}\" method=\"post\" hidden><button type=\"submit\" name=\"{SIGNAL}\" value=\"\" tabindex=\"-1\"></button></form>{output}")
+}
+
+/// Les messages d'un formulaire envoyé sans JavaScript qui ne va pas (ADR-075), comme le moteur
+/// les montre dans le navigateur (ADR-068) : sous chaque champ, relié à lui
+/// (`aria-describedby`), le champ marqué (`aria-invalid`). `errors` : `(valeur, message)`.
+pub fn with_errors(html: &str, form: &str, errors: &[(String, String)]) -> String {
+    let opening = format!(" data-name=\"{form}\" novalidate");
+    let Some(start) = html.find(&opening) else { return html.to_string() };
+    let end = html[start..].find("</form>").map_or(html.len(), |e| start + e);
+    let mut inside = html[start..end].replacen(&opening, &format!(" data-name=\"{form}\" data-tried=\"1\" novalidate"), 1);
+    for (bind, message) in errors {
+        let id = format!("holo-error-{form}-{bind}");
+        let note = format!("<p class=\"holo-error\" id=\"{id}\">{}</p>", message.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;"));
+        let marks = format!(" aria-invalid=\"true\" aria-describedby=\"{id}\"");
+        // Un groupe de boutons ronds (`fieldset`), ou un champ dans son `label`.
+        let (marker, closing) = match inside.find(&format!(" data-group=\"{bind}\"")) {
+            Some(_) => (format!(" data-group=\"{bind}\""), "</fieldset>"),
+            None => (format!(" data-bind=\"{bind}\""), "</label>"),
+        };
+        let Some(at) = inside.find(&marker) else { continue };
+        inside.insert_str(at, &marks);
+        if let Some(after) = inside[at..].find(closing).map(|c| at + c + closing.len()) {
+            inside.insert_str(after, &note);
+        }
+    }
+    format!("{}{inside}{}", &html[..start], &html[end..])
 }
 
 /// La valeur d'un attribut dans une balise : `data-name="Add"` donne `Add`.
@@ -168,10 +188,18 @@ mod tests {
         assert!(out.contains("<input form=\"holo-gestures\" name=\"buyer\" type=\"text\" value=\"Ada\" data-bind=\"buyer\">"), "{out}");
         assert!(out.contains("<input type=\"hidden\" form=\"holo-gestures\" name=\"gift\" value=\"0\"><input form=\"holo-gestures\" name=\"gift\" value=\"1\" type=\"checkbox\" data-bind=\"gift\" checked>"), "{out}");
         assert!(out.contains("<input form=\"holo-gestures\" type=\"radio\" name=\"choix-size\""), "{out}");
-        // Un point, et ce qui est dans un `Form`, demandent le moteur : rien ne change.
+        // Un point demande le moteur : rien ne change. Un `Form` part comme le reste (ADR-075).
         assert!(out.contains("<button type=\"button\" class=\"holo-Point\" data-name=\"Shop\">"), "{out}");
-        assert!(out.contains("<input type=\"text\" value=\"\" data-bind=\"mail\"><button type=\"button\" class=\"holo-Button\" data-name=\"Send\">"), "{out}");
+        assert!(out.contains("<input form=\"holo-gestures\" name=\"mail\" type=\"text\" value=\"\" data-bind=\"mail\"><button type=\"submit\" form=\"holo-gestures\" name=\"signal\" value=\"Send.tap\""), "{out}");
         assert!(out.starts_with("<form id=\"holo-gestures\" method=\"post\" hidden><button type=\"submit\" name=\"signal\" value=\"\" tabindex=\"-1\"></button></form><div class=\"holo-Page\">"), "{out}");
+    }
+
+    #[test]
+    fn errors_are_written_under_their_fields() {
+        let html = "<form class=\"holo-Form\" data-name=\"Contact\" novalidate><label class=\"holo-Input\"><span>Nom</span><input type=\"text\" value=\"\" data-bind=\"name\"></label><fieldset class=\"holo-Choice\" data-group=\"size\"><legend>T</legend></fieldset></form><p>après</p>";
+        let out = with_errors(html, "Contact", &[("name".into(), "Ce champ est obligatoire.".into()), ("size".into(), "Choisis <une> taille.".into())]);
+        assert_eq!(out, "<form class=\"holo-Form\" data-name=\"Contact\" data-tried=\"1\" novalidate><label class=\"holo-Input\"><span>Nom</span><input type=\"text\" value=\"\" aria-invalid=\"true\" aria-describedby=\"holo-error-Contact-name\" data-bind=\"name\"></label><p class=\"holo-error\" id=\"holo-error-Contact-name\">Ce champ est obligatoire.</p><fieldset class=\"holo-Choice\" aria-invalid=\"true\" aria-describedby=\"holo-error-Contact-size\" data-group=\"size\"><legend>T</legend></fieldset><p class=\"holo-error\" id=\"holo-error-Contact-size\">Choisis &lt;une&gt; taille.</p></form><p>après</p>");
+        assert_eq!(with_errors(html, "Absent", &[("name".into(), "x".into())]), html);
     }
 
     #[test]

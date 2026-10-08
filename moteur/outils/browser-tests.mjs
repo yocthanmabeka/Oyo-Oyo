@@ -47,7 +47,7 @@ async function startServer() {
   if (phone) {
     const reached = await fetch("http://localhost:8080/exemples/lecons/01-page.holo").then((r) => r.ok, () => false);
     if (!reached) throw new Error("le serveur 8080 du PC ne répond pas : node outils/server.mjs, avec PORT=8080");
-    return { base: "http://localhost:8080", stop() {} };
+    return { base: "http://localhost:8080", log: () => "", stop() {} };
   }
   const port = 18000 + Math.floor(Math.random() * 2000);
   const env = { ...process.env, PORT: String(port) };
@@ -59,7 +59,7 @@ async function startServer() {
   server.stderr.on("data", (d) => { output += d; });
   for (let i = 0; i < 100 && !output.includes(`localhost:${port}`); i++) await pause(100);
   if (!output.includes(`localhost:${port}`)) throw new Error(`le serveur d'essai ne démarre pas :\n${output}`);
-  return { base: `http://localhost:${port}`, stop: () => server.kill() };
+  return { base: `http://localhost:${port}`, log: () => output, stop: () => server.kill() };
 }
 
 // holo serve (ADR-074), sur un dossier d'essai à part : sa base ne salit pas le dépôt.
@@ -74,7 +74,8 @@ async function startHoloServe(files) {
   server.stderr.on("data", (d) => { output += d; });
   for (let i = 0; i < 100 && !output.includes(`localhost:${port}`); i++) await pause(100);
   if (!output.includes(`localhost:${port}`)) throw new Error(`holo serve ne démarre pas :\n${output}`);
-  return { base: `http://localhost:${port}`, stop: () => { server.kill(); rmSync(folder, { recursive: true, force: true }); } };
+  // Sous Windows, la base reste prise un instant après l'arrêt du serveur : l'effacement réessaie.
+  return { base: `http://localhost:${port}`, folder, log: () => output, stop: () => { server.kill(); try { rmSync(folder, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); } catch { /* le dossier temporaire restera */ } } };
 }
 
 // Lance Chrome sans fenêtre. Il choisit lui-même un port libre (`--remote-debugging-port=0`)
@@ -93,14 +94,14 @@ async function launchChrome() {
   let said = "";
   chrome.stderr.on("data", (chunk) => { said = (said + chunk).slice(-4000); });
   let target;
+  let port;
   for (let i = 0; i < 300 && !target && chrome.exitCode === null; i++) {
     await pause(200);
-    let port;
     try { port = readFileSync(join(profile, "DevToolsActivePort"), "utf8").split("\n")[0].trim(); } catch { continue; }
     try { target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === "page"); } catch { /* pas encore */ }
   }
   if (!target) chrome.kill();
-  return { chrome, profile, target, said: said.trim() || "(rien)" };
+  return { chrome, profile, target, port, said: said.trim() || "(rien)" };
 }
 
 // Le Chrome du téléphone : l'onglet ouvert sur localhost:8080 (par adb shell am start).
@@ -110,7 +111,7 @@ async function connectPhone() {
   if (!target) throw new Error("aucun onglet sur localhost:8080 dans le Chrome du téléphone : adb shell am start -a android.intent.action.VIEW -d http://localhost:8080/stack com.android.chrome");
   const version = await (await fetch("http://127.0.0.1:9222/json/version")).json();
   console.log(`Le téléphone : ${version.Browser} (${version["User-Agent"]})`);
-  return { target };
+  return { target, port: 9222 };
 }
 
 async function startChrome() {
@@ -121,7 +122,29 @@ async function startChrome() {
     launched = await launchChrome();
   }
   if (!launched.target) throw new Error(`Chrome ne démarre pas. Ce qu'il a dit : ${launched.said}`);
-  const { chrome, profile, target } = launched;
+  const { chrome, profile, target, port } = launched;
+  const first = await session(target);
+  return {
+    ...first,
+    // Un autre onglet du même Chrome (les mêmes cookies) : deux pages ouvertes à la fois (ADR-079).
+    async tab() {
+      const created = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: "PUT" })).json();
+      const tab = await session(created);
+      return { ...tab, async close() { tab.close(); await fetch(`http://127.0.0.1:${port}/json/close/${created.id}`).catch(() => {}); } };
+    },
+    stop() {
+      first.close();
+      // Le Chrome du téléphone reste ouvert : on ne fait que s'en détacher.
+      if (!chrome) return;
+      chrome.kill();
+      // Chrome garde son dossier un instant après s'être arrêté.
+      setTimeout(() => { try { rmSync(profile, { recursive: true, force: true }); } catch { /* tant pis */ } }, 1500);
+    },
+  };
+}
+
+// Une session du protocole avec un onglet : lui envoyer une commande, l'écouter.
+async function session(target) {
   const ws = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((ok, ko) => { ws.onopen = ok; ws.onerror = ko; });
   let n = 0;
@@ -149,14 +172,7 @@ async function startChrome() {
       if (handler) listeners.set(method, handler);
       else listeners.delete(method);
     },
-    stop() {
-      ws.close();
-      // Le Chrome du téléphone reste ouvert : on ne fait que s'en détacher.
-      if (!chrome) return;
-      chrome.kill();
-      // Chrome garde son dossier un instant après s'être arrêté.
-      setTimeout(() => { try { rmSync(profile, { recursive: true, force: true }); } catch { /* tant pis */ } }, 1500);
-    },
+    close: () => ws.close(),
   };
 }
 
@@ -207,6 +223,20 @@ function page(browser, base) {
     text: () => value("document.getElementById('page').innerText"),
   };
   return p;
+}
+
+// Ce que dit un serveur des pages qui écoutent une adresse en direct (ADR-079) : sa dernière
+// ligne « Direct : …, 2 page(s) à l'écoute » pour cette adresse ; et l'attente d'un nombre.
+function lastListening(log, address) {
+  return log.trim().split("\n").filter((line) => line.startsWith("Direct") && line.includes(address)).at(-1) ?? "(rien)";
+}
+async function listeners(log, address, count, timeout) {
+  const end = Date.now() + timeout;
+  while (Date.now() < end) {
+    if (lastListening(log(), address).endsWith(`, ${count} page(s) à l'écoute`)) return true;
+    await pause(200);
+  }
+  return false;
 }
 
 // Les leçons qui s'ouvrent seules : une page ou un monde (ni un morceau, ni un thème).
@@ -763,6 +793,64 @@ const tests = [
       await b.send("Emulation.clearDeviceMetricsOverride");
     }
   }],
+  ["holo serve sert une adresse qui porte une valeur, et un formulaire envoyé de cette adresse (serve, ADR-078)", async (p, b) => {
+    // Le vrai serveur (ADR-074) : un modèle `profils/{nom}.holo`, ouvert à `/profils/ada`. La page
+    // fabriquée par le serveur, le moteur qui garde la valeur, le message rangé avec son modèle.
+    const binary = ["holo", "holo.exe"].map((name) => join(engine, "target", "release", name)).find(existsSync);
+    if (!binary) return [false, "holo n'est pas construit : cargo build --release --bin holo"];
+    const folder = mkdtempSync(join(tmpdir(), "holo-serve-"));
+    mkdirSync(join(folder, "profils"));
+    writeFileSync(join(folder, "profils", "{nom}.holo"), [
+      'Page(title: "Profil", state: State(email: "", sent: 0), children: [',
+      '  H1("Bonjour, {nom}"),',
+      '  If(nom, is: "ada", children: [ P.ada("Ada a écrit le premier programme.") ]),',
+      '  Form(name: Contact, children: [ Input(value: email, type: email, label: "Ton e-mail", required: true), Button(name: Send, text: "Envoyer") ]),',
+      '  If(sent, is: 1, children: [ P("Merci, ton message est arrivé.") ]),',
+      '], rules: [ On(Send.tap, effect: Contact.send), On(Contact.sent, effect: sent.set(1)) ])',
+      '.ada { color: #8fd3ff; }',
+    ].join("\n"));
+    const port = 22000 + Math.floor(Math.random() * 2000);
+    const server = spawn(binary, ["serve", folder, String(port)], { cwd: engine, stdio: ["ignore", "pipe", "pipe"] });
+    let output = "";
+    server.stdout.on("data", (d) => { output += d; });
+    server.stderr.on("data", (d) => { output += d; });
+    try {
+      for (let i = 0; i < 100 && !output.includes(`localhost:${port}`); i++) await pause(100);
+      if (!output.includes(`localhost:${port}`)) return [false, `holo serve ne démarre pas : ${output.trim()}`];
+      const q = page(b, `http://localhost:${port}`);
+      // La page fabriquée par le serveur, avant le moteur.
+      await q.open("/profils/ada", 300);
+      const made = await q.value(`document.querySelector("#page h1")?.textContent`);
+      const shown = await q.value(`(() => { const e = document.querySelector(".holo-s-ada"); return !!e && getComputedStyle(e).display !== "none"; })()`);
+      const named = await q.value(`document.querySelector('meta[name="holo-file"]')?.content`);
+      // Le moteur arrive (le menu le fait venir) : la même valeur, aucune erreur.
+      await q.click("#toggle");
+      const engineThere = await q.until(`document.getElementById("tools") && !document.getElementById("tools").hidden`, 40000);
+      const kept = await q.value(`document.querySelector("#page h1")?.textContent`);
+      const errors = b.errors.join(" | ");
+      // Le formulaire, envoyé par le moteur à l'adresse : vérifié avec la valeur, rangé avec son modèle.
+      await q.type('#page input[type=email]', "ada@example.org");
+      await q.click('[data-name="Send"]');
+      const thanked = await q.until(`document.getElementById("page").innerText.includes("Merci, ton message est arrivé.")`, 15000);
+      let stored = "base non lue (node:sqlite absent)";
+      try {
+        const { DatabaseSync } = await import("node:sqlite");
+        const base = new DatabaseSync(join(folder, "holo-data", "site.sqlite"));
+        const row = base.prepare("SELECT page, model FROM messages").get();
+        base.close();
+        stored = row ? `${row.page} ${row.model}` : "aucun message";
+      } catch (error) {
+        if (!String(error).includes("node:sqlite")) stored = `base illisible : ${error.message}`;
+      }
+      const ok = made === "Bonjour, ada" && shown === true && named === "/profils/{nom}.holo" && engineThere && kept === "Bonjour, ada" && !errors && thanked
+        && (stored === "/profils/ada /profils/{nom}.holo" || stored.startsWith("base non lue"));
+      return [ok, `fabriquée : « ${made} » ; paragraphe d'Ada : ${shown} ; fichier nommé : ${named} ; moteur : ${engineThere}, « ${kept} »${errors ? ` ; erreurs : ${errors}` : ""} ; message : ${thanked ? "Merci" : "pas de Merci"} ; rangé : ${stored}`];
+    } finally {
+      server.kill();
+      await pause(300);
+      try { rmSync(folder, { recursive: true, force: true }); } catch { /* tant pis */ }
+    }
+  }],
   ["une fenêtre fermée ne couvre pas la page (leçon 63, vu sur le téléphone)", async (p) => {
     // Trouvé par Yocthan sur son téléphone, le 2026-10-07 : le lien vers la leçon 64 ne se
     // laissait pas toucher, la fenêtre fermée restait posée dessus.
@@ -863,6 +951,238 @@ const tests = [
       await b.send("Emulation.setScriptExecutionDisabled", { value: false });
       served.stop();
     }
+  }],
+  ["un formulaire reçu par holo serve, avec ou sans JavaScript (serve)", async (_, b) => {
+    const served = await startHoloServe(["88-un-formulaire-qui-verifie.holo"]);
+    const q = page(b, served.base);
+    const thanks = `document.getElementById("page").innerText.includes("Merci, ton message est arrivé.")`;
+    try {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+      await q.open("/88-un-formulaire-qui-verifie.holo", 300);
+      // Envoyer vide : les messages sous les champs, écrits par le serveur.
+      await q.click('[data-name="Send"]');
+      await q.until(`document.readyState === "complete" && document.querySelectorAll(".holo-error").length > 0`, 5000);
+      const errors = await q.value(`[...document.querySelectorAll(".holo-error")].map((e) => e.textContent).join(" | ")`);
+      const linked = await q.value(`document.querySelector('[data-bind="name"]').getAttribute("aria-describedby") === document.querySelector(".holo-error").id`);
+      // Tout remplir : envoyé, rangé, merci.
+      await q.type('[data-bind="name"]', "Ada");
+      await q.type('[data-bind="email"]', "ada@exemple.fr");
+      await q.type('[data-bind="message"]', "Bonjour, une question.");
+      await q.click('[data-bind="accept"]');
+      await q.click('[data-name="Send"]');
+      const sentWithout = await q.until(`document.readyState === "complete" && ${thanks}`, 5000);
+      const noErrors = await q.value(`document.querySelectorAll(".holo-error").length === 0`);
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      // Avec JavaScript, un nouveau visiteur : le moteur envoie en JSON, holo serve range et répond 204.
+      await b.send("Network.clearBrowserCookies");
+      await q.open("/88-un-formulaire-qui-verifie.holo", 300);
+      await q.value("window.__stayed = true");
+      await q.type('[data-bind="name"]', "Bob");
+      await q.until("window.__holoStarted", 40000);
+      for (const [bind, text] of [["email", "bob@exemple.fr"], ["message", "Une autre question."]]) await q.type(`[data-bind="${bind}"]`, text);
+      await q.click('[data-bind="accept"]');
+      await q.click('[data-name="Send"]');
+      const sentWith = await q.until(thanks, 15000);
+      const stayed = await q.value("window.__stayed === true");
+      const kept = spawnSync(["holo", "holo.exe"].map((name) => join(engine, "target", "release", name)).find(existsSync), ["messages", served.folder], { encoding: "utf8" }).stdout.trim().split("\n").filter(Boolean);
+      const ok = errors.includes("Ce champ est obligatoire.") && linked && sentWithout && noErrors && sentWith && stayed && kept.length === 2 && kept[0].includes('"name":"Ada"') && kept[1].includes('"name":"Bob"');
+      return [ok, `sans JavaScript, erreurs : ${errors.split(" | ").length} (reliées : ${linked}) ; envoyé : ${sentWithout} ; avec JavaScript, envoyé : ${sentWith}, sans recharger : ${stayed} ; messages rangés : ${kept.length}`];
+    } finally {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      served.stop();
+    }
+  }],
+  ["une adresse porte une valeur (leçon 100), et un formulaire part de cette adresse", async (p, b) => {
+    // Le fichier 100-profils/{nom}.holo sert …/100-profils/ada, …/yocthan, …/Adé (ADR-078).
+    const faults = [];
+    const check = (name, ok, seen) => { if (!ok) faults.push(`${name} : ${seen}`); };
+    const title = () => p.value(`document.querySelector("#page h1")?.textContent ?? "(pas de titre)"`);
+    const engineAsked = () => p.value(`!!document.querySelector('script[src^="/page-engine.js"]')`);
+    const refused = () => p.value(`document.getElementById("error")?.textContent ?? ""`);
+    // Le bloc de l'If est invisible lui-même (display: contents) : on regarde son paragraphe.
+    const yocthanSeen = () => p.value(`(() => { const b = document.querySelector('#page [data-if^="nom|"]'); const p = b?.querySelector("p"); return !!p && !b.hidden && p.getClientRects().length > 0; })()`);
+    const startEngine = async () => {
+      await p.click("#toggle");
+      return p.until("window.__holoStarted === true", 20000);
+    };
+    // Le serveur fabrique la page avec la valeur de l'adresse : le titre est là avant le moteur.
+    await p.open("/exemples/lecons/100-profils/ada", 600);
+    const served = await title();
+    check("ada, page du serveur", served === "Bonjour, ada" && !(await engineAsked()), `« ${served} », moteur déjà demandé : ${await engineAsked()}`);
+    check("ada, le paragraphe de Yocthan reste caché", (await yocthanSeen()) === false, "il se voit");
+    // Le menu fait venir le moteur : il lit le modèle (holo-file), avec la même valeur.
+    const started = await startEngine();
+    const taken = await title();
+    check("ada, avec le moteur", started && taken === "Bonjour, ada" && !(await refused()) && b.errors.length === 0, `moteur arrivé : ${started} ; « ${taken} » ; ${(await refused()) || b.errors.join(" | ") || "aucune erreur"}`);
+    // Yocthan : le paragraphe de l'If se voit.
+    await p.open("/exemples/lecons/100-profils/yocthan", 600);
+    check("yocthan, le paragraphe se voit", (await title()) === "Bonjour, yocthan" && (await yocthanSeen()) === true, `« ${await title()} », paragraphe : ${await yocthanSeen()}`);
+    // Un nom accentué, encodé dans l'adresse : décodé par le moteur, au serveur puis dans la page.
+    await p.open("/exemples/lecons/100-profils/Ad%C3%A9", 600);
+    const accent = await title();
+    const accentStarted = await startEngine();
+    const accentTaken = await title();
+    check("Adé, le nom accentué", accent === "Bonjour, Adé" && accentStarted && accentTaken === "Bonjour, Adé" && !(await refused()) && b.errors.length === 0, `serveur « ${accent} » ; moteur « ${accentTaken} » ; ${(await refused()) || b.errors.join(" | ") || "aucune erreur"}`);
+    // Les liens : de la leçon vers le nom accentué, puis du modèle vers la leçon (« ../ »).
+    await p.open("/exemples/lecons/100-une-adresse-qui-porte-une-valeur.holo", 600);
+    await p.click('#page a[href$="100-profils/Adé"]');
+    const followed = await p.until(`location.pathname.endsWith("/100-profils/Ad%C3%A9") && document.querySelector("#page h1")?.textContent === "Bonjour, Adé"`, 8000);
+    check("le lien vers Adé", followed, await p.value("location.pathname"));
+    await p.click('#page a[href$="100-une-adresse-qui-porte-une-valeur.holo"]');
+    const back = await p.until(`location.pathname === "/exemples/lecons/100-une-adresse-qui-porte-une-valeur.holo"`, 8000);
+    check("le lien de retour à la leçon", back, await p.value("location.pathname"));
+    // Une adresse que rien ne sert : pas de page.
+    const missing = await p.value(`fetch("/exemples/lecons/100-profils/a/b", { headers: { accept: "text/html" } }).then((r) => r.status)`);
+    check("a/b, pas de page", missing === 404, missing);
+    // L'éditeur vérifie le modèle comme holo check : un nom vide.
+    await p.open(`/editor?file=${encodeURIComponent("/exemples/lecons/100-profils/{nom}.holo")}`, 600);
+    const edited = await p.until(`document.getElementById("status").textContent.startsWith("✓")`, 15000);
+    check("l'éditeur accepte le modèle", edited, `${await p.value(`document.getElementById("status").textContent`)} ; ${b.errors.join(" | ") || "aucune erreur"}`);
+    // Un formulaire envoyé depuis une adresse : il part vers l'adresse, où le serveur retrouve le
+    // modèle et la valeur ; le message garde son adresse. Un message forgé est vérifié de même.
+    await p.open("/exemples/.essais-navigateur/adresse/ada", 600);
+    await startEngine();
+    const written = `Un essai depuis l'adresse, ${Date.now()}`;
+    await p.type('[data-bind="message"]', written);
+    await p.click('[data-name="Send"]');
+    const sent = await p.until(`document.getElementById("page").innerText.includes("Message envoyé.")`, 10000);
+    // Le dernier message rangé (un fichier par modèle, dans messages/ du dépôt) ; pas lu avec
+    // --telephone, où le serveur 8080 peut servir un autre dossier.
+    let recorded = true;
+    let record = "le fichier des messages n'est pas lu avec --telephone";
+    if (!phone) {
+      const lines = readFileSync(join(repo, "messages", "exemples_essais-navigateur_adresse_nom_.jsonl"), "utf8").trim().split("\n");
+      const message = JSON.parse(lines.at(-1));
+      recorded = message.page === "/exemples/.essais-navigateur/adresse/ada" && message.values?.message === written;
+      record = `rangé : ${lines.at(-1)}`;
+    }
+    check("le formulaire part de l'adresse", sent && recorded, `envoyé : ${sent} ; ${record}`);
+    const forged = await p.value(`fetch(location.pathname, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ form: "Contact", values: { message: "" } }) }).then((r) => r.status)`);
+    check("un message forgé, refusé", forged === 422, forged);
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : "ada, yocthan et Adé, servis puis repris par le moteur ; les liens ; a/b sans page ; l'éditeur ; un formulaire envoyé à l'adresse, un message forgé refusé"];
+  }],
+  ["une valeur partagée change en direct dans deux pages, avec le serveur d'essai (partage, leçon 101)", async (p, b) => {
+    // ADR-079 : deux onglets ouverts à la même adresse ; un toucher dans l'un, l'autre change en
+    // direct, sans recharger. Le serveur arbitre, chacun son tour ; une page fermée cesse d'écouter.
+    // Avec --telephone, il faudrait ouvrir un autre onglet sur le téléphone de Yocthan : non.
+    if (phone) return [true, "sauté avec --telephone : il ouvrirait un autre onglet sur le téléphone"];
+    const path = "/exemples/lecons/101-une-valeur-partagee.holo";
+    const faults = [];
+    const check = (name, ok, seen) => { if (!ok) faults.push(`${name} : ${seen}`); };
+    const shown = (q, name) => q.value(`Number(document.querySelector('#page [data-state="${name}"]')?.textContent ?? NaN)`);
+    const other = await b.tab();
+    const q = page(other, server.base);
+    try {
+      await p.open(path, 300);
+      await q.open(path, 300);
+      const listening = await p.until("window.__holoLive?.()", 40000) && await q.until("window.__holoLive?.()", 40000);
+      check("les deux pages écoutent", listening, `${await p.value("window.__holoLive?.()")} et ${await q.value("window.__holoLive?.()")}`);
+      const [seats, likes] = [await shown(p, "seats"), await shown(p, "likes")];
+      check("les mêmes valeurs des deux côtés", seats === (await shown(q, "seats")) && likes === (await shown(q, "likes")) && seats > 0, `${seats} et ${await shown(q, "seats")}`);
+      await q.value("window.__stayed = true");
+      // Réserver dans le premier onglet : le second voit la place partir.
+      await p.click('[data-name="Book"]');
+      const booked = await p.until(`document.getElementById("page").innerText.includes("Ta place est gardée") && Number(document.querySelector('#page [data-state="seats"]').textContent) === ${seats - 1}`, 10000);
+      const followed = await q.until(`Number(document.querySelector('#page [data-state="seats"]').textContent) === ${seats - 1}`, 10000);
+      check("réserver, vu en direct dans l'autre page", booked && followed && (await q.value("window.__stayed === true")), `réservé : ${booked} ; l'autre page : ${await shown(q, "seats")} (attendu ${seats - 1}), sans recharger : ${await q.value("window.__stayed === true")}`);
+      // « J'aime » touché trois fois d'un côté et deux fois de l'autre, sans attendre : aucun perdu.
+      for (const [r, times] of [[q, 3], [p, 2]]) for (let i = 0; i < times; i++) await r.click('[data-name="Like"]');
+      const counted = await p.until(`Number(document.querySelector('#page [data-state="likes"]').textContent) === ${likes + 5}`, 15000) && await q.until(`Number(document.querySelector('#page [data-state="likes"]').textContent) === ${likes + 5}`, 15000);
+      check("cinq « J'aime » des deux côtés, aucun perdu", counted, `${await shown(p, "likes")} et ${await shown(q, "likes")} (attendu ${likes + 5})`);
+      // Le serveur arbitre : un geste qui n'est pas un toucher, ou un bouton caché pour l'état envoyé.
+      const hover = await q.value(`fetch(location.pathname, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ signal: "Like.hover", state: "" }) }).then((r) => r.status)`);
+      const hidden = await q.value(`fetch(location.pathname, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ signal: "Book.tap", state: "booked=1" }) }).then((r) => r.status)`);
+      check("un survol, un bouton caché : refusés", hover === 400 && hidden === 409, `survol : ${hover} ; bouton caché : ${hidden}`);
+      // Une page fermée cesse d'écouter ; l'autre suit encore.
+      await other.close();
+      const quiet = await listeners(server.log, "101-une-valeur-partagee.holo", 1, 8000);
+      check("l'onglet fermé n'écoute plus", phone || quiet, lastListening(server.log(), "101-une-valeur-partagee.holo"));
+      await p.click('[data-name="Cancel"]');
+      const back = await p.until(`Number(document.querySelector('#page [data-state="seats"]').textContent) === ${seats}`, 10000);
+      check("rendre la place", back, `${await shown(p, "seats")} (attendu ${seats})`);
+      // Sans réponse du serveur, rien ne change, et la page le dit.
+      await p.value(`window.__fetch = window.fetch; window.fetch = () => Promise.reject(new Error("hors ligne"))`);
+      const likesNow = await shown(p, "likes");
+      await p.click('[data-name="Like"]');
+      const told = await p.until(`!document.getElementById("holo-note")?.hidden && document.getElementById("holo-note").textContent.includes("n'a pas répondu")`, 5000);
+      await p.value(`window.fetch = window.__fetch`);
+      check("sans réponse, rien ne change, et la page le dit", told && (await shown(p, "likes")) === likesNow, `message : ${await p.value(`document.getElementById("holo-note")?.textContent ?? "(aucun)"`)} ; J'aime : ${await shown(p, "likes")} (avant : ${likesNow})`);
+      check("aucune erreur", b.errors.length === 0 && other.errors.length === 0, [...b.errors, ...other.errors].join(" | "));
+    } finally {
+      await other.close();
+    }
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : "deux onglets à la même adresse : réserver vu en direct, sans recharger ; cinq « J'aime » des deux côtés, aucun perdu ; un survol et un bouton caché refusés ; l'onglet fermé n'écoute plus ; la place rendue ; sans réponse du serveur, rien ne change et la page le dit"];
+  }],
+  ["holo serve : une valeur partagée en direct, avec et sans JavaScript (partage, serve)", async (_, b) => {
+    // ADR-079 : la même chose avec holo serve, sa base, et un troisième onglet sans JavaScript.
+    if (phone) return [true, "sauté avec --telephone : il ouvrirait d'autres onglets sur le téléphone"];
+    const served = await startHoloServe(["101-une-valeur-partagee.holo"]);
+    writeFileSync(join(served.folder, "places.holo"), [
+      'Page(title: "Places", state: State(booked: 0), shared: Shared(seats: 1, likes: 0), children: [',
+      '  H1("Une place"),',
+      '  P("Places : {seats}"),',
+      '  If(seats, over: 0, children: [ Button(name: Book, text: "Réserver") ], else: [ P("Complet") ]),',
+      '  Button(name: Like, text: "J\'aime ({likes})"),',
+      '], rules: [ On(Book.tap, effect: [seats.sub(1), booked.set(1)]), On(Like.tap, effect: likes.add(1)) ])',
+    ].join("\n"));
+    const faults = [];
+    const check = (name, ok, seen) => { if (!ok) faults.push(`${name} : ${seen}`); };
+    const tabs = [await b.tab(), await b.tab(), await b.tab()];
+    const [a, c, without] = tabs.map((tab) => page(tab, served.base));
+    const shown = (q, name) => q.value(`Number(document.querySelector('#page [data-state="${name}"]')?.textContent ?? NaN)`);
+    try {
+      await a.open("/places.holo", 300);
+      await c.open("/places.holo", 300);
+      const listening = await a.until("window.__holoLive?.()", 40000) && await c.until("window.__holoLive?.()", 40000);
+      check("deux pages écoutent", listening, served.log().trim().split("\n").slice(-3).join(" | "));
+      await a.value("window.__stayed = true");
+      await c.value("window.__stayed = true");
+      // Sans JavaScript, « J'aime » part par le formulaire des gestes : les deux autres le voient en direct.
+      await tabs[2].send("Emulation.setScriptExecutionDisabled", { value: true });
+      await without.open("/places.holo", 300);
+      await without.click('[data-name="Like"]');
+      const reloaded = await without.until(`document.readyState === "complete" && document.querySelector('#page [data-state="likes"]')?.textContent === "1"`, 8000);
+      const live = await a.until(`document.querySelector('#page [data-state="likes"]').textContent === "1"`, 10000) && await c.until(`document.querySelector('#page [data-state="likes"]').textContent === "1"`, 10000);
+      check("sans JavaScript, « J'aime » vu en direct ailleurs", reloaded && live && (await a.value("window.__stayed === true")), `page sans JavaScript : ${await shown(without, "likes")} ; les deux autres : ${await shown(a, "likes")}, ${await shown(c, "likes")}`);
+      // La dernière place, réservée dans un onglet : « Complet » partout, en direct.
+      await a.click('[data-name="Book"]');
+      const full = await c.until(`document.querySelector('#page [data-state="seats"]').textContent === "0" && !document.querySelector('[data-name="Book"]')?.getClientRects().length`, 10000);
+      check("la dernière place : complet en direct", full && (await shown(a, "seats")) === 0 && (await c.value("window.__stayed === true")), `ici : ${await shown(a, "seats")} ; l'autre : ${await shown(c, "seats")}`);
+      // Un geste forgé pour une place qui n'existe plus : refusé, rien ne change.
+      const forged = await c.value(`fetch("/places.holo", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ signal: "Book.tap", state: "" }) }).then(async (r) => r.status + " " + (await r.json()).shared)`);
+      check("une place forgée, refusée", forged === "409 seats=0;likes=1", forged);
+      // Sans JavaScript, la page revient à jour : complet.
+      await without.open("/places.holo", 300);
+      check("sans JavaScript, la page à jour", (await without.text()).includes("Complet") && (await shown(without, "seats")) === 0, await without.text());
+      // Un onglet fermé est oublié par holo serve à son prochain envoi (ou au battement suivant).
+      await tabs[1].close();
+      let forgotten = false;
+      for (let i = 0; i < 4 && !forgotten; i++) {
+        await a.click('[data-name="Like"]');
+        forgotten = await listeners(served.log, "/places.holo", 1, 2500);
+      }
+      check("l'onglet fermé n'écoute plus", forgotten, lastListening(served.log(), "/places.holo"));
+      // La leçon 101, servie par holo serve, se lit sans erreur.
+      await a.open("/101-une-valeur-partagee.holo", 300);
+      const lesson = await a.until("window.__holoLive?.()", 40000) && (await shown(a, "seats")) === 20;
+      check("la leçon 101 par holo serve", lesson, `${await shown(a, "seats")} places`);
+      // Dans la base : l'adresse, le nom, la valeur.
+      let stored = "base non lue (node:sqlite absent)";
+      try {
+        const { DatabaseSync } = await import("node:sqlite");
+        const base = new DatabaseSync(join(served.folder, "holo-data", "site.sqlite"));
+        stored = base.prepare("SELECT page, name, value FROM shared ORDER BY name").all().map((row) => `${row.page} ${row.name}=${row.value}`).join(", ");
+        base.close();
+      } catch (error) {
+        if (!String(error).includes("node:sqlite")) stored = `base illisible : ${error.message}`;
+      }
+      check("rangé dans la base", stored.startsWith("base non lue") || /^\/places\.holo likes=\d+, \/places\.holo seats=0$/.test(stored), stored);
+      check("aucune erreur", tabs.every((tab) => tab.errors.length === 0), tabs.flatMap((tab) => tab.errors).join(" | "));
+    } finally {
+      for (const tab of tabs) await tab.close();
+      served.stop();
+    }
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : "sans JavaScript, « J'aime » vu en direct dans deux autres onglets ; la dernière place : complet partout, en direct ; une place forgée refusée (409) ; la page sans JavaScript à jour ; l'onglet fermé oublié ; la leçon 101 ; la base"];
   }],
 ];
 
