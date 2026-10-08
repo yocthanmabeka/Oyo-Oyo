@@ -11,6 +11,7 @@
 // donne son chemin ; sinon l'emplacement habituel sous Windows, ou google-chrome sous Linux.
 // Rend « OK » ou « RATÉ » par essai, et un code de sortie 1 s'il y a un raté.
 
+import { capabilityTests } from "../../proposals/GPT5.6/fin-lot9-2026-10-08/browser-tests.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -1311,6 +1312,8 @@ const tests = [
     return [faults.length === 0, faults.length ? faults.join("\n      ") : "sans JavaScript, « J'aime » vu en direct dans deux autres onglets ; la dernière place : complet partout, en direct ; une place forgée refusée (409) ; la page sans JavaScript à jour ; l'onglet fermé oublié ; la leçon 101 ; la base"];
   }],
 ];
+
+tests.push(...capabilityTests({engine,phone,pause}));
 
 // Les essais propres au téléphone : seulement avec --telephone.
 const capturesFolder = join(repo, "proposals", "Claude", "telephone-2026-10-07", "captures");

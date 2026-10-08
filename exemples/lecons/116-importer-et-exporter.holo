@@ -1,0 +1,12 @@
+// Transférer seulement les valeurs annoncées, dans un fichier JSON local.
+// Essaie Exporter, modifie le fichier, puis Importer. Une valeur inconnue refuse tout.
+Page(title: "Importer et exporter", state: State(note: "Bonjour", notes: ["Première note"]), children: [
+ H1("Un fichier de mes valeurs"),
+ Input(label: "Ma note", value: note),
+ Transfer(name: File, label: "Mes notes personnelles", file: "notes.json", values: [note, notes]),
+ Button(name: Export, text: "Exporter mes notes"), Button(name: Import, text: "Importer mes notes"),
+ Repeat(over: notes, children: [P("{item}")]),
+ A("Leçon suivante : l'appareil", to: "117-appareil-sur-permission.holo")
+], rules: [On(Export.tap, effect: File.export), On(Import.tap, effect: File.import)])
+Page { background: white; color: #17202a; max-width: 900px; padding: 24px; dark: { background: #17202a; color: white; } }
+Button { background: #174d70; color: white; padding: 12px; border-radius: 8px; }

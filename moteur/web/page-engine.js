@@ -6,8 +6,16 @@
   // la page s'en sert : une page qui ne fait que bouger ne le télécharge jamais.
   import init, {
     flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, page_title, from_query, address_query, address_names, chart_html, shapes_html, module_info, module_finished, module_input, module_received, delays, reads_time, set_now, set_second, reads_seconds, stopwatch_stopped, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
-    shared_names, with_shared, touches_shared,
+    shared_names, with_shared, touches_shared, capability_export, capability_received,
   } from "/pkg-light/holo_engine.js";
+  let host = null;
+  const prepareHost = async () => {
+    if (!root.querySelector("[data-browser-capability]")) return;
+    const {browserCapabilities} = await import("/capabilities.js");
+    host = browserCapabilities({root,source:()=>source,state:()=>states.get(path)??"",
+      receive:capability_received,exported:capability_export,
+      change:written=>changeState(store(written)),emit,pageKey:()=>arrival});
+  };
   let drawing = null;
   let drawingLoading = null;
   const loadDrawing = () => (drawingLoading ??= import("/pkg/holo_engine.js").then(async (m) => { await m.default(); drawing = m; return m; }));
@@ -974,6 +982,7 @@
   // en main sans la redessiner : ce qui a été écrit en l'attendant reste, le focus aussi, et
   // les mouvements (ADR-034) ne repartent pas de zéro.
   function displaySite(sitePath, { inHistory = true, resume = false } = {}) {
+    host?.stop();
     exitPoints();
     closeCrossroads();
     if (sitePath.startsWith("~")) {
@@ -1743,6 +1752,7 @@
 
   function apply(effect, signal = "") {
     const [name, capability] = effect.split(".");
+    if (root.querySelector(`[data-browser-capability][data-name="${CSS.escape(name)}"]`)) { host?.run(name, capability); return; }
     const watch = ["start", "stop", "reset"].includes(capability) && root.querySelector(`.holo-Stopwatch[data-name="${CSS.escape(name)}"]`);
     if (watch) {
       stopwatch(name, capability, watch);
@@ -1825,6 +1835,7 @@
     // demandé par l'adresse (#Atelier), lui, se dessine.
     const alreadyThere = !siteStart && root.querySelector(".holo-Page") !== null;
     displaySite(siteStart.startsWith("@") ? "" : siteStart, { inHistory: false, resume: alreadyThere });
+    await prepareHost();
     window.__holoStarted = true; // le moteur a pris la page en main (pour les essais)
     // Une adresse en #@… désigne le fichier d'un autre serveur : on propose le passage.
     if (siteStart.startsWith("@")) proposePassage(siteStart.slice(1));

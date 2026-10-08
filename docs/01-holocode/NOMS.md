@@ -278,3 +278,17 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 - Mots changés : environ 30.
 - Mots nouveaux : environ 30, presque tous autour du point, du monde et de la façon de regarder la page.
 - Noms contestés : aucun. Les quatorze sont tranchés le 2026-10-06 (`ADR-047`).
+
+## Propositions de la fin du lot 9 (ADR-093 à ADR-096)
+
+| Mot | Sens conservé | Limite |
+|---|---|---|
+| Transfer | transférer des données dans un fichier local | pas de réseau implicite |
+| Device | appareil du visiteur | permission sur geste, jamais accès libre d'un module |
+| Notification | notification du navigateur | pas de push extérieur ni promesse après fermeture |
+| Offline | disponibilité hors-ligne | copie publique déclarée, pas de serveur hors-ligne |
+| import / export | lire / écrire le fichier annoncé | pas de modification du code .holo |
+| request / write / stop | demander, écrire, arrêter | actions d'un bloc nommé |
+| save / remove / show | sauvegarder la copie, l'effacer, afficher la notification | contexte explicite |
+
+Blocs en UpperCamelCase, réglages et actions en lowerCamelCase ; noms courants gardant leur sens (ADR-016, ADR-037). Rien ne renomme un mot décidé.

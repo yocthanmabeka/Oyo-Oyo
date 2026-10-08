@@ -247,7 +247,8 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
         || crate::state::data_source(program).ok().flatten().is_some()
         || body.contains("data-drag=")
         // Une page qui partage des valeurs écoute le serveur, pour les voir changer en direct (ADR-079).
-        || !program.shared.is_empty();
+        || !program.shared.is_empty()
+        || body.contains("data-browser-capability=");
     let live = if live { " data-live" } else { "" };
     // Qui grossit la page quand on zoome (ADR-069) ? Par défaut, le navigateur, comme pour
     // n'importe quel site : la page reste à sa place. Le moteur, seulement si l'auteur l'a
@@ -722,6 +723,7 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
     let classes = classes(block);
     let name = name_of(block).map(|n| format!(" data-name=\"{}\"", escape(n))).unwrap_or_default();
     match block.name.as_str() {
+        "Transfer" | "Device" | "Notification" | "Offline" => output.push_str(&crate::capabilities::html(block)),
         // Des scènes qui s'enchaînent, l'une après l'autre, au même endroit (ADR-034).
         "Scenes" => {
             let mut height = 480.0;

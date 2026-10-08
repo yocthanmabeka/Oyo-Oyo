@@ -1,0 +1,12 @@
+// Une seule page publique et ses ressources déclarées, après une sauvegarde explicite.
+// Sauvegarde, coupe le réseau, recharge cette adresse. Effacer retire la copie du navigateur.
+// Aucun formulaire ni geste partagé n'est mis en attente pour être envoyé plus tard.
+Page(title: "Une page hors-ligne", state: State(count: 0), children: [
+ H1("Mon carnet public hors-ligne"), P("Compteur local : {count}"),
+ Button(name: Add, text: "Ajouter un"),
+ Offline(name: Copy, label: "Copie publique dans ce navigateur", files: []),
+ Button(name: Save, text: "Préparer la copie hors-ligne"), Button(name: Remove, text: "Effacer la copie hors-ligne"),
+ P("16 Mio par copie, huit copies au plus. Localhost ou HTTPS.")
+], rules: [On(Add.tap, effect: count.add(1)), On(Save.tap, effect: Copy.save), On(Remove.tap, effect: Copy.remove)])
+Page { background: white; color: #17202a; max-width: 900px; padding: 24px; dark: { background: #17202a; color: white; } }
+Button { background: #174d70; color: white; padding: 12px; border-radius: 8px; }

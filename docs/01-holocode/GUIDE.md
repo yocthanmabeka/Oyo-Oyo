@@ -2310,3 +2310,19 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
 - Les garde-fous de zoom pour un `Point` seul : ils sont encore fixés dans le moteur.
+
+## 10 bis. Capacités explicites du navigateur (propositions ADR-093 à ADR-096)
+
+Ces quatre ajouts sont proposés, sans modification d'un statut de décision. Les leçons 116 à 119 les montrent. Les blocs se rangent directement dans les enfants de Page et portent un nom et un label. Leurs actions sensibles viennent seulement d'un bouton explicitement touché. Tous émettent done ou failed ; leur réponse est annoncée dans un état lisible. Refuser une permission laisse la page utilisable. L'auteur n'écrit aucun JavaScript.
+
+| Bloc | Écriture | Actions | Limites |
+|---|---|---|---|
+| Transfer | Transfer(name: File, label: "Mes notes", file: "notes.json", values: [note, notes]) | File.export, File.import | JSON personnel de 64 Ko au plus ; 1 à 16 valeurs de State ; toutes les clés et sortes vérifiées avant changement ; jamais une valeur partagée, calculée ou un compte |
+| Device | Device(name: Position, label: "Ma position", kind: position, value: result) | Position.request, Position.stop | position et clipboard rendent un texte ; clipboard offre aussi write ; localhost ou HTTPS, permission du navigateur |
+| Device | Device(name: Camera, label: "Aperçu local", kind: camera) | Camera.request, Camera.stop | camera et microphone sont des captures locales, sans envoi ni enregistrement ; arrêt explicite, après une minute, à la fermeture, au changement de monde et quand la page devient cachée |
+| Notification | Notification(name: Reminder, label: "Mon rappel", title: "Pause", body: "Respire.", after: 3s) | Reminder.show, Reminder.stop | notification locale du navigateur ; aucune infrastructure push ; délai de 0 à 3600 secondes, seulement pendant la vie de la page, sans garantie en veille |
+| Offline | Offline(name: Copy, label: "Copie publique", files: ["image.svg"]) | Copy.save, Copy.remove | une page publique .holo à son adresse sans paramètres ; 16 ressources locales, 16 Mio par copie, huit copies ; premier périmètre sans formulaire, compte, partage, module ou capture |
+
+Une page Offline revient à ses valeurs initiales lors du rechargement ; les changements sont locaux pendant la visite. Le réseau reste prioritaire ; si le réseau manque, seules les ressources explicitement sauvegardées sont servies. Une erreur HTTP du serveur reste une erreur. Une écriture n'est jamais remise en attente ni rejouée. Les pages personnelles, les réponses private/no-store, les redirections et les adresses de compte sont refusées. Le moteur léger et sa porte d'entrée font partie de la copie. Le service worker s'installe seulement quand le visiteur demande une copie ou une notification.
+
+Le résultat d'une position est un texte JSON latitude/longitude/accuracy, car le langage ne représente pas encore les nombres négatifs. Le presse-papiers se lit ou s'écrit sur un geste et dans un texte de 200 caractères au plus. La caméra donne un aperçu vidéo local. Le microphone donne seulement son activation locale ; il ne produit pas encore un fichier audio. Ces limites sont explicites.

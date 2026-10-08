@@ -168,6 +168,19 @@ impl Site {
 
     fn get(&self, ask: &Ask, path: &str, raw: &str) -> Reply {
         let Some((file, holo, values)) = self.locate(path, raw) else { return Reply::text(404, "introuvable") };
+        // Une copie hors-ligne est toujours une page publique initiale, sans valeurs de visiteur.
+        if holo.ends_with(".holo") && ask.accept.contains("text/html") {
+            if let Ok(source) = source_at(&file, &values) {
+                if crate::check_page(&source).is_ok_and(|p| crate::capabilities::is_offline(&p)) {
+                    let base = &holo[..=holo.rfind('/').unwrap_or(0)];
+                    let rendered = crate::flat_view(&source, base).map_err(|e| e.message);
+                    return match rendered.and_then(|html| std::fs::read_to_string(self.web.join("page.html")).map(|template| filled_template(&template, &html)).map_err(|e| e.to_string())) {
+                        Ok(html) => Reply { status: 200, headers: vec![("Content-Type".into(), "text/html; charset=utf-8".into()), ("Cache-Control".into(), "no-cache".into())], body: html.into_bytes() },
+                        Err(_) => Reply::text(500, "copie publique impossible"),
+                    };
+                }
+            }
+        }
         // Un .holo demandé pour être affiché : sa page, fabriquée pour ce visiteur. Demandé par le
         // moteur (`text/plain`), le fichier lui-même. Une adresse sans `.holo` (`/contact`, un
         // modèle `profil/{id}.holo`) est toujours une page (ADR-078).

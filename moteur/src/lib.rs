@@ -16,6 +16,7 @@
 pub mod address;
 pub mod blocks;
 pub mod chart;
+pub mod capabilities;
 pub mod components;
 pub mod computed;
 pub mod dates;
@@ -85,6 +86,7 @@ pub fn check_page(source: &str) -> Result<Program, Error> {
     files::files(&program)?;
     // Les chronomètres et la valeur de leur temps (ADR-089).
     stopwatch::check(&program)?;
+    capabilities::check(&program)?;
     // Ce que l'affichage refuserait (une adresse en `javascript:`, une image hors du dossier)
     // est refusé dès la vérification : on fabrique la page à blanc (revue Codex, B-11).
     if program.root.name == "Page" {
@@ -579,6 +581,21 @@ pub fn module_received(source: &str, state: &str, name: &str, json: &str) -> Res
     let program = check_page(source).map_err(|e| e.message)?;
     state::requested_capabilities();
     let (numbers, texts, lists) = modules::received(&program, &state::reread(&program, state), &state::reread_texts(&program, state), &lists::reread(&program, state), name, json)?;
+    Ok(arbitrate(source, &write_all(&program, &numbers, &texts, &lists), &format!("{name}.done")))
+}
+
+/// Un transfert local, exporté seulement d'après les valeurs annoncées.
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+pub fn capability_export(source: &str, state: &str, name: &str) -> Result<String, String> {
+    let program = check_page(source).map_err(|e| e.message)?;
+    capabilities::export(&program, state, name)
+}
+/// Une réponse relue intégralement avant de changer l'état.
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+pub fn capability_received(source: &str, state: &str, name: &str, json: &str) -> Result<String, String> {
+    let program = check_page(source).map_err(|e| e.message)?;
+    state::requested_capabilities();
+    let (numbers, texts, lists) = capabilities::received(&program, state, name, json)?;
     Ok(arbitrate(source, &write_all(&program, &numbers, &texts, &lists), &format!("{name}.done")))
 }
 

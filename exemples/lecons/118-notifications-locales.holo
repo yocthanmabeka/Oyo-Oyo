@@ -1,0 +1,11 @@
+// Une notification du navigateur, sans service extérieur. La permission reste au visiteur.
+// Le rappel n'est pas garanti si la page est fermée, gelée ou le téléphone endormi.
+Page(title: "Notifications locales", children: [
+ H1("Un rappel choisi"),
+ Notification(name: Reminder, label: "Rappel local dans trois secondes", title: "Pause", body: "Pense à te reposer.", after: 3s),
+ Button(name: Notify, text: "Autoriser et programmer le rappel"), Button(name: Cancel, text: "Annuler le rappel"),
+ P("La page doit rester ouverte. Un refus ne change rien au reste."),
+ A("Leçon suivante : hors-ligne", to: "119-une-page-hors-ligne.holo")
+], rules: [On(Notify.tap, effect: Reminder.show), On(Cancel.tap, effect: Reminder.stop)])
+Page { background: white; color: #17202a; max-width: 900px; padding: 24px; dark: { background: #17202a; color: white; } }
+Button { background: #174d70; color: white; padding: 12px; border-radius: 8px; }
