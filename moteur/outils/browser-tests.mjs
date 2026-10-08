@@ -411,6 +411,35 @@ const tests = [
     const ok = titleAda === "Le carnet de ada : 0 page(s)" && titleFollows && titleBob === "Le carnet de bob : 0 page(s)" && bob === "0" && ada && wide && narrow;
     return [ok, `titres : ${titleAda} / ${titleBob} ; le titre suit les pages : ${titleFollows} ; Bob : ${bob} page ; Ada garde ses 2 pages : ${ada} ; cartes larges sur ordinateur : ${wide} ; étroites sur téléphone : ${narrow}`];
   }],
+  ["l'historique dans une page : address: [onglet, page] (leçon 114)", async (p) => {
+    const lesson = "/exemples/lecons/114-l-historique-dans-une-page.holo";
+    const shows = (text) => `document.getElementById("page").innerText.includes(${JSON.stringify(text)})`;
+    const at = (search) => `location.search === ${JSON.stringify(search)}`;
+    await p.open(lesson);
+    // Chaque toucher qui change l'onglet ou la page fait un pas dans l'historique.
+    await p.click('[data-name="Aquarelles"]');
+    const tab = await p.until(`${at("?onglet=aquarelles")} && ${shows("Les aquarelles")}`, 40000);
+    await p.click('[data-name="Apres"]');
+    const next = await p.until(`${at("?onglet=aquarelles&page=2")} && ${shows("Page 2")}`, 5000);
+    // « Précédent » défait un pas, puis l'autre ; « Suivant » le refait.
+    await p.value("history.back()");
+    const back = await p.until(`${at("?onglet=aquarelles")} && ${shows("Page 1")} && ${shows("Les aquarelles")}`, 5000);
+    await p.value("history.back()");
+    const start = await p.until(`${at("")} && ${shows("Les toiles")}`, 5000);
+    await p.value("history.forward()");
+    const again = await p.until(`${at("?onglet=aquarelles")} && ${shows("Les aquarelles")}`, 5000);
+    // Une adresse partagée : la page fabriquée par le serveur a ses valeurs, avant le moteur ;
+    // les réglages du moteur (?values) restent dans l'adresse.
+    await p.open(`${lesson}?values&onglet=dessins&page=3`);
+    const shared = await p.value(`${shows("Les dessins")} && ${shows("Page 3")}`);
+    await p.click('[data-name="Apres"]');
+    const kept = await p.until(`${at("?values&onglet=dessins&page=4")} && ${shows("Page 4")}`, 40000);
+    // Une valeur mal écrite part de son départ, sans erreur.
+    await p.open(`${lesson}?page=abc&onglet=pirate`);
+    const forged = await p.until(`window.__holoStarted === true && ${shows("Page 1")} && ${shows("Les toiles")}`, 40000);
+    const ok = tab && next && back && start && again && shared && kept && forged;
+    return [ok, `onglet : ${tab} ; page suivante : ${next} ; précédent : ${back}, puis le début : ${start} ; suivant : ${again} ; adresse partagée : ${shared} ; ?values gardé : ${kept} ; valeurs forgées : ${forged}`];
+  }],
   ["un module enfermé rend son nombre", async (p) => {
     await p.open("/exemples/lecons/69-module-enferme.holo");
     await p.click('[data-name="Calculer"]');

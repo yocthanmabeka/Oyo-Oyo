@@ -249,7 +249,7 @@ pub fn kept_values(program: &Program) -> Result<Vec<String>, Error> {
 
 /// Jusqu'où une valeur peut monter par la saisie : 1 pour une case à cocher, le `max` d'un champ
 /// s'il en a un, sinon la borne du langage.
-fn ceiling(program: &Program, name: &str) -> u64 {
+pub(crate) fn ceiling(program: &Program, name: &str) -> u64 {
     // Une valeur à virgule (ADR-066) : le même plafond, à son échelle.
     let places = places(program, name);
     let mut ceiling = VALUE_MAX.saturating_mul(scale(places));
@@ -359,7 +359,7 @@ fn round_div(a: u128, b: u128) -> u64 {
 }
 
 /// Le plus petit nombre qu'une glissière laisse choisir (ADR-042) ; 0 sinon.
-fn floor(program: &Program, name: &str) -> u64 {
+pub(crate) fn floor(program: &Program, name: &str) -> u64 {
     let places = places(program, name);
     let mut floor = 0;
     let _ = for_each_block(&program.root, &mut |block| {
@@ -1618,6 +1618,8 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
     let state = initial(program)?;
     price(program)?;
     kept_values(program)?;
+    // Les valeurs que la page écrit dans son adresse (ADR-091).
+    crate::history::names(program)?;
     data_source(program)?;
     // Les prix comptent des quantités entières (ADR-066 : pas encore de quantité à virgule).
     if let Some(Value::Block(prices)) = program.root.argument("prices").map(|a| &a.value) {

@@ -5,7 +5,7 @@
   // dessin (les points, les mondes, la vue points) est un second moteur, chargé seulement quand
   // la page s'en sert : une page qui ne fait que bouger ne le télécharge jamais.
   import init, {
-    flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, page_title, chart_html, shapes_html, module_info, module_finished, module_input, module_received, delays, reads_time, set_now, set_second, reads_seconds, stopwatch_stopped, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
+    flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, page_title, from_query, address_query, address_names, chart_html, shapes_html, module_info, module_finished, module_input, module_received, delays, reads_time, set_now, set_second, reads_seconds, stopwatch_stopped, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
     shared_names, with_shared, touches_shared,
   } from "/pkg-light/holo_engine.js";
   let drawing = null;
@@ -161,6 +161,7 @@
   let inWorld = false;      // on est dans un monde calculé, ouvert en profondeur
   let source = "";
   let site = "";            // le site affiché : "" pour la page du fichier, sinon le chemin des points traversés
+  let addressNames = [];    // les valeurs que la page écrit dans son adresse, après le « ? » (ADR-091)
   let frame = null;         // l'élément .holo-Page
   let page = null;          // son contenu, <main>
   let engineStarted = false;
@@ -259,6 +260,8 @@
       try { kept = localStorage.getItem(`holo:${addressOf(path)}`) ?? ""; } catch { /* stockage refusé : on part du départ */ }
       states.set(path, resume(source, kept));
     }
+    // Les valeurs que la page écrit dans son adresse (ADR-091) : address: [tab, page].
+    addressNames = address_names(source).split(",").filter(Boolean);
     setClocks();
     sharedNames = shared_names(source).split(";").filter(Boolean);
     listenShared();
@@ -665,14 +668,41 @@
       (twin(again) ?? again.querySelector("button, a[href], input, select, textarea, summary"))?.focus({ preventScroll: true });
     }
   }
-  // Un nouvel état : la page le montre, le garde, et regarde quelles attentes courent.
-  function changeState(after) {
+  // Un nouvel état : la page le montre, le garde, et regarde quelles attentes courent. `step` :
+  // un toucher ou une touche, qui fait un pas dans l'historique s'il change l'adresse (ADR-091).
+  function changeState(after, step = false) {
     states.set(path, after);
     redrawLists();
     showValues();
     placePixels();
     keep();
     setDelays();
+    followAddress(step);
+  }
+
+  // L'historique dans la page (ADR-091) : les valeurs que la page nomme (address: [tab]) sont
+  // écrites dans son adresse, après les réglages du moteur (?values…). Un toucher ou une touche
+  // qui les change fait un pas, que « Précédent » défait ; le reste (ce qu'on écrit dans un champ,
+  // le temps, les données reçues) met l'adresse à jour sans faire de pas.
+  function followAddress(step) {
+    if (!addressNames.length || site || fromElsewhere(path) || fileAt(location.pathname) !== path) return;
+    const nameOf = (piece) => { try { return decodeURIComponent(piece.split("=")[0].replace(/\+/g, " ")); } catch { return piece; } };
+    const others = location.search.slice(1).split("&").filter((piece) => piece && !addressNames.includes(nameOf(piece)));
+    const own = address_query(source, states.get(path) ?? "");
+    const search = [...others, ...(own ? [own] : [])].join("&");
+    const wanted = search ? `?${search}` : "";
+    if (wanted === location.search) return;
+    history[step ? "pushState" : "replaceState"](history.state, "", location.pathname + wanted + location.hash);
+  }
+  // Les valeurs que dit l'adresse, reprises après un pas d'historique (« Précédent »). Vrai si
+  // elles ont changé quelque chose.
+  function readAddress() {
+    if (!addressNames.length) return false;
+    const before = states.get(path) ?? "";
+    const after = from_query(source, before, location.search.slice(1));
+    if (!after || after === before) return false;
+    changeState(store(after));
+    return true;
   }
 
   // Un geste vient de changer des valeurs : l'horloge de chacune repart de zéro. « Play » remet
@@ -829,7 +859,8 @@
     const after = store(arbitrate(source, before, signal));
     if (valuesPanel) lastGesture = { signal, before, after };
     // Ce qui apparaît ou disparaît déplace le reste de la page : changerLEtat replace les pixels.
-    if (after !== before) changeState(after);
+    // Un toucher ou une touche fait un pas dans l'historique, s'il change l'adresse (ADR-091).
+    if (after !== before) changeState(after, /\.tap(@\d+)?$/.test(signal) || signal.startsWith("Key."));
     restartClocks(signal);
     for (const effect of effects(source, signal).split(",").filter(Boolean)) {
       apply(effect, signal);
@@ -1769,6 +1800,10 @@
     // serveur après des touchers faits sans JavaScript. Le moteur repart de là.
     const visit = !location.hash.slice(1) && root.querySelector(".holo-Page")?.dataset.visit;
     if (visit) states.set(path, visit);
+    // Les valeurs que l'adresse porte après le « ? » (ADR-091), seulement celles que la page
+    // nomme : un lien partagé arrive sur le même onglet. Le serveur les a déjà posées sur la
+    // page qu'il a fabriquée ; les reposer ne change rien.
+    if (addressNames.length) states.set(path, from_query(source, states.get(path) ?? "", location.search.slice(1)) || states.get(path));
     const received = !visit && !location.hash.slice(1) && root.querySelector(".holo-Page")?.dataset.received;
     if (received) {
       const dataName = data(source).split("|")[2];
@@ -1803,7 +1838,9 @@
       // Un fichier d'ailleurs déjà lu pendant cette visite : le visiteur l'avait choisi. Sinon, on propose.
       if (sitePath.startsWith("@") && readFiles.has(sitePath.slice(1))) openFile(sitePath.slice(1), "", { inHistory: false });
       else if (sitePath.startsWith("@")) proposePassage(sitePath.slice(1));
-      else if (here !== path && here.endsWith(".holo")) openFile(here, sitePath, { inHistory: false });
+      else if (here !== path && here.endsWith(".holo")) openFile(here, sitePath, { inHistory: false }).then(readAddress);
+      // Un pas d'historique dans la page (ADR-091) : seules ses valeurs changent.
+      else if (sitePath === site && readAddress()) return;
       // Un lien vers un endroit de la page (ADR-042) : le navigateur y descend, rien d'autre.
       else if (pageSpot(sitePath)) return;
       else displaySite(sitePath, { inHistory: false });

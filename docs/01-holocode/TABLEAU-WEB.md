@@ -674,6 +674,7 @@
 |---|---|---|---|---|---|
 | — | `modifier la page (DOM)` | changer la page à la main | Refusé exprès | Non | Refusé (ADR-015) : c'est le moteur qui change la page. |
 | `Point(inside:), enter, leave ; profil/{id}.holo` | `routeur, historique` | changer de page sans recharger | Oui | Déjà là | Chaque monde a son adresse ; « retour » marche. Une adresse qui porte une valeur : profil/{id}.holo sert /profil/123, fabriquée par le serveur (ADR-078). |
+| `Page(address: [onglet, page])` | `history.pushState, URLSearchParams, popstate` | l'historique dans une page, une adresse qui se partage | Oui | Déjà là | Les valeurs nommées s'écrivent après le « ? » ; un toucher fait un pas que « Précédent » défait ; le serveur fabrique la page avec elles, même sans JavaScript (ADR-091). |
 | `import "commun.holo"` | `import de modules` | découper son code | En partie | Déjà là | — |
 
 ## JavaScript — Médias et appareil

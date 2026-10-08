@@ -1,0 +1,54 @@
+// Leçon 114 — L'historique dans une page
+//
+// Ce qu'on apprend :
+//   address: [onglet, page] écrit ces valeurs dans l'adresse de la page, après le « ? » :
+//   « 114-l-historique-dans-une-page.holo?onglet=aquarelles&page=2 ».
+//   Chaque toucher qui les change fait un pas : « Précédent », dans le navigateur ou par le
+//   geste retour du téléphone, revient à l'onglet d'avant ; « Suivant » y retourne.
+//   L'adresse se partage : qui l'ouvre arrive sur le même onglet, à la même page. Une valeur
+//   à son départ n'y est pas écrite : la page du début garde son adresse nue.
+//
+// À essayer :
+//   Touche « Aquarelles », puis « Page suivante » ; regarde l'adresse ; reviens en arrière
+//   avec le navigateur. Recharge : tu restes où tu étais.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 114 : l'historique dans une page",
+  state: State(onglet: "toiles", page: 1),
+  address: [onglet, page],
+  children: [
+    H1("L'atelier"),
+    Row(gap: 8px, children: [
+      Button(name: Toiles, text: "Toiles"),
+      Button(name: Aquarelles, text: "Aquarelles"),
+      Button(name: Dessins, text: "Dessins"),
+    ]),
+    If(onglet, is: "toiles", children: [ P.oeuvres("Les toiles : des huiles sur lin, du petit format au grand.") ]),
+    If(onglet, is: "aquarelles", children: [ P.oeuvres("Les aquarelles : des paysages, peints sur le motif.") ]),
+    If(onglet, is: "dessins", children: [ P.oeuvres("Les dessins : du fusain, de la sanguine, de l'encre.") ]),
+    P("Page {page}"),
+    Row(gap: 8px, children: [
+      If(page, over: 1, children: [ Button(name: Avant, text: "Page précédente") ]),
+      Button(name: Apres, text: "Page suivante"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 113 : une rangée qui se serre", to: "113-une-rangee-qui-se-serre.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+  rules: [
+    On(Toiles.tap, effect: [onglet.set("toiles"), page.set(1)]),
+    On(Aquarelles.tap, effect: [onglet.set("aquarelles"), page.set(1)]),
+    On(Dessins.tap, effect: [onglet.set("dessins"), page.set(1)]),
+    On(Apres.tap, effect: page.add(1)),
+    On(Avant.tap, effect: page.sub(1)),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.oeuvres { font-size: 20px; }

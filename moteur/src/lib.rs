@@ -27,6 +27,7 @@ pub mod format;
 pub mod gestures;
 pub mod seed;
 pub mod holo;
+pub mod history;
 pub mod lists;
 pub mod modules;
 pub mod mosaic;
@@ -704,6 +705,44 @@ pub fn to_keep(source: &str, state: &str) -> String {
     let texts: state::Texts = state::reread_texts(&program, state).into_iter().filter(|(name, _)| kept_values.contains(name)).collect();
     let lists: lists::Lists = lists::reread(&program, state).into_iter().filter(|(name, _)| kept_values.contains(name)).collect();
     [state::write(&numbers), state::write_texts(&texts), lists::write(&lists)].into_iter().filter(|chunk| !chunk.is_empty()).collect::<Vec<_>>().join(";")
+}
+
+/// L'historique dans une page (ADR-091) : les valeurs que l'adresse porte (`tab=photos&page=2`,
+/// telle qu'après le `?`), posées sur l'état. Seules celles que la page nomme (`address: [tab]`) ;
+/// une valeur absente ou mal écrite reprend son départ. L'état tel quel pour une page qui n'en
+/// nomme pas.
+pub fn from_query(source: &str, state: &str, query: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    state::requested_capabilities();
+    if history::names(&program).unwrap_or_default().is_empty() {
+        return state.to_string();
+    }
+    let (numbers, texts) = history::from_query(&program, &state::reread(&program, state), &state::reread_texts(&program, state), query);
+    write_all(&program, &numbers, &texts, &lists::reread(&program, state))
+}
+
+/// L'adresse que demandent les valeurs de la page, après le `?` : `tab=photos&page=2` ; vide
+/// quand elles sont toutes à leur départ (ADR-091).
+pub fn address_query(source: &str, state: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    history::query(&program, &state::reread(&program, state), &state::reread_texts(&program, state))
+}
+
+/// Les noms des valeurs que la page écrit dans son adresse : `tab,page` (ADR-091).
+pub fn address_names(source: &str) -> String {
+    check_page(source).ok().and_then(|program| history::names(&program).ok()).unwrap_or_default().join(",")
+}
+
+/// La page fabriquée par un serveur pour une adresse qui porte des valeurs après le `?`
+/// (ADR-091) : celles que la page nomme, sinon la page de départ.
+pub fn flat_view_at(source: &str, base: &str, query: &str) -> Result<String, Error> {
+    let program = check_page(source)?;
+    if query.is_empty() || history::names(&program)?.is_empty() {
+        return flat_view(source, base);
+    }
+    let written = from_query(source, &initial_state(source), query);
+    let start = (state::reread(&program, &written), state::reread_texts(&program, &written), lists::reread(&program, &written));
+    flat::site_html_from(&program, &program.root, base, "", Some(&start))
 }
 
 /// L'état de départ d'une page, avec ce qu'elle avait gardé d'une visite précédente.

@@ -1465,6 +1465,38 @@ Page(
 
 Cette écriture est proposée (`ADR-078`) ; la forme, l'adresse dite par le nom du fichier, est celle choisie par Yocthan. La leçon est `100-une-adresse-qui-porte-une-valeur.holo`.
 
+### L'historique dans une page : `address: [onglet, page]`
+
+```holo
+Page(
+  title: "Gallery",
+  state: State(tab: "paintings", page: 1),
+  address: [tab, page],
+  children: [
+    Row(gap: 8px, children: [
+      Button(name: Paintings, text: "Paintings"),
+      Button(name: Drawings, text: "Drawings"),
+    ]),
+    If(tab, is: "drawings", children: [ P("Charcoal, ink, red chalk.") ]),
+    P("Page {page}"),
+    Button(name: Next, text: "Next page"),
+  ],
+  rules: [
+    On(Paintings.tap, effect: [tab.set("paintings"), page.set(1)]),
+    On(Drawings.tap, effect: [tab.set("drawings"), page.set(1)]),
+    On(Next.tap, effect: page.add(1)),
+  ],
+)
+```
+
+- **`address: [tab, page]`** écrit ces valeurs dans l'adresse, après le `?` : `gallery.holo?tab=drawings&page=2`. Une valeur à son départ n'y est pas : la page du début garde son adresse nue.
+- **Un toucher ou une touche qui les change fait un pas** : « Précédent » revient à l'onglet d'avant, « Suivant » y retourne. Ce qu'on écrit dans un champ, le temps, les données reçues mettent l'adresse à jour sans faire de pas.
+- **L'adresse se partage** : la page arrive avec ses valeurs, fabriquée par le serveur, et même sans JavaScript avec `holo serve`.
+- Ce qui arrive par l'adresse vient de n'importe qui : seules les valeurs nommées sont reprises, dans leurs bornes ; un texte que la page n'écrit qu'avec des mots fixes (`tab.set("drawings")`, les options d'un `Choice`) n'en prend pas d'autre. Une valeur mal écrite part de son départ.
+- Refusés : une liste, une valeur gardée (`keep`), l'heure, une valeur du nom du fichier, et les noms que le moteur lit déjà dans une adresse (`values`, `view`, `zoom`, `x`, `y`…).
+
+Cette écriture est proposée (`ADR-091`) ; le nom `address:` est à valider par Yocthan. La leçon est `114-l-historique-dans-une-page.holo`.
+
 ## 6 tricies. Des valeurs partagées, en direct : `Shared`
 
 Une valeur que le serveur garde pour tout le monde : les places restantes, un compteur de « J'aime ». Chaque visiteur la voit changer en direct, sans recharger la page.

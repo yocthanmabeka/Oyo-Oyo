@@ -158,6 +158,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `meets:`, `within:` | aucun | nouveaux |
 | `drag:` | `draggable`, `pointermove` | changé : un réglage, rien à programmer |
 | `keep:` | `localStorage` | changé : une liste de noms, rien à programmer |
+| `address:` (sur `Page`) | `history.pushState`, `URLSearchParams`, `popstate` | changé : une liste de noms ; un toucher fait un pas d'historique, le serveur lit les mêmes valeurs (`ADR-091`, à valider) |
 | `x:`, `y:` | `left`, `top` | changés : de 0 à 100, jamais hors du plateau |
 | `by:` | `cite` | changé |
 | `is:`, `not:`, `over:`, `under:` | `===`, `!==`, `>`, `<` | changés : des mots, pas des signes |
