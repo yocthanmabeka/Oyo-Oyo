@@ -39,9 +39,36 @@ La même page `concert.holo` est utilisée par les essais Rust et Chrome. Elle e
 
 ## Résultats exécutés
 
-Au dépôt initial de cette contribution : tests Rust et Chrome ajoutés, mais pas encore exécutés. Les résultats de GitHub Actions seront inscrits ici après lecture des journaux, avec leur commit exact.
+Exécution sur GitHub Actions, Ubuntu 24.04, Rust 1.99 et Node 22, à partir du commit `5516a09767782e3b529406e8b6271df9ac3d74b1` (la CI vérifie sa fusion virtuelle dans la branche de la PR #177 ; elle ne fusionne aucune branche réelle).
 
-Le terminal local ne démarre pas (`helper_unknown_error: setup refresh had errors`). La revue automatique d'une tentative d'accès local n'a pas pu aboutir à cause de la limite d'utilisation. Aucun résultat du PC ou du téléphone n'est revendiqué.
+[Journaux du run 37745368544](https://github.com/yocthanmabeka/Oyo-Oyo/actions/runs/37745368544).
+
+| Commande ou contrôle | Résultat lu dans les journaux |
+|---|---|
+| `cargo test` (debug) | 178 réussis, 0 échec ; les cinq nouveaux tests sont exécutés. |
+| Compilation WebAssembly complète, en release | Réussie. |
+| Compilation WebAssembly légère, sans les fonctions de dessin, en release | Réussie. |
+| `cargo build --release --bin holo` | Réussie ; ce binaire sert le parcours Chrome sur HTTP. |
+| Vérification de structure de la suite de conformité | 22 cas (6 acceptés, 16 refusés) ; ce contrôle ne teste pas à lui seul la conformité du moteur. |
+| `node outils/browser-tests.mjs` | 37 parcours réussis, 0 échec, 101 leçons ouvertes ; 274 s pour cette exécution. |
+
+Le nouveau parcours rapporte :
+
+```text
+réservation sans JavaScript ; seconde forgée refusée (409) ; cart=777 et note=Eve ignorés ;
+état du compte intact après rechargement ; toucher et saisie normaux gardés ;
+miroir retardé : ordre et panier gardés
+```
+
+Commit de fusion virtuelle effectivement testé : `ad8a10e0a2e3266bd7bab3a207e4a01addaabba9`. Les corrections du moteur sont vérifiées par cette exécution ; les résultats ne sont pas des mesures sur le téléphone.
+
+Poids des `.wasm` bruts lus dans ce run : complet 3 671 486 octets, léger 636 038 octets. Ils sont identiques à la première exécution de cette correction du serveur. Ce ne sont ni des poids compressés transférés par HTTP ni des mesures de mémoire.
+
+Le premier passage Chrome (run 37744480404) avait donné 36 parcours réussis et un échec dans ma sonde : compteur absent de la page d'essai, et texte ajouté au nom au lieu de le remplacer. La sonde a été corrigée, puis la suite entière ci-dessus a été réexécutée. Les défauts initiaux du serveur sont établis par lecture du commit de base ; je ne présente pas une exécution de ce commit sans correction comme effectuée.
+
+`cargo test --release` n'a pas été exécuté dans cette session : la CI existante lance `cargo test` en debug. Le vrai serveur en release est en revanche compilé et exercé par le parcours HTTP. Le contrôle en release demandé par la tâche et l'essai sur le PC de Yocthan restent à faire avant intégration.
+
+Le terminal local ne démarre pas (`helper_unknown_error: setup refresh had errors`). La revue automatique d'une tentative d'accès local n'a pas pu aboutir à cause de la limite d'utilisation. Aucun résultat du PC de Yocthan ou de son téléphone n'est revendiqué.
 
 ## Objections et limites
 
