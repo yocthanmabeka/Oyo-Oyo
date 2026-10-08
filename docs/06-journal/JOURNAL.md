@@ -6,6 +6,15 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-08 — Les mesures du téléphone remises, la mesure de la batterie prête
+
+- Yocthan voulait mesurer la vitesse, la mémoire et la batterie, « jamais faite jusqu'au bout ». Le téléphone n'est plus apparu au PC : le câble avait pris un peu d'humidité. Yocthan : « n'attends pas mon téléphone […] il n'y en a pas aujourd'hui ».
+- Prêt pour la prochaine fois : `moteur/outils/mesures/duree.js`. Il fait zoomer et dézoomer le Big Bang 15 minutes, 6 secondes dans chaque sens, et garde l'écran allumé (Wake Lock). Il relève, minute par minute, les images par seconde, l'image la plus lente, le tas JavaScript et la batterie. Lancé par le câble, il continue seul câble débranché, car branché le téléphone se recharge et la batterie ne se mesure pas. Essayé une minute sur le PC, dans Chrome sans fenêtre : il compte, garde l'écran et rend ses chiffres. La marche à suivre complète est dans `proposals/Claude/telephone-2026-10-07/README.md`.
+- Resté sur le téléphone depuis le 2026-10-07 : « rester allumé » (`stay_on_while_plugged_in`) vaut 2 au lieu de 0, car le téléphone est parti avant la fin. À remettre au prochain branchement, ou par Yocthan dans les options de développement.
+- Erreur commise et corrigée : un commit de cette étape portait l'adresse e-mail personnelle de Yocthan, alors que le dépôt est public. Il a été refait avec l'adresse `noreply` de GitHub avant tout envoi, et la consigne a été donnée aux deux agents des lots 6 et 7. Sur la recommandation de Claude, Yocthan a coché « Keep my email addresses private » dans GitHub : les fusions faites par GitHub portaient jusque-là l'adresse de son compte.
+
+---
+
 ## 2026-10-08 — Les lots 6 et 7 commencés, d'autres tâches confiées à la session du nuage
 
 - Yocthan : « commence-les tous, et je suis d'accord avec tes recommandations », puis « utilise les agents, délaisse d'autres tâches à l'autre session pour qu'on aille rapidement ; à la fin, tu fusionnes ».
