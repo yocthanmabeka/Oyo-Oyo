@@ -1126,7 +1126,7 @@ mod tests {
         let half = session(&half);
         assert_eq!(header(&site.answer(&ask("GET", "/account", &half, b"")), "Location"), "/account/signin");
         assert_eq!(header(&site.answer(&ask("GET", "/members.holo", &half, b"")), "Location"), "/account/signin?next=/members.holo&for=members");
-        assert!(text(site.answer(&ask("GET", "/account/code", &half, b""))).contains("inputmode=\"numeric\""));
+        assert!(text(site.answer(&ask("GET", "/account/code", &half, b""))).contains("maxlength=\"40\""));
         // Un mauvais code ; le code déjà servi pour activer ; puis le suivant, qui ouvre la session.
         assert!(text(site.answer(&ask("POST", "/account/code", &half, format!("code={}", wrong_code(&pending, now)).as_bytes()))).contains("Ce code ne va pas"));
         assert!(text(site.answer(&ask("POST", "/account/code", &half, format!("code={:06}", code_at(&pending, used, 6)).as_bytes()))).contains("Ce code a déjà servi"));
