@@ -172,9 +172,9 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
             planted_pixel(planted, &mut body, &mut worlds, base, page)?;
         }
     }
-    let title = match page.argument("title").map(|a| &a.value) {
-        Some(Value::Text(t)) => escape(t),
-        _ => escape(title),
+    let title_model = match page.argument("title").map(|a| &a.value) {
+        Some(Value::Text(t)) => t.as_str(),
+        _ => title,
     };
     // Un monde ouvert en grand prend le thème de la page, puis son propre style.
     let classes = match page.name.as_str() {
@@ -190,6 +190,10 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
     // Les conditions, à leur départ : ce qui est faux est caché dès le premier affichage (ADR-025).
     // La réponse vient de `etat::conditions`, comme après chaque changement : une condition
     // n'est décidée qu'à un seul endroit.
+    // Le titre lit les valeurs (ADR-090) : écrit ici avec celles du départ ; la page le récrit
+    // quand elles changent, si elle en lit (`data-title-model`).
+    let title = escape(&plain_text(title_model, &shown, &texts));
+    let title_follows = if title_model.contains('{') { " data-title-model" } else { "" };
     let responses = crate::state::conditions(program, &shown, &texts);
     let conditions = |html: String| fill_marks(html, &shown, &texts, &responses);
     body = conditions(body);
@@ -303,10 +307,45 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
         }
     }
     Ok(format!(
-        "<style>{}{BASE}{}</style><div class=\"{classes}\" data-title=\"{title}\"{live}{share}>{header}<main>{body}</main>{footer}{worlds}</div>",
+        "<style>{}{BASE}{}</style><div class=\"{classes}\" data-title=\"{title}\"{title_follows}{live}{share}>{header}<main>{body}</main>{footer}{worlds}</div>",
         fonts(&program.root, base)?,
         css(program, base)
     ))
+}
+
+/// Un texte sans balises, ses valeurs écrites (ADR-090) : le titre d'une page, « Profil de ada ».
+/// Un nombre prend son format (`{n:cents}`), ou ses chiffres après la virgule ; un texte, tel quel.
+pub fn plain_text(text: &str, shown: &crate::state::State, texts: &crate::state::Texts) -> String {
+    let language = crate::format::language();
+    let mut output = String::new();
+    let mut remainder = text;
+    while let Some(start) = remainder.find('{') {
+        output.push_str(&remainder[..start]);
+        remainder = &remainder[start + 1..];
+        let Some(end) = remainder.find('}') else {
+            output.push('{');
+            break;
+        };
+        let inside = &remainder[..end];
+        let (name, format) = inside.split_once(':').map_or((inside, None), |(name, format)| (name, Some(format)));
+        if let Some((_, text)) = texts.iter().find(|(known, _)| known == name) {
+            output.push_str(text);
+        } else if let Some((_, value)) = shown.iter().find(|(known, _)| known == name) {
+            let places = crate::format::decimal_places(name);
+            output.push_str(&match format {
+                Some(format) => crate::format::format_value(name, *value, format, &language),
+                None if places > 0 => crate::format::format_value(name, *value, &format!("d{places}"), &language),
+                None => value.to_string(),
+            });
+        } else {
+            output.push('{');
+            output.push_str(inside);
+            output.push('}');
+        }
+        remainder = &remainder[end + 1..];
+    }
+    output.push_str(remainder);
+    output
 }
 
 /// Remplit les marques laissées dans le HTML en cours de fabrication : la condition d'un `If`,
@@ -2380,4 +2419,25 @@ H1 { colour: red; }").split(" : ").next(), Some("ligne 2, colonne 6"));
         assert!(!crate::flat_view("Page(zoom: Zoom(detach: true), children: [ \"a\" ])", "").unwrap().contains("data-zoom"));
     }
 
+}
+
+#[cfg(test)]
+mod title_tests {
+    #[test]
+    fn the_title_reads_the_values_of_the_page() {
+        let shop = "Page(title: \"Mon panier ({cart}) : {price} €\", state: State(cart: 2, price: 12.50), children: [ H1(\"Panier\") ])";
+        let html = crate::flat_view(shop, "").unwrap();
+        assert!(html.contains("data-title=\"Mon panier (2) : 12,50 €\" data-title-model"), "{html}");
+        assert_eq!(crate::page_title(shop, "cart=5;price=999"), "Mon panier (5) : 9,99 €");
+        // Un titre sans valeur ne change pas, et ne demande rien à la page.
+        let plain = crate::flat_view("Page(title: \"Bienvenue\", children: [ H1(\"Oui\") ])", "").unwrap();
+        assert!(plain.contains("data-title=\"Bienvenue\">"), "{plain}");
+        // La valeur d'une adresse (ADR-078) : le profil de chacun a son titre.
+        let profile = "Page(title: \"Le profil de {nom}\", children: [ H1(\"Bonjour\") ])";
+        let html = crate::flat_view(&crate::address::joined(profile, &[("nom".to_string(), "Ad%C3%A9".to_string())]), "").unwrap();
+        assert!(html.contains("data-title=\"Le profil de Adé\""), "{html}");
+        // Un nom inconnu dans le titre est refusé, comme dans un texte.
+        let error = crate::check_page("Page(title: \"Panier ({rien})\", children: [])").unwrap_err();
+        assert!(error.message.contains("aucune valeur ne s'appelle « rien »"), "{error}");
+    }
 }

@@ -111,6 +111,8 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 101 | [Une valeur partagée](101-une-valeur-partagee.holo) | `shared: Shared(seats: 20, likes: 0)`, `{seats}`, `If(seats, over: 0, …)`, `seats.sub(1)` par un toucher ; le serveur arbitre et l'envoie en direct à toutes les pages ouvertes |
 | 110 | [Un module qui dessine](110-un-module-qui-dessine.holo) | `Drawing(shapes: fleur)`, une liste de formes rendue par un module |
 | 111 | [Un chronomètre](111-un-chronometre.holo) | `Stopwatch`, `start`, `stop`, `reset`, `stopped`, `{temps:stopwatch}` |
+| 112 | [Une adresse qui se souvient](112-une-adresse-qui-se-souvient.holo) | `keep` dans un modèle d'adresse, `112-carnets/{nom}.holo` : chaque adresse garde ses valeurs ; `title: "Le carnet de {nom} : {pages} page(s)"` |
+| 113 | [Une rangée qui se serre](113-une-rangee-qui-se-serre.holo) | `narrow: { … }` dans les cases d'un `Row` : `.carte { width: 45%; narrow: { padding: 8px; } }` |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 

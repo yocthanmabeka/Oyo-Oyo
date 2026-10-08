@@ -1956,6 +1956,8 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
         for argument in &block.arguments {
             match (&argument.name.as_deref(), &argument.value) {
                 (None | Some("text"), Value::Text(text)) => check_text(text, argument.pos)?,
+                // Le titre d'une page lit les valeurs, comme un texte (ADR-090) : « Profil de {id} ».
+                (Some("title"), Value::Text(text)) if block.name == "Page" => check_text(text, argument.pos)?,
                 // Les phrases seules et les lignes d'une liste.
                 (Some("children" | "else"), Value::List(elements)) => {
                     for element in elements {

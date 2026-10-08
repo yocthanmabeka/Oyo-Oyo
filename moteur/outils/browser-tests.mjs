@@ -384,6 +384,33 @@ const tests = [
     const ok = ticked && atRest === "00:00,00" && running !== atRest && later !== running && stopped === still && written && timer === "timer" && reset === "00:00,00";
     return [ok, `la seconde change : ${ticked} ; au repos ${atRest}, en marche ${running} puis ${later}, arrêté ${stopped} (fixe : ${stopped === still}) ; écrit dessous : ${written} ; role=${timer} ; remis à zéro : ${reset}`];
   }],
+  ["un titre qui lit les valeurs, des valeurs gardées par adresse, narrow dans un Row (leçons 112 et 113)", async (p, b) => {
+    const pages = () => p.value(`document.getElementById("page").innerText.match(/(\\d+) page\\(s\\)/)?.[1]`);
+    await p.open("/exemples/lecons/112-carnets/ada", 300);
+    await p.value(`localStorage.clear()`);
+    await p.open("/exemples/lecons/112-carnets/ada");
+    const titleAda = await p.value("document.title");
+    await p.click('[data-name="Ecrire"]');
+    await p.until(`document.getElementById("page").innerText.includes("1 page(s)")`, 40000);
+    await p.click('[data-name="Ecrire"]');
+    await p.until(`document.getElementById("page").innerText.includes("2 page(s)")`, 5000);
+    const titleFollows = await p.until(`document.title === "Le carnet de ada : 2 page(s)"`, 3000);
+    await p.open("/exemples/lecons/112-carnets/bob");
+    const titleBob = await p.value("document.title");
+    const bob = await pages();
+    await p.open("/exemples/lecons/112-carnets/ada");
+    await p.until("window.__holoStarted === true", 40000);
+    const ada = await p.until(`document.getElementById("page").innerText.includes("2 page(s)")`, 5000);
+    // Une case de Row de moins de 320px est « étroite » : sur un ordinateur non, sur un téléphone oui.
+    await b.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
+    await p.open("/exemples/lecons/113-une-rangee-qui-se-serre.holo");
+    const wide = await p.until(`[...document.querySelectorAll(".holo-s-carte")].length === 2 && ![...document.querySelectorAll(".holo-s-carte")].some((c) => c.classList.contains("holo-narrow"))`, 5000);
+    await b.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 800, deviceScaleFactor: 1, mobile: true });
+    const narrow = await p.until(`[...document.querySelectorAll(".holo-s-carte")].every((c) => c.classList.contains("holo-narrow") && getComputedStyle(c).paddingTop === "8px")`, 5000);
+    await b.send("Emulation.clearDeviceMetricsOverride");
+    const ok = titleAda === "Le carnet de ada : 0 page(s)" && titleFollows && titleBob === "Le carnet de bob : 0 page(s)" && bob === "0" && ada && wide && narrow;
+    return [ok, `titres : ${titleAda} / ${titleBob} ; le titre suit les pages : ${titleFollows} ; Bob : ${bob} page ; Ada garde ses 2 pages : ${ada} ; cartes larges sur ordinateur : ${wide} ; étroites sur téléphone : ${narrow}`];
+  }],
   ["un module enfermé rend son nombre", async (p) => {
     await p.open("/exemples/lecons/69-module-enferme.holo");
     await p.click('[data-name="Calculer"]');

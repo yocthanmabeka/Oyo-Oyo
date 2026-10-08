@@ -6,6 +6,19 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-08 — Trois dettes des lots 4 et 5 : un titre qui lit les valeurs, `narrow:` dans un `Row`, `keep` par adresse
+
+- Fait (`ADR-090`, PROPOSITION ; une des tâches confiées par Yocthan à la session du nuage) : `Page(title: "Le carnet de {nom} : {pages} page(s)")` écrit les valeurs dans l'onglet, et le récrit quand elles changent ; `narrow: { … }` vaut aussi dans les cases de `Row` et de `Column` ; les valeurs gardées (`keep`) sont rangées sous l'adresse, une par adresse d'un modèle. Leçons 112 (et son modèle `112-carnets/{nom}.holo`) et 113 ; la leçon 100 a un titre par profil.
+- Exécuté : `cargo test` → 157 tests passent (un nouveau : `the_title_reads_the_values_of_the_page`) ; dans Chrome, l'essai « un titre qui lit les valeurs, des valeurs gardées par adresse, narrow dans un Row » passe.
+
+**Erreurs en route**
+
+- La page légère vérifiait les valeurs gardées sous le nom du fichier, le moteur les rangeait sous l'adresse : le carnet d'Ada ne retrouvait pas ses pages. Les deux lisent maintenant l'adresse.
+- Ma première leçon 113 ne se serrait jamais sur un téléphone : dans un `Row`, deux longues cartes passent chacune à la ligne et reçoivent toute la largeur (358px). Puis elle se serrait aussi sur un ordinateur : la page fait 640px, deux cartes côte à côte y ont moins de 320px. La leçon donne 45% de la rangée à chaque carte, dans une page élargie à 960px.
+- La suite entière a trouvé mon erreur suivante : en mesurant tous les blocs d'un `Row` et d'un `Column`, la leçon 89 avait 11 cases « étroites » au lieu de 3 (ses titres, ses liens). Un lien court mesure moins de 320px par son seul texte, même sur un grand écran. Seules les cases qui reçoivent une part de la place (`grow:`, une largeur en %) sont mesurées. Et dans Chrome, une règle CSS ordinaire a aussi sa liste de règles imbriquées (vide) : ma première lecture des styles s'y perdait.
+
+---
+
 ## 2026-10-08 — Les secondes, et un chronomètre (tâche confiée à la session du nuage)
 
 - Confié par Yocthan à la session du nuage, avec trois autres tâches (tableau « Qui fait quoi », PR 175 de la session du PC) ; la session du PC l'a fait savoir par un message, que la session du nuage ne peut pas encore lui rendre.
