@@ -47,7 +47,7 @@ export function accountDebtTests({engine,phone,page,startHoloServe,pause,totp,st
   const served=await startHoloServe(["104-se-connecter.holo","106-le-panier-qui-suit-le-compte.holo"]),q=page(b,served.base);
   try{
    await b.send("Network.clearBrowserCookies");await create(q,"EraseMe");
-   await q.open("/106-le-panier-qui-suit-le-compte.holo",200);await q.click("[data-name=Add]");check(await q.until("document.getElementById('page').innerText.includes('Dans le panier : 1')"),"panier absent");
+   await q.open("/106-le-panier-qui-suit-le-compte.holo",200);await q.click("[data-name=Ajouter]");check(await q.until("document.getElementById('page').innerText.includes('Dans le panier : 1')"),"panier absent");
    const db=new DatabaseSync(join(served.folder,"holo-data","site.sqlite"));let id,backup;
    try{id=db.prepare("SELECT id FROM accounts WHERE name='EraseMe'").get().id;db.prepare("INSERT INTO messages(received,page,form,submission,account) VALUES(1,'/x','X','{}',?)").run(id);}finally{db.close();}
    await pause(1100);
