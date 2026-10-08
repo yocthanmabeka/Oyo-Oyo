@@ -34,6 +34,16 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-08 — Les lots 6 et 7 commencés, d'autres tâches confiées à la session du nuage
+
+- Yocthan : « commence-les tous, et je suis d'accord avec tes recommandations », puis « utilise les agents, délaisse d'autres tâches à l'autre session pour qu'on aille rapidement ; à la fin, tu fusionnes ».
+- Ses recommandations acceptées : le lot 6 partage d'abord une valeur gardée par le serveur pour tout le monde, vue en direct, le serveur arbitrant ; le lot 7 se connecte par un mot de passe et un code à 6 chiffres, puis par des clés d'accès, tout chez l'auteur ; les liens remontent d'un dossier (`ADR-078`).
+- Deux agents de la session du PC construisent les lots 6 (`langage/lot6-partage`) et 7 (`langage/lot7-comptes`), chacun dans son dossier ; la session principale fait les mesures du téléphone, relit et fusionne.
+- Confiés à la session du nuage, en plus du lot 9 : les secondes et un chronomètre, une sélection de polices libres, l'historique dans une page, trois petites dettes des lots 4 et 5 (le tableau « Qui fait quoi »).
+- Le même soir, Yocthan a essayé au doigt les leçons 1 à 100 sur son Galaxy Z Flip 5 : tout marche, les lots 4 et 5 compris. Restent les mesures par le câble.
+
+---
+
 ## 2026-10-08 — Le dépôt devient public, sous un autre nom : `Oyo-Oyo`
 
 - Décidé par Yocthan : passer le dépôt en public, pour que les tests de GitHub repartent (ils sont gratuits pour un dépôt public ; les minutes gratuites d'un dépôt privé étaient épuisées), et le renommer pour qu'il attire moins l'œil. Son choix : « Oyo Oyo ». GitHub n'accepte pas d'espace : `yocthanmabeka/Oyo-Oyo`. L'ancienne adresse redirige.
