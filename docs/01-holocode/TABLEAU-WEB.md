@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-07). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (377 mots : 344 décidés, 33 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (378 mots : 344 décidés, 34 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (130) et ce que HoloCode en a.
 - **Existe ?** : le jugement de Claude, élément par élément (oui, en partie, non) ; ce n’est pas une mesure. Le tableau ne donne pas de pourcentage : aucune méthode reproductible ne mesure la part d’un élément du web qu’on obtient en HoloCode (consigne de Yocthan du 2026-10-07). Les comptes se refont en comptant les lignes.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,7 +9,7 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 377 mots | 344 décidés, 33 à l’essai |
+| **HoloCode** | 378 mots | 344 décidés, 34 à l’essai |
 | HTML | 62 éléments | 51 oui, 5 en partie, 3 non, 3 refusés |
 | CSS | 34 éléments | 28 oui, 4 en partie, 0 non, 2 refusés |
 | JavaScript | 34 éléments | 16 oui, 10 en partie, 6 non, 1 refusés, 1 sans objet |
@@ -459,6 +459,7 @@
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `module "…"` | Annoncer un module en haut du fichier | `script src` | Décidé (ADR-045) |
+| `{id} dans le nom du fichier` | Une adresse qui porte une valeur : profil/{id}.holo sert /profil/123 ; la page lit {id}, sans le changer | `[id] (Next.js), :id (Express)` | À l’essai (ADR-078) |
 
 # Partie 2 — HoloCode face à HTML, CSS et JavaScript
 
@@ -533,7 +534,7 @@
 | En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|
 | `Button(name:, text:)` | `button` | un bouton | Oui | Déjà là | — |
-| `Form(name:), Contact.send, sent, failed` | `form (envoyer)` | envoyer des réponses à un serveur | Oui | Déjà là | Vers le serveur local (décision de Yocthan), un fichier compris (ADR-042, ADR-059). |
+| `Form(name:), Contact.send, sent, failed` | `form (envoyer)` | envoyer des réponses à un serveur | Oui | Déjà là | Vers le serveur local (décision de Yocthan), un fichier compris (ADR-042, ADR-059). Avec holo serve, vérifié à nouveau par le moteur et rangé dans holo-data/site.sqlite, avec ou sans JavaScript, et ses copies (ADR-075, ADR-076). |
 | `Input(value:, label:, max:)` | `input texte, nombre` | un champ | Oui | Déjà là | — |
 | `Checkbox(value:, label:)` | `input checkbox` | une case à cocher | Oui | Déjà là | — |
 | `Choice(value:, label:, options:)` | `input radio` | un choix parmi plusieurs | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
@@ -668,7 +669,7 @@
 | En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|
 | — | `modifier la page (DOM)` | changer la page à la main | Refusé exprès | Non | Refusé (ADR-015) : c'est le moteur qui change la page. |
-| `Point(inside:), enter, leave` | `routeur, historique` | changer de page sans recharger | Oui | Déjà là | Chaque monde a son adresse ; « retour » marche. |
+| `Point(inside:), enter, leave ; profil/{id}.holo` | `routeur, historique` | changer de page sans recharger | Oui | Déjà là | Chaque monde a son adresse ; « retour » marche. Une adresse qui porte une valeur : profil/{id}.holo sert /profil/123, fabriquée par le serveur (ADR-078). |
 | `import "commun.holo"` | `import de modules` | découper son code | En partie | Déjà là | — |
 
 ## JavaScript — Médias et appareil

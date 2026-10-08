@@ -167,6 +167,16 @@
   (() => {
     const root = document.getElementById("page");
     const toggle = document.getElementById("toggle");
+    // Une page de holo serve (ADR-074) : avec JavaScript, ses boutons et ses champs quittent le
+    // formulaire des gestes et redeviennent ceux de la page ; le moteur les prend comme ailleurs,
+    // jusqu'à la touche Entrée d'un `Form`, qui l'envoie.
+    for (const field of root.querySelectorAll('[form="holo-gestures"]')) {
+      if (field.type === "hidden") field.remove();
+      else {
+        field.removeAttribute("form");
+        if (field.type === "submit") field.type = "button";
+      }
+    }
     // Ce qui entre quand on le voit (Enter(inView: true), ADR-061) : son mouvement attend que le
     // bloc arrive à l'écran. Sans JavaScript, rien n'attend : tout se voit d'emblée.
     document.documentElement.classList.add("holo-js");
@@ -312,8 +322,10 @@
     const spot = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)));
     if (!root.querySelector("[data-title]") || root.querySelector("[data-live]") || location.search || (location.hash && !spot)) load();
     // Des valeurs gardées d'une visite précédente (keep) : le moteur les remet. Le visiteur est
-    // déjà venu, son navigateur a sans doute gardé le moteur.
-    try { if (localStorage.getItem(`holo:${location.pathname}`)) load(); } catch { /* stockage refusé */ }
+    // déjà venu, son navigateur a sans doute gardé le moteur. Elles sont rangées sous le nom du
+    // fichier, celui que le serveur nomme dans l'en-tête s'il l'a fait (ADR-078).
+    const file = document.querySelector('meta[name="holo-file"]')?.getAttribute("content") || location.pathname;
+    try { if (localStorage.getItem(`holo:${file}`)) load(); } catch { /* stockage refusé */ }
   })();
 </script>
 </body></html>

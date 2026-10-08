@@ -1,0 +1,28 @@
+// Leçon 100 — Le fichier qui sert les profils
+//
+// Ce fichier s'appelle {nom}.holo : il sert toutes les adresses …/100-profils/ada,
+// …/100-profils/yocthan, …/100-profils/Adé. La fin de l'adresse arrive dans la valeur « nom » :
+// la page la lit comme ses autres valeurs, sans pouvoir la changer. La leçon est un dossier plus
+// haut : 100-une-adresse-qui-porte-une-valeur.holo.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 100 : un profil",
+  children: [
+    H1("Bonjour, {nom}"),
+    P("Cette page est la même pour tous les profils : seule la fin de l'adresse change."),
+    If(nom, is: "yocthan", children: [
+      P("C'est toi qui as décidé que l'adresse se dirait par le nom du fichier."),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 100 : une adresse qui porte une valeur", to: "../100-une-adresse-qui-porte-une-valeur.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
