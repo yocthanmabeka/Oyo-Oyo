@@ -196,7 +196,7 @@ pub fn answer(site:&Site,ask:&Ask,path:&str)->Option<Reply>{
     let label=get("label").trim();if label.is_empty()||label.chars().count()>60||label.chars().any(char::is_control){return Some(error(400,"Nom de clé : 1 à 60 caractères."));}
     let count:i64=base.query_row("SELECT COUNT(*) FROM passkeys WHERE account=?1",params![m.id],|r|r.get(0)).unwrap_or(MAX_KEYS);
     if count>=MAX_KEYS{return Some(error(409,"Huit clés au plus."));}
-    if base.execute("INSERT INTO passkeys(id,account,key,counter,backed,label,created)VALUES(?1,?2,?3,?4,?5,?6,?7)",params![b64(&id),m.id,key,i64::from(counter),i64::from(backed),label,now as i64]).is_err(){return Some(error(409,"Clé déjà connue ou compte retiré."));}
+    if base.execute("INSERT INTO passkeys(id,account,key,counter,backed,label,created)SELECT ?1,?2,?3,?4,?5,?6,?7 WHERE EXISTS(SELECT 1 FROM accounts WHERE id=?2)",params![b64(&id),m.id,key,i64::from(counter),i64::from(backed),label,now as i64]).ok()!=Some(1){return Some(error(409,"Clé déjà connue ou compte retiré."));}
     Some(json(200,"{\"next\":\"/account/passkeys\"}",None))
    }else{
     let row:Option<(i64,Vec<u8>,u32,bool)>=base.query_row("SELECT p.account,p.key,p.counter,p.backed FROM passkeys p JOIN accounts a ON a.id=p.account WHERE p.id=?1",params![b64(&id)],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).optional().ok().flatten();

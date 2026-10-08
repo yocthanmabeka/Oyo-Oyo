@@ -927,7 +927,7 @@ fn erase_in(base: &mut Connection, member: &Member, at: u64, extra_files: &[Stri
     tx.execute("DELETE FROM recoveries WHERE account=?1",params![member.id]).map_err(|e|e.to_string())?;
     tx.execute("DELETE FROM visits WHERE visitor=?1",params![member.visit_key()]).map_err(|e|e.to_string())?;
     tx.execute("DELETE FROM messages WHERE account=?1",params![member.id]).map_err(|e|e.to_string())?;
-    tx.execute("DELETE FROM attempts WHERE key=?1 OR key=?2 OR key=?3",params![name_key(&member.name),format!("code:{}",member.id),format!("delete:{}",member.id)]).map_err(|e|e.to_string())?;
+    tx.execute("DELETE FROM attempts WHERE key=?1 OR key=?2 OR key=?3 OR key=?4",params![name_key(&member.name),format!("code:{}",member.id),format!("delete:{}",member.id),format!("passkey:{}",member.id)]).map_err(|e|e.to_string())?;
     tx.execute("DELETE FROM accounts WHERE id=?1",params![member.id]).map_err(|e|e.to_string())?;
     tx.commit().map_err(|e|e.to_string())?;
     Ok(())
@@ -1366,6 +1366,8 @@ mod tests {
             base.execute("INSERT INTO visits(visitor,page,state,updated) VALUES(?1,'/cart.holo','cart=2',1)",params![member.visit_key()]).unwrap();
             base.execute("INSERT INTO messages(received,page,form,submission,files,account) VALUES(1,'/cart.holo','Order','{}',?1,?2)",params![r#"[{"file":"files/cart/photo.png"}]"#,member.id]).unwrap();
             new_recoveries(&base,member.id,b"secret").unwrap();
+            base.execute("INSERT INTO passkeys VALUES('public-key',?1,?2,0,0,'Ma clé',1)",params![member.id,vec![4u8;65]]).unwrap();
+            base.execute("INSERT INTO passkey_challenges VALUES('browser',?1,'nonce','create','http://localhost','session',1)",params![member.id]).unwrap();
         }
         let backup=crate::server::backup(&folder).unwrap();
         assert_eq!(site.answer(&ask("GET","/account/delete",&cookie,b"")).status,200);
@@ -1376,7 +1378,7 @@ mod tests {
         assert!(member_of(&site,&cookie).is_none());assert!(member_of(&site,&other).is_some());
         assert!(!data.join("files/cart/photo.png").exists());
         for db in [Connection::open(data.join("site.sqlite")).unwrap(),Connection::open(&backup).unwrap()] {
-            for sql in ["SELECT COUNT(*) FROM accounts WHERE id=?1","SELECT COUNT(*) FROM sessions WHERE account=?1","SELECT COUNT(*) FROM recoveries WHERE account=?1","SELECT COUNT(*) FROM messages WHERE account=?1"]{
+            for sql in ["SELECT COUNT(*) FROM accounts WHERE id=?1","SELECT COUNT(*) FROM sessions WHERE account=?1","SELECT COUNT(*) FROM recoveries WHERE account=?1","SELECT COUNT(*) FROM messages WHERE account=?1","SELECT COUNT(*) FROM passkeys WHERE account=?1","SELECT COUNT(*) FROM passkey_challenges WHERE account=?1"]{
                 assert_eq!(db.query_row(sql,params![member.id],|r|r.get::<_,i64>(0)).unwrap(),0, "{sql}");
             }
             assert_eq!(db.query_row("SELECT COUNT(*) FROM visits WHERE visitor=?1",params![member.visit_key()],|r|r.get::<_,i64>(0)).unwrap(),0);
