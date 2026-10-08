@@ -61,11 +61,23 @@ function engineOf(document) {
   return null;
 }
 
+// Un modèle d'adresse (profil/{id}.holo, ADR-078) : chaque nom tiré du chemin du document vaut
+// un texte vide, comme quand holo check vérifie le fichier lui-même. Le texte arrive par l'entrée
+// standard : le moteur ne voit pas ce nom, on le lui donne par HOLO_ADDRESS.
+function engineEnvironment(fsPath) {
+  const env = { ...process.env };
+  delete env.HOLO_ADDRESS;
+  const names = fsPath.split(/[\\/]/).map((piece) => /^\{(.*)\}$/.exec(piece.replace(/\.holo$/, ""))?.[1]).filter((name) => name !== undefined);
+  if (names.length) env.HOLO_ADDRESS = names.map((name) => `${name}=`).join("&");
+  return env;
+}
+
 // Le texte tel qu'il est dans l'éditeur, même pas encore enregistré, passe par l'entrée standard.
 function checkText(engine, document) {
+  const env = engineEnvironment(document.uri.fsPath);
   return new Promise((resolve) => {
     let output = "";
-    const process = spawn(engine, ["check", "-", path.dirname(document.uri.fsPath)], { windowsHide: true });
+    const process = spawn(engine, ["check", "-", path.dirname(document.uri.fsPath)], { windowsHide: true, env });
     const stop = setTimeout(() => process.kill(), 5000);
     process.stdout.setEncoding("utf8").on("data", (chunk) => { output += chunk; });
     process.on("error", () => { clearTimeout(stop); resolve(null); });

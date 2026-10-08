@@ -247,6 +247,30 @@ pub fn arbitrate(source: &str, state: &str, signal: &str) -> String {
     crate::arbitrate(source, state, signal)
 }
 
+/// Les valeurs que la page partage (ADR-079) : `seats;likes`.
+#[wasm_bindgen]
+pub fn shared_names(source: &str) -> String {
+    crate::shared_names(source)
+}
+
+/// Les valeurs partagées d'un état : `seats=19;likes=3`.
+#[wasm_bindgen]
+pub fn shared_of(source: &str, state: &str) -> String {
+    crate::shared_of(source, state)
+}
+
+/// L'état de la page avec les valeurs partagées reçues du serveur.
+#[wasm_bindgen]
+pub fn with_shared(source: &str, state: &str, shared: &str) -> String {
+    crate::with_shared(source, state, shared)
+}
+
+/// Ce toucher change-t-il une valeur partagée ? Le serveur l'arbitre alors.
+#[wasm_bindgen]
+pub fn touches_shared(source: &str, signal: &str) -> bool {
+    crate::touches_shared(source, signal)
+}
+
 /// Le fichier `.holo` d'un seul point de la page, pour ouvrir sa vue en profondeur.
 #[cfg(feature = "drawing")]
 #[wasm_bindgen]

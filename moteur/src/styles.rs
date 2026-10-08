@@ -649,6 +649,8 @@ mod tests {
             include_str!("../../exemples/lecons/97-un-module-qui-recoit-une-liste.holo"),
             include_str!("../../exemples/lecons/98-un-dessin.holo"),
             include_str!("../../exemples/lecons/99-un-tableau-de-bord.holo"),
+            // Les valeurs partagées (ADR-079).
+            include_str!("../../exemples/lecons/101-une-valeur-partagee.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();
