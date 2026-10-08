@@ -61,6 +61,17 @@ export function webTests({ repo, engine, phone, page, startHoloServe, startChrom
     return q.value('window.axe.run(document, {resultTypes:["violations"]}).then(r => r.violations.map(v => ({id:v.id, nodes:v.nodes.map(n=>n.html.slice(0,160))})))');
   }
   return [
+    ["parcours : tous les tests Rust en mode release", async () => {
+      // Le serveur distribué est optimisé : éprouver aussi les invariants sous ce profil.
+      // Le même dossier et le même Cargo.lock sont utilisés, sans dépendance ajoutée.
+      const result = spawnSync("cargo", ["test", "--release", "--locked"], {
+        cwd: engine, encoding: "utf8", timeout: 300000, maxBuffer: 4 * 1024 * 1024,
+      });
+      check(result.status === 0, "cargo test --release --locked : " + (result.error?.message ?? "") + "\n" + result.stdout + result.stderr);
+      const summary = result.stdout.match(/test result: ok\. (\d+) passed; 0 failed/);
+      check(summary && Number(summary[1]) >= 180, "résumé des tests Rust absent ou incomplet");
+      return [true, summary[1] + " tests Rust optimisés réussis ; cargo test --release --locked"];
+    }],
     ["parcours : les pages et le catalogue se vérifient avec holo", async () => {
       const folder = join(repo, "exemples", "parcours");
       const paths = [];
