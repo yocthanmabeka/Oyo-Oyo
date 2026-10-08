@@ -13,7 +13,7 @@
 //! )
 //! ```
 //!
-//! Une liste est une valeur de la page : des textes, cent au plus. Elle ne change que par un geste
+//! Une liste est une valeur de la page : des textes, deux cents au plus. Elle ne change que par un geste
 //! du visiteur (une règle `On`), par trois demandes : `push` ajoute un texte, `remove` retire
 //! l'élément d'une ligne, `clear` vide la liste. Une valeur de texte se vide ou se remplit par
 //! `set` : `task.set("")`. `Repeat(over: tasks, …)` montre la liste, une ligne par élément ; dans
@@ -44,7 +44,7 @@ pub fn running() -> Lists {
 }
 
 /// Le nombre d'éléments d'une liste, au plus, et la longueur d'un élément (ou d'un champ).
-pub const ELEMENTS_MAX: usize = 100;
+pub const ELEMENTS_MAX: usize = 200;
 pub const ELEMENT_MAX: usize = 200;
 /// Le nombre de champs d'un élément, au plus (ADR-051).
 pub const FIELDS_MAX: usize = 16;
@@ -245,7 +245,7 @@ fn written_element(value: &Value) -> Option<String> {
 }
 
 /// Vérifie une liste déclarée : des textes, ou des `Item(…)` qui ont tous les mêmes champs ;
-/// cent éléments au plus, de deux cents caractères au plus.
+/// deux cents éléments au plus, de deux cents caractères au plus.
 pub fn check_declaration(argument: &Argument) -> Result<(), Error> {
     let Value::List(elements) = &argument.value else { return Ok(()) };
     let refusal = |message: String| Err(Error { message, pos: argument.pos });

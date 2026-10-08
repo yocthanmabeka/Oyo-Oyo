@@ -17,6 +17,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { webTests } from "../../proposals/GPT5.6/web-viable-2026-10-08/browser-tests.mjs";
 
 const engine = fileURLToPath(new URL("..", import.meta.url));
 const repo = resolve(engine, "..");
@@ -1406,6 +1407,8 @@ const tests = [
     return [faults.length === 0, faults.length ? faults.join("\n      ") : "réservation sans JavaScript ; seconde forgée refusée (409) ; cart=777 et note=Eve ignorés ; état du compte intact après rechargement ; toucher et saisie normaux gardés ; miroir retardé : ordre et panier gardés"];
   }],
 ];
+
+tests.push(...webTests({ repo, engine, phone, page, startHoloServe, startChrome, pause }));
 
 // Les essais propres au téléphone : seulement avec --telephone.
 const capturesFolder = join(repo, "proposals", "Claude", "telephone-2026-10-07", "captures");
