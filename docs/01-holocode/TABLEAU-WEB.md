@@ -9,7 +9,7 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 378 mots | 344 décidés, 34 à l’essai |
+| **HoloCode** | 392 mots | 357 décidés, 35 à l’essai |
 | HTML | 62 éléments | 52 oui, 4 en partie, 3 non, 3 refusés |
 | CSS | 34 éléments | 28 oui, 4 en partie, 0 non, 2 refusés |
 | JavaScript | 34 éléments | 16 oui, 10 en partie, 6 non, 1 refusés, 1 sans objet |
@@ -136,6 +136,7 @@
 | `title` | Le titre de la page | `title` | Décidé (ADR-009) |
 | `rules` | Les règles | `le code JavaScript` | Décidé (ADR-015) |
 | `state, prices, keep` | Les valeurs, leurs prix, ce qu'on garde d'une visite à l'autre | `variables, localStorage` | Décidé (ADR-023, ADR-027) |
+| `address` | Les valeurs que l'adresse de la page porte, après le « ? » ; un toucher qui les change fait un pas d'historique | `history.pushState, URLSearchParams` | À l’essai (ADR-091) |
 | `data` | Les données du serveur | `fetch` | Décidé (ADR-030) |
 | `zoom, points, relief, portals` | Comment la page se regarde | — | Décidé (ADR-021) |
 | `pixels` | Des sites plantés dans des pixels | — | Décidé (ADR-021) |
