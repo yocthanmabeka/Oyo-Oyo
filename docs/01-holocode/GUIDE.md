@@ -2386,3 +2386,10 @@ Le serveur freine aussi les POST de compte d'une même IP TCP : trente par minut
 ### Clés d’accès chez l’auteur — proposition de #181
 
 Le serveur propose `/account/passkeys`. Confirme le mot de passe et le code actif pour ajouter ou retirer une clé. Ensuite la clé permet la connexion sans mot de passe, par WebAuthn ES256. Huit clés au plus. Sur PC, ouvre localhost ; sur téléphone, l’auteur sert HTTPS par son proxy local et fixe `HOLO_ORIGIN=https://son-domaine`. Une adresse IP HTTP ne suffit pas. Le mot de passe reste utilisable sans JavaScript. La biométrie ne quitte pas l’appareil. Voir la leçon 107 et le compte rendu de Codex, dont les limites et les essais physiques à faire.
+
+
+### Liste partagée et texte confirmé — proposition de #182
+
+`Shared(names: [])` reçoit jusqu’à cinquante textes : `names.push(note)` par toucher, `names.clear` pour vider. 16 Kio codés pour toutes les valeurs partagées. Dépasser une limite refuse le geste entier. Fiches et retrait par numéro de ligne attendent des identifiants stables.
+
+`Input(value: title)` prépare un texte partagé si un bouton confirme par `On(Save.tap, effect: title.set(title))`. La frappe garde son brouillon ; la publication SSE montre la valeur du serveur dans les textes. Une nouvelle frappe pendant l’attente est conservée. Leçons 102 et 103. Le serveur limite aussi les touchers par visiteur et véritable IP ; HTTP 429 signifie attendre une minute.

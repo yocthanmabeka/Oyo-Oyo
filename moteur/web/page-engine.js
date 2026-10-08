@@ -120,6 +120,7 @@
   let liveFor = "";
   let sharedVersion = -1;     // le numéro du dernier changement reçu, et ses valeurs
   let sharedLatest = "";
+  const sharedDrafts = new Map(); // champ préparé ; la valeur publiée vient toujours du serveur
   let sharedQueue = Promise.resolve();
   let sharedWaiting = 0;
   const SHARED_WAITING_MAX = 20; // des touchers en attente du serveur, au plus
@@ -299,6 +300,7 @@
     const text = await read(file);
     if (text === null) return false;
     const since = location.pathname + location.hash;
+    sharedDrafts.clear();
     [path, base, source] = [file, folderOf(file), text];
     readSettings();
     // Un navigateur interdit à une page d'afficher l'adresse d'un autre serveur comme si elle
@@ -793,9 +795,10 @@
       const format = place.dataset.format;
       place.textContent = !format ? value : format === "date" || format === "weekday" ? format_date(value, format, language) : format_value(place.dataset.state, Number(value), format, language);
     }
-    // Un champ et une case montrent leur valeur ; on ne récrit pas le champ où l'on est en train d'écrire.
+    // Le champ partagé garde son brouillon même sans focus ; les textes montrent la valeur publiée.
     for (const field of or_.querySelectorAll("[data-bind]")) {
       if (!values.has(field.dataset.bind)) continue;
+      if (or_===root&&sharedDrafts.has(field.dataset.bind)){field.value=decodeURIComponent(sharedDrafts.get(field.dataset.bind).slice(1));continue;}
       if (field.type === "checkbox") field.checked = values.get(field.dataset.bind) !== "0";
       // Un choix en boutons ronds : celui dont l'option est la valeur est coché (ADR-038).
       else if (field.type === "radio") field.checked = field.value === values.get(field.dataset.bind);
@@ -961,13 +964,16 @@
     if (sharedWaiting >= SHARED_WAITING_MAX) return;
     sharedWaiting += 1;
     const for_ = path;
+    const clickedDrafts = new Map(sharedDrafts);
     const name = signal.split(".")[0];
     for (const block of root.querySelectorAll(`[data-name="${CSS.escape(name)}"]`)) block.classList.add("holo-waiting");
     root.setAttribute("aria-busy", "true");
     sharedQueue = sharedQueue.then(async () => {
       let reply = null;
       let status = 0;
-      const sent = states.get(for_) ?? "";
+      const pieces=new Map((states.get(for_) ?? "").split(";").filter(Boolean).map(c=>[c.slice(0,c.indexOf("=")),c.slice(c.indexOf("=")+1)]));
+      for(const [name,code]of clickedDrafts)pieces.set(name,code);
+      const sent=[...pieces].map(([name,code])=>`${name}=${code}`).join(";");
       const stop = new AbortController();
       const late = setTimeout(() => stop.abort(), 10000);
       try {
@@ -988,6 +994,9 @@
       // celles du serveur, sauf si un changement plus récent est déjà arrivé en direct.
       const version = Number(reply.version ?? -1);
       if (sharedVersion <= version) [sharedVersion, sharedLatest] = [version, String(reply.shared ?? "")];
+      if(reply.accepted){const published=new Map(String(reply.shared??"").split(";").filter(Boolean).map(c=>[c.slice(0,c.indexOf("=")),c.slice(c.indexOf("=")+1)]));
+        for(const [name,code]of clickedDrafts)if(sharedDrafts.get(name)===code&&published.get(name)===code)sharedDrafts.delete(name);
+      }
       const before = states.get(path) ?? "";
       const after = store(with_shared(source, gestureOn(before, sent, store(reply.state)), sharedLatest));
       if (valuesPanel) lastGesture = { signal, before, after };
@@ -1001,10 +1010,15 @@
   // Les changements d'un geste (de `sent` à `replied`) posés sur l'état `now` : une valeur que le
   // geste a changée prend sa nouvelle valeur, les autres restent celles de `now`. Le moteur relit
   // ensuite le tout avec méfiance (with_shared) et refait ce qu'il calcule.
+  function prepareSharedDraft(name,written){
+    const checked=input(source,states.get(path)??"",name,[...String(written)].slice(0,200).join(""));
+    const code=checked.split(";").find(c=>c.startsWith(name+"='"))?.slice(name.length+1);
+    if(code!==undefined)sharedDrafts.set(name,code);
+  }
   function gestureOn(now, sent, replied) {
     const read = (written) => new Map(written.split(";").filter(Boolean).map((chunk) => [chunk.slice(0, chunk.indexOf("=")), chunk.slice(chunk.indexOf("=") + 1)]));
     const [before, after, current] = [read(sent), read(replied), read(now)];
-    for (const [name, value] of after) if (before.get(name) !== value) current.set(name, value);
+    for (const [name, value] of after) if (before.get(name) !== value && current.get(name) === before.get(name)) current.set(name, value);
     return [...current].map(([name, value]) => `${name}=${value}`).join(";");
   }
 
@@ -1084,7 +1098,8 @@
       const changed = field.type === "checkbox" || field.type === "radio" ? field.checked !== field.defaultChecked : field.value !== field.defaultValue;
       if (!changed) continue;
       const written = field.type === "checkbox" ? (field.checked ? "1" : "0") : field.type === "file" ? allowedFile(field) : field.value;
-      states.set(path, store(input(source, states.get(path) ?? "", field.dataset.bind, written)));
+      if (shared_names(source).split(";").includes(field.dataset.bind)) prepareSharedDraft(field.dataset.bind,written);
+      else states.set(path, store(input(source, states.get(path) ?? "", field.dataset.bind, written)));
     }
   }
 
@@ -2036,7 +2051,8 @@
       const field = event.target.closest("[data-bind]");
       if (!field) return;
       const written = field.type === "checkbox" ? (field.checked ? "1" : "0") : field.type === "file" ? allowedFile(field) : field.value;
-      changeState(store(input(source, states.get(path) ?? "", field.dataset.bind, written)));
+      if (sharedNames.includes(field.dataset.bind)) prepareSharedDraft(field.dataset.bind,written);
+      else changeState(store(input(source, states.get(path) ?? "", field.dataset.bind, written)));
       // Après un premier essai d'envoi, les messages suivent ce qu'on corrige (ADR-068).
       const form = field.closest(".holo-Form");
       if (form?.dataset.tried) showFormErrors(form.dataset.name, false);

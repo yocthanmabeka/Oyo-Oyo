@@ -1,3 +1,4 @@
+import { sharingTests } from "../../proposals/GPT5.6/fin-partage-2026-10-08/browser-tests.mjs";
 import { passkeyTests } from "../../proposals/GPT5.6/fin-passkeys-2026-10-08/browser-tests.mjs";
 // Les essais dans un vrai navigateur : Chrome sans fenêtre, piloté par son protocole (DevTools),
 // sans rien installer. Le serveur d'essai est lancé sur un port libre ; chaque essai ouvre une
@@ -1623,6 +1624,7 @@ const tests = [
   }],
 ];
 
+tests.push(...sharingTests({engine,phone,page,startHoloServe,startChrome,pause}));
 tests.push(...passkeyTests({engine,phone,page,startHoloServe}));
 tests.push(...accountDebtTests({engine,phone,page,startHoloServe,pause,totp,stepNow}));
 tests.push(...webTests({ repo, engine, phone, page, startHoloServe, startChrome, pause }));

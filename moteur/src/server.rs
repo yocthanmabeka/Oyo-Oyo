@@ -146,6 +146,7 @@ impl Site {
                  submission TEXT NOT NULL,
                  files TEXT NOT NULL DEFAULT '[]'
              );
+             CREATE TABLE IF NOT EXISTS shared_limits (key TEXT PRIMARY KEY,started INTEGER NOT NULL,touches INTEGER NOT NULL);
              CREATE TABLE IF NOT EXISTS shared (
                  page TEXT NOT NULL,
                  name TEXT NOT NULL,
@@ -287,6 +288,7 @@ impl Site {
             let inputs: Vec<(String, String)> = fields.iter().filter(|(name, _)| name != crate::gestures::SIGNAL).cloned().collect();
             let Ok(base) = self.base.lock() else { return Reply::text(500, "base indisponible") };
             let key = shared_key(&holo, &values);
+            if !tap.is_empty()&&!shared_allowed(&base,&visitor,ask.peer,&key,now()){return shared_limited(new_visitor.then_some(visitor.as_str()));}
             let (current, version) = shared_in(&base, &key);
             visit.state = crate::visitor_gesture(&source, &crate::with_shared(&source, &visit.state, &current), &inputs);
             let (after, accepted) = if tap.is_empty() { (visit.state.clone(), false) } else { crate::share(&source, &visit.state, &current, tap) };
@@ -444,6 +446,7 @@ impl Site {
         };
         let Ok(base) = self.base.lock() else { return Reply::text(500, "base indisponible") };
         let key = shared_key(holo, values);
+        if !shared_allowed(&base,&visitor,ask.peer,&key,now()){return shared_limited(new_visitor.then_some(visitor.as_str()));}
         let (current, mut version) = shared_in(&base, &key);
         let mut visit = stored_in(&base, &visitor, path).unwrap_or_else(|| Visit { state: starting_state(&source, file), tried: Vec::new() });
         let before = crate::with_shared(&source, &visit.state, &current);
@@ -1014,7 +1017,7 @@ fn inputs_from_state(source: &str, state: &str) -> Vec<(String, String)> {
     let _ = crate::rules::for_each_block(&program.root, &mut |block| {
         if matches!(block.name.as_str(), "Input" | "Checkbox" | "Slider" | "Choice") {
             if let Some(crate::holo::Value::Name(name)) = block.argument("value").map(|argument| &argument.value) {
-                if name != crate::gestures::SIGNAL && !program.shared.contains(name) && !names.contains(name) {
+                if name != crate::gestures::SIGNAL && (!program.shared.contains(name)||texts.iter().any(|(n,_)|n==name)) && !names.contains(name) {
                     names.push(name.clone());
                 }
             }
@@ -1688,4 +1691,38 @@ mod tests {
         drop(kept);
         let _ = std::fs::remove_dir_all(folder);
     }
+}
+
+/// Un visiteur : soixante touchers par adresse et minute. Une IP : cent quatre-vingts,
+// afin qu'effacer le cookie ne suffise pas. Aucune adresse fournie dans un en-tête n'est crue.
+fn shared_allowed(base:&Connection,visitor:&str,peer:&str,page:&str,now:u64)->bool{
+ if peer.parse::<std::net::IpAddr>().is_err(){return false;}
+ if base.execute("DELETE FROM shared_limits WHERE started<=?1",params![now.saturating_sub(60)as i64]).is_err(){return false;}
+ if base.query_row("SELECT COUNT(*) FROM shared_limits",[],|r|r.get::<_,i64>(0)).unwrap_or(50_000)>=50_000{return false;}
+ let keys=[(format!("visitor:{visitor}:{page}"),60),(format!("ip:{peer}"),180)];
+ for (key,max) in &keys{
+  let count:i64=base.query_row("SELECT touches FROM shared_limits WHERE key=?1",params![key],|r|r.get(0)).optional().ok().flatten().unwrap_or(0);
+  if count>=*max{return false;}
+ }
+ for(key,_)in keys{if base.execute("INSERT INTO shared_limits(key,started,touches)VALUES(?1,?2,1) ON CONFLICT(key)DO UPDATE SET touches=touches+1",params![key,now as i64]).is_err(){return false;}}
+ true
+}
+fn shared_limited(visitor:Option<&str>)->Reply{
+ let mut h=common_headers();h.push(("Content-Type".into(),"text/plain; charset=utf-8".into()));h.push(("Retry-After".into(),"60".into()));
+ if let Some(v)=visitor{h.push(("Set-Cookie".into(),format!("{COOKIE}={v}; Path=/; HttpOnly; SameSite=Lax; Max-Age={FORGET_AFTER}")));}
+ Reply{status:429,headers:h,body:"Trop de touchers : attends une minute. Rien n’a changé.".as_bytes().to_vec()}
+}
+
+#[cfg(test)]
+mod sharing_completion_tests{
+ use super::*;
+ #[test]fn a_visitors_brake_is_also_bound_to_the_real_ip(){
+  let base=Connection::open_in_memory().unwrap();base.execute_batch("CREATE TABLE shared_limits(key TEXT PRIMARY KEY,started INTEGER,touches INTEGER)").unwrap();
+  for _ in 0..60{assert!(shared_allowed(&base,"visitor","127.0.0.1","/book",1000));}
+  assert!(!shared_allowed(&base,"visitor","127.0.0.1","/book",1001));
+  assert!(shared_allowed(&base,"second","127.0.0.1","/book",1001));
+  assert!(shared_allowed(&base,"visitor","127.0.0.1","/other",1001));
+  assert!(shared_allowed(&base,"visitor","127.0.0.1","/book",1060));
+  assert!(!shared_allowed(&base,"third","forged","/book",1060));
+ }
 }

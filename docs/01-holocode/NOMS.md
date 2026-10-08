@@ -287,3 +287,6 @@ Proposition ADR-083 : aucun nouveau mot HoloCode pour le secours ou l'effacement
 
 
 Clés d’accès proposées dans #181 : aucun nouveau mot de HoloCode. `/account/passkeys` appartient au serveur. `HOLO_ORIGIN` est sa configuration d’adresse HTTPS, fixée chez l’auteur. Leçon 107.
+
+
+Partage proposé dans #182 : `Shared(names: [])`, textes seulement dans cette première liste publique ; les mots `push` et `clear` gardent leur sens. `Input(value: title)` prépare le texte et un bouton le confirme par `title.set(title)`. Aucun nouveau mot. Leçons 102 et 103.
