@@ -1377,11 +1377,13 @@ const tests = [
       await q.open("/concert.holo", 300);
       check("le refus n'a rien enregistré", (await q.value(`document.querySelector('[data-bind="note"]').value`)) === "Ada" && (await q.value(`document.querySelector('#page [data-state="cart"]').textContent`)) === "0", await q.text());
       await q.until("window.__holoLive?.()", 40000);
+      await q.value(`document.querySelector('[data-bind="note"]').select()`);
       await q.type('[data-bind="note"]', "Grace");
       await q.click('[data-name="Like"]');
       check("un geste normal reste utilisable", await q.until(`document.querySelector('#page [data-state="likes"]')?.textContent === "1"`, 10000), await q.text());
       await q.open("/concert.holo", 300);
-      check("la saisie acceptée est gardée", (await q.value(`document.querySelector('[data-bind="note"]').value`)) === "Grace", await q.text());
+      const savedNote = await q.value(`document.querySelector('[data-bind="note"]').value`);
+      check("la saisie acceptée est gardée", savedNote === "Grace", savedNote);
       await q.until("window.__holoLive?.()", 40000);
       // Le miroir est tenu volontairement ; le toucher partagé suivant doit attendre.
       await q.value(`window.__wire = []; window.__realFetch = window.fetch; window.fetch = async (url, options) => { const mirror = String(url).includes("?mirror"); if (mirror) await new Promise((resolve) => { window.__releaseMirror = resolve; }); window.__wire.push(mirror ? "mirror" : "shared"); return window.__realFetch(url, options); }`);
