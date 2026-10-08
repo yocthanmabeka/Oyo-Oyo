@@ -13,7 +13,7 @@ Page(
           If(booked, is: 0, children: [Button(name: Book, text: "Réserver")])
         ]),
         Button(name: Add, text: "Ajouter"),
-        Button(name: Like, text: "J'aime"),
+        Button(name: Like, text: "J'aime ({likes})"),
       ],
       rules: [
         On(Book.tap, effect: [seats.sub(1), booked.set(1), last.set(note)]),
