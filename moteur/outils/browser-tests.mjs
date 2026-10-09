@@ -464,15 +464,27 @@ const tests = [
     const ok = tab && there && reopened && follows;
     return [ok, `onglet : ${tab} ; passé dans l'autre fichier : ${there} ; revenu, l'adresse dit l'onglet : ${reopened} ; le cadran suit : ${first} puis ${later}`];
   }],
-  ["une page servie avec ses données, ouverte sur un endroit (#Bas), relit ses données", async (p) => {
-    await p.open("/exemples/.essais-navigateur/donnees-et-endroit.holo#Bas");
+  ["une page servie avec ses données, ouverte sur un endroit (#Bas) ou sur un nom inconnu, relit ses données", async (p, b) => {
     const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;
-    const started = await p.until("window.__holoStarted === true");
-    const refused = await p.value(`document.getElementById("error")?.textContent ?? ""`);
-    // Le navigateur ne rejoue pas la réception du serveur (l'adresse a un endroit) : il relit.
-    const read = await p.until(`${has("lectures 1")} && ${has("Trois")} && !${has("Chargement")}`, 8000);
-    const ok = started && !refused && read;
-    return [ok, `moteur arrivé : ${started} ${refused} ; données relues : ${read}`];
+    const opened = async (hash) => {
+      // Une autre page d'abord : changer seulement le # ne recharge pas la page.
+      await p.open("/exemples/lecons/01-page.holo");
+      await p.open(`/exemples/.essais-navigateur/donnees-et-endroit.holo${hash}`);
+      const started = await p.until("window.__holoStarted === true");
+      const refused = await p.value(`document.getElementById("error")?.textContent ?? ""`);
+      // Le navigateur ne rejoue pas la réception du serveur (l'adresse a un nom) : il relit.
+      const read = await p.until(`${has("lectures 1")} && ${has("Trois")} && !${has("Chargement")}`, 8000);
+      return [started && !refused && read, `${started && !refused ? "moteur arrivé" : `moteur arrêté ${refused}`}, données relues : ${read}`];
+    };
+    // Un vrai endroit (#Bas) ; puis un nom que rien ne porte (#rien), comme une ancre inconnue.
+    const [spot, spotSaid] = await opened("#Bas");
+    const [unknown, unknownSaid] = await opened("#rien");
+    // Une adresse changée à la main vers un nom inconnu : la page reste où elle est.
+    await p.value(`location.hash = "#ailleurs"`);
+    await pause(500);
+    const stays = b.errors.length === 0 && (await p.value(has("lectures 1")));
+    const ok = spot && unknown && stays;
+    return [ok, `#Bas : ${spotSaid} ; #rien : ${unknownSaid} ; #ailleurs tapé ensuite : ${stays ? "la page reste" : b.errors.join(" | ") || "la page a changé"}`];
   }],
   ["des polices libres pour toutes les écritures : Font(family: \"Inter\") (leçon 115)", async (p) => {
     await p.open("/exemples/lecons/115-des-polices-pour-toutes-les-ecritures.holo");

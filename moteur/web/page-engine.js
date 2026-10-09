@@ -1834,7 +1834,14 @@
     // Au démarrage, aucun site n'est encore affiché (page vaut null) : un point n'a jamais
     // d'id, un endroit trouvé n'est donc pas un site.
     const pageSpot = (name) => name && !name.startsWith("@") && !name.startsWith("~") && !name.includes("/") && document.getElementById(name)?.closest("#page") && !(page && containedSites().some((s) => s.name === name));
-    const siteStart = pageSpot(decodeURIComponent(location.hash.slice(1))) ? "" : decodeURIComponent(location.hash.slice(1));
+    // Un nom qui ne désigne ni un endroit ni un site du fichier (un lien ancien, une faute dans
+    // l'adresse) : on reste sur la page, comme un navigateur devant une ancre inconnue.
+    const knownSite = (name) => {
+      if (!name || name.startsWith("@") || name.startsWith("~")) return true;
+      try { flat_view(source, base, name); return true; } catch { return false; }
+    };
+    const hashStart = decodeURIComponent(location.hash.slice(1));
+    const siteStart = pageSpot(hashStart) || !knownSite(hashStart) ? "" : hashStart;
     // La page du fichier est déjà là, fabriquée par le serveur : on la reprend. Un monde
     // demandé par l'adresse (#Atelier), lui, se dessine.
     const alreadyThere = !siteStart && root.querySelector(".holo-Page") !== null;
@@ -1857,7 +1864,7 @@
       else if (sitePath === site && readAddress()) return;
       // Un lien vers un endroit de la page (ADR-042) : le navigateur y descend ; les valeurs que
       // dit l'adresse suivent aussi (ADR-091), même quand elle garde cet endroit (#details).
-      else if (pageSpot(sitePath)) readAddress();
+      else if (pageSpot(sitePath) || !knownSite(sitePath)) readAddress();
       else displaySite(sitePath, { inHistory: false });
     });
     // Dans un monde calculé : dézoomer alors qu'on est revenu tout en haut en fait ressortir.
