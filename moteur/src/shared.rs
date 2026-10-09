@@ -134,12 +134,13 @@ pub fn check(program: &Program) -> Result<(), Error> {
             }
             _ => {}
         }
-        // Sans clés stables de requête, retirer une ligne par rang serait ambigu après une autre écriture.
+        // Avec les clés stables de requête (dataset.key), retirer une ligne reste rigoureux.
         for request in crate::state::requests_of(block){
             if let Some((name,verb))=request.name.split_once('.'){
                 if is_shared(name)&&crate::lists::kind(program,name).is_some(){
-                    if !matches!(verb,"push"|"clear"){return refusal(format!("« {name}.{verb} » : cette première liste partagée permet push et clear ; retirer une ligne attend des identifiants stables dans le protocole"));}
-                    if request.arguments.iter().any(|a|matches!(&a.value,Value::Block(_))){return refusal("Une liste partagée contient des textes, sans fiche Item.".into());}
+                    if !crate::lists::REQUESTS.contains(&verb){
+                        return refusal(format!("« {name}.{verb} » : demande inconnue pour une liste"));
+                    }
                 }
             }
         }
@@ -419,7 +420,7 @@ pub fn with_drafts(program:&Program,candidate:&str,signal:&str)->Program{
 }
 pub fn within_budget(program:&Program,state:&str)->bool{
  let lists=crate::lists::reread(program,state);
- lists.iter().filter(|(n,_)|program.shared.contains(n)).all(|(_,v)|v.len()<=SHARED_LIST_MAX&&v.iter().all(|t|!t.starts_with(crate::lists::RECORD)&&t.chars().count()<=SHARED_TEXT_MAX))
+ lists.iter().filter(|(n,_)|program.shared.contains(n)).all(|(_,v)|v.len()<=SHARED_LIST_MAX&&v.iter().all(|t|t.chars().count()<=SHARED_TEXT_MAX))
  &&written(program,&crate::state::reread(program,state),&crate::state::reread_texts(program,state),&lists).len()<=SHARED_BYTES_MAX
 }
 

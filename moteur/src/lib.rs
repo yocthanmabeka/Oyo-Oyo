@@ -342,7 +342,59 @@ pub fn share(source: &str, state: &str, shared: &str, signal: &str) -> (String, 
         return (merged, false);
     }
     let prepared=shared::with_drafts(&program,state,signal);
-    match arbitrate_program(&prepared, &merged, signal) {
+    
+    let mut mapped_signal = signal.to_string();
+    if let (base, Some(rank)) = lists::signal_and_line(signal) {
+        if let Some((_, list)) = lists::line_rules(&program).into_iter().find(|(rule, _)| {
+            rule.name == "On" && rule.arguments.iter().find(|a| a.name.is_none()).is_some_and(|a| matches!(&a.value, Value::Name(ref n) if n == base))
+        }) {
+            if program.shared.iter().any(|s| *s == list) {
+                let (visitor_texts, visitor_lists) = (state::reread_texts(&program, state), lists::reread(&program, state));
+                let visitor_computed = computed::apply(&program, &state::reread(&program, state), &visitor_texts, &visitor_lists);
+                if let Some(elements) = visitor_lists.iter().chain(visitor_computed.iter()).find(|(n, _)| n == &list).map(|(_, e)| e) {
+                    if let Some(target_element) = elements.get(rank) {
+                        let repeat = lists::repeats(&program).into_iter().find(|(_, l)| l == &list).map(|(r, _)| r);
+                        let key_field = repeat.and_then(|r| r.argument("key")).and_then(|a| match &a.value { Value::Name(n) => Some(n), _ => None });
+                        
+                        let key_of = |e: &String, index: usize, slice: &[String]| -> String {
+                            match key_field {
+                                Some(field) => {
+                                    let of = |elem: &String| lists::fields(elem).into_iter().find(|(c, _)| c == field).map(|(_, v)| v).unwrap_or_default();
+                                    let value = of(e);
+                                    let already = slice[..index].iter().filter(|el| of(el) == value).count();
+                                    format!("k:{}-{}", value, already)
+                                }
+                                None => {
+                                    let already = slice[..index].iter().filter(|el| *el == e).count();
+                                    let hash = e.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, o| (h ^ u64::from(o)).wrapping_mul(0x0100_0000_01b3));
+                                    format!("{hash:x}-{already}")
+                                }
+                            }
+                        };
+                        
+                        let target_key = key_of(target_element, rank, elements);
+                        
+                        let (server_texts, server_lists) = (state::reread_texts(&program, &merged), lists::reread(&program, &merged));
+                        let server_computed = computed::apply(&program, &state::reread(&program, &merged), &server_texts, &server_lists);
+                        if let Some(server_elements) = server_lists.iter().chain(server_computed.iter()).find(|(n, _)| n == &list).map(|(_, e)| e) {
+                            let new_rank = server_elements.iter().enumerate().find(|(i, e)| key_of(e, *i, server_elements) == target_key).map(|(i, _)| i);
+                            if let Some(new_rank) = new_rank {
+                                mapped_signal = format!("{}@{}", base, new_rank);
+                            } else {
+                                return (merged, false);
+                            }
+                        } else {
+                            return (merged, false);
+                        }
+                    } else {
+                        return (merged, false);
+                    }
+                }
+            }
+        }
+    }
+
+    match arbitrate_program(&prepared, &merged, &mapped_signal) {
         after if after.is_empty() || !shared::within_budget(&program,&after) => (merged, false),
         after => (cut_shared(&program, &after), true),
     }
@@ -436,7 +488,7 @@ fn with_shared_mark(program: &Program, html: String, written: &str) -> String {
     if program.shared.is_empty() {
         return html;
     }
-    let values = shared::written(program, &state::reread(program, written), &state::reread_texts(program, written));
+    let values = shared::written(program, &state::reread(program, written), &state::reread_texts(program, written), &lists::reread(program, written));
     let values = values.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
     html.replacen(" data-title=\"", &format!(" data-shared=\"{values}\" data-title=\""), 1)
 }
@@ -707,12 +759,11 @@ pub fn data(source: &str) -> String {
 pub fn receive(source: &str, state: &str, json: &str) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
     state::requested_capabilities();
-    let (before_numbers, before_texts) = (state::reread(&program, state), state::reread_texts(&program, state));
+    let (before_numbers, before_texts, before_lists) = (state::reread(&program, state), state::reread_texts(&program, state), lists::reread(&program, state));
     let (numbers, texts) = state::receive(&program, &before_numbers, &before_texts, json);
+    let lists = lists::receive(&program, &before_lists, json);
     // Des données reçues ne changent pas une valeur partagée : seul le serveur la change (ADR-079).
-    let (numbers, texts) = if program.shared.is_empty() { (numbers, texts) } else { shared::merged(&program, &numbers, &texts, &shared::written(&program, &before_numbers, &before_texts)) };
-    // Les listes aussi : un tableau de textes, ou d'objets (ADR-051).
-    let lists = lists::receive(&program, &lists::reread(&program, state), json);
+    let (numbers, texts, lists) = if program.shared.is_empty() { (numbers, texts, lists) } else { shared::merged(&program, &numbers, &texts, &lists, &shared::written(&program, &before_numbers, &before_texts, &before_lists)) };
     write_all(&program, &numbers, &texts, &lists)
 }
 
