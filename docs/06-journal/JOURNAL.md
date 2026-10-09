@@ -6,6 +6,27 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Une grille qui place ses cases : plusieurs colonnes, des zones nommées
+
+- Fait (issue #233, prise par un agent de la session du PC ; `ADR-104`, ACCEPTÉ : « tu le valides déjà, tu le fais déjà ») :
+  - `columnSpan: 2` et `rowSpan: 2` sur un bloc de `Grid`. Une grille trop étroite donne toute la ligne à la case, au lieu d'ajouter une colonne : sans ce repli, à 280px (un Galaxy Z Fold fermé), la colonne ajoutée rétrécit toutes les cases à 120px.
+  - `Grid(areas: ["haut haut", "menu texte"])` et `area: menu` : les zones dessinées avec des mots. Les blocs s'écrivent dans l'ordre des zones, celui de la lecture ; sous 480px de grille, ou quand une zone aurait moins de 120px, elles s'empilent dans cet ordre.
+  - La grille se mesure elle-même (`container-type`, une `@container` par seuil employé dans le fichier) : du CSS fabriqué par le moteur, qui marche sans JavaScript. Vingt-sept refus, dont `grid-area` dans un style.
+  - La leçon 127 ; le guide (« 6 quinquadragies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+- Exécuté :
+  - `cargo test --release --locked` : 240 tests passent, dont les cinq nouveaux de `grid.rs` ; `cargo test` : 240 passent.
+  - `node outils/browser-tests.mjs` : 82 essais sur 83 passent (500 s). Le seul raté est l'audit axe-core des parcours : la bibliothèque (axe-core 4.10.3) n'est pas installée sur ce PC, et l'agent n'installe rien ; GitHub l'installe avant ses essais.
+  - L'essai de la leçon 127 rate quand on retire le repli (à 280px, les cases tombent à 120px, et les zones ne s'empilent plus à 360px) ; l'ancien moteur refuse la leçon (« « Column » n'a pas de paramètre « columnSpan » »).
+- ![La leçon 127 sur un ordinateur : la grande case sur deux colonnes et deux lignes, le menu à gauche du texte](images/2026-10-09-grille-ordinateur.png)
+- ![La même leçon sur un téléphone de 360px : la grande case prend la ligne, les zones s'empilent dans l'ordre](images/2026-10-09-grille-telephone.png)
+- Erreurs en route :
+  - ma première construction en arrière-plan écrivait son journal dans un dossier qui n'existe pas (un `..` de trop peu) : elle n'a pas tourné ; et un nom de fichier de journal partagé avec un autre agent mêlait leurs lignes. Chaque agent écrit maintenant dans son propre dossier ;
+  - la première leçon employait `border-left`, que HoloCode n'a pas : refusée par `holo check` ;
+  - une zone inconnue était annoncée comme « une zone sans bloc » : la vérification regarde maintenant d'abord si la zone existe.
+- Reste : une case d'une liste qui change (`Repeat(over:)`) ne prend pas plusieurs colonnes ; un composant se range dans un `Column(columnSpan: 2, …)` ; le seuil de 480px ne se règle pas ; la ligne `grid` du grand tableau passe à « oui » à la prochaine publication.
+
+---
+
 ## 2026-10-09 — Les huit limites s'ouvrent sous conditions ; un paiement international
 
 - Les avis sont rangés :
