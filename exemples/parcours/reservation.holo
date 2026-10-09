@@ -1,0 +1,12 @@
+Page(title: "Réservation en direct", lang: "fr", state: State(booked: 0), shared: Shared(seats: 2),
+children: [H1("Réserver une place"), P("Places restantes : {seats}."),
+If(booked, is: 0, children: [If(seats, over: 0, children: [Button(name: Book, text: "Réserver")], else: [P("Complet")])], else: [P("Ta place est gardée.")]),
+P("Le prototype anonyme ne garantit pas une seule place par personne. Un membre est identifié par son compte."),
+A("Accueil des parcours", to: "index.holo")],
+rules: [On(Book.tap, effect: [seats.sub(1), booked.set(1)])])
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; computer: { max-width: 960px; } print: { background: white; color: black; } }
+H1 { color: #E9B44C; font-size: 28px; print: { color: black; } }
+H2 { color: #E9B44C; font-size: 22px; print: { color: black; } }
+A { color: #8fd3ff; print: { color: black; } }
+.card { background: #22223a; padding: 16px; border-radius: 8px; }
+Nav { print: { display: none; } }

@@ -1,0 +1,19 @@
+Page(title: "Une fiche et son panier", lang: "fr", state: State(quantity: 0, unitPrice: 12.50, net: 0.00, vat: 0.00, gross: 0.00),
+  children: [
+    Header(children: [Nav(children: [A("Catalogue", to: "catalogue.holo"), A("Mon compte", to: "/account")])]),
+    H1("Un livre à 12,50 € HT"),
+    P("TVA de démonstration : 20 %. Les règles fiscales réelles dépendent de la vente."),
+    P("Quantité : {quantity}. Total HT : {net} €. TVA : {vat} €. Total TTC : {gross} €."),
+    Row(gap: 12px, children: [Button(name: Add, text: "Ajouter au panier"), If(quantity, over: 0, children: [Button(name: Remove, text: "Retirer un livre")])]),
+    If(signedIn, is: 1, children: [P("Panier du compte {account}.")], else: [A("Se connecter pour garder son panier", to: "/account/signin")]),
+    A("Accueil des parcours", to: "index.holo"),
+  ],
+  rules: [On(Add.tap, effect: [quantity.add(1), net.add(unitPrice), gross.set(net), gross.mul(1.20), vat.set(gross), vat.sub(net)]),
+          On(Remove.tap, effect: [quantity.sub(1), net.sub(unitPrice), gross.set(net), gross.mul(1.20), vat.set(gross), vat.sub(net)])],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; computer: { max-width: 960px; } print: { background: white; color: black; } }
+H1 { color: #E9B44C; font-size: 28px; print: { color: black; } }
+H2 { color: #E9B44C; font-size: 22px; print: { color: black; } }
+A { color: #8fd3ff; print: { color: black; } }
+.card { background: #22223a; padding: 16px; border-radius: 8px; }
+Nav { print: { display: none; } }

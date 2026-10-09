@@ -1,0 +1,25 @@
+Page(title: "Lire le web autrement", lang: "fr", description: "Un article long à lire, écouter et imprimer.",
+children: [Header(children: [Nav(children: [A("Accueil des parcours", to: "index.holo")])]),
+H1("Lire le web autrement"), P("Version texte complète de la démonstration vidéo : une mire colorée change de couleur pendant qu'un son continu est joué."),
+Aside(children: [H2("Le repère"), P("Les sous-titres sont fournis dans un fichier local. Le menu disparaît à l'impression.")]),
+H2("Étape 1"), P("Un site doit laisser son visiteur choisir son rythme. Le texte, les liens et les actions doivent rester compréhensibles sur un écran étroit, au clavier et avec un lecteur d'écran. Cette section est du contenu de recette."),
+H2("Étape 2"), P("Un site doit laisser son visiteur choisir son rythme. Le texte, les liens et les actions doivent rester compréhensibles sur un écran étroit, au clavier et avec un lecteur d'écran. Cette section est du contenu de recette."),
+H2("Étape 3"), P("Un site doit laisser son visiteur choisir son rythme. Le texte, les liens et les actions doivent rester compréhensibles sur un écran étroit, au clavier et avec un lecteur d'écran. Cette section est du contenu de recette."),
+H2("Étape 4"), P("Un site doit laisser son visiteur choisir son rythme. Le texte, les liens et les actions doivent rester compréhensibles sur un écran étroit, au clavier et avec un lecteur d'écran. Cette section est du contenu de recette."),
+H2("Étape 5"), P("Un site doit laisser son visiteur choisir son rythme. Le texte, les liens et les actions doivent rester compréhensibles sur un écran étroit, au clavier et avec un lecteur d'écran. Cette section est du contenu de recette."),
+H2("Étape 6"), P("Un site doit laisser son visiteur choisir son rythme. Le texte, les liens et les actions doivent rester compréhensibles sur un écran étroit, au clavier et avec un lecteur d'écran. Cette section est du contenu de recette."),
+H2("Étape 7"), P("Un site doit laisser son visiteur choisir son rythme. Le texte, les liens et les actions doivent rester compréhensibles sur un écran étroit, au clavier et avec un lecteur d'écran. Cette section est du contenu de recette."),
+H2("Étape 8"), P("Un site doit laisser son visiteur choisir son rythme. Le texte, les liens et les actions doivent rester compréhensibles sur un écran étroit, au clavier et avec un lecteur d'écran. Cette section est du contenu de recette."),
+H2("Étape 9"), P("Un site doit laisser son visiteur choisir son rythme. Le texte, les liens et les actions doivent rester compréhensibles sur un écran étroit, au clavier et avec un lecteur d'écran. Cette section est du contenu de recette."),
+H2("Étape 10"), P("Un site doit laisser son visiteur choisir son rythme. Le texte, les liens et les actions doivent rester compréhensibles sur un écran étroit, au clavier et avec un lecteur d'écran. Cette section est du contenu de recette."),
+H2("Étape 11"), P("Un site doit laisser son visiteur choisir son rythme. Le texte, les liens et les actions doivent rester compréhensibles sur un écran étroit, au clavier et avec un lecteur d'écran. Cette section est du contenu de recette."),
+H2("Étape 12"), P("Un site doit laisser son visiteur choisir son rythme. Le texte, les liens et les actions doivent rester compréhensibles sur un écran étroit, au clavier et avec un lecteur d'écran. Cette section est du contenu de recette."),
+Image(source: "apercu.svg", alt: "Un point lumineux doré", caption: "Image locale vectorielle légère"),
+Video(source: "film.mp4", label: "Mire colorée avec un son continu", captions: "film.vtt", weight: 80KB),
+A("Télécharger la transcription", to: "transcription.txt", download: true)])
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; computer: { max-width: 960px; } print: { background: white; color: black; } }
+H1 { color: #E9B44C; font-size: 28px; print: { color: black; } }
+H2 { color: #E9B44C; font-size: 22px; print: { color: black; } }
+A { color: #8fd3ff; print: { color: black; } }
+.card { background: #22223a; padding: 16px; border-radius: 8px; }
+Nav { print: { display: none; } }

@@ -6,6 +6,20 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Le catalogue de Codex intégré : une page d'une liste, deux cents éléments, neuf parcours
+
+- Fusionnée sur `integration/codex-201`, partie du lot 7 envoyé (`26a50ba`, aujourd'hui dans `main` par la PR 177) : la PR 201 de Codex. `Filter(offset:)` saute des éléments après la recherche, le filtre et le tri, avant `limit:` ; le total compte avant les deux coupes ; une liste garde deux cents éléments (cent avant) ; la leçon 109, un catalogue de deux cents produits ; le site des parcours 1 à 9 (`exemples/parcours/`) et leurs essais dans Chrome, avec `holo serve`.
+- Écrite et décidée : l'`ADR-084` (de la réserve de la session du PC), `ACCEPTÉ`, validée par Yocthan le 2026-10-09 (« intégrer le travail de Codex quand il est bien fait »), Codex nommé comme auteur. Le guide dit maintenant « deux cents » partout où il disait « cent » pour une liste, avec `offset` et un exemple ; `NOMS.md` a la ligne `offset:` ; les leçons s'enchaînent 106 → 109 → 110.
+- Corrigé dans les essais de Codex : l'audit d'accessibilité téléchargeait axe-core depuis unpkg.com à chaque passage. Il lit maintenant la copie locale, comme `outils/accessibility.mjs` (`npm install --no-save axe-core@4.10.3`, dans `moteur/`) ; GitHub l'installe avant les essais dans Chrome.
+- Exécuté, après une reconstruction complète (les deux WebAssembly, `holo`, les liaisons) : `holo check` → la leçon 109 et les neuf pages des parcours acceptées ; `cargo test --release` → 192 tests passent ; `cargo test` → 192 ; `node outils/browser-tests.mjs` → 57 essais `OK`, aucun raté, 111 leçons ouvertes, 387 s (dont les parcours 1 à 9 et 36 audits axe-core, zéro défaut).
+
+**Erreurs en route**
+
+- En remplaçant « cent » par « deux cents » dans le guide, une commande `sed` a cassé une parenthèse (`State(tasks: [])`) ; vue à la relecture, remise.
+- Le premier jet de l'ADR citait `If(start, over: 0, …)` alors que la leçon garde `offset` et `end`, et « 21 Ko » pour un catalogue qui en pèse 22 : vérifié contre le code et le fichier, corrigé avant l'envoi.
+
+---
+
 ## 2026-10-09 — Un monde en fragments, et l'IA dans le langage après la 3D
 
 - Dans une conversation Claude séparée, Yocthan a réfléchi à un monde découpé en fragments de la sphère, avec cinq idées :

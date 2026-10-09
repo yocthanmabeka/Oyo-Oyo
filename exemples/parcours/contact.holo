@@ -1,0 +1,16 @@
+Page(title: "Contact avec une image", lang: "fr", state: State(name: "", message: "", photo: "", status: 0),
+children: [H1("Envoyer un message et une image"),
+Form(name: Contact, children: [Input(value: name, label: "Nom", required: true, min: 2),
+Input(value: message, label: "Message", lines: 4, required: true, min: 10, max: 500),
+Input(type: file, value: photo, label: "Image (PNG, JPEG, GIF ou WebP, 2 Mo au plus)", accept: image, max: 2MB),
+Button(name: Send, text: "Envoyer le message")]),
+If(status, is: 1, children: [P("Ton message et ton image sont arrivés.")]),
+If(status, is: 2, children: [P("L'envoi a échoué. Réessaie.")]),
+A("Accueil des parcours", to: "index.holo")],
+rules: [On(Send.tap, effect: Contact.send), On(Contact.sent, effect: status.set(1)), On(Contact.failed, effect: status.set(2))])
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; computer: { max-width: 960px; } print: { background: white; color: black; } }
+H1 { color: #E9B44C; font-size: 28px; print: { color: black; } }
+H2 { color: #E9B44C; font-size: 22px; print: { color: black; } }
+A { color: #8fd3ff; print: { color: black; } }
+.card { background: #22223a; padding: 16px; border-radius: 8px; }
+Nav { print: { display: none; } }
