@@ -47,7 +47,7 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     ("Stopwatch", &["name", "value", "label"]),
     ("List", &["name", "children", "ordered"]),
     ("Hr", &["name"]),
-    ("Quote", &["name", "by"]),
+    ("Quote", &["name", "by", "work"]),
     ("Code", &["name"]),
     ("Header", &["name", "children"]),
     ("Nav", &["name", "children"]),

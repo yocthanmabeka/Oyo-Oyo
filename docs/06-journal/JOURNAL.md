@@ -6,6 +6,19 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Une citation courte au milieu d'une phrase, le titre d'une œuvre
+
+- Fait (issue #217, prise dans la file par la session du nuage ; `ADR-101`, PROPOSITION) :
+  - `<<bonjour>>` dans un texte devient une citation courte (`q`) : le moteur écrit les guillemets de la langue de la page, pour de vrai, « » en français avec une espace fine insécable de chaque côté (un guillemet ne reste plus seul en bout de ligne), „ “ en allemand, “ ” sinon ; une citation dans une citation prend ceux du second niveau. Un texte HoloCode, écrit entre guillemets droits, ne pouvait pas en contenir.
+  - `_Les Misérables_` devient le titre d'une œuvre (`cite`) ; un trait bas au milieu d'un mot reste un trait bas. Rien de tout cela dans du code.
+  - `Quote("…", by: "Victor Hugo", work: "Les Châtiments")` : l'œuvre d'où vient une citation en bloc.
+  - La leçon 124 ; le guide (chapitre « 6 duoquadragies »), `NOMS.md`, `DECISIONS.md`.
+- Exécuté : `cargo test --release` → 201 tests passent (trois nouveaux) ; `holo check` sur les 118 leçons ; dans Chrome, l'essai de la leçon 124 passe, et rate sur un moteur sans la citation courte (aucun `<q>`, `<<…>>` reste du texte) ; la suite entière : 66 essais sur 69, les 3 ratés propres au conteneur.
+- Erreur en route : la première suite entière s'est bloquée 20 minutes sur l'audit axe-core des parcours, pendant que trois autres constructions tournaient ; le serveur de l'essai répondait, les pages aussi. Relancés seuls, ces essais passent. Un vieux serveur d'essai, resté d'une suite arrêtée plus tôt, a été arrêté par son numéro.
+- Reste : la source d'une citation courte (`cite=`, une adresse) ; la leçon 124 revient à la 119 et mène à la 1, en attendant que les leçons 120 à 123 (#220, #214, #215, #216) soient fusionnées : la suite deviendra 119 → 120 → … → 124.
+
+---
+
 ## 2026-10-09 — Les corrections du nuage (PR 208) relues, et raccordées à la fin du lot 9
 
 - Relue : la PR 208 de la session du nuage, qui répond aux remarques de Codex sur la chaîne du lot 9 (huit corrections, deux défauts anciens du démarrage). Bonne : chaque correction a son essai, écrit pour rater avec l'ancien code ; le code reste sobre (un chronomètre rangé sous `fichier|nom`, l'adresse qui ne compte au démarrage que si elle nomme une valeur de la page, un nom inconnu après le `#` qui laisse la page où elle est, comme un navigateur devant une ancre inconnue). Ses deux remarques refusées sont justifiées.

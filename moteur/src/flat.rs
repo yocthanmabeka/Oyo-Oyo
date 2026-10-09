@@ -17,6 +17,7 @@ const BASE: &str = "\
 :where(img.holo-Image){object-fit:cover}\
 :where(.holo-Page>main,.holo-Page>header,.holo-Page>footer,.holo-panel,.holo-Header,.holo-Footer,.holo-Main)>*{display:block;box-sizing:border-box;margin:0 0 16px 0}\
 :where(.holo-Nav)>*{margin:0}\
+:where(q.holo-q){quotes:none}\
 :where(.holo-Stack){display:inline-grid;position:relative;max-width:100%;vertical-align:top}:where(.holo-Stack>:first-child .holo-Image){width:100%;display:block}:where(.holo-Stack)>*{grid-area:1/1;min-width:0;margin:0}\
 :where(.holo-stacked){z-index:1;margin:6px}\
 :where(.holo-Button){font:inherit;color:inherit;cursor:pointer;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 12px}\
@@ -125,6 +126,135 @@ fn set_language(program: &Program) {
         _ => "fr".to_string(),
     };
     LANGUAGE.with(|l| *l.borrow_mut() = language);
+}
+
+/// Les guillemets de la langue de la page, au premier niveau et dans une citation (ADR-101) :
+/// « … » et “ … ” en français, avec une espace fine insécable qui ne laisse jamais un guillemet
+/// seul en bout de ligne ; „ … “ et ‚ … ‘ en allemand ; “ … ” et ‘ … ’ sinon.
+fn quote_marks(depth: usize) -> (&'static str, &'static str) {
+    LANGUAGE.with(|l| {
+        let language = l.borrow();
+        let french = language.is_empty() || language.starts_with("fr");
+        match (french, language.starts_with("de"), depth % 2) {
+            (true, _, 0) => ("«\u{202F}", "\u{202F}»"),
+            (true, _, _) => ("“", "”"),
+            (_, true, 0) => ("„", "“"),
+            (_, true, _) => ("‚", "‘"),
+            (_, _, 0) => ("“", "”"),
+            _ => ("‘", "’"),
+        }
+    })
+}
+
+/// Les endroits d'un HTML de texte où l'on peut lire une marque : hors des balises et du code.
+fn text_places(html: &str) -> Vec<bool> {
+    let mut places = vec![false; html.len()];
+    let (mut in_tag, mut in_code) = (false, false);
+    for (at, c) in html.char_indices() {
+        if in_tag {
+            if c == '>' {
+                in_tag = false;
+            }
+            continue;
+        }
+        if c == '<' {
+            in_tag = true;
+            let tag = &html[at..];
+            in_code = if tag.starts_with("<code") { true } else if tag.starts_with("</code>") { false } else { in_code };
+            continue;
+        }
+        places[at] = !in_code;
+    }
+    places
+}
+
+/// `<<bonjour>>` → `<q class="holo-q">« bonjour »</q>`, avec les guillemets de la langue de la
+/// page écrits pour de vrai : ils se copient, et se lisent sans style. Une citation dans une
+/// citation prend les guillemets du second niveau. Une marque sans sa paire reste du texte.
+fn short_quotes(html: &str) -> String {
+    const OPEN: &str = "&lt;&lt;";
+    const CLOSE: &str = "&gt;&gt;";
+    if !html.contains(OPEN) {
+        return html.to_string();
+    }
+    let places = text_places(html);
+    // Les marques, dans l'ordre ; les paires se ferment comme des parenthèses.
+    let mut marks: Vec<(usize, bool)> = Vec::new();
+    let mut at = 0;
+    while at < html.len() {
+        if places[at] && html[at..].starts_with(OPEN) {
+            marks.push((at, true));
+            at += OPEN.len();
+        } else if places[at] && html[at..].starts_with(CLOSE) {
+            marks.push((at, false));
+            at += CLOSE.len();
+        } else {
+            at += html[at..].chars().next().map_or(1, char::len_utf8);
+        }
+    }
+    let mut stack: Vec<usize> = Vec::new();
+    let mut pairs: Vec<(usize, usize, usize)> = Vec::new();
+    for (rank, &(_, opening)) in marks.iter().enumerate() {
+        if opening {
+            stack.push(rank);
+        } else if let Some(open) = stack.pop() {
+            pairs.push((open, rank, stack.len()));
+        }
+    }
+    let mut replaced: Vec<(usize, usize, String)> = Vec::new();
+    for (open, close, depth) in pairs {
+        let (start, end) = quote_marks(depth);
+        replaced.push((marks[open].0, OPEN.len(), format!("<q class=\"holo-q\">{start}")));
+        replaced.push((marks[close].0, CLOSE.len(), format!("{end}</q>")));
+    }
+    replaced.sort_by_key(|(at, _, _)| *at);
+    let mut output = String::with_capacity(html.len() + 32);
+    let mut done = 0;
+    for (at, length, with) in replaced {
+        output.push_str(&html[done..at]);
+        output.push_str(&with);
+        done = at + length;
+    }
+    output.push_str(&html[done..]);
+    // Pas d'espace entre un guillemet et la citation : le moteur met la sienne, insécable.
+    output.replace("«\u{202F} ", "«\u{202F}").replace(" \u{202F}»", "\u{202F}»").replace("“ ", "“").replace(" ”", "”")
+}
+
+/// `_Les Misérables_` → `<cite>Les Misérables</cite>`, le titre d'une œuvre. Le trait bas ouvre
+/// au début d'un mot et ferme à sa fin : `nom_de_fichier` reste tel quel.
+fn work_titles(html: &str) -> String {
+    if !html.contains('_') {
+        return html.to_string();
+    }
+    let places = text_places(html);
+    let word = |c: Option<char>| c.is_some_and(char::is_alphanumeric);
+    let mut output = String::with_capacity(html.len() + 16);
+    let (mut done, mut open): (usize, Option<usize>) = (0, None);
+    let mut cut: Vec<(usize, usize)> = Vec::new();
+    for (at, c) in html.char_indices() {
+        if c != '_' || !places[at] {
+            continue;
+        }
+        let (before, after) = (html[..at].chars().next_back(), html[at + 1..].chars().next());
+        // Un trait bas collé à un autre (`__init__`, `____`) n'ouvre ni ne ferme rien.
+        match open {
+            None if !word(before) && before != Some('_') && after.is_some_and(|a| !a.is_whitespace() && a != '_') => open = Some(at),
+            Some(start) if !word(after) && after != Some('_') && before.is_some_and(|b| !b.is_whitespace() && b != '_') && at > start + 1 => {
+                cut.push((start, at));
+                open = None;
+            }
+            _ => {}
+        }
+    }
+    for (start, end) in cut {
+        output.push_str(&html[done..start]);
+        output.push_str("<cite>");
+        output.push_str(&html[start + 1..end]);
+        output.push_str("</cite>");
+        done = end + 1;
+    }
+    output.push_str(&html[done..]);
+    output
 }
 
 /// Ce que lit un lecteur d'écran après un lien qui s'ouvre dans un nouvel onglet.
@@ -1221,10 +1351,18 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
         }
         // Une citation, avec son auteur si on le donne : Quote("…", by: "…").
         "Quote" => {
-            let author = match block.argument("by").map(|a| &a.value) {
-                None => String::new(),
-                Some(Value::Text(author)) => format!("<footer>— {}</footer>", markdown(author)),
-                Some(_) => return Err(Error { message: "« Quote(by: …) » attend un texte entre guillemets : qui l'a dit".into(), pos: block.pos }),
+            // L'œuvre d'où vient la citation (ADR-101) : Quote(…, by: "Victor Hugo", work: "Les Misérables").
+            let work = match block.argument("work").map(|a| &a.value) {
+                None => None,
+                Some(Value::Text(work)) if !work.trim().is_empty() => Some(format!("<cite>{}</cite>", markdown(work))),
+                Some(_) => return Err(Error { message: "« Quote(work: …) » attend un texte entre guillemets : le titre de l'œuvre d'où vient la citation".into(), pos: block.pos }),
+            };
+            let author = match (block.argument("by").map(|a| &a.value), work) {
+                (None, None) => String::new(),
+                (None, Some(work)) => format!("<footer>— {work}</footer>"),
+                (Some(Value::Text(author)), None) => format!("<footer>— {}</footer>", markdown(author)),
+                (Some(Value::Text(author)), Some(work)) => format!("<footer>— {}, {work}</footer>", markdown(author)),
+                (Some(_), _) => return Err(Error { message: "« Quote(by: …) » attend un texte entre guillemets : qui l'a dit".into(), pos: block.pos }),
             };
             output.push_str(&format!("<blockquote class=\"{classes}\"{name}><p>{}</p>{author}</blockquote>", markdown(text_of(block)?)));
         }
@@ -1783,6 +1921,8 @@ fn markdown(text: &str) -> String {
     let mut html = alternate(&alternate(&alternate(&escape(text), "`", "code"), "**", "strong"), "*", "em");
     // `~~barré~~`, `==surligné==`, `m^2^` et `H~2~O` (ADR-042).
     html = alternate(&alternate(&alternate(&alternate(&html, "~~", "s"), "==", "mark"), "^", "sup"), "~", "sub").replace('\n', "<br>");
+    // `<<une citation courte>>` et `_le titre d'une œuvre_` (ADR-101).
+    html = work_titles(&short_quotes(&html));
     // `{cart}` : l'endroit où s'affiche une valeur de la page. `site_html` y écrit son départ,
     // la page d'entrée la tient à jour.
     // Une valeur à virgule (ADR-066) a son format : `d2`, ou `nd2` groupée par milliers.
@@ -2483,5 +2623,35 @@ mod title_tests {
         assert_eq!(crate::page_title(page, &start), "1 tâche(s)");
         let after = crate::arbitrate(page, &crate::input(page, &start, "task", "lait"), "Add.tap");
         assert_eq!(crate::page_title(page, &after), "2 tâche(s)");
+    }
+}
+
+#[cfg(test)]
+mod quotation_tests {
+    #[test]
+    fn a_short_quote_takes_the_marks_of_the_page_language() {
+        let french = crate::flat_view("Page(children: [ P(\"Elle a dit <<bonjour>> puis << il a dit <<oui>> >>, et `<<code>>`.\") ])", "").unwrap();
+        assert!(french.contains("<p class=\"holo-P\">Elle a dit <q class=\"holo-q\">«\u{202F}bonjour\u{202F}»</q> puis <q class=\"holo-q\">«\u{202F}il a dit <q class=\"holo-q\">“oui”</q>\u{202F}»</q>, et <code>&lt;&lt;code&gt;&gt;</code>.</p>"), "{french}");
+        let english = crate::flat_view("Page(lang: \"en\", children: [ P(\"She said <<hello, <<yes>>>>.\") ])", "").unwrap();
+        assert!(english.contains("She said <q class=\"holo-q\">“hello, <q class=\"holo-q\">‘yes’</q>”</q>."), "{english}");
+        // Une marque sans sa paire reste du texte ; le navigateur n'ajoute pas ses propres guillemets.
+        let alone = crate::flat_view("Page(children: [ P(\"a << b, et c >> d >> e\") ])", "").unwrap();
+        assert!(alone.contains("<q class=\"holo-q\">«\u{202F}b, et c\u{202F}»</q> d &gt;&gt; e"), "{alone}");
+        assert!(alone.contains(":where(q.holo-q){quotes:none}"), "{alone}");
+    }
+
+    #[test]
+    fn the_title_of_a_work_is_a_cite() {
+        let html = crate::flat_view("Page(children: [ P(\"J'ai relu _Les Misérables_ ; mon_fichier_final reste, `_ici_` aussi, __init__ et ____ aussi.\") ])", "").unwrap();
+        assert!(html.contains("J'ai relu <cite>Les Misérables</cite> ; mon_fichier_final reste, <code>_ici_</code> aussi, __init__ et ____ aussi."), "{html}");
+    }
+
+    #[test]
+    fn a_quote_names_the_work_it_comes_from() {
+        let html = crate::flat_view("Page(children: [ Quote(\"Ceux qui vivent, ce sont ceux qui luttent.\", by: \"Victor Hugo\", work: \"Les Châtiments\"), Quote(\"Sans auteur.\", work: \"Un proverbe\") ])", "").unwrap();
+        assert!(html.contains("<footer>— Victor Hugo, <cite>Les Châtiments</cite></footer></blockquote>"), "{html}");
+        assert!(html.contains("<p>Sans auteur.</p><footer>— <cite>Un proverbe</cite></footer>"), "{html}");
+        let error = crate::flat_view("Page(children: [ Quote(\"x\", work: 3) ])", "").unwrap_err();
+        assert!(error.message.contains("« Quote(work: …) » attend un texte"), "{error}");
     }
 }

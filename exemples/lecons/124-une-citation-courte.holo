@@ -1,0 +1,36 @@
+// Leçon 124 — Une citation courte, le titre d'une œuvre
+//
+// Ce qu'on apprend :
+//   <<bonjour>> dans un texte : une citation courte, au milieu d'une phrase. Le moteur met les
+//   guillemets de la langue de la page : « bonjour » en français, avec une espace fine qui ne
+//   laisse jamais un guillemet seul en bout de ligne ; “hello” en anglais. Une citation dans
+//   une citation prend les guillemets du second niveau.
+//   _Les Misérables_ : le titre d'une œuvre, un livre, un film, un tableau.
+//   Quote("…", by: "Victor Hugo", work: "Les Châtiments") : une citation en bloc, son auteur,
+//   et l'œuvre d'où elle vient.
+//
+// À essayer :
+//   Écris Page(lang: "en", …) : les guillemets deviennent “ ”. Puis écris mon_fichier_final dans
+//   un texte : un trait bas au milieu d'un mot reste un trait bas.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 124 : une citation courte, le titre d'une œuvre",
+  children: [
+    H1("Le club de lecture"),
+    P("Ce mois-ci, le club lit _Les Misérables_, de Victor Hugo."),
+    P("Jean a résumé le livre en une phrase : <<Valjean devient bon parce qu'un évêque l'a appelé <<mon frère>>.>>"),
+    Quote("Ceux qui vivent, ce sont ceux qui luttent.", by: "Victor Hugo", work: "Les Châtiments"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 119 : une page hors-ligne", to: "119-une-page-hors-ligne.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+Quote { border: 1px solid #E9B44C; border-radius: 8px; padding: 12px 16px; }

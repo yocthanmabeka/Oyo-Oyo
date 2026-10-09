@@ -665,6 +665,8 @@ mod tests {
             include_str!("../../exemples/lecons/117-appareil-sur-permission.holo"),
             include_str!("../../exemples/lecons/118-notifications-locales.holo"),
             include_str!("../../exemples/lecons/119-une-page-hors-ligne.holo"),
+            // Une citation courte, le titre d'une œuvre (ADR-101).
+            include_str!("../../exemples/lecons/124-une-citation-courte.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();

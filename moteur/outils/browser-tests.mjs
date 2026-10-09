@@ -554,6 +554,20 @@ const tests = [
     const ok = await p.until(`(window.__holoModules ?? []).some((m) => m.ok && m.output === 5050)`);
     return [ok, ok ? "5 050" : JSON.stringify(await p.value("window.__holoModules ?? null"))];
   }],
+  ["une citation courte et le titre d'une œuvre, avec les guillemets de la langue (leçon 124)", async (p) => {
+    await p.open("/exemples/lecons/124-une-citation-courte.holo");
+    // Les guillemets du français, écrits pour de vrai : ils se lisent, se copient, et une
+    // citation dans une citation prend ceux du second niveau ; une espace fine insécable les tient.
+    const said = await p.value(`document.querySelectorAll("main p")[1].innerText`);
+    const quotes = await p.value(`[...document.querySelectorAll("main q.holo-q")].map((q) => q.textContent).join(" | ")`);
+    // Le navigateur n'en ajoute pas d'autres par-dessus.
+    const added = await p.value(`getComputedStyle(document.querySelector("q.holo-q")).quotes`);
+    const titles = await p.value(`[...document.querySelectorAll("cite")].map((c) => c.textContent).join(" | ")`);
+    const ok = said === "Jean a résumé le livre en une phrase : «\u202FValjean devient bon parce qu'un évêque l'a appelé “mon frère”.\u202F»"
+      && quotes === "«\u202FValjean devient bon parce qu'un évêque l'a appelé “mon frère”.\u202F» | “mon frère”"
+      && added === "none" && titles === "Les Misérables | Les Châtiments";
+    return [ok, `lu : « ${said} » ; citations : ${quotes} ; guillemets du navigateur : ${added} ; œuvres : ${titles}`];
+  }],
   ["les touches du clavier, et les lettres qu'on coupe", async (p) => {
     await p.open("/exemples/lecons/77-toutes-les-touches.holo");
     if (!(await p.until(`document.getElementById("shortcuts")`))) return [false, "le moteur n'est pas arrivé"];
