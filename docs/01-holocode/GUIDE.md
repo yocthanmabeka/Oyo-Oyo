@@ -1776,6 +1776,7 @@ Page(
 - **`Term("Weight", "2 kg")`** : le terme, puis sa définition. Une `List` dont les éléments sont des `Term` devient une liste de définitions (`dl`, `dt`, `dd`) ; le lecteur d'écran annonce chaque terme, puis sa définition.
 - La définition lit les valeurs de la page (`{price}`) et le texte enrichi (`**copper**`).
 - Refusés : un `Term` hors d'une liste ; une liste qui mélange des `Term` et autre chose ; `ordered: true` (une liste de termes ne se numérote pas) ; un `Term` sans sa définition.
+- Un `Term` ne bouge pas seul (`enter:`, `loop:`) : c'est la liste qui bouge, chaque terme à son tour, `List(enter: Enter(opacity: 0, each: 0.1s), children: [ … ])`.
 
 La leçon est `120-une-liste-de-definitions.holo`.
 
@@ -2409,6 +2410,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | L'appareil : la position, le presse-papiers, la caméra, le microphone | `Device(kind:)`, `request`, `write`, `stop` | fait (`ADR-094`) |
 | Une notification, un rappel | `Notification(title:, body:, after:)`, `show`, `stop` | fait (`ADR-095`) |
 | Une page lisible hors-ligne | `Offline(files:)`, `save`, `remove` | fait (`ADR-096`) |
+| Des termes et leurs définitions : une fiche technique, un glossaire | `List(children: [ Term("Poids", "2 kg") ])` | fait (`ADR-097`) |
 | Multiplier, diviser | les demandes `mul`, `div` | fait |
 | Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait |
 | Une liste qui change pendant la visite | `State(tasks: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` | fait |
@@ -2432,6 +2434,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 - Les données venues d'un autre serveur.
 - Pour les valeurs partagées : un champ qui en change une, une liste partagée, une limite au nombre de touchers d'un visiteur.
 - Pour les capacités du navigateur (`ADR-093` à `ADR-096`) : la caméra ne prend pas de photo, le microphone ne donne pas de son ; pas de rappel après la fermeture de la page (il faudrait un serveur de « push ») ; pas d'import en CSV ni par glisser-déposer ; pas de copie hors-ligne d'une page qui a un compte, un formulaire ou des valeurs partagées, ni d'envoi mis en attente.
+- Pour les listes de définitions (`ADR-097`) : pas de liste de termes qui change pendant la visite (`Repeat(over:)`), ni de définition faite de plusieurs paragraphes.
 - Pour les comptes (`ADR-081`) : pas encore de clés d'accès (passkeys), de QR code pour activer le code, de codes de secours, ni de mot de passe changé ou de compte effacé par son membre.
 - Pour les valeurs : pas de nombre négatif ; une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).

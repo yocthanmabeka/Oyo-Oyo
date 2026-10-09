@@ -18,7 +18,7 @@
 2. **Une `List` dont les éléments sont des `Term` devient une liste de définitions** : le moteur écrit `<dl>`, et pour chaque terme `<div><dt>…</dt><dd>…</dd></div>`. Rien d'autre à apprendre : une liste reste une `List`.
 3. La définition est un texte comme celui d'un `P` : elle lit les valeurs de la page (`{prix}`) et le texte enrichi (`**cuivre**`). Le terme aussi.
 4. Le style : `Term { … }` vise chaque terme et sa définition ; la liste se nomme comme les autres (`List.fiche(…)`). Au départ, le terme est en gras et la définition dessous, sans retrait : lisible sur un téléphone.
-5. **Refusé**, avec la raison : un `Term` hors d'une liste ; une liste qui mélange des `Term` et autre chose ; `ordered:` sur une liste de termes ; un `Term` qui n'a pas exactement un terme et une définition.
+5. **Refusé**, avec la raison : un `Term` hors d'une liste ; une liste qui mélange des `Term` et autre chose ; `ordered:` sur une liste de termes ; un `Term` qui n'a pas exactement un terme et une définition ; un `Term` qui bouge seul (`enter:`, `loop:`), ajouté à la relecture.
 
 ## Comparaison faite avant de choisir
 
@@ -35,6 +35,7 @@
 - Une liste qui mélange des `Term` et d'autres éléments : `dl` ne contient que des termes et leurs définitions.
 - `List(ordered: true, …)` avec des `Term` : une liste de définitions ne se numérote pas.
 - `Term("Poids")`, ou trois textes : le terme sans sa définition, ou une définition en trop.
+- `enter:` ou `loop:` sur un `Term` : un mouvement enveloppe son bloc d'une boîte, et `dl` n'en accepte pas autour de ses termes. C'est la liste qui bouge, chaque terme à son tour : `List(enter: Enter(opacity: 0, each: 0.1s), children: [ … ])`. Trouvé à la relecture de la PR 220 (session du PC) : la vérification laissait passer ces deux réglages, et le moteur les avalait en silence, contre la règle d'`ADR-037`.
 
 ## Les défauts du web évités
 
@@ -49,6 +50,6 @@
 
 ## Critères de validation
 
-- Tests du moteur : `a_list_of_terms_gives_a_description_list` (le `dl`, chaque terme et sa définition, une valeur `{weight}`, du gras, le style de la liste ; une liste ordinaire ne change pas) ; `a_term_goes_with_its_definition_inside_a_list` (les quatre refus).
+- Tests du moteur : `a_list_of_terms_gives_a_description_list` (le `dl`, chaque terme et sa définition, une valeur `{weight}`, du gras, le style de la liste ; une liste ordinaire ne change pas) ; `a_term_goes_with_its_definition_inside_a_list` (les quatre refus) ; `a_term_does_not_move_alone` (`enter:` et `loop:` refusés sur un `Term` ; la liste qui entre, un terme après l'autre).
 - Dans Chrome : « une liste de définitions : un terme et sa définition, lus ensemble (leçon 120) » (la fiche dans l'ordre, la valeur `{prix}` montrée « 189,00 € » ; l'arbre d'accessibilité : 6 termes, 6 définitions, aucun élément de liste à puces).
 - Leçon `120-une-liste-de-definitions.holo`.

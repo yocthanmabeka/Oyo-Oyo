@@ -891,6 +891,11 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
                 if term.name != "Term" {
                     return Err(Error { message: format!("une liste qui a des « Term » n'a que des « Term » ; « {} » n'en est pas un", term.name), pos: term.pos });
                 }
+                // Un terme ne bouge pas seul (ADR-034) : le mouvement l'envelopperait d'une boîte, que
+                // `dl` n'accepte pas autour de ses termes. La liste bouge, chaque terme à son tour.
+                if let Some(moving) = term.arguments.iter().find(|a| matches!(a.name.as_deref(), Some("enter" | "loop"))) {
+                    return Err(Error { message: "« Term » ne bouge pas seul : fais bouger la liste, chaque terme à son tour, List(enter: Enter(opacity: 0, each: 0.1s), children: [ … ])".into(), pos: moving.pos });
+                }
                 // Le terme et sa définition vont ensemble : aucun des deux ne se perd, ni ne s'écrit seul.
                 let texts: Vec<&str> = term.arguments.iter().filter_map(|a| match (&a.name, &a.value) { (None, Value::Text(t)) => Some(t.as_str()), _ => None }).collect();
                 let [word, definition] = texts[..] else {
@@ -2524,5 +2529,18 @@ mod definition_tests {
         assert!(refused("Page(children: [ List(ordered: true, children: [ Term(\"Poids\", \"2 kg\") ]) ])").contains("ne se numérote pas"));
         assert!(refused("Page(children: [ List(children: [ Term(\"Poids\") ]) ])").contains("attend le terme puis sa définition"));
         assert!(refused("Page(children: [ List(children: [ Term(\"Poids\", \"2 kg\", \"3 kg\") ]) ])").contains("attend le terme puis sa définition"));
+    }
+
+    #[test]
+    fn a_term_does_not_move_alone() {
+        // Relecture de la PR 220 : `enter:` et `loop:` passaient la vérification sur un `Term`, puis
+        // le moteur les avalait en silence. Ils sont refusés, avec la façon de faire bouger la liste.
+        let refused = |page: &str| crate::check_page(page).unwrap_err().message;
+        assert!(refused("Page(children: [ List(children: [ Term(\"Poids\", \"2 kg\", enter: Enter(opacity: 0)) ]) ])").contains("« Term » ne bouge pas seul"));
+        assert!(refused("Page(children: [ List(children: [ Term(\"Poids\", \"2 kg\", loop: Loop(scale: 1.2, for: 0.8s)) ]) ])").contains("« Term » ne bouge pas seul"));
+        // Ce que propose le message marche : la liste entre, un terme après l'autre.
+        let html = crate::flat_view("Page(children: [ List(enter: Enter(opacity: 0, each: 0.1s), children: [ Term(\"Poids\", \"2 kg\"), Term(\"Couleur\", \"Bleu nuit\") ]) ])", "").unwrap();
+        assert!(html.contains("<div class=\"holo-animated hm") && html.contains("><dl class=\"holo-List\"><div class=\"holo-Term\"><dt>Poids</dt>"), "{html}");
+        assert!(html.contains(">*>:nth-child(2){animation:"), "{html}");
     }
 }
