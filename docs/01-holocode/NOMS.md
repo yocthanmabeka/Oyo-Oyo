@@ -96,6 +96,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `computed:`, `Filter(name:, from:)` | `array.filter()`, `array.sort()`, `array.slice()` | changé : une liste nommée, refaite seule à chaque changement (`ADR-062`) |
 | `contains:`, `in:` dans `Filter` | `string.includes()`, `toLowerCase()`, `normalize()` | changé : sans majuscules ni accents, d'office |
 | `field:`, `is:`, `sortBy:`, `reverse:`, `limit:` dans `Filter` | `filter`, `sort` et `localeCompare`, `reverse`, `slice` | changé : des réglages ; `field`, `is`, `reverse` à valider |
+| `offset:` dans `Filter` | `OFFSET` (SQL), `slice(start)`, la page d'un `Paginator` (Django) | repris : le mot usuel du décalage ; après la recherche et le tri, avant `limit` ; le total compte avant les deux (`ADR-084`) |
 | `empty:` dans `Repeat` | un `if (list.length === 0)` écrit à la main | nouveau : annoncé par un lecteur d'écran |
 | `Key.enter`, `Key.escape`, `Key.a` à `Key.z`, `Key.digit0` à `Key.digit9` | `KeyboardEvent.key`, `KeyboardEvent.code` | changé : un nom par touche ; les lettres par ce qui est écrit sur la touche, les chiffres par leur place (un clavier français marche sans Maj) ; jamais Tab ; les touches à une lettre se coupent (WCAG 2.1.4) |
 | `inView:` dans `Enter` | `IntersectionObserver`, `animation-timeline: view()` | nouveau : un mot, et rien qui tourne pendant qu'on défile |

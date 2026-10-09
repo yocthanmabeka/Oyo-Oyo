@@ -112,6 +112,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 104 | [Se connecter : un compte gardé chez toi](104-se-connecter.holo) | `signedIn`, `{account}`, `A(to: "/account/signin")` ; les pages de compte et le code à 6 chiffres, fabriqués par le moteur (avec `holo serve`) |
 | 105 | [Une page réservée aux membres](105-une-page-reservee.holo) | `Page(access: members)` ; sans être connecté, on est mené à « Se connecter », puis ramené |
 | 106 | [Le panier qui suit le compte](106-le-panier-qui-suit-le-compte.holo) | rien à écrire : connecté, le panier est gardé par le compte, sur le téléphone comme sur l'ordinateur, avec ou sans JavaScript |
+| 109 | [Un catalogue, page par page](109-un-catalogue-page-par-page.holo) | `Filter(…, offset: offset, limit: 20, total: matching)` : deux cents produits, vingt par page, « Page suivante » et « Page précédente » ; le total compté avant la coupe (de Codex) |
 | 110 | [Un module qui dessine](110-un-module-qui-dessine.holo) | `Drawing(shapes: fleur)`, une liste de formes rendue par un module |
 | 111 | [Un chronomètre](111-un-chronometre.holo) | `Stopwatch`, `start`, `stop`, `reset`, `stopped`, `{temps:stopwatch}` |
 | 112 | [Une adresse qui se souvient](112-une-adresse-qui-se-souvient.holo) | `keep` dans un modèle d'adresse, `112-carnets/{nom}.holo` : chaque adresse garde ses valeurs ; `title: "Le carnet de {nom} : {pages} page(s)"` |

@@ -1,0 +1,14 @@
+Page(title: "Même site, petit et grand écran", lang: "fr",
+children: [Header(children: [H1("L'atelier"), Nav(children: [Details(summary: "Menu", children: [
+A("Catalogue", to: "catalogue.holo"), A("Contact", to: "contact.holo"), A("Article", to: "article.holo")])])]),
+Grid(columns: 3, gap: 16px, children: [
+Column.card(children: [H2("Lire"), P("Un contenu lisible sur petit et grand écran.")]),
+Column.card(children: [H2("Choisir"), P("Les liens du menu restent disponibles sur les deux.")]),
+Column.card(children: [H2("Contacter"), P("La même page garde ses actions et son contenu.")])]),
+A("Accueil des parcours", to: "index.holo")])
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; computer: { max-width: 960px; } print: { background: white; color: black; } }
+H1 { color: #E9B44C; font-size: 28px; print: { color: black; } }
+H2 { color: #E9B44C; font-size: 22px; print: { color: black; } }
+A { color: #8fd3ff; print: { color: black; } }
+.card { background: #22223a; padding: 16px; border-radius: 8px; }
+Nav { print: { display: none; } }
