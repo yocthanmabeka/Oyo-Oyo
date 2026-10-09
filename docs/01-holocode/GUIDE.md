@@ -1529,10 +1529,67 @@ Page(
 - **C'est le serveur qui arbitre**, avec le même moteur : la page lui envoie le geste et attend sa réponse ; il range la nouvelle valeur, puis l'envoie à toutes les pages ouvertes à cette adresse. Deux visiteurs en même temps : chacun son tour, rien n'est perdu. **Un bouton caché ne se touche pas** : quand `If(seats, over: 0, …)` cache « Book a seat », le serveur refuse ce toucher, même forgé ; c'est ainsi qu'une condition garde la dernière place.
 - Une valeur partagée vaut **pour une adresse** : avec `concert/{id}.holo` (§ 6 undetricies), `/concert/12` et `/concert/13` ont chacune leurs places.
 - **Sans JavaScript**, la page reste juste : le toucher part au serveur (`holo serve`), et la page revient à jour.
-- Refusé, avec la raison : le même nom dans `State` ou dans l'adresse ; une horloge (`Every`, `After`), une règle qui guette (`When`), une touche, un survol, des données, un module ou un glissement qui la changerait ; `keep` ; un champ lié à elle et une liste partagée (pas encore).
+- Refusé, avec la raison : le même nom dans `State` ou dans l'adresse ; une horloge (`Every`, `After`), une règle qui guette (`When`), une touche, un survol, des données, un module (`output:`, une valeur ou une liste) ou un glissement qui la changerait ; `keep` ; un champ lié à elle, sauf un texte préparé puis confirmé par un toucher (plus bas).
 - `holo serve` les garde dans sa base (`holo-data/site.sqlite`, table `shared`) ; le serveur d'essai, en mémoire, jusqu'à son arrêt.
+- **Un frein** : soixante touchers partagés par visiteur et par adresse, cent quatre-vingts par adresse IP, chaque minute ; au-delà, le serveur répond « attends une minute », et rien ne change.
 
 Cette écriture est proposée (`ADR-079`). La leçon est `101-une-valeur-partagee.holo` : ouvre-la sur ton téléphone et sur ton ordinateur.
+
+### Une liste partagée : une ligne se désigne par sa clé
+
+Une liste aussi se partage, de textes ou de fiches, et se change comme une liste à toi (§ 6 septendecies) :
+
+```holo
+Page(
+  title: "Groceries",
+  state: State(what: ""),
+  shared: Shared(groceries: [ Item(what: "Bread", done: 0) ]),
+  children: [
+    Input(value: what, label: "To buy"),
+    Button(name: Add, text: "Add"),
+    Repeat(over: groceries, empty: "Nothing to buy.", children: [
+      Row(gap: 8px, children: [
+        If(item.done, is: 1, children: [ P("✓ {item.what}") ], else: [ P("{item.what}") ]),
+        Button(name: Done, text: "Bought"),
+        Button(name: Remove, text: "Remove"),
+      ]),
+    ], rules: [
+      On(Done.tap, effect: item.done.set(1)),
+      On(Remove.tap, effect: groceries.remove(item)),
+    ]),
+    Button(name: Clear, text: "Clear the list"),
+  ],
+  rules: [
+    On(Add.tap, effect: [groceries.push(Item(what: what, done: 0)), what.set("")]),
+    On(Clear.tap, effect: groceries.clear()),
+  ],
+)
+```
+
+- **`Shared(groceries: [ Item(…) ])`**, ou des textes, `Shared(names: [])` : cinquante éléments au plus, deux cents caractères par texte ou par champ, 16 Kio pour toutes les valeurs partagées. Un geste qui dépasserait une limite est refusé tout entier.
+- `push`, `remove(item)`, `item.done.set(1)` et `clear()` s'écrivent comme pour une liste à toi ; chaque geste part au serveur, qui l'arbitre et l'envoie à toutes les pages ouvertes. Un ajout part toujours de la liste du serveur.
+- **Une ligne touchée se désigne par sa clé, jamais par son rang** : la clé que la page donne déjà à chaque ligne (§ 6 duovicies), qui part avec le geste, avec ou sans JavaScript. Si quelqu'un a retiré une ligne juste avant toi, le serveur retrouve la tienne là où elle est maintenant : on ne retire jamais la mauvaise. Si ta ligne a changé entre-temps (cochée par un autre), ton geste est refusé, et ta page montre la liste du moment. Avec `Repeat(…, key: what)`, la clé est le champ : elle ne change pas quand le reste de la fiche change.
+- Une liste calculée d'après elle (`Filter(from: groceries, …)`, § 6 vicies) marche aussi : la ligne touchée change l'élément de la liste partagée.
+
+### Un texte partagé, préparé puis confirmé
+
+```holo
+Page(
+  title: "Our title",
+  shared: Shared(title: "A common title"),
+  children: [
+    H1("{title}"),
+    Input(value: title, label: "Next title"),
+    Button(name: Save, text: "Publish"),
+  ],
+  rules: [ On(Save.tap, effect: title.set(title)) ],
+)
+```
+
+- `Input(value: title)` sur un texte partagé n'est permis que si un toucher le confirme : `On(Save.tap, effect: title.set(title))`. Ce que tu tapes reste un brouillon à toi ; les textes de la page montrent la valeur publiée. Le toucher publie ton texte (deux cents caractères au plus), après que le serveur a vérifié le bouton d'après ses valeurs à lui. Sans JavaScript, de même.
+- Si quelqu'un publie pendant que tu écris, ton champ garde ton brouillon.
+
+Ces écritures sont décidées (`ADR-080`, validée par Yocthan le 2026-10-09). Les leçons sont `102-une-liste-partagee.holo` et `103-un-texte-partage-confirme.holo`.
 
 ## 6 untricies. Des comptes : se connecter, une page réservée, le panier qui suit le compte
 
@@ -1573,6 +1630,28 @@ Page(title: "Members", access: members, children: [ H1("Hello, {account}") ])
 - Le serveur d'essai (`node outils/server.mjs`) n'a pas de comptes : à la place des pages de compte et des pages réservées, il dit qu'il faut `holo serve`.
 
 Cette écriture est décidée (`ADR-081`, validée par Yocthan le 2026-10-09) ; se connecter par un mot de passe puis un code à 6 chiffres, tout chez l'auteur, est son choix du 2026-10-08. Les leçons sont `104-se-connecter.holo`, `105-une-page-reservee.holo` et `106-le-panier-qui-suit-le-compte.holo`.
+
+### Protéger son compte : un QR, dix codes de secours ; l'effacer
+
+Rien à écrire dans la page : ce sont les pages de compte de `holo serve`.
+
+- **Activer le code à 6 chiffres** (`/account`) montre un QR, fabriqué sur le PC de l'auteur : l'application d'authentification le scanne. La clé écrite reste là, si tu ne peux pas scanner.
+- **Dix codes de secours** s'affichent une seule fois, à l'activation : garde-les ailleurs que sur ton téléphone. Si tu perds ton téléphone, un code de secours remplace le code à 6 chiffres, après ton mot de passe, une seule fois chacun. La base ne garde que leur empreinte.
+- **Effacer son compte** : `/account/delete`, depuis la page du compte. Il faut ton nom, ton mot de passe et, si le code est activé, un code du moment ou un code de secours. Le serveur retire le compte, ses sessions, ses clés d'accès, son panier, ses messages et leurs fichiers, dans sa base et dans ses sauvegardes locales. Les copies sorties du dossier restent à l'auteur ; ce qui est partagé avec tous appartient à la page.
+- **Un frein par adresse** : trente envois de compte par minute au plus depuis une même adresse, même sous des noms différents.
+
+Ces protections sont décidées (`ADR-083`, validée par Yocthan le 2026-10-09). La leçon est `108-proteger-et-effacer-son-compte.holo`.
+
+### Se connecter par une clé d'accès
+
+Une clé d'accès (« passkey ») : ton appareil la garde et te reconnaît (empreinte, visage, code de l'appareil) ; le site ne reçoit qu'une signature, qu'il vérifie. Rien à retenir, rien à voler sur le serveur.
+
+- Dans ton compte, **« Mes clés d'accès »** (`/account/passkeys`) : ajoute une clé, après avoir confirmé ton mot de passe (et ton code, s'il est activé) ; huit au plus ; retire-la de la même façon.
+- Puis **« Se connecter par une clé d'accès »**, depuis la page « Se connecter » : ni nom, ni mot de passe.
+- **Sur ce PC**, ouvre le site par `http://localhost:8080`. **Sur un téléphone**, le navigateur ne donne une clé qu'en HTTPS : l'auteur sert son site en HTTPS par un proxy sur son PC (Caddy, nginx), avec un nom de domaine, et lance `holo serve` avec `HOLO_ORIGIN=https://son-domaine`. L'adresse `http://<adresse du PC>:8080` ne suffit pas.
+- Il faut JavaScript pour une clé d'accès ; le mot de passe, le code et les secours marchent sans lui.
+
+C'est décidé (`ADR-082`, validée par Yocthan le 2026-10-09). La leçon est `107-se-connecter-par-une-cle.holo`.
 
 ## 6 sexvicies. La mise en page : téléphone, ordinateur, la place, ce qui dépasse, les proportions, le curseur, justifié, décrocher
 
@@ -2378,6 +2457,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Une police du moteur, pour toutes les écritures | `fonts: [ Font(family: "Inter") ]` | fait (`ADR-092`) |
 | Envoyer un formulaire | `Form(name:)`, `Contact.send`, `sent`, `failed` | fait |
 | Un compte, une page réservée aux membres | `Page(access: members)`, `signedIn`, `{account}`, `A(to: "/account/signin")` | fait, avec `holo serve` (`ADR-081`) |
+| Une clé d'accès, un QR, des codes de secours, effacer son compte | rien à écrire : les pages de compte de `holo serve` | fait (`ADR-082`, `ADR-083`) |
 | Chercher, filtrer, trier ; une page d'une liste | `computed: [ Filter(…, offset:, limit:, total:) ]` | fait (`ADR-062`, `ADR-084`) |
 | Un fichier de ses valeurs, exporté puis importé | `Transfer(file:, values:)`, `export`, `import` | fait (`ADR-093`) |
 | L'appareil : la position, le presse-papiers, la caméra, le microphone | `Device(kind:)`, `request`, `write`, `stop` | fait (`ADR-094`) |
@@ -2388,6 +2468,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Une liste qui change pendant la visite | `State(tasks: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` | fait |
 | Une liste d'articles à champs, aussi reçue du serveur | `State(articles: [ Item(…) ])`, `{item.title}`, `push(Item(…))`, `Data` | fait |
 | Une valeur partagée par tous les visiteurs, vue en direct | `shared: Shared(seats: 20)`, `seats.sub(1)` par un toucher | fait |
+| Une liste partagée, une ligne désignée par sa clé ; un texte partagé confirmé | `Shared(groceries: [ Item(…) ])`, `push`, `remove(item)`, `item.done.set(1)`, `clear()` ; `Input(value: title)` et `title.set(title)` | fait, avec `holo serve` (`ADR-080`) |
 | Du code enfermé (un module WebAssembly) | `module "…"`, `Module(…)`, `run`, `done`, `failed` | fait |
 | Une fenêtre, un pli, une glissière, une barre | `Dialog`, `Details`, `Slider`, `Progress` | fait |
 | Réagir au zoom par une règle (« quand on zoome, alors… ») | aucun | à faire |
@@ -2404,9 +2485,9 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 
 - Un dessin n'a pas encore de texte ni de dégradé ; une liste de formes en garde deux cents au plus.
 - Les données venues d'un autre serveur.
-- Pour les valeurs partagées : un champ qui en change une, une liste partagée, une limite au nombre de touchers d'un visiteur.
+- Pour les valeurs partagées (`ADR-080`) : un champ qui change un nombre ou une liste partagés (seul un texte partagé se prépare, puis se confirme) ; une condition sur l'élément d'une ligne partagée, que le serveur ne vérifie pas encore ; une valeur « une fois par compte ».
+- Pour les comptes (`ADR-081` à `ADR-083`) : changer son mot de passe ; un compte créé par une clé d'accès seule ; de nouveaux codes de secours sans retirer le code à 6 chiffres ; la clé d'accès essayée sur un vrai téléphone, en HTTPS.
 - Pour les capacités du navigateur (`ADR-093` à `ADR-096`) : la caméra ne prend pas de photo, le microphone ne donne pas de son ; pas de rappel après la fermeture de la page (il faudrait un serveur de « push ») ; pas d'import en CSV ni par glisser-déposer ; pas de copie hors-ligne d'une page qui a un compte, un formulaire ou des valeurs partagées, ni d'envoi mis en attente.
-- Pour les comptes (`ADR-081`) : pas encore de clés d'accès (passkeys), de QR code pour activer le code, de codes de secours, ni de mot de passe changé ou de compte effacé par son membre.
 - Pour les valeurs : pas de nombre négatif ; une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.

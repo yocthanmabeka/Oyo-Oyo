@@ -24,10 +24,14 @@ pub const SIGNAL: &str = "signal";
 ///
 /// Les champs et le bouton d'un `Form` s'y rattachent aussi : « Envoyer » part comme un autre
 /// toucher, et le serveur fait l'envoi (ADR-075).
-pub fn without_script(html: &str) -> String {
+///
+/// `keyed` : les listes dont une ligne se désigne par sa clé (une liste partagée, ou calculée
+/// d'après elle, ADR-080) ; le bouton d'une de leurs lignes porte aussi la clé, `Done.tap@2#…`.
+pub fn without_script(html: &str, keyed: &[String]) -> String {
     let mut output = String::with_capacity(html.len() + 256);
-    // Le rang de ligne de chaque `div` ouvert, pour savoir de quelle ligne vient un bouton.
-    let mut ranks: Vec<Option<String>> = Vec::new();
+    // Pour chaque `div` ouvert : son rang et sa clé de ligne, la liste qu'il montre, pour savoir
+    // de quelle ligne, et de quelle liste, vient un bouton.
+    let mut divs: Vec<(Option<String>, Option<String>, Option<String>)> = Vec::new();
     let mut rest = html;
     while let Some(start) = rest.find('<') {
         output.push_str(&rest[..start]);
@@ -36,17 +40,25 @@ pub fn without_script(html: &str) -> String {
         let tag = &rest[..=end];
         rest = &rest[end + 1..];
         if tag.starts_with("<div") {
-            ranks.push(attribute(tag, "data-rank").map(str::to_string));
+            let read = |name: &str| attribute(tag, name).map(str::to_string);
+            divs.push((read("data-rank"), read("data-key"), read("data-list")));
         } else if tag.starts_with("</div") {
-            ranks.pop();
+            divs.pop();
         }
         if tag.starts_with("<button type=\"button\"") {
             let class = attribute(tag, "class").unwrap_or("");
             let tappable = class.split(' ').any(|c| c == "holo-Button" || c.starts_with("holo-Shape"));
             match (tappable, attribute(tag, "data-name")) {
                 (true, Some(name)) => {
-                    let line = ranks.iter().rev().find_map(Option::as_ref).map(|rank| format!("@{rank}")).unwrap_or_default();
-                    let sending = format!("<button type=\"submit\" form=\"{FORM}\" name=\"{SIGNAL}\" value=\"{name}.tap{line}\"");
+                    let at = divs.iter().rposition(|(rank, _, _)| rank.is_some());
+                    let line = at.and_then(|at| divs[at].0.as_ref()).map(|rank| format!("@{rank}")).unwrap_or_default();
+                    // La clé, déjà écrite pour le HTML dans `data-key` : elle passe telle quelle.
+                    let list = at.and_then(|at| divs[..at].iter().rev().find_map(|(_, _, list)| list.as_ref()));
+                    let key = match (at, list) {
+                        (Some(at), Some(list)) if keyed.contains(list) => divs[at].1.as_ref().map(|key| format!("#{key}")).unwrap_or_default(),
+                        _ => String::new(),
+                    };
+                    let sending = format!("<button type=\"submit\" form=\"{FORM}\" name=\"{SIGNAL}\" value=\"{name}.tap{line}{key}\"");
                     output.push_str(&tag.replacen("<button type=\"button\"", &sending, 1));
                 }
                 _ => output.push_str(tag),
@@ -154,11 +166,19 @@ fn hex(byte: u8) -> Option<u8> {
     (byte as char).to_digit(16).map(|digit| digit as u8)
 }
 
+/// La clé d'une ligne, au plus : celle d'un champ de 200 caractères, avec sa marque et son rang.
+pub const LINE_KEY_MAX: usize = 1024;
+
 /// Un geste envoyé sans JavaScript est-il de ceux qu'une page reçoit ? Seulement un toucher
-/// (`Add.tap`), avec sa ligne s'il en a une (`Done.tap@2`). Rien d'autre : ni une horloge, ni
-/// un survol, ni un signal inventé.
+/// (`Add.tap`), avec sa ligne s'il en a une (`Done.tap@2`), et la clé de cette ligne dans une
+/// liste partagée (`Done.tap@2#k:Ada-0`, ADR-080). Rien d'autre : ni une horloge, ni un survol,
+/// ni un signal inventé.
 pub fn is_tap(signal: &str) -> bool {
     let (gesture, line) = signal.split_once('@').unwrap_or((signal, "0"));
+    let (line, key) = match line.split_once('#') {
+        Some((rank, key)) => (rank, Some(key)),
+        None => (line, None),
+    };
     let Some(name) = gesture.strip_suffix(".tap") else { return false };
     !name.is_empty()
         && name.len() <= 64
@@ -167,6 +187,7 @@ pub fn is_tap(signal: &str) -> bool {
         && !line.is_empty()
         && line.len() <= 6
         && line.chars().all(|c| c.is_ascii_digit())
+        && key.is_none_or(|key| !key.is_empty() && key.len() <= LINE_KEY_MAX && !key.chars().any(char::is_control))
 }
 
 #[cfg(test)]
@@ -182,9 +203,13 @@ mod tests {
             <label><input type=\"radio\" name=\"choix-size\" value=\"S\" data-bind=\"size\"><span>S</span></label>\
             <button type=\"button\" class=\"holo-Point\" data-name=\"Shop\"></button>\
             <form class=\"holo-Form\" data-name=\"Contact\" novalidate><input type=\"text\" value=\"\" data-bind=\"mail\"><button type=\"button\" class=\"holo-Button\" data-name=\"Send\">Envoyer</button></form></div>";
-        let out = without_script(html);
+        let out = without_script(html, &[]);
         assert!(out.contains("<button type=\"submit\" form=\"holo-gestures\" name=\"signal\" value=\"Add.tap\" class=\"holo-Button\" data-name=\"Add\">Ajouter</button>"), "{out}");
         assert!(out.contains("value=\"Done.tap@2\""), "{out}");
+        // La ligne d'une liste partagée porte aussi sa clé (ADR-080), telle qu'écrite pour le HTML.
+        let shared = "<div class=\"holo-Lines\" data-list=\"names\" data-repeat=\"3:5\"><div class=\"holo-line\" data-rank=\"1\" data-key=\"k:Tom &amp; Jerry-0\"><button type=\"button\" class=\"holo-Button\" data-name=\"Remove\">x</button></div></div>";
+        assert!(without_script(shared, &["names".to_string()]).contains("value=\"Remove.tap@1#k:Tom &amp; Jerry-0\""), "{}", without_script(shared, &["names".to_string()]));
+        assert!(without_script(shared, &["others".to_string()]).contains("value=\"Remove.tap@1\""));
         assert!(out.contains("<input form=\"holo-gestures\" name=\"buyer\" type=\"text\" value=\"Ada\" data-bind=\"buyer\">"), "{out}");
         assert!(out.contains("<input type=\"hidden\" form=\"holo-gestures\" name=\"gift\" value=\"0\"><input form=\"holo-gestures\" name=\"gift\" value=\"1\" type=\"checkbox\" data-bind=\"gift\" checked>"), "{out}");
         assert!(out.contains("<input form=\"holo-gestures\" type=\"radio\" name=\"choix-size\""), "{out}");
@@ -210,8 +235,9 @@ mod tests {
             ("gift".to_string(), "1".to_string()),
         ]);
         assert_eq!(read_form("a=%ZZ&b=%4"), vec![("a".to_string(), "%ZZ".to_string()), ("b".to_string(), "%4".to_string())]);
-        assert!(is_tap("Add.tap") && is_tap("Done.tap@12"));
-        for refused in ["Add.hover", "add.tap", ".tap", "Add.tap@", "Add.tap@x", "Shop.portals", "A-b.tap", "Add.tap@1234567"] {
+        assert!(is_tap("Add.tap") && is_tap("Done.tap@12") && is_tap("Done.tap@2#k:Ada-0") && is_tap("Done.tap@0#9f3a-1"));
+        let long = format!("Done.tap@2#{}", "a".repeat(LINE_KEY_MAX + 1));
+        for refused in ["Add.hover", "add.tap", ".tap", "Add.tap@", "Add.tap@x", "Shop.portals", "A-b.tap", "Add.tap@1234567", "Add.tap#k", "Done.tap@2#", "Done.tap@#k", "Done.tap@2#a\nb", long.as_str()] {
             assert!(!is_tap(refused), "{refused}");
         }
     }
