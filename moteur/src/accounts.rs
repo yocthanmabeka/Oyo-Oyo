@@ -878,7 +878,7 @@ fn use_recovery(base: &Connection, account: i64, secret: &[u8], code: &str) -> b
 }
 fn recovery_page(member: &Member, clear: &[String]) -> Reply {
     let codes=clear.iter().map(|c| format!("<li><code data-recovery>{}</code></li>",escape(c))).collect::<Vec<_>>().join("");
-    page(200,"Garder tes codes de secours",&format!("<h1>Garde tes dix codes de secours</h1><p>Le code à 6 chiffres est activé. Cette liste est montrée une seule fois. Copie-la dans un endroit sûr, séparé de ton téléphone. Chaque code sert une seule fois, après ton mot de passe.</p><p>Compte : {}</p><ol>{codes}</ol><p>Un rechargement ne les montre plus. Aucun code en clair n'est gardé dans la base.</p><p><a href=\"/account\">Continuer vers mon compte</a></p>",escape(&member.name)),&[])
+    page(200,"Garder tes codes de secours",&format!("<h1>Garde tes dix codes de secours</h1><p>Le code à 6 chiffres est activé. Cette liste est montrée une seule fois. Copie-la dans un endroit sûr, séparé de ton téléphone. Chaque code sert une seule fois, après ton mot de passe.</p><p>Compte : {}</p><ol>{codes}</ol><p>Un rechargement ne les montre plus. Aucun code en clair n'est gardé dans la base.</p><p><a href=\"/account?done=code\">Continuer vers mon compte</a></p>",escape(&member.name)),&[])
 }
 fn qr_svg(link: &str) -> String {
     let Ok(code)=qrcode::QrCode::new(link.as_bytes()) else { return "<p>QR indisponible ; recopie la clé.</p>".into() };
@@ -896,18 +896,27 @@ pub(crate) fn retry_erased_files(folder: &std::path::Path, base: &Connection) ->
 fn erase_files(data: &std::path::Path, base: &Connection) -> Result<(), String> {
     let mut stmt=base.prepare("SELECT path FROM account_erased_files").map_err(|e| e.to_string())?;
     let paths=stmt.query_map([],|r|r.get::<_,String>(0)).map_err(|e|e.to_string())?.collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?;drop(stmt);
+    // Chaque fichier est essayé, même après un échec : un fichier pris n'en retient pas d'autres.
+    // Celui qui ne s'efface pas reste en attente ; la première erreur est rendue.
+    let mut first_error = None;
     for relative in paths {
-        let parts:Vec<&str>=relative.split('/').collect();
-        if parts.len()!=3||parts[0]!="files"||parts[1..].iter().any(|p|p.is_empty()||*p=="."||*p==".."||!p.bytes().all(|c|c.is_ascii_alphanumeric()||b"-_.".contains(&c))) {return Err("chemin de fichier privé refusé".into());}
-        let path=data.join(&relative);
-        if path.exists() {
-            let root=data.join("files").canonicalize().map_err(|e|e.to_string())?;
-            let target=path.canonicalize().map_err(|e|e.to_string())?;
-            if !target.starts_with(root) || std::fs::symlink_metadata(&path).map_err(|e|e.to_string())?.file_type().is_symlink() {return Err("fichier privé hors du dossier".into());}
-            std::fs::remove_file(&path).map_err(|e|e.to_string())?;
+        if let Err(error) = erase_file(data, base, &relative) {
+            first_error.get_or_insert(format!("{relative} : {error}"));
         }
-        base.execute("DELETE FROM account_erased_files WHERE path=?1",params![relative]).map_err(|e|e.to_string())?;
     }
+    first_error.map_or(Ok(()), Err)
+}
+fn erase_file(data: &std::path::Path, base: &Connection, relative: &str) -> Result<(), String> {
+    let parts:Vec<&str>=relative.split('/').collect();
+    if parts.len()!=3||parts[0]!="files"||parts[1..].iter().any(|p|p.is_empty()||*p=="."||*p==".."||!p.bytes().all(|c|c.is_ascii_alphanumeric()||b"-_.".contains(&c))) {return Err("chemin de fichier privé refusé".into());}
+    let path=data.join(relative);
+    if path.exists() {
+        let root=data.join("files").canonicalize().map_err(|e|e.to_string())?;
+        let target=path.canonicalize().map_err(|e|e.to_string())?;
+        if !target.starts_with(root) || std::fs::symlink_metadata(&path).map_err(|e|e.to_string())?.file_type().is_symlink() {return Err("fichier privé hors du dossier".into());}
+        std::fs::remove_file(&path).map_err(|e|e.to_string())?;
+    }
+    base.execute("DELETE FROM account_erased_files WHERE path=?1",params![relative]).map_err(|e|e.to_string())?;
     Ok(())
 }
 fn erase_in(base: &mut Connection, member: &Member, at: u64, extra_files: &[String]) -> Result<(), String> {
@@ -1419,6 +1428,26 @@ mod tests {
         drop(site);std::fs::remove_dir_all(folder).unwrap();
     }
 
+    #[test]
+    fn a_private_file_that_cannot_be_erased_does_not_stop_the_server() {
+        // Un fichier privé d'un compte effacé qui ne s'efface pas (pris par un autre programme sous
+        // Windows ; ici, un dossier à sa place) : le site démarre quand même, efface les autres
+        // fichiers en attente, et garde celui-là pour le prochain démarrage.
+        let (site, folder) = site();
+        let files = folder.join(crate::server::DATA_FOLDER).join("files").join("cart");
+        std::fs::create_dir_all(files.join("locked.png")).unwrap();
+        std::fs::write(files.join("photo.png"), b"personal").unwrap();
+        site.base.lock().unwrap().execute_batch("INSERT INTO account_erased_files(path) VALUES ('files/cart/locked.png'), ('files/cart/photo.png');").unwrap();
+        drop(site);
+        let web = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("web");
+        let reopened = Site::open(&folder, &web).expect("le site démarre malgré un fichier pris");
+        assert!(!files.join("photo.png").exists());
+        let waiting: Vec<String> = reopened.base.lock().unwrap().prepare("SELECT path FROM account_erased_files").unwrap().query_map([], |row| row.get(0)).unwrap().map(Result::unwrap).collect();
+        assert_eq!(waiting, ["files/cart/locked.png"]);
+        assert_eq!(reopened.answer(&ask("GET", "/account/signin", "", b"")).status, 200);
+        drop(reopened);
+        let _ = std::fs::remove_dir_all(folder);
+    }
 }
 
 /// Une opération sensible confirme le mot de passe et le second facteur, pas le seul cookie.
