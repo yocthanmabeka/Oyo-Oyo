@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-09). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (394 mots : 393 décidés, 1 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (131) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (422 mots : 420 décidés, 2 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (132) et ce que HoloCode en a.
 - **Existe ?** : le jugement de Claude, élément par élément (oui, en partie, non) ; ce n’est pas une mesure. Le tableau ne donne pas de pourcentage : aucune méthode reproductible ne mesure la part d’un élément du web qu’on obtient en HoloCode (consigne de Yocthan du 2026-10-07). Les comptes se refont en comptant les lignes.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,11 +9,11 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 394 mots | 393 décidés, 1 à l’essai |
+| **HoloCode** | 422 mots | 420 décidés, 2 à l’essai |
 | HTML | 62 éléments | 52 oui, 4 en partie, 3 non, 3 refusés |
-| CSS | 34 éléments | 28 oui, 4 en partie, 0 non, 2 refusés |
-| JavaScript | 35 éléments | 18 oui, 10 en partie, 5 non, 1 refusés, 1 sans objet |
-| HTML, CSS, JS ensemble | 131 éléments | 98 oui, 18 en partie, 8 non, 6 refusés, 1 sans objet |
+| CSS | 35 éléments | 29 oui, 4 en partie, 0 non, 2 refusés |
+| JavaScript | 35 éléments | 18 oui, 11 en partie, 4 non, 1 refusés, 1 sans objet |
+| HTML, CSS, JS ensemble | 132 éléments | 99 oui, 19 en partie, 7 non, 6 refusés, 1 sans objet |
 
 # Partie 1 — Les mots de HoloCode
 
@@ -159,6 +159,18 @@
 | `source, alt, weight` | Le fichier, son texte de remplacement, son poids | `src, alt` | Décidé (ADR-009, ADR-025) |
 | `form, color, size` | La forme, la couleur et la taille d'une Shape | `CSS` | Décidé (ADR-032) |
 
+## Paramètres : le dessin
+
+| Mot HoloCode | Ce qu’il fait | Sur le web | État |
+|---|---|---|---|
+| `width, height (dans Drawing et Rect)` | Les mesures d'un dessin, en unités du dessin (il garde ses proportions), et celles d'un rectangle | `viewBox, width, height` | Décidé (ADR-086) |
+| `r, radius, d` | Le rayon d'un rond, l'arrondi des coins d'un rectangle, le tracé d'un Path (filtré : des lettres de tracé et des nombres) | `r, rx, d` | Décidé (ADR-086) |
+| `from, to (dans Line)` | Les deux bouts d'un trait : from: [0, 132] | `x1, y1, x2, y2` | Décidé (ADR-086) |
+| `fill, stroke, thickness` | Le remplissage, le bord, l'épaisseur du trait : une couleur des styles, ou "none" | `fill, stroke, stroke-width` | Décidé (ADR-086) |
+| `kind (dans Chart)` | La sorte d'un graphique ; over, value et label disent sa liste, le champ du nombre et celui du nom | `type (Chart.js)` | Décidé (ADR-087) |
+| `shapes` | Les formes d'un dessin venues d'une liste à champs, une par élément, vérifiées une à une ; cent au plus | `un tableau d'objets, dessiné à la main (d3)` | Décidé (ADR-088) |
+| `x1, y1, x2, y2 (dans shapes)` | Les bouts d'un trait venu d'une liste ; form dit la sorte de chaque forme : "rect", "circle", "line" ou "path" | `x1, y1, x2, y2` | Décidé (ADR-088) |
+
 ## Paramètres : la disposition
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
@@ -226,6 +238,7 @@
 | `forever` | Des scènes qui recommencent | `animation-iteration-count: infinite` | Décidé (ADR-034) |
 | `grid, row, column, diagonal` | La disposition du carrefour | — | Décidé (ADR-021) |
 | `true, false` | Oui, non | `true, false` | Décidé (ADR-009) |
+| `bars, line, pie` | Les sortes d'un graphique : des barres, une courbe, des parts | `type: 'bar', 'line', 'pie' (Chart.js)` | Décidé (ADR-087) |
 
 ## Signaux et capacités
 
@@ -278,7 +291,7 @@
 |---|---|---|---|
 | `import` | Importer un autre fichier .holo | `link, script src` | Décidé (ADR-029) |
 | `//` | Un commentaire | `<!-- -->, /* */, //` | Décidé (ADR-009) |
-| `**gras**, *italique*, `code`` | Le texte enrichi, en Markdown | `strong, em, code` | Décidé (ADR-019) |
+| `` **gras**, *italique*, `code` `` | Le texte enrichi, en Markdown | `strong, em, code` | Décidé (ADR-019) |
 | `""" … """` | Un texte qui garde ses retours à la ligne | `br` | Décidé (ADR-025) |
 
 ## Blocs : les règles
@@ -347,13 +360,14 @@
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `Font` | Une police rangée à côté, ou une des polices libres du moteur, chargée par la page | `@font-face` | Décidé (ADR-041) ; les polices du moteur proposées (ADR-092) |
+| `Font` | Une police rangée à côté, chargée par la page | `@font-face` | Décidé (ADR-041) |
 
 ## Paramètres : la page
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `fonts, family` | Les polices de la page ; le nom d'une police | `@font-face, font-family` | Décidé (ADR-041) |
+| `Font(family: "…") sans source` | Une des 32 polices libres du moteur, nommée sans fichier ; seuls les morceaux utiles sont téléchargés | `Google Fonts, unicode-range` | À l’essai (ADR-092) |
 
 ## Blocs : agir
 
@@ -454,6 +468,7 @@
 | `children (dans un composant)` | L'emplacement où va le contenu donné à l'appel | `slot, children` | Décidé (ADR-058) |
 | `shared` | Les valeurs partagées de la page : seul un toucher les change, arbitré par le serveur | `WebSocket, EventSource` | Décidé (ADR-079) |
 | `address` | Les valeurs de la page écrites dans l’adresse, après le ? : « Précédent » revient à l’onglet d’avant, et l’adresse se partage | `history.pushState, URLSearchParams, popstate` | À l’essai (ADR-091) |
+| `access, members, everyone` | Réserver la page aux membres (access: members) ; everyone, qu'on n'écrit pas, l'ouvre à tous | `@login_required (Django), un middleware (Next.js)` | Décidé (ADR-081) |
 
 ## Signaux et capacités
 
@@ -467,6 +482,13 @@
 |---|---|---|---|
 | `module "…"` | Annoncer un module en haut du fichier | `script src` | Décidé (ADR-045) |
 | `{id} dans le nom du fichier` | Une adresse qui porte une valeur : profil/{id}.holo sert /profil/123 ; la page lit {id}, sans le changer | `[id] (Next.js), :id (Express)` | Décidé (ADR-078) |
+| `/account, /account/signin, /account/signup` | Les pages de compte du serveur (un mot de passe, puis un code à 6 chiffres), fabriquées par le moteur, sans JavaScript ; les seuls liens qui partent de la racine du site | `/accounts/login/ (Django), /users/sign_in (Devise)` | Décidé (ADR-081) |
+
+## Valeurs calculées
+
+| Mot HoloCode | Ce qu’il fait | Sur le web | État |
+|---|---|---|---|
+| `signedIn, {account}` | Deux valeurs que le serveur donne : le visiteur est-il connecté, et le nom de son compte ; la page les lit, ne les change jamais | `request.user, current_user, useSession()` | Décidé (ADR-081) |
 
 # Partie 2 — HoloCode face à HTML, CSS et JavaScript
 
@@ -546,8 +568,8 @@
 | `Checkbox(value:, label:)` | `input checkbox` | une case à cocher | Oui | Déjà là | — |
 | `Choice(value:, label:, options:)` | `input radio` | un choix parmi plusieurs | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
 | `Slider(value:, label:, min:, max:)` | `input range` | un curseur à glisser | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
-| `Input(type: date | time | color)` | `input date, heure, couleur` | choisir une date, une couleur | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
-| `Input(type: file, accept:, max:) dans un Form` | `input email, mot de passe, fichier` | adresse, secret, envoi de fichier | En partie | Déjà là | Le fichier : ajouté le 2026-10-07 (ADR-059). Le courriel et le mot de passe viendront avec des comptes. |
+| `Input(type: date \| time \| color)` | `input date, heure, couleur` | choisir une date, une couleur | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
+| `Input(type: file, accept:, max:) dans un Form` | `input email, mot de passe, fichier` | adresse, secret, envoi de fichier | En partie | Déjà là | Le fichier : ajouté le 2026-10-07 (ADR-059) ; l'e-mail aussi (ADR-068). Le mot de passe est sur les pages de compte que fabrique le moteur (ADR-081) : une page n'en demande pas elle-même. |
 | `label: (obligatoire)` | `label` | le nom d'un champ | Oui | Déjà là | Mieux que HTML : impossible de l'oublier. |
 | `Input(…, lines: 5)` | `textarea` | un texte long | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
 | `Choice(…, menu: true)` | `select, option` | une liste déroulante | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
@@ -690,4 +712,4 @@
 | `le moteur dessine des points` | `WebGL, WebGPU` | la 3D | En partie | Oui, utile | Pas encore d'objets pleins : l'essai de la chaise. |
 | — | `géolocalisation, caméra, vibration` | l'appareil du visiteur | Non | Plus tard | — |
 | — | `presse-papiers, partage` | copier, partager | Non | Plus tard | — |
-| — | `paiement, comptes` | payer, se connecter | Non | Plus tard | Bien plus tard, et jamais sans un serveur sûr. |
+| `Page(access: members), signedIn, {account}` | `paiement, comptes` | payer, se connecter | En partie | Déjà là | Les comptes : ajoutés le 2026-10-08 (ADR-081), gardés par holo serve dans la base du site, un mot de passe puis un code à 6 chiffres, sans prestataire. Pas encore de paiement. |
