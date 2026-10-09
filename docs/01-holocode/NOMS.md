@@ -56,6 +56,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Device(kind: position \| clipboard \| camera \| microphone)`, `request`, `write`, `stop` | `navigator.geolocation`, `navigator.clipboard`, `getUserMedia()` | nouveau : un mot pour l'appareil, quatre sortes nommées ; sur le toucher d'un bouton ; rien n'est envoyé ; l'arrêt vient d'office (`ADR-094`) |
 | `Notification(title:, body:, after:)`, `show`, `stop` | `Notification.requestPermission()`, `showNotification()`, `setTimeout` | repris : le nom du web ; un rappel seulement tant que la page est ouverte, sans « push » (`ADR-095`) |
 | `Offline(files:)`, `save`, `remove` | un service worker et `CacheStorage` écrits à la main | nouveau : une copie d'une page publique, demandée par le visiteur ; le réseau d'abord ; rien n'est mis en attente ni rejoué (`ADR-096`) |
+| `Input(suggestions: ["Paris", "Lyon"])`, `suggestions: villes` | `input list="…"`, `datalist`, `option` | changé : un paramètre du champ au lieu d'un élément relié par un `id` ; écrites, ou une liste de la page suivie pendant la visite ; on peut toujours écrire autre chose (`ADR-100`, à valider) |
 | `Enter` | `@keyframes` + `animation` (de… vers…), ou `element.animate()` | changé : on écrit seulement d'où le bloc part |
 | `Loop` | `animation: … infinite alternate` | changé : on écrit seulement où il va |
 | `Scenes`, `Scene` | une suite de `animation-delay` calculés à la main, ou un chef d'orchestre en JavaScript | changé : les scènes s'enchaînent seules |

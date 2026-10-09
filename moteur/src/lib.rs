@@ -646,6 +646,17 @@ pub fn shapes_html(source: &str, state: &str, list: &str) -> String {
     lists.iter().find(|(name, _)| name == list).map(|(_, elements)| drawing::listed_shapes(elements)).unwrap_or_default()
 }
 
+/// Les suggestions d'un champ venues d'une liste de la page, pour cet état (ADR-100) : la page
+/// les pose dans le datalist de la liste quand elle change. Vide si la liste n'existe pas.
+pub fn suggestions_html(source: &str, state: &str, list: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    let (numbers, texts) = (state::reread(&program, state), state::reread_texts(&program, state));
+    let mut lists = lists::reread(&program, state);
+    let computed = computed::apply(&program, &numbers, &texts, &lists);
+    lists.extend(computed);
+    lists.iter().find(|(name, _)| name == list).map(|(_, elements)| flat::options(elements)).unwrap_or_default()
+}
+
 /// La seconde de l'appareil du visiteur, de 0 à 59 (ADR-089).
 pub fn set_second(second: u64) {
     state::set_second(second);

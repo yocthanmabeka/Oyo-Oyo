@@ -7,6 +7,7 @@
   import init, {
     flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, page_title, from_query, address_query, address_names, chart_html, shapes_html, module_info, module_finished, module_input, module_received, delays, reads_time, set_now, set_second, reads_seconds, stopwatch_stopped, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
     shared_names, with_shared, touches_shared, capability_export, capability_received,
+    suggestions_html,
   } from "/pkg-light/holo_engine.js";
   let host = null;
   const prepareHost = async () => {
@@ -861,6 +862,14 @@
       const fresh = chart_html(fileText, written, chart.dataset.chart);
       if (drawing && fresh) drawing.outerHTML = fresh;
       chart.dataset.drawn = list;
+    }
+    // Les suggestions d'un champ suivent leur liste (ADR-100) : le moteur refait les options du
+    // datalist quand elle change ; ce qu'on écrit dans le champ n'est pas touché.
+    for (const suggestions of or_.querySelectorAll("datalist[data-suggestions]")) {
+      const list = written.split(";").find((chunk) => chunk.startsWith(`${suggestions.dataset.suggestions}=[`)) ?? "";
+      if (suggestions.dataset.drawn === list) continue;
+      suggestions.innerHTML = suggestions_html(fileText, written, suggestions.dataset.suggestions);
+      suggestions.dataset.drawn = list;
     }
     // Les conditions : If(count, is: 0). C'est le moteur qui répond ; la page ne compare rien
     // elle-même, elle cache ce que le moteur dit faux.

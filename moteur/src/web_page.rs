@@ -180,6 +180,12 @@ pub fn chart_html(source: &str, state: &str, spec: &str) -> String {
     crate::chart_html(source, state, spec)
 }
 
+/// Les suggestions d'un champ venues d'une liste, pour cet état (ADR-100).
+#[wasm_bindgen]
+pub fn suggestions_html(source: &str, state: &str, list: &str) -> String {
+    crate::suggestions_html(source, state, list)
+}
+
 /// Les lignes d'une liste pour cet état.
 #[wasm_bindgen]
 pub fn list_html(source: &str, base: &str, state: &str, name: &str) -> String {

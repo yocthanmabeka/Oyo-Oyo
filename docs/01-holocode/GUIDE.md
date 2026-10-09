@@ -1753,6 +1753,31 @@ Page(
 
 Les quatre blocs sont décidés (`ADR-093` à `ADR-096`, validés par Yocthan le 2026-10-09 ; proposés et construits par Codex). Les leçons sont `116-importer-et-exporter.holo`, `117-appareil-sur-permission.holo`, `118-notifications-locales.holo` et `119-une-page-hors-ligne.holo`.
 
+## 6 unquadragies. Des suggestions dans un champ
+
+Un champ qui propose des textes pendant qu'on écrit, sans obliger à en prendre un (`ADR-100`) : des villes, des fruits, ce que le visiteur a déjà retenu.
+
+```holo
+Page(
+  title: "The trip",
+  state: State(fruit: "", city: "", cities: ["Paris", "Lyon", "Marseille"]),
+  children: [
+    Input(value: fruit, label: "A fruit for the road", suggestions: ["Apple", "Pear", "Apricot"]),
+    Input(value: city, label: "Where you are going", suggestions: cities),
+    Button(name: Keep, text: "Remember this city"),
+  ],
+  rules: [ On(Keep.tap, effect: cities.push(city)) ],
+)
+```
+
+- **`suggestions: ["Apple", "Pear", "Apricot"]`** : des suggestions écrites dans la page. Le navigateur les montre pendant qu'on écrit ; on en touche une, ou on écrit autre chose. C'est la différence avec `Choice`, qui oblige à prendre l'une de ses options.
+- **`suggestions: cities`** : les suggestions viennent d'une liste de textes de la page (déclarée dans `State`, calculée, ou remplie par `Data`). Quand elle change pendant la visite (`cities.push(city)`), les suggestions suivent. Un texte répété dans la liste n'est proposé qu'une fois.
+- Le moteur écrit le `datalist` de HTML et le relie au champ : rien à nommer, rien à recopier. Plusieurs champs peuvent proposer les mêmes suggestions. Sans JavaScript (`holo serve`), le champ les propose aussi ; un navigateur qui ne sait pas les montrer garde un champ ordinaire.
+- Le champ reste un champ de texte : `max:`, `min:` et `required:` s'y appliquent. Une suggestion écrite tient dans le champ (80 caractères, ou `max:`).
+- Refusés, avec la raison : des suggestions sur un nombre, une date ou un autre `type:`, un texte long (`lines:`) ; une liste vide, ou de plus de 200 textes ; une suggestion vide, sur plusieurs lignes, plus longue que le champ ou écrite deux fois ; une liste à champs (`Item(…)`) ; un nom qui n'est pas une liste de la page.
+
+Cette écriture est proposée (`ADR-100`) et attend la validation de Yocthan. La leçon est `123-des-suggestions-dans-un-champ.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo

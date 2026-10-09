@@ -665,6 +665,8 @@ mod tests {
             include_str!("../../exemples/lecons/117-appareil-sur-permission.holo"),
             include_str!("../../exemples/lecons/118-notifications-locales.holo"),
             include_str!("../../exemples/lecons/119-une-page-hors-ligne.holo"),
+            // Des suggestions dans un champ (ADR-100).
+            include_str!("../../exemples/lecons/123-des-suggestions-dans-un-champ.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();

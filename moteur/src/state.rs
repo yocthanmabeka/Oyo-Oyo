@@ -1686,7 +1686,7 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
             }
         }
         if block.name == "Input" || block.name == "Checkbox" {
-            let allowed: &[&str] = if block.name == "Input" { &["name", "value", "label", "min", "max", "lines", "type", "accept", "required"] } else { &["name", "value", "label", "required"] };
+            let allowed: &[&str] = if block.name == "Input" { &["name", "value", "label", "min", "max", "lines", "type", "accept", "required", "suggestions"] } else { &["name", "value", "label", "required"] };
             let example = if block.name == "Input" { "Input(value: quantity, label: \"How many?\")" } else { "Checkbox(value: gift, label: \"Gift wrap\")" };
             for argument in &block.arguments {
                 match (argument.name.as_deref(), &argument.value) {
@@ -1765,6 +1765,8 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                     (Some("type"), _) => return Err(Error { message: "« Input(type: …) » attend email, date, time, color ou file ; un nombre ou un texte se devinent tout seuls".into(), pos: argument.pos }),
                     // `grow:` range le bloc dans Row ou Column (ADR-052) ; sa place est vérifiée ailleurs.
                     (Some("grow"), _) => {}
+                    // Des suggestions (ADR-100) : vérifiées dans flat.rs, avec le datalist qu'elles donnent.
+                    (Some("suggestions"), _) if block.name == "Input" => {}
                     (Some(word), _) if allowed.contains(&word) => return Err(Error { message: format!("« {}({word}: …) » est mal écrit : {example}", block.name), pos: argument.pos }),
                     (Some(word), _) => return Err(Error { message: format!("« {} » n'a pas de paramètre « {word} » ; paramètres possibles : {}", block.name, allowed.join(", ")), pos: argument.pos }),
                     (None, _) => return Err(Error { message: format!("chaque paramètre de « {} » est nommé : {example}", block.name), pos: argument.pos }),
