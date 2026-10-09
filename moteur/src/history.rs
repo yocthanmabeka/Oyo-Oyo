@@ -82,6 +82,14 @@ pub fn from_query(program: &Program, numbers: &State, texts: &Texts, query: &str
     (numbers, texts)
 }
 
+/// L'adresse nomme-t-elle une valeur de la page (`?page=2`) ? Une adresse nue, ou qui ne porte
+/// que des réglages du moteur (`?values`), ne dit rien des valeurs : une page qui arrive avec
+/// ses données (ADR-064) les garde.
+pub fn names_a_value(program: &Program, query: &str) -> bool {
+    let names = names(program).unwrap_or_default();
+    pairs(query).iter().any(|(name, _)| names.contains(name))
+}
+
 /// L'adresse que demandent les valeurs de la page, après le `?` : `tab=photos&page=2`. Une
 /// valeur à son départ n'y est pas : la page du début garde son adresse nue.
 pub fn query(program: &Program, numbers: &State, texts: &Texts) -> String {
@@ -246,5 +254,22 @@ mod tests {
         // Une valeur qui vient du nom du fichier (ADR-078) est déjà dans l'adresse.
         let template = crate::address::joined("Page(address: [id], children: [ P(\"{id}\") ])", &[("id".to_string(), "ada".to_string())]);
         assert!(crate::check_page(&template).unwrap_err().message.contains("par le nom du fichier"));
+    }
+
+    #[test]
+    fn the_address_wins_over_the_data_served_with_the_page() {
+        // Les données servies d'abord (ADR-064), puis l'adresse, que le visiteur a choisie.
+        let page = "Page(state: State(tab: \"a\", page: 1), address: [page], data: Data(from: \"d.json\"), children: [ P(\"{tab} {page}\"), Button(name: Next, text: \"+\") ], rules: [ On(Next.tap, effect: page.add(1)) ])";
+        let json = r#"{"page": 5, "tab": "b"}"#;
+        let html = crate::flat_view_with_data_at(page, "", json, "page=9").unwrap();
+        assert!(html.contains("<span data-state=\"page\">9</span>") && html.contains("<span data-state=\"tab\">b</span>"), "{html}");
+        // Sans adresse : les données ; sans données : l'adresse.
+        let html = crate::flat_view_with_data_at(page, "", json, "").unwrap();
+        assert!(html.contains("<span data-state=\"page\">5</span>"), "{html}");
+        // Une adresse qui ne nomme aucune valeur de la page (un réglage du moteur) : les données aussi.
+        let html = crate::flat_view_with_data_at(page, "", json, "values").unwrap();
+        assert!(html.contains("<span data-state=\"page\">5</span>"), "{html}");
+        let html = crate::flat_view_with_data_at(page, "", "pas du JSON", "page=9").unwrap();
+        assert!(html.contains("<span data-state=\"page\">9</span>") && html.contains("<span data-state=\"tab\">a</span>"), "{html}");
     }
 }
