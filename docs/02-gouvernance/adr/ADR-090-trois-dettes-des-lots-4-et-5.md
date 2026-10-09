@@ -1,6 +1,6 @@
 # ADR-090 — Trois dettes des lots 4 et 5 : un titre qui lit les valeurs, `narrow:` dans `Row` et `Column`, `keep` par adresse
 
-- Statut : PROPOSITION (construit et essayé, à valider par Yocthan)
+- Statut : ACCEPTÉ (validé par Yocthan le 2026-10-09, après avoir tout essayé : « j'ai tout essayé et c'est bon »)
 - Date : 2026-10-08
 - Responsable : Yocthan Mabeka
 - Discussions sources : les tâches confiées par Yocthan à la session du nuage le 2026-10-08 (`AGENTS.md`, « Trois petites dettes des lots 4 et 5 ») ; les dettes écrites dans l'`ADR-069` (`narrow:` ne mesure que les cases de `Grid`) et dans l'`ADR-078` (le titre ne lit pas `{id}` ; les valeurs gardées d'un modèle sont partagées par toutes ses adresses).

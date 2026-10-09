@@ -6,6 +6,33 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Le web est fini, et validé par Yocthan
+
+- Yocthan, après avoir tout essayé : « j'ai tout essayé et c'est bon déjà ». À sa demande (« fini le travail correctement »), tout ce qui était prêt est fusionné, et tout ce qui restait « à valider » passe en `ACCEPTÉ` : `ADR-090`, `091`, `092` et `097` à `101`. Seule HoloIR (`ADR-006`) reste une proposition, puisque rien n'en est construit.
+- Fusionné dans la journée :
+  - le lot 9 de la session du nuage : PR 171, 172, 174, 191 à 195, et ses corrections, PR 208 ;
+  - le lot 7 avec la correction de Codex : PR 177, qui contient la 199, et ses sondes, PR 198 ;
+  - le catalogue et les parcours 1 à 9 (PR 211, travail de Codex) ; la fin du lot 9 (PR 219, travail de Codex) ; le parcours 10 (PR 222) ;
+  - les comptes, les clés d'accès et le partage finis, avec le travail de Gemini : PR 224, qui reprend les 205 à 207 de Codex ;
+  - les cinq petites dettes HTML : PR 220, 223, 225, 226 et 227 ;
+  - la file de travail et la règle de reprise : PR 190, 218 et 221 ;
+  - l'extension VS Code 0.2.1 (PR 196) ; le tableau (PR 210 et 228).
+- Quand le PC s'est éteint, la session du nuage a repris le travail comme le prévoit la règle de la PR 221. Elle a fini les tâches 215 et 216, dont les agents du PC n'avaient encore rien envoyé, et elle a empilé ses PR pour qu'elles entrent sans conflit.
+- Le grand tableau, refait depuis la page en ligne (version 36) :
+  - **457 mots, tous décidés** ;
+  - **135 éléments de HTML, CSS et JavaScript : 106 oui, 21 en partie, 1 non** (les cookies et `sessionStorage`), 6 refusés exprès et 1 sans objet.
+- Le serveur 8080 sert les 126 leçons sans erreur, et le site des dix parcours. Les dix parcours du web viable sont joués : 40 audits d'accessibilité, sans aucun défaut.
+- Reste avant la 3D :
+  - les mesures du téléphone (issue 184 : la batterie, câble débranché) ;
+  - le feu vert de Yocthan sur le plan 3D (`docs/04-roadmap/PLAN-3D.md`).
+- Erreurs en route :
+  - deux coupures de quota et une coupure d'Internet ont arrêté les agents au milieu de leur travail ;
+  - une commande lancée en arrière-plan avec `&` s'est arrêtée avec son terminal ;
+  - deux fois, des apostrophes ont cassé une commande avant tout changement ;
+  - une copie de la page en ligne portait l'enveloppe ajoutée à la publication, retirée avant de republier.
+
+---
+
 ## 2026-10-09 — Une citation courte au milieu d'une phrase, le titre d'une œuvre
 
 - Fait (issue #217, prise dans la file par la session du nuage ; `ADR-101`, PROPOSITION) :

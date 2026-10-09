@@ -1,6 +1,6 @@
 # ADR-101 — Une citation courte et le titre d'une œuvre : `<<bonjour>>`, `_Les Misérables_`, `Quote(work:)`
 
-- Statut : PROPOSITION (construit et essayé ; à valider par Yocthan)
+- Statut : ACCEPTÉ (validé par Yocthan le 2026-10-09, après avoir tout essayé : « j'ai tout essayé et c'est bon »)
 - Date : 2026-10-09
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'issue #217 (« Dette du web : la citation courte au milieu d'une phrase (q, cite) »), ajoutée à la file à la demande de Yocthan le 2026-10-09 ; le grand tableau du web, où `q, cite` était « en partie » (`Quote("…", by:)` ne faisait que la citation en bloc).
