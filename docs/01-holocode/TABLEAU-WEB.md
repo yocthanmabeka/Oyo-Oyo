@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-09). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (423 mots : 421 décidés, 2 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (132) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (444 mots : 442 décidés, 2 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (134) et ce que HoloCode en a.
 - **Existe ?** : le jugement de Claude, élément par élément (oui, en partie, non) ; ce n’est pas une mesure. Le tableau ne donne pas de pourcentage : aucune méthode reproductible ne mesure la part d’un élément du web qu’on obtient en HoloCode (consigne de Yocthan du 2026-10-07). Les comptes se refont en comptant les lignes.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,11 +9,11 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 423 mots | 421 décidés, 2 à l’essai |
+| **HoloCode** | 444 mots | 442 décidés, 2 à l’essai |
 | HTML | 62 éléments | 52 oui, 4 en partie, 3 non, 3 refusés |
 | CSS | 35 éléments | 29 oui, 4 en partie, 0 non, 2 refusés |
-| JavaScript | 35 éléments | 18 oui, 11 en partie, 4 non, 1 refusés, 1 sans objet |
-| HTML, CSS, JS ensemble | 132 éléments | 99 oui, 19 en partie, 7 non, 6 refusés, 1 sans objet |
+| JavaScript | 37 éléments | 20 oui, 14 en partie, 1 non, 1 refusés, 1 sans objet |
+| HTML, CSS, JS ensemble | 134 éléments | 101 oui, 22 en partie, 4 non, 6 refusés, 1 sans objet |
 
 # Partie 1 — Les mots de HoloCode
 
@@ -376,6 +376,10 @@
 | `Form` | Un formulaire qu'une règle envoie | `form, fetch POST` | Décidé (ADR-042) |
 | `Slider` | Une glissière entre deux bornes | `input type=range` | Décidé (ADR-042) |
 | `Progress` | Une barre de progression | `progress` | Décidé (ADR-042) |
+| `Transfer` | Exporter les valeurs annoncées dans un fichier JSON, et les reprendre : l'import est relu en entier, pris tout entier ou refusé ; 64 Ko | `a download + Blob, input type=file + FileReader, JSON.parse` | Décidé (ADR-093) |
+| `Device` | L'appareil du visiteur, demandé sur le toucher d'un bouton : la position, le presse-papiers, la caméra, le micro ; rien n'est envoyé | `navigator.geolocation, navigator.clipboard, getUserMedia` | Décidé (ADR-094) |
+| `Notification` | Une notification locale, sur permission ; un rappel tant que la page est ouverte, sans « push » | `Notification.requestPermission, showNotification` | Décidé (ADR-095) |
+| `Offline` | La copie d'une page publique, demandée par le visiteur ; le réseau d'abord ; rien n'est mis en attente ni rejoué | `service worker + CacheStorage` | Décidé (ADR-096) |
 
 ## Blocs : ouvrir et fermer
 
@@ -399,6 +403,10 @@
 | `type, min, summary, open` | date, time, color ; le minimum d'une glissière ; le résumé d'un pli, ouvert au départ | `type, min, summary, open` | Décidé (ADR-042) |
 | `type: file, accept` | Choisir un fichier à envoyer par un formulaire : image ou pdf, avec une taille maximale | `input type=file, accept` | Décidé (ADR-059) |
 | `required, type: email, min (longueur d'un texte)` | Un formulaire qui vérifie : obligatoire, e-mail, longueurs ; messages sous les champs ; vérifié aussi au serveur | `required, type=email, minlength` | Décidé (ADR-068) |
+| `file, values (dans Transfer)` | Le nom du fichier, et les valeurs qu'on y garde | `download, Blob` | Décidé (ADR-093) |
+| `kind: position, clipboard, camera, microphone` | La sorte d'appareil demandée | `geolocation, clipboard, getUserMedia` | Décidé (ADR-094) |
+| `title, body, after (dans Notification)` | Le titre, le texte, et le délai d'un rappel | `Notification(title, { body }), setTimeout` | Décidé (ADR-095) |
+| `files (dans Offline)` | Les fichiers que la copie emporte avec la page | `cache.addAll` | Décidé (ADR-096) |
 
 ## Paramètres : la page
 
@@ -437,6 +445,7 @@
 |---|---|---|---|
 | `push, remove, clear` | Ajouter à une liste, retirer la ligne touchée, tout vider | `push, splice, length = 0` | Décidé (ADR-044) |
 | `push(Item(…)), item.done.set(1)` | Ajouter un élément à champs ; changer un champ de la ligne touchée | `push, objet.champ = …` | Décidé (ADR-051, ADR-057) |
+| `export, import, request, write, show, save, remove` | Exporter ou importer (Transfer) ; demander l'appareil, écrire dans le presse-papiers (Device) ; montrer une notification ; garder ou retirer la copie hors ligne | `les appels du navigateur` | Décidé (ADR-093 à ADR-096) |
 
 ## Paramètres : les valeurs
 
@@ -692,8 +701,9 @@
 | `Contact.send` | `fetch (envoyer)` | envoyer au serveur | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). Les valeurs d'un formulaire, au serveur d'où vient la page. |
 | `shared: Shared(seats: 20)` | `WebSocket` | parler en direct avec un serveur | Oui | Déjà là | Ajouté le 2026-10-08 (ADR-079) : des valeurs gardées par le serveur pour tout le monde, reçues en direct par chaque page ouverte (Server-Sent Events) ; seul un toucher les change, et le serveur l’arbitre. Le jeu à plusieurs viendra après. |
 | `keep: [panier]` | `localStorage` | garder dans le navigateur | Oui | Déjà là | Rangé sous l'adresse : un modèle d'adresse garde des valeurs pour chacune (ADR-090). |
+| `Transfer(file:, values:), export, import` | `Blob, FileReader (exporter, importer)` | garder ses valeurs dans un fichier, les reprendre | Oui | Déjà là | Ajouté le 2026-10-09 (ADR-093) : un fichier JSON des seules valeurs annoncées ; l'import est relu en entier, pris tout entier ou refusé ; 64 Ko au plus. |
 | — | `cookies, sessionStorage` | se souvenir le temps d'une visite | Non | Plus tard | — |
-| — | `service worker (hors ligne)` | marcher sans réseau | Non | Plus tard | — |
+| `Offline(files:), save, remove` | `service worker (hors ligne)` | marcher sans réseau | Oui | Déjà là | Ajouté le 2026-10-09 (ADR-096) : la copie d'une page publique, demandée par le visiteur ; le réseau d'abord ; rien n'est mis en attente ni rejoué ; sans JavaScript, une page comme les autres. |
 
 ## JavaScript — Page et navigation
 
@@ -711,6 +721,7 @@
 | `Sound(volume:, loop:), play, stop` | `Web Audio` | jouer, régler un son | En partie | Déjà là | Volume, boucle, arrêt (ADR-061). Pas de mélange ni d'effets. |
 | `Shape, Drawing, Drawing(shapes:)` | `Canvas 2D` | dessiner librement | En partie | Plus tard | Le dessin déclaré existe (`Drawing`, ADR-086), et un module peut rendre une liste de formes vérifiées (ADR-088) ; le dessin trait par trait reste refusé ; deux cents formes par liste. |
 | `le moteur dessine des points` | `WebGL, WebGPU` | la 3D | En partie | Oui, utile | Pas encore d'objets pleins : l'essai de la chaise. |
-| — | `géolocalisation, caméra, vibration` | l'appareil du visiteur | Non | Plus tard | — |
-| — | `presse-papiers, partage` | copier, partager | Non | Plus tard | — |
+| `Device(kind: position \| camera \| microphone), request, stop` | `géolocalisation, caméra, vibration` | l'appareil du visiteur | En partie | Déjà là | Ajouté le 2026-10-09 (ADR-094) : demandé sur le toucher d'un bouton, rien n'est envoyé, une capture s'arrête d'office. Pas encore la vibration. |
+| `Device(kind: clipboard), write` | `presse-papiers, partage` | copier, partager | En partie | Déjà là | Ajouté le 2026-10-09 (ADR-094) : copier dans le presse-papiers, sur un toucher. Pas encore le partage du téléphone. |
+| `Notification(title:, body:, after:), show, stop` | `Notification` | prévenir le visiteur | En partie | Déjà là | Ajouté le 2026-10-09 (ADR-095) : une notification locale, sur permission, tant que la page est ouverte. Pas de « push » envoyé par le serveur. |
 | `Page(access: members), signedIn, {account}` | `paiement, comptes` | payer, se connecter | En partie | Déjà là | Les comptes : ajoutés le 2026-10-08 (ADR-081), gardés par holo serve dans la base du site, un mot de passe puis un code à 6 chiffres, sans prestataire. Pas encore de paiement. |

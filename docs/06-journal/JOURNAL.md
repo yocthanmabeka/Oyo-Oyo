@@ -16,7 +16,8 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
   - Le lot 6 (`Shared`) y était déjà. 423 mots : 421 décidés, 2 à l'essai ; 132 éléments du web.
 - `outils/web_table.py` refait `TABLEAU-WEB.md` depuis la page enregistrée, comptes compris, comptés comme la page les compte ; `--check` vérifie sans écrire. Vérifié par un aller-retour : la page d'avant redonnait le fichier de `main` à l'identique, sauf les deux lignes des polices que #195 avait écrites seulement dans le fichier.
 - Réparé en route : deux cases mal affichées sur GitHub (une barre verticale dans `Input(type: date | time | color)`, des accents graves imbriqués) ; sur un téléphone, la page en ligne débordait en largeur à cause d'une pastille longue : elle passe maintenant à la ligne.
-- Reste (deuxième partie de l'issue) : les mots de la fin du lot 9 (#203), et ceux des reprises des lots 6 et 7 (ADR-080, ADR-082, ADR-083), dès leur fusion.
+- Puis la fin du lot 9, fusionnée par #219 (ADR-093 à 096 : `Transfer`, `Device`, `Notification`, `Offline`, leurs paramètres et leurs demandes) : ajoutée à la page en ligne par la session du PC (version 33), et le même ajout fait en même temps par la session du nuage, abandonné pour garder le sien. La version 34 retire une phrase restée de l'ancien tableau (« le pourcentage dit… ») ; `TABLEAU-WEB.md` est refait par l'outil depuis elle : 444 mots (442 décidés, 2 à l'essai), 134 éléments du web.
+- Reste (fin de l'issue) : les mots des reprises des lots 6 et 7 (ADR-080, ADR-082, ADR-083), dès leur fusion ; et `Term` (ADR-097, #220) à sa fusion.
 
 ---
 
