@@ -436,13 +436,15 @@ fn fill_marks(html: String, shown: &crate::state::State, texts: &crate::state::T
 /// arrive (`font-display: swap`) : jamais de texte invisible en attendant.
 fn fonts(page: &Block, base: &str) -> Result<String, Error> {
     let Some(argument) = page.argument("fonts") else { return Ok(String::new()) };
-    let example = "fonts: [ Font(family: \"Carlito\", source: \"carlito.woff2\") ]";
+    let example = "fonts: [ Font(family: \"Inter\") ], ou un fichier rangé à côté : Font(family: \"Carlito\", source: \"carlito.woff2\")";
     let Value::List(list) = &argument.value else {
         return Err(Error { message: format!("« fonts » est une liste de polices : {example}"), pos: argument.pos });
     };
     if list.len() > 8 {
         return Err(Error { message: "une page charge au plus 8 polices".into(), pos: argument.pos });
     }
+    // Les polices du moteur d'abord (ADR-092) : un « @import » ne vaut qu'en tête de la feuille.
+    let mut imports = String::new();
     let mut css = String::new();
     let mut families: Vec<&str> = Vec::new();
     for element in list {
@@ -463,16 +465,27 @@ fn fonts(page: &Block, base: &str) -> Result<String, Error> {
                 (None, _) => return Err(Error { message: format!("chaque paramètre de « Font » est nommé : {example}"), pos: a.pos }),
             }
         }
-        let (Some(family), Some(source)) = (family, source) else {
-            return Err(Error { message: format!("« Font » attend « family » et « source » : {example}"), pos: font.pos });
+        let Some(family) = family else {
+            return Err(Error { message: format!("« Font » attend « family » : {example}"), pos: font.pos });
         };
-        if families.contains(&family) {
+        if families.iter().any(|known| known.eq_ignore_ascii_case(family)) {
             return Err(Error { message: format!("la police « {family} » est chargée deux fois"), pos: font.pos });
         }
         families.push(family);
-        css.push_str(&format!("@font-face{{font-family:\"{family}\";src:url(\"{}{}\");font-display:swap}}", escape(base), escape(source)));
+        match (source, crate::fonts::find(family)) {
+            (Some(source), _) => css.push_str(&format!("@font-face{{font-family:\"{family}\";src:url(\"{}{}\");font-display:swap}}", escape(base), escape(source))),
+            // Une police du moteur (ADR-092) : sa feuille dit chaque morceau (latin, arabe…) et
+            // le navigateur ne télécharge que ceux dont la page a besoin.
+            (None, Some(library)) => imports.push_str(&format!("@import url(\"/fonts/{}/font.css\");", library.folder)),
+            (None, None) => {
+                return Err(Error {
+                    message: format!("« {family} » n'est pas une police du moteur : donne son fichier, rangé à côté (source: \"police.woff2\"), ou choisis-en une : {}", crate::fonts::families().join(", ")),
+                    pos: font.pos,
+                })
+            }
+        }
     }
-    Ok(css)
+    Ok(imports + &css)
 }
 
 fn css(program: &Program, base: &str) -> String {
@@ -2340,12 +2353,25 @@ H1 { colour: red; }").split(" : ").next(), Some("ligne 2, colonne 6"));
         }
         for (source, message) in [
             ("Page(fonts: [ Font(family: \"A\", source: \"a.exe\") ], children: [])", ".woff2, .woff"),
-            ("Page(fonts: [ Font(source: \"a.woff2\") ], children: [])", "attend « family » et « source »"),
+            ("Page(fonts: [ Font(source: \"a.woff2\") ], children: [])", "attend « family »"),
+            ("Page(fonts: [ Font(family: \"Comic Sans\") ], children: [])", "n'est pas une police du moteur"),
+            ("Page(fonts: [ Font(family: \"Inter\"), Font(family: \"inter\") ], children: [])", "chargée deux fois"),
             ("Page(fonts: Font(family: \"A\", source: \"a.woff2\"), children: [])", "une liste de polices"),
         ] {
             let error = crate::check_page(source).unwrap_err();
             assert!(error.message.contains(message), "{source}\n→ {error}");
         }
+    }
+
+    #[test]
+    fn the_free_fonts_of_the_engine_load_by_their_name() {
+        // ADR-092 : une police du moteur, nommée sans fichier ; sa feuille, en tête, avant celle
+        // d'un fichier rangé à côté.
+        let source = "Page(fonts: [ Font(family: \"Carlito\", source: \"carlito.woff2\"), Font(family: \"noto sans arabic\"), Font(family: \"Inter\") ], children: [ P(\"x\") ])";
+        let html = crate::flat_view(source, "lecons/").unwrap();
+        assert!(html.starts_with("<style>@import url(\"/fonts/noto-sans-arabic/font.css\");@import url(\"/fonts/inter/font.css\");@font-face{font-family:\"Carlito\";src:url(\"lecons/carlito.woff2\")"), "{html}");
+        // Une page qui n'en nomme pas n'en charge aucune.
+        assert!(!crate::flat_view("Page(children: [ P(\"x\") ])", "").unwrap().contains("@import"));
     }
 
     #[test]

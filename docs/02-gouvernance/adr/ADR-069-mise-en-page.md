@@ -1,6 +1,6 @@
 # ADR-069 — La mise en page : téléphone, ordinateur, la place, ce qui dépasse, les proportions, le curseur, le texte justifié, décrocher
 
-- Statut : PROPOSITION (construit et essayé ; attend la validation de Yocthan)
+- Statut : ACCEPTÉ (validé par Yocthan le 2026-10-08, après avoir essayé les leçons : « tout doit être en décidé car je les ai validés »)
 - Date : 2026-10-07
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'ordre de Yocthan du 2026-10-07, lot 4 (« téléphone, ordinateur, adaptation à la place disponible, débordement, proportions, curseur et texte justifié ») ; sa décision du même jour, sur son téléphone : décrocher la page « comme pour tourner » ; sa règle du même jour : « si la fonction existe sur téléphone, elle doit strictement aussi exister sur ordinateur et vice-versa » ; `ADR-017` (la disposition vient des blocs), `ADR-021` (`Zoom`), `ADR-041` (`phone:`), `ADR-061` (les touches).

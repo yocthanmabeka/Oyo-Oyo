@@ -24,6 +24,7 @@ pub mod drawing;
 pub mod state;
 pub mod stopwatch;
 pub mod files;
+pub mod fonts;
 pub mod format;
 pub mod gestures;
 pub mod seed;

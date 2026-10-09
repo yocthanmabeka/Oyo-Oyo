@@ -37,7 +37,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 113 : une rangée qui se serre", to: "113-une-rangee-qui-se-serre.holo"),
-      A("Leçon 1 : une page →", to: "01-page.holo"),
+      A("Leçon 115 : des polices pour toutes les écritures →", to: "115-des-polices-pour-toutes-les-ecritures.holo"),
     ]),
   ],
   rules: [

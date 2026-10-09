@@ -470,6 +470,20 @@ const tests = [
     const ok = tab && next && back && start && again && shared && kept && forged;
     return [ok, `onglet : ${tab} ; page suivante : ${next} ; précédent : ${back}, puis le début : ${start} ; suivant : ${again} ; adresse partagée : ${shared} ; ?values gardé : ${kept} ; valeurs forgées : ${forged}`];
   }],
+  ["des polices libres pour toutes les écritures : Font(family: \"Inter\") (leçon 115)", async (p) => {
+    await p.open("/exemples/lecons/115-des-polices-pour-toutes-les-ecritures.holo");
+    // Les polices du moteur arrivent ; pour le japonais, seulement les morceaux de la phrase.
+    const loaded = await p.until(`document.fonts.check('16px "Noto Sans JP"', "アトリエへようこそ") && document.fonts.check('16px Literata', "Literata") && document.fonts.check('16px "Noto Sans Ethiopic"', "እንኳን")`, 20000);
+    const files = await p.value(`performance.getEntriesByType("resource").map((r) => new URL(r.name).pathname).filter((n) => n.startsWith("/fonts/") && n.endsWith(".woff2"))`);
+    const japanese = files.filter((file) => file.startsWith("/fonts/noto-sans-jp/")).length;
+    const latin = files.includes("/fonts/inter/inter-latin-wght-normal.woff2");
+    const unused = files.some((file) => file.includes("-cyrillic") || file.includes("-greek"));
+    // Une page qui ne nomme aucune police n'en charge aucune.
+    await p.open("/exemples/lecons/01-page.holo");
+    const none = await p.value(`performance.getEntriesByType("resource").filter((r) => r.name.includes("/fonts/")).length`);
+    const ok = loaded && japanese > 0 && japanese <= 8 && latin && !unused && none === 0;
+    return [ok, `polices prêtes : ${loaded} ; morceaux japonais : ${japanese} sur 124 ; latin d'Inter : ${latin} ; cyrillique ou grec téléchargés : ${unused} ; page sans police : ${none} fichier`];
+  }],
   ["un module enfermé rend son nombre", async (p) => {
     await p.open("/exemples/lecons/69-module-enferme.holo");
     await p.click('[data-name="Calculer"]');

@@ -659,6 +659,8 @@ mod tests {
             include_str!("../../exemples/lecons/113-une-rangee-qui-se-serre.holo"),
             // L'historique dans une page (ADR-091).
             include_str!("../../exemples/lecons/114-l-historique-dans-une-page.holo"),
+            // Des polices libres pour toutes les écritures (ADR-092).
+            include_str!("../../exemples/lecons/115-des-polices-pour-toutes-les-ecritures.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();

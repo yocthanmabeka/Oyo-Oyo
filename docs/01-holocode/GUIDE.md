@@ -313,6 +313,8 @@ H1 { color: --gold; font-size: 40px; phone: { font-size: 28px; } }
 
 **Sa propre police** : `Page(fonts: [ Font(family: "Carlito", source: "carlito.woff2") ])`, puis `font-family: Carlito, Georgia, serif;`. Le texte s'affiche tout de suite avec la police de secours.
 
+**Une police du moteur**, sans fichier : `Page(fonts: [ Font(family: "Inter") ])`, puis `font-family: Inter, sans-serif;`. Le moteur garde 32 polices libres pour les écritures du monde entier (le latin, le cyrillique, le grec, l'arabe, l'hébreu, le devanagari, le bengali, le tamoul, le thaï, l'éthiopien, l'adlam, le n'ko, le tifinagh, le chinois, le japonais, le coréen) ; le navigateur ne télécharge que les morceaux dont la page a besoin. La liste est dans `moteur/web/fonts/README.md` ; cette écriture est proposée (`ADR-092`), la leçon est `115-des-polices-pour-toutes-les-ecritures.holo`.
+
 Ces ajouts sont décidés (`ADR-041`). Les leçons sont `50-texte-soigne.holo` à `54-police.holo`.
 
 Ce que le moteur refuse, alors que le CSS le laisse passer :
@@ -2085,7 +2087,7 @@ Page(
 | `Zoom(shrink:)` | `true` : dézoomer réduit la page jusqu'à un seul point. `false` : la page reste entière. | `true`, `false` |
 | `Zoom(levels:)` | Combien de sites peuvent s'emboîter, au plus. | 1 à 16 |
 | `Zoom(speed:)` | La vitesse du zoom à la molette. `1` : la vitesse ordinaire ; `2` : deux fois plus vite. Au doigt, la page suit toujours l'écartement des doigts. | 0.25 à 4 |
-| `Zoom(detach:)` | `true` : le menu ☰ offre « Décrocher » ; la page se détache comme une feuille, et le zoom l'approche ; « Accrocher » la remet à sa place. Refusé avec les points, `shrink: true` ou `active: false`, qui gardent le zoom au moteur. Proposé (`ADR-069`), à valider par Yocthan. | `true`, `false` |
+| `Zoom(detach:)` | `true` : le menu ☰ offre « Décrocher » ; la page se détache comme une feuille, et le zoom l'approche ; « Accrocher » la remet à sa place. Refusé avec les points, `shrink: true` ou `active: false`, qui gardent le zoom au moteur. Décidé (`ADR-069`). | `true`, `false` |
 | `Points(after:)` | Jusqu'à ce grossissement, la page reste un site ordinaire. Jamais moins de 2 : tout visiteur peut au moins doubler la taille du texte. | 2 à 16 |
 | `Points(size:)` | La taille où un pixel devient un point. | 2px à 32px |
 | `Points(fragment:)` | La taille où un point se morcelle. | 8px à 400px, au moins `size` × `divisions` |
@@ -2319,6 +2321,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Écrire une fois, répéter pour chaque élément | `Repeat(items: [ Item(…) ], children: [ … ])`, `item` | fait |
 | Une couleur nommée, le thème sombre, le téléphone | `--or`, `dark: { … }`, `phone: { … }` | fait |
 | Sa propre police | `fonts: [ Font(family:, source:) ]` | fait |
+| Une police du moteur, pour toutes les écritures | `fonts: [ Font(family: "Inter") ]` | fait (`ADR-092`) |
 | Envoyer un formulaire | `Form(name:)`, `Contact.send`, `sent`, `failed` | fait |
 | Un compte, une page réservée aux membres | `Page(access: members)`, `signedIn`, `{account}`, `A(to: "/account/signin")` | fait, avec `holo serve` (`ADR-081`, proposé) |
 | Multiplier, diviser | les demandes `mul`, `div` | fait |
