@@ -1,6 +1,6 @@
 # ADR-097 — Une liste de définitions : `List(children: [ Term("Poids", "2 kg") ])`
 
-- Statut : PROPOSITION (construit et essayé ; à valider par Yocthan)
+- Statut : ACCEPTÉ (validé par Yocthan le 2026-10-09, après avoir tout essayé : « j'ai tout essayé et c'est bon »)
 - Date : 2026-10-09
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'issue #213 (« Dette du web : les listes de définitions »), ajoutée à la file à la demande de Yocthan le 2026-10-09 ; le grand tableau du web, où `dl, dt, dd` était « non » (`docs/01-holocode/TABLEAU-WEB.md`).

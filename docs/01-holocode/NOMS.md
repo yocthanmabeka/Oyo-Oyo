@@ -56,27 +56,27 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Device(kind: position \| clipboard \| camera \| microphone)`, `request`, `write`, `stop` | `navigator.geolocation`, `navigator.clipboard`, `getUserMedia()` | nouveau : un mot pour l'appareil, quatre sortes nommées ; sur le toucher d'un bouton ; rien n'est envoyé ; l'arrêt vient d'office (`ADR-094`) |
 | `Notification(title:, body:, after:)`, `show`, `stop` | `Notification.requestPermission()`, `showNotification()`, `setTimeout` | repris : le nom du web ; un rappel seulement tant que la page est ouverte, sans « push » (`ADR-095`) |
 | `Offline(files:)`, `save`, `remove` | un service worker et `CacheStorage` écrits à la main | nouveau : une copie d'une page publique, demandée par le visiteur ; le réseau d'abord ; rien n'est mis en attente ni rejoué (`ADR-096`) |
-| `abbreviations: [ Abbreviation("MJC", "…") ]` | `<abbr title="…">` à chaque venue | changé : déclarée une fois pour la page ; le moteur la marque partout et écrit son sens à sa première venue dans un paragraphe, lu et vu aussi au doigt (`ADR-098`, à valider) |
-| (rien : `{ouverture:date}`) | `<time datetime="…">` | nouveau sans mot : chaque date montrée est aussi lisible par les machines (`ADR-098`, à valider) |
-| `Address(children: [ … ])` | `address` | repris : le nom de HTML, les moyens de joindre l'auteur ; ni titre ni repère dedans ; le texte reste droit (`ADR-098`, à valider) |
-| `Fields(label:, children:)` | `fieldset`, `legend` | changé : un groupe de champs et son nom, écrit `label:` comme celui d'un champ ; au moins deux champs ; sans la bordure du navigateur, jamais plus large que l'écran (`ADR-099`, à valider) |
-| `Input(suggestions: ["Paris", "Lyon"])`, `suggestions: villes` | `input list="…"`, `datalist`, `option` | changé : un paramètre du champ au lieu d'un élément relié par un `id` ; écrites, ou une liste de la page suivie pendant la visite ; on peut toujours écrire autre chose (`ADR-100`, à valider) |
-| `<<bonjour>>` dans un texte | `q` | nouveau : une marque du texte enrichi ; le moteur écrit les guillemets de la langue de la page, « » en français avec une espace fine insécable, “ ” en anglais, ceux du second niveau dans une citation (`ADR-101`, à valider) |
-| `_Les Misérables_` dans un texte ; `Quote(work:)` | `cite` | nouveau : le titre d'une œuvre ; un trait bas au milieu d'un mot reste un trait bas (`ADR-101`, à valider) |
+| `abbreviations: [ Abbreviation("MJC", "…") ]` | `<abbr title="…">` à chaque venue | changé : déclarée une fois pour la page ; le moteur la marque partout et écrit son sens à sa première venue dans un paragraphe, lu et vu aussi au doigt (`ADR-098`) |
+| (rien : `{ouverture:date}`) | `<time datetime="…">` | nouveau sans mot : chaque date montrée est aussi lisible par les machines (`ADR-098`) |
+| `Address(children: [ … ])` | `address` | repris : le nom de HTML, les moyens de joindre l'auteur ; ni titre ni repère dedans ; le texte reste droit (`ADR-098`) |
+| `Fields(label:, children:)` | `fieldset`, `legend` | changé : un groupe de champs et son nom, écrit `label:` comme celui d'un champ ; au moins deux champs ; sans la bordure du navigateur, jamais plus large que l'écran (`ADR-099`) |
+| `Input(suggestions: ["Paris", "Lyon"])`, `suggestions: villes` | `input list="…"`, `datalist`, `option` | changé : un paramètre du champ au lieu d'un élément relié par un `id` ; écrites, ou une liste de la page suivie pendant la visite ; on peut toujours écrire autre chose (`ADR-100`) |
+| `<<bonjour>>` dans un texte | `q` | nouveau : une marque du texte enrichi ; le moteur écrit les guillemets de la langue de la page, « » en français avec une espace fine insécable, “ ” en anglais, ceux du second niveau dans une citation (`ADR-101`) |
+| `_Les Misérables_` dans un texte ; `Quote(work:)` | `cite` | nouveau : le titre d'une œuvre ; un trait bas au milieu d'un mot reste un trait bas (`ADR-101`) |
 | `Enter` | `@keyframes` + `animation` (de… vers…), ou `element.animate()` | changé : on écrit seulement d'où le bloc part |
 | `Loop` | `animation: … infinite alternate` | changé : on écrit seulement où il va |
 | `Scenes`, `Scene` | une suite de `animation-delay` calculés à la main, ou un chef d'orchestre en JavaScript | changé : les scènes s'enchaînent seules |
 | `at:`, `for:`, `ease:` | `animation-delay`, `animation-duration`, `animation-timing-function` | changés : courts ; sept caractères nommés au lieu de courbes chiffrées |
 | `letters:`, `each:` | du JavaScript qui coupe le texte en `span`, et un délai par `span` | nouveaux |
 | `If(…, rules:)` | `if (…) { … }` autour d'un `setInterval` ; `clearInterval` à ne pas oublier | changé : les règles rangées dedans ne valent que si la condition est vraie |
-| `If(size, is: "L")`, `When(answer, is: "Paris", …)` | `size === "L"`, un écouteur `input` qui compare | changé : à la lettre près ; un texte ne se compare pas à un nombre (`ADR-063`, à valider) |
-| `State(price: 12.50)`, `{price}` | `Number`, `toFixed(2)`, `Intl.NumberFormat` | changé : exact (gardé à l'échelle), les chiffres fixés à la déclaration, la virgule de la langue d'office (`ADR-066`, à valider) |
-| `Repeat(over: tasks, key: id)` | la `key` de React, `:key` de Vue | repris ; sans clé, le moteur prend le contenu, et le clavier est gardé quand même (`ADR-065`, à valider) |
-| `total:` dans `Filter` | `filtered.length` avant `slice` | changé : un réglage, qui se montre et se compare (`ADR-065`, à valider) |
-| `Data(name: Shop)`, `Shop.done`, `Shop.failed`, `Shop.refresh` | `fetch().then().catch()`, `response.ok`, `AbortController`, un bouton qui rappelle `fetch` | changé : un échec couvre l'erreur du serveur, le fichier trop gros ou illisible, et 10 secondes ; relectures espacées d'office (`ADR-064`, à valider) |
+| `If(size, is: "L")`, `When(answer, is: "Paris", …)` | `size === "L"`, un écouteur `input` qui compare | changé : à la lettre près ; un texte ne se compare pas à un nombre (`ADR-063`) |
+| `State(price: 12.50)`, `{price}` | `Number`, `toFixed(2)`, `Intl.NumberFormat` | changé : exact (gardé à l'échelle), les chiffres fixés à la déclaration, la virgule de la langue d'office (`ADR-066`) |
+| `Repeat(over: tasks, key: id)` | la `key` de React, `:key` de Vue | repris ; sans clé, le moteur prend le contenu, et le clavier est gardé quand même (`ADR-065`) |
+| `total:` dans `Filter` | `filtered.length` avant `slice` | changé : un réglage, qui se montre et se compare (`ADR-065`) |
+| `Data(name: Shop)`, `Shop.done`, `Shop.failed`, `Shop.refresh` | `fetch().then().catch()`, `response.ok`, `AbortController`, un bouton qui rappelle `fetch` | changé : un échec couvre l'erreur du serveur, le fichier trop gros ou illisible, et 10 secondes ; relectures espacées d'office (`ADR-064`) |
 | `Sound` | `audio`, `new Audio().play()` | changé : un bruit qu'une règle déclenche, pas un lecteur |
 | `List` | `ul`, `ol`, `li` | changé : un bloc au lieu de trois balises |
-| `Term` dans `List` | `dl`, `dt`, `dd` | changé : une liste dont les éléments sont des termes ; un terme porte sa définition, ils ne se séparent pas (`ADR-097`, à valider) |
+| `Term` dans `List` | `dl`, `dt`, `dd` | changé : une liste dont les éléments sont des termes ; un terme porte sa définition, ils ne se séparent pas (`ADR-097`) |
 | `Row` | `display: flex` | changé : mot de Flutter |
 | `Column` | `display: flex; flex-direction: column` | changé : mot de Flutter |
 | `Grid` | `display: grid` | repris de CSS, devenu un bloc |
@@ -94,10 +94,10 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `line-height`, `letter-spacing`, `text-transform`, `text-decoration`, `box-shadow`, `text-shadow`, `rotate`, `scale`, `transition` | les mêmes | repris ; `line-height` sans unité seulement ; `transition` ne prend qu'une durée |
 | `--or` (une variable) | `--or` et `var(--or)` | repris, employé sans `var( )` ; refusé s'il n'est défini nulle part |
 | `dark:`, `phone:` dans un style | `@media (prefers-color-scheme: dark)`, `@media (max-width: 640px)` | changé : des états du style, comme `hover:` |
-| `computer:` dans un style | `@media (min-width: 1024px)` | changé : un état du style, comme `phone:` (`ADR-069`, à valider) |
-| `narrow:` dans un style | `@container (max-width: …)`, avec `container-type` déclaré à la main | changé : la case de `Grid`, ou la part d'un `Row` ou d'un `Column` (`grow:`, une largeur en %), fait moins de 320px ; rien à déclarer, la page mesure chaque case (`ADR-069`, `ADR-090`, à valider) |
+| `computer:` dans un style | `@media (min-width: 1024px)` | changé : un état du style, comme `phone:` (`ADR-069`) |
+| `narrow:` dans un style | `@container (max-width: …)`, avec `container-type` déclaré à la main | changé : la case de `Grid`, ou la part d'un `Row` ou d'un `Column` (`grow:`, une largeur en %), fait moins de 320px ; rien à déclarer, la page mesure chaque case (`ADR-069`, `ADR-090`) |
 | `Font(family:, source:)` et `fonts:` | `@font-face` | changé : déclaré sur la page ; toujours `font-display: swap` |
-| `Font(family: "Inter")`, sans fichier | Google Fonts (`<link href="https://fonts.googleapis.com/…">`) | changé : une police du moteur, gardée dans le projet, sans service extérieur (`ADR-092`, à valider) |
+| `Font(family: "Inter")`, sans fichier | Google Fonts (`<link href="https://fonts.googleapis.com/…">`) | changé : une police du moteur, gardée dans le projet, sans service extérieur (`ADR-092`) |
 | `url("fond.jpg")` dans `background` | `background-image`, `background-size`, `background-repeat` | changé : l'image couvre toujours le bloc |
 | `State(tasks: [])`, `push`, `remove(item)`, `clear` | un tableau JavaScript, `push`, `splice`, `length = 0` | changé : une valeur de la page, changée par des demandes ; on retire la ligne touchée |
 | `Repeat(over: tasks)` | `map` qui fabrique du HTML à chaque changement | changé : le moteur fabrique les lignes, et échappe ce que le visiteur a écrit |
@@ -107,7 +107,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `mul`, `div` | `*=`, `/=`, `Math.floor` | changé : deux demandes, en nombres entiers |
 | `computed:`, `Filter(name:, from:)` | `array.filter()`, `array.sort()`, `array.slice()` | changé : une liste nommée, refaite seule à chaque changement (`ADR-062`) |
 | `contains:`, `in:` dans `Filter` | `string.includes()`, `toLowerCase()`, `normalize()` | changé : sans majuscules ni accents, d'office |
-| `field:`, `is:`, `sortBy:`, `reverse:`, `limit:` dans `Filter` | `filter`, `sort` et `localeCompare`, `reverse`, `slice` | changé : des réglages ; `field`, `is`, `reverse` à valider |
+| `field:`, `is:`, `sortBy:`, `reverse:`, `limit:` dans `Filter` | `filter`, `sort` et `localeCompare`, `reverse`, `slice` | changé : des réglages ; `field`, `is`, `reverse` (`ADR-062`) |
 | `offset:` dans `Filter` | `OFFSET` (SQL), `slice(start)`, la page d'un `Paginator` (Django) | repris : le mot usuel du décalage ; après la recherche et le tri, avant `limit` ; le total compte avant les deux (`ADR-084`) |
 | `empty:` dans `Repeat` | un `if (list.length === 0)` écrit à la main | nouveau : annoncé par un lecteur d'écran |
 | `Key.enter`, `Key.escape`, `Key.a` à `Key.z`, `Key.digit0` à `Key.digit9` | `KeyboardEvent.key`, `KeyboardEvent.code` | changé : un nom par touche ; les lettres par ce qui est écrit sur la touche, les chiffres par leur place (un clavier français marche sans Maj) ; jamais Tab ; les touches à une lettre se coupent (WCAG 2.1.4) |
@@ -122,9 +122,9 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Slider` | `input type="range"` | changé : le mot de Flutter |
 | `Progress` | `progress` | repris, avec une étiquette obligatoire |
 | `type: date`, `time`, `color` dans `Input` | `input type="date"`, `"time"`, `"color"` | repris |
-| `today`, `{arrival:date}`, `due.add(7)`, `Days(name:, from:, to:)` | `new Date()`, `toLocaleDateString`, `setDate`, une différence de millisecondes | changé : un jour du calendrier, sans heure ni fuseau ; exact (`ADR-067`, à valider) |
+| `today`, `{arrival:date}`, `due.add(7)`, `Days(name:, from:, to:)` | `new Date()`, `toLocaleDateString`, `setDate`, une différence de millisecondes | changé : un jour du calendrier, sans heure ni fuseau ; exact (`ADR-067`) |
 | `min:` dans `Input` | `min`, `minlength` | repris : pour un nombre, une date (`ADR-067`), et la longueur d'un texte (`ADR-068`) |
-| `required: true`, `type: email` | `required`, `type="email"`, `setCustomValidity`, `aria-invalid` | changé : vérifié par le moteur, dans la page puis au serveur ; messages sous le champ, lus par un lecteur d'écran (`ADR-068`, à valider) |
+| `required: true`, `type: email` | `required`, `type="email"`, `setCustomValidity`, `aria-invalid` | changé : vérifié par le moteur, dans la page puis au serveur ; messages sous le champ, lus par un lecteur d'écran (`ADR-068`) |
 | `type: file`, `accept: image`, `max: 2MB` dans `Input` | `input type="file" accept="image/png,…"`, `FormData` | changé : des sortes nommées, une taille, vérifiées par la page et par le serveur |
 | `caption:`, `phone:` dans `Image` | `figure`, `figcaption` ; `picture`, `source media` | changé : deux paramètres de l'image |
 | `label:` dans `Sound` | `audio controls` | changé : avec une étiquette, le son devient un lecteur |
@@ -141,7 +141,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Quote` | `blockquote`, `q`, `cite` | changé : un mot au lieu de trois |
 | `Code` | `pre`, `code` | repris |
 | `State` | `let`, `useState`, les signaux | changé : une déclaration, pas une variable libre |
-| `Shared`, `shared:` | une base et une API côté serveur, puis `fetch`, un `WebSocket` ou un `EventSource` côté page (Firebase, Meteor, Phoenix LiveView) | nouveau : une déclaration ; le serveur de l'auteur garde la valeur pour tous, l'arbitre avec le même moteur que la page, et l'envoie en direct (`ADR-079`, à valider) ; une liste aussi, dont la ligne touchée se désigne par sa clé (`ADR-080`) |
+| `Shared`, `shared:` | une base et une API côté serveur, puis `fetch`, un `WebSocket` ou un `EventSource` côté page (Firebase, Meteor, Phoenix LiveView) | nouveau : une déclaration ; le serveur de l'auteur garde la valeur pour tous, l'arbitre avec le même moteur que la page, et l'envoie en direct (`ADR-079`) ; une liste aussi, dont la ligne touchée se désigne par sa clé (`ADR-080`) |
 | `Data` | `fetch`, puis `JSON.parse`, puis la mise à jour de la page | changé : une déclaration ; l'arbitre range ce qui arrive |
 | `Prices` | un objet JavaScript `{ sunrise: 120 }` | changé : une table déclarée |
 | `Zoom` | `meta viewport`, la propriété `zoom` | changé |
@@ -172,7 +172,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `meets:`, `within:` | aucun | nouveaux |
 | `drag:` | `draggable`, `pointermove` | changé : un réglage, rien à programmer |
 | `keep:` | `localStorage` | changé : une liste de noms, rien à programmer |
-| `address:` (sur `Page`) | `history.pushState`, `URLSearchParams`, `popstate` | changé : une liste de noms ; un toucher fait un pas d'historique, le serveur lit les mêmes valeurs (`ADR-091`, à valider) |
+| `address:` (sur `Page`) | `history.pushState`, `URLSearchParams`, `popstate` | changé : une liste de noms ; un toucher fait un pas d'historique, le serveur lit les mêmes valeurs (`ADR-091`) |
 | `access: members` (et `everyone`, qu'on n'écrit pas) | `@login_required` (Django), `before_action :authenticate_user!` (Rails), un « middleware » (Next.js) | nouveau dans la page : ce qui la réserve est écrit sur elle, pas dans un programme à part (`ADR-081`) |
 | `x:`, `y:` | `left`, `top` | changés : de 0 à 100, jamais hors du plateau |
 | `by:` | `cite` | changé |
@@ -191,7 +191,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `active:` | `user-scalable=no` | changé |
 | `max:` | `maximum-scale` | changé |
 | `shrink:` | `minimum-scale` ; `flex-shrink` dit autre chose | changé |
-| `Zoom(detach:)` | aucun : sur le web, le zoom du navigateur grossit toujours la page sur place | nouveau : le bouton « Décrocher » du menu ☰ ; la page se détache comme une feuille, et le zoom l'approche ; « Accrocher » la remet à sa place (`ADR-069`, à valider) |
+| `Zoom(detach:)` | aucun : sur le web, le zoom du navigateur grossit toujours la page sur place | nouveau : le bouton « Décrocher » du menu ☰ ; la page se détache comme une feuille, et le zoom l'approche ; « Accrocher » la remet à sa place (`ADR-069`) |
 | `levels:`, `speed:` | aucun | nouveaux ; `levels:` dans `Zoom` et dans `Points`, avec la même idée : combien de fois l'un dans l'autre |
 | `after:` | aucun ; `::after` dit autre chose | nouveau |
 | `size:` | `width`, `height` | changé |
@@ -227,12 +227,12 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `.card { … }` | `.card { … }` | repris |
 | `P.card(...)` | `class="card"` | changé |
 | `color`, `background`, `font-size`, `font-weight`, `font-style`, `font-family`, `text-align`, `padding`, `margin`, `border`, `border-radius`, `width`, `height`, `max-width`, `opacity` | les mêmes | repris, quinze réglages |
-| `min-width`, `min-height`, `max-height` | les mêmes | repris ; en px ou en %, écrits en `rem` ; `max-width` sur `Page` élargit la page (`ADR-069`, à valider) |
-| `overflow`, `overflow-x`, `overflow-y`, `white-space` | les mêmes | repris ; `white-space` : `normal`, `nowrap`, `pre-line`, `pre-wrap` (`pre` refusé : il déborde sur un téléphone) ; un mot trop long passe à la ligne sans rien écrire (`ADR-069`, à valider) |
-| `line-clamp` | `-webkit-line-clamp`, avec `display: -webkit-box`, `-webkit-box-orient: vertical` et `overflow: hidden` | changé : un réglage au lieu de quatre (`ADR-069`, à valider) |
-| `aspect-ratio`, `object-fit`, `object-position` | les mêmes | repris ; une image est `cover` sans rien écrire : jamais déformée (`ADR-069`, à valider) |
-| `cursor` | `cursor` | repris : 22 formes, ou `url("viseur.svg")` ; le moteur ajoute la forme de secours `auto` (`ADR-069`, à valider) |
-| `justify` dans `text-align` | `text-align: justify`, `hyphens: auto` | repris ; les mots se coupent seuls, dans la langue de la page (`ADR-069`, à valider) |
+| `min-width`, `min-height`, `max-height` | les mêmes | repris ; en px ou en %, écrits en `rem` ; `max-width` sur `Page` élargit la page (`ADR-069`) |
+| `overflow`, `overflow-x`, `overflow-y`, `white-space` | les mêmes | repris ; `white-space` : `normal`, `nowrap`, `pre-line`, `pre-wrap` (`pre` refusé : il déborde sur un téléphone) ; un mot trop long passe à la ligne sans rien écrire (`ADR-069`) |
+| `line-clamp` | `-webkit-line-clamp`, avec `display: -webkit-box`, `-webkit-box-orient: vertical` et `overflow: hidden` | changé : un réglage au lieu de quatre (`ADR-069`) |
+| `aspect-ratio`, `object-fit`, `object-position` | les mêmes | repris ; une image est `cover` sans rien écrire : jamais déformée (`ADR-069`) |
+| `cursor` | `cursor` | repris : 22 formes, ou `url("viseur.svg")` ; le moteur ajoute la forme de secours `auto` (`ADR-069`) |
+| `justify` dans `text-align` | `text-align: justify`, `hyphens: auto` | repris ; les mots se coupent seuls, dans la langue de la page (`ADR-069`) |
 
 ### Les unités et le reste
 
@@ -245,7 +245,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `//` | `//` en JavaScript | repris |
 | `**gras**`, `*italique*` | `strong`, `em` | changés : l'écriture de Markdown |
 | `import`, `module`, `bridge js`, `bridge css` | `import`, `link`, `script` | repris ou changés ; lus, pas encore appliqués |
-| `{id}` dans le nom d'un fichier, `profil/{id}.holo` | `[id]` (Next.js, SvelteKit), `:id` (Express) | changé : les accolades de HoloCode, les mêmes que dans un texte ; la page lit `{id}`, sans pouvoir le changer (`ADR-078`, à valider) |
+| `{id}` dans le nom d'un fichier, `profil/{id}.holo` | `[id]` (Next.js, SvelteKit), `:id` (Express) | changé : les accolades de HoloCode, les mêmes que dans un texte ; la page lit `{id}`, sans pouvoir le changer (`ADR-078`) |
 | `signedIn`, `{account}` | `request.user.is_authenticated` et `{{ user.username }}` (Django), `user_signed_in?` et `current_user` (Rails), `useSession()` (Auth.js) | changés : deux valeurs que le serveur donne, lues comme les autres, jamais changées par la page (`ADR-081`) |
 | `/account`, `/account/signin`, `/account/signup` | `/accounts/login/` (Django), `/users/sign_in` (Devise), `/api/auth/signin` (Auth.js) | repris : les pages de compte du serveur, fabriquées par le moteur ; les seuls liens qui partent de la racine du site (`ADR-081`) |
 

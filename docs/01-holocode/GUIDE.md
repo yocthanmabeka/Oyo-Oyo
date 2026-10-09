@@ -1497,7 +1497,7 @@ Page(
 - Ce qui arrive par l'adresse vient de n'importe qui : seules les valeurs nommées sont reprises, dans leurs bornes ; un texte que la page n'écrit qu'avec des mots fixes (`tab.set("drawings")`, les options d'un `Choice`) n'en prend pas d'autre. Une valeur mal écrite part de son départ.
 - Refusés : une liste, une valeur gardée (`keep`), l'heure, une valeur du nom du fichier, et les noms que le moteur lit déjà dans une adresse (`values`, `view`, `zoom`, `x`, `y`…).
 
-Cette écriture est proposée (`ADR-091`) ; le nom `address:` est à valider par Yocthan. La leçon est `114-l-historique-dans-une-page.holo`.
+Cette écriture est décidée (`ADR-091`, validée par Yocthan le 2026-10-09). La leçon est `114-l-historique-dans-une-page.holo`.
 
 ## 6 tricies. Des valeurs partagées, en direct : `Shared`
 

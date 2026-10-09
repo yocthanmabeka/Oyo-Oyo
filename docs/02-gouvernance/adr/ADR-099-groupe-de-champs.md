@@ -1,6 +1,6 @@
 # ADR-099 — Un groupe de champs et son nom : `Fields(label: "Adresse de livraison", children: [ … ])`
 
-- Statut : PROPOSITION (construit et essayé ; à valider par Yocthan)
+- Statut : ACCEPTÉ (validé par Yocthan le 2026-10-09, après avoir tout essayé : « j'ai tout essayé et c'est bon »)
 - Date : 2026-10-09
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'issue #215 (« Dette du web : regrouper les champs d'un formulaire (fieldset, legend) »), ajoutée à la file à la demande de Yocthan le 2026-10-09 ; le grand tableau du web, où `fieldset, legend, datalist` était « non » (`docs/01-holocode/TABLEAU-WEB.md`) ; `ADR-042`, qui les laissait pour plus tard ; les formulaires qui vérifient (`ADR-068`) ; la proposition de Codex d'ajouter `Fieldset` et `Legend` aux formulaires (`proposals/GPT5.6/tout-le-web-avant-3d-2026-10-07/`).
