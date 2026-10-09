@@ -132,6 +132,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 122 | [Un groupe de champs](122-un-groupe-de-champs.holo) | `Fields(label: "Adresse de livraison", children: [ … ])` : des champs qui vont ensemble, et le nom du groupe que le lecteur d'écran annonce ; des cases sur une même question |
 | 123 | [Des suggestions dans un champ](123-des-suggestions-dans-un-champ.holo) | `Input(suggestions: ["Pomme", "Poire"])`, `suggestions: villes` : le champ propose, on peut écrire autre chose ; les suggestions suivent la liste pendant la visite |
 | 124 | [Une citation courte, le titre d'une œuvre](124-une-citation-courte.holo) | `<<bonjour>>` : les guillemets de la langue de la page ; `_Les Misérables_` ; `Quote(by:, work:)` |
+| 127 | [Une grille et ses zones](127-une-grille-et-ses-zones.holo) | `columnSpan: 2`, `rowSpan: 2` : une case sur deux colonnes, deux lignes ; `Grid(areas: ["haut haut", "menu texte"])`, `area: menu` : des zones, dans l'ordre de lecture ; sur un téléphone, rien ne déborde |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 

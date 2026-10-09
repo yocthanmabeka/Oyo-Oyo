@@ -666,6 +666,56 @@ const tests = [
       && added === "none" && titles === "Les Misérables | Les Châtiments";
     return [ok, `lu : « ${said} » ; citations : ${quotes} ; guillemets du navigateur : ${added} ; œuvres : ${titles}`];
   }],
+  ["une grille : une case sur deux colonnes et deux lignes, des zones dans l'ordre de lecture ; rien ne déborde sur un téléphone (leçon 127)", async (p, b) => {
+    const faults = [];
+    const check = (name, ok, seen) => { if (!ok) faults.push(`${name} : ${seen}`); };
+    // Les boîtes (gauche, haut, largeur, hauteur) : la grille des tableaux, la grande case, les
+    // autres cases, puis la grille du jardin et ses quatre zones, dans l'ordre de la page.
+    const boxes = `(() => {
+      const box = (e) => { const r = e.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]; };
+      const [paintings, garden] = document.querySelectorAll("main .holo-Grid");
+      const big = document.querySelector(".holo-s-vedette")?.closest(".holo-cell");
+      if (!paintings || !garden || !big) return null;
+      return { grid: box(paintings), big: box(big), cards: [...paintings.children].filter((c) => c !== big).map(box), garden: box(garden), zones: [...garden.children].map(box), wide: document.documentElement.scrollWidth };
+    })()`;
+    const near = (a, b2) => Math.abs(a - b2) <= 2;
+    // Les zones l'une sous l'autre, dans l'ordre : chacune sur toute la largeur, plus bas que la précédente.
+    const stacked = (m) => m.zones.every((z, i) => near(z[0], m.garden[0]) && near(z[2], m.garden[2]) && (i === 0 || z[1] > m.zones[i - 1][1]));
+    try {
+      // Sur un ordinateur : trois colonnes ; la grande case en prend deux, sur deux lignes ; les zones comme on les a dessinées.
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
+      await p.open("/exemples/lecons/127-une-grille-et-ses-zones.holo", 600);
+      let m = await p.value(boxes);
+      if (!m) return [false, `la leçon ne montre pas ses deux grilles : ${(await p.text()).slice(0, 200)}`];
+      const [first, second, third, fourth] = m.cards;
+      check("ordinateur : la grande case sur deux colonnes", near(m.big[2], 2 * third[2] + 12) && near(m.big[0], third[0]) && near(m.big[0] + m.big[2], fourth[0] + fourth[2]), `grande ${JSON.stringify(m.big)}, en dessous ${JSON.stringify(third)} et ${JSON.stringify(fourth)}`);
+      check("ordinateur : la grande case sur deux lignes", near(m.big[1], first[1]) && near(m.big[1] + m.big[3], second[1] + second[3]), `grande ${JSON.stringify(m.big)}, à côté ${JSON.stringify(first)} et ${JSON.stringify(second)}`);
+      const [top, menu, text, foot] = m.zones;
+      const column = (m.garden[2] - 2 * 16) / 3;
+      check("ordinateur : le haut et le pied sur toute la largeur", near(top[2], m.garden[2]) && near(foot[2], m.garden[2]), `${top[2]} et ${foot[2]} pour ${m.garden[2]}`);
+      check("ordinateur : le menu à gauche du texte, sur une colonne de trois", near(menu[1], text[1]) && near(menu[2], column) && near(text[0], menu[0] + menu[2] + 16) && near(text[2], 2 * column + 16), `menu ${JSON.stringify(menu)}, texte ${JSON.stringify(text)}`);
+      check("ordinateur : l'ordre de lecture est celui de la page", top[1] < menu[1] && menu[0] < text[0] && Math.max(menu[1] + menu[3], text[1] + text[3]) <= foot[1], JSON.stringify(m.zones));
+      // Sur un téléphone (360 de large) : deux colonnes ; la grande case prend la ligne ; les zones s'empilent dans l'ordre.
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 360, height: 760, deviceScaleFactor: 2, mobile: true });
+      await p.open("/exemples/lecons/127-une-grille-et-ses-zones.holo", 600);
+      m = await p.value(boxes);
+      check("téléphone : rien ne déborde", m.wide <= 360, `${m.wide} px pour 360`);
+      check("téléphone : la grande case prend la ligne", near(m.big[2], m.grid[2]) && near(m.cards[0][2] * 2 + 12, m.grid[2]), `grande ${m.big[2]}, case ${m.cards[0][2]}, grille ${m.grid[2]}`);
+      check("téléphone : les zones l'une sous l'autre, dans l'ordre", stacked(m), JSON.stringify(m.zones));
+      // Un téléphone plié (280 de large, le Galaxy Z Fold fermé) : une seule colonne ; la grande case
+      // n'en a pas deux, elle prend toute la ligne au lieu de créer une colonne qui déborde.
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 280, height: 700, deviceScaleFactor: 2, mobile: true });
+      await p.open("/exemples/lecons/127-une-grille-et-ses-zones.holo", 600);
+      m = await p.value(boxes);
+      check("plié : rien ne déborde", m.wide <= 280, `${m.wide} px pour 280`);
+      check("plié : une colonne, et la grande case sur toute la ligne", near(m.big[2], m.grid[2]) && near(m.cards[0][2], m.grid[2]), `grande ${m.big[2]}, case ${m.cards[0][2]}, grille ${m.grid[2]}`);
+      check("plié : les zones l'une sous l'autre", stacked(m), JSON.stringify(m.zones));
+      if (b.errors.length) faults.push(`erreurs : ${b.errors.join(" | ")}`);
+    } finally {
+      await b.send("Emulation.clearDeviceMetricsOverride");
+    }
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : "ordinateur : deux colonnes et deux lignes, le menu à gauche du texte, dans l'ordre de lecture ; téléphone (360) et téléphone plié (280) : rien ne déborde, la grande case prend la ligne, les zones s'empilent dans l'ordre"];
+  }],
   ["les touches du clavier, et les lettres qu'on coupe", async (p) => {
     await p.open("/exemples/lecons/77-toutes-les-touches.holo");
     if (!(await p.until(`document.getElementById("shortcuts")`))) return [false, "le moteur n'est pas arrivé"];

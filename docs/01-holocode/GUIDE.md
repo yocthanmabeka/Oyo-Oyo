@@ -221,6 +221,8 @@ Page(
 
 Cette écriture est décidée (`ADR-024`).
 
+Une case sur plusieurs colonnes ou plusieurs lignes (`columnSpan:`, `rowSpan:`), et une grille dessinée par zones (`Grid(areas:)`, `area:`) : voir la partie 6 quinquadragies (`ADR-104`).
+
 ### La place qui reste : `grow`
 
 Dans `Row` ou `Column`, un bloc qui porte **`grow: 1`** prend la place qui reste, comme `Expanded` en Flutter. Avec `grow: 2` à côté d'un `grow: 1`, il en prend deux parts. Un bloc sans `grow` garde sa taille. Un champ de saisie qui grandit s'étire jusqu'au bout.
@@ -1969,6 +1971,45 @@ Page(
 
 La leçon est `124-une-citation-courte.holo`.
 
+## 6 quinquadragies. Une grille qui place ses cases : plusieurs colonnes, des zones
+
+Une case plus grande que les autres, et une page dessinée avec des mots (`ADR-104`).
+
+```holo
+Page(
+  title: "The painters' garden",
+  children: [
+    H1("The painters' garden"),
+    Grid(columns: 3, gap: 12px, children: [
+      Column(columnSpan: 2, rowSpan: 2, children: [ H2("The painting of the month"), P("Two columns, two rows.") ]),
+      P("The blue door"),
+      P("Market day"),
+      P("The river"),
+    ]),
+    Grid(areas: [
+      "top  top  top",
+      "menu main main",
+    ], children: [
+      Text("Open from Tuesday to Sunday", area: top),
+      Nav(area: menu, children: [ A("Home", to: "home.holo") ]),
+      Column(area: main, children: [ P("The garden is visited on foot.") ]),
+    ]),
+  ],
+)
+```
+
+- **`columnSpan: 2`** sur un bloc rangé dans `Grid` : sa case prend deux colonnes, au plus celles de la grille (`columns:`, 2 sans rien écrire). **`rowSpan: 2`** : deux lignes, de 2 à 12.
+- **Rien ne déborde.** Une grille perd des colonnes sur un écran étroit (partie 4 bis) ; quand elle n'en a plus assez pour la case, la case prend toute la ligne, et une seule ligne. En CSS, la grille ajouterait une colonne, et la page glisserait de côté sur un téléphone.
+- **`Grid(areas: ["top top top", "menu main main"])`** dessine la grille avec des mots : une ligne de texte par rangée, les noms des zones séparés par des espaces, autant de cases à chaque ligne (12 au plus, et 12 lignes). Une zone prend les cases qui portent son nom, et forme un rectangle ; un point (`.`) laisse une case vide. Les colonnes ont la même largeur : pour un menu plus étroit, on écrit son nom moins de fois (`menu main main`).
+- **`area: menu`** : chaque bloc d'une grille à zones dit sa zone, et chaque zone reçoit un bloc, un seul (pour en ranger plusieurs, un `Column`). Un nom de zone s'écrit comme une valeur : `menu`, `sideMenu`.
+- **Les blocs s'écrivent dans l'ordre des zones**, de gauche à droite puis de haut en bas : l'œil, la touche Tab et le lecteur d'écran suivent ainsi le même chemin. Sinon, le moteur refuse et donne l'ordre. (Le CSS laisse une zone passer devant une autre à l'écran sans changer l'ordre de lecture : un défaut qu'on ne reprend pas.)
+- **Sur un téléphone, les zones passent l'une sous l'autre**, dans cet ordre. Elles restent côte à côte tant que la grille a au moins 480px de large et que chaque zone y garde 120px. C'est la largeur de la grille qui compte, pas celle de l'écran : posée dans une case étroite, une grille à zones s'empile aussi. `phone:` et `narrow:` changent l'allure des cases, comme ailleurs.
+- Un `If` peut remplir une zone : quand il est faux, sa case ne laisse pas de trou. Un bloc qui bouge (`enter:`) garde sa case. Sans JavaScript, tout marche : la grille se mesure elle-même, en CSS fabriqué par le moteur.
+- La place se dit sur le bloc, jamais dans un style : `grid-column`, `grid-row`, `grid-area` et `grid-template-areas` sont refusés dans un style, avec le bon mot.
+- Refusés, avec la raison : `columnSpan:` plus grand que la grille, ou `1` ; `rowSpan:` au-delà de 12 ; ces réglages hors d'une grille, sur une fenêtre (`Dialog`) ou sur un son sans lecteur ; `columns:` avec `areas:` ; des lignes de longueurs différentes, une zone qui n'est pas un rectangle, une ligne de cases vides, une seule zone ; un bloc sans zone, une zone inconnue, deux blocs dans une zone, une zone sans bloc, des blocs dans le désordre ; `columnSpan:` dans une grille à zones.
+
+La leçon est `127-une-grille-et-ses-zones.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo
@@ -2497,6 +2538,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `World` | `children`, `pixels`, `rules` | Dans `inside:` d'un `Point` |
 | `Row`, `Column` | `children`, `gap`, `align`, `name` ; leurs enfants prennent `grow` | Dans `children` |
 | `Grid` | `children`, `gap`, `columns`, `name` | Dans `children` |
+| `Grid(areas:)` | `areas` (une ligne de texte par rangée) à la place de `columns` ; ses enfants prennent `area` ; ceux d'une autre grille, `columnSpan` et `rowSpan` (`ADR-104`) | Dans `children` |
 | `Board` | `children`, `height`, `name` ; ses enfants prennent `x`, `y` et `drag` | Dans `children` |
 | `Input` | `value`, `label`, `max`, `lines`, `type` (`date`, `time`, `color`), `name` | Dans `children` |
 | `Checkbox` | `value`, `label`, `name` | Dans `children` |
@@ -2613,6 +2655,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Ranger côte à côte, l'un sous l'autre, en grille | `Row`, `Column`, `Grid` | fait |
 | L'écart et le placement | `gap:`, `align:`, `columns:` | fait |
 | La place qui reste | `grow:` dans `Row` ou `Column` | fait |
+| Une case sur plusieurs colonnes ou lignes, des zones nommées | `columnSpan:`, `rowSpan:` ; `Grid(areas: ["top top", "menu main"])`, `area:` | fait (`ADR-104`) |
 | Un thème partagé par les pages | un fichier de styles seuls, `import "theme.holo"` | fait |
 | Réutiliser un morceau de fichier (les imports) | `import "commun.holo"`, `Component`, `Use` | fait |
 | Le personnage | aucun | à faire |
@@ -2627,6 +2670,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 - Pour les comptes (`ADR-081` à `ADR-083`) : changer son mot de passe ; un compte créé par une clé d'accès seule ; de nouveaux codes de secours sans retirer le code à 6 chiffres ; la clé d'accès essayée sur un vrai téléphone, en HTTPS.
 - Pour les capacités du navigateur (`ADR-093` à `ADR-096`) : la caméra ne prend pas de photo, le microphone ne donne pas de son ; pas de rappel après la fermeture de la page (il faudrait un serveur de « push ») ; pas d'import en CSV ni par glisser-déposer ; pas de copie hors-ligne d'une page qui a un compte, un formulaire ou des valeurs partagées, ni d'envoi mis en attente.
 - Pour les listes de définitions (`ADR-097`) : pas de liste de termes qui change pendant la visite (`Repeat(over:)`), ni de définition faite de plusieurs paragraphes.
+- Pour la grille (`ADR-104`) : une case d'une liste qui change (`Repeat(over:)`) ne prend pas plusieurs colonnes, et un composant se range dans un `Column(columnSpan: 2, …)` pour le faire ; pas de colonnes de largeurs choisies (on répète le nom d'une zone) ; le seuil où les zones s'empilent (480px) ne se règle pas.
 - Pour les valeurs : pas de nombre négatif ; une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
