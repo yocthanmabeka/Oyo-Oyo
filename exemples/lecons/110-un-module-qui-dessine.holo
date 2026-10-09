@@ -35,7 +35,7 @@ Page(
 
     Hr(),
     Row(gap: 16px, align: between, children: [
-      A("← Leçon 101 : une valeur partagée", to: "101-une-valeur-partagee.holo"),
+      A("← Leçon 106 : le panier qui suit le compte", to: "106-le-panier-qui-suit-le-compte.holo"),
       A("Leçon 111 : un chronomètre →", to: "111-un-chronometre.holo"),
     ]),
   ],
