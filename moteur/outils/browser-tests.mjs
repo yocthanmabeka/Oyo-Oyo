@@ -568,6 +568,26 @@ const tests = [
     const ok = await p.until(`(window.__holoModules ?? []).some((m) => m.ok && m.output === 5050)`);
     return [ok, ok ? "5 050" : JSON.stringify(await p.value("window.__holoModules ?? null"))];
   }],
+  ["une abréviation expliquée une fois, une date lisible par les machines, une adresse (leçon 121)", async (p) => {
+    await p.open("/exemples/lecons/121-une-abreviation-une-date-une-adresse.holo");
+    // La première fois qu'elle vient dans un paragraphe, son sens est écrit : le lecteur d'écran
+    // le lit, le téléphone le montre ; ailleurs, elle est seulement marquée.
+    const first = await p.value(`document.querySelector("main p").textContent`);
+    const marked = await p.value(`document.querySelectorAll('abbr[title="Maison des jeunes et de la culture"]').length`);
+    const written = await p.value(`(document.body.textContent.match(/\\(Maison des jeunes et de la culture\\)/g) ?? []).length`);
+    // Une date montrée se lit par les machines, et suit sa valeur quand un geste la change.
+    const times = `[...document.querySelectorAll("main time")].map((t) => t.getAttribute("datetime") + "=" + t.textContent).join(" | ")`;
+    const before = await p.value(times);
+    await p.click('[data-name="Plus"]');
+    const moved = await p.until(`document.querySelector("main time")?.getAttribute("datetime") === "2026-11-21"`);
+    const after = await p.value(times);
+    // Les moyens de joindre l'auteur, dans le pied de page.
+    const address = await p.value(`document.querySelector("footer address.holo-Address")?.textContent ?? ""`);
+    const ok = first.includes("MJC (Maison des jeunes et de la culture) ouvre") && marked === 4 && written === 1
+      && before === "2026-11-14=14 novembre 2026 | 2026-11-14=samedi" && moved && after === "2026-11-21=21 novembre 2026 | 2026-11-21=samedi"
+      && address.includes("12 rue des Arts");
+    return [ok, `premier paragraphe : « ${first} » ; ${marked} abréviations marquées, sens écrit ${written} fois ; dates : ${before} → ${after} ; adresse : « ${address} »`];
+  }],
   ["les touches du clavier, et les lettres qu'on coupe", async (p) => {
     await p.open("/exemples/lecons/77-toutes-les-touches.holo");
     if (!(await p.until(`document.getElementById("shortcuts")`))) return [false, "le moteur n'est pas arrivé"];

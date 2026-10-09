@@ -4,7 +4,7 @@
 use crate::holo::{Block, Error, Program, Value};
 
 /// `Text` est du texte sans rôle ; `P`, `H1`, `H2` et `H3` sont un `Text` avec un rôle (ADR-020).
-pub const BLOCKS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Component", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop", "H4", "H5", "H6", "Main", "Nav", "Header", "Footer", "Aside", "Stack", "Video", "Table", "Choice", "After", "Repeat", "Item", "Font", "Slider", "Progress", "Details", "Dialog", "Form", "Module", "Filter", "Days", "Drawing", "Rect", "Circle", "Line", "Path", "Chart", "Shared", "Stopwatch", "Transfer", "Device", "Notification", "Offline", "Term"];
+pub const BLOCKS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Component", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop", "H4", "H5", "H6", "Main", "Nav", "Header", "Footer", "Aside", "Stack", "Video", "Table", "Choice", "After", "Repeat", "Item", "Font", "Slider", "Progress", "Details", "Dialog", "Form", "Module", "Filter", "Days", "Drawing", "Rect", "Circle", "Line", "Path", "Chart", "Shared", "Stopwatch", "Transfer", "Device", "Notification", "Offline", "Term", "Address", "Abbreviation"];
 
 /// Le titre le plus profond : `H6`, comme en HTML (correction d'ADR-020 du 2026-10-06 ; les
 /// longs documents en ont besoin). Le numéro dit toujours la place dans le plan, jamais la taille.
@@ -20,7 +20,7 @@ pub fn check_blocks(program: &Program) -> Result<(), Error> {
 /// absents de cette liste vérifient leurs réglages eux-mêmes (`State`, `Shared`, `Prices`, `Data`,
 /// `Zoom`, `Points`, `Relief`, `Portals`, `Enter`, `Loop`, `Use`).
 const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
-    ("Page", &["name", "title", "children", "pixels", "rules", "state", "shared", "prices", "keep", "data", "zoom", "points", "relief", "portals", "lang", "description", "image", "fonts", "icon", "modules", "components", "computed", "address", "access"]),
+    ("Page", &["name", "title", "children", "pixels", "rules", "state", "shared", "prices", "keep", "data", "zoom", "points", "relief", "portals", "lang", "description", "image", "fonts", "icon", "modules", "components", "computed", "address", "access", "abbreviations"]),
     ("World", &["name", "children", "pixels", "rules"]),
     ("Component", &["name", "params", "emits", "children", "rules"]),
     ("Text", &["name"]),
@@ -56,6 +56,8 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     ("Main", &["name", "children"]),
     ("Footer", &["name", "children"]),
     ("Aside", &["name", "children"]),
+    // Les moyens de joindre l'auteur de la page (ADR-098) : Address(children: [ … ]).
+    ("Address", &["name", "children"]),
     ("Row", &["name", "children", "gap", "align"]),
     ("Column", &["name", "children", "gap", "align"]),
     ("Grid", &["name", "children", "gap", "columns"]),
@@ -80,6 +82,8 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     ("Scenes", &["name", "children", "height", "repeat"]),
     ("Scene", &["name", "children", "for"]),
     ("Font", &["family", "source"]),
+    // Une abréviation et son sens, déclarés une fois pour la page (ADR-098).
+    ("Abbreviation", &[]),
     ("Module", &["name", "source", "input", "output", "time", "memory"]),
     // Les données de la page (ADR-030) ; leur nom, que les règles écoutent (ADR-064).
     ("Data", &["name", "from", "every"]),

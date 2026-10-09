@@ -17,6 +17,7 @@ const BASE: &str = "\
 :where(img.holo-Image){object-fit:cover}\
 :where(.holo-Page>main,.holo-Page>header,.holo-Page>footer,.holo-panel,.holo-Header,.holo-Footer,.holo-Main)>*{display:block;box-sizing:border-box;margin:0 0 16px 0}\
 :where(.holo-Nav)>*{margin:0}\
+:where(address.holo-Address){font-style:normal}:where(abbr[title]){cursor:help}\
 :where(.holo-Stack){display:inline-grid;position:relative;max-width:100%;vertical-align:top}:where(.holo-Stack>:first-child .holo-Image){width:100%;display:block}:where(.holo-Stack)>*{grid-area:1/1;min-width:0;margin:0}\
 :where(.holo-stacked){z-index:1;margin:6px}\
 :where(.holo-Button){font:inherit;color:inherit;cursor:pointer;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 12px}\
@@ -128,6 +129,172 @@ fn set_language(program: &Program) {
     LANGUAGE.with(|l| *l.borrow_mut() = language);
 }
 
+thread_local! {
+    /// Les abréviations de la page en cours (ADR-098) : la forme courte, son sens, et le texte
+    /// du paragraphe où le sens s'écrit, la première fois qu'elle y vient ; `written` dit que
+    /// c'est fait, pour cette page.
+    static ABBREVIATIONS: std::cell::RefCell<Vec<Abbreviation>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+struct Abbreviation {
+    short: String,
+    meaning: String,
+    first: Option<String>,
+    written: bool,
+}
+
+/// Les abréviations d'une page, vérifiées : `abbreviations: [ Abbreviation("HTML", "HyperText
+/// Markup Language") ]`. Cinquante au plus ; une forme courte de 1 à 20 signes (lettres,
+/// chiffres, point, tiret, apostrophe, esperluette, espace), un sens de 1 à 200, chacune une fois.
+fn read_abbreviations(page: &Block) -> Result<Vec<(String, String)>, Error> {
+    let Some(argument) = page.argument("abbreviations") else { return Ok(Vec::new()) };
+    let example = "abbreviations: [ Abbreviation(\"HTML\", \"HyperText Markup Language\") ]";
+    let Value::List(list) = &argument.value else {
+        return Err(Error { message: format!("« abbreviations » est une liste d'abréviations : {example}"), pos: argument.pos });
+    };
+    if list.is_empty() || list.len() > 50 {
+        return Err(Error { message: format!("une page déclare de 1 à 50 abréviations : {example}"), pos: argument.pos });
+    }
+    let mut found: Vec<(String, String)> = Vec::new();
+    for element in list {
+        let Value::Block(block) = element else {
+            return Err(Error { message: format!("« abbreviations » contient des « Abbreviation(…) » : {example}"), pos: argument.pos });
+        };
+        if block.name != "Abbreviation" {
+            return Err(Error { message: format!("« abbreviations » contient des « Abbreviation(…) », pas des « {} »", block.name), pos: block.pos });
+        }
+        let texts: Vec<&str> = block.arguments.iter().filter_map(|a| match (&a.name, &a.value) {
+            (None, Value::Text(t)) => Some(t.as_str()),
+            _ => None,
+        }).collect();
+        let [short, meaning] = texts[..] else {
+            return Err(Error { message: format!("« Abbreviation » attend la forme courte, puis son sens : {example}"), pos: block.pos });
+        };
+        if block.arguments.len() != 2 {
+            return Err(Error { message: format!("« Abbreviation » attend la forme courte, puis son sens, sans autre paramètre : {example}"), pos: block.pos });
+        }
+        let allowed = |c: char| c.is_alphanumeric() || matches!(c, '.' | '-' | '\'' | '&' | ' ');
+        if short.is_empty() || short.chars().count() > 20 || !short.chars().all(allowed) || !short.chars().any(char::is_alphanumeric) || short.starts_with(' ') || short.ends_with(' ') {
+            return Err(Error { message: format!("« Abbreviation(\"{short}\", …) » : la forme courte a de 1 à 20 signes, des lettres, des chiffres, et seulement « . - ' & » ou une espace entre eux"), pos: block.pos });
+        }
+        if meaning.trim().is_empty() || meaning.chars().count() > 200 || meaning.contains('\n') {
+            return Err(Error { message: format!("« Abbreviation(\"{short}\", …) » : son sens est un texte d'une ligne, de 1 à 200 signes"), pos: block.pos });
+        }
+        if found.iter().any(|(known, _)| known == short) {
+            return Err(Error { message: format!("l'abréviation « {short} » est déclarée deux fois"), pos: block.pos });
+        }
+        found.push((short.to_string(), meaning.to_string()));
+    }
+    Ok(found)
+}
+
+/// Une forme courte est-elle dans ce texte, comme un mot entier ? « HTML » est dans « le HTML, »,
+/// pas dans « HTML5 » ni dans « XHTML ».
+fn has_word(text: &str, word: &str) -> bool {
+    text.match_indices(word).any(|(at, _)| {
+        let before = text[..at].chars().next_back();
+        let after = text[at + word.len()..].chars().next();
+        !before.is_some_and(char::is_alphanumeric) && !after.is_some_and(char::is_alphanumeric)
+    })
+}
+
+/// Prépare les abréviations de la page à fabriquer. Avec `site`, le sens de chacune s'écrit dans
+/// le premier paragraphe (`P`, `Text`) du site où elle vient, dans l'ordre de la page, sauf si la
+/// page l'écrit déjà elle-même ; jamais dans une liste qui change (`Repeat(over:)`), redessinée seule.
+fn set_abbreviations(found: Vec<(String, String)>, site: Option<&Block>) {
+    fn walk<'a>(value: &'a Value, paragraphs: &mut Vec<&'a str>, texts: &mut Vec<&'a str>) {
+        match value {
+            Value::Text(t) => texts.push(t),
+            Value::List(list) => list.iter().for_each(|v| walk(v, paragraphs, texts)),
+            Value::Block(block) => {
+                // Une liste qui change, et les déclarations elles-mêmes, ne comptent pas.
+                if block.name == "Repeat" && block.argument("over").is_some() || block.name == "Abbreviation" {
+                    return;
+                }
+                if block.name == "P" || block.name == "Text" {
+                    if let Some(Value::Text(t)) = block.arguments.iter().find(|a| a.name.is_none()).map(|a| &a.value) {
+                        paragraphs.push(t);
+                    }
+                }
+                block.arguments.iter().for_each(|a| walk(&a.value, paragraphs, texts));
+            }
+            _ => {}
+        }
+    }
+    let (mut paragraphs, mut texts) = (Vec::new(), Vec::new());
+    if let Some(site) = site {
+        site.arguments.iter().for_each(|a| walk(&a.value, &mut paragraphs, &mut texts));
+    }
+    let list = found
+        .into_iter()
+        .map(|(short, meaning)| {
+            let lower = meaning.to_lowercase();
+            let explained = texts.iter().any(|t| t.to_lowercase().contains(&lower));
+            let first = if explained { None } else { paragraphs.iter().find(|p| has_word(p, &short)).map(|p| p.to_string()) };
+            Abbreviation { short, meaning, first, written: false }
+        })
+        .collect();
+    ABBREVIATIONS.with(|a| *a.borrow_mut() = list);
+}
+
+/// Marque chaque abréviation déclarée dans le HTML d'un texte : `<abbr title="…">HTML</abbr>`,
+/// hors des balises et du code ; et, dans son premier paragraphe, écrit son sens juste après,
+/// entre parenthèses, une seule fois : le lecteur d'écran le lit, le téléphone le montre.
+fn mark_abbreviations(text: &str, html: String) -> String {
+    ABBREVIATIONS.with(|cell| {
+        let mut list = cell.borrow_mut();
+        if list.is_empty() || !list.iter().any(|a| has_word(text, &a.short)) {
+            return html;
+        }
+        // Les plus longues d'abord : « U.S.A. » avant « U.S ».
+        let mut order: Vec<usize> = (0..list.len()).collect();
+        order.sort_by_key(|&i| std::cmp::Reverse(list[i].short.len()));
+        let shorts: Vec<String> = list.iter().map(|a| escape(&a.short)).collect();
+        let mut output = String::with_capacity(html.len() + 64);
+        let (mut rest, mut in_code) = (html.as_str(), false);
+        while !rest.is_empty() {
+            if rest.starts_with('<') {
+                let end = rest.find('>').map_or(rest.len(), |e| e + 1);
+                let tag = &rest[..end];
+                in_code = if tag.starts_with("<code") { true } else if tag == "</code>" { false } else { in_code };
+                output.push_str(tag);
+                rest = &rest[end..];
+                continue;
+            }
+            let chunk_end = rest.find('<').unwrap_or(rest.len());
+            let chunk = &rest[..chunk_end];
+            rest = &rest[chunk_end..];
+            if in_code {
+                output.push_str(chunk);
+                continue;
+            }
+            let mut at = 0;
+            'chunk: while at < chunk.len() {
+                let before = chunk[..at].chars().next_back();
+                if !before.is_some_and(char::is_alphanumeric) {
+                    for &i in &order {
+                        let short = &shorts[i];
+                        if chunk[at..].starts_with(short.as_str()) && !chunk[at + short.len()..].chars().next().is_some_and(char::is_alphanumeric) {
+                            let entry = &mut list[i];
+                            output.push_str(&format!("<abbr title=\"{}\">{short}</abbr>", escape(&entry.meaning)));
+                            if !entry.written && entry.first.as_deref() == Some(text) {
+                                output.push_str(&format!(" ({})", escape(&entry.meaning)));
+                                entry.written = true;
+                            }
+                            at += short.len();
+                            continue 'chunk;
+                        }
+                    }
+                }
+                let c = chunk[at..].chars().next().unwrap_or(' ');
+                output.push(c);
+                at += c.len_utf8();
+            }
+        }
+        output
+    })
+}
+
 /// Ce que lit un lecteur d'écran après un lien qui s'ouvre dans un nouvel onglet.
 fn new_tab_text() -> &'static str {
     LANGUAGE.with(|l| if l.borrow().starts_with("fr") || l.borrow().is_empty() { " (s'ouvre dans un nouvel onglet)" } else { " (opens in a new tab)" })
@@ -149,6 +316,8 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
     if page.name != "Page" && page.name != "World" {
         return Err(Error { message: format!("la vue à plat affiche une « Page » ; ce fichier commence par « {} »", page.name), pos: page.pos });
     }
+    // Les abréviations du fichier (ADR-098), marquées dans tous les textes du site.
+    set_abbreviations(read_abbreviations(&program.root)?, Some(page));
     let mut body = String::new();
     let mut worlds = String::new();
     // Les repères (ADR-036) : un `Header` et un `Footer` posés directement dans la page en
@@ -209,9 +378,11 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
     };
     for (name, text) in &texts {
         let mut places = vec![(format!("<span data-state=\"{name}\"></span>"), format!("<span data-state=\"{name}\">{}</span>", escape(text)))];
+        // Une date, aussi pour les machines (ADR-098) : `datetime` quand c'est un jour du calendrier.
+        let datetime = if crate::dates::days(text).is_some() { format!(" datetime=\"{}\"", escape(text)) } else { String::new() };
         for format in crate::dates::FORMATS {
-            let opening = format!("<span data-state=\"{name}\" data-format=\"{format}\">");
-            places.push((format!("{opening}</span>"), format!("{opening}{}</span>", escape(&crate::dates::format(text, format, page_language)))));
+            let opening = format!("<time data-state=\"{name}\" data-format=\"{format}\"");
+            places.push((format!("{opening}></time>"), format!("{opening}{datetime}>{}</time>", escape(&crate::dates::format(text, format, page_language)))));
         }
         for (empty, full_one) in &places {
             body = body.replace(empty, full_one);
@@ -785,6 +956,26 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
             output.push_str(&format!("</{tag}>"));
         }
         "Main" => return Err(Error { message: "« Main » se place directement dans la page : Page(children: [ Header(…), Main(children: [ … ]), Footer(…) ])".into(), pos: block.pos }),
+        // Les moyens de joindre l'auteur de la page (ADR-098) : une adresse, un lien, un numéro.
+        // Ni titre ni repère dedans, comme en HTML.
+        "Address" => {
+            allowed_landmarks(block)?;
+            fn refused(value: &Value) -> Option<&Block> {
+                match value {
+                    Value::List(list) => list.iter().find_map(refused),
+                    Value::Block(b) if matches!(b.name.as_str(), "H1" | "H2" | "H3" | "H4" | "H5" | "H6" | "Header" | "Footer" | "Nav" | "Main" | "Aside" | "Address") => Some(b),
+                    Value::Block(b) => b.arguments.iter().find_map(|a| refused(&a.value)),
+                    _ => None,
+                }
+            }
+            if let Some(inside) = block.argument("children").and_then(|a| refused(&a.value)) {
+                return Err(Error { message: format!("« Address » range des moyens de joindre (un texte, un lien) : pas de « {} » dedans", inside.name), pos: inside.pos });
+            }
+            output.push_str(&format!("<address class=\"{classes}\"{name}>"));
+            children(block, output, worlds, base)?;
+            output.push_str("</address>");
+        }
+        "Abbreviation" => return Err(Error { message: "« Abbreviation » se déclare pour toute la page : Page(abbreviations: [ Abbreviation(\"HTML\", \"HyperText Markup Language\") ])".into(), pos: block.pos }),
         // La superposition (ADR-036) : le premier enfant donne la taille ; les autres se posent
         // dessus, chacun à sa place (align:), comme un badge sur une image.
         "Stack" => {
@@ -1586,6 +1777,7 @@ pub fn list_lines(program: &Program, base: &str, numbers: &crate::state::State, 
     crate::lists::set_running(lists.clone());
     crate::format::set_decimals(crate::state::decimals(program));
     set_language(program);
+    set_abbreviations(read_abbreviations(&program.root).unwrap_or_default(), None);
     // `tasks@12:5` : la répétition de « tasks » écrite ligne 12, colonne 5 ; `tasks` seul : la première.
     let (name, place) = name.split_once('@').map_or((name, None), |(n, p)| (n, Some(p)));
     let written_at = |repeat: &Block| place.is_none_or(|p| p == format!("{}:{}", repeat.pos.line, repeat.pos.column));
@@ -1823,9 +2015,11 @@ fn markdown(text: &str) -> String {
             (places, "number") if places > 0 => format!("nd{places}"),
             _ => format.to_string(),
         };
-        html = html.replace(&format!("{{{name}:{format}}}"), &format!("<span data-state=\"{name}\" data-format=\"{shown}\"></span>"));
+        // Une date montrée (ADR-067) se lit aussi par les machines : `<time datetime="2026-10-10">`.
+        let tag = if crate::dates::FORMATS.contains(&format) { "time" } else { "span" };
+        html = html.replace(&format!("{{{name}:{format}}}"), &format!("<{tag} data-state=\"{name}\" data-format=\"{shown}\"></{tag}>"));
     }
-    html
+    mark_abbreviations(text, html)
 }
 
 #[cfg(test)]
@@ -2547,5 +2741,82 @@ mod definition_tests {
         let html = crate::flat_view("Page(children: [ List(enter: Enter(opacity: 0, each: 0.1s), children: [ Term(\"Poids\", \"2 kg\"), Term(\"Couleur\", \"Bleu nuit\") ]) ])", "").unwrap();
         assert!(html.contains("<div class=\"holo-animated hm") && html.contains("><dl class=\"holo-List\"><div class=\"holo-Term\"><dt>Poids</dt>"), "{html}");
         assert!(html.contains(">*>:nth-child(2){animation:"), "{html}");
+    }
+}
+
+#[cfg(test)]
+mod abbreviation_tests {
+    const HTML: &str = "<abbr title=\"HyperText Markup Language\">HTML</abbr>";
+
+    #[test]
+    fn an_abbreviation_is_marked_everywhere_and_explained_once() {
+        let source = "Page(
+          abbreviations: [ Abbreviation(\"HTML\", \"HyperText Markup Language\"), Abbreviation(\"CSS\", \"Cascading Style Sheets\") ],
+          children: [
+            H1(\"Learn HTML\"),
+            P(\"HTML gives the structure, CSS the look.\"),
+            P(\"After HTML5 and XHTML, HTML stays; `HTML` in code is left alone.\"),
+            Button(text: \"Open the HTML guide\"),
+          ],
+        )";
+        let html = crate::flat_view(source, "").unwrap();
+        // Dans un titre : marquée, sans son sens.
+        assert!(html.contains(&format!("<h1 class=\"holo-H1\">Learn {HTML}</h1>")), "{html}");
+        // Dans le premier paragraphe où elle vient : son sens, entre parenthèses, une seule fois.
+        assert!(html.contains(&format!("<p class=\"holo-P\">{HTML} (HyperText Markup Language) gives the structure, <abbr title=\"Cascading Style Sheets\">CSS</abbr> (Cascading Style Sheets) the look.</p>")), "{html}");
+        assert_eq!(html.matches(" (HyperText Markup Language)").count(), 1, "{html}");
+        // Un mot entier seulement, et jamais dans du code.
+        assert!(html.contains(&format!("<p class=\"holo-P\">After HTML5 and XHTML, {HTML} stays; <code>HTML</code> in code is left alone.</p>")), "{html}");
+        assert!(html.contains(&format!(">Open the {HTML} guide</button>")), "{html}");
+    }
+
+    #[test]
+    fn a_page_that_writes_the_meaning_is_not_explained_twice() {
+        let source = "Page(abbreviations: [ Abbreviation(\"HTML\", \"HyperText Markup Language\") ], children: [
+            P(\"The hypertext markup language (HTML) describes a page.\"), P(\"HTML is everywhere.\") ])";
+        let html = crate::flat_view(source, "").unwrap();
+        assert!(!html.contains("(HyperText Markup Language)"), "{html}");
+        assert!(html.contains(&format!("<p class=\"holo-P\">The hypertext markup language ({HTML}) describes a page.</p>")), "{html}");
+        // Une page sans abréviation n'en garde aucune de la page d'avant.
+        let plain = crate::flat_view("Page(children: [ P(\"HTML\") ])", "").unwrap();
+        assert!(plain.contains("<p class=\"holo-P\">HTML</p>"), "{plain}");
+    }
+
+    #[test]
+    fn abbreviations_are_checked() {
+        for (source, refusal) in [
+            ("Page(abbreviations: [ Abbreviation(\"HTML\", \"a\"), Abbreviation(\"HTML\", \"b\") ], children: [])", "déclarée deux fois"),
+            ("Page(abbreviations: [ Abbreviation(\"HTML\") ], children: [])", "attend la forme courte, puis son sens"),
+            ("Page(abbreviations: [ Abbreviation(\"A very long abbreviation\", \"x\") ], children: [])", "de 1 à 20 signes"),
+            ("Page(abbreviations: [ Abbreviation(\"<b>\", \"x\") ], children: [])", "de 1 à 20 signes"),
+            ("Page(abbreviations: [ Abbreviation(\"HTML\", \"\") ], children: [])", "de 1 à 200 signes"),
+            ("Page(abbreviations: [ Font(family: \"Inter\") ], children: [])", "pas des « Font »"),
+            ("Page(children: [ Abbreviation(\"HTML\", \"HyperText Markup Language\") ])", "se déclare pour toute la page"),
+        ] {
+            let error = crate::flat_view(source, "").unwrap_err();
+            assert!(error.message.contains(refusal), "{source} : {error}");
+        }
+    }
+
+    #[test]
+    fn a_date_shown_is_a_time_for_machines() {
+        let source = "Page(state: State(due: \"2026-12-24\", arrival: \"\"), children: [
+            P(\"Due {due:date} ({due:weekday}), raw {due}.\"),
+            Input(value: arrival, label: \"Arrival\", type: date), P(\"Arrival: {arrival:date}\") ])";
+        let html = crate::flat_view(source, "").unwrap();
+        assert!(html.contains("Due <time data-state=\"due\" data-format=\"date\" datetime=\"2026-12-24\">24 décembre 2026</time> (<time data-state=\"due\" data-format=\"weekday\" datetime=\"2026-12-24\">jeudi</time>), raw <span data-state=\"due\">2026-12-24</span>."), "{html}");
+        // Une date vide n'a pas de `datetime`.
+        assert!(html.contains("Arrival: <time data-state=\"arrival\" data-format=\"date\"></time>"), "{html}");
+    }
+
+    #[test]
+    fn an_address_holds_ways_to_reach_the_author() {
+        let html = crate::flat_view("Page(children: [ Footer(children: [ Address(children: [ P(\"Atelier Mabeka\"), P(\"12 rue des Arts, Paris\"), A(\"The map\", to: \"map.holo\") ]) ]) ])", "").unwrap();
+        assert!(html.contains("<footer class=\"holo-Footer\"><address class=\"holo-Address\"><p class=\"holo-P\">Atelier Mabeka</p><p class=\"holo-P\">12 rue des Arts, Paris</p><a class=\"holo-A\" href=\"map.holo\">The map</a></address></footer>"), "{html}");
+        assert!(html.contains(":where(address.holo-Address){font-style:normal}"), "{html}");
+        for inside in ["H1(\"Contact\")", "Column(children: [ H1(\"Us\") ])", "Nav(children: [])", "Address(children: [])"] {
+            let error = crate::flat_view(&format!("Page(children: [ Address(children: [ P(\"x\"), {inside} ]) ])"), "").unwrap_err();
+            assert!(error.message.contains("« Address » range des moyens de joindre"), "{inside} : {error}");
+        }
     }
 }

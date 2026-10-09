@@ -33,7 +33,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 119 : une page hors-ligne", to: "119-une-page-hors-ligne.holo"),
-      A("Leçon 1 : une page →", to: "01-page.holo"),
+      A("Leçon 121 : une abréviation, une date, une adresse →", to: "121-une-abreviation-une-date-une-adresse.holo"),
     ]),
   ],
 )

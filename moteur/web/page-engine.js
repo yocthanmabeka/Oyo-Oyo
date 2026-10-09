@@ -814,6 +814,8 @@
       // Une date se montre dans la langue de la page (ADR-067) ; un nombre, avec son format.
       const format = place.dataset.format;
       place.textContent = !format ? value : format === "date" || format === "weekday" ? format_date(value, format, language) : format_value(place.dataset.state, Number(value), format, language);
+      // Une date montrée se lit aussi par les machines (ADR-098) : <time datetime="2026-10-10">.
+      if (place.localName === "time") /^\d{4}-\d{2}-\d{2}$/.test(value) ? place.setAttribute("datetime", value) : place.removeAttribute("datetime");
     }
     // Le champ partagé garde son brouillon même sans focus ; les textes montrent la valeur publiée.
     for (const field of or_.querySelectorAll("[data-bind]")) {

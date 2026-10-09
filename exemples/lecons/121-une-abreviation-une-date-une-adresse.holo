@@ -1,0 +1,52 @@
+// Leçon 121 — Une abréviation, une date pour les machines, une adresse
+//
+// Ce qu'on apprend :
+//   Page(abbreviations: [ Abbreviation("MJC", "Maison des jeunes et de la culture") ]) : une
+//   abréviation et son sens, déclarés une fois pour toute la page. Partout où elle vient, le
+//   moteur la marque. La première fois qu'elle vient dans un paragraphe, il écrit son sens
+//   juste après, entre parenthèses : le lecteur d'écran le lit, le téléphone le montre. Si la
+//   page écrit déjà ce sens quelque part, il ne l'ajoute pas.
+//   {ouverture:date} montre une date dans la langue de la page. Le moteur l'écrit aussi pour
+//   les machines (un agenda, un moteur de recherche) : <time datetime="2026-11-14">. Rien à
+//   écrire de plus.
+//   Address(children: [ … ]) : les moyens de joindre l'auteur de la page, une adresse, un
+//   numéro. Ni titre ni repère dedans.
+//
+// À essayer :
+//   Écris « Maison des jeunes et de la culture » dans un paragraphe : le moteur n'ajoute plus
+//   le sens. Puis mets un H2 dans Address : le moteur le refuse, et dit pourquoi.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 121 : une abréviation, une date, une adresse",
+  abbreviations: [
+    Abbreviation("MJC", "Maison des jeunes et de la culture"),
+    Abbreviation("PMR", "personnes à mobilité réduite"),
+  ],
+  state: State(ouverture: "2026-11-14"),
+  children: [
+    H1("L'atelier de peinture de la MJC"),
+    P("L'atelier de la MJC ouvre le {ouverture:date}, un {ouverture:weekday}."),
+    P("La salle est accessible aux PMR. La MJC prête les pinceaux et le papier."),
+    Button(name: Plus, text: "Ouvrir une semaine plus tard"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 120 : une liste de définitions", to: "120-une-liste-de-definitions.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+    Footer(children: [
+      Address.contact(children: [
+        P("MJC des Arts, 12 rue des Arts, 75011 Paris"),
+        P("Téléphone : 01 23 45 67 89"),
+      ]),
+    ]),
+  ],
+  rules: [ On(Plus.tap, effect: ouverture.add(7)) ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+Button { background: #E9B44C; color: #101020; padding: 10px 16px; border-radius: 8px; }
+.contact { padding: 12px 16px; border: 1px solid #E9B44C; border-radius: 8px; }
