@@ -6,7 +6,7 @@ Décision de Yocthan, le 2026-10-08 : « reprendre à la main sans pour autant c
 
 ## Les règles, sans exception
 
-1. **Tu ne fusionnes jamais.** Cela vaut pour toute pull request, même la tienne, même avec tous ses tests verts. Seule la session Claude du PC de Yocthan fusionne, après avoir relu.
+1. **Tu ne fusionnes jamais.** Cela vaut pour toute pull request, même la tienne, même avec tous ses tests verts. Seule une session Claude fusionne, après avoir relu : celle du PC de Yocthan tant qu'il tourne, celle du nuage (sur son téléphone) quand le PC est éteint ou en veille.
 2. **Tu ne touches jamais à `main`.**
    - Pas d'envoi direct (`git push origin main`), pas d'envoi forcé (`--force`).
    - Pas de réécriture de l'histoire (`rebase` d'une branche déjà envoyée, `reset` d'une branche partagée).
@@ -28,7 +28,7 @@ Décision de Yocthan, le 2026-10-08 : « reprendre à la main sans pour autant c
    - ce qui n'a pas été exécuté.
 
    Un résultat que tu n'as pas obtenu toi-même ne s'écrit jamais.
-5. **Tu ne prends que ce que Yocthan te donne, en te nommant.**
+5. **Tu prends ton travail dans la file** : la plus ancienne issue `etat:a-prendre` qui est libre, selon la règle d'`AGENTS.md` (« La file de travail »). Ou bien ce que Yocthan te donne en te nommant.
    - Tu ne changes jamais le statut d'une décision (`ADR`). Une nouvelle décision est une `PROPOSITION`.
    - Tes numéros de décision et de leçon viennent de la réserve écrite dans le tableau « Qui fait quoi » d'`AGENTS.md`. Relis-le sur `origin/main` (`git show origin/main:AGENTS.md`).
 6. **L'identité des enregistrements** : `git -c user.name="yocthanmabeka" -c user.email="190955222+yocthanmabeka@users.noreply.github.com" commit …`. Le dépôt est public : jamais d'adresse e-mail personnelle.
@@ -55,14 +55,15 @@ Décision de Yocthan, le 2026-10-08 : « reprendre à la main sans pour autant c
   - branche `langage/lot7-comptes`, PR 177 ; numéros `ADR-081` à `ADR-083`, leçons 104 à 107 ;
   - construit, 166 tests Rust et 34 essais dans Chrome verts sur le PC ; à fusionner par la session Claude du PC, après avoir résolu ses conflits avec le lot 6 (`server.rs`, `page-engine.js`, `browser-tests.mjs`, le renvoi des touchers à unifier avec celui du lot 6).
 - **Lot 9, et les tâches confiées le 2026-10-08** (les secondes et un chronomètre, des polices libres, l'historique dans une page, trois dettes) : à la session Claude du nuage. Ses PR 171, 172 et 174 sont ouvertes : n'y touche pas.
-- **PR 153 (Codex)** : attend la décision de Yocthan.
+- **PR 153 (Codex)** : fusionnée le 2026-10-08. C'est une proposition, elle ne décide rien.
+- **La file de travail** : les issues 180 à 189. Ce qui reste est marqué `etat:a-prendre`, et ce qui est déjà pris est marqué `etat:en-cours`.
 - **Les mesures du téléphone** (vitesse, mémoire, batterie) sont remises : le câble a pris l'humidité. La marche à suivre est dans `proposals/Claude/telephone-2026-10-07/README.md`.
 - **Après le lot 9** vient la 3D (`docs/04-roadmap/PLAN-3D.md`, à valider par Yocthan).
 - **Ce qui attend une décision de Yocthan** :
   - remplir une page de profil par `Data(from: "profils/{id}.json")` ;
   - la validation des `ADR-062` à `ADR-069` et de l'`ADR-078` ;
   - le plan de la 3D ;
-  - la PR 153.
+  - les bibliothèques `p256` et `sha2`, pour les clés d'accès (issue 181).
 
 ## Ce que tu peux faire sans risque
 

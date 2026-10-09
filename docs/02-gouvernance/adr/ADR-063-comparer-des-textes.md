@@ -1,6 +1,6 @@
 # ADR-063 — Comparer des textes
 
-- Statut : PROPOSITION (construit et essayé ; attend la validation de Yocthan)
+- Statut : ACCEPTÉ (validé par Yocthan le 2026-10-08, après avoir essayé les leçons : « tout doit être en décidé car je les ai validés »)
 - Date : 2026-10-07
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'ordre de Yocthan du 2026-10-07 (« terminer les données : … texte … ») ; l'exploration de l'issue #82 (un texte ne se comparait qu'au vide) ; les réponses de Codex et de Gemini sur « tout le web ».
