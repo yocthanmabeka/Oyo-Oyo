@@ -1,0 +1,60 @@
+// Leçon 102 — Une liste partagée
+//
+// Ce qu'on apprend :
+//   « shared: Shared(groceries: [ Item(what: "Du pain", done: 0) ]) » : une liste que le serveur
+//   garde pour tout le monde, comme une valeur partagée (leçon 101). Elle se change comme une
+//   liste à toi (leçons 68, 71 et 74), par un toucher :
+//     groceries.push(Item(what: what, done: 0))   ajoute une fiche, d'après le champ
+//     item.done.set(1)                            coche la fiche de la ligne touchée
+//     groceries.remove(item)                      retire la ligne touchée
+//     groceries.clear()                           vide la liste
+//   Chaque geste part au serveur, qui l'arbitre, chacun son tour, et l'envoie à toutes les pages
+//   ouvertes. Une ligne se désigne par sa clé, pas par son rang : si quelqu'un retire une ligne
+//   juste avant toi, tu ne retires jamais la mauvaise ; si la tienne a changé entre-temps, ton
+//   geste est refusé, et ta page montre la liste du moment.
+//   Cinquante fiches au plus, deux cents caractères par texte. « Mes ajouts » n'est qu'à toi.
+//
+// À essayer :
+//   Ouvre cette page avec holo serve, sur ton téléphone et sur ton ordinateur. Ajoute sur l'un,
+//   coche ou retire sur l'autre : chaque page voit tout, en direct, sans recharger.
+//   Coupe JavaScript sur l'un des deux : les boutons marchent encore, la page revient à jour.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 102 : une liste partagée",
+  state: State(what: "", added: 0),
+  shared: Shared(groceries: [ Item(what: "Du pain", done: 0) ]),
+  children: [
+    H1("Une liste partagée"),
+    P("La liste des courses, la même pour tout le monde : le serveur la garde, et chaque page la voit changer en direct."),
+    Input(value: what, label: "À acheter", max: 200),
+    Button(name: Add, text: "Ajouter"),
+    Repeat(over: groceries, empty: "Rien à acheter.", children: [
+      Row(gap: 8px, children: [
+        If(item.done, is: 1, children: [ P("✓ {item.what}") ], else: [ P("{item.what}") ]),
+        Button(name: Done, text: "Acheté"),
+        Button(name: Remove, text: "Retirer"),
+      ]),
+    ], rules: [
+      On(Done.tap, effect: item.done.set(1)),
+      On(Remove.tap, effect: groceries.remove(item)),
+    ]),
+    Button(name: Clear, text: "Tout vider"),
+    P("Mes ajouts : {added}"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 101 : une valeur partagée", to: "101-une-valeur-partagee.holo"),
+      A("Leçon 103 : confirmer un texte partagé →", to: "103-un-texte-partage-confirme.holo"),
+    ]),
+  ],
+  rules: [
+    On(Add.tap, effect: [groceries.push(Item(what: what, done: 0)), what.set(""), added.add(1)]),
+    On(Clear.tap, effect: groceries.clear()),
+  ],
+)
+
+Page { background: #101020; color: white; padding: 24px 16px; max-width: 720px; }
+Button { background: #E9B44C; color: #101020; padding: 12px; }
+A { color: #8fd3ff; }

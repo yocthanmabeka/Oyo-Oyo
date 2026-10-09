@@ -11,6 +11,9 @@
 // donne son chemin ; sinon l'emplacement habituel sous Windows, ou google-chrome sous Linux.
 // Rend « OK » ou « RATÉ » par essai, et un code de sortie 1 s'il y a un raté.
 
+import { accountDebtTests } from "../../proposals/GPT5.6/fin-comptes-2026-10-08/browser-tests.mjs";
+import { passkeyTests } from "../../proposals/GPT5.6/fin-passkeys-2026-10-08/browser-tests.mjs";
+import { sharingTests } from "../../proposals/GPT5.6/fin-partage-2026-10-08/browser-tests.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { createHmac } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -547,6 +550,17 @@ const tests = [
     const none = await p.value(`performance.getEntriesByType("resource").filter((r) => r.name.includes("/fonts/")).length`);
     const ok = loaded && japanese > 0 && japanese <= 8 && latin && !unused && none === 0;
     return [ok, `polices prêtes : ${loaded} ; morceaux japonais : ${japanese} sur 124 ; latin d'Inter : ${latin} ; cyrillique ou grec téléchargés : ${unused} ; page sans police : ${none} fichier`];
+  }],
+  ["une liste de définitions : un terme et sa définition, lus ensemble (leçon 120)", async (p, b) => {
+    await p.open("/exemples/lecons/120-une-liste-de-definitions.holo");
+    // Chaque terme garde sa définition, dans l'ordre ; une définition lit une valeur de la page.
+    const sheet = await p.value(`[...document.querySelector("dl.holo-List").querySelectorAll(".holo-Term")].map((t) => t.querySelector("dt").textContent + "=" + t.querySelector("dd").textContent).join(" | ")`);
+    // Le lecteur d'écran : des termes et des définitions, pas des éléments de liste à puces.
+    const { result } = await b.send("Accessibility.getFullAXTree");
+    const roles = (role) => result.nodes.filter((n) => n.role?.value === role && !n.ignored).length;
+    const [terms, definitions, items] = [roles("term"), roles("definition"), roles("listitem")];
+    const ok = sheet === "Hauteur=45 cm | Poids=2 kg | Couleur=Bleu nuit, ou cuivre | Prix=189,00 €" && terms === 6 && definitions === 6 && items === 0;
+    return [ok, `fiche : ${sheet} ; lecteur d'écran : ${terms} termes, ${definitions} définitions, ${items} éléments à puces`];
   }],
   ["un module enfermé rend son nombre", async (p) => {
     await p.open("/exemples/lecons/69-module-enferme.holo");
@@ -1353,7 +1367,9 @@ const tests = [
       const key = (await q.value(`document.getElementById("key")?.textContent ?? ""`)).replace(/\s+/g, "");
       const used = stepNow();
       await q.type("#code", totp(key, used));
-      await send(`location.search === "?done=code"`);
+      await send(`document.querySelectorAll("[data-recovery]").length === 10`);
+      await q.click('a[href="/account?done=code"]');
+      await after(`location.pathname + location.search === "/account?done=code"`);
       check(`${how}, le code s'active`, key.length === 32 && (await words()).includes("Le code à 6 chiffres est activé"), `clé de ${key.length} lettres ; ${(await words()).slice(0, 120)}`);
       // Se déconnecter : la page réservée ne s'ouvre plus.
       await q.click('form[action="/account/signout"] button');
@@ -1763,6 +1779,9 @@ const tests = [
   }],
 ];
 
+tests.push(...sharingTests({engine,phone,page,startHoloServe,startChrome,pause}));
+tests.push(...passkeyTests({engine,phone,page,startHoloServe}));
+tests.push(...accountDebtTests({engine,phone,page,startHoloServe,pause,totp,stepNow}));
 tests.push(...webTests({ repo, engine, phone, page, startHoloServe, startChrome, pause }));
 tests.push(...capabilityTests({engine,phone,pause}));
 

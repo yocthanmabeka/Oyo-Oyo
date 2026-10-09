@@ -666,11 +666,38 @@ pub fn concerns(request: &Block, program: &Program) -> bool {
     request.name.split_once('.').is_some_and(|(value, _)| value == "item" || is_list(program, value) || crate::state::initial_texts(program).iter().any(|(t, _)| t == value))
 }
 
-/// Le signal d'une ligne : `Done.tap@2` → (`Done.tap`, Some(2)).
+/// Le signal d'une ligne : `Done.tap@2` → (`Done.tap`, Some(2)). La ligne d'une liste partagée
+/// porte aussi sa clé, `Done.tap@2#k:Ada-0` (ADR-080) : elle ne change pas le rang.
 pub fn signal_and_line(signal: &str) -> (&str, Option<usize>) {
     match signal.split_once('@') {
-        Some((base, rank)) => (base, rank.parse().ok()),
+        Some((base, line)) => (base, line.split_once('#').map_or(line, |(rank, _)| rank).parse().ok()),
         None => (signal, None),
+    }
+}
+
+/// La clé de ligne qu'un signal porte : `Done.tap@2#k:Ada-0` → `k:Ada-0` (ADR-080).
+pub fn line_key_of(signal: &str) -> Option<&str> {
+    signal.split_once('@')?.1.split_once('#').map(|(_, key)| key)
+}
+
+/// La clé d'une ligne (ADR-057, ADR-065) : la même pour le même élément, d'un état à l'autre.
+/// Avec `key: id`, la valeur de ce champ (« k:… ») ; sinon une empreinte de l'élément. Le rang
+/// parmi les éléments qui ont la même départage deux éléments pareils. La clé est écrite telle
+/// quelle ; la page l'échappe pour son HTML.
+pub fn line_key(elements: &[String], rank: usize, field: Option<&str>) -> String {
+    let element = &elements[rank];
+    match field {
+        Some(field) => {
+            let of = |e: &String| fields(e).into_iter().find(|(c, _)| c == field).map(|(_, v)| v).unwrap_or_default();
+            let value = of(element);
+            let already = elements[..rank].iter().filter(|e| of(e) == value).count();
+            format!("k:{value}-{already}")
+        }
+        None => {
+            let already = elements[..rank].iter().filter(|e| *e == element).count();
+            let hash = element.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, o| (h ^ u64::from(o)).wrapping_mul(0x0100_0000_01b3));
+            format!("{hash:x}-{already}")
+        }
     }
 }
 

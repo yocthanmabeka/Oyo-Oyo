@@ -257,8 +257,25 @@ export function webTests({ repo, engine, phone, page, startHoloServe, startChrom
       check(pdf.result?.data?.startsWith("JVBER"), "Chrome n'a pas fabriqué le document d'impression");
       return [true, "profil /123, description et image ; retour par lien relatif ; treize sections ; vidéo locale jouée et sous-titres chargés ; menu absent sur papier ; PDF généré"];
     })],
+    ["parcours 10 : graphique au clavier et chiffres accessibles, avec et sans JS", async (_, b) => site(b, async(q)=>{
+      // De la PR 204 de Codex : les ventes reçues du serveur, dessinées en barres et en parts ; une
+      // vente ajoutée au clavier, sans puis avec JavaScript ; les chiffres lus dans le tableau caché.
+      for (const scripts of [false,true]) {
+        await b.send("Network.clearBrowserCookies");
+        await b.send("Emulation.setScriptExecutionDisabled",{value:!scripts});
+        await q.open("/dashboard.holo",200);
+        check(await q.until('document.querySelectorAll(".holo-Chart:first-of-type svg rect").length===3'),"trois ventes absentes");
+        await text(q,"dayName","Jeudi");await text(q,"amount","180");await activate(q,'[data-name="AddSale"]');
+        check(await q.until('document.querySelectorAll(".holo-Chart:first-of-type svg rect").length===4 && document.querySelectorAll(".holo-Chart:nth-of-type(2) svg path").length===4',10000),"vente absente du dessin, JS="+scripts);
+        check(await q.value('document.querySelector(".holo-Chart table").textContent.includes("Jeudi180")'),"chiffres absents du tableau accessible");
+        const ax=await b.send("Accessibility.getFullAXTree");
+        check(ax.result.nodes.some(n=>n.role?.value==="table") && ax.result.nodes.some(n=>n.name?.value==="180"),"tableau absent de l'arbre AX");
+        check(await q.value("document.documentElement.scrollWidth<=innerWidth+1"),"débordement du graphique");
+      }
+      return [true,"trois ventes puis quatre, barres et parts ; Tab/Entrée ; 180 dans le tableau et l'arbre AX ; serveur Rust, JS coupé puis activé"];
+    })],
     ["parcours : axe-core, clair/sombre, 360/1280 pixels", async (_, b) => site(b, async (q) => {
-      const paths = ["/index.holo","/catalogue.holo","/fiche.holo","/inscription.holo","/contact.holo","/disposition.holo","/reservation.holo","/profil/123","/article.holo"];
+      const paths = ["/index.holo","/catalogue.holo","/fiche.holo","/inscription.holo","/contact.holo","/disposition.holo","/reservation.holo","/profil/123","/article.holo","/dashboard.holo"];
       const faults = [];
       for (const width of [360,1280]) for (const dark of [false,true]) {
         await b.send("Emulation.setDeviceMetricsOverride",{width,height:800,deviceScaleFactor:1,mobile:false});
@@ -270,7 +287,7 @@ export function webTests({ repo, engine, phone, page, startHoloServe, startChrom
           if (!(await q.value("document.documentElement.scrollWidth <= innerWidth + 1"))) faults.push(path + " : débordement à " + width);
         }
       }
-      return [faults.length === 0, faults.length ? faults.join("\n") : "axe-core 4.10.3 : 9 pages × 4 modes = 36 audits, zéro défaut ; aucun débordement ; ce n'est pas un essai humain TalkBack"];
+      return [faults.length === 0, faults.length ? faults.join("\n") : "axe-core 4.10.3 : 10 pages × 4 modes = 40 audits, zéro défaut ; aucun débordement ; ce n'est pas un essai humain TalkBack"];
     })],
   ];
 }

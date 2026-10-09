@@ -27,7 +27,7 @@ Page(title: "Leçon 119 : une page hors-ligne", state: State(count: 0), children
  Hr(),
  Row(gap: 16px, align: between, children: [
    A("← Leçon 118 : des notifications locales", to: "118-notifications-locales.holo"),
-   A("Leçon 121 : une abréviation, une date, une adresse →", to: "121-une-abreviation-une-date-une-adresse.holo"),
+   A("Leçon 120 : une liste de définitions →", to: "120-une-liste-de-definitions.holo"),
  ]),
 ], rules: [On(Add.tap, effect: count.add(1)), On(Save.tap, effect: Copy.save), On(Remove.tap, effect: Copy.remove)])
 Page { background: white; color: #17202a; max-width: 900px; padding: 24px; dark: { background: #17202a; color: white; } }

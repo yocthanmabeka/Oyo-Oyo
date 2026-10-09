@@ -33,7 +33,7 @@ Page(
 
     Hr(),
     Row(gap: 16px, align: between, children: [
-      A("← Leçon 119 : une page hors-ligne", to: "119-une-page-hors-ligne.holo"),
+      A("← Leçon 120 : une liste de définitions", to: "120-une-liste-de-definitions.holo"),
       A("Leçon 1 : une page →", to: "01-page.holo"),
     ]),
     Footer(children: [
