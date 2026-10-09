@@ -18,6 +18,16 @@ export function browserCapabilities({root,source,state,receive,exported,change,e
   async function run(name,action){
     const e=[...root.querySelectorAll("[data-browser-capability]")].find(e=>e.dataset.name===name);if(!e)return false;
     const spec=JSON.parse(e.dataset.browserCapability);
+    // Une vibration (ADR-110) se joue comme un son : d'un toucher, d'une touche ou d'une règle de jeu,
+    // sans permission ni attente. Jamais avant que le visiteur ait touché la page, ni s'il demande
+    // moins de mouvement ; là où le navigateur ne sait pas vibrer (iPhone, ordinateur), rien ne casse.
+    if(spec.type==="Device"&&spec.kind==="vibration"){
+      const touched=navigator.userActivation?.hasBeenActive!==false;
+      if(action==="stop"){if(typeof navigator.vibrate==="function"&&touched)navigator.vibrate(0);return true;}
+      const why=typeof navigator.vibrate!=="function"?"Ce navigateur ne fait pas vibrer.":matchMedia("(prefers-reduced-motion: reduce)").matches?"Pas de vibration : tu as demandé moins de mouvement.":"";
+      if(why){if(e.querySelector("[data-capability-status]")?.textContent!==why)status(e,why);return true;}
+      if(touched)navigator.vibrate(spec.pattern);return true;
+    }
     if(action==="stop"){closeStream(name);clearTimeout(timers.get(name));timers.delete(name);const pending=busy.get(name);if(pending){pending.cancelled=true;pending.cancel?.();}busy.delete(name);status(e,"Arrêté.");return true;}
     if(busy.has(name))return true;
     const stamp=epoch,token={cancel:null,cancelled:false};busy.set(name,token);

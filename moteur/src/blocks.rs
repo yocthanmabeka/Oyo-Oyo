@@ -91,7 +91,8 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     // Les données de la page (ADR-030) ; leur nom, que les règles écoutent (ADR-064).
     ("Data", &["name", "from", "every"]),
     ("Transfer", &["name", "label", "file", "values"]),
-    ("Device", &["name", "label", "kind", "value"]),
+    // La durée d'une vibration (ADR-110) : for: 200ms, ou for: [100ms, 50ms, 100ms].
+    ("Device", &["name", "label", "kind", "value", "for"]),
     ("Notification", &["name", "label", "title", "body", "after"]),
     ("Offline", &["name", "label", "files"]),
 ];

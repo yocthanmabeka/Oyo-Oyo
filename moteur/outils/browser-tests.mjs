@@ -736,6 +736,72 @@ const tests = [
       && phone.errors.length === 0 && violations.length === 0;
     return [ok, `ordinateur : « ${computer.said[0]} », presse-papiers « ${computer.clipboard} », zone ${computer.live}, ${computer.said[1]} partage ; téléphone : share(${JSON.stringify({ title: phone.shared.title, url: phone.shared.url })}) pendant « ${phone.shared.during} » (geste actif : ${phone.shared.active}), « ${phone.done[0]} », ${phone.done[1]} partage ; feuille fermée : « ${phone.cancelled[0]} », ${phone.cancelled[1]} partage, panne montrée : ${phone.cancelled[2]} ; panne : « ${phone.failed[0]} », panne montrée : ${phone.failed[2]} ; erreurs : ${phone.errors.length} ; axe-core : ${violations.length ? violations.join(" ; ") : "zéro défaut"}`];
   }],
+  ["faire vibrer le téléphone : un toucher, une rencontre, le mouvement réduit, un navigateur sans vibreur (leçon 133)", async (p, b) => {
+    const lesson = "/exemples/lecons/133-faire-vibrer-le-telephone.holo";
+    const status = (name) => `document.querySelector('[data-name="${name}"] [data-capability-status]').textContent`;
+    const count = (label) => p.value(`document.getElementById("page").innerText.match(/${label} : (\\d+)/)?.[1] ?? "?"`);
+    // Un script posé avant la page : navigator.vibrate est remplacé pour compter les vibrations et
+    // garder leur motif, ou retiré, comme sur un iPhone.
+    const before = async (source) => (await b.send("Page.addScriptToEvaluateOnNewDocument", { source })).result.identifier;
+    const forget = (identifier) => b.send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
+    const catchIt = async () => {
+      for (let i = 0; i < 24 && (await count("Prises")) === "0"; i++) await p.key("ArrowRight", "ArrowRight", 39);
+      return count("Prises");
+    };
+    let script = await before(`window.__buzz = []; Navigator.prototype.vibrate = function (pattern) { window.__buzz.push(Array.isArray(pattern) ? pattern.join(",") : String(pattern)); return true; };`);
+    let phone, reduced;
+    try {
+      await p.open(lesson);
+      if (!(await p.until("window.__holoStarted"))) return [false, "le moteur n'est pas arrivé"];
+      // 1. Un clic que la page reçoit sans que le visiteur ait rien touché : l'écran compte, rien ne vibre.
+      await p.value(`document.querySelector('[data-name="Vibrer"]').click()`);
+      await p.until(`document.getElementById("page").innerText.includes("Vibrations demandées : 1.")`, 5000);
+      const untouched = await p.value("window.__buzz.length");
+      // 2. Un vrai toucher : une vibration de 200 ms.
+      await p.click('[data-name="Vibrer"]');
+      await p.until("window.__buzz.length >= 1", 5000);
+      // 3. Le jeu : le carré va sur le losange, à la flèche droite ; la rencontre vibre deux fois.
+      const caught = await catchIt();
+      await p.until("window.__buzz.length >= 2", 5000);
+      phone = { untouched, buzz: await p.value("window.__buzz.slice()"), tries: await count("Vibrations demandées"), caught, errors: [...b.errors] };
+      // 4. Le mouvement réduit, émulé : rien ne vibre, la zone d'état le dit, et l'écran compte encore.
+      await b.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
+      try {
+        await p.click('[data-name="Vibrer"]');
+        await p.until(`${status("Petite")}.includes("moins de mouvement")`, 5000);
+        reduced = { buzz: await p.value("window.__buzz.length"), said: await p.value(status("Petite")), tries: await count("Vibrations demandées") };
+      } finally {
+        await b.send("Emulation.setEmulatedMedia", { features: [] });
+      }
+    } finally {
+      await forget(script);
+    }
+    // 5. Un navigateur sans vibreur (l'iPhone) : rien ne casse ; le toucher et la rencontre comptent à l'écran.
+    script = await before("delete Navigator.prototype.vibrate;");
+    let iphone, violations;
+    try {
+      await p.open(lesson);
+      if (!(await p.until("window.__holoStarted"))) return [false, "le moteur n'est pas arrivé (sans vibreur)"];
+      await p.click('[data-name="Vibrer"]');
+      await p.until(`${status("Petite")}.includes("ne fait pas vibrer")`, 5000);
+      const caught = await catchIt();
+      iphone = { vibrate: await p.value("typeof navigator.vibrate"), said: await p.value(status("Petite")), saidGame: await p.value(status("Double")), tries: await count("Vibrations demandées"), caught, errors: [...b.errors] };
+      // L'audit d'accessibilité de la page : les deux vibrations, leur zone d'état, le plateau.
+      const { createRequire } = await import("node:module");
+      let axe;
+      try { axe = readFileSync(createRequire(join(engine, "x.js")).resolve("axe-core/axe.min.js"), "utf8"); }
+      catch { return [false, "axe-core absent : « npm install --no-save axe-core@4.10.3 », dans moteur/"]; }
+      await p.value(`${axe}\n;window.axe.version`);
+      violations = await p.value(`window.axe.run(document, { resultTypes: ["violations"] }).then((r) => r.violations.map((v) => v.id + " : " + v.nodes.map((n) => n.html.slice(0, 100)).join(" | ")))`);
+    } finally {
+      await forget(script);
+    }
+    const ok = phone.untouched === 0 && phone.buzz[0] === "200" && phone.buzz[1] === "100,80,100" && phone.tries === "2" && phone.caught === "1" && phone.errors.length === 0
+      && reduced.buzz === phone.buzz.length && reduced.said === "Pas de vibration : tu as demandé moins de mouvement." && reduced.tries === "3"
+      && iphone.vibrate === "undefined" && iphone.said === "Ce navigateur ne fait pas vibrer." && iphone.saidGame === "Ce navigateur ne fait pas vibrer." && iphone.tries === "1" && iphone.caught === "1" && iphone.errors.length === 0
+      && violations.length === 0;
+    return [ok, `avant tout toucher : ${phone.untouched} vibration ; puis ${phone.buzz.map((m) => `[${m}]`).join(", ")} (le toucher, puis la rencontre), ${phone.tries} demandées, ${phone.caught} prise ; mouvement réduit : « ${reduced.said} », ${reduced.buzz - phone.buzz.length} vibration de plus, ${reduced.tries} demandées ; sans vibreur : navigator.vibrate ${iphone.vibrate}, « ${iphone.said} », ${iphone.tries} demandée, ${iphone.caught} prise, ${iphone.errors.length} erreur ; axe-core : ${violations.length ? violations.join(" ; ") : "zéro défaut"}`];
+  }],
   ["les touches du clavier, et les lettres qu'on coupe", async (p) => {
     await p.open("/exemples/lecons/77-toutes-les-touches.holo");
     if (!(await p.until(`document.getElementById("shortcuts")`))) return [false, "le moteur n'est pas arrivé"];
