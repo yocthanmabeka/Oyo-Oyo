@@ -6,6 +6,19 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Le parcours 10, le tableau de bord : les dix parcours du web sont là
+
+- Repris de la PR 204 de Codex (fermée : elle doublait d'autres PR), et d'elle seulement : le tableau de bord (`exemples/parcours/dashboard.holo`), ses ventes fictives (`sales.json`), sa ligne dans l'index des parcours et son essai. Sur `integration/parcours-10`, à partir de `main`. Les ventes, reçues du serveur, sont dessinées en barres et en parts ; une vente s'ajoute au clavier, avec ou sans JavaScript ; les chiffres se lisent dans le tableau caché du graphique.
+- Ajouté : le tableau de bord dans l'audit d'accessibilité des parcours (dix pages, quatre modes). Mis à jour : le README des parcours (« dix parcours », et le tableau de bord dans ce qu'il faut refaire sur le téléphone), le compte rendu de Codex (le parcours 10 fait ; axe-core lu depuis la copie locale), l'`ADR-084` et `AGENTS.md`.
+- Exécuté : `holo check` → `dashboard.holo` et l'index acceptés ; `node outils/browser-tests.mjs parcours` → 12 essais `OK`, aucun raté, 307 s : `cargo test --release --locked` (196 tests), onze fichiers `.holo` vérifiés, les parcours 1 à 10 (le 10 : trois ventes puis quatre, barres et parts, au clavier, JavaScript coupé puis activé, 180 dans le tableau et dans l'arbre d'accessibilité), 40 audits axe-core sans défaut.
+- Reste, pour dire le web fini (compte rendu de Codex) : faire les dix parcours au clavier et au TalkBack avec une personne, puis sur le vrai Samsung, et mesurer la durée, la mémoire, la chaleur et la batterie.
+
+**Erreurs en route**
+
+- Aucune dans cette étape.
+
+---
+
 ## 2026-10-09 — La fin du lot 9 de Codex intégrée : un fichier, l'appareil, une notification, une copie hors-ligne
 
 - Fusionnée sur `integration/codex-203`, après la PR 201 : la PR 203 de Codex. Quatre blocs, rangés dans les enfants de `Page`, qui ne demandent rien au navigateur sans le toucher d'un bouton : `Transfer` (un fichier JSON des valeurs annoncées, importé tout entier ou refusé), `Device` (la position, le presse-papiers, un aperçu de la caméra, le microphone ; arrêt d'office), `Notification` (un rappel tant que la page est ouverte), `Offline` (la copie d'une page publique, le réseau d'abord, rien de mis en attente). Les leçons 116 à 119, et ses essais dans Chrome.
