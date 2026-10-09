@@ -604,7 +604,7 @@ pub fn answer(site: &Site, ask: &Ask, path: &str) -> Option<Reply> {
     let now = crate::server::now();
     if ask.method == "POST" {
         let Ok(base)=site.base.lock() else {return Some(refused(500,"base indisponible"))};
-        if !ip_allowed(&base,ask.peer,now) {let mut reply=refused(429,"Trop de demandes depuis cette adresse : attends une minute.");reply.headers.push(("Retry-After".into(),"60".into()));return Some(reply);}
+        if !ip_allowed(&base,&crate::server::client_address(site, ask),now) {let mut reply=refused(429,"Trop de demandes depuis cette adresse : attends une minute.");reply.headers.push(("Retry-After".into(),"60".into()));return Some(reply);}
     }
     let member = member_of(site, ask.cookie);
     let base = || site.base.lock().ok();
@@ -1039,7 +1039,7 @@ mod tests {
     }
 
     fn ask<'a>(method: &'a str, url: &'a str, cookie: &'a str, body: &'a [u8]) -> Ask<'a> {
-        Ask { method, url, accept: "text/html", cookie, content_type: "application/x-www-form-urlencoded", origin: "", host: "localhost:8080", referer: "", peer: "127.0.0.1", body }
+        Ask { method, url, accept: "text/html", cookie, content_type: "application/x-www-form-urlencoded", origin: "", host: "localhost:8080", referer: "", peer: "127.0.0.1", forwarded: "", body }
     }
 
     fn header<'a>(reply: &'a Reply, name: &str) -> &'a str {
@@ -1393,6 +1393,32 @@ mod tests {
         assert!(!ip_allowed(&base,"192.0.2.1",1001));assert!(ip_allowed(&base,"192.0.2.2",1001));
         assert!(ip_allowed(&base,"192.0.2.1",1060));assert!(!ip_allowed(&base,"not-an-ip",1060));
     }
+
+    #[test]
+    fn behind_the_authors_proxy_each_visitor_has_its_own_brake() {
+        let (mut site, folder) = site();
+        let post = |site: &Site, forwarded: &str| {
+            let mut asked = ask("POST", "/account/signup", "", b"name=Many&password=x&again=x");
+            asked.forwarded = forwarded;
+            site.answer(&asked).status
+        };
+        // Sans proxy déclaré : l'en-tête ne compte pas, tout vient du même pair.
+        for _ in 0..IP_REQUESTS_MAX {
+            assert_eq!(post(&site, "203.0.113.1"), 422);
+        }
+        assert_eq!(post(&site, "203.0.113.2"), 429);
+        // Derrière le proxy HTTPS de l'auteur (HOLO_ORIGIN) : chaque visiteur a son frein.
+        site.base.lock().unwrap().execute("DELETE FROM account_ips", []).unwrap();
+        site.passkeys_origin = Some("https://holo.example".into());
+        for _ in 0..IP_REQUESTS_MAX {
+            assert_eq!(post(&site, "198.51.100.9, 203.0.113.1"), 422);
+        }
+        assert_eq!(post(&site, "203.0.113.1"), 429);
+        assert_eq!(post(&site, "203.0.113.2"), 422);
+        drop(site);
+        let _ = std::fs::remove_dir_all(folder);
+    }
+
     #[test]
     fn deleting_requires_confirmation_and_cleans_live_data_backups_and_files() {
         let (site,folder)=site();let password="une phrase locale pour effacer";

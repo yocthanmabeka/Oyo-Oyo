@@ -154,7 +154,7 @@ pub fn answer(site:&Site,ask:&Ask,path:&str)->Option<Reply>{
  if ask.origin!=origin{return Some(error(403,"L'origine ne correspond pas au site."));}
  if ask.body.len()>MAX_BODY{return Some(error(413,"Réponse de clé trop lourde."));}
  let now=crate::server::now();let Ok(mut base)=site.base.lock()else{return Some(error(500,"Base indisponible."))};
- if !accounts::ip_allowed(&base,ask.peer,now){return Some(error(429,"Trop de demandes : attends une minute."));}
+ if !accounts::ip_allowed(&base,&crate::server::client_address(site,ask),now){return Some(error(429,"Trop de demandes : attends une minute."));}
  if path=="/account/passkeys/remove"{
   if !ask.content_type.starts_with("application/x-www-form-urlencoded"){return Some(error(415,"Formulaire attendu."));}
   let fields=crate::gestures::read_form(&String::from_utf8_lossy(ask.body));let get=|k:&str|fields.iter().find(|(n,_)|n==k).map_or("",|(_,v)|v.as_str());
