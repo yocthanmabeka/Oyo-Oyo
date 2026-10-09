@@ -665,6 +665,8 @@ mod tests {
             include_str!("../../exemples/lecons/117-appareil-sur-permission.holo"),
             include_str!("../../exemples/lecons/118-notifications-locales.holo"),
             include_str!("../../exemples/lecons/119-une-page-hors-ligne.holo"),
+            // Un groupe de champs et son nom (ADR-099).
+            include_str!("../../exemples/lecons/122-un-groupe-de-champs.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();

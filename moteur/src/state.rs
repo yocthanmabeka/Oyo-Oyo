@@ -1665,6 +1665,9 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
             for argument in &block.arguments {
                 match (argument.name.as_deref(), &argument.value) {
                     (Some("name"), _) | (Some("label"), Value::Text(_)) | (Some("menu"), Value::Bool(_)) => {}
+                    // Obligatoire (ADR-068) : vérifié plus bas, avec les autres champs. (Avant ADR-099, il
+                    // était refusé ici comme « mal écrit ».)
+                    (Some("required"), _) => {}
                     (Some("value"), Value::Name(value)) if is_text(value) => {}
                     (Some("value"), Value::Name(value)) => {
                         return Err(Error { message: format!("« Choice(value: {value}) » : un choix présente un texte ; déclare-le ainsi : state: State({value}: \"\")"), pos: argument.pos })

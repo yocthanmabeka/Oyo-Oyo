@@ -123,6 +123,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 117 | [L'appareil sur permission](117-appareil-sur-permission.holo) | `Device(kind: position \| clipboard \| camera \| microphone)`, `request`, `write`, `stop` : sur un bouton, jamais à l'ouverture ; rien n'est envoyé ; arrêt d'office (de Codex) |
 | 118 | [Des notifications locales](118-notifications-locales.holo) | `Notification(title:, body:, after: 3s)`, `show`, `stop` : un rappel tant que la page reste ouverte ; permission et refus (de Codex) |
 | 119 | [Une page hors-ligne](119-une-page-hors-ligne.holo) | `Offline(files: [])`, `save`, `remove` : une copie publique, rechargée sans réseau, puis effacée ; sans JavaScript, la page reste une page comme les autres (de Codex) |
+| 122 | [Un groupe de champs](122-un-groupe-de-champs.holo) | `Fields(label: "Adresse de livraison", children: [ … ])` : des champs qui vont ensemble, et le nom du groupe que le lecteur d'écran annonce ; des cases sur une même question |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 

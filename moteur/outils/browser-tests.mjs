@@ -554,6 +554,49 @@ const tests = [
     const ok = await p.until(`(window.__holoModules ?? []).some((m) => m.ok && m.output === 5050)`);
     return [ok, ok ? "5 050" : JSON.stringify(await p.value("window.__holoModules ?? null"))];
   }],
+  ["un groupe de champs : son nom dit par le lecteur d'écran, ses champs vérifiés à l'envoi (leçon 122)", async (p, b) => {
+    await p.open("/exemples/lecons/122-un-groupe-de-champs.holo");
+    // Le lecteur d'écran : chaque groupe a son nom, et ses champs sont dedans. Un Choice est déjà un groupe.
+    const { result } = await b.send("Accessibility.getFullAXTree");
+    const nodes = new Map(result.nodes.map((n) => [n.nodeId, n]));
+    const fields = (group) => {
+      const found = [];
+      const next = [...(group.childIds ?? [])];
+      while (next.length) {
+        const node = nodes.get(next.shift());
+        if (!node) continue;
+        if (!node.ignored && ["textbox", "checkbox", "radio"].includes(node.role?.value)) found.push(node.name?.value);
+        next.push(...(node.childIds ?? []));
+      }
+      return found.join(", ");
+    };
+    const groups = result.nodes.filter((n) => !n.ignored && ["group", "radiogroup"].includes(n.role?.value)).map((n) => `${n.role.value} « ${n.name?.value ?? ""} » : ${fields(n)}`);
+    const heard = ["group « Adresse de livraison » : Rue, Code postal, Ville", "group « Pour te prévenir » : Par e-mail, Par SMS", "radiogroup « Jour de livraison » : Mardi, Samedi"].every((g) => groups.includes(g));
+    // L'allure de base : sans la bordure du navigateur ; encadré par un style, le nom reste dedans ;
+    // sur un téléphone (360 de large), rien ne déborde.
+    const look = await p.value(`(() => {
+      const [boxed, plain] = document.querySelectorAll(".holo-Fields");
+      const legend = boxed?.querySelector(":scope > legend");
+      if (!plain || !legend) return "pas de groupe nommé dans la page";
+      const top = Math.round(legend.getBoundingClientRect().top - boxed.getBoundingClientRect().top);
+      return getComputedStyle(plain).borderTopStyle + " / " + getComputedStyle(plain).minWidth + " / " + top;
+    })()`);
+    let wide;
+    try {
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 360, height: 760, deviceScaleFactor: 2, mobile: true });
+      await pause(300);
+      wide = await p.value("document.documentElement.scrollWidth");
+    } finally {
+      await b.send("Emulation.clearDeviceMetricsOverride");
+    }
+    // À l'envoi, les champs du groupe sont vérifiés comme les autres (ADR-068) : le message sous le
+    // champ, dans le groupe ; le clavier sur le premier à corriger. (Le toucher fait venir le moteur.)
+    await p.click('[data-name="Send"]');
+    const checked = await p.until(`document.querySelectorAll(".holo-Fields .holo-error").length === 3 && document.querySelectorAll(".holo-error").length === 4`);
+    const first = await p.value(`document.activeElement?.dataset.bind ?? ""`);
+    const ok = heard && look === "none / 0px / 13" && wide <= 360 && checked && first === "street";
+    return [ok, `lecteur d'écran : ${groups.join(" | ")} ; allure (bordure / largeur la plus petite / nom sous le cadre) : ${look} ; téléphone : ${wide} px pour 360 ; à l'envoi, messages dans les groupes : ${checked}, le clavier sur « ${first} »`];
+  }],
   ["les touches du clavier, et les lettres qu'on coupe", async (p) => {
     await p.open("/exemples/lecons/77-toutes-les-touches.holo");
     if (!(await p.until(`document.getElementById("shortcuts")`))) return [false, "le moteur n'est pas arrivé"];
