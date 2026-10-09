@@ -1,0 +1,16 @@
+{
+  "sales": [
+    {
+      "day": "Lundi",
+      "amount": "120"
+    },
+    {
+      "day": "Mardi",
+      "amount": "80"
+    },
+    {
+      "day": "Mercredi",
+      "amount": "160"
+    }
+  ]
+}
