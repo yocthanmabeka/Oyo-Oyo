@@ -227,7 +227,7 @@ Page(
 
     Hr(),
     Row(gap: 16px, align: between, children: [
-      A("← Leçon 106 : le panier qui suit le compte", to: "106-le-panier-qui-suit-le-compte.holo"),
+      A("← Leçon 108 : protéger et effacer son compte", to: "108-proteger-et-effacer-son-compte.holo"),
       A("Leçon 110 : un module qui dessine →", to: "110-un-module-qui-dessine.holo"),
     ]),
   ],

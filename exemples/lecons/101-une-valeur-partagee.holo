@@ -45,7 +45,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 100 : une adresse qui porte une valeur", to: "100-une-adresse-qui-porte-une-valeur.holo"),
-      A("Leçon 104 : se connecter →", to: "104-se-connecter.holo"),
+      A("Leçon 102 : une liste partagée →", to: "102-une-liste-partagee.holo"),
     ]),
   ],
   rules: [
