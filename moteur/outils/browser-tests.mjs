@@ -18,6 +18,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { webTests } from "../../proposals/GPT5.6/web-viable-2026-10-08/browser-tests.mjs";
+import { capabilityTests } from "../../proposals/GPT5.6/fin-lot9-2026-10-08/browser-tests.mjs";
 
 const engine = fileURLToPath(new URL("..", import.meta.url));
 const repo = resolve(engine, "..");
@@ -1680,9 +1681,70 @@ const tests = [
     }
     return [faults.length === 0, faults.length ? faults.join("\n      ") : "réservation sans JavaScript ; seconde forgée refusée (409) ; cart=777 et note=Eve ignorés ; état du compte intact après rechargement ; toucher et saisie normaux gardés ; miroir retardé : ordre et panier gardés"];
   }],
+  ["holo serve : une page hors-ligne sans JavaScript ; le service worker laisse le direct et les écritures (leçon 119, hors-ligne, serve)", async (_, b) => {
+    // ADR-096 : sans JavaScript, la page qui offre une copie hors-ligne reste une page comme les
+    // autres. Une fois la copie prête, le service worker tient le site ; le direct des valeurs
+    // partagées (text/event-stream, ADR-079) et les écritures (POST) passent à côté de lui.
+    if (phone) return [true, "sauté avec --telephone : il installerait un service worker sur le téléphone"];
+    const served = await startHoloServe(["119-une-page-hors-ligne.holo", "101-une-valeur-partagee.holo"]);
+    const faults = [];
+    const check = (name, ok, seen) => { if (!ok) faults.push(`${name} : ${seen}`); };
+    const tab = await b.tab();
+    const q = page(tab, served.base);
+    const count = () => q.value(`document.querySelector('#page [data-state="count"]')?.textContent ?? ""`);
+    const status = `(document.querySelector('[data-name="Copy"] [data-capability-status]')?.textContent ?? "")`;
+    try {
+      // Sans JavaScript : deux touchers, par le formulaire des gestes, gardés au rechargement.
+      await tab.send("Emulation.setScriptExecutionDisabled", { value: true });
+      await q.open("/119-une-page-hors-ligne.holo", 300);
+      for (const expected of ["1", "2"]) {
+        await q.click('[data-name="Add"]');
+        await q.until(`document.readyState === "complete" && document.querySelector('#page [data-state="count"]')?.textContent === "${expected}"`, 8000);
+      }
+      await q.open("/119-une-page-hors-ligne.holo", 300);
+      check("sans JavaScript, deux touchers gardés", (await count()) === "2", `compteur : ${await count()}`);
+      // Avec JavaScript, le moteur repart des mêmes valeurs ; la copie se prépare.
+      await tab.send("Emulation.setScriptExecutionDisabled", { value: false });
+      await q.open("/119-une-page-hors-ligne.holo", 300);
+      const started = await q.until("window.__holoStarted", 40000);
+      check("avec JavaScript, les mêmes valeurs", started && (await count()) === "2", `compteur : ${await count()}`);
+      await q.click('[data-name="Save"]');
+      const ready = await q.until(`${status}.includes("prête")`, 20000);
+      check("la copie prête", ready, await q.value(status));
+      const copy = await q.value(`caches.keys().then(async (keys) => { for (const key of keys.filter((k) => k.startsWith("holo-offline-v1-"))) { const saved = await (await caches.open(key)).match(location.origin + "/119-une-page-hors-ligne.holo"); if (saved) return saved.text(); } return ""; })`);
+      check("la copie, celle d'un premier visiteur", copy.includes('Compteur local : <span data-state="count">0</span>'), copy ? "d'autres valeurs" : "pas de copie");
+      // Sous le service worker : la page passe par lui ; le direct et un geste partagé, non.
+      const seen = new Map();
+      tab.on("Network.requestWillBeSent", ({ requestId, request, type }) => seen.set(requestId, { method: request.method, type, url: request.url }));
+      tab.on("Network.responseReceived", ({ requestId, response }) => { const s = seen.get(requestId); if (s) s.worker = response.fromServiceWorker; });
+      await tab.send("Network.enable");
+      await q.open("/101-une-valeur-partagee.holo", 300);
+      const controlled = await q.until("navigator.serviceWorker.controller !== null", 10000);
+      const listening = await q.until("window.__holoLive?.()", 40000);
+      await q.click('[data-name="Like"]');
+      const liked = await q.until(`document.querySelector('#page [data-state="likes"]')?.textContent === "1"`, 10000);
+      await pause(300);
+      const requests = [...seen.values()];
+      const shown = requests.find((r) => r.type === "Document" && r.url.endsWith("/101-une-valeur-partagee.holo"));
+      const live = requests.filter((r) => r.type === "EventSource");
+      const writes = requests.filter((r) => r.method === "POST");
+      check("la page servie par le service worker", controlled && shown?.worker === true, JSON.stringify(shown));
+      check("le direct passe à côté", listening && live.length > 0 && live.every((r) => r.worker === false), JSON.stringify(live));
+      check("le geste partagé passe à côté", liked && writes.length > 0 && writes.every((r) => r.worker === false), JSON.stringify(writes));
+      check("aucune erreur", tab.errors.length === 0, tab.errors.join(" | "));
+    } finally {
+      tab.on("Network.requestWillBeSent", null);
+      tab.on("Network.responseReceived", null);
+      await q.value(`navigator.serviceWorker.getRegistrations().then((all) => Promise.all(all.map((r) => r.unregister()))).then(() => caches.keys()).then((keys) => Promise.all(keys.map((k) => caches.delete(k)))).then(() => true)`).catch(() => {});
+      await tab.close();
+      served.stop();
+    }
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : "sans JavaScript, deux touchers gardés ; avec, les mêmes valeurs ; la copie prête, avec celles d'un premier visiteur ; sous le service worker, la page passe par lui, le direct et le geste partagé à côté"];
+  }],
 ];
 
 tests.push(...webTests({ repo, engine, phone, page, startHoloServe, startChrome, pause }));
+tests.push(...capabilityTests({engine,phone,pause}));
 
 // Les essais propres au téléphone : seulement avec --telephone.
 const capturesFolder = join(repo, "proposals", "Claude", "telephone-2026-10-07", "captures");

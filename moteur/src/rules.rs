@@ -13,7 +13,7 @@ fn signals(block: &str) -> &'static [&'static str] {
         // Un formulaire dit si son envoi est arrivé, ou non (ADR-042).
         "Form" => &["sent", "failed", "hover", "hoverEnd"],
         // Un module enfermé dit s'il a rendu son nombre, ou s'il a été arrêté (ADR-045).
-        "Module" => &["done", "failed"],
+        "Module" | "Transfer" | "Device" | "Notification" | "Offline" => &["done", "failed"],
         // Les données de la page disent si elles sont arrivées, ou non (ADR-064).
         "Data" => &["done", "failed"],
         // Un chronomètre dit qu'il s'est arrêté : son temps est arrivé (ADR-089).
@@ -42,6 +42,10 @@ fn capabilities(block: &str) -> &'static [&'static str] {
         "Dialog" => &["open", "close"],
         "Form" => &["send"],
         "Module" => &["run"],
+        "Transfer" => &["import", "export"],
+        "Device" => &["request", "write", "stop"],
+        "Notification" => &["show", "stop"],
+        "Offline" => &["save", "remove"],
         // Relire les données : On(Retry.tap, effect: Stock.refresh) (ADR-064).
         "Data" => &["refresh"],
         // Démarrer, arrêter, remettre à zéro un chronomètre (ADR-089).
@@ -303,6 +307,12 @@ fn check_effects(rule: &Block, names: &[(&str, &str)], state: &crate::state::Sta
                     return Err(Error { message: format!("« {target}.{capability} » s'écrit avec sa quantité, entre parenthèses : {target}.{capability}(1)"), pos: rule.pos });
                 }
                 let target_type = type_of(target).ok_or_else(|| Error { message: format!("aucun bloc ne s'appelle « {target} »"), pos: rule.pos })?;
+                if crate::capabilities::BLOCKS.contains(&target_type) && capability != "stop" {
+                    let trigger = rule.arguments.iter().find(|a| a.name.is_none()).map(|a| &a.value);
+                    if !matches!(trigger, Some(Value::Name(s)) if s.ends_with(".tap") && type_of(s.split('.').next().unwrap_or("")) == Some("Button")) {
+                        return Err(Error { message: "une permission, un transfert ou une copie hors-ligne demande le toucher d'un bouton explicite".into(), pos: rule.pos });
+                    }
+                }
                 if !capabilities(target_type).contains(&capability) {
                     return Err(Error { message: format!("capacité inconnue « {capability} » : un « {target_type} » offre {}", list_all(capabilities(target_type))), pos: rule.pos });
                 }

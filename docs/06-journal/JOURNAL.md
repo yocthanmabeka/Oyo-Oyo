@@ -6,6 +6,59 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Les corrections du nuage (PR 208) relues, et raccordées à la fin du lot 9
+
+- Relue : la PR 208 de la session du nuage, qui répond aux remarques de Codex sur la chaîne du lot 9 (huit corrections, deux défauts anciens du démarrage). Bonne : chaque correction a son essai, écrit pour rater avec l'ancien code ; le code reste sobre (un chronomètre rangé sous `fichier|nom`, l'adresse qui ne compte au démarrage que si elle nomme une valeur de la page, un nom inconnu après le `#` qui laisse la page où elle est, comme un navigateur devant une ancre inconnue). Ses deux remarques refusées sont justifiées.
+- `main` (la fin du lot 9, PR 219 ; les petites dettes HTML, PR 218) fusionnée dans sa branche, `langage/lot9-corrections`, pour que la PR 208 se fusionne telle quelle. Un seul conflit de code, dans `openFile` (`page-engine.js`), où chacune ajoutait sa ligne après `displaySite(…)` : gardées les deux, dans l'ordre que la PR 208 indiquait, `if (inHistory) followAddress(false);` puis `await prepareHost();`. Le journal : toutes les entrées gardées.
+- Exécuté, après une reconstruction complète (les deux WebAssembly, `holo`, les liaisons) : `cargo test --release` → 198 tests passent (les deux nouveaux de la PR 208) ; `cargo test` → 198 ; `node outils/browser-tests.mjs` → 68 essais `OK`, aucun raté, 115 leçons ouvertes, 483 s (dont les trois essais nouveaux de la PR 208).
+
+**Erreurs en route**
+
+- J'ai d'abord fusionné la PR 208 dans une branche à moi, par-dessus la fin du lot 9 ; la session du PC a préféré que la PR 208 se fusionne elle-même : refait dans sa branche, à partir de `main`, avec le même code (vérifié : seuls les documents diffèrent).
+- Une première passe de la suite dans Chrome s'est figée sur la leçon 9 (l'outil attendait une réponse de Chrome qui n'est jamais venue ; la page, elle, répondait) : arrêtée, l'essai relancé seul passe (115 leçons), puis la suite entière.
+
+---
+
+## 2026-10-09 — La fin du lot 9 de Codex intégrée : un fichier, l'appareil, une notification, une copie hors-ligne
+
+- Fusionnée sur `integration/codex-203`, après la PR 201 : la PR 203 de Codex. Quatre blocs, rangés dans les enfants de `Page`, qui ne demandent rien au navigateur sans le toucher d'un bouton : `Transfer` (un fichier JSON des valeurs annoncées, importé tout entier ou refusé), `Device` (la position, le presse-papiers, un aperçu de la caméra, le microphone ; arrêt d'office), `Notification` (un rappel tant que la page est ouverte), `Offline` (la copie d'une page publique, le réseau d'abord, rien de mis en attente). Les leçons 116 à 119, et ses essais dans Chrome.
+- Écrites et décidées : `ADR-093` à `ADR-096`, `ACCEPTÉ`, validées par Yocthan le 2026-10-09 (« intégrer le travail de Codex quand il est bien fait »), Codex nommé comme auteur ; leurs lignes dans `DECISIONS.md`. Le guide a sa section « 6 quatertricies » (celle de Codex portait le numéro « 10 bis », déjà pris, après la section 11), quatre lignes dans le tableau des notions et ce qui manque encore ; `NOMS.md`, quatre lignes dans le tableau des blocs. Les leçons 116 à 119 ont pris la forme des autres (« Ce qu'on apprend », les liens ← →) : 115 → 116 → … → 119 → 1. La ligne vide qui coupait le tableau des leçons est retirée.
+- **Corrigé : la page hors-ligne sans JavaScript.** `holo serve` servait toute page `Offline` par un chemin à part, toujours avec ses valeurs de départ et sans le formulaire des gestes : sans JavaScript, un toucher ne changeait rien de visible. Elle passe maintenant par le chemin de toutes les pages (les valeurs du visiteur, les boutons qui marchent). La copie, elle, est demandée par le service worker sans cookie : le serveur rend la page d'un premier visiteur. Le service worker refusait aussi toute page qui porte `data-visit` (l'état que `holo serve` écrit dans chaque page) : sans le chemin à part, aucune copie n'aurait marché ; cette vérification est retirée, la demande sans cookie suffit.
+- **Corrigé : le service worker et le direct.** Installé, il tenait tout le site, et faisait passer par lui le direct des valeurs partagées (`text/event-stream`) ; sans réseau, il aurait servi une page HTML à la place du flux. Il laisse maintenant passer le direct et toutes les écritures (ce qui n'est pas `GET`).
+- Gardé par deux essais nouveaux, qui ratent avec l'ancien code : `an_offline_page_keeps_its_values_without_javascript` (avec l'ancien chemin, la page n'a pas de formulaire des gestes) ; dans Chrome, « holo serve : une page hors-ligne sans JavaScript ; le service worker laisse le direct et les écritures » (avec l'ancien service worker : « le direct passe à côté : … "worker": true »).
+- Exécuté, après une reconstruction complète (les deux WebAssembly, `holo`, les liaisons) : `holo check` → les leçons 115 à 119 et les exemples du guide et des ADR acceptés ; `cargo test --release` → 196 tests passent ; `cargo test` → 196 ; `node outils/browser-tests.mjs` → 65 essais `OK`, aucun raté, 115 leçons ouvertes, 503 s (dont les six essais de Codex pour le lot 9 et les parcours 1 à 9).
+- Pas fait ici : le tableau en ligne et `TABLEAU-WEB.md` (les mots `offset`, `Transfer`, `Device`, `Notification`, `Offline`), que la session du PC republie.
+
+**Erreurs en route**
+
+- Ma première fusion de la PR 203 est partie sans l'identité du dépôt (« Committer identity unknown ») : refaite avec l'adresse noreply.
+- Le premier jet de l'`ADR-096` disait qu'une réponse qui pose un cookie est refusée : un service worker ne voit jamais l'en-tête `Set-Cookie`, cette vérification ne refuse rien. Corrigé avant l'envoi : c'est la demande sans cookie qui protège la copie.
+
+---
+
+## 2026-10-09 — Les petites dettes HTML dans la file de travail
+
+- Yocthan a demandé : « Sur 100 % du web, ton travail est à combien ? Et pourquoi ça traîne encore ? ». Réponse, comptée ligne par ligne dans le grand tableau (le jugement par élément est celui de Claude) :
+  - sur 131 éléments de HTML, CSS et JavaScript, 98 « oui », 18 « en partie » et 8 « non » ; 6 sont refusés exprès et 1 est sans objet ;
+  - soit 98 sur les 124 éléments à avoir, 79 % ;
+  - le tableau est en retard sur ce qui vient d'être fusionné (les comptes, le mot de passe, les sessions) et sur ce qui est en cours (le hors-ligne, l'appareil, le presse-papiers et le partage).
+- Les raisons de la lenteur, dites franchement :
+  - le quota s'est coupé deux fois ;
+  - pendant la nuit, trois IA ont produit une vingtaine de PR empilées, dont des doublons, trois aux essais rouges, une qui ne compilait pas, et deux IA ont travaillé dans le dossier principal ;
+  - chaque fusion attend ses essais ;
+  - le journal entre en conflit à chaque PR ;
+  - deux vrais défauts ont été trouvés et corrigés avant de fusionner.
+- Ajoutées à la file à sa demande (« Oui »), pour que plusieurs IA avancent en parallèle :
+  - issue 213 : les listes de définitions ;
+  - issue 214 : `abbr`, `time` et `address` ;
+  - issue 215 : `fieldset` et `legend` ;
+  - issue 216 : `datalist` ;
+  - issue 217 : la citation courte.
+
+  Chacune a sa décision (`ADR-097` à `ADR-101`) et sa leçon (120 à 124). Les fichiers partagés se modifient en ajout seulement. La réserve est écrite dans `AGENTS.md`.
+
+---
+
 ## 2026-10-09 — Les remarques de Codex sur la chaîne du nuage : huit corrections, et deux défauts anciens
 
 - Fait : les remarques de la relecture automatique de Codex sur les PR #191 à #195, vérifiées une à une. Huit étaient justes, corrigées dans une PR à part, à la suite de la chaîne :
