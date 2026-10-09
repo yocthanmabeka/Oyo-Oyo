@@ -1330,7 +1330,7 @@ Page(
 )
 ```
 
-- **`State(wishes: [])`** : une liste de textes, cent au plus.
+- **`State(wishes: [])`** : une liste de textes, deux cents au plus.
 - **`wishes.push(wish)`** ajoute le texte d'une valeur ; **`wishes.remove(item)`** retire l'élément de la ligne touchée ; **`wishes.clear()`** vide tout. Une liste ne change que par un geste.
 - **`wish.set("")`** vide un texte.
 - **`Repeat(over: wishes, …)`** : une ligne par élément ; `{item}` est son texte. `{wishes}` montre le nombre ; `If(wishes, is: 0)` le compare ; `keep:` la garde.
@@ -1909,8 +1909,26 @@ Page(
 - `Repeat(empty: "…")` dit ce qu'on écrit quand la liste est vide ; un lecteur d'écran l'annonce.
 - Une liste calculée ne se change pas par une demande, et ne se garde pas : on change ou on garde sa source. Mais une règle écrite dans ses lignes change l'élément d'origine : `item.done.set(1)`, `tasks.remove(item)` (`ADR-065`).
 - `total: matching` donne le nombre trouvé avant de couper : « {found} sur {matching} » ; `If(shown, under: matching, …)` cache « Show more » quand tout est montré (`ADR-065`).
+- **Une page d'une liste** : `offset: start` saute les `start` premiers éléments trouvés, après la recherche, le filtre et le tri, puis `limit:` coupe. Avec `Filter(…, offset: start, limit: 20)`, c'est une page de vingt ; `start.add(20)` mène à la suivante, `start.sub(20)` à la précédente, `start.set(0)` au début. Le total (`total:`) compte avant les deux coupes : « page de {found} sur {matching} ». Au-delà de la fin, la page est vide. `offset` prend un entier, ou le nom d'un nombre entier de la page (`ADR-084`).
+- Une liste garde **deux cents éléments au plus** (une liste de `State`, une liste reçue par `Data`, une répétition) ; au-delà, les données reçues ne gardent que les deux cents premiers, et un fichier qui en déclare plus est refusé (`ADR-084`).
 
-L'écriture `Filter`, `computed`, `contains`, `in`, `sortBy`, `limit`, `empty` est choisie par Yocthan (`ADR-062`) ; `field`, `is` et `reverse` attendent sa validation. La leçon est `82-chercher-filtrer-trier.holo`.
+```holo
+Page(
+  title: "Catalogue",
+  state: State(search: "", start: 0, products: [ Item(title: "Pinceau", price: 300), Item(title: "Toile", price: 1200) ]),
+  computed: [ Filter(name: page, from: products, contains: search, sortBy: price, offset: start, limit: 20, total: matching) ],
+  children: [
+    Input(value: search, label: "Search"),
+    P("{page} on {matching}"),
+    Repeat(over: page, children: [ Text("{item.title}") ]),
+    If(start, over: 0, children: [ Button(name: Previous, text: "Previous page") ]),
+    Button(name: Next, text: "Next page"),
+  ],
+  rules: [ On(Next.tap, effect: start.add(20)), On(Previous.tap, effect: start.sub(20)) ],
+)
+```
+
+L'écriture `Filter`, `computed`, `contains`, `in`, `sortBy`, `limit`, `empty` est choisie par Yocthan (`ADR-062`) ; `field`, `is` et `reverse` attendent sa validation. `offset` et la borne de deux cents sont décidés (`ADR-084`, validé par Yocthan le 2026-10-09 ; proposés par Codex). Les leçons sont `82-chercher-filtrer-trier.holo` et `109-un-catalogue-page-par-page.holo`.
 
 ## 6 undevicies. La fin du web : toutes les touches, apparaître en descendant, le son réglé, des tailles qui suivent le visiteur
 
@@ -2173,7 +2191,7 @@ Toutes les limites, telles que le moteur les applique (chacune refusée avec un 
 |---|---|
 | Le fichier | 262 144 octets ; 100 000 mots ; 64 niveaux de blocs et de listes l'un dans l'autre ; 16 fichiers importés |
 | Les valeurs (`State`) | 32 valeurs par page ; un nombre jusqu'à 1 000 000 000, avec au plus 6 chiffres après la virgule (`ADR-066`) ; un texte de 2 000 caractères |
-| Une liste qui change (`State(tasks: [])`) | 100 éléments ; un texte de 200 caractères ; 16 champs par élément |
+| Une liste qui change (`State(tasks: [])`) | 200 éléments ; un texte de 200 caractères ; 16 champs par élément |
 | `Repeat(items:)` | 200 éléments ; 20 000 blocs une fois déplié |
 | Les composants | 16 paramètres ; 8 composants l'un dans l'autre ; 2 000 copies |
 | Le temps | `Every` et `After` : de 100 ms à 3 600 s ; `Data(every:)` : de 1 s à 3 600 s |
@@ -2344,7 +2362,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 
 ## 11. Ce qui n'existe pas encore
 
-- Un dessin n'a pas encore de texte ni de dégradé ; une liste de formes en garde cent au plus.
+- Un dessin n'a pas encore de texte ni de dégradé ; une liste de formes en garde deux cents au plus.
 - Les données venues d'un autre serveur.
 - Pour les valeurs partagées : un champ qui en change une, une liste partagée, une limite au nombre de touchers d'un visiteur.
 - Pour les comptes (`ADR-081`) : pas encore de clés d'accès (passkeys), de QR code pour activer le code, de codes de secours, ni de mot de passe changé ou de compte effacé par son membre.

@@ -1,0 +1,16 @@
+Page(title: "Une demande d'inscription", lang: "fr", state: State(name: "", email: "", consent: 0, status: 0),
+children: [H1("Demander une inscription"), P("Ce formulaire enregistre une demande. Pour créer un compte, utilise le lien en bas."),
+Form(name: Registration, children: [Input(value: name, label: "Nom", required: true, min: 2),
+Input(value: email, label: "Adresse e-mail", type: email, required: true),
+Checkbox(value: consent, label: "J'accepte que ma demande soit enregistrée", required: true),
+Button(name: Send, text: "Envoyer la demande")]),
+If(status, is: 1, children: [P("Ta demande est arrivée.")]),
+If(status, is: 2, children: [P("L'envoi a échoué. Réessaie.")]),
+A("Créer un vrai compte local", to: "/account/signup"), A("Accueil des parcours", to: "index.holo")],
+rules: [On(Send.tap, effect: Registration.send), On(Registration.sent, effect: status.set(1)), On(Registration.failed, effect: status.set(2))])
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; computer: { max-width: 960px; } print: { background: white; color: black; } }
+H1 { color: #E9B44C; font-size: 28px; print: { color: black; } }
+H2 { color: #E9B44C; font-size: 22px; print: { color: black; } }
+A { color: #8fd3ff; print: { color: black; } }
+.card { background: #22223a; padding: 16px; border-radius: 8px; }
+Nav { print: { display: none; } }

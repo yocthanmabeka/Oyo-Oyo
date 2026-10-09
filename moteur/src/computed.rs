@@ -22,7 +22,7 @@ use crate::lists::{fields, text_of, Lists, ELEMENTS_MAX};
 use crate::state::{State, Texts};
 
 /// Les réglages d'un `Filter`.
-pub const PARAMS: &[&str] = &["name", "from", "contains", "in", "field", "is", "sortBy", "reverse", "limit", "total"];
+pub const PARAMS: &[&str] = &["name", "from", "contains", "in", "field", "is", "sortBy", "reverse", "offset", "limit", "total"];
 
 /// Une liste calculée, lue dans le fichier.
 #[derive(Debug, Clone, PartialEq)]
@@ -36,6 +36,8 @@ pub struct Filter {
     sort_by: Option<String>,
     reverse: bool,
     limit: Option<Value>,
+    /// Combien d’éléments sauter après le tri ; la position est bornée à la longueur réelle.
+    offset: Option<Value>,
     /// Le nombre d'éléments trouvés avant de couper, sous ce nom : « 12 sur 40 ».
     pub total: Option<String>,
 }
@@ -68,6 +70,7 @@ fn read(block: &Block) -> Filter {
         sort_by: name_of("sortBy"),
         reverse: matches!(block.argument("reverse").map(|a| &a.value), Some(Value::Bool(true))),
         limit: block.argument("limit").map(|a| a.value.clone()),
+        offset: block.argument("offset").map(|a| a.value.clone()),
         total: name_of("total"),
     }
 }
@@ -258,6 +261,13 @@ pub fn check(program: &Program) -> Result<(), Error> {
                 return Err(Error { message: "« Filter(reverse: …) » renverse un tri : il va avec « sortBy »".into(), pos: a.pos });
             }
         }
+        match &filter.offset {
+            None | Some(Value::Integer(_)) => {}
+            Some(Value::Name(n)) if crate::state::places(program, n) > 0 => return error(format!("« Filter(offset: {n}) » attend une position entière, sans chiffres après la virgule")),
+            Some(Value::Name(n)) if numbers.iter().any(|(m, _)| m == n) => {}
+            Some(Value::Name(n)) => return error(format!("« Filter(offset: {n}) » : aucun nombre ne s'appelle « {n} »")),
+            Some(_) => return error("« Filter(offset: …) » attend un entier positif ou nul, ou le nom d'un nombre entier de la page".into()),
+        }
         match &filter.limit {
             None => {}
             Some(Value::Integer(n)) if (1..=ELEMENTS_MAX as u64).contains(n) => {}
@@ -374,6 +384,15 @@ pub fn apply_with_totals(program: &Program, numbers: &State, texts: &Texts, list
         if let Some(total) = filter.total {
             totals.push((total, elements.len() as u64));
         }
+        // Le total précède les deux coupes. Un grand entier reste grand sur wasm32 :
+        // on le borne avant de le convertir en usize, sans allocation supplémentaire.
+        let offset = match &filter.offset {
+            Some(Value::Integer(n)) => *n,
+            Some(Value::Name(n)) => number_value(n).unwrap_or(0),
+            _ => 0,
+        };
+        let skipped = offset.min(elements.len() as u64) as usize;
+        elements.drain(..skipped);
         if let Some(limit) = limit {
             elements.truncate(limit.min(ELEMENTS_MAX));
         }
@@ -435,7 +454,7 @@ mod tests {
             (PAGE.replace("from: articles", "from: nothing"), "aucune liste ne s'appelle « nothing »"),
             (PAGE.replace("in: [title]", "in: [colour]"), "n'ont pas de champ « colour »"),
             (PAGE.replace("contains: search", "contains: shown"), "attend une valeur de texte"),
-            (PAGE.replace("limit: shown", "limit: 500"), "de 1 à 100"),
+            (PAGE.replace("limit: shown", "limit: 500"), "de 1 à 200"),
             (PAGE.replace("limit: shown),", "limit: shown), Filter(name: found, from: articles),"), "déjà le nom d'une valeur"),
             (PAGE.replace("limit: shown),", "limit: shown), Filter(name: search, from: articles),"), "déjà le nom d'une valeur"),
             (PAGE.replace("reverse: true", "reverse: yes"), "true ou false"),
@@ -527,4 +546,59 @@ mod tests {
     fn fold_removes_case_and_accents() {
         assert_eq!(fold("Élan À LA Crème Brûlée"), "elan a la creme brulee");
     }
+
+    #[test]
+    fn two_hundred_products_are_searched_sorted_and_paged() {
+        let items = (1..=200).map(|n| format!("Item(id: \"p{n:03}\", title: \"Produit {n:03}\", price: {})", 201 - n)).collect::<Vec<_>>().join(",");
+        let source = format!(r#"Page(state: State(search: "", offset: 0, products: [{items}]),
+            computed: [Filter(name: found, from: products, contains: search, in: [title], sortBy: price, offset: offset, limit: 20, total: matching)],
+            children: [H1("Catalogue"), Repeat(over: found, key: id, children: [P("{{item.title}}")])])"#);
+        let program = crate::check_page(&source).unwrap();
+        let list = |saved: &str| {
+            let nums = crate::state::reread(&program, saved);
+            let texts = crate::state::reread_texts(&program, saved);
+            let lists = crate::lists::reread(&program, saved);
+            apply_with_totals(&program, &nums, &texts, &lists)
+        };
+        let mut seen = Vec::new();
+        for page in 0..10 {
+            let (found, totals) = list(&format!("offset={}", page * 20));
+            assert_eq!(totals, [("matching".into(), 200)]);
+            assert_eq!(found[0].1.len(), 20);
+            seen.extend(found[0].1.iter().map(|e| text_of(e)));
+        }
+        let expected = (1..=200).rev().map(|n| format!("p{n:03}")).collect::<Vec<_>>();
+        assert_eq!(seen, expected, "aucun doublon, aucun article perdu après le tri");
+        let (found, total) = list("search='Produit%20001;offset=0");
+        assert_eq!(found[0].1.len(), 1);
+        assert_eq!(text_of(&found[0].1[0]), "p001");
+        assert_eq!(total, [("matching".into(), 1)]);
+        for offset in [200, u64::MAX] {
+            let (found, totals) = list(&format!("offset={offset}"));
+            assert!(found[0].1.is_empty());
+            assert_eq!(totals, [("matching".into(), 200)]);
+        }
+        let too_many = source.replace("products: [", "products: [Item(id: \"extra\", title: \"Extra\", price: 0),");
+        assert!(crate::check_page(&too_many).unwrap_err().message.contains("200 éléments"));
+        let literal = source.replace("offset: offset", "offset: 18446744073709551615");
+        assert!(crate::list_html(&literal, "", "", "found").contains("holo-empty") || {
+            let p = crate::check_page(&literal).unwrap();
+            apply(&p, &crate::state::initial(&p).unwrap(), &crate::state::initial_texts(&p), &crate::lists::initial(&p))[0].1.is_empty()
+        });
+    }
+
+    #[test]
+    fn a_page_offset_refuses_text_decimals_units_and_unknown_names() {
+        let source = r#"Page(state: State(position: 1.5, products: ["A", "B"]), computed: [Filter(name: found, from: products, offset: 0, limit: 1)], children: [P("Liste")])"#;
+        crate::check_page(source).unwrap();
+        for wrong in ["\"1\"", "1.5", "1px", "true", "missing", "position"] {
+            let bad = source.replace("offset: 0", &format!("offset: {wrong}"));
+            assert!(crate::check_page(&bad).unwrap_err().message.contains("offset"), "{wrong}");
+        }
+        let source = source.replace("offset: 0", "offset: 1");
+        let program = crate::check_page(&source).unwrap();
+        let found = apply(&program, &crate::state::initial(&program).unwrap(), &crate::state::initial_texts(&program), &crate::lists::initial(&program));
+        assert_eq!(found[0].1, ["B"]);
+    }
+
 }
