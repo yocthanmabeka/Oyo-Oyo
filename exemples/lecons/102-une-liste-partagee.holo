@@ -42,6 +42,12 @@ Page(
     ]),
     Button(name: Clear, text: "Tout vider"),
     P("Mes ajouts : {added}"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 101 : une valeur partagée", to: "101-une-valeur-partagee.holo"),
+      A("Leçon 103 : confirmer un texte partagé →", to: "103-un-texte-partage-confirme.holo"),
+    ]),
   ],
   rules: [
     On(Add.tap, effect: [groceries.push(Item(what: what, done: 0)), what.set(""), added.add(1)]),
@@ -51,3 +57,4 @@ Page(
 
 Page { background: #101020; color: white; padding: 24px 16px; max-width: 720px; }
 Button { background: #E9B44C; color: #101020; padding: 12px; }
+A { color: #8fd3ff; }
