@@ -11,6 +11,9 @@
 // donne son chemin ; sinon l'emplacement habituel sous Windows, ou google-chrome sous Linux.
 // Rend « OK » ou « RATÉ » par essai, et un code de sortie 1 s'il y a un raté.
 
+import { accountDebtTests } from "../../proposals/GPT5.6/fin-comptes-2026-10-08/browser-tests.mjs";
+import { passkeyTests } from "../../proposals/GPT5.6/fin-passkeys-2026-10-08/browser-tests.mjs";
+import { sharingTests } from "../../proposals/GPT5.6/fin-partage-2026-10-08/browser-tests.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { createHmac } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -548,11 +551,106 @@ const tests = [
     const ok = loaded && japanese > 0 && japanese <= 8 && latin && !unused && none === 0;
     return [ok, `polices prêtes : ${loaded} ; morceaux japonais : ${japanese} sur 124 ; latin d'Inter : ${latin} ; cyrillique ou grec téléchargés : ${unused} ; page sans police : ${none} fichier`];
   }],
+  ["une liste de définitions : un terme et sa définition, lus ensemble (leçon 120)", async (p, b) => {
+    await p.open("/exemples/lecons/120-une-liste-de-definitions.holo");
+    // Chaque terme garde sa définition, dans l'ordre ; une définition lit une valeur de la page.
+    const sheet = await p.value(`[...document.querySelector("dl.holo-List").querySelectorAll(".holo-Term")].map((t) => t.querySelector("dt").textContent + "=" + t.querySelector("dd").textContent).join(" | ")`);
+    // Le lecteur d'écran : des termes et des définitions, pas des éléments de liste à puces.
+    const { result } = await b.send("Accessibility.getFullAXTree");
+    const roles = (role) => result.nodes.filter((n) => n.role?.value === role && !n.ignored).length;
+    const [terms, definitions, items] = [roles("term"), roles("definition"), roles("listitem")];
+    const ok = sheet === "Hauteur=45 cm | Poids=2 kg | Couleur=Bleu nuit, ou cuivre | Prix=189,00 €" && terms === 6 && definitions === 6 && items === 0;
+    return [ok, `fiche : ${sheet} ; lecteur d'écran : ${terms} termes, ${definitions} définitions, ${items} éléments à puces`];
+  }],
   ["un module enfermé rend son nombre", async (p) => {
     await p.open("/exemples/lecons/69-module-enferme.holo");
     await p.click('[data-name="Calculer"]');
     const ok = await p.until(`(window.__holoModules ?? []).some((m) => m.ok && m.output === 5050)`);
     return [ok, ok ? "5 050" : JSON.stringify(await p.value("window.__holoModules ?? null"))];
+  }],
+  ["une abréviation expliquée une fois, une date lisible par les machines, une adresse (leçon 121)", async (p) => {
+    await p.open("/exemples/lecons/121-une-abreviation-une-date-une-adresse.holo");
+    // La première fois qu'elle vient dans un paragraphe, son sens est écrit : le lecteur d'écran
+    // le lit, le téléphone le montre ; ailleurs, elle est seulement marquée.
+    const first = await p.value(`document.querySelector("main p").textContent`);
+    const marked = await p.value(`document.querySelectorAll('abbr[title="Maison des jeunes et de la culture"]').length`);
+    const written = await p.value(`(document.body.textContent.match(/\\(Maison des jeunes et de la culture\\)/g) ?? []).length`);
+    // Une date montrée se lit par les machines, et suit sa valeur quand un geste la change.
+    const times = `[...document.querySelectorAll("main time")].map((t) => t.getAttribute("datetime") + "=" + t.textContent).join(" | ")`;
+    const before = await p.value(times);
+    await p.click('[data-name="Plus"]');
+    const moved = await p.until(`document.querySelector("main time")?.getAttribute("datetime") === "2026-11-21"`);
+    const after = await p.value(times);
+    // Les moyens de joindre l'auteur, dans le pied de page.
+    const address = await p.value(`document.querySelector("footer address.holo-Address")?.textContent ?? ""`);
+    const ok = first.includes("MJC (Maison des jeunes et de la culture) ouvre") && marked === 4 && written === 1
+      && before === "2026-11-14=14 novembre 2026 | 2026-11-14=samedi" && moved && after === "2026-11-21=21 novembre 2026 | 2026-11-21=samedi"
+      && address.includes("12 rue des Arts");
+    return [ok, `premier paragraphe : « ${first} » ; ${marked} abréviations marquées, sens écrit ${written} fois ; dates : ${before} → ${after} ; adresse : « ${address} »`];
+  }],
+  ["un groupe de champs : son nom dit par le lecteur d'écran, ses champs vérifiés à l'envoi (leçon 122)", async (p, b) => {
+    await p.open("/exemples/lecons/122-un-groupe-de-champs.holo");
+    // Le lecteur d'écran : chaque groupe a son nom, et ses champs sont dedans. Un Choice est déjà un groupe.
+    const { result } = await b.send("Accessibility.getFullAXTree");
+    const nodes = new Map(result.nodes.map((n) => [n.nodeId, n]));
+    const fields = (group) => {
+      const found = [];
+      const next = [...(group.childIds ?? [])];
+      while (next.length) {
+        const node = nodes.get(next.shift());
+        if (!node) continue;
+        if (!node.ignored && ["textbox", "checkbox", "radio"].includes(node.role?.value)) found.push(node.name?.value);
+        next.push(...(node.childIds ?? []));
+      }
+      return found.join(", ");
+    };
+    const groups = result.nodes.filter((n) => !n.ignored && ["group", "radiogroup"].includes(n.role?.value)).map((n) => `${n.role.value} « ${n.name?.value ?? ""} » : ${fields(n)}`);
+    const heard = ["group « Adresse de livraison » : Rue, Code postal, Ville", "group « Pour te prévenir » : Par e-mail, Par SMS", "radiogroup « Jour de livraison » : Mardi, Samedi"].every((g) => groups.includes(g));
+    // L'allure de base : sans la bordure du navigateur ; encadré par un style, le nom reste dedans ;
+    // sur un téléphone (360 de large), rien ne déborde.
+    const look = await p.value(`(() => {
+      const [boxed, plain] = document.querySelectorAll(".holo-Fields");
+      const legend = boxed?.querySelector(":scope > legend");
+      if (!plain || !legend) return "pas de groupe nommé dans la page";
+      const top = Math.round(legend.getBoundingClientRect().top - boxed.getBoundingClientRect().top);
+      return getComputedStyle(plain).borderTopStyle + " / " + getComputedStyle(plain).minWidth + " / " + top;
+    })()`);
+    let wide;
+    try {
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 360, height: 760, deviceScaleFactor: 2, mobile: true });
+      await pause(300);
+      wide = await p.value("document.documentElement.scrollWidth");
+    } finally {
+      await b.send("Emulation.clearDeviceMetricsOverride");
+    }
+    // À l'envoi, les champs du groupe sont vérifiés comme les autres (ADR-068) : le message sous le
+    // champ, dans le groupe ; le clavier sur le premier à corriger. (Le toucher fait venir le moteur.)
+    await p.click('[data-name="Send"]');
+    const checked = await p.until(`document.querySelectorAll(".holo-Fields .holo-error").length === 3 && document.querySelectorAll(".holo-error").length === 4`);
+    const first = await p.value(`document.activeElement?.dataset.bind ?? ""`);
+    const ok = heard && look === "none / 0px / 13" && wide <= 360 && checked && first === "street";
+    return [ok, `lecteur d'écran : ${groups.join(" | ")} ; allure (bordure / largeur la plus petite / nom sous le cadre) : ${look} ; téléphone : ${wide} px pour 360 ; à l'envoi, messages dans les groupes : ${checked}, le clavier sur « ${first} »`];
+  }],
+  ["des suggestions dans un champ, écrites ou venues d'une liste qui change ; on écrit autre chose (leçon 123)", async (p, b) => {
+    await p.open("/exemples/lecons/123-des-suggestions-dans-un-champ.holo");
+    // Chaque champ porte ses suggestions (input.list) : écrites dans la page, ou venues d'une liste.
+    const options = (bind) => `[...(document.querySelector('[data-bind="${bind}"]').list?.options ?? [])].map((o) => o.value).join(", ")`;
+    const fruits = await p.value(options("fruit"));
+    const before = await p.value(options("ville"));
+    // On écrit autre chose qu'une suggestion : le champ le garde, la page le montre.
+    await p.type('[data-bind="ville"]', "Grenoble");
+    const kept = await p.until(`document.querySelector("main").textContent.includes("Tu vas à Grenoble.")`);
+    // Retenue, la ville rejoint la liste, et les suggestions la suivent pendant la visite.
+    await p.click('[data-name="Retenir"]');
+    const followed = await p.until(`[...(document.querySelector('[data-bind="ville"]').list?.options ?? [])].some((o) => o.value === "Grenoble")`, 10000);
+    const after = await p.value(options("ville"));
+    // Le lecteur d'écran : un champ qu'on écrit et qui propose une liste (pas le texte de l'étiquette).
+    const { nodes } = (await b.send("Accessibility.getFullAXTree")).result;
+    const field = nodes.find((n) => !n.ignored && n.name?.value === "La ville où tu vas" && !["StaticText", "InlineTextBox"].includes(n.role?.value));
+    const [role, proposes] = [field?.role?.value, field?.properties?.find((q) => q.name === "autocomplete")?.value?.value];
+    const ok = fruits === "Pomme, Poire, Abricot, Mirabelle" && before === "Paris, Lyon, Marseille, Lille, Bordeaux" && kept && followed
+      && after === "Paris, Lyon, Marseille, Lille, Bordeaux, Grenoble" && role === "combobox" && proposes === "list";
+    return [ok, `fruits : ${fruits} ; villes : ${before} → ${after} ; « Grenoble » écrit : ${kept ? "gardé" : "perdu"} ; lecteur d'écran : ${role}, autocomplete ${proposes}`];
   }],
   ["une citation courte et le titre d'une œuvre, avec les guillemets de la langue (leçon 124)", async (p) => {
     await p.open("/exemples/lecons/124-une-citation-courte.holo");
@@ -1347,7 +1445,9 @@ const tests = [
       const key = (await q.value(`document.getElementById("key")?.textContent ?? ""`)).replace(/\s+/g, "");
       const used = stepNow();
       await q.type("#code", totp(key, used));
-      await send(`location.search === "?done=code"`);
+      await send(`document.querySelectorAll("[data-recovery]").length === 10`);
+      await q.click('a[href="/account?done=code"]');
+      await after(`location.pathname + location.search === "/account?done=code"`);
       check(`${how}, le code s'active`, key.length === 32 && (await words()).includes("Le code à 6 chiffres est activé"), `clé de ${key.length} lettres ; ${(await words()).slice(0, 120)}`);
       // Se déconnecter : la page réservée ne s'ouvre plus.
       await q.click('form[action="/account/signout"] button');
@@ -1757,6 +1857,9 @@ const tests = [
   }],
 ];
 
+tests.push(...sharingTests({engine,phone,page,startHoloServe,startChrome,pause}));
+tests.push(...passkeyTests({engine,phone,page,startHoloServe}));
+tests.push(...accountDebtTests({engine,phone,page,startHoloServe,pause,totp,stepNow}));
 tests.push(...webTests({ repo, engine, phone, page, startHoloServe, startChrome, pause }));
 tests.push(...capabilityTests({engine,phone,pause}));
 

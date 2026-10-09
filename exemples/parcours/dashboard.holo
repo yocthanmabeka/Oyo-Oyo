@@ -1,0 +1,15 @@
+// Le parcours 10 : les chiffres reçus et leur dessin restent lisibles au clavier.
+Page(title: "Les ventes de l'atelier", lang: "fr", state: State(sales: [], dayName: "", amount: ""),
+ data: Data(from: "sales.json"),
+ children: [H1("Les ventes de l'atelier"), P("Des données fictives, reçues du serveur local."),
+ Chart(kind: bars, over: sales, value: amount, label: day, title: "Ventes par jour"),
+ Chart(kind: pie, over: sales, value: amount, label: day, title: "Répartition des ventes"),
+ Input(value: dayName, label: "Jour", max: 20), Input(value: amount, label: "Montant entier", max: 6),
+ Button(name: AddSale, text: "Ajouter une vente"),
+ A("Retour aux parcours", to: "index.holo")],
+ rules: [On(AddSale.tap, effect: [sales.push(Item(day: dayName, amount: amount)), dayName.set(""), amount.set("")])])
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; computer: { max-width: 960px; } print: { background: white; color: black; } }
+H1 { color: #E9B44C; font-size: 28px; print: { color: black; } }
+H2 { color: #E9B44C; font-size: 22px; print: { color: black; } }
+A { color: #8fd3ff; print: { color: black; } }
+.card { background: #22223a; padding: 16px; border-radius: 8px; }

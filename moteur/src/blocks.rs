@@ -4,7 +4,7 @@
 use crate::holo::{Block, Error, Program, Value};
 
 /// `Text` est du texte sans rôle ; `P`, `H1`, `H2` et `H3` sont un `Text` avec un rôle (ADR-020).
-pub const BLOCKS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Component", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop", "H4", "H5", "H6", "Main", "Nav", "Header", "Footer", "Aside", "Stack", "Video", "Table", "Choice", "After", "Repeat", "Item", "Font", "Slider", "Progress", "Details", "Dialog", "Form", "Module", "Filter", "Days", "Drawing", "Rect", "Circle", "Line", "Path", "Chart", "Shared", "Stopwatch", "Transfer", "Device", "Notification", "Offline"];
+pub const BLOCKS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Component", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop", "H4", "H5", "H6", "Main", "Nav", "Header", "Footer", "Aside", "Stack", "Video", "Table", "Choice", "After", "Repeat", "Item", "Font", "Slider", "Progress", "Details", "Dialog", "Form", "Module", "Filter", "Days", "Drawing", "Rect", "Circle", "Line", "Path", "Chart", "Shared", "Stopwatch", "Transfer", "Device", "Notification", "Offline", "Term", "Address", "Abbreviation", "Fields"];
 
 /// Le titre le plus profond : `H6`, comme en HTML (correction d'ADR-020 du 2026-10-06 ; les
 /// longs documents en ont besoin). Le numéro dit toujours la place dans le plan, jamais la taille.
@@ -20,7 +20,7 @@ pub fn check_blocks(program: &Program) -> Result<(), Error> {
 /// absents de cette liste vérifient leurs réglages eux-mêmes (`State`, `Shared`, `Prices`, `Data`,
 /// `Zoom`, `Points`, `Relief`, `Portals`, `Enter`, `Loop`, `Use`).
 const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
-    ("Page", &["name", "title", "children", "pixels", "rules", "state", "shared", "prices", "keep", "data", "zoom", "points", "relief", "portals", "lang", "description", "image", "fonts", "icon", "modules", "components", "computed", "address", "access"]),
+    ("Page", &["name", "title", "children", "pixels", "rules", "state", "shared", "prices", "keep", "data", "zoom", "points", "relief", "portals", "lang", "description", "image", "fonts", "icon", "modules", "components", "computed", "address", "access", "abbreviations"]),
     ("World", &["name", "children", "pixels", "rules"]),
     ("Component", &["name", "params", "emits", "children", "rules"]),
     ("Text", &["name"]),
@@ -46,6 +46,8 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     ("Path", crate::drawing::PATH),
     ("Stopwatch", &["name", "value", "label"]),
     ("List", &["name", "children", "ordered"]),
+    // Un terme et sa définition, dans une liste (ADR-097) : Term("Poids", "2 kg").
+    ("Term", &["name"]),
     ("Hr", &["name"]),
     ("Quote", &["name", "by", "work"]),
     ("Code", &["name"]),
@@ -54,18 +56,23 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     ("Main", &["name", "children"]),
     ("Footer", &["name", "children"]),
     ("Aside", &["name", "children"]),
+    // Les moyens de joindre l'auteur de la page (ADR-098) : Address(children: [ … ]).
+    ("Address", &["name", "children"]),
     ("Row", &["name", "children", "gap", "align"]),
     ("Column", &["name", "children", "gap", "align"]),
     ("Grid", &["name", "children", "gap", "columns"]),
     ("Stack", &["name", "children"]),
     ("Board", &["name", "children", "height"]),
     ("Point", &["name", "seed", "brightness", "fragments", "color", "palette", "budget", "inside", "above"]),
-    ("Input", &["name", "value", "label", "min", "max", "lines", "type", "accept", "required"]),
+    // Des suggestions pendant qu'on écrit (ADR-100) : suggestions: ["Paris", "Lyon"], ou une liste de la page.
+    ("Input", &["name", "value", "label", "min", "max", "lines", "type", "accept", "required", "suggestions"]),
     ("Slider", &["name", "value", "label", "min", "max"]),
     ("Progress", &["name", "value", "max", "label"]),
     ("Details", &["name", "summary", "children", "open"]),
     ("Dialog", &["name", "children"]),
     ("Form", &["name", "children"]),
+    // Un groupe de champs et son nom, que le lecteur d'écran annonce (ADR-099).
+    ("Fields", &["name", "label", "children"]),
     ("Choice", &["name", "value", "label", "options", "menu", "required"]),
     ("Video", &["name", "source", "label", "weight", "captions"]),
     ("Table", &["name", "caption", "head", "rows"]),
@@ -78,6 +85,8 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     ("Scenes", &["name", "children", "height", "repeat"]),
     ("Scene", &["name", "children", "for"]),
     ("Font", &["family", "source"]),
+    // Une abréviation et son sens, déclarés une fois pour la page (ADR-098).
+    ("Abbreviation", &[]),
     ("Module", &["name", "source", "input", "output", "time", "memory"]),
     // Les données de la page (ADR-030) ; leur nom, que les règles écoutent (ADR-064).
     ("Data", &["name", "from", "every"]),
@@ -221,6 +230,10 @@ pub fn unknown_block(name: &str) -> String {
     }
     if name == "Style" || name == "Theme" {
         return format!("« {name} » n'est pas un bloc : un style s'écrit comme en CSS, après le bloc racine, « .card {{ color: gray; }} » ; le thème est le style de « Page » ou de « World » (ADR-017)");
+    }
+    // Les mots de HTML pour un groupe de champs (ADR-099) : le bloc s'appelle `Fields`, son nom `label:`.
+    if matches!(name, "Fieldset" | "FieldSet" | "Legend") {
+        return format!("bloc inconnu « {name} » : un groupe de champs s'écrit « Fields(label: \"Adresse de livraison\", children: [ … ]) », son nom dans « label: » (ADR-099)");
     }
     match old_word(name) {
         Some(new_one) => format!("bloc inconnu « {name} » : le vocabulaire est en anglais, écris « {new_one} » (ADR-016)"),

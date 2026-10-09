@@ -7,6 +7,7 @@
   import init, {
     flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, page_title, from_query, address_query, address_names, chart_html, shapes_html, module_info, module_finished, module_input, module_received, delays, reads_time, set_now, set_second, reads_seconds, stopwatch_stopped, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
     shared_names, with_shared, touches_shared, capability_export, capability_received,
+    suggestions_html,
   } from "/pkg-light/holo_engine.js";
   let host = null;
   const prepareHost = async () => {
@@ -128,6 +129,7 @@
   let liveFor = "";
   let sharedVersion = -1;     // le numéro du dernier changement reçu, et ses valeurs
   let sharedLatest = "";
+  const sharedDrafts = new Map(); // champ préparé ; la valeur publiée vient toujours du serveur
   let sharedQueue = Promise.resolve();
   let sharedWaiting = 0;
   const SHARED_WAITING_MAX = 20; // des touchers en attente du serveur, au plus
@@ -307,6 +309,7 @@
     const text = await read(file);
     if (text === null) return false;
     const since = location.pathname + location.hash;
+    sharedDrafts.clear();
     [path, base, source] = [file, folderOf(file), text];
     readSettings();
     // Un navigateur interdit à une page d'afficher l'adresse d'un autre serveur comme si elle
@@ -812,10 +815,13 @@
       // Une date se montre dans la langue de la page (ADR-067) ; un nombre, avec son format.
       const format = place.dataset.format;
       place.textContent = !format ? value : format === "date" || format === "weekday" ? format_date(value, format, language) : format_value(place.dataset.state, Number(value), format, language);
+      // Une date montrée se lit aussi par les machines (ADR-098) : <time datetime="2026-10-10">.
+      if (place.localName === "time") /^\d{4}-\d{2}-\d{2}$/.test(value) ? place.setAttribute("datetime", value) : place.removeAttribute("datetime");
     }
-    // Un champ et une case montrent leur valeur ; on ne récrit pas le champ où l'on est en train d'écrire.
+    // Le champ partagé garde son brouillon même sans focus ; les textes montrent la valeur publiée.
     for (const field of or_.querySelectorAll("[data-bind]")) {
       if (!values.has(field.dataset.bind)) continue;
+      if (or_===root&&sharedDrafts.has(field.dataset.bind)){field.value=decodeURIComponent(sharedDrafts.get(field.dataset.bind).slice(1));continue;}
       if (field.type === "checkbox") field.checked = values.get(field.dataset.bind) !== "0";
       // Un choix en boutons ronds : celui dont l'option est la valeur est coché (ADR-038).
       else if (field.type === "radio") field.checked = field.value === values.get(field.dataset.bind);
@@ -862,6 +868,14 @@
       if (drawing && fresh) drawing.outerHTML = fresh;
       chart.dataset.drawn = list;
     }
+    // Les suggestions d'un champ suivent leur liste (ADR-100) : le moteur refait les options du
+    // datalist quand elle change ; ce qu'on écrit dans le champ n'est pas touché.
+    for (const suggestions of or_.querySelectorAll("datalist[data-suggestions]")) {
+      const list = written.split(";").find((chunk) => chunk.startsWith(`${suggestions.dataset.suggestions}=[`)) ?? "";
+      if (suggestions.dataset.drawn === list) continue;
+      suggestions.innerHTML = suggestions_html(fileText, written, suggestions.dataset.suggestions);
+      suggestions.dataset.drawn = list;
+    }
     // Les conditions : If(count, is: 0). C'est le moteur qui répond ; la page ne compare rien
     // elle-même, elle cache ce que le moteur dit faux.
     const blocks = or_.querySelectorAll("[data-if],[data-else]");
@@ -881,9 +895,13 @@
   const isStep = (signal) => /\.tap(@\d+)?$/.test(signal) || signal.startsWith("Key.");
   // Un signal est émis (Add.tap) : l'arbitre du moteur dit ce que deviennent les valeurs, puis
   // les autres effets demandés par les règles sont appliqués.
-  function emit(signal) {
-    // Un toucher qui change une valeur partagée : c'est le serveur qui arbitre (ADR-079).
-    if (sharedNames.length && touches_shared(source, signal)) return shareGesture(signal, isStep(signal));
+  // `key` : la clé de la ligne touchée (data-key), pour un bouton dans la ligne d'une liste.
+  function emit(signal, key) {
+    // Un toucher qui change une valeur partagée : c'est le serveur qui arbitre (ADR-079). La ligne
+    // d'une liste partagée part avec sa clé : le serveur la retrouve même si d'autres ont ajouté
+    // ou retiré des lignes depuis (ADR-080). Le pas dans l'historique se lit sur le signal sans
+    // la clé.
+    if (sharedNames.length && touches_shared(source, signal)) return shareGesture(key !== undefined && /@\d+$/.test(signal) ? `${signal}#${key}` : signal, isStep(signal));
     const before = states.get(path) ?? "";
     // Ce que le serveur rejouera pour un membre (ADR-081) : les champs et l'adresse d'avant le
     // toucher, comme les enverrait la page sans JavaScript.
@@ -983,13 +1001,16 @@
     if (sharedWaiting >= SHARED_WAITING_MAX) return;
     sharedWaiting += 1;
     const for_ = path;
+    const clickedDrafts = new Map(sharedDrafts);
     const name = signal.split(".")[0];
     for (const block of root.querySelectorAll(`[data-name="${CSS.escape(name)}"]`)) block.classList.add("holo-waiting");
     root.setAttribute("aria-busy", "true");
     sharedQueue = sharedQueue.then(async () => {
       let reply = null;
       let status = 0;
-      const sent = states.get(for_) ?? "";
+      const pieces=new Map((states.get(for_) ?? "").split(";").filter(Boolean).map(c=>[c.slice(0,c.indexOf("=")),c.slice(c.indexOf("=")+1)]));
+      for(const [name,code]of clickedDrafts)pieces.set(name,code);
+      const sent=[...pieces].map(([name,code])=>`${name}=${code}`).join(";");
       const stop = new AbortController();
       const late = setTimeout(() => stop.abort(), 10000);
       try {
@@ -1010,6 +1031,9 @@
       // celles du serveur, sauf si un changement plus récent est déjà arrivé en direct.
       const version = Number(reply.version ?? -1);
       if (sharedVersion <= version) [sharedVersion, sharedLatest] = [version, String(reply.shared ?? "")];
+      if(reply.accepted){const published=new Map(String(reply.shared??"").split(";").filter(Boolean).map(c=>[c.slice(0,c.indexOf("=")),c.slice(c.indexOf("=")+1)]));
+        for(const [name,code]of clickedDrafts)if(sharedDrafts.get(name)===code&&published.get(name)===code)sharedDrafts.delete(name);
+      }
       const before = states.get(path) ?? "";
       const after = store(with_shared(source, gestureOn(before, sent, store(reply.state)), sharedLatest));
       if (valuesPanel) lastGesture = { signal, before, after };
@@ -1023,10 +1047,15 @@
   // Les changements d'un geste (de `sent` à `replied`) posés sur l'état `now` : une valeur que le
   // geste a changée prend sa nouvelle valeur, les autres restent celles de `now`. Le moteur relit
   // ensuite le tout avec méfiance (with_shared) et refait ce qu'il calcule.
+  function prepareSharedDraft(name,written){
+    const checked=input(source,states.get(path)??"",name,[...String(written)].slice(0,200).join(""));
+    const code=checked.split(";").find(c=>c.startsWith(name+"='"))?.slice(name.length+1);
+    if(code!==undefined)sharedDrafts.set(name,code);
+  }
   function gestureOn(now, sent, replied) {
     const read = (written) => new Map(written.split(";").filter(Boolean).map((chunk) => [chunk.slice(0, chunk.indexOf("=")), chunk.slice(chunk.indexOf("=") + 1)]));
     const [before, after, current] = [read(sent), read(replied), read(now)];
-    for (const [name, value] of after) if (before.get(name) !== value) current.set(name, value);
+    for (const [name, value] of after) if (before.get(name) !== value && current.get(name) === before.get(name)) current.set(name, value);
     return [...current].map(([name, value]) => `${name}=${value}`).join(";");
   }
 
@@ -1107,7 +1136,8 @@
       const changed = field.type === "checkbox" || field.type === "radio" ? field.checked !== field.defaultChecked : field.value !== field.defaultValue;
       if (!changed) continue;
       const written = field.type === "checkbox" ? (field.checked ? "1" : "0") : field.type === "file" ? allowedFile(field) : field.value;
-      states.set(path, store(input(source, states.get(path) ?? "", field.dataset.bind, written)));
+      if (shared_names(source).split(";").includes(field.dataset.bind)) prepareSharedDraft(field.dataset.bind,written);
+      else states.set(path, store(input(source, states.get(path) ?? "", field.dataset.bind, written)));
     }
   }
 
@@ -2010,9 +2040,11 @@
       }
       const block = event.target.closest("[data-name]");
       if (!block) return;
-      // Un bouton dans la ligne d'une liste dit de quelle ligne il vient : Done.tap@2 (ADR-044).
-      const line = block.closest("[data-rank]")?.dataset.rank;
-      emit(line === undefined ? `${block.dataset.name}.tap` : `${block.dataset.name}.tap@${line}`);
+      // Un bouton dans la ligne d'une liste dit de quelle ligne il vient : Done.tap@2 (ADR-044),
+      // et sa clé, qui la désigne dans une liste partagée (ADR-080).
+      const lineOf = block.closest("[data-rank]");
+      const line = lineOf?.dataset.rank;
+      emit(line === undefined ? `${block.dataset.name}.tap` : `${block.dataset.name}.tap@${line}`, lineOf?.dataset.key);
     });
     // Faire glisser un bloc d'un plateau (drag: true), au doigt ou à la souris. La page dit à
     // l'arbitre où est le doigt, de 0 à 100 ; c'est lui qui change les valeurs.
@@ -2073,7 +2105,8 @@
       const field = event.target.closest("[data-bind]");
       if (!field) return;
       const written = field.type === "checkbox" ? (field.checked ? "1" : "0") : field.type === "file" ? allowedFile(field) : field.value;
-      changeState(store(input(source, states.get(path) ?? "", field.dataset.bind, written)));
+      if (sharedNames.includes(field.dataset.bind)) prepareSharedDraft(field.dataset.bind,written);
+      else changeState(store(input(source, states.get(path) ?? "", field.dataset.bind, written)));
       // Après un premier essai d'envoi, les messages suivent ce qu'on corrige (ADR-068).
       const form = field.closest(".holo-Form");
       if (form?.dataset.tried) showFormErrors(form.dataset.name, false);
@@ -2097,7 +2130,9 @@
       const [name, gesture = "tap"] = expected.split(".");
       if (gesture === "tap") {
         const [single, line] = name.split("@");
-        emit(line === undefined ? `${single}.tap` : `${single}.tap@${line}`);
+        // La page n'a pas changé depuis le toucher : la ligne de ce rang donne sa clé (ADR-080).
+        const key = line === undefined ? undefined : root.querySelector(`[data-rank="${CSS.escape(line)}"] [data-name="${CSS.escape(single)}"]`)?.closest("[data-rank]")?.dataset.key;
+        emit(line === undefined ? `${single}.tap` : `${single}.tap@${line}`, key);
         continue;
       }
       // Un survol à la souris ou au clavier est rejoué s'il dure encore ; au doigt, le toucher survole.

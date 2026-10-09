@@ -57,6 +57,8 @@ pub mod server;
 // Les comptes de holo serve (ADR-081) : mots de passe, code à 6 chiffres, sessions. Sur le PC seulement.
 #[cfg(not(target_arch = "wasm32"))]
 pub mod accounts;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod passkeys;
 
 use holo::{Error, Program, Value};
 use universe::PointDecl;
@@ -271,7 +273,7 @@ pub fn visitor_page(source: &str, base: &str, state: &str, tried: &[String]) -> 
     let start = (state::reread(&program, state), state::reread_texts(&program, state), lists::reread(&program, state));
     let html = with_shared_mark(&program, flat::site_html_from(&program, &program.root, base, "", Some(&start))?, state);
     let written = state.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
-    let mut page = gestures::without_script(&html.replacen(" data-title=\"", &format!(" data-visit=\"{written}\" data-title=\""), 1));
+    let mut page = gestures::without_script(&html.replacen(" data-title=\"", &format!(" data-visit=\"{written}\" data-title=\""), 1), &shared::keyed_lists(&program));
     for form in tried {
         let errors: Vec<(String, String)> = form_errors(source, state, form).lines().filter_map(|line| line.split_once('|')).map(|(bind, message)| (bind.to_string(), message.to_string())).collect();
         page = gestures::with_errors(&page, form, &errors);
@@ -315,7 +317,7 @@ pub fn shared_names(source: &str) -> String {
 /// Les valeurs partagées d'un état, écrites comme l'état : `seats=19;likes=3;last='Ada` (ADR-079).
 pub fn shared_of(source: &str, state: &str) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
-    shared::written(&program, &state::reread(&program, state), &state::reread_texts(&program, state))
+    shared::written(&program, &state::reread(&program, state), &state::reread_texts(&program, state), &lists::reread(&program,state))
 }
 
 /// L'état d'un visiteur avec les valeurs partagées que le serveur garde (ADR-079) : celles de
@@ -325,16 +327,18 @@ pub fn with_shared(source: &str, state: &str, shared: &str) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
     state::requested_capabilities();
     let (numbers, texts, lists) = (state::reread(&program, state), state::reread_texts(&program, state), lists::reread(&program, state));
-    let (merged_numbers, merged_texts) = shared::merged(&program, &numbers, &texts, shared);
+    let (merged_numbers, merged_texts, lists) = shared::merged(&program, &numbers, &texts, &lists, shared);
+    lists::set_running(lists.clone());
     let after = state::after_change(&program, numbers, &texts, merged_numbers, &merged_texts);
     write_all(&program, &after, &merged_texts, &lists)
 }
 
 /// Ce geste change-t-il une valeur partagée ? Un toucher dont une règle demande de la changer
-/// (ADR-079) : la page l'envoie alors au serveur, qui l'arbitre, au lieu de l'arbitrer seule.
+/// (ADR-079), ou change une fiche d'une liste partagée (`item.done.set(1)`, ADR-080) : la page
+/// l'envoie alors au serveur, qui l'arbitre, au lieu de l'arbitrer seule.
 pub fn touches_shared(source: &str, signal: &str) -> bool {
     let Ok(program) = check_page(source) else { return false };
-    gestures::is_tap(signal) && state::touched_ones(&program, lists::signal_and_line(signal).0).iter().any(|value| program.shared.contains(value))
+    gestures::is_tap(signal) && (state::touched_ones(&program, lists::signal_and_line(signal).0).iter().any(|value| program.shared.contains(value)) || shared::changes_shared_line(&program, signal))
 }
 
 /// Le serveur arbitre un geste sur une page qui partage des valeurs (ADR-079). `state` est l'état
@@ -348,8 +352,12 @@ pub fn share(source: &str, state: &str, shared: &str, signal: &str) -> (String, 
     if !gestures::is_tap(signal) || !shared::shown(&program, &merged, signal) {
         return (merged, false);
     }
-    match arbitrate(source, &merged, signal) {
-        after if after.is_empty() => (merged, false),
+    // La ligne touchée d'une liste partagée se retrouve par sa clé, dans la liste que garde le
+    // serveur, au rang qu'elle y a maintenant (ADR-080) ; jamais par le rang qu'avait la page.
+    let Some(signal) = shared::line_by_key(&program, &merged, signal) else { return (merged, false) };
+    let prepared = shared::with_drafts(&program, state, &signal);
+    match arbitrate_program(&prepared, &merged, &signal) {
+        after if after.is_empty() || !shared::within_budget(&program,&after) => (merged, false),
         after => (cut_shared(&program, &after), true),
     }
 }
@@ -442,7 +450,7 @@ fn with_shared_mark(program: &Program, html: String, written: &str) -> String {
     if program.shared.is_empty() {
         return html;
     }
-    let values = shared::written(program, &state::reread(program, written), &state::reread_texts(program, written));
+    let values = shared::written(program, &state::reread(program, written), &state::reread_texts(program, written), &lists::reread(program, written));
     let values = values.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
     html.replacen(" data-title=\"", &format!(" data-shared=\"{values}\" data-title=\""), 1)
 }
@@ -478,6 +486,9 @@ pub fn initial_state(source: &str) -> String {
 /// reçu est relu avec méfiance : rien n'y passe que la page ne déclare.
 pub fn arbitrate(source: &str, state: &str, signal: &str) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
+    arbitrate_program(&program,state,signal)
+}
+fn arbitrate_program(program:&Program,state:&str,signal:&str)->String{
     state::requested_capabilities();
     // Un geste d'une ligne (`Done.tap@2`) : les nombres changent comme pour `Done.tap` ; les
     // listes et les textes savent de quelle ligne il vient (ADR-044).
@@ -646,6 +657,17 @@ pub fn shapes_html(source: &str, state: &str, list: &str) -> String {
     lists.iter().find(|(name, _)| name == list).map(|(_, elements)| drawing::listed_shapes(elements)).unwrap_or_default()
 }
 
+/// Les suggestions d'un champ venues d'une liste de la page, pour cet état (ADR-100) : la page
+/// les pose dans le datalist de la liste quand elle change. Vide si la liste n'existe pas.
+pub fn suggestions_html(source: &str, state: &str, list: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    let (numbers, texts) = (state::reread(&program, state), state::reread_texts(&program, state));
+    let mut lists = lists::reread(&program, state);
+    let computed = computed::apply(&program, &numbers, &texts, &lists);
+    lists.extend(computed);
+    lists.iter().find(|(name, _)| name == list).map(|(_, elements)| flat::options(elements)).unwrap_or_default()
+}
+
 /// La seconde de l'appareil du visiteur, de 0 à 59 (ADR-089).
 pub fn set_second(second: u64) {
     state::set_second(second);
@@ -718,12 +740,11 @@ pub fn data(source: &str) -> String {
 pub fn receive(source: &str, state: &str, json: &str) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
     state::requested_capabilities();
-    let (before_numbers, before_texts) = (state::reread(&program, state), state::reread_texts(&program, state));
+    let (before_numbers, before_texts, before_lists) = (state::reread(&program, state), state::reread_texts(&program, state), lists::reread(&program, state));
     let (numbers, texts) = state::receive(&program, &before_numbers, &before_texts, json);
+    let lists = lists::receive(&program, &before_lists, json);
     // Des données reçues ne changent pas une valeur partagée : seul le serveur la change (ADR-079).
-    let (numbers, texts) = if program.shared.is_empty() { (numbers, texts) } else { shared::merged(&program, &numbers, &texts, &shared::written(&program, &before_numbers, &before_texts)) };
-    // Les listes aussi : un tableau de textes, ou d'objets (ADR-051).
-    let lists = lists::receive(&program, &lists::reread(&program, state), json);
+    let (numbers, texts, lists) = if program.shared.is_empty() { (numbers, texts, lists) } else { shared::merged(&program, &numbers, &texts, &lists, &shared::written(&program, &before_numbers, &before_texts, &before_lists)) };
     write_all(&program, &numbers, &texts, &lists)
 }
 

@@ -1,0 +1,45 @@
+// Leçon 123 — Des suggestions dans un champ
+//
+// Ce qu'on apprend :
+//   Input(value: fruit, label: "…", suggestions: ["Pomme", "Poire", "Abricot"]) : pendant
+//   qu'on écrit, le champ propose ses suggestions. On en touche une, ou on écrit autre
+//   chose : ce n'est pas un Choice, qui oblige à prendre l'une de ses options.
+//   suggestions: villes : les suggestions viennent d'une liste de la page. Quand la liste
+//   change pendant la visite (villes.push(ville)), les suggestions suivent. Une ville écrite
+//   deux fois dans la liste n'est proposée qu'une fois.
+//   C'est le navigateur qui montre les suggestions, sur un téléphone comme sur un
+//   ordinateur, même sans JavaScript ; il dit au lecteur d'écran que le champ en propose.
+//   Un navigateur qui ne sait pas les montrer garde un champ ordinaire.
+//
+// À essayer :
+//   Écris « Grenoble » dans le second champ, touche « Retenir cette ville », vide le champ,
+//   puis écris « Gr » : Grenoble est proposée. Puis donne des suggestions à un champ de
+//   nombre (State(jours: 0), Input(value: jours, …)) : le moteur le refuse, et dit pourquoi.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 123 : des suggestions dans un champ",
+  state: State(fruit: "", ville: "", villes: ["Paris", "Lyon", "Marseille", "Lille", "Bordeaux"]),
+  children: [
+    H1("Le carnet de voyage"),
+    Input(value: fruit, label: "Un fruit pour la route", suggestions: ["Pomme", "Poire", "Abricot", "Mirabelle"]),
+    Input(value: ville, label: "La ville où tu vas", suggestions: villes),
+    Button(name: Retenir, text: "Retenir cette ville"),
+    If(ville, not: "", children: [ P("Tu vas à {ville}.") ]),
+    P("Les villes de la liste, d'où viennent les suggestions :"),
+    Row(gap: 8px, children: [ Repeat(over: villes, children: [ Text.ville("{item}") ]) ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 122 : un groupe de champs", to: "122-un-groupe-de-champs.holo"),
+      A("Leçon 124 : une citation courte, le titre d'une œuvre →", to: "124-une-citation-courte.holo"),
+    ]),
+  ],
+  rules: [ On(Retenir.tap, effect: villes.push(ville)) ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+Button { background: #E9B44C; color: #101020; padding: 10px 16px; border-radius: 8px; }
+.ville { border: 1px solid #E9B44C; border-radius: 8px; padding: 4px 10px; }
