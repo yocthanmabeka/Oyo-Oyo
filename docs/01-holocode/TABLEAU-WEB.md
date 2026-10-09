@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-09). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (444 mots : 442 décidés, 2 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (134) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (457 mots : 446 décidés, 11 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (135) et ce que HoloCode en a.
 - **Existe ?** : le jugement de Claude, élément par élément (oui, en partie, non) ; ce n’est pas une mesure. Le tableau ne donne pas de pourcentage : aucune méthode reproductible ne mesure la part d’un élément du web qu’on obtient en HoloCode (consigne de Yocthan du 2026-10-07). Les comptes se refont en comptant les lignes.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,11 +9,11 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 444 mots | 442 décidés, 2 à l’essai |
-| HTML | 62 éléments | 52 oui, 4 en partie, 3 non, 3 refusés |
+| **HoloCode** | 457 mots | 446 décidés, 11 à l’essai |
+| HTML | 62 éléments | 56 oui, 3 en partie, 0 non, 3 refusés |
 | CSS | 35 éléments | 29 oui, 4 en partie, 0 non, 2 refusés |
-| JavaScript | 37 éléments | 20 oui, 14 en partie, 1 non, 1 refusés, 1 sans objet |
-| HTML, CSS, JS ensemble | 134 éléments | 101 oui, 22 en partie, 4 non, 6 refusés, 1 sans objet |
+| JavaScript | 38 éléments | 21 oui, 14 en partie, 1 non, 1 refusés, 1 sans objet |
+| HTML, CSS, JS ensemble | 135 éléments | 106 oui, 21 en partie, 1 non, 6 refusés, 1 sans objet |
 
 # Partie 1 — Les mots de HoloCode
 
@@ -35,6 +35,7 @@
 | `Main` | Le contenu principal | `main` | Décidé (ADR-036) |
 | `Footer` | Le pied de page | `footer` | Décidé (ADR-036) |
 | `Aside` | Un encadré à part, annoncé comme un contenu complémentaire | `aside` | Décidé (ADR-073) |
+| `Address` | Les moyens de joindre l'auteur de la page ; ni titre ni repère dedans, le texte droit | `address` | À l’essai (ADR-098) |
 
 ## Blocs : le texte
 
@@ -49,7 +50,9 @@
 | `Quote` | Une citation, et son auteur | `blockquote` | Décidé (ADR-025) |
 | `Code` | Du code montré tel quel | `pre, code` | Décidé (ADR-025) |
 | `List` | Une liste, à puces ou numérotée | `ul, ol, li` | Décidé (ADR-009) |
+| `Term (dans List)` | Un terme et sa définition ; une List de Term devient une liste de définitions : un glossaire, une fiche technique | `dl, dt, dd` | À l’essai (ADR-097) |
 | `Table` | Un tableau de données | `table, caption, thead, tbody, tr, th, td` | Décidé (ADR-038) |
+| `Abbreviation (dans abbreviations)` | Une abréviation et son sens : marquée partout où elle vient, son sens écrit une fois entre parenthèses, au premier paragraphe qui la nomme | `abbr title` | À l’essai (ADR-098) |
 
 ## Blocs : les médias
 
@@ -149,6 +152,7 @@
 | `to` | L'adresse d'un lien | `href` | Décidé (ADR-022) |
 | `newTab, download (dans A)` | Un nouvel onglet, annoncé, qui ne peut pas toucher à la page ; un fichier rangé à côté qui se télécharge | `target=_blank rel=noopener, download` | Décidé (ADR-073) |
 | `by` | L'auteur d'une citation | `cite` | Décidé (ADR-025) |
+| `work (dans Quote)` | L'œuvre d'où vient une citation, après son auteur | `cite` | À l’essai (ADR-101) |
 | `ordered` | Une liste numérotée | `ol` | Décidé (ADR-009) |
 | `caption, head, rows` | La légende, les titres de colonnes et les lignes d'un tableau | `caption, thead, tbody` | Décidé (ADR-038) |
 
@@ -292,6 +296,7 @@
 | `import` | Importer un autre fichier .holo | `link, script src` | Décidé (ADR-029) |
 | `//` | Un commentaire | `<!-- -->, /* */, //` | Décidé (ADR-009) |
 | `` **gras**, *italique*, `code` `` | Le texte enrichi, en Markdown | `strong, em, code` | Décidé (ADR-019) |
+| `<<citation>>, _titre_` | Une citation courte au milieu d'une phrase, avec les guillemets de la langue de la page (« » et leurs espaces fines en français) ; le titre d'une œuvre | `q, cite` | À l’essai (ADR-101) |
 | `""" … """` | Un texte qui garde ses retours à la ligne | `br` | Décidé (ADR-025) |
 
 ## Blocs : les règles
@@ -326,6 +331,7 @@
 | `Repeat` | Écrire un modèle une fois, le poser pour chaque élément | `for, map, template` | Décidé (ADR-040) |
 | `Item` | Un élément d'une répétition, et ses champs | `un objet JavaScript` | Décidé (ADR-040) |
 | `Shared` | Des valeurs gardées par le serveur pour tout le monde, une fois par adresse, vues en direct | `WebSocket, une base côté serveur` | Décidé (ADR-079) |
+| `Shared(names: [ … ])` | Une liste partagée, de textes ou de fiches, 50 éléments au plus : seul un toucher la change, arbitré par le serveur, la ligne désignée par sa clé ; un texte partagé se prépare dans un champ, puis un toucher le confirme | `WebSocket, une base côté serveur` | Décidé (ADR-080) |
 
 ## Paramètres : les valeurs
 
@@ -374,6 +380,7 @@
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `Form` | Un formulaire qu'une règle envoie | `form, fetch POST` | Décidé (ADR-042) |
+| `Fields` | Des champs qui vont ensemble (deux au moins) et le nom de leur groupe, annoncé par le lecteur d'écran ; dans un formulaire ou non | `fieldset, legend` | À l’essai (ADR-099) |
 | `Slider` | Une glissière entre deux bornes | `input type=range` | Décidé (ADR-042) |
 | `Progress` | Une barre de progression | `progress` | Décidé (ADR-042) |
 | `Transfer` | Exporter les valeurs annoncées dans un fichier JSON, et les reprendre : l'import est relu en entier, pris tout entier ou refusé ; 64 Ko | `a download + Blob, input type=file + FileReader, JSON.parse` | Décidé (ADR-093) |
@@ -403,6 +410,7 @@
 | `type, min, summary, open` | date, time, color ; le minimum d'une glissière ; le résumé d'un pli, ouvert au départ | `type, min, summary, open` | Décidé (ADR-042) |
 | `type: file, accept` | Choisir un fichier à envoyer par un formulaire : image ou pdf, avec une taille maximale | `input type=file, accept` | Décidé (ADR-059) |
 | `required, type: email, min (longueur d'un texte)` | Un formulaire qui vérifie : obligatoire, e-mail, longueurs ; messages sous les champs ; vérifié aussi au serveur | `required, type=email, minlength` | Décidé (ADR-068) |
+| `suggestions (dans Input)` | Des suggestions pendant qu'on écrit, écrites (de 1 à 200) ou tirées d'une liste de textes de la page, refaites quand elle change ; on peut écrire autre chose | `datalist, input list` | À l’essai (ADR-100) |
 | `file, values (dans Transfer)` | Le nom du fichier, et les valeurs qu'on y garde | `download, Blob` | Décidé (ADR-093) |
 | `kind: position, clipboard, camera, microphone` | La sorte d'appareil demandée | `geolocation, clipboard, getUserMedia` | Décidé (ADR-094) |
 | `title, body, after (dans Notification)` | Le titre, le texte, et le délai d'un rappel | `Notification(title, { body }), setTimeout` | Décidé (ADR-095) |
@@ -479,6 +487,7 @@
 | `shared` | Les valeurs partagées de la page : seul un toucher les change, arbitré par le serveur | `WebSocket, EventSource` | Décidé (ADR-079) |
 | `address` | Les valeurs de la page écrites dans l’adresse, après le ? : « Précédent » revient à l’onglet d’avant, et l’adresse se partage | `history.pushState, URLSearchParams, popstate` | À l’essai (ADR-091) |
 | `access, members, everyone` | Réserver la page aux membres (access: members) ; everyone, qu'on n'écrit pas, l'ouvre à tous | `@login_required (Django), un middleware (Next.js)` | Décidé (ADR-081) |
+| `abbreviations` | Les abréviations de la page, de 1 à 50, déclarées une fois pour toute la page | `abbr title` | À l’essai (ADR-098) |
 
 ## Signaux et capacités
 
@@ -493,6 +502,7 @@
 | `module "…"` | Annoncer un module en haut du fichier | `script src` | Décidé (ADR-045) |
 | `{id} dans le nom du fichier` | Une adresse qui porte une valeur : profil/{id}.holo sert /profil/123 ; la page lit {id}, sans le changer | `[id] (Next.js), :id (Express)` | Décidé (ADR-078) |
 | `/account, /account/signin, /account/signup` | Les pages de compte du serveur (un mot de passe, puis un code à 6 chiffres), fabriquées par le moteur, sans JavaScript ; les seuls liens qui partent de la racine du site | `/accounts/login/ (Django), /users/sign_in (Devise)` | Décidé (ADR-081) |
+| `/account/passkeys, /account/code/setup, /account/delete` | Les clés d'accès, vérifiées par le serveur en Rust (HTTPS sur un téléphone) ; le QR et dix codes de secours du code à 6 chiffres ; effacer son compte, sauvegardes comprises ; trente envois de compte par minute et par adresse | `navigator.credentials (WebAuthn), otpauth://` | Décidé (ADR-082, ADR-083) |
 
 ## Valeurs calculées
 
@@ -531,11 +541,11 @@
 | `*italique*` | `em, i` | l'italique | Oui | Déjà là | — |
 | `texte entre trois guillemets` | `br` | retour à la ligne | Oui | Déjà là | — |
 | `Hr()` | `hr` | un trait de séparation | Oui | Déjà là | — |
-| `Quote("…", by:)` | `blockquote, q, cite` | les citations | En partie | Déjà là | Pas de citation courte au milieu d'une phrase. |
+| `Quote("…", by:, work:), <<…>>, _…_` | `blockquote, q, cite` | les citations | Oui | Déjà là | La citation courte et le titre d'une œuvre : ajoutés le 2026-10-09 (ADR-101). Les guillemets de la langue de la page sont écrits pour de vrai (« » et leurs espaces fines en français) : ils se copient, et restent sans style. Une citation courte n'a pas encore sa source (cite=). |
 | `Code("…"), accents graves` | `pre, code, kbd` | du code montré tel quel | Oui | Déjà là | — |
 | `~~barré~~, ==surligné==` | `u, s, mark` | souligné, barré, surligné | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). Pas de souligné, exprès : il ressemble à un lien. |
 | `m^2^, H~2~O ; petit par le style` | `small, sub, sup` | petit, indice, exposant | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
-| — | `abbr, time, address` | sigle, date, adresse | Non | Plus tard | — |
+| `Page(abbreviations: [ Abbreviation("MJC", "…") ]), {d:date}, Address(children:)` | `abbr, time, address` | sigle, date, adresse | Oui | Déjà là | Ajouté le 2026-10-09 (ADR-098) : une abréviation marquée partout, son sens écrit une fois entre parenthèses, car le seul title ne se voit pas au doigt et la plupart des lecteurs d'écran ne le lisent pas ; une date montrée devient un time lisible par les machines, qui suit les gestes ; l'adresse de l'auteur, sans titre ni repère dedans. Une heure seule n'est pas encore un time. |
 
 ## HTML — Listes et liens
 
@@ -543,7 +553,7 @@
 |---|---|---|---|---|---|
 | `List(children:)` | `ul, li` | liste à puces | Oui | Déjà là | — |
 | `List(ordered: true)` | `ol` | liste numérotée | Oui | Déjà là | — |
-| — | `dl, dt, dd` | liste de définitions | Non | Plus tard | Un glossaire, une fiche technique. |
+| `List(children: [ Term("Poids", "2 kg") ])` | `dl, dt, dd` | liste de définitions | Oui | Déjà là | Ajouté le 2026-10-09 (ADR-097) : une List dont les éléments sont des Term devient une liste de définitions ; un glossaire, une fiche technique. Le terme en gras, la définition dessous : lisible sur un téléphone. |
 | `A("…", to:)` | `a href` | un lien | Oui | Déjà là | — |
 | `A(to: "#Horaires")` | `a vers un endroit de la page` | sauter plus bas dans la page | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). Un nom qui n'existe pas est refusé. |
 | `A(newTab: true), A(download: true)` | `a target, download` | nouvel onglet, télécharger | Oui | Déjà là | Ajouté le 2026-10-07 (ADR-073) : noopener, et l'annonce au lecteur d'écran d'un nouvel onglet ; un téléchargement seulement pour un fichier rangé à côté. |
@@ -583,7 +593,7 @@
 | `label: (obligatoire)` | `label` | le nom d'un champ | Oui | Déjà là | Mieux que HTML : impossible de l'oublier. |
 | `Input(…, lines: 5)` | `textarea` | un texte long | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
 | `Choice(…, menu: true)` | `select, option` | une liste déroulante | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
-| — | `fieldset, legend, datalist` | regrouper, suggérer | Non | Plus tard | — |
+| `Fields(label:, children:), Input(suggestions:)` | `fieldset, legend, datalist` | regrouper, suggérer | Oui | Déjà là | Ajouté le 2026-10-09 : un groupe de champs et son nom, annoncé par le lecteur d'écran, dans un formulaire ou non (ADR-099) ; des suggestions pendant qu'on écrit, écrites ou tirées d'une liste de la page qui change pendant la visite (ADR-100). |
 | `{valeur}, {total}` | `output` | afficher un résultat | Oui | Déjà là | — |
 | `Progress(value:, max:, label:)` | `progress, meter` | une barre de progression | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). Pas de meter (zones bonne, moyenne, mauvaise). |
 
@@ -682,7 +692,7 @@
 | `Module(…) : du code WebAssembly enfermé` | `fonctions` | du calcul réutilisable | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-045) : un nombre en entrée, un nombre en sortie, arrêté s'il dure trop. Le 2026-10-07 (ADR-077) : des nombres à virgule, des textes et des listes, en entrée et en sortie. |
 | `{nom} dans un texte` | `texte (majuscules, longueur, découper)` | travailler un texte | En partie | Plus tard | — |
 | `random, rejouable` | `Math.random` | le hasard | Oui | Déjà là | Mieux pour un jeu : la même partie se rejoue. |
-| `{weekday:name} {day} {month:name} {year}, {hour} h {minute:00}` | `Date` | la date et l'heure du jour | En partie | Déjà là | ADR-039 et ADR-043. Pas encore de calcul sur les dates (un compte à rebours). |
+| `{d:date}, today, Days(name:, from:, to:), due.add(7), {hour} h {minute:00}` | `Date` | la date et l'heure du jour | En partie | Déjà là | ADR-039 et ADR-043 ; les dates (ADR-067) : le jour même, comparer deux dates, avancer ou reculer de jours entiers, compter les jours entre deux. Pas encore d'heure seule qui se compare, ni de compte à rebours en heures et minutes. |
 | `{n:number}, {n:cents}, {minute:00}, {weekday:name}` | `Intl (formats)` | 1 234,50 €, dates en français | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-043). Langue de la page ; noms en français et en anglais. |
 
 ## JavaScript — Temps
@@ -699,7 +709,7 @@
 |---|---|---|---|---|---|
 | `Data(from:, every:)` | `fetch (lire)` | lire des données d'un serveur | En partie | Déjà là | Des valeurs et des listes d'objets JSON (ADR-051) ; seulement le serveur d'où vient la page. |
 | `Contact.send` | `fetch (envoyer)` | envoyer au serveur | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). Les valeurs d'un formulaire, au serveur d'où vient la page. |
-| `shared: Shared(seats: 20)` | `WebSocket` | parler en direct avec un serveur | Oui | Déjà là | Ajouté le 2026-10-08 (ADR-079) : des valeurs gardées par le serveur pour tout le monde, reçues en direct par chaque page ouverte (Server-Sent Events) ; seul un toucher les change, et le serveur l’arbitre. Le jeu à plusieurs viendra après. |
+| `Shared(seats: 20), Shared(names: [])` | `WebSocket` | parler en direct avec un serveur | Oui | Déjà là | Ajouté le 2026-10-08 (ADR-079) : des valeurs gardées par le serveur pour tout le monde, reçues en direct par chaque page ouverte (Server-Sent Events) ; seul un toucher les change, et le serveur l’arbitre. Le 2026-10-09 (ADR-080) : les listes partagées, la ligne désignée par sa clé, et les textes confirmés par un toucher ; soixante touchers par minute et par visiteur, cent quatre-vingts par adresse IP. Le jeu à plusieurs viendra après. |
 | `keep: [panier]` | `localStorage` | garder dans le navigateur | Oui | Déjà là | Rangé sous l'adresse : un modèle d'adresse garde des valeurs pour chacune (ADR-090). |
 | `Transfer(file:, values:), export, import` | `Blob, FileReader (exporter, importer)` | garder ses valeurs dans un fichier, les reprendre | Oui | Déjà là | Ajouté le 2026-10-09 (ADR-093) : un fichier JSON des seules valeurs annoncées ; l'import est relu en entier, pris tout entier ou refusé ; 64 Ko au plus. |
 | — | `cookies, sessionStorage` | se souvenir le temps d'une visite | Non | Plus tard | — |
@@ -724,4 +734,5 @@
 | `Device(kind: position \| camera \| microphone), request, stop` | `géolocalisation, caméra, vibration` | l'appareil du visiteur | En partie | Déjà là | Ajouté le 2026-10-09 (ADR-094) : demandé sur le toucher d'un bouton, rien n'est envoyé, une capture s'arrête d'office. Pas encore la vibration. |
 | `Device(kind: clipboard), write` | `presse-papiers, partage` | copier, partager | En partie | Déjà là | Ajouté le 2026-10-09 (ADR-094) : copier dans le presse-papiers, sur un toucher. Pas encore le partage du téléphone. |
 | `Notification(title:, body:, after:), show, stop` | `Notification` | prévenir le visiteur | En partie | Déjà là | Ajouté le 2026-10-09 (ADR-095) : une notification locale, sur permission, tant que la page est ouverte. Pas de « push » envoyé par le serveur. |
-| `Page(access: members), signedIn, {account}` | `paiement, comptes` | payer, se connecter | En partie | Déjà là | Les comptes : ajoutés le 2026-10-08 (ADR-081), gardés par holo serve dans la base du site, un mot de passe puis un code à 6 chiffres, sans prestataire. Pas encore de paiement. |
+| `Page(access: members), signedIn, {account}, /account/passkeys, /account/delete` | `paiement, comptes` | payer, se connecter | En partie | Déjà là | Les comptes : ajoutés le 2026-10-08 (ADR-081), gardés par holo serve dans la base du site, un mot de passe puis un code à 6 chiffres, sans prestataire. Le 2026-10-09 : les clés d'accès (ADR-082) ; le QR, dix codes de secours, l'effacement du compte, sauvegardes comprises, et un frein par adresse (ADR-083). Pas encore de paiement. |
+| `/account/passkeys` | `WebAuthn (clés d'accès)` | se connecter sans mot de passe | Oui | Déjà là | Ajouté le 2026-10-09 (ADR-082) : une clé d'accès (l'empreinte, le visage ou le code de l'appareil), vérifiée chez l'auteur par le serveur en Rust, sans service extérieur. Sur un téléphone, HTTPS est obligatoire. Sans JavaScript, la clé n'existe pas : le mot de passe et le code restent. |
