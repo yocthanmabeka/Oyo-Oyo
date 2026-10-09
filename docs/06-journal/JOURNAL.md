@@ -6,6 +6,39 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Les comptes et le partage de Codex, relus, corrigés et intégrés ; la suite de Gemini finie
+
+- Yocthan : « tu valides tout ce qu'on avait fait avec Codex », y compris `p256` et `sha2`, et continuer nous-mêmes le travail de Codex et de Gemini.
+- Repris sur `reprise/codex-fin` : la chaîne de Codex 205 (les protections du compte), 206 (les clés d'accès) et 207 (le partage), puis le travail laissé en cours par Gemini (5211a68). Rejoué ensuite sur `main` (les lots 7 et 9, le catalogue de Codex, PR 177 et 211), sans la PR 204, refusée : `integration/codex-comptes-partage`. Les commits de Codex et de Gemini sont gardés tels quels ; chaque correction est un commit à part.
+- **Les défauts trouvés à la relecture, corrigés :**
+  - 205 :
+    - la page des codes de secours menait à `/account`, sans la nouvelle « Le code à 6 chiffres est activé », et l'essai du lot 7 ratait, avec et sans JavaScript : elle mène maintenant à `/account?done=code` ;
+    - l'essai du frein par adresse appelait `fetch` depuis une page de compte, que sa CSP interdit : 31 vrais formulaires, envoyés par Chrome, dont les réponses sont lues par le protocole ;
+    - un fichier privé qui ne s'efface pas (pris sous Windows) empêchait `holo serve` de démarrer : il est dit, gardé en attente, et les autres fichiers sont essayés ;
+    - jsQR venait d'unpkg pendant les essais : la version 1.4.0 (Apache-2.0) est gardée dans `moteur/outils/vendor/jsqr-1.4.0/`, avec sa licence, après vérification de son empreinte sur le registre npm.
+  - 206 :
+    - l'essai lisait `added.authenticatorId` au lieu de `result.authenticatorId` : l'authentificateur virtuel n'était jamais retrouvé. La création, la connexion, les altérations, le réemploi et le retrait tournent maintenant pour de vrai dans Chrome ;
+    - l'essai de l'adresse IP appelait localhost ; il appelle `127.0.0.1` (refusé), puis localhost (admis) ;
+    - l'essai lançait `rustfmt`, qui réécrivait `src/passkeys.rs`, et vidait `Cargo.lock` et la source dans les journaux : retiré ;
+    - `Cargo.lock` : `p256`, `sha2` et leurs dépendances y sont (depuis le commit de Gemini), `--locked` passe ;
+    - derrière le proxy HTTPS de l'auteur, tout le site partageait un seul frein de 30 envois par minute (tout vient de 127.0.0.1) : avec `HOLO_ORIGIN`, et seulement pour une demande venue de ce PC, le frein prend la dernière adresse de `X-Forwarded-For`, celle qu'écrit le proxy.
+  - 207 :
+    - le partage ne compilait pas (`shared::written` et `shared::merged` appelés avec leurs anciens arguments ; corrigé par Gemini, vérifié) ;
+    - ses tests n'avaient jamais tourné : `names.clear` au lieu de `names.clear()`, dans un test et dans la leçon 102, et un texte codé attendu en clair ;
+    - `Module(output: …)` : la correction et le message de la PR 208, une seule fois pour les deux.
+- **La suite de Gemini** : il retrouvait la ligne touchée d'une liste partagée d'après la copie de la liste envoyée par la page. C'était juste pour un visiteur avec JavaScript ; pas pour un membre, dont le serveur ne lit pas cette copie, ni sans JavaScript, qui n'envoie rien. La ligne porte maintenant sa clé (celle de `data-key`) : `Remove.tap@2#<clé>`, dans le geste envoyé par la page comme dans le bouton du formulaire sans JavaScript. Le serveur la retrouve dans sa liste ; sinon, il refuse. Les fiches se partagent (`Shared(groceries: [ Item(…) ])`), et `item.done.set(1)` part au serveur. La leçon 102 devient une liste de courses partagée.
+- Décidées le 2026-10-09 : `ADR-080` (listes et texte partagés), `ADR-082` (clés d'accès), `ADR-083` (QR, secours, effacement, frein). Le guide et `NOMS.md` sont à jour ; les leçons s'enchaînent 100 → 101 → 102 → 103 → 104 → 105 → 106 → 107 → 108 → 109 → 110.
+- Exécuté, après une reconstruction complète (les deux WebAssembly et `holo`, sans avertissement) :
+  - sur `reprise/codex-fin` : `cargo test --release --locked` → 210 tests passent ; `cargo test` → 210 ; la suite entière dans Chrome → 72 essais `OK`, aucun raté (550 s) ;
+  - sur `integration/codex-comptes-partage` : `cargo test --release --locked` → 208 tests passent ; `cargo test` → 208 ; la suite entière dans Chrome → 64 essais `OK` sur 65 (505 s) ; le 65e, l'audit axe-core des parcours, demande `npm install` que je ne fais pas : relancé seul avec la même version 4.10.3 déjà présente sur ce PC, hors du dépôt (`NODE_PATH`) → 36 audits, zéro défaut.
+
+**Erreurs en route**
+
+- J'ai découpé les commits avec `git apply --unidiff-zero`, qui place un morceau d'après son numéro de ligne : un test s'est retrouvé hors de son module, parce que les morceaux sautés décalaient les numéros. Je l'ai vu en relisant le commit, et j'ai refait le fichier avant de continuer.
+- Une première suite complète dans Chrome est restée bloquée plus de trois heures pendant la pause de la session (l'ordinateur en veille ; l'essai attendait une réponse du protocole qui ne venait plus) : arrêtée, puis relancée.
+
+---
+
 ## 2026-10-09 — Les petites dettes HTML dans la file de travail
 
 - Yocthan a demandé : « Sur 100 % du web, ton travail est à combien ? Et pourquoi ça traîne encore ? ». Réponse, comptée ligne par ligne dans le grand tableau (le jugement par élément est celui de Claude) :
