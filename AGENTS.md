@@ -54,7 +54,7 @@ Décidé par Yocthan le 2026-10-07 (« Vas-y, commence […] il faut qu'on aille
 **Confié par Yocthan à la session du nuage le 2026-10-08**, en plus du lot 9 (« délaisse d'autres tâches à l'autre session pour qu'on aille rapidement ») ; avec ses numéros du lot 9 :
 
 - **Les secondes, et un chronomètre** (demande de Yocthan sur son téléphone, leçon 48) : `{second}`, donnée chaque seconde seulement si la page l'affiche ; les millisecondes par un bloc chronomètre (démarrer, arrêter, remettre à zéro) que la page dessine au rythme de l'écran, le moteur ne recevant que le temps final. Fait : `ADR-089`, leçons 48 et 111 (`langage/secondes-chrono`).
-- **Des polices libres prêtes à l'emploi** (sa demande, leçon 54) : une sélection d'une trentaine de polices libres, licences vérifiées, toutes les écritures, gardées dans le projet, chargées seulement quand une page les nomme (`Font(family: "Inter")`).
+- **Des polices libres prêtes à l'emploi** (sa demande, leçon 54) : une sélection d'une trentaine de polices libres, licences vérifiées, toutes les écritures, gardées dans le projet, chargées seulement quand une page les nomme (`Font(family: "Inter")`). Fait : `ADR-092`, leçon 115 (`langage/polices-libres`).
 - **L'historique dans une page**, laissé par le lot 8 en attendant le serveur (lot 5, fait). Fait : `ADR-091`, leçon 114 (`langage/historique-page`).
 - **Trois petites dettes des lots 4 et 5** : `Page(title:)` qui lit les valeurs, dont `{id}` ; `narrow:` aussi pour les cases de `Row` et de `Column` ; les valeurs gardées (`keep`) d'un modèle d'adresse, une par adresse. Fait : `ADR-090`, leçons 112 et 113 (`langage/dettes-lots-4-5`).
 

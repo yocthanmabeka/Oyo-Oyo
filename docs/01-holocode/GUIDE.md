@@ -313,6 +313,8 @@ H1 { color: --gold; font-size: 40px; phone: { font-size: 28px; } }
 
 **Sa propre police** : `Page(fonts: [ Font(family: "Carlito", source: "carlito.woff2") ])`, puis `font-family: Carlito, Georgia, serif;`. Le texte s'affiche tout de suite avec la police de secours.
 
+**Une police du moteur**, sans fichier : `Page(fonts: [ Font(family: "Inter") ])`, puis `font-family: Inter, sans-serif;`. Le moteur garde 32 polices libres pour les écritures du monde entier (le latin, le cyrillique, le grec, l'arabe, l'hébreu, le devanagari, le bengali, le tamoul, le thaï, l'éthiopien, l'adlam, le n'ko, le tifinagh, le chinois, le japonais, le coréen) ; le navigateur ne télécharge que les morceaux dont la page a besoin. La liste est dans `moteur/web/fonts/README.md` ; cette écriture est proposée (`ADR-092`), la leçon est `115-des-polices-pour-toutes-les-ecritures.holo`.
+
 Ces ajouts sont décidés (`ADR-041`). Les leçons sont `50-texte-soigne.holo` à `54-police.holo`.
 
 Ce que le moteur refuse, alors que le CSS le laisse passer :
@@ -2280,6 +2282,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Écrire une fois, répéter pour chaque élément | `Repeat(items: [ Item(…) ], children: [ … ])`, `item` | fait |
 | Une couleur nommée, le thème sombre, le téléphone | `--or`, `dark: { … }`, `phone: { … }` | fait |
 | Sa propre police | `fonts: [ Font(family:, source:) ]` | fait |
+| Une police du moteur, pour toutes les écritures | `fonts: [ Font(family: "Inter") ]` | fait (`ADR-092`) |
 | Envoyer un formulaire | `Form(name:)`, `Contact.send`, `sent`, `failed` | fait |
 | Multiplier, diviser | les demandes `mul`, `div` | fait |
 | Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait |
