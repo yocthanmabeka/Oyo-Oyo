@@ -1,6 +1,6 @@
 # ADR-091 — L'historique dans une page : `address: [onglet, page]`
 
-- Statut : PROPOSITION (construit et essayé ; le nom `address:` est à valider par Yocthan)
+- Statut : ACCEPTÉ (validé par Yocthan le 2026-10-09, après avoir tout essayé : « j'ai tout essayé et c'est bon »)
 - Date : 2026-10-08
 - Responsable : Yocthan Mabeka
 - Discussions sources : les tâches confiées par Yocthan à la session du nuage le 2026-10-08 (`AGENTS.md`, « L'historique dans une page, laissé par le lot 8 en attendant le serveur ») ; l'`ADR-073` (« garder l'état d'une page dans son adresse viendra avec le premier vrai serveur ») ; le serveur des `ADR-074` à `ADR-076` et les adresses de l'`ADR-078`.

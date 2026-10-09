@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-09). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (457 mots : 446 décidés, 11 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (135) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (457 mots : 457 décidés, 0 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (135) et ce que HoloCode en a.
 - **Existe ?** : le jugement de Claude, élément par élément (oui, en partie, non) ; ce n’est pas une mesure. Le tableau ne donne pas de pourcentage : aucune méthode reproductible ne mesure la part d’un élément du web qu’on obtient en HoloCode (consigne de Yocthan du 2026-10-07). Les comptes se refont en comptant les lignes.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,7 +9,7 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 457 mots | 446 décidés, 11 à l’essai |
+| **HoloCode** | 457 mots | 457 décidés, 0 à l’essai |
 | HTML | 62 éléments | 56 oui, 3 en partie, 0 non, 3 refusés |
 | CSS | 35 éléments | 29 oui, 4 en partie, 0 non, 2 refusés |
 | JavaScript | 38 éléments | 21 oui, 14 en partie, 1 non, 1 refusés, 1 sans objet |
@@ -35,7 +35,7 @@
 | `Main` | Le contenu principal | `main` | Décidé (ADR-036) |
 | `Footer` | Le pied de page | `footer` | Décidé (ADR-036) |
 | `Aside` | Un encadré à part, annoncé comme un contenu complémentaire | `aside` | Décidé (ADR-073) |
-| `Address` | Les moyens de joindre l'auteur de la page ; ni titre ni repère dedans, le texte droit | `address` | À l’essai (ADR-098) |
+| `Address` | Les moyens de joindre l'auteur de la page ; ni titre ni repère dedans, le texte droit | `address` | Décidé (ADR-098) |
 
 ## Blocs : le texte
 
@@ -50,9 +50,9 @@
 | `Quote` | Une citation, et son auteur | `blockquote` | Décidé (ADR-025) |
 | `Code` | Du code montré tel quel | `pre, code` | Décidé (ADR-025) |
 | `List` | Une liste, à puces ou numérotée | `ul, ol, li` | Décidé (ADR-009) |
-| `Term (dans List)` | Un terme et sa définition ; une List de Term devient une liste de définitions : un glossaire, une fiche technique | `dl, dt, dd` | À l’essai (ADR-097) |
+| `Term (dans List)` | Un terme et sa définition ; une List de Term devient une liste de définitions : un glossaire, une fiche technique | `dl, dt, dd` | Décidé (ADR-097) |
 | `Table` | Un tableau de données | `table, caption, thead, tbody, tr, th, td` | Décidé (ADR-038) |
-| `Abbreviation (dans abbreviations)` | Une abréviation et son sens : marquée partout où elle vient, son sens écrit une fois entre parenthèses, au premier paragraphe qui la nomme | `abbr title` | À l’essai (ADR-098) |
+| `Abbreviation (dans abbreviations)` | Une abréviation et son sens : marquée partout où elle vient, son sens écrit une fois entre parenthèses, au premier paragraphe qui la nomme | `abbr title` | Décidé (ADR-098) |
 
 ## Blocs : les médias
 
@@ -152,7 +152,7 @@
 | `to` | L'adresse d'un lien | `href` | Décidé (ADR-022) |
 | `newTab, download (dans A)` | Un nouvel onglet, annoncé, qui ne peut pas toucher à la page ; un fichier rangé à côté qui se télécharge | `target=_blank rel=noopener, download` | Décidé (ADR-073) |
 | `by` | L'auteur d'une citation | `cite` | Décidé (ADR-025) |
-| `work (dans Quote)` | L'œuvre d'où vient une citation, après son auteur | `cite` | À l’essai (ADR-101) |
+| `work (dans Quote)` | L'œuvre d'où vient une citation, après son auteur | `cite` | Décidé (ADR-101) |
 | `ordered` | Une liste numérotée | `ol` | Décidé (ADR-009) |
 | `caption, head, rows` | La légende, les titres de colonnes et les lignes d'un tableau | `caption, thead, tbody` | Décidé (ADR-038) |
 
@@ -296,7 +296,7 @@
 | `import` | Importer un autre fichier .holo | `link, script src` | Décidé (ADR-029) |
 | `//` | Un commentaire | `<!-- -->, /* */, //` | Décidé (ADR-009) |
 | `` **gras**, *italique*, `code` `` | Le texte enrichi, en Markdown | `strong, em, code` | Décidé (ADR-019) |
-| `<<citation>>, _titre_` | Une citation courte au milieu d'une phrase, avec les guillemets de la langue de la page (« » et leurs espaces fines en français) ; le titre d'une œuvre | `q, cite` | À l’essai (ADR-101) |
+| `<<citation>>, _titre_` | Une citation courte au milieu d'une phrase, avec les guillemets de la langue de la page (« » et leurs espaces fines en français) ; le titre d'une œuvre | `q, cite` | Décidé (ADR-101) |
 | `""" … """` | Un texte qui garde ses retours à la ligne | `br` | Décidé (ADR-025) |
 
 ## Blocs : les règles
@@ -373,14 +373,14 @@
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `fonts, family` | Les polices de la page ; le nom d'une police | `@font-face, font-family` | Décidé (ADR-041) |
-| `Font(family: "…") sans source` | Une des 32 polices libres du moteur, nommée sans fichier ; seuls les morceaux utiles sont téléchargés | `Google Fonts, unicode-range` | À l’essai (ADR-092) |
+| `Font(family: "…") sans source` | Une des 32 polices libres du moteur, nommée sans fichier ; seuls les morceaux utiles sont téléchargés | `Google Fonts, unicode-range` | Décidé (ADR-092) |
 
 ## Blocs : agir
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `Form` | Un formulaire qu'une règle envoie | `form, fetch POST` | Décidé (ADR-042) |
-| `Fields` | Des champs qui vont ensemble (deux au moins) et le nom de leur groupe, annoncé par le lecteur d'écran ; dans un formulaire ou non | `fieldset, legend` | À l’essai (ADR-099) |
+| `Fields` | Des champs qui vont ensemble (deux au moins) et le nom de leur groupe, annoncé par le lecteur d'écran ; dans un formulaire ou non | `fieldset, legend` | Décidé (ADR-099) |
 | `Slider` | Une glissière entre deux bornes | `input type=range` | Décidé (ADR-042) |
 | `Progress` | Une barre de progression | `progress` | Décidé (ADR-042) |
 | `Transfer` | Exporter les valeurs annoncées dans un fichier JSON, et les reprendre : l'import est relu en entier, pris tout entier ou refusé ; 64 Ko | `a download + Blob, input type=file + FileReader, JSON.parse` | Décidé (ADR-093) |
@@ -410,7 +410,7 @@
 | `type, min, summary, open` | date, time, color ; le minimum d'une glissière ; le résumé d'un pli, ouvert au départ | `type, min, summary, open` | Décidé (ADR-042) |
 | `type: file, accept` | Choisir un fichier à envoyer par un formulaire : image ou pdf, avec une taille maximale | `input type=file, accept` | Décidé (ADR-059) |
 | `required, type: email, min (longueur d'un texte)` | Un formulaire qui vérifie : obligatoire, e-mail, longueurs ; messages sous les champs ; vérifié aussi au serveur | `required, type=email, minlength` | Décidé (ADR-068) |
-| `suggestions (dans Input)` | Des suggestions pendant qu'on écrit, écrites (de 1 à 200) ou tirées d'une liste de textes de la page, refaites quand elle change ; on peut écrire autre chose | `datalist, input list` | À l’essai (ADR-100) |
+| `suggestions (dans Input)` | Des suggestions pendant qu'on écrit, écrites (de 1 à 200) ou tirées d'une liste de textes de la page, refaites quand elle change ; on peut écrire autre chose | `datalist, input list` | Décidé (ADR-100) |
 | `file, values (dans Transfer)` | Le nom du fichier, et les valeurs qu'on y garde | `download, Blob` | Décidé (ADR-093) |
 | `kind: position, clipboard, camera, microphone` | La sorte d'appareil demandée | `geolocation, clipboard, getUserMedia` | Décidé (ADR-094) |
 | `title, body, after (dans Notification)` | Le titre, le texte, et le délai d'un rappel | `Notification(title, { body }), setTimeout` | Décidé (ADR-095) |
@@ -485,9 +485,9 @@
 | `components, params, emits` | Les composants de la page ; leurs paramètres (avec valeurs par défaut) ; les signaux qu'ils émettent | `props, emit` | Décidé (ADR-050, ADR-056) |
 | `children (dans un composant)` | L'emplacement où va le contenu donné à l'appel | `slot, children` | Décidé (ADR-058) |
 | `shared` | Les valeurs partagées de la page : seul un toucher les change, arbitré par le serveur | `WebSocket, EventSource` | Décidé (ADR-079) |
-| `address` | Les valeurs de la page écrites dans l’adresse, après le ? : « Précédent » revient à l’onglet d’avant, et l’adresse se partage | `history.pushState, URLSearchParams, popstate` | À l’essai (ADR-091) |
+| `address` | Les valeurs de la page écrites dans l’adresse, après le ? : « Précédent » revient à l’onglet d’avant, et l’adresse se partage | `history.pushState, URLSearchParams, popstate` | Décidé (ADR-091) |
 | `access, members, everyone` | Réserver la page aux membres (access: members) ; everyone, qu'on n'écrit pas, l'ouvre à tous | `@login_required (Django), un middleware (Next.js)` | Décidé (ADR-081) |
-| `abbreviations` | Les abréviations de la page, de 1 à 50, déclarées une fois pour toute la page | `abbr title` | À l’essai (ADR-098) |
+| `abbreviations` | Les abréviations de la page, de 1 à 50, déclarées une fois pour toute la page | `abbr title` | Décidé (ADR-098) |
 
 ## Signaux et capacités
 

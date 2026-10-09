@@ -1,6 +1,6 @@
 # ADR-098 — Une abréviation expliquée, une date pour les machines, une adresse : `abbreviations:`, `<time>`, `Address`
 
-- Statut : PROPOSITION (construit et essayé ; à valider par Yocthan)
+- Statut : ACCEPTÉ (validé par Yocthan le 2026-10-09, après avoir tout essayé : « j'ai tout essayé et c'est bon »)
 - Date : 2026-10-09
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'issue #214 (« Dette du web : abbr, time et address »), ajoutée à la file à la demande de Yocthan le 2026-10-09 ; le grand tableau du web, où `abbr, time, address` était « non » (`docs/01-holocode/TABLEAU-WEB.md`) ; les dates (`ADR-067`).

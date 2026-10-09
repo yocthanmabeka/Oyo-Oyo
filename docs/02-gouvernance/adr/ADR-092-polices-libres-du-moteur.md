@@ -1,6 +1,6 @@
 # ADR-092 — Des polices libres pour toutes les écritures : `Font(family: "Inter")`
 
-- Statut : PROPOSITION (construit et essayé ; la sélection des polices est à valider par Yocthan)
+- Statut : ACCEPTÉ (validé par Yocthan le 2026-10-09, après avoir tout essayé : « j'ai tout essayé et c'est bon »)
 - Date : 2026-10-08
 - Responsable : Yocthan Mabeka
 - Discussions sources : la demande de Yocthan (leçon 54), confiée à la session du nuage le 2026-10-08 (`AGENTS.md`, « une sélection d'une trentaine de polices libres, licences vérifiées, toutes les écritures, gardées dans le projet, chargées seulement quand une page les nomme ») ; l'`ADR-041` (`Font(family:, source:)`, une police rangée à côté).

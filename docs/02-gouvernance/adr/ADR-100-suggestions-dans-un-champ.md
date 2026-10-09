@@ -1,6 +1,6 @@
 # ADR-100 — Des suggestions dans un champ : `Input(suggestions:)`
 
-- Statut : PROPOSITION (construit et essayé ; à valider par Yocthan)
+- Statut : ACCEPTÉ (validé par Yocthan le 2026-10-09, après avoir tout essayé : « j'ai tout essayé et c'est bon »)
 - Date : 2026-10-09
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'issue #216 (« Dette du web : des suggestions dans un champ (datalist) »), ajoutée à la file à la demande de Yocthan le 2026-10-09 ; le grand tableau du web, où `fieldset, legend, datalist` était « non » (`docs/01-holocode/TABLEAU-WEB.md`) ; les champs (`ADR-027`, `ADR-068`) ; les listes de la page (`ADR-044`, `ADR-062`).
