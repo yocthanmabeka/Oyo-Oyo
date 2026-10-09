@@ -661,6 +661,10 @@ mod tests {
             include_str!("../../exemples/lecons/114-l-historique-dans-une-page.holo"),
             // Des polices libres pour toutes les écritures (ADR-092).
             include_str!("../../exemples/lecons/115-des-polices-pour-toutes-les-ecritures.holo"),
+            include_str!("../../exemples/lecons/116-importer-et-exporter.holo"),
+            include_str!("../../exemples/lecons/117-appareil-sur-permission.holo"),
+            include_str!("../../exemples/lecons/118-notifications-locales.holo"),
+            include_str!("../../exemples/lecons/119-une-page-hors-ligne.holo"),
             include_str!("../../exemples/lecons/120-une-liste-de-definitions.holo"),
         ];
         for lesson in lessons {

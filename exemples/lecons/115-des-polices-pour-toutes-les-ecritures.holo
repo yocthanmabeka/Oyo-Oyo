@@ -41,7 +41,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 114 : l'historique dans une page", to: "114-l-historique-dans-une-page.holo"),
-      A("Leçon 120 : une liste de définitions →", to: "120-une-liste-de-definitions.holo"),
+      A("Leçon 116 : importer et exporter →", to: "116-importer-et-exporter.holo"),
     ]),
   ],
 )

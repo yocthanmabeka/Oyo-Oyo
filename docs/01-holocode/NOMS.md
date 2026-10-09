@@ -52,6 +52,10 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Rect`, `Circle`, `Line`, `Path` | `rect`, `circle`, `line`, `path` | repris, avec des mots lisibles : `x`, `y`, `r`, `radius`, `from`, `to`, `thickness` au lieu de `cx`, `rx`, `x1`, `stroke-width` ; un tracé filtré |
 | `Chart` | une bibliothèque de graphiques en JavaScript (Chart.js), ou `svg` à la main | nouveau : un mot pour une intention fréquente ; dessiné par le moteur, avec un tableau caché pour le lecteur d'écran |
 | `Stopwatch`, `start`, `stop`, `reset`, `stopped` | `performance.now()`, `requestAnimationFrame`, `role="timer"` | nouveau : un chronomètre que la page fait tourner ; le moteur ne reçoit que le temps final |
+| `Transfer(file:, values:)`, `export`, `import` | un lien `download` et un `Blob`, `input type="file"`, `FileReader`, `JSON.parse` | nouveau : un fichier JSON des seules valeurs annoncées ; l'import est relu en entier, puis pris tout entier ou refusé (`ADR-093`) |
+| `Device(kind: position \| clipboard \| camera \| microphone)`, `request`, `write`, `stop` | `navigator.geolocation`, `navigator.clipboard`, `getUserMedia()` | nouveau : un mot pour l'appareil, quatre sortes nommées ; sur le toucher d'un bouton ; rien n'est envoyé ; l'arrêt vient d'office (`ADR-094`) |
+| `Notification(title:, body:, after:)`, `show`, `stop` | `Notification.requestPermission()`, `showNotification()`, `setTimeout` | repris : le nom du web ; un rappel seulement tant que la page est ouverte, sans « push » (`ADR-095`) |
+| `Offline(files:)`, `save`, `remove` | un service worker et `CacheStorage` écrits à la main | nouveau : une copie d'une page publique, demandée par le visiteur ; le réseau d'abord ; rien n'est mis en attente ni rejoué (`ADR-096`) |
 | `Enter` | `@keyframes` + `animation` (de… vers…), ou `element.animate()` | changé : on écrit seulement d'où le bloc part |
 | `Loop` | `animation: … infinite alternate` | changé : on écrit seulement où il va |
 | `Scenes`, `Scene` | une suite de `animation-delay` calculés à la main, ou un chef d'orchestre en JavaScript | changé : les scènes s'enchaînent seules |

@@ -1,0 +1,35 @@
+// Leçon 119 — Une page hors-ligne (de Codex, PR 203)
+//
+// Ce qu'on apprend :
+//   Offline(name: Copy, label: "…", files: []) : le visiteur peut garder une copie de cette
+//   page dans son navigateur (Copy.save), et l'effacer (Copy.remove). La copie prend la page,
+//   son texte, le moteur léger et les fichiers nommés dans files (16 au plus, 16 Mio en tout,
+//   huit pages au plus). Le réseau passe d'abord ; la copie sert seulement quand il manque.
+//   Seule une page publique se copie : pas de compte, de formulaire, de valeurs partagées.
+//   La copie est celle d'un premier visiteur : rechargée hors-ligne, la page repart de ses
+//   valeurs de départ. Rien n'est mis en attente pour être envoyé plus tard.
+//   Avec holo serve et sans JavaScript, la page reste une page comme les autres : ses boutons
+//   marchent, et elle montre tes valeurs.
+//
+// À essayer :
+//   « Préparer la copie hors-ligne », coupe le réseau, recharge cette adresse.
+//   Localhost ou HTTPS.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(title: "Leçon 119 : une page hors-ligne", state: State(count: 0), children: [
+ H1("Mon carnet public hors-ligne"), P("Compteur local : {count}"),
+ Button(name: Add, text: "Ajouter un"),
+ Offline(name: Copy, label: "Copie publique dans ce navigateur", files: []),
+ Button(name: Save, text: "Préparer la copie hors-ligne"), Button(name: Remove, text: "Effacer la copie hors-ligne"),
+ P("16 Mio par copie, huit copies au plus. Localhost ou HTTPS."),
+
+ Hr(),
+ Row(gap: 16px, align: between, children: [
+   A("← Leçon 118 : des notifications locales", to: "118-notifications-locales.holo"),
+   A("Leçon 120 : une liste de définitions →", to: "120-une-liste-de-definitions.holo"),
+ ]),
+], rules: [On(Add.tap, effect: count.add(1)), On(Save.tap, effect: Copy.save), On(Remove.tap, effect: Copy.remove)])
+Page { background: white; color: #17202a; max-width: 900px; padding: 24px; dark: { background: #17202a; color: white; } }
+Button { background: #174d70; color: white; padding: 12px; border-radius: 8px; }
+A { color: #174d70; dark: { color: #8fd3ff; } }
