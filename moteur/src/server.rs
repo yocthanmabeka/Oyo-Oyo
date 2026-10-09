@@ -167,7 +167,12 @@ impl Site {
         // Les comptes, les sessions, le frein contre les essais répétés (ADR-081).
         crate::accounts::prepare(&base, now())?;
         let _=base.execute("ALTER TABLE messages ADD COLUMN account INTEGER",[]);
-        crate::accounts::retry_erased_files(&folder,&base)?;
+        // Les fichiers privés d'un compte effacé qui attendent encore (un fichier pris par un autre
+        // programme, sous Windows) : un nouvel essai. Un échec n'empêche pas le site de démarrer ;
+        // le fichier reste en attente, et le serveur le redit au prochain démarrage.
+        if let Err(error) = crate::accounts::retry_erased_files(&folder, &base) {
+            eprintln!("Effacement en attente : {error}");
+        }
         Ok(Site { passkeys_origin: crate::passkeys::configured_origin()?, folder, web: web.to_path_buf(), base: Mutex::new(base), gestures: Mutex::new(()), lives: Arc::default() })
     }
 

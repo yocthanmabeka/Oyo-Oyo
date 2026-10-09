@@ -12,7 +12,8 @@ export function accountDebtTests({engine,phone,page,startHoloServe,pause,totp,st
  async function signin(q,name){await q.open("/account/signin",200);await q.type("#name",name);await q.type("#password",password);await button(q,'main form button[type="submit"]');check(await q.until("location.pathname==='/account/code'"),"code non demandé");}
  let decoder;
  async function decode(q){
-  if(!decoder){const r=await fetch("https://unpkg.com/jsqr@1.4.0/dist/jsQR.js",{signal:AbortSignal.timeout(15000)});check(r.ok,"décodeur QR de test introuvable");decoder=await r.text();check(decoder.length<400000,"décodeur trop lourd");}
+  // jsQR 1.4.0 (Apache-2.0), gardé dans le dépôt avec sa licence : aucun réseau pendant les essais.
+  if(!decoder){decoder=readFileSync(join(engine,"outils","vendor","jsqr-1.4.0","jsQR.js"),"utf8");check(decoder.length<400000,"décodeur trop lourd");}
   await q.value(decoder+";typeof jsQR");
   // Reconstituer les pixels de l'image SVG réellement envoyée, marge blanche comprise.
   return q.value("(()=>{const s=document.getElementById('setup-qr'),size=s.viewBox.baseVal.width,scale=5,c=document.createElement('canvas');c.width=c.height=size*scale;const x=c.getContext('2d');x.fillStyle='white';x.fillRect(0,0,c.width,c.height);x.fillStyle='black';for(const m of s.querySelector('path').getAttribute('d').matchAll(/M(\\d+) (\\d+)h1v1h-1z/g))x.fillRect(Number(m[1])*scale,Number(m[2])*scale,scale,scale);const p=x.getImageData(0,0,c.width,c.height);return jsQR(p.data,p.width,p.height)?.data;})()");
@@ -59,11 +60,31 @@ export function accountDebtTests({engine,phone,page,startHoloServe,pause,totp,st
    return [true,"mot de passe incorrect refusé ; confirmation au clavier ; compte, session et messages retirés de la base et de sa sauvegarde ; tests Rust couvrent aussi le fichier privé et les autres comptes"];
   }finally{served.stop();}
  }],
+ // Le frein par IP : de vrais formulaires, envoyés par le navigateur comme par un visiteur. Les
+ // pages de compte n'ont ni script ni droit de fetch (CSP) : leurs réponses sont lues par le
+ // protocole de Chrome, avec leur code HTTP et Retry-After.
  ["comptes : frein par IP malgré des noms différents",async(_,b)=>{
   const served=await startHoloServe(["104-se-connecter.holo"]),q=page(b,served.base);
-  try{await q.open("/account/signup",200);const states=await q.value("(async()=>{const out=[];for(let i=0;i<31;i++){const r=await fetch('/account/signup',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:'name=Many'+i+'&password=x&again=x'});out.push([r.status,r.headers.get('retry-after')]);}return out;})()");
-   check(states.slice(0,30).every(([s])=>s===422)&&states[30][0]===429&&states[30][1]==="60","limite IP incorrecte : "+JSON.stringify(states));return [true,"30 formulaires invalides sous 30 noms, puis HTTP 429 et Retry-After : 60 ; vraie IP du pair TCP"];
-  }finally{served.stop();}
+  const posted=new Set(),answers=[];
+  b.on("Network.requestWillBeSent",(p)=>{if(p.request.method==="POST"&&new URL(p.request.url).pathname==="/account/signup")posted.add(p.requestId);});
+  b.on("Network.responseReceived",(p)=>{if(posted.has(p.requestId))answers.push(p.response);});
+  const header=(r,name)=>Object.entries(r.headers).find(([k])=>k.toLowerCase()===name)?.[1];
+  try{
+   await b.send("Network.enable");await b.send("Network.clearBrowserCookies");
+   for(let i=0;i<31;i++){
+    await q.open("/account/signup",0);
+    // Trente et un noms différents, un mot de passe trop court : un vrai envoi du formulaire.
+    await q.value(`(()=>{document.getElementById("name").value="Many${i}";document.getElementById("password").value="x";document.getElementById("again").value="x";document.querySelector('form[action="/account/signup"]').requestSubmit();})()`);
+    for(let t=0;t<100&&answers.length<=i;t++)await pause(100);
+   }
+   check(answers.length===31,"réponses reçues : "+answers.length);
+   const statuses=answers.map(r=>r.status);
+   check(statuses.slice(0,30).every(s=>s===422)&&statuses[30]===429&&header(answers[30],"retry-after")==="60","limite IP incorrecte : "+JSON.stringify(statuses)+" ; Retry-After : "+header(answers[30],"retry-after"));
+   check(await q.until("document.body.innerText.includes('Trop de demandes depuis cette adresse')"),"le refus ne se lit pas : "+await q.value("document.body.innerText"));
+   const db=new DatabaseSync(join(served.folder,"holo-data","site.sqlite"));
+   try{check(db.prepare("SELECT COUNT(*) n FROM accounts").get().n===0,"un compte créé malgré le refus");}finally{db.close();}
+   return [true,"31 vrais formulaires sous 31 noms : 30 refusés (422), le 31e freiné (429, Retry-After : 60, le message lu) ; aucun compte créé ; IP du pair TCP"];
+  }finally{b.on("Network.requestWillBeSent");b.on("Network.responseReceived");await b.send("Network.disable");served.stop();}
  }],
  ];
 }

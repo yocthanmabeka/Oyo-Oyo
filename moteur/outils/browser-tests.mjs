@@ -1275,7 +1275,8 @@ const tests = [
       const used = stepNow();
       await q.type("#code", totp(key, used));
       await send(`document.querySelectorAll("[data-recovery]").length === 10`);
-      await q.click('a[href="/account"]');await after(`location.pathname === "/account"`);
+      await q.click('a[href="/account?done=code"]');
+      await after(`location.pathname + location.search === "/account?done=code"`);
       check(`${how}, le code s'active`, key.length === 32 && (await words()).includes("Le code à 6 chiffres est activé"), `clé de ${key.length} lettres ; ${(await words()).slice(0, 120)}`);
       // Se déconnecter : la page réservée ne s'ouvre plus.
       await q.click('form[action="/account/signout"] button');
