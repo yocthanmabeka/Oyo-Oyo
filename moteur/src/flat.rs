@@ -74,7 +74,7 @@ transition:left .12s linear,top .12s linear,transform .12s linear}\
 :where(.holo-Quote>p){margin:0 0 4px 0}:where(.holo-Quote>footer){font-style:normal;font-size:0.9em;opacity:0.7}\
 :where(.holo-Code){font-family:ui-monospace,Consolas,monospace;background:rgba(127,127,127,0.18);padding:8px 12px;border-radius:6px;overflow:auto;white-space:pre-wrap}\
 :where(.holo-Page code){font-family:ui-monospace,Consolas,monospace;background:rgba(127,127,127,0.18);padding:0 4px;border-radius:4px}:where(.holo-Code code){background:none;padding:0}\
-:where(.holo-Aside){display:block;box-sizing:border-box;border-left:3px solid currentColor;padding:0 0 0 16px;margin:0 0 16px 0}:where(.holo-Aside)>*{display:block;margin:0 0 12px 0}:where(.holo-Drawing){display:block;max-width:100%;height:auto}\
+:where(.holo-Aside){display:block;box-sizing:border-box;border-left:3px solid currentColor;padding:0 0 0 16px;margin:0 0 16px 0}:where(.holo-Aside)>*{display:block;margin:0 0 12px 0}:where(.holo-Drawing){display:block;max-width:100%;height:auto}:where(.holo-Chart){display:block;margin:0 0 16px 0}:where(.holo-Chart figcaption){font-weight:bold;margin:0 0 8px 0}:where(.holo-Chart svg){display:block;max-width:100%;height:auto}\
 :where(.holo-hidden){position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}\
 @media print{:where(.holo-Dialog:not([open]),.holo-Video,audio){display:none!important}:where(.holo-Page){min-height:0}:where(.holo-Page a[href^=\"http\"])::after{content:\" (\" attr(href) \")\";font-size:.85em}}";
 
@@ -1074,6 +1074,8 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
             }
             output.push_str("</div>");
         }
+        // Un graphique (ADR-087) : une liste à champs, en barres, en courbe ou en parts.
+        "Chart" => output.push_str(&crate::chart::html(block, &classes, &name, &crate::lists::running())?),
         // Un dessin vectoriel (ADR-086) : des formes, fabriquées en SVG.
         "Drawing" => output.push_str(&crate::drawing::html(block, &classes, &name)?),
         "Rect" | "Circle" | "Line" | "Path" => {

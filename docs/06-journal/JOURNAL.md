@@ -89,6 +89,17 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-07 — Lot 9, troisième pas : un tableau de bord, `Chart`
+
+- Fait (`ADR-087`) : `Chart(kind: bars | line | pie, over:, value:, label:, title:)`, dessiné par le moteur en SVG d'après une liste à champs ; un tableau caché donne les mêmes chiffres au lecteur d'écran ; le graphique suit sa liste. Leçon 99 : des ventes reçues du serveur, en barres et en parts ; une vente ajoutée se dessine tout de suite. C'est le dixième parcours du « web viable » : recevoir, calculer, dessiner.
+- Trouvé et corrigé : le moteur relisait au démarrage les données que le serveur venait de mettre dans la page ; une vente ajoutée avant leur retour était effacée (vu sur une capture où la sixième barre manquait). Une page servie avec ses données ne les relit plus qu'à son rythme.
+- Raté puis corrigé : le tableau caché gardait sa vraie taille (un tableau ne se réduit pas à un pixel) et aurait pu faire défiler la page de côté sur un téléphone ; il est rangé dans un bloc caché.
+- Vérifié : tous les tests du moteur ; dans Chrome, cinq puis six barres et parts, la vente gardée, le tableau caché lu ; les essais des données (« pas de lecture en trop », « gardées sans les relire ») ; axe-core, 99 leçons, 0 défaut en clair, et en sombre sur téléphone le seul défaut connu de la leçon 90.
+
+![La leçon 99 : les ventes en barres et en parts, avec la vente du samedi ajoutée](images/2026-10-07-web-lot9-un-tableau-de-bord.png)
+
+---
+
 ## 2026-10-07 — Lot 9, deuxième pas : le dessin vectoriel, `Drawing` ; GitHub Actions bloqué
 
 - Fait (`ADR-086`) : `Drawing(label:, width:, height:, children: [ … ])`, fabriqué en SVG, nommé pour le lecteur d'écran ; quatre formes, `Rect`, `Circle`, `Line`, `Path` ; `fill`, `stroke`, `thickness`, `opacity` ; une mesure peut être le nom d'un nombre de la page, et la forme le suit. Le dessin trait par trait reste refusé. Leçon 98 : un paysage dont le soleil se lève et se couche derrière la colline.

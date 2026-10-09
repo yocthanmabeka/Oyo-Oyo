@@ -5,7 +5,7 @@
   // dessin (les points, les mondes, la vue points) est un second moteur, chargé seulement quand
   // la page s'en sert : une page qui ne fait que bouger ne le télécharge jamais.
   import init, {
-    flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, module_info, module_finished, module_input, module_received, delays, reads_time, set_now, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
+    flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, chart_html, module_info, module_finished, module_input, module_received, delays, reads_time, set_now, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
     shared_names, with_shared, touches_shared,
   } from "/pkg-light/holo_engine.js";
   let drawing = null;
@@ -470,6 +470,10 @@
     dataReading = false;
     if (name && for_ === path) emit(`${name}.${arrived ? "done" : "failed"}`);
   }
+  // La page fabriquée par le serveur arrive avec ses données (ADR-064) : les relire tout de suite
+  // ne servirait à rien, et effacerait ce que le visiteur aurait changé entre-temps (une vente
+  // ajoutée à la liste avant leur retour). La première lecture attend donc le rythme de la page.
+  let servedData = Boolean(root.querySelector(".holo-Page")?.dataset.received);
   function setData() {
     clearInterval(refresh);
     clearTimeout(dataLater);
@@ -477,7 +481,8 @@
     const [file, rhythm, name] = data(source).split("|");
     if (!file) return;
     const for_ = path;
-    loadData(file, for_, name);
+    if (servedData) servedData = false;
+    else loadData(file, for_, name);
     if (Number(rhythm) > 0) {
       refresh = setInterval(() => {
         if (for_ !== path) clearInterval(refresh);
@@ -738,6 +743,16 @@
         const [attribute, name] = pair.split(":");
         if (values.has(name)) shape.setAttribute(attribute, Math.min(4000, Number(values.get(name))));
       }
+    }
+    // Un graphique suit sa liste (ADR-087) : le moteur le redessine quand elle change.
+    for (const chart of or_.querySelectorAll("[data-chart]")) {
+      const over = chart.dataset.chart.split("|")[1];
+      const list = written.split(";").find((chunk) => chunk.startsWith(`${over}=[`)) ?? "";
+      if (chart.dataset.drawn === list) continue;
+      const drawing = chart.querySelector(".holo-chart-drawing");
+      const fresh = chart_html(fileText, written, chart.dataset.chart);
+      if (drawing && fresh) drawing.outerHTML = fresh;
+      chart.dataset.drawn = list;
     }
     // Les conditions : If(count, is: 0). C'est le moteur qui répond ; la page ne compare rien
     // elle-même, elle cache ce que le moteur dit faux.

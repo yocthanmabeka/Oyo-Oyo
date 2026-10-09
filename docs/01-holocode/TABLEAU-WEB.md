@@ -60,6 +60,7 @@
 | `Shape` | Une forme : rond, carré, triangle, losange | `div + CSS, svg` | Décidé (ADR-032) |
 | `Drawing` | Un dessin vectoriel, fait de formes, nommé pour le lecteur d'écran | `svg role=img aria-label` | Décidé (ADR-086) |
 | `Rect, Circle, Line, Path` | Les formes d'un dessin : rectangle, rond, trait, tracé | `rect, circle, line, path` | Décidé (ADR-086) |
+| `Chart` | Un graphique d'après une liste : barres, courbe ou parts ; un tableau caché pour le lecteur d'écran | `svg + table` (une bibliothèque de graphiques, en JavaScript) | Décidé (ADR-087) |
 | `Video` | Une vidéo, avec ses boutons, jamais lancée seule | `video controls` | Décidé (ADR-038) |
 
 ## Blocs : la disposition
