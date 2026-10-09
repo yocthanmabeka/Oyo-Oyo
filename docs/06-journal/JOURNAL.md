@@ -6,6 +6,27 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Reprise par la session du nuage, le PC éteint : la fin des lots 6 et 7, raccordée à `main`
+
+- Le PC de Yocthan s'est éteint au milieu de cette intégration ; Yocthan a demandé que la session du nuage reprenne tout le travail de la session du PC. Repris tel quel depuis son dernier envoi, `wip/integration-codex-comptes-partage` (56d9606, 16 h 44 UTC), sur `integration/codex-comptes-partage` : rien de son travail n'est réécrit.
+- Fusionnée dans la branche : `main`, qui avait reçu depuis les corrections du nuage (PR 208) et le tableau du web (PR 210). Trois conflits, résolus en gardant les deux intentions :
+  - `page-engine.js`, `emit` : cette branche y ajoutait la clé de la ligne touchée (`Remove.tap@2#<clé>`, `ADR-080`), la PR 208 le pas dans l'historique d'un toucher partagé (`isStep`). Gardés les deux ; le pas se lit sur le signal sans la clé, que l'expression de `isStep` ne reconnaîtrait pas ;
+  - `AGENTS.md` : la ligne des lots 5, 6, 7 de cette branche (la fin des lots 6 et 7), celle du lot 9 de `main` (« intégrée par la PR 219 ») ;
+  - le journal : l'entrée de cette branche d'abord, puis celles de `main`.
+  - La correction de `Module(output: …)` était faite des deux côtés, à l'identique (la PR 208 et l'`ADR-080`) : Git l'a gardée une seule fois, avec son essai.
+- Réparé : rien. Après la fusion, tout est vert, aux ratés connus de ce conteneur près ; aucune vérification n'est changée, aucun essai mis de côté.
+- Exécuté, dans le conteneur du nuage (Linux, Chromium 1194), après une reconstruction complète (les deux WebAssembly, `holo`, les liaisons, sans erreur) :
+  - `cargo test --release` → 214 tests passent (les 198 de `main` et les 16 de cette branche) ; `cargo test --release --locked`, lancé par l'essai des parcours → 214 ; `cargo test --locked`, en debug comme la CI → 214 ;
+  - `holo check` sur les 121 fichiers de `exemples/lecons/` → tous `ok`, dont les leçons 102, 103, 107 et 108 ;
+  - `node outils/browser-tests.mjs` (axe-core 4.10.3) → 73 essais `OK` sur 76, 119 leçons ouvertes, 533 s. Les huit essais des comptes, des clés d'accès et du partage passent (l'authentificateur virtuel de Chrome, le QR relu par jsQR, le frein par adresse, deux profils Chrome), et les trois de la PR 208. Les trois ratés sont ceux de ce conteneur : « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium), et « pincer à deux doigts », qui passe relancé seul (`OK`, 6 s).
+- Reste :
+  - sur le téléphone de Yocthan : la clé d'accès (avec un proxy HTTPS et `HOLO_ORIGIN`), le QR dans une vraie application d'authentification, la leçon 102 sur deux appareils en même temps, l'effacement d'un compte ;
+  - le tableau du web (issue 186) : les mots des `ADR-080`, `ADR-082` et `ADR-083`, après la fusion ;
+  - les leçons 103, 107 et 108, écrites par Codex, n'ont pas encore l'en-tête des autres (« Ce qu'on apprend », « À essayer ») ;
+  - après la fusion : fermer les PR 205, 206 et 207, que cette branche remplace.
+
+---
+
 ## 2026-10-09 — Les comptes et le partage de Codex, relus, corrigés et intégrés ; la suite de Gemini finie
 
 - Yocthan : « tu valides tout ce qu'on avait fait avec Codex », y compris `p256` et `sha2`, et continuer nous-mêmes le travail de Codex et de Gemini.
