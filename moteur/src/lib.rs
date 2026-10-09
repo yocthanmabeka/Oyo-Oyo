@@ -36,6 +36,8 @@ pub mod modules;
 pub mod mosaic;
 pub mod movement;
 pub mod navigation;
+// Des nombres négatifs (ADR-102) : `negative: [temperature]`.
+pub mod negative;
 pub mod tools;
 pub mod flat;
 pub mod rules;
@@ -696,6 +698,8 @@ pub fn page_title(source: &str, state: &str) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
     let Some(holo::Value::Text(model)) = program.root.argument("title").map(|a| &a.value) else { return String::new() };
     format::set_decimals(state::decimals(&program));
+    // Un nombre qui peut être négatif garde son signe dans le titre (ADR-102).
+    format::set_negative(negative::names(&program));
     let (numbers, texts, lists) = (state::reread(&program, state), state::reread_texts(&program, state), lists::reread(&program, state));
     // Ce qu'un texte peut montrer, comme au premier affichage : les nombres, le nombre d'éléments
     // d'une liste (« {tasks} tâches »), ceux des listes calculées, leurs totaux, les jours.

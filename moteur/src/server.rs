@@ -1047,7 +1047,8 @@ fn inputs_from_state(source: &str, state: &str) -> Vec<(String, String)> {
         let value = if texts.iter().any(|(known, _)| *known == name) {
             crate::state::decode(written.strip_prefix('\'')?)?
         } else if numbers.iter().any(|(known, _)| *known == name) {
-            crate::state::format_decimal(written.parse().ok()?, crate::state::places(&program, &name))
+            // Un nombre négatif garde son signe (ADR-102) : « -250 » devient « -2.50 ».
+            crate::state::format_decimal(crate::negative::read_units(written)?, crate::state::places(&program, &name))
         } else {
             return None;
         };

@@ -436,6 +436,8 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
     set_language(program);
     // Les valeurs à virgule (ADR-066) se montrent avec leurs chiffres.
     crate::format::set_decimals(crate::state::decimals(program));
+    // Les valeurs qui peuvent descendre sous zéro (ADR-102) se montrent avec leur signe.
+    crate::format::set_negative(crate::negative::names(program));
     // Les valeurs d'où part la page : son départ, ou celles que le serveur a données.
     let (start_value, texts, mut lists) = match start {
         Some((numbers, texts, lists)) => (numbers.clone(), texts.clone(), lists.clone()),
@@ -763,6 +765,8 @@ pub fn plain_text(text: &str, shown: &crate::state::State, texts: &crate::state:
             output.push_str(&match format {
                 Some(format) => crate::format::format_value(name, *value, format, &language),
                 None if places > 0 => crate::format::format_value(name, *value, &format!("d{places}"), &language),
+                // Un nombre qui peut être négatif, avec le signe moins de la langue (ADR-102).
+                None if crate::format::can_be_negative(name) => crate::format::format_value(name, *value, "d0", &language),
                 None => value.to_string(),
             });
         } else {
@@ -797,6 +801,23 @@ fn fill_marks(html: String, shown: &crate::state::State, texts: &crate::state::T
                     // La longueur la plus courte (ADR-068) : vérifiée à l'envoi.
                     if min != "0" {
                         output.push_str(&format!(" minlength=\"{min}\""));
+                    }
+                } else if crate::format::can_be_negative(name) {
+                    // Un nombre qui peut être négatif (ADR-102) : sans `inputmode`, le téléphone donne
+                    // un clavier qui a le signe moins (ceux de « numeric » et « decimal » n'en ont pas
+                    // sur l'iPhone) ; le plus petit nombre permis est le `min:` du champ, sinon un
+                    // milliard sous zéro.
+                    let places = crate::format::decimal_places(name);
+                    let low = match field.splitn(3, '|').nth(2).filter(|m| !m.is_empty()) {
+                        Some(written) => written.to_string(),
+                        None => crate::state::format_decimal(crate::negative::stored(-crate::negative::limit(places)), places),
+                    };
+                    output.push_str(&format!(" type=\"number\" min=\"{low}\""));
+                    if places > 0 {
+                        output.push_str(&format!(" step=\"{}\" data-places=\"{places}\"", crate::state::format_decimal(1, places)));
+                    }
+                    if !max.is_empty() {
+                        output.push_str(&format!(" max=\"{max}\""));
                     }
                 } else if crate::format::decimal_places(name) > 0 {
                     // Un nombre à virgule (ADR-066) : le clavier décimal, et un pas de 0,01.
@@ -2078,6 +2099,7 @@ fn lines(repeat: &Block, list: &str, base: &str) -> Result<String, Error> {
 pub fn list_lines(program: &Program, base: &str, numbers: &crate::state::State, texts: &crate::state::Texts, lists: &crate::lists::Lists, name: &str) -> String {
     crate::lists::set_running(lists.clone());
     crate::format::set_decimals(crate::state::decimals(program));
+    crate::format::set_negative(crate::negative::names(program));
     set_language(program);
     set_abbreviations(read_abbreviations(&program.root).unwrap_or_default(), None);
     // `tasks@12:5` : la répétition de « tasks » écrite ligne 12, colonne 5 ; `tasks` seul : la première.
@@ -2312,6 +2334,13 @@ fn markdown(text: &str) -> String {
             places => format!("<span data-state=\"{name}\" data-format=\"d{places}\"></span>"),
         };
         html = html.replace(&format!("{{{name}}}"), &span);
+    }
+    // Un nombre entier qui peut être négatif (ADR-102) a lui aussi un format, `d0` : la page y met
+    // le signe moins de sa langue.
+    for name in crate::state::names_in(text) {
+        if crate::format::can_be_negative(name) && crate::format::decimal_places(name) == 0 {
+            html = html.replace(&format!("<span data-state=\"{name}\"></span>"), &format!("<span data-state=\"{name}\" data-format=\"d0\"></span>"));
+        }
     }
     // `{minute:00}` : la valeur, avec son format (ADR-043).
     for (name, format) in crate::format::formats_in(text) {
