@@ -6,6 +6,20 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Le plan 3D précisé : le garde des paliers, les surfaces, la piste de l'IA
+
+- La conversation Claude de Yocthan a renvoyé trois compléments. Yocthan a demandé : « Tu les trouves bonnes ces réflexions ? Si oui tu les ajoutes, sinon non. » Avis de Claude : bonnes, car elles prolongent ce qui est décidé et corrigent un vrai risque, les bords de tuiles qui ne se raccordent pas. Ajoutées à `docs/04-roadmap/PLAN-3D.md`, sans toucher au code ni aux ADR.
+- **Étapes 8 à 10** :
+  - de très loin, l'objet devient une petite image changée en points, avec le fondu de la vue points ;
+  - le garde réagit à une baisse qui dure (la chaleur) ;
+  - le garde surveille aussi la mémoire. Adapté par Claude : le moteur compte ce qu'il réserve lui-même, car une page ne peut pas lire de façon fiable la mémoire de son onglet ;
+  - les seuils se règlent avec le script de 15 minutes, `duree.js`.
+- **Les surfaces, pour après la chaise** : une tuile égale une graine ; un relief continu pour toute la planète ; un calcul en nombres entiers ; des fentes recousues ; un nombre de tuiles plafonné. C'est une note, pas une ADR, car les planètes ne sont pas dans le plan.
+- **La piste de l'IA** : à la préparation, chez l'auteur, jamais pendant la visite. Les modules enfermés ne conviennent pas à un vrai modèle (mémoire, temps, pas de carte graphique, 64 Ko).
+- Les deux agents d'intégration se sont arrêtés à la limite de séance, au milieu de leur travail. Ils sont repris dès qu'elle est revenue.
+
+---
+
 ## 2026-10-09 — Le catalogue de Codex intégré : une page d'une liste, deux cents éléments, neuf parcours
 
 - Fusionnée sur `integration/codex-201`, partie du lot 7 envoyé (`26a50ba`, aujourd'hui dans `main` par la PR 177) : la PR 201 de Codex. `Filter(offset:)` saute des éléments après la recherche, le filtre et le tri, avant `limit:` ; le total compte avant les deux coupes ; une liste garde deux cents éléments (cent avant) ; la leçon 109, un catalogue de deux cents produits ; le site des parcours 1 à 9 (`exemples/parcours/`) et leurs essais dans Chrome, avec `holo serve`.
