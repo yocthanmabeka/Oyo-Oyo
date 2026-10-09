@@ -1,0 +1,37 @@
+// Leçon 117 — L'appareil sur permission (de Codex, PR 203)
+//
+// Ce qu'on apprend :
+//   Device(name: Position, kind: position, value: result, label: "…") : un appareil du visiteur,
+//   demandé au navigateur sur le toucher d'un bouton, jamais à l'ouverture de la page.
+//   kind: position et kind: clipboard rendent un texte de State (value:) ; clipboard sait aussi
+//   écrire (Clipboard.write). kind: camera montre un aperçu local ; kind: microphone s'active
+//   localement. Rien n'est envoyé au serveur ni à un module.
+//   Camera.stop arrête ; sinon l'arrêt vient d'office, après une minute, quand la page change
+//   ou se cache. Il faut localhost ou HTTPS. Refuser laisse la page lisible.
+//
+// À essayer :
+//   « Demander ma position », puis refuse : la page le dit, et reste utilisable.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(title: "Leçon 117 : l'appareil sur permission", state: State(result: "", copied: "Bonjour"), children: [
+ H1("Mon appareil reste à moi"), P("Rien n'est envoyé au serveur."),
+ Device(name: Position, kind: position, value: result, label: "Ma position"),
+ Button(name: Locate, text: "Demander ma position"), P("{result}"),
+ Input(label: "Texte à copier", value: copied),
+ Device(name: Clipboard, kind: clipboard, value: copied, label: "Mon presse-papiers"),
+ Button(name: Read, text: "Lire le presse-papiers"), Button(name: Write, text: "Copier Bonjour"), P("{copied}"),
+ Device(name: Camera, kind: camera, label: "Aperçu local de ma caméra"),
+ Button(name: StartCamera, text: "Autoriser la caméra"), Button(name: StopCamera, text: "Arrêter la caméra"),
+ Device(name: Microphone, kind: microphone, label: "Activation locale du microphone"),
+ Button(name: StartMic, text: "Autoriser le microphone"), Button(name: StopMic, text: "Arrêter le microphone"),
+
+ Hr(),
+ Row(gap: 16px, align: between, children: [
+   A("← Leçon 116 : importer et exporter", to: "116-importer-et-exporter.holo"),
+   A("Leçon 118 : des notifications locales →", to: "118-notifications-locales.holo"),
+ ]),
+], rules: [On(Locate.tap, effect: Position.request), On(Read.tap, effect: Clipboard.request), On(Write.tap, effect: Clipboard.write), On(StartCamera.tap, effect: Camera.request), On(StopCamera.tap, effect: Camera.stop), On(StartMic.tap, effect: Microphone.request), On(StopMic.tap, effect: Microphone.stop)])
+Page { background: white; color: #17202a; max-width: 900px; padding: 24px; dark: { background: #17202a; color: white; } }
+Button { background: #174d70; color: white; padding: 12px; border-radius: 8px; }
+A { color: #174d70; dark: { color: #8fd3ff; } }

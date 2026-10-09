@@ -1,0 +1,30 @@
+// Leçon 118 — Des notifications locales (de Codex, PR 203)
+//
+// Ce qu'on apprend :
+//   Notification(name: Reminder, label: "…", title: "Pause", body: "…", after: 3s) : une
+//   notification du navigateur, sans service extérieur. Reminder.show demande la permission au
+//   visiteur (sur un bouton), puis la montre, tout de suite ou après le délai (de 0s à 3600s).
+//   Reminder.stop annule un rappel prévu.
+//   Le rappel ne vit que tant que la page reste ouverte : il n'est pas garanti si elle est
+//   fermée, gelée, ou le téléphone endormi. Un refus ne change rien au reste de la page.
+//
+// À essayer :
+//   « Autoriser et programmer le rappel », puis attends trois secondes.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(title: "Leçon 118 : des notifications locales", children: [
+ H1("Un rappel choisi"),
+ Notification(name: Reminder, label: "Rappel local dans trois secondes", title: "Pause", body: "Pense à te reposer.", after: 3s),
+ Button(name: Notify, text: "Autoriser et programmer le rappel"), Button(name: Cancel, text: "Annuler le rappel"),
+ P("La page doit rester ouverte. Un refus ne change rien au reste."),
+
+ Hr(),
+ Row(gap: 16px, align: between, children: [
+   A("← Leçon 117 : l'appareil sur permission", to: "117-appareil-sur-permission.holo"),
+   A("Leçon 119 : une page hors-ligne →", to: "119-une-page-hors-ligne.holo"),
+ ]),
+], rules: [On(Notify.tap, effect: Reminder.show), On(Cancel.tap, effect: Reminder.stop)])
+Page { background: white; color: #17202a; max-width: 900px; padding: 24px; dark: { background: #17202a; color: white; } }
+Button { background: #174d70; color: white; padding: 12px; border-radius: 8px; }
+A { color: #174d70; dark: { color: #8fd3ff; } }
