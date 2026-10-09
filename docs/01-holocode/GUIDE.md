@@ -1568,10 +1568,11 @@ Page(title: "Members", access: members, children: [ H1("Hello, {account}") ])
 - **Les pages de compte sont fabriquées par le moteur**, en HTML ordinaire, accessibles, sans JavaScript : `/account/signup` (créer un compte), `/account/signin` (se connecter), `/account` (activer le code à 6 chiffres, se déconnecter). Ce sont les seuls liens qui partent de la racine du site.
 - **Se connecter** : un nom et un mot de passe (12 caractères au moins), puis, si on l'a activé, le code à 6 chiffres d'une application d'authentification du téléphone (Aegis, FreeOTP, Google Authenticator…), calculé sans Internet ni SMS. Un code ne sert qu'une fois ; cinq essais ratés, puis une attente.
 - **Le panier suit le compte** : connecté, les valeurs d'une page sont gardées par le compte ; on les retrouve sur son téléphone et sur son ordinateur, avec ou sans JavaScript. Ce qu'on avait fait avant de se connecter suit aussi.
+- **Le serveur ne croit jamais l'état qu'envoie la page d'un membre** : il part de celui qu'il garde pour son compte, et n'y prend que ce que le visiteur a écrit dans les champs (la correction de Codex). Une condition sur une valeur du membre garde donc une valeur partagée : `If(booked, is: 0, children: [ Button(name: Book, …) ])` réserve une seule place par compte, même avec une page forgée.
 - Le mot de passe n'est jamais gardé en clair (son empreinte Argon2id seulement) ; la session est un numéro tiré au hasard, dans un cookie que la page ne lit pas, oublié après 14 jours sans visite ; se déconnecter l'efface.
 - Le serveur d'essai (`node outils/server.mjs`) n'a pas de comptes : à la place des pages de compte et des pages réservées, il dit qu'il faut `holo serve`.
 
-Cette écriture est proposée (`ADR-081`) ; se connecter par un mot de passe puis un code à 6 chiffres, tout chez l'auteur, est le choix de Yocthan (2026-10-08). Les leçons sont `104-se-connecter.holo`, `105-une-page-reservee.holo` et `106-le-panier-qui-suit-le-compte.holo`.
+Cette écriture est décidée (`ADR-081`, validée par Yocthan le 2026-10-09) ; se connecter par un mot de passe puis un code à 6 chiffres, tout chez l'auteur, est son choix du 2026-10-08. Les leçons sont `104-se-connecter.holo`, `105-une-page-reservee.holo` et `106-le-panier-qui-suit-le-compte.holo`.
 
 ## 6 sexvicies. La mise en page : téléphone, ordinateur, la place, ce qui dépasse, les proportions, le curseur, justifié, décrocher
 
@@ -2323,7 +2324,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Sa propre police | `fonts: [ Font(family:, source:) ]` | fait |
 | Une police du moteur, pour toutes les écritures | `fonts: [ Font(family: "Inter") ]` | fait (`ADR-092`) |
 | Envoyer un formulaire | `Form(name:)`, `Contact.send`, `sent`, `failed` | fait |
-| Un compte, une page réservée aux membres | `Page(access: members)`, `signedIn`, `{account}`, `A(to: "/account/signin")` | fait, avec `holo serve` (`ADR-081`, proposé) |
+| Un compte, une page réservée aux membres | `Page(access: members)`, `signedIn`, `{account}`, `A(to: "/account/signin")` | fait, avec `holo serve` (`ADR-081`) |
 | Multiplier, diviser | les demandes `mul`, `div` | fait |
 | Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait |
 | Une liste qui change pendant la visite | `State(tasks: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` | fait |

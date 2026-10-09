@@ -881,10 +881,10 @@
   // Un membre connecté (ADR-081) : chaque toucher de la page, déjà joué ici, repart vers holo serve
   // avec les champs, comme le ferait la page sans JavaScript (ADR-074). Le serveur le rejoue avec le
   // même arbitre sur l'état gardé par le compte, sans rien envoyer d'autre (`?mirror`) : le panier
-  // suit le membre sur ses autres appareils. Il ne reçoit que des gestes, jamais des valeurs. Un
-  // toucher après l'autre, dans l'ordre ; une panne du réseau ne change rien à la page. Un toucher
-  // qui change une valeur partagée ne passe pas par ici : il part au serveur, qui l'arbitre et garde
-  // aussi l'état du compte (shareGesture, ADR-079).
+  // suit le membre sur ses autres appareils. Il reçoit le geste et les saisies, jamais un état à
+  // remplacer. Un toucher après l'autre, dans l'ordre ; une panne du réseau ne change rien à la
+  // page. Un toucher qui change une valeur partagée ne passe pas par ici : il part au serveur, qui
+  // l'arbitre et garde aussi l'état du compte (shareGesture, ADR-079).
   //
   // La demande est faite avant que la page joue le toucher : les champs tels que le visiteur les a
   // écrits (une règle peut les vider, `text.set("")`) et les valeurs de l'adresse d'avant (ADR-091 :
@@ -903,11 +903,21 @@
     const query = addressNames.length ? address_query(source, before) : "";
     return { address: `${addressOf(path)}?${query ? `${query}&` : ""}mirror`, body: fields.toString() };
   }
-  let mirrored = Promise.resolve();
+  // Le toucher renvoyé passe dans la même file que les touchers partagés (Codex, PR 199) : leur
+  // arbitre doit voir le geste personnel précédent. Une réponse absente ne laisse pas toute la file
+  // attendre sans fin : dix secondes au plus.
   function mirror(request) {
     if (!request) return;
-    mirrored = mirrored.then(() => fetch(request.address, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: request.body }).catch(() => {}));
-    window.__holoMirrored = mirrored; // pour les essais : le dernier toucher renvoyé
+    sharedQueue = sharedQueue.then(async () => {
+      const stop = new AbortController();
+      const late = setTimeout(() => stop.abort(), 10000);
+      try {
+        await fetch(request.address, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: request.body, signal: stop.signal });
+      } finally {
+        clearTimeout(late);
+      }
+    }).catch(() => {});
+    window.__holoMirrored = sharedQueue; // pour les essais : le dernier toucher renvoyé
   }
 
   // Écoute en direct l'adresse de la page affichée, si elle partage des valeurs (ADR-079). Le

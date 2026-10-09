@@ -6,6 +6,23 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Le lot 7 décidé, avec la correction de Codex ; les lots 9 et les polices fusionnés dedans
+
+- Yocthan : intégrer tout le travail de Codex quand il est bien fait, et le continuer nous-mêmes ; « tu valides tout ce qu'on avait fait ». L'`ADR-081` (les comptes) passe en `ACCEPTÉ`.
+- Fusionnés dans `langage/lot7-comptes` : `main` (le lot 9, PR 171 à 194 ; les polices, PR 195 ; les sondes de Codex, PR 198), puis la correction de Codex (PR 199). La PR 204 de Codex, qui faisait la même fusion, est refusée : elle doublait 177, 199 et 201.
+- **La correction de Codex (PR 199)**, relue et éprouvée avant : pour un membre, un geste partagé part de l'état que le serveur garde pour son compte ; de l'état envoyé par la page, il ne prend que les champs. Ses sondes HTTP (PR 198) : P03 (une seconde réservation forgée, `booked=0`) et P04 (`cart=777` gardé après un refus) ratées avec l'ancien serveur, les cinq passent avec le nouveau. La dette de l'`ADR-081` est payée, Codex est nommé.
+- **Ma correction du toucher renvoyé** (`?mirror`), gardée et combinée avec la file de Codex : la demande est faite avant que la page joue le toucher (les champs tels qu'écrits, l'adresse d'avant), puis elle part dans la file commune aux touchers partagés, dix secondes au plus. Un essai dans Chrome la garde ; il rate avec l'ancien ordre (« vue 4 », la note perdue).
+- Pendant la fusion avec le lot 9 : sur une page réservée, le titre lit `{account}` (`ADR-090`) et l'adresse porte ses valeurs (`ADR-091`) ; `address: [account]` est refusé ; les leçons s'enchaînent 100, 101, 104, 105, 106, 110.
+- Rangé : la page d'essai de Codex, `exemples/.essais-navigateur/concert-des-membres.holo` (elle était dans `proposals/`) ; le commentaire coupé en deux dans `page-engine.js`.
+- Exécuté, après une reconstruction complète : les deux WebAssembly et `holo` sans avertissement ; `cargo test --release` → 190 tests passent ; `cargo test` → 190 ; les sondes de Codex → 5 sur 5 ; la suite entière dans Chrome → 46 essais `OK`, aucun raté, 110 leçons (339 s).
+
+**Erreurs en route**
+
+- Dans ma première fusion avec le lot 9, le toucher renvoyé partait avec les champs et l'adresse d'après le toucher : une note vide rangée, une page comptée deux fois. Trouvé en relisant le code de l'historique, corrigé, gardé par un essai.
+- Une première version de cet essai attendait le moteur par un `focus()` écrit par script, qui ne le fait pas venir : l'essai ratait alors que la page était juste.
+
+---
+
 ## 2026-10-08 — Tout ce que Yocthan a validé passe en « décidé »
 
 - Yocthan, en regardant le tableau en ligne : « Pourquoi y a toujours "20 en partie" ? Tout doit être en décidé car je les ai validés », puis « Valides les "34 à l'essai" ». Il avait essayé au doigt les leçons 1 à 100 : « tout marche ».

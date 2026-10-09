@@ -67,6 +67,10 @@ pub struct Site {
     web: PathBuf,
     /// La base : un seul fichier, `holo-data/site.sqlite`.
     pub(crate) base: Mutex<Connection>,
+    /// Un geste de page à la fois, de la lecture de la visite à son enregistrement : les envois
+    /// JSON, les formulaires et les miroirs d'un même compte ne relisent pas un état périmé.
+    /// On prend ce verrou avant la base ; les lecteurs et les comptes restent indépendants.
+    gestures: Mutex<()>,
     /// Les pages ouvertes en direct (ADR-079) : chacune reçoit les valeurs partagées de son
     /// adresse quand elles changent. On prend toujours la base avant cette liste, jamais l'inverse.
     lives: Arc<Mutex<Lives>>,
@@ -157,7 +161,7 @@ impl Site {
         base.execute("DELETE FROM visits WHERE updated < ?1 AND visitor NOT LIKE 'account:%'", params![now().saturating_sub(FORGET_AFTER) as i64]).map_err(|e| e.to_string())?;
         // Les comptes, les sessions, le frein contre les essais répétés (ADR-081).
         crate::accounts::prepare(&base, now())?;
-        Ok(Site { folder, web: web.to_path_buf(), base: Mutex::new(base), lives: Arc::default() })
+        Ok(Site { folder, web: web.to_path_buf(), base: Mutex::new(base), gestures: Mutex::new(()), lives: Arc::default() })
     }
 
     /// Répond à une demande. Tout passe par ici : c'est ce que les essais éprouvent.
@@ -250,6 +254,7 @@ impl Site {
         if ask.body.len() as u64 > BODY_MAX {
             return Reply::text(413, "formulaire trop lourd");
         }
+        let Ok(_gesture) = self.gestures.lock() else { return Reply::text(500, "arbitre indisponible") };
         let Ok(source) = source_for(&file, &values, member.as_ref()) else { return Reply::text(404, "page introuvable") };
         set_clock();
         // L'état d'un membre est gardé sous son compte ; celui d'un visiteur, sous son cookie.
@@ -413,10 +418,13 @@ impl Site {
     /// à toutes les pages ouvertes à cette adresse, garde l'état du visiteur comme sans JavaScript,
     /// et répond l'état d'après : `200`, ou `409` si le geste est refusé (un bouton caché).
     ///
-    /// Un membre connecté (ADR-081) : la page est lue avec son nom (`signedIn`, `{account}` : un
-    /// bouton montré aux seuls membres se touche), et son état est gardé sous son compte.
+    /// Un membre connecté (ADR-081) : son état vient de la base, jamais de la copie envoyée par
+    /// la page. Seules les valeurs liées à un champ passent par la validation des saisies.
+    /// Un geste refusé ne garde rien. Pour un visiteur sans compte, l'état personnel reste fourni
+    /// par sa page (limite d'ADR-079) ; ses valeurs partagées viennent toujours de la base.
     #[allow(clippy::too_many_arguments)]
     fn shared_gesture(&self, ask: &Ask, path: &str, file: &Path, holo: &str, values: &[(String, String)], signal: &str, state: &str, member: Option<&crate::accounts::Member>) -> Reply {
+        let Ok(_gesture) = self.gestures.lock() else { return Reply::text(500, "arbitre indisponible") };
         let Ok(source) = source_for(file, values, member) else { return Reply::text(404, "page introuvable") };
         if crate::shared_names(&source).is_empty() {
             return Reply::text(400, "cette page ne partage aucune valeur");
@@ -432,16 +440,27 @@ impl Site {
         let Ok(base) = self.base.lock() else { return Reply::text(500, "base indisponible") };
         let key = shared_key(holo, values);
         let (current, mut version) = shared_in(&base, &key);
-        let (after, accepted) = crate::share(&source, state, &current, signal);
+        let mut visit = stored_in(&base, &visitor, path).unwrap_or_else(|| Visit { state: starting_state(&source, file), tried: Vec::new() });
+        let before = crate::with_shared(&source, &visit.state, &current);
+        let candidate = if member.is_some() {
+            // La copie de la page n'est qu'un transport pour ses champs : elle ne peut ni remettre
+            // booked à zéro, ni changer une liste, un score, le compte ou le compteur de hasard.
+            crate::visitor_gesture(&source, &before, &inputs_from_state(&source, state))
+        } else {
+            state.to_string()
+        };
+        let (mut after, accepted) = crate::share(&source, &candidate, &current, signal);
         if accepted {
+            let saved = without_sounds(&after);
+            if saved.len() > STATE_MAX {
+                return Reply::text(413, "état trop lourd");
+            }
             version = self.changed(&base, &key, &source, &current, &after, version);
-        }
-        // L'état du visiteur après ce geste, gardé comme sans JavaScript (ADR-074) : il le retrouve
-        // en revenant.
-        let mut visit = stored_in(&base, &visitor, path).unwrap_or_default();
-        visit.state = without_sounds(&after);
-        if visit.state.len() <= STATE_MAX {
+            visit.state = saved;
             store_in(&base, &visitor, path, &visit);
+        } else if member.is_some() {
+            // Le refus ne valide pas non plus les saisies jointes ; la réponse rend l'état gardé.
+            after = before;
         }
         drop(base);
         let body = format!("{{\"accepted\":{accepted},\"state\":{},\"shared\":{},\"version\":{version}}}", crate::json_text(&after), crate::json_text(&crate::shared_of(&source, &after)));
@@ -977,6 +996,41 @@ fn starting_state(source: &str, file: &Path) -> String {
     without_sounds(&state)
 }
 
+/// Extrait d'une copie d'état seulement les saisies que la page déclare. Leur validation
+/// (bornes, longueur, options, dates) reste celle de `visitor_gesture`. Les nombres de l'état
+/// sont à l'échelle : 1250 pour un champ déclaré à 12.50 devient « 12.50 », pas « 1250 ».
+/// Une valeur absente ou mal codée ne remet pas le champ à sa valeur de départ.
+fn inputs_from_state(source: &str, state: &str) -> Vec<(String, String)> {
+    let Ok(program) = crate::check_page(source) else { return Vec::new() };
+    let numbers = crate::state::initial(&program).unwrap_or_default();
+    let texts = crate::state::initial_texts(&program);
+    let mut names: Vec<String> = Vec::new();
+    let _ = crate::rules::for_each_block(&program.root, &mut |block| {
+        if matches!(block.name.as_str(), "Input" | "Checkbox" | "Slider" | "Choice") {
+            if let Some(crate::holo::Value::Name(name)) = block.argument("value").map(|argument| &argument.value) {
+                if name != crate::gestures::SIGNAL && !program.shared.contains(name) && !names.contains(name) {
+                    names.push(name.clone());
+                }
+            }
+        }
+        Ok(())
+    });
+    names.into_iter().filter_map(|name| {
+        let written = state.split(';').rev().find_map(|chunk| {
+            let (known, written) = chunk.split_once('=')?;
+            (known == name).then_some(written)
+        })?;
+        let value = if texts.iter().any(|(known, _)| *known == name) {
+            crate::state::decode(written.strip_prefix('\'')?)?
+        } else if numbers.iter().any(|(known, _)| *known == name) {
+            crate::state::format_decimal(written.parse().ok()?, crate::state::places(&program, &name))
+        } else {
+            return None;
+        };
+        Some((name, value))
+    }).collect()
+}
+
 /// Le texte d'une page, avec ses imports, puis les valeurs de son adresse (ADR-078).
 fn source_at(file: &Path, values: &[(String, String)]) -> std::io::Result<String> {
     let source = read_with_imports(file)?;
@@ -1412,6 +1466,124 @@ mod tests {
         assert!(String::from_utf8(reopened.answer(&ask("GET", "/concert.holo", "", b"")).body).unwrap().contains("<span data-state=\"seats\">0</span> place(s)"));
         drop(reopened);
         let _ = std::fs::remove_dir_all(folder);
+    }
+
+
+    const MEMBER_CONCERT: &str = include_str!("../../exemples/.essais-navigateur/concert-des-membres.holo");
+
+    fn concert_member(site: &Site, name: &str) -> String {
+        let body = format!("name={name}&password=une+phrase+assez+longue&again=une+phrase+assez+longue");
+        let reply = site.answer(&ask("POST", "/account/signup", "", body.as_bytes()));
+        assert_eq!(reply.status, 303, "{}", String::from_utf8_lossy(&reply.body));
+        let cookie = cookie_of(&reply);
+        assert!(cookie.starts_with("holo_session="), "{cookie}");
+        cookie
+    }
+
+    fn member_state(site: &Site, cookie: &str) -> String {
+        let member = crate::accounts::member_of(site, cookie).unwrap();
+        site.stored(&member.visit_key(), "/member-concert.holo").unwrap().state
+    }
+
+    #[test]
+    fn a_member_cannot_reserve_twice_by_forging_the_json_state() {
+        let (site, folder) = site();
+        crate::check_page(MEMBER_CONCERT).unwrap();
+        std::fs::write(folder.join("member-concert.holo"), MEMBER_CONCERT).unwrap();
+        let ada = concert_member(&site, "Ada");
+        assert_eq!(site.answer(&ask("POST", "/member-concert.holo", &ada, b"signal=Book.tap")).status, 303);
+        let saved = member_state(&site, &ada);
+        let forged = br#"{"signal":"Book.tap","state":"booked=0;cart=777;seats=999;likes=0"}"#;
+        let refused = site.answer(&json("/member-concert.holo", &ada, forged));
+        assert_eq!(refused.status, 409, "{}", String::from_utf8_lossy(&refused.body));
+        assert_eq!(member_state(&site, &ada), saved);
+        assert!(String::from_utf8(refused.body).unwrap().contains("\"shared\":\"seats=2;likes=0;last='\""));
+        // Un geste accepté ne reprend pas davantage cart=777.
+        assert_eq!(site.answer(&json("/member-concert.holo", &ada, br#"{"signal":"Like.tap","state":"booked=0;cart=777;likes=999"}"#)).status, 200);
+        assert!(member_state(&site, &ada).contains("booked=1;cart=0"), "{}", member_state(&site, &ada));
+        let grace = concert_member(&site, "Grace");
+        assert_eq!(site.answer(&json("/member-concert.holo", &grace, forged)).status, 200);
+        assert!(member_state(&site, &grace).contains("booked=1;cart=0"), "{}", member_state(&site, &grace));
+        drop(site);
+        std::fs::remove_dir_all(folder).unwrap();
+    }
+
+    #[test]
+    fn a_refused_member_gesture_saves_neither_forged_state_nor_inputs() {
+        let (site, folder) = site();
+        std::fs::write(folder.join("member-concert.holo"), MEMBER_CONCERT).unwrap();
+        let ada = concert_member(&site, "Ada");
+        site.answer(&ask("POST", "/member-concert.holo", &ada, b"note=Ada&signal=Book.tap"));
+        let saved = member_state(&site, &ada);
+        let body = br#"{"signal":"Book.tap","state":"booked=1;cart=777;note='Eve;price=99999"}"#;
+        let refused = site.answer(&json("/member-concert.holo", &ada, body));
+        assert_eq!(refused.status, 409);
+        assert_eq!(member_state(&site, &ada), saved);
+        assert!(String::from_utf8(refused.body).unwrap().contains(&crate::json_text(&saved)));
+        drop(site);
+        std::fs::remove_dir_all(folder).unwrap();
+    }
+
+    #[test]
+    fn member_json_inputs_use_the_normal_validation_and_decimal_scale() {
+        let (site, folder) = site();
+        std::fs::write(folder.join("member-concert.holo"), MEMBER_CONCERT).unwrap();
+        let ada = concert_member(&site, "Ada");
+        // Les champs restent utilisables sans attendre leur miroir. Le texte est nettoyé et
+        // borné, les décimales gardent leur échelle, la glissière et le choix gardent leurs bornes.
+        let body = br#"{"signal":"Book.tap","state":"booked=0;cart=777;note='Ad%C3%A8leOK;price=1350;agreed=1;level=999;size='XL;seats=999;last='Eve"}"#;
+        let reply = site.answer(&json("/member-concert.holo", &ada, body));
+        assert_eq!(reply.status, 200, "{}", String::from_utf8_lossy(&reply.body));
+        let saved = member_state(&site, &ada);
+        for chunk in ["booked=1", "cart=0", "price=1350", "agreed=1", "level=10", "size='S", "note='Ad%C3%A8le", "last='Ad%C3%A8le", "seats=2"] {
+            assert!(saved.split(';').any(|part| part == chunk), "{chunk}: {saved}");
+        }
+        assert!(inputs_from_state(MEMBER_CONCERT, "cart=777;booked=0;price=oops;note='%ZZ;last='Eve").is_empty());
+        assert!(inputs_from_state(MEMBER_CONCERT, "").is_empty());
+        drop(site);
+        std::fs::remove_dir_all(folder).unwrap();
+    }
+
+    #[test]
+    fn a_refused_guest_json_gesture_does_not_create_a_saved_visit() {
+        let (site, folder) = site();
+        std::fs::write(folder.join("concert.holo"), CONCERT).unwrap();
+        let reply = site.answer(&json("/concert.holo", "", br#"{"signal":"Book.tap","state":"booked=1;seats=999"}"#));
+        assert_eq!(reply.status, 409);
+        let visitor = visitor_of(&cookie_of(&reply)).unwrap();
+        assert!(site.stored(&visitor, "/concert.holo").is_none());
+        drop(site);
+        std::fs::remove_dir_all(folder).unwrap();
+    }
+
+    #[test]
+    fn concurrent_form_and_json_taps_of_one_account_reserve_one_seat() {
+        let (site, folder) = site();
+        std::fs::write(folder.join("member-concert.holo"), MEMBER_CONCERT).unwrap();
+        let ada = concert_member(&site, "Ada");
+        let barrier = std::sync::Barrier::new(8);
+        std::thread::scope(|scope| {
+            for rank in 0..8 {
+                let barrier = &barrier;
+                let site = &site;
+                let ada = &ada;
+                scope.spawn(move || {
+                    barrier.wait();
+                    if rank % 2 == 0 {
+                        assert_eq!(site.answer(&ask("POST", "/member-concert.holo", ada, b"signal=Book.tap")).status, 303);
+                    } else {
+                        let status = site.answer(&json("/member-concert.holo", ada, br#"{"signal":"Book.tap","state":"booked=0;seats=999"}"#)).status;
+                        assert!(status == 200 || status == 409, "{status}");
+                    }
+                });
+            }
+        });
+        let base = site.base.lock().unwrap();
+        assert_eq!(shared_in(&base, "/member-concert.holo"), ("seats=2;likes=0;last='".into(), 1));
+        drop(base);
+        assert!(member_state(&site, &ada).contains("booked=1;cart=0"));
+        drop(site);
+        std::fs::remove_dir_all(folder).unwrap();
     }
 
     /// Ce qu'une page en direct reçoit, pour les essais.
