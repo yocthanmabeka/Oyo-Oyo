@@ -247,4 +247,18 @@ mod tests {
         let template = crate::address::joined("Page(address: [id], children: [ P(\"{id}\") ])", &[("id".to_string(), "ada".to_string())]);
         assert!(crate::check_page(&template).unwrap_err().message.contains("par le nom du fichier"));
     }
+
+    #[test]
+    fn the_address_wins_over_the_data_served_with_the_page() {
+        // Les données servies d'abord (ADR-064), puis l'adresse, que le visiteur a choisie.
+        let page = "Page(state: State(tab: \"a\", page: 1), address: [page], data: Data(from: \"d.json\"), children: [ P(\"{tab} {page}\"), Button(name: Next, text: \"+\") ], rules: [ On(Next.tap, effect: page.add(1)) ])";
+        let json = r#"{"page": 5, "tab": "b"}"#;
+        let html = crate::flat_view_with_data_at(page, "", json, "page=9").unwrap();
+        assert!(html.contains("<span data-state=\"page\">9</span>") && html.contains("<span data-state=\"tab\">b</span>"), "{html}");
+        // Sans adresse : les données ; sans données : l'adresse.
+        let html = crate::flat_view_with_data_at(page, "", json, "").unwrap();
+        assert!(html.contains("<span data-state=\"page\">5</span>"), "{html}");
+        let html = crate::flat_view_with_data_at(page, "", "pas du JSON", "page=9").unwrap();
+        assert!(html.contains("<span data-state=\"page\">9</span>") && html.contains("<span data-state=\"tab\">a</span>"), "{html}");
+    }
 }

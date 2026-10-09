@@ -6,6 +6,29 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Les remarques de Codex sur la chaîne du nuage : huit corrections, et un défaut ancien
+
+- Fait : les remarques de la relecture automatique de Codex sur les PR #191 à #195, vérifiées une à une. Huit étaient justes, corrigées dans une PR à part, à la suite de la chaîne :
+  - une page servie avec ses données et ouverte sur un endroit (`#section`) relit ses données tout de suite, au lieu de rester sur l'état du début ;
+  - un chronomètre est rangé sous son fichier et son nom : celui d'une autre page est un autre chronomètre ; revenu sur sa page, son cadran suit ;
+  - un module ne rend jamais une valeur partagée, même dans une liste (`output: [best, seats]`) ;
+  - `holo html` fabrique la page avec ses données, puis avec l'adresse ; le navigateur les reprend dans le même ordre ;
+  - « Précédent » entre deux adresses qui gardent un endroit (`?onglet=b#details`) remet aussi les valeurs ;
+  - le titre compte les éléments des listes (`{tasks} tâche(s)`) après chaque ajout ;
+  - un toucher arbitré par le serveur (`Shared`) fait un pas dans l'historique, comme les autres ;
+  - une page où le moteur revient par un point (`inside: "fichier.holo"`) remet ses valeurs dans l'adresse.
+- En essayant la première, un défaut plus ancien, aussi sur `main` : une page servie, ouverte sur un endroit (`#Bas`), arrêtait le moteur au démarrage (« Le moteur a refusé ce fichier »). Il cherchait les points du site affiché avant d'en afficher un. Corrigé.
+- Deux n'étaient pas justes : un graphique sur une liste calculée suit bien ses changements (l'état que le moteur écrit contient les listes calculées) ; les noms français des leçons et de leurs modules suivent la règle (`AGENTS.md` : « les leçons et la documentation restent en français »).
+- La fin du lot 9 (étapes 5 à 8 : import et export, appareil, notifications, hors-ligne) est reprise par Codex, à la demande de Yocthan (issue #202, PR #203) : la session du nuage ne la refait pas.
+- Exécuté : `cargo test` → 175 tests passent (deux nouveaux, un complété) ; dans Chrome, deux essais nouveaux (« passer d'un fichier à l'autre », « une page servie avec ses données, ouverte sur un endroit »), qui ratent avec l'ancien code ; la suite entière : 41 essais passent, et les 2 ratés déjà connus dans ce conteneur (« pincer à deux doigts », qui passe relancé seul, et « la vue points se lit au lecteur d'écran »).
+
+**Erreurs en route**
+
+- Mes deux premiers essais suivaient les liens d'une leçon à l'autre : un lien recharge toute la page, il ne passe jamais par le chemin que Codex décrivait (le moteur qui passe lui-même d'un fichier à l'autre, par un point). Deux pages d'essai passent maintenant par des points.
+- Mon premier essai de l'endroit (`#rien`) nommait un endroit qui n'existe pas : le moteur s'arrêtait avec ou sans la correction. Avec un vrai endroit, il s'arrêtait aussi : c'est ainsi qu'est apparu le défaut ancien. Une adresse qui ne nomme rien (`#rien`) arrête encore le moteur : une dette, à corriger à part.
+
+---
+
 ## 2026-10-08 — Des polices libres pour toutes les écritures : `Font(family: "Inter")`
 
 - Fait (`ADR-092`, PROPOSITION ; une des tâches confiées par Yocthan à la session du nuage, sa demande de la leçon 54) : 32 polices libres gardées dans le projet (`moteur/web/fonts/`), nommées sans fichier. Le latin, le cyrillique, le grec, l'arabe, l'hébreu, le devanagari, le bengali, le tamoul, le thaï, l'éthiopien, l'adlam, le n'ko, le tifinagh, le chinois, le japonais, le coréen. Le navigateur ne télécharge que les morceaux dont la page a besoin : la phrase japonaise de la leçon 115 fait venir 1 morceau sur 124. Leçon 115.

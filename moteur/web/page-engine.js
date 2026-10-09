@@ -301,6 +301,8 @@
       history.pushState({ since }, "", fromElsewhere(file) ? `#@${fullAddress(file)}` : addressOf(file) + (sitePath ? `#${sitePath}` : ""));
     }
     displaySite(sitePath, { inHistory: false });
+    // Ses valeurs d'adresse (ADR-091), gardées pendant la visite, reviennent dans l'adresse.
+    if (inHistory) followAddress(false);
     return true;
   }
 
@@ -478,7 +480,10 @@
   // La page fabriquée par le serveur arrive avec ses données (ADR-064) : les relire tout de suite
   // ne servirait à rien, et effacerait ce que le visiteur aurait changé entre-temps (une vente
   // ajoutée à la liste avant leur retour). La première lecture attend donc le rythme de la page.
-  let servedData = Boolean(root.querySelector(".holo-Page")?.dataset.received);
+  // Seulement quand la page reprend vraiment ces données au démarrage (même condition que plus
+  // bas) : sans endroit dans l'adresse (#section) et sans visite gardée par holo serve. Sinon, la
+  // première lecture se fait tout de suite, comme pour une page sans données servies.
+  let servedData = !location.hash.slice(1) && !root.querySelector(".holo-Page")?.dataset.visit && Boolean(root.querySelector(".holo-Page")?.dataset.received);
   function setData() {
     clearInterval(refresh);
     clearTimeout(dataLater);
@@ -584,12 +589,17 @@
     return Math.round(elapsed);
   }
   function stopwatch(name, capability, element) {
-    const watch = stopwatches.get(name) ?? { elapsed: 0, since: 0, frame: 0 };
-    stopwatches.set(name, watch);
+    // Rangé sous son fichier et son nom : un chronomètre du même nom, sur une autre page, est un
+    // autre chronomètre. Il retrouve son cadran à chaque image ; sa page cachée, il ne dessine rien.
+    const key = `${path}|${name}`;
+    const watch = stopwatches.get(key) ?? { elapsed: 0, since: 0, frame: 0 };
+    stopwatches.set(key, watch);
     if (capability === "start" && !watch.since) {
       watch.since = performance.now();
+      const owner = path;
       const tick = () => {
-        showStopwatch(name, element, watch);
+        const dial = owner === path && root.querySelector(`.holo-Stopwatch[data-name="${CSS.escape(name)}"]`);
+        if (dial) showStopwatch(name, dial, watch);
         watch.frame = requestAnimationFrame(tick);
       };
       tick();
@@ -850,17 +860,19 @@
     }
   }
 
+  // Un toucher ou une touche du visiteur : ce qui fait un pas dans l'historique (ADR-091).
+  const isStep = (signal) => /\.tap(@\d+)?$/.test(signal) || signal.startsWith("Key.");
   // Un signal est émis (Add.tap) : l'arbitre du moteur dit ce que deviennent les valeurs, puis
   // les autres effets demandés par les règles sont appliqués.
   function emit(signal) {
     // Un toucher qui change une valeur partagée : c'est le serveur qui arbitre (ADR-079).
-    if (sharedNames.length && touches_shared(source, signal)) return shareGesture(signal);
+    if (sharedNames.length && touches_shared(source, signal)) return shareGesture(signal, isStep(signal));
     const before = states.get(path) ?? "";
     const after = store(arbitrate(source, before, signal));
     if (valuesPanel) lastGesture = { signal, before, after };
     // Ce qui apparaît ou disparaît déplace le reste de la page : changerLEtat replace les pixels.
     // Un toucher ou une touche fait un pas dans l'historique, s'il change l'adresse (ADR-091).
-    if (after !== before) changeState(after, /\.tap(@\d+)?$/.test(signal) || signal.startsWith("Key."));
+    if (after !== before) changeState(after, isStep(signal));
     restartClocks(signal);
     for (const effect of effects(source, signal).split(",").filter(Boolean)) {
       apply(effect, signal);
@@ -904,7 +916,7 @@
   // qu'elle attend ; puis elle prend l'état qu'il rend, et fait les autres effets du toucher. Les
   // touchers partent dans l'ordre, un à la fois : aucun n'est perdu. Sans réponse, rien ne
   // change, et la page le dit.
-  function shareGesture(signal) {
+  function shareGesture(signal, step = false) {
     if (sharedWaiting >= SHARED_WAITING_MAX) return;
     sharedWaiting += 1;
     const for_ = path;
@@ -938,7 +950,7 @@
       const before = states.get(path) ?? "";
       const after = store(with_shared(source, gestureOn(before, sent, store(reply.state)), sharedLatest));
       if (valuesPanel) lastGesture = { signal, before, after };
-      if (after && after !== before) changeState(after);
+      if (after && after !== before) changeState(after, step);
       if (!reply.accepted) return note("Ce bouton n'était plus là pour le serveur : rien n'a changé.");
       restartClocks(signal);
       for (const effect of effects(source, signal).split(",").filter(Boolean)) apply(effect, signal);
@@ -1800,10 +1812,6 @@
     // serveur après des touchers faits sans JavaScript. Le moteur repart de là.
     const visit = !location.hash.slice(1) && root.querySelector(".holo-Page")?.dataset.visit;
     if (visit) states.set(path, visit);
-    // Les valeurs que l'adresse porte après le « ? » (ADR-091), seulement celles que la page
-    // nomme : un lien partagé arrive sur le même onglet. Le serveur les a déjà posées sur la
-    // page qu'il a fabriquée ; les reposer ne change rien.
-    if (addressNames.length) states.set(path, from_query(source, states.get(path) ?? "", location.search.slice(1)) || states.get(path));
     const received = !visit && !location.hash.slice(1) && root.querySelector(".holo-Page")?.dataset.received;
     if (received) {
       const dataName = data(source).split("|")[2];
@@ -1811,6 +1819,10 @@
       if (replayed && dataName) replayed = arbitrate(source, replayed, `${dataName}.done`);
       if (replayed) states.set(path, replayed.split(";").filter((chunk) => !chunk.startsWith("!=")).join(";"));
     }
+    // Les valeurs que l'adresse porte après le « ? » (ADR-091), seulement celles que la page
+    // nomme : un lien partagé arrive sur le même onglet. Après les données servies : l'adresse,
+    // choisie par le visiteur, l'emporte, comme sur le serveur qui a fabriqué la page.
+    if (addressNames.length) states.set(path, from_query(source, states.get(path) ?? "", location.search.slice(1)) || states.get(path));
     // Les valeurs partagées du moment, que le serveur a mises dans la page (ADR-079) : le moteur
     // part d'elles, puis les reçoit en direct.
     const sharedNow = !location.hash.slice(1) && root.querySelector(".holo-Page")?.dataset.shared;
@@ -1819,7 +1831,9 @@
     // l'attendre : il sera prêt quand le visiteur zoomera.
     if (needs_drawing(source)) loadDrawing().catch(() => {});
     // Un endroit de la page (#Hours) n'est pas un site : on reste sur la page, à cet endroit.
-    const pageSpot = (name) => name && !name.startsWith("@") && !name.startsWith("~") && !name.includes("/") && document.getElementById(name)?.closest("#page") && !containedSites().some((s) => s.name === name);
+    // Au démarrage, aucun site n'est encore affiché (page vaut null) : un point n'a jamais
+    // d'id, un endroit trouvé n'est donc pas un site.
+    const pageSpot = (name) => name && !name.startsWith("@") && !name.startsWith("~") && !name.includes("/") && document.getElementById(name)?.closest("#page") && !(page && containedSites().some((s) => s.name === name));
     const siteStart = pageSpot(decodeURIComponent(location.hash.slice(1))) ? "" : decodeURIComponent(location.hash.slice(1));
     // La page du fichier est déjà là, fabriquée par le serveur : on la reprend. Un monde
     // demandé par l'adresse (#Atelier), lui, se dessine.
@@ -1841,8 +1855,9 @@
       else if (here !== path && here.endsWith(".holo")) openFile(here, sitePath, { inHistory: false }).then(readAddress);
       // Un pas d'historique dans la page (ADR-091) : seules ses valeurs changent.
       else if (sitePath === site && readAddress()) return;
-      // Un lien vers un endroit de la page (ADR-042) : le navigateur y descend, rien d'autre.
-      else if (pageSpot(sitePath)) return;
+      // Un lien vers un endroit de la page (ADR-042) : le navigateur y descend ; les valeurs que
+      // dit l'adresse suivent aussi (ADR-091), même quand elle garde cet endroit (#details).
+      else if (pageSpot(sitePath)) readAddress();
       else displaySite(sitePath, { inHistory: false });
     });
     // Dans un monde calculé : dézoomer alors qu'on est revenu tout en haut en fait ressortir.

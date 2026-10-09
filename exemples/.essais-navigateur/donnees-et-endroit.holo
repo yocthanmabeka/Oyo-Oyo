@@ -1,0 +1,20 @@
+// Une page d'essai (moteur/outils/browser-tests.mjs), pas une leçon : une page servie avec ses
+// données, ouverte sur un endroit (#Bas). Le navigateur ne rejoue pas alors ce que le serveur a
+// reçu : il relit les données tout de suite, au lieu de rester sur l'état du début.
+
+Page(
+  title: "Essai : des données et un endroit",
+  state: State(loading: 1, reads: 0, articles: [ Item(title: "Au départ", price: 0) ]),
+  data: Data(name: Feed, from: "donnees-petites.json"),
+  children: [
+    A("Aller en bas", to: "#Bas"),
+    If(loading, is: 1, children: [ P("Chargement…") ]),
+    P("lectures {reads}"),
+    Repeat(over: articles, children: [ Text("{item.title}") ]),
+    Button(name: Bas, text: "Relire"),
+  ],
+  rules: [
+    On(Feed.done, effect: [loading.set(0), reads.add(1)]),
+    On(Bas.tap, effect: [loading.set(1), Feed.refresh]),
+  ],
+)

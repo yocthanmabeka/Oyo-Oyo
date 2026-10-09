@@ -440,6 +440,40 @@ const tests = [
     const ok = tab && next && back && start && again && shared && kept && forged;
     return [ok, `onglet : ${tab} ; page suivante : ${next} ; précédent : ${back}, puis le début : ${start} ; suivant : ${again} ; adresse partagée : ${shared} ; ?values gardé : ${kept} ; valeurs forgées : ${forged}`];
   }],
+  ["passer d'un fichier à l'autre : l'adresse et le chronomètre suivent la page", async (p) => {
+    const folder = "/exemples/.essais-navigateur";
+    const shows = (text) => `document.getElementById("page").innerText.includes(${JSON.stringify(text)})`;
+    const dial = () => p.value(`document.querySelector(".holo-Stopwatch")?.textContent`);
+    await p.open(`${folder}/passage-onglets.holo`);
+    await p.click('[data-name="Aquarelles"]');
+    const tab = await p.until(`location.search === "?onglet=aquarelles" && ${shows("Onglet aquarelles")}`, 40000);
+    // Par un point, le moteur passe dans un autre fichier sans recharger la page ; on y lance le chronomètre.
+    await p.click('[data-name="Suite"]');
+    const there = await p.until(`location.pathname.endsWith("passage-chrono.holo") && !!document.querySelector('[data-name="Partir"]')`, 8000);
+    await p.click('[data-name="Partir"]');
+    // Revenue par un autre point, la page reprend ses valeurs, et l'adresse les dit encore.
+    await p.click('[data-name="Retour"]');
+    const reopened = await p.until(`location.pathname.endsWith("passage-onglets.holo") && location.search === "?onglet=aquarelles" && ${shows("Onglet aquarelles")}`, 8000);
+    // Le chronomètre a tourné pendant ce temps ; revenu sur sa page, son cadran redessiné suit.
+    await p.click('[data-name="Suite"]');
+    await p.until(`location.pathname.endsWith("passage-chrono.holo") && !!document.querySelector(".holo-Stopwatch")`, 8000);
+    const first = await dial();
+    await pause(400);
+    const later = await dial();
+    const follows = first !== "00:00,00" && later !== first;
+    const ok = tab && there && reopened && follows;
+    return [ok, `onglet : ${tab} ; passé dans l'autre fichier : ${there} ; revenu, l'adresse dit l'onglet : ${reopened} ; le cadran suit : ${first} puis ${later}`];
+  }],
+  ["une page servie avec ses données, ouverte sur un endroit (#Bas), relit ses données", async (p) => {
+    await p.open("/exemples/.essais-navigateur/donnees-et-endroit.holo#Bas");
+    const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;
+    const started = await p.until("window.__holoStarted === true");
+    const refused = await p.value(`document.getElementById("error")?.textContent ?? ""`);
+    // Le navigateur ne rejoue pas la réception du serveur (l'adresse a un endroit) : il relit.
+    const read = await p.until(`${has("lectures 1")} && ${has("Trois")} && !${has("Chargement")}`, 8000);
+    const ok = started && !refused && read;
+    return [ok, `moteur arrivé : ${started} ${refused} ; données relues : ${read}`];
+  }],
   ["des polices libres pour toutes les écritures : Font(family: \"Inter\") (leçon 115)", async (p) => {
     await p.open("/exemples/lecons/115-des-polices-pour-toutes-les-ecritures.holo");
     // Les polices du moteur arrivent ; pour le japonais, seulement les morceaux de la phrase.
