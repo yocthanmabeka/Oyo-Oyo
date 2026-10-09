@@ -2764,9 +2764,10 @@ mod tests {
         let text_of = |state: &str, name: &str| reread_texts(&program, state).into_iter().find(|(n, _)| n == name).map(|(_, t)| t).unwrap_or_default();
         assert_eq!(text_of(&start, "today"), "2026-10-07");
         let html = crate::flat_view(source, "").unwrap();
-        assert!(html.contains(r#"<span data-state="today" data-format="date">7 octobre 2026</span> (<span data-state="today" data-format="weekday">mercredi</span>, <span data-state="today">2026-10-07</span>)"#), "{html}");
+        // Une date montrée est aussi lisible par les machines (ADR-098).
+        assert!(html.contains(r#"<time data-state="today" data-format="date" datetime="2026-10-07">7 octobre 2026</time> (<time data-state="today" data-format="weekday" datetime="2026-10-07">mercredi</time>, <span data-state="today">2026-10-07</span>)"#), "{html}");
         assert!(html.contains(r#"<input type="date" min="2026-10-07" value="" data-bind="arrival">"#), "{html}");
-        assert!(html.contains(r#"<span data-state="due" data-format="date">1er octobre 2026</span>"#), "{html}");
+        assert!(html.contains(r#"<time data-state="due" data-format="date" datetime="2026-10-01">1er octobre 2026</time>"#), "{html}");
         // Une date vide ne compare rien.
         assert_eq!(crate::conditions(source, &start), "arrival|under=today:0;arrival|over=due:0");
         // Une date avant « min » est refusée ; un jour qui n'existe pas aussi ; une bonne date est prise.

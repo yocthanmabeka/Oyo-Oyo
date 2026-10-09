@@ -665,6 +665,8 @@ mod tests {
             include_str!("../../exemples/lecons/117-appareil-sur-permission.holo"),
             include_str!("../../exemples/lecons/118-notifications-locales.holo"),
             include_str!("../../exemples/lecons/119-une-page-hors-ligne.holo"),
+            // Une abréviation, une date pour les machines, une adresse (ADR-098).
+            include_str!("../../exemples/lecons/121-une-abreviation-une-date-une-adresse.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();

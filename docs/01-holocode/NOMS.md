@@ -56,6 +56,9 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Device(kind: position \| clipboard \| camera \| microphone)`, `request`, `write`, `stop` | `navigator.geolocation`, `navigator.clipboard`, `getUserMedia()` | nouveau : un mot pour l'appareil, quatre sortes nommées ; sur le toucher d'un bouton ; rien n'est envoyé ; l'arrêt vient d'office (`ADR-094`) |
 | `Notification(title:, body:, after:)`, `show`, `stop` | `Notification.requestPermission()`, `showNotification()`, `setTimeout` | repris : le nom du web ; un rappel seulement tant que la page est ouverte, sans « push » (`ADR-095`) |
 | `Offline(files:)`, `save`, `remove` | un service worker et `CacheStorage` écrits à la main | nouveau : une copie d'une page publique, demandée par le visiteur ; le réseau d'abord ; rien n'est mis en attente ni rejoué (`ADR-096`) |
+| `abbreviations: [ Abbreviation("MJC", "…") ]` | `<abbr title="…">` à chaque venue | changé : déclarée une fois pour la page ; le moteur la marque partout et écrit son sens à sa première venue dans un paragraphe, lu et vu aussi au doigt (`ADR-098`, à valider) |
+| (rien : `{ouverture:date}`) | `<time datetime="…">` | nouveau sans mot : chaque date montrée est aussi lisible par les machines (`ADR-098`, à valider) |
+| `Address(children: [ … ])` | `address` | repris : le nom de HTML, les moyens de joindre l'auteur ; ni titre ni repère dedans ; le texte reste droit (`ADR-098`, à valider) |
 | `Enter` | `@keyframes` + `animation` (de… vers…), ou `element.animate()` | changé : on écrit seulement d'où le bloc part |
 | `Loop` | `animation: … infinite alternate` | changé : on écrit seulement où il va |
 | `Scenes`, `Scene` | une suite de `animation-delay` calculés à la main, ou un chef d'orchestre en JavaScript | changé : les scènes s'enchaînent seules |

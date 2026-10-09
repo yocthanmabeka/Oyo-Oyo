@@ -1753,6 +1753,32 @@ Page(
 
 Les quatre blocs sont décidés (`ADR-093` à `ADR-096`, validés par Yocthan le 2026-10-09 ; proposés et construits par Codex). Les leçons sont `116-importer-et-exporter.holo`, `117-appareil-sur-permission.holo`, `118-notifications-locales.holo` et `119-une-page-hors-ligne.holo`.
 
+## 6 undequadragies. Une abréviation expliquée, une date pour les machines, une adresse
+
+Trois petites choses du web (`ADR-098`) : le sens d'une abréviation, une date que comprend un agenda, les moyens de joindre l'auteur.
+
+```holo
+Page(
+  title: "The painting workshop",
+  abbreviations: [ Abbreviation("MJC", "Maison des jeunes et de la culture") ],
+  state: State(opening: "2026-11-14"),
+  children: [
+    H1("The MJC painting workshop"),
+    P("The MJC workshop opens on {opening:date}."),
+    Footer(children: [
+      Address(children: [ P("12 rue des Arts, Paris"), P("Phone: 01 23 45 67 89") ]),
+    ]),
+  ],
+)
+```
+
+- **`abbreviations: [ Abbreviation("MJC", "Maison des jeunes et de la culture") ]`** : une abréviation et son sens, déclarés une fois pour la page. Partout où elle vient comme un mot entier, le moteur la marque (`abbr`) ; la première fois qu'elle vient dans un paragraphe (`P`, `Text`), il écrit son sens juste après, entre parenthèses : « MJC (Maison des jeunes et de la culture) ». Le lecteur d'écran le lit, le téléphone le montre. Si la page écrit déjà ce sens quelque part, il n'ajoute rien.
+- **Une date montrée** (`{opening:date}`, `{opening:weekday}`) est aussi écrite pour les machines, `<time datetime="2026-11-14">` : rien à écrire de plus. Quand un geste la change, la page suit.
+- **`Address(children: [ … ])`** : les moyens de joindre l'auteur de la page, une adresse, un numéro. Ni titre ni repère dedans.
+- Refusés : `Abbreviation` hors de `abbreviations:` ; une abréviation déclarée deux fois ; une forme courte de plus de 20 signes ; un titre dans `Address`.
+
+La leçon est `121-une-abreviation-une-date-une-adresse.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo

@@ -6,6 +6,19 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Une abréviation expliquée, une date pour les machines, une adresse
+
+- Fait (issue #214, prise dans la file par la session du nuage ; `ADR-098`, PROPOSITION) :
+  - `Page(abbreviations: [ Abbreviation("MJC", "Maison des jeunes et de la culture") ])` : déclarée une fois, l'abréviation est marquée (`abbr`) partout où elle vient comme un mot entier, sauf dans du code ; la première fois qu'elle vient dans un paragraphe, le moteur écrit son sens juste après, entre parenthèses, une seule fois, sauf si la page l'écrit déjà. Le `title` de HTML ne se voit pas au doigt et la plupart des lecteurs d'écran ne le lisent pas : le sens écrit, lui, est lu et vu partout.
+  - Une date montrée (`{ouverture:date}`, `{ouverture:weekday}`) devient `<time datetime="2026-11-14">`, sans mot nouveau ; la page change `datetime` quand un geste change la date.
+  - `Address(children: [ … ])` : les moyens de joindre l'auteur, en `<address>`, le texte droit ; ni titre ni repère dedans. `Contact` écarté : sur le web, c'est un formulaire, et nos leçons nomment un formulaire `Contact`.
+  - La leçon 121 ; la leçon 119 y mène. Le guide (chapitre « 6 undequadragies »), `NOMS.md`, `DECISIONS.md`.
+- Exécuté : `cargo test --release` → 201 tests passent (cinq nouveaux ; celui des dates mis à jour : `<span>` devient `<time>`) ; `holo check` sur toutes les leçons ; dans Chrome, l'essai de la leçon 121 passe, et rate quand la page ne met plus `datetime` à jour (la date montrée passe au 21 novembre, `datetime` reste au 14).
+- Erreur en route : le sens n'était jamais écrit. Le moteur le cherchait dans tous les textes de la page pour savoir si l'auteur l'avait déjà écrit, et le trouvait dans la déclaration elle-même. Les déclarations ne comptent plus.
+- Reste : une heure seule (« 14 h 30 ») n'est pas un `<time>` ; un lien `mailto:` ou `tel:` dans une `Address` n'existe pas encore. Avec la PR de la leçon 120 (#220), la suite des leçons deviendra 119 → 120 → 121.
+
+---
+
 ## 2026-10-09 — Le tableau du web : les mots des lots 7 et 9, offset, la police du moteur, et un outil qui refait le fichier
 
 - Fait (issue #186, première partie, prise par la session du nuage à la demande de Yocthan) : la page en ligne « HoloCode face au web » et `TABLEAU-WEB.md` ont les mots qui manquaient.
