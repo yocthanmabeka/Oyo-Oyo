@@ -347,3 +347,14 @@ pub fn check_holo(source: &str) -> String {
         Err(e) => e.to_string(),
     }
 }
+
+/// Export local de valeurs explicitement déclarées.
+#[wasm_bindgen]
+pub fn capability_export(source: &str, state: &str, name: &str) -> Result<String, JsValue> {
+    crate::capability_export(source, state, name).map_err(|e| JsValue::from_str(&e))
+}
+/// Import vérifié avant mutation.
+#[wasm_bindgen]
+pub fn capability_received(source: &str, state: &str, name: &str, json: &str) -> Result<String, JsValue> {
+    crate::capability_received(source, state, name, json).map_err(|e| JsValue::from_str(&e))
+}
