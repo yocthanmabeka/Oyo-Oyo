@@ -69,6 +69,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Data(name: Shop)`, `Shop.done`, `Shop.failed`, `Shop.refresh` | `fetch().then().catch()`, `response.ok`, `AbortController`, un bouton qui rappelle `fetch` | changé : un échec couvre l'erreur du serveur, le fichier trop gros ou illisible, et 10 secondes ; relectures espacées d'office (`ADR-064`, à valider) |
 | `Sound` | `audio`, `new Audio().play()` | changé : un bruit qu'une règle déclenche, pas un lecteur |
 | `List` | `ul`, `ol`, `li` | changé : un bloc au lieu de trois balises |
+| `Term` dans `List` | `dl`, `dt`, `dd` | changé : une liste dont les éléments sont des termes ; un terme porte sa définition, ils ne se séparent pas (`ADR-097`, à valider) |
 | `Row` | `display: flex` | changé : mot de Flutter |
 | `Column` | `display: flex; flex-direction: column` | changé : mot de Flutter |
 | `Grid` | `display: grid` | repris de CSS, devenu un bloc |

@@ -6,6 +6,14 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Une liste de définitions : `List(children: [ Term("Poids", "2 kg") ])`
+
+- Fait (issue #213, prise dans la file par la session du nuage ; `ADR-097`, PROPOSITION) : `Term("Poids", "2 kg")`, un terme et sa définition, toujours ensemble ; une `List` dont les éléments sont des `Term` devient une liste de définitions (`dl`, `dt`, `dd`). Un seul mot nouveau. Leçon 120 : la fiche technique d'une lampe d'atelier, et un petit glossaire.
+- Refusés, avec la raison : un `Term` hors d'une liste, une liste qui mélange des `Term` et autre chose, `ordered:`, un terme sans sa définition.
+- Exécuté : `cargo test --release` → 194 tests passent (deux nouveaux) ; dans Chrome, l'essai de la leçon 120 passe (6 termes et 6 définitions dans l'arbre d'accessibilité, aucun élément à puces) ; la suite entière : 55 essais passent, et les 3 ratés propres à ce conteneur (« pincer à deux doigts », qui passe relancé seul ; « la vue points se lit au lecteur d'écran » ; la vidéo des parcours 8 et 9, en H.264, que le Chromium du conteneur ne lit pas).
+
+---
+
 ## 2026-10-09 — Reprise par la session du nuage, le PC éteint : la fin des lots 6 et 7, raccordée à `main`
 
 - Le PC de Yocthan s'est éteint au milieu de cette intégration ; Yocthan a demandé que la session du nuage reprenne tout le travail de la session du PC. Repris tel quel depuis son dernier envoi, `wip/integration-codex-comptes-partage` (56d9606, 16 h 44 UTC), sur `integration/codex-comptes-partage` : rien de son travail n'est réécrit.

@@ -1832,6 +1832,33 @@ Page(
 
 Les quatre blocs sont décidés (`ADR-093` à `ADR-096`, validés par Yocthan le 2026-10-09 ; proposés et construits par Codex). Les leçons sont `116-importer-et-exporter.holo`, `117-appareil-sur-permission.holo`, `118-notifications-locales.holo` et `119-une-page-hors-ligne.holo`.
 
+## 6 duodequadragies. Une liste de définitions : `Term`
+
+Un terme et sa définition, toujours ensemble (`ADR-097`) : une fiche technique, un glossaire.
+
+```holo
+Page(
+  title: "The workshop lamp",
+  state: State(price: 189.00),
+  children: [
+    H1("The workshop lamp"),
+    List(children: [
+      Term("Height", "45 cm"),
+      Term("Weight", "2 kg"),
+      Term("Colour", "Night blue, or **copper**"),
+      Term("Price", "{price} €"),
+    ]),
+  ],
+)
+```
+
+- **`Term("Weight", "2 kg")`** : le terme, puis sa définition. Une `List` dont les éléments sont des `Term` devient une liste de définitions (`dl`, `dt`, `dd`) ; le lecteur d'écran annonce chaque terme, puis sa définition.
+- La définition lit les valeurs de la page (`{price}`) et le texte enrichi (`**copper**`).
+- Refusés : un `Term` hors d'une liste ; une liste qui mélange des `Term` et autre chose ; `ordered: true` (une liste de termes ne se numérote pas) ; un `Term` sans sa définition.
+- Un `Term` ne bouge pas seul (`enter:`, `loop:`) : c'est la liste qui bouge, chaque terme à son tour, `List(enter: Enter(opacity: 0, each: 0.1s), children: [ … ])`.
+
+La leçon est `120-une-liste-de-definitions.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo
@@ -2463,6 +2490,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | L'appareil : la position, le presse-papiers, la caméra, le microphone | `Device(kind:)`, `request`, `write`, `stop` | fait (`ADR-094`) |
 | Une notification, un rappel | `Notification(title:, body:, after:)`, `show`, `stop` | fait (`ADR-095`) |
 | Une page lisible hors-ligne | `Offline(files:)`, `save`, `remove` | fait (`ADR-096`) |
+| Des termes et leurs définitions : une fiche technique, un glossaire | `List(children: [ Term("Poids", "2 kg") ])` | fait (`ADR-097`) |
 | Multiplier, diviser | les demandes `mul`, `div` | fait |
 | Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait |
 | Une liste qui change pendant la visite | `State(tasks: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` | fait |
@@ -2488,6 +2516,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 - Pour les valeurs partagées (`ADR-080`) : un champ qui change un nombre ou une liste partagés (seul un texte partagé se prépare, puis se confirme) ; une condition sur l'élément d'une ligne partagée, que le serveur ne vérifie pas encore ; une valeur « une fois par compte ».
 - Pour les comptes (`ADR-081` à `ADR-083`) : changer son mot de passe ; un compte créé par une clé d'accès seule ; de nouveaux codes de secours sans retirer le code à 6 chiffres ; la clé d'accès essayée sur un vrai téléphone, en HTTPS.
 - Pour les capacités du navigateur (`ADR-093` à `ADR-096`) : la caméra ne prend pas de photo, le microphone ne donne pas de son ; pas de rappel après la fermeture de la page (il faudrait un serveur de « push ») ; pas d'import en CSV ni par glisser-déposer ; pas de copie hors-ligne d'une page qui a un compte, un formulaire ou des valeurs partagées, ni d'envoi mis en attente.
+- Pour les listes de définitions (`ADR-097`) : pas de liste de termes qui change pendant la visite (`Repeat(over:)`), ni de définition faite de plusieurs paragraphes.
 - Pour les valeurs : pas de nombre négatif ; une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.

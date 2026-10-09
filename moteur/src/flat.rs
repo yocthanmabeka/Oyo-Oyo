@@ -70,6 +70,7 @@ transition:left .12s linear,top .12s linear,transform .12s linear}\
 :where(.holo-forme-triangle){clip-path:polygon(50% 0,100% 100%,0 100%)}\
 :where(.holo-forme-diamond){clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}\
 :where(.holo-Hr){border:0;border-top:1px solid currentColor;opacity:0.4;height:0}\
+:where(dl.holo-List dt){font-weight:bold}:where(dl.holo-List dd){margin:0 0 8px 0}\
 :where(.holo-Quote){border-left:3px solid currentColor;padding:0 0 0 12px;font-style:italic}\
 :where(.holo-Quote>p){margin:0 0 4px 0}:where(.holo-Quote>footer){font-style:normal;font-size:0.9em;opacity:0.7}\
 :where(.holo-Code){font-family:ui-monospace,Consolas,monospace;background:rgba(127,127,127,0.18);padding:8px 12px;border-radius:6px;overflow:auto;white-space:pre-wrap}\
@@ -876,6 +877,36 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
                 Some(_) => return Err(Error { message: "« Image(caption: …) » attend un texte entre guillemets : la légende".into(), pos: block.pos }),
             }
         }
+        // Une liste de termes et de leurs définitions (ADR-097) : un glossaire, une fiche technique.
+        "List" if block.argument("children").is_some_and(|a| matches!(&a.value, Value::List(e) if e.iter().any(|v| matches!(v, Value::Block(b) if b.name == "Term")))) => {
+            let Some(Value::List(elements)) = block.argument("children").map(|a| &a.value) else { unreachable!() };
+            if block.argument("ordered").is_some() {
+                return Err(Error { message: "« List(ordered: …) » numérote des éléments ; une liste de termes ne se numérote pas".into(), pos: block.pos });
+            }
+            output.push_str(&format!("<dl class=\"{classes}\"{name}>"));
+            for element in elements {
+                let Value::Block(term) = element else {
+                    return Err(Error { message: "une liste qui a des « Term » n'a que des « Term » : List(children: [ Term(\"Poids\", \"2 kg\"), Term(\"Couleur\", \"Bleu nuit\") ])".into(), pos: block.pos });
+                };
+                if term.name != "Term" {
+                    return Err(Error { message: format!("une liste qui a des « Term » n'a que des « Term » ; « {} » n'en est pas un", term.name), pos: term.pos });
+                }
+                // Un terme ne bouge pas seul (ADR-034) : le mouvement l'envelopperait d'une boîte, que
+                // `dl` n'accepte pas autour de ses termes. La liste bouge, chaque terme à son tour.
+                if let Some(moving) = term.arguments.iter().find(|a| matches!(a.name.as_deref(), Some("enter" | "loop"))) {
+                    return Err(Error { message: "« Term » ne bouge pas seul : fais bouger la liste, chaque terme à son tour, List(enter: Enter(opacity: 0, each: 0.1s), children: [ … ])".into(), pos: moving.pos });
+                }
+                // Le terme et sa définition vont ensemble : aucun des deux ne se perd, ni ne s'écrit seul.
+                let texts: Vec<&str> = term.arguments.iter().filter_map(|a| match (&a.name, &a.value) { (None, Value::Text(t)) => Some(t.as_str()), _ => None }).collect();
+                let [word, definition] = texts[..] else {
+                    return Err(Error { message: "« Term » attend le terme puis sa définition, entre guillemets : Term(\"Poids\", \"2 kg\")".into(), pos: term.pos });
+                };
+                let term_name = name_of(term).map(|n| format!(" data-name=\"{}\"", escape(n))).unwrap_or_default();
+                output.push_str(&format!("<div class=\"{}\"{term_name}><dt>{}</dt><dd>{}</dd></div>", self::classes(term), markdown(word), markdown(definition)));
+            }
+            output.push_str("</dl>");
+        }
+        "Term" => return Err(Error { message: "« Term » se place dans une liste : List(children: [ Term(\"Poids\", \"2 kg\") ])".into(), pos: block.pos }),
         "List" => {
             // `ordered: true` : une liste numérotée.
             let tag = if matches!(block.argument("ordered").map(|a| &a.value), Some(Value::Bool(true))) { "ol" } else { "ul" };
@@ -2476,5 +2507,45 @@ mod title_tests {
         assert_eq!(crate::page_title(page, &start), "1 tâche(s)");
         let after = crate::arbitrate(page, &crate::input(page, &start, "task", "lait"), "Add.tap");
         assert_eq!(crate::page_title(page, &after), "2 tâche(s)");
+    }
+}
+
+#[cfg(test)]
+mod definition_tests {
+    #[test]
+    fn a_list_of_terms_gives_a_description_list() {
+        // Une fiche technique : le terme, puis sa définition, qui peut lire une valeur de la page.
+        let page = "Page(state: State(weight: 2), children: [ List.sheet(children: [ Term(\"Poids\", \"{weight} kg\"), Term(\"Couleur\", \"**Bleu** nuit\") ]) ])\nTerm { padding: 4px; }\n.sheet { margin: 8px; }";
+        let html = crate::flat_view(page, "").unwrap();
+        assert!(html.contains("<dl class=\"holo-List holo-s-sheet\">"), "{html}");
+        assert!(html.contains("<div class=\"holo-Term\"><dt>Poids</dt><dd><span data-state=\"weight\">2</span> kg</dd></div>"), "{html}");
+        assert!(html.contains("<dt>Couleur</dt><dd><strong>Bleu</strong> nuit</dd>"), "{html}");
+        // Une liste ordinaire ne change pas.
+        let plain = crate::flat_view("Page(children: [ List(children: [ \"Pain\", \"Lait\" ]) ])", "").unwrap();
+        assert!(plain.contains("<ul class=\"holo-List\"><li>Pain</li><li>Lait</li></ul>"), "{plain}");
+    }
+
+    #[test]
+    fn a_term_goes_with_its_definition_inside_a_list() {
+        let refused = |page: &str| crate::check_page(page).unwrap_err().message;
+        assert!(refused("Page(children: [ Term(\"Poids\", \"2 kg\") ])").contains("se place dans une liste"));
+        assert!(refused("Page(children: [ List(children: [ Term(\"Poids\", \"2 kg\"), \"Lait\" ]) ])").contains("n'a que des « Term »"));
+        assert!(refused("Page(children: [ List(children: [ Term(\"Poids\", \"2 kg\"), P(\"Lait\") ]) ])").contains("« P » n'en est pas un"));
+        assert!(refused("Page(children: [ List(ordered: true, children: [ Term(\"Poids\", \"2 kg\") ]) ])").contains("ne se numérote pas"));
+        assert!(refused("Page(children: [ List(children: [ Term(\"Poids\") ]) ])").contains("attend le terme puis sa définition"));
+        assert!(refused("Page(children: [ List(children: [ Term(\"Poids\", \"2 kg\", \"3 kg\") ]) ])").contains("attend le terme puis sa définition"));
+    }
+
+    #[test]
+    fn a_term_does_not_move_alone() {
+        // Relecture de la PR 220 : `enter:` et `loop:` passaient la vérification sur un `Term`, puis
+        // le moteur les avalait en silence. Ils sont refusés, avec la façon de faire bouger la liste.
+        let refused = |page: &str| crate::check_page(page).unwrap_err().message;
+        assert!(refused("Page(children: [ List(children: [ Term(\"Poids\", \"2 kg\", enter: Enter(opacity: 0)) ]) ])").contains("« Term » ne bouge pas seul"));
+        assert!(refused("Page(children: [ List(children: [ Term(\"Poids\", \"2 kg\", loop: Loop(scale: 1.2, for: 0.8s)) ]) ])").contains("« Term » ne bouge pas seul"));
+        // Ce que propose le message marche : la liste entre, un terme après l'autre.
+        let html = crate::flat_view("Page(children: [ List(enter: Enter(opacity: 0, each: 0.1s), children: [ Term(\"Poids\", \"2 kg\"), Term(\"Couleur\", \"Bleu nuit\") ]) ])", "").unwrap();
+        assert!(html.contains("<div class=\"holo-animated hm") && html.contains("><dl class=\"holo-List\"><div class=\"holo-Term\"><dt>Poids</dt>"), "{html}");
+        assert!(html.contains(">*>:nth-child(2){animation:"), "{html}");
     }
 }

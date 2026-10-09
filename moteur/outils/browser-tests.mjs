@@ -551,6 +551,17 @@ const tests = [
     const ok = loaded && japanese > 0 && japanese <= 8 && latin && !unused && none === 0;
     return [ok, `polices prêtes : ${loaded} ; morceaux japonais : ${japanese} sur 124 ; latin d'Inter : ${latin} ; cyrillique ou grec téléchargés : ${unused} ; page sans police : ${none} fichier`];
   }],
+  ["une liste de définitions : un terme et sa définition, lus ensemble (leçon 120)", async (p, b) => {
+    await p.open("/exemples/lecons/120-une-liste-de-definitions.holo");
+    // Chaque terme garde sa définition, dans l'ordre ; une définition lit une valeur de la page.
+    const sheet = await p.value(`[...document.querySelector("dl.holo-List").querySelectorAll(".holo-Term")].map((t) => t.querySelector("dt").textContent + "=" + t.querySelector("dd").textContent).join(" | ")`);
+    // Le lecteur d'écran : des termes et des définitions, pas des éléments de liste à puces.
+    const { result } = await b.send("Accessibility.getFullAXTree");
+    const roles = (role) => result.nodes.filter((n) => n.role?.value === role && !n.ignored).length;
+    const [terms, definitions, items] = [roles("term"), roles("definition"), roles("listitem")];
+    const ok = sheet === "Hauteur=45 cm | Poids=2 kg | Couleur=Bleu nuit, ou cuivre | Prix=189,00 €" && terms === 6 && definitions === 6 && items === 0;
+    return [ok, `fiche : ${sheet} ; lecteur d'écran : ${terms} termes, ${definitions} définitions, ${items} éléments à puces`];
+  }],
   ["un module enfermé rend son nombre", async (p) => {
     await p.open("/exemples/lecons/69-module-enferme.holo");
     await p.click('[data-name="Calculer"]');
