@@ -5,7 +5,7 @@
   // dessin (les points, les mondes, la vue points) est un second moteur, chargé seulement quand
   // la page s'en sert : une page qui ne fait que bouger ne le télécharge jamais.
   import init, {
-    flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, module_info, module_finished, delays, reads_time, set_now, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
+    flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, module_info, module_finished, module_input, module_received, delays, reads_time, set_now, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
     shared_names, with_shared, touches_shared,
   } from "/pkg-light/holo_engine.js";
   let drawing = null;
@@ -1561,14 +1561,29 @@
   // démarre pas. Son temps court à partir du moment où il commence ; au-delà, le fil est arrêté.
   // Les noms des messages sont les mêmes des deux côtés (la traduction en anglais avait oublié
   // ce texte : la boîte attendait encore « octets », « entree », et aucun module ne marchait plus).
-  const SANDBOX_CODE = `onmessage = async ({ data: { bytes, entry, pages } }) => {
+  // Deux contrats (ADR-077). Le premier : run(nombre) rend un nombre. Le second : le module offre
+  // alloc(taille), qui dit où écrire ce qu'il reçoit (un texte JSON), et run(adresse, taille), qui
+  // rend l'adresse et la taille de sa réponse, en un seul nombre de 64 bits. La réponse est lue
+  // dans sa mémoire, 64 Ko au plus, puis relue par le moteur avec méfiance.
+  const SANDBOX_CODE = `onmessage = async ({ data: { bytes, entry, json, simple, pages } }) => {
     try {
       const memory = new WebAssembly.Memory({ initial: pages, maximum: pages });
       const { instance } = await WebAssembly.instantiate(bytes, { env: { memory } });
-      if (typeof instance.exports.run !== "function") throw new Error("le module n'offre pas run");
+      const { run, alloc } = instance.exports;
+      if (typeof run !== "function") throw new Error("le module n'offre pas run");
+      const second = typeof alloc === "function" && run.length === 2;
+      if (!second && !simple) throw new Error("ce module ne sait recevoir et rendre qu'un nombre : il ne lit pas des textes ni des listes");
       postMessage({ start: true });
-      const output = instance.exports.run(entry >>> 0);
-      postMessage({ ok: true, output: output >>> 0 });
+      if (!second) return postMessage({ ok: true, output: run(entry >>> 0) >>> 0 });
+      const input = new TextEncoder().encode(json);
+      const at = alloc(input.length) >>> 0;
+      if (at === 0 || at + input.length > memory.buffer.byteLength) throw new Error("le module n'a pas la place de lire ce qu'il reçoit");
+      new Uint8Array(memory.buffer, at, input.length).set(input);
+      const answer = run(at, input.length);
+      if (typeof answer !== "bigint") throw new Error("run doit rendre l'adresse et la taille de sa réponse, en un nombre de 64 bits");
+      const where = Number(BigInt.asUintN(64, answer) >> 32n), size = Number(BigInt.asUintN(64, answer) & 0xffffffffn);
+      if (size > 65536 || where + size > memory.buffer.byteLength) throw new Error("une réponse de plus de 64 Ko, ou hors de sa mémoire");
+      postMessage({ ok: true, json: new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array(memory.buffer, where, size)) });
     } catch (e) {
       postMessage({ ok: false, reason: String((e && e.message) || e) });
     }
@@ -1576,7 +1591,7 @@
   const runningModules = new Set();
   async function execute(name) {
     if (runningModules.has(name)) return;
-    const [file, entry, time, pages] = module_info(source, states.get(path) ?? "", name).split("|");
+    const [file, entry, time, pages, simple] = module_info(source, states.get(path) ?? "", name).split("|");
     if (!file) return;
     runningModules.add(name);
     const for_ = path;
@@ -1599,15 +1614,25 @@
             } else finish(data);
           };
           box.onerror = () => finish({ ok: false, reason: "erreur du module" });
-          box.postMessage({ bytes, entry: Number(entry), pages: Number(pages) }, [bytes]);
+          const json = module_input(source, states.get(path) ?? "", name);
+          box.postMessage({ bytes, entry: Number(entry), json, simple: simple === "1", pages: Number(pages) }, [bytes]);
         });
       }
     } catch { /* pas de réseau */ }
     runningModules.delete(name);
+    // La réponse du second contrat, relue par le moteur : refusée, le module a échoué.
+    let after = "";
+    if (result.ok && result.json !== undefined) {
+      try {
+        after = for_ === path ? store(module_received(source, states.get(path) ?? "", name, result.json)) : "";
+      } catch (refusal) {
+        result = { ok: false, reason: String(refusal), answer: result.json.slice(0, 200) };
+      }
+    }
     (window.__holoModules ??= []).push({ name, ...result }); // ce qui s'est passé, pour le vérifier
     if (for_ !== path) return;
     if (!result.ok) return emit(`${name}.failed`);
-    const after = store(module_finished(source, states.get(path) ?? "", name, result.output));
+    if (result.json === undefined) after = store(module_finished(source, states.get(path) ?? "", name, result.output));
     if (after) changeState(after);
     for (const effect of effects(source, `${name}.done`).split(",").filter(Boolean)) apply(effect, `${name}.done`);
   }

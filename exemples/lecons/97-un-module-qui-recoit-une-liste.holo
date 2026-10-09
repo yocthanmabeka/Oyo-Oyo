@@ -1,0 +1,74 @@
+// Leçon 97 — Un module qui reçoit une liste
+//
+// Ce qu'on apprend :
+//   Un module enfermé (leçon 69) peut recevoir et rendre plusieurs valeurs de la page : des
+//   nombres, à virgule aussi, des textes, des listes.
+//   Module(…, input: [notes], output: [moyenne, meilleure, nombre]) : il reçoit la liste des
+//   notes, et rend la moyenne, la meilleure matière et le nombre de notes.
+//   Le moteur relit sa réponse avec méfiance, comme des données venues d'un serveur : une valeur
+//   que le module n'annonce pas dans « output », ou de la mauvaise sorte, et toute la réponse
+//   est refusée (Menteur.failed) ; rien ne change dans la page.
+//   La boîte ne change pas : ni réseau, ni page, ni heure ; un temps et une mémoire plafonnés.
+//
+// À essayer :
+//   « Calculer avec le module ». Ajoute une note, puis calcule à nouveau.
+//   Puis « Un module qui ment » : sa réponse est refusée.
+//
+// Les modules sont écrits en Rust, dans modules/bulletin.rs et modules/menteur.rs.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+module "97-bulletin.wasm"
+module "97-menteur.wasm"
+
+Page(
+  title: "Leçon 97 : un module qui reçoit une liste",
+  state: State(
+    notes: [ Item(matiere: "Maths", note: "15.5"), Item(matiere: "Français", note: "12"), Item(matiere: "Histoire", note: "13") ],
+    matiere: "",
+    note: "",
+    moyenne: 0.0,
+    meilleure: "",
+    nombre: 0,
+    calcule: 0,
+    refus: 0,
+  ),
+  modules: [
+    Module(name: Bulletin, source: "97-bulletin.wasm", input: [notes], output: [moyenne, meilleure, nombre], time: 100ms, memory: 1MB),
+    Module(name: Menteur, source: "97-menteur.wasm", input: [notes], output: [moyenne], time: 100ms, memory: 1MB),
+  ],
+  children: [
+    H1("Un module qui reçoit une liste"),
+    Repeat(over: notes, children: [
+      Row.ligne(gap: 8px, align: between, children: [ Text("{item.matiere}"), Text("{item.note}") ]),
+    ]),
+    Row(gap: 8px, children: [
+      Input(value: matiere, label: "Matière", max: 40),
+      Input(value: note, label: "Note", max: 5),
+      Button(name: Ajouter, text: "Ajouter la note"),
+    ]),
+    Button(name: Calculer, text: "Calculer avec le module"),
+    If(calcule, is: 1, children: [ P.ok("{nombre} notes ; moyenne : {moyenne} ; la meilleure : {meilleure}.") ]),
+    Hr(),
+    Button(name: Mentir, text: "Un module qui ment"),
+    If(refus, is: 1, children: [ P.ok("Refusé : ce module a rendu une valeur qu'il n'annonce pas. Le moteur n'a rien changé.") ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 96 : une vidéo sous-titrée", to: "96-une-video-sous-titree.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+  rules: [
+    On(Ajouter.tap, effect: [notes.push(Item(matiere: matiere, note: note)), matiere.set(""), note.set("")]),
+    On(Calculer.tap, effect: Bulletin.run),
+    On(Bulletin.done, effect: calcule.set(1)),
+    On(Mentir.tap, effect: Menteur.run),
+    On(Menteur.failed, effect: refus.set(1)),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.ligne { border: 1px solid #2a2a4e; border-radius: 8px; padding: 6px 10px; }
+.ok { color: #9be7a1; }

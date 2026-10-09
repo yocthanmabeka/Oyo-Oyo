@@ -294,6 +294,24 @@ const tests = [
       }
     }
   }],
+  ["un module reçoit une liste et rend trois valeurs ; une réponse non annoncée est refusée (leçon 97)", async (p) => {
+    await p.open("/exemples/lecons/97-un-module-qui-recoit-une-liste.holo");
+    await p.click('[data-name="Calculer"]');
+    const computed = await p.until(`document.getElementById("page").innerText.includes("3 notes ; moyenne : 13,5 ; la meilleure : Maths.")`, 40000);
+    // Une note de plus, avec des signes qui pourraient tromper un lecteur de JSON.
+    await p.type('[data-bind="matiere"]', 'Arts "plastiques" {x}');
+    await p.type('[data-bind="note"]', "18");
+    await p.click('[data-name="Ajouter"]');
+    await p.click('[data-name="Calculer"]');
+    const again = await p.until(`document.getElementById("page").innerText.includes('4 notes ; moyenne : 14,6 ; la meilleure : Arts "plastiques" {x}.')`, 10000);
+    const before = await p.text();
+    await p.click('[data-name="Mentir"]');
+    const refused = await p.until(`document.getElementById("page").innerText.includes("Refusé : ce module a rendu une valeur")`, 10000);
+    const after = await p.text();
+    const reason = await p.value(`(window.__holoModules ?? []).filter((m) => m.name === "Menteur").map((m) => m.reason).join(" | ")`);
+    const unchanged = after.includes("4 notes ; moyenne : 14,6");
+    return [computed && again && refused && unchanged && reason.includes("admin"), `calculé : ${computed} ; avec une note de plus : ${again} ; refusé : ${refused} (${reason}) ; rien changé : ${unchanged}${before ? "" : ""}`];
+  }],
   ["un module enfermé rend son nombre", async (p) => {
     await p.open("/exemples/lecons/69-module-enferme.holo");
     await p.click('[data-name="Calculer"]');

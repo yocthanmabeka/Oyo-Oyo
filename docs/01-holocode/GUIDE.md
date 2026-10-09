@@ -1412,12 +1412,31 @@ Page(
 ```
 
 - **`module "sum.wasm"`** en haut du fichier : chaque module y est annoncé.
-- **`Module(name:, source:, input:, output:, time:, memory:)`** : il reçoit un nombre et en rend un ; `time` de 10ms à 5s, `memory` de 64KB à 16MB.
+- **`Module(name:, source:, input:, output:, time:, memory:)`** : il reçoit un nombre et en rend un, ou plusieurs valeurs (voir plus bas) ; `time` de 10ms à 5s, `memory` de 64KB à 16MB.
 - **`Sum.run`** le lance ; **`Sum.done`** : le nombre est arrivé ; **`Sum.failed`** : il a été arrêté.
 - La boîte : un fil à part (la page ne se bloque jamais), une mémoire plafonnée, rien d'autre (ni réseau, ni page, ni heure). Au-delà de son temps, il est arrêté.
 - `bridge js` et `bridge css` sont refusés : un pont ferait entrer du code sans garantie.
 
 Cette écriture est décidée (`ADR-045`). La leçon est `69-module-enferme.holo` ; ses trois modules, dans `exemples/lecons/modules/`.
+
+**Plusieurs valeurs, des textes, des listes** (`ADR-077`) : `input:` et `output:` acceptent une liste de noms.
+
+```holo
+module "marks.wasm"
+Page(
+  title: "Marks",
+  state: State(marks: [ Item(subject: "Maths", mark: "15.5") ], average: 0.0, best: "", count: 0),
+  modules: [ Module(name: Report, source: "marks.wasm", input: [marks], output: [average, best, count]) ],
+  children: [ Button(name: Go, text: "Compute"), P("{count} marks, average {average}, best: {best}") ],
+  rules: [ On(Go.tap, effect: Report.run) ],
+)
+```
+
+- Le module reçoit un texte JSON, `{"marks":[{"subject":"Maths","mark":"15.5"}]}`, et rend un objet JSON, `{"average":15.5,"best":"Maths","count":1}`.
+- Il offre `alloc(taille)` (où écrire ce qu'il reçoit) et `run(adresse, taille)` (l'adresse et la taille de sa réponse) : c'est le second contrat. Un module du premier, `run(nombre)`, marche toujours.
+- Le moteur relit la réponse comme des données d'un serveur : une valeur non annoncée dans `output`, ou de la mauvaise sorte, et toute la réponse est refusée (`Report.failed`) ; rien ne change.
+
+La leçon est `97-un-module-qui-recoit-une-liste.holo` ; ses modules, `bulletin.rs` et `menteur.rs`, dans `exemples/lecons/modules/`.
 
 ## 6 undetricies. Des adresses qui portent des valeurs : `profil/{id}.holo`
 
@@ -2086,7 +2105,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `After` | la durée, puis `effect:` | Dans `rules` |
 | `Repeat` | `items`, `children`, `rules` | Dans `children` |
 | `Font` | `family`, `source` | Dans `fonts:` d'une `Page` |
-| `Module` | `name`, `source`, `input`, `output`, `time`, `memory` ; capacité `run` ; signaux `done`, `failed` | Dans `modules:` d'une `Page` ; annoncé en haut du fichier, `module "…"` |
+| `Module` | `name`, `source`, `input`, `output` (un nom, ou une liste de noms, `ADR-077`), `time`, `memory` ; capacité `run` ; signaux `done`, `failed` | Dans `modules:` d'une `Page` ; annoncé en haut du fichier, `module "…"` |
 | `Item` | `key`, et les champs de l'élément | Dans `items` d'un `Repeat` |
 | `Repeat(over:)` | `over` (une liste de la page), `children`, `rules` | Dans `children` |
 | `When` | le nom d'une valeur, puis `is`, `not`, `over`, `under` ; ou le nom d'un bloc, puis `meets` et `within` ; et `effect:` | Dans `rules` |
@@ -2186,7 +2205,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 
 ## 11. Ce qui n'existe pas encore
 
-- Un module n'échange encore qu'un nombre contre un nombre.
+- Un module ne dessine pas encore (des ordres de dessin, l'étape 4 du lot 9).
 - Les données venues d'un autre serveur ; les comptes.
 - Pour les valeurs partagées : un champ qui en change une, une liste partagée, une limite au nombre de touchers d'un visiteur.
 - Pour les valeurs : pas de nombre négatif ; une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).

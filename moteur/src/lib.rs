@@ -73,7 +73,7 @@ pub fn check_page(source: &str) -> Result<Program, Error> {
     rules::check_rules(&program)?;
     view::settings(&program)?;
     // Les modules enfermés, et leur annonce en haut du fichier (ADR-045).
-    modules::modules(&program, &state::initial(&program)?)?;
+    modules::modules(&program)?;
     // Les fichiers qu'un formulaire envoie (ADR-059).
     files::files(&program)?;
     // Ce que l'affichage refuserait (une adresse en `javascript:`, une image hors du dossier)
@@ -544,17 +544,33 @@ pub fn keypresses(source: &str) -> String {
 pub fn module_info(source: &str, state: &str, name: &str) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
     let numbers = state::reread(&program, state);
-    let Some(module) = modules::modules(&program, &numbers).ok().and_then(|m| m.into_iter().find(|m| m.name == name)) else { return String::new() };
-    let entry = module.entry.and_then(|e| numbers.iter().find(|(c, _)| c == e)).map_or(0, |(_, v)| *v);
-    format!("{}|{entry}|{}|{}", module.source, module.time, module.pages)
+    let Some(module) = modules::modules(&program).ok().and_then(|m| m.into_iter().find(|m| m.name == name)) else { return String::new() };
+    let entry = module.inputs.first().and_then(|e| numbers.iter().find(|(c, _)| c == e)).map_or(0, |(_, v)| *v);
+    format!("{}|{entry}|{}|{}|{}", module.source, module.time, module.pages, u8::from(module.simple(&program)))
 }
 
-/// Le module a rendu son nombre : le nouvel état, après `Nom.done`.
+/// Le module du premier contrat a rendu son nombre : le nouvel état, après `Nom.done`.
 pub fn module_finished(source: &str, state: &str, name: &str, value: u64) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
     state::requested_capabilities();
     let texts = state::reread_texts(&program, state);
     write_all(&program, &modules::finished(&program, &state::reread(&program, state), &texts, name, value), &texts, &lists::reread(&program, state))
+}
+
+/// Ce que reçoit un module du second contrat (ADR-077) : ses valeurs `input`, en un texte JSON.
+pub fn module_input(source: &str, state: &str, name: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    let Some(module) = modules::modules(&program).ok().and_then(|m| m.into_iter().find(|m| m.name == name)) else { return String::new() };
+    modules::input_json(&program, &state::reread(&program, state), &state::reread_texts(&program, state), &lists::reread(&program, state), &module)
+}
+
+/// La réponse d'un module du second contrat (ADR-077) : le nouvel état, après `Nom.done` ; ou la
+/// raison du refus (le module a alors échoué, `Nom.failed`).
+pub fn module_received(source: &str, state: &str, name: &str, json: &str) -> Result<String, String> {
+    let program = check_page(source).map_err(|e| e.message)?;
+    state::requested_capabilities();
+    let (numbers, texts, lists) = modules::received(&program, &state::reread(&program, state), &state::reread_texts(&program, state), &lists::reread(&program, state), name, json)?;
+    Ok(arbitrate(source, &write_all(&program, &numbers, &texts, &lists), &format!("{name}.done")))
 }
 
 /// Les lignes d'une liste pour cet état (ADR-044) : la page les pose à la place des anciennes.
