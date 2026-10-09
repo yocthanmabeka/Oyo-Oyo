@@ -119,8 +119,16 @@ pub fn check(program: &Program) -> Result<(), Error> {
                 }
             }
             "Module" => {
-                if let Some(Argument { value: Value::Name(name), pos, .. }) = block.argument("output").filter(|a| matches!(&a.value, Value::Name(n) if is_shared(n))) {
-                    return Err(Error { message: format!("« Module(output: {name}) » : « {name} » est partagée ; un module tourne dans la page d'un seul visiteur, il ne la change pas"), pos: *pos });
+                // Une valeur rendue seule (`output: likes`) ou dans une liste (`output: [likes, total]`, ADR-077).
+                if let Some(argument) = block.argument("output") {
+                    let names: Vec<&String> = match &argument.value {
+                        Value::Name(name) => vec![name],
+                        Value::List(values) => values.iter().filter_map(|v| if let Value::Name(n) = v { Some(n) } else { None }).collect(),
+                        _ => Vec::new(),
+                    };
+                    if let Some(name) = names.into_iter().find(|n| is_shared(n)) {
+                        return Err(Error { message: format!("« Module(output: …) » : « {name} » est partagée ; un module tourne dans la page d'un seul visiteur, il ne la change pas"), pos: argument.pos });
+                    }
                 }
             }
             _ => {}
@@ -297,6 +305,11 @@ mod tests {
         assert!(refused(&page("", ", Input(value: seats, label: \"Places\")", "")).contains("un champ ne la change pas encore"));
         assert!(refused(&page("", ", Board(children: [ Shape(name: S, form: circle, x: seats, y: seats, drag: true) ])", "")).contains("un bloc qu'on fait glisser"));
         assert!(refused(&format!("Page(shared: Shared(seats: 1), keep: [seats], children: [ P(\"{{seats}}\") ])")).contains("keep garde ce qui est à un seul visiteur"));
+        // Un module rend ses valeurs, une seule ou une liste (ADR-077) : jamais une valeur partagée.
+        for output in ["seats", "[best, seats]"] {
+            let module = format!("module \"s.wasm\"\nPage(state: State(best: 0), shared: Shared(seats: 20), modules: [ Module(name: S, source: \"s.wasm\", input: best, output: {output}) ], children: [ P(\"{{seats}} {{best}}\"), Button(name: Go, text: \"g\") ], rules: [ On(Go.tap, effect: S.run) ])");
+            assert!(refused(&module).contains("« seats » est partagée ; un module tourne"), "{output} : {}", refused(&module));
+        }
         // Les sortes et les limites.
         assert!(refused("Page(shared: Shared(seats: [\"a\"]), children: [ \"x\" ])").contains("une liste partagée n'existe pas encore"));
         assert!(refused(&format!("Page(shared: Shared(last: \"{}\"), children: [ \"x\" ])", "a".repeat(201))).contains("au plus 200 caractères"));
