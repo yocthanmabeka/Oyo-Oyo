@@ -23,6 +23,20 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Le plan 3D précisé : le garde des paliers, les surfaces, la piste de l'IA
+
+- La conversation Claude de Yocthan a renvoyé trois compléments. Yocthan a demandé : « Tu les trouves bonnes ces réflexions ? Si oui tu les ajoutes, sinon non. » Avis de Claude : bonnes, car elles prolongent ce qui est décidé et corrigent un vrai risque, les bords de tuiles qui ne se raccordent pas. Ajoutées à `docs/04-roadmap/PLAN-3D.md`, sans toucher au code ni aux ADR.
+- **Étapes 8 à 10** :
+  - de très loin, l'objet devient une petite image changée en points, avec le fondu de la vue points ;
+  - le garde réagit à une baisse qui dure (la chaleur) ;
+  - le garde surveille aussi la mémoire. Adapté par Claude : le moteur compte ce qu'il réserve lui-même, car une page ne peut pas lire de façon fiable la mémoire de son onglet ;
+  - les seuils se règlent avec le script de 15 minutes, `duree.js`.
+- **Les surfaces, pour après la chaise** : une tuile égale une graine ; un relief continu pour toute la planète ; un calcul en nombres entiers ; des fentes recousues ; un nombre de tuiles plafonné. C'est une note, pas une ADR, car les planètes ne sont pas dans le plan.
+- **La piste de l'IA** : à la préparation, chez l'auteur, jamais pendant la visite. Les modules enfermés ne conviennent pas à un vrai modèle (mémoire, temps, pas de carte graphique, 64 Ko).
+- Les deux agents d'intégration se sont arrêtés à la limite de séance, au milieu de leur travail. Ils sont repris dès qu'elle est revenue.
+
+---
+
 ## 2026-10-09 — Le catalogue de Codex intégré : une page d'une liste, deux cents éléments, neuf parcours
 
 - Fusionnée sur `integration/codex-201`, partie du lot 7 envoyé (`26a50ba`, aujourd'hui dans `main` par la PR 177) : la PR 201 de Codex. `Filter(offset:)` saute des éléments après la recherche, le filtre et le tri, avant `limit:` ; le total compte avant les deux coupes ; une liste garde deux cents éléments (cent avant) ; la leçon 109, un catalogue de deux cents produits ; le site des parcours 1 à 9 (`exemples/parcours/`) et leurs essais dans Chrome, avec `holo serve`.
@@ -34,6 +48,29 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 - En remplaçant « cent » par « deux cents » dans le guide, une commande `sed` a cassé une parenthèse (`State(tasks: [])`) ; vue à la relecture, remise.
 - Le premier jet de l'ADR citait `If(start, over: 0, …)` alors que la leçon garde `offset` et `end`, et « 21 Ko » pour un catalogue qui en pèse 22 : vérifié contre le code et le fichier, corrigé avant l'envoi.
+
+---
+
+## 2026-10-09 — Un monde en fragments, et l'IA dans le langage après la 3D
+
+- Dans une conversation Claude séparée, Yocthan a réfléchi à un monde découpé en fragments de la sphère, avec cinq idées :
+  - un fragment égale un budget de mémoire ;
+  - un quadtree sphérique ;
+  - ne charger que le fragment courant et ses voisins ;
+  - des transitions en fondu ;
+  - une IA d'optimisation réveillée au-delà d'un seuil.
+
+  Il a demandé un prompt complet de l'état du projet, avec la réponse à ces idées : `docs/05-discussions/prompts/2026-10-09-claude-etat-du-projet-et-monde-en-fragments.md`.
+- La réponse, vérifiée dans le code :
+  - l'arbre existe déjà : le point se morcelle en enfants par graines (`navigation.rs`), et la vue points se coupe en grilles (`mosaic.rs`, un quadtree en 2 × 2) ;
+  - le monde intérieur est calculé en aperçu avant d'entrer, et le parent s'efface pendant le morcellement ;
+  - le budget d'un point est vérifié (`Point(budget:)`).
+- Ce qui ne s'applique pas tel quel :
+  - un budget de 1 Go par fragment (sur un téléphone, l'onglet entier vise moins de 160 à 220 Mo, et 88 Mo ont été mesurés) ;
+  - le streaming depuis un disque (les mondes se calculent ; le chargement vaudra pour `Point(inside:)` et les objets 3D) ;
+  - une IA pendant la visite (contraire au déterminisme, au budget et à la règle « aucun prestataire »).
+- Le garde par seuils est l'étape 9 du plan 3D. Les niveaux de détail et le lointain sont l'étape 8.
+- Décidé par Yocthan : **l'intégration de l'IA dans le langage se réfléchira à la fin de la 3D**. C'est noté dans `docs/04-roadmap/PLAN-3D.md`.
 
 ---
 
