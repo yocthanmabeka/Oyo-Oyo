@@ -105,6 +105,9 @@ pub struct Ask<'a> {
     pub referer: &'a str,
     /// Adresse du pair TCP, jamais un en-tête fourni par le visiteur.
     pub peer: &'a str,
+    /// Les en-têtes `X-Forwarded-For`, mis bout à bout : lus seulement derrière le proxy HTTPS de
+    /// l'auteur (`client_address`), jamais pour un visiteur qui parle directement au serveur.
+    pub forwarded: &'a str,
     pub body: &'a [u8],
 }
 
@@ -306,7 +309,7 @@ impl Site {
             let inputs: Vec<(String, String)> = fields.iter().filter(|(name, _)| name != crate::gestures::SIGNAL).cloned().collect();
             let Ok(base) = self.base.lock() else { return Reply::text(500, "base indisponible") };
             let key = shared_key(&holo, &values);
-            if !tap.is_empty()&&!shared_allowed(&base,&visitor,ask.peer,&key,now()){return shared_limited(new_visitor.then_some(visitor.as_str()));}
+            if !tap.is_empty()&&!shared_allowed(&base,&visitor,&client_address(self, ask),&key,now()){return shared_limited(new_visitor.then_some(visitor.as_str()));}
             let (current, version) = shared_in(&base, &key);
             visit.state = crate::visitor_gesture(&source, &crate::with_shared(&source, &visit.state, &current), &inputs);
             let (after, accepted) = if tap.is_empty() { (visit.state.clone(), false) } else { crate::share(&source, &visit.state, &current, tap) };
@@ -462,7 +465,7 @@ impl Site {
         };
         let Ok(base) = self.base.lock() else { return Reply::text(500, "base indisponible") };
         let key = shared_key(holo, values);
-        if !shared_allowed(&base,&visitor,ask.peer,&key,now()){return shared_limited(new_visitor.then_some(visitor.as_str()));}
+        if !shared_allowed(&base,&visitor,&client_address(self, ask),&key,now()){return shared_limited(new_visitor.then_some(visitor.as_str()));}
         let (current, mut version) = shared_in(&base, &key);
         let mut visit = stored_in(&base, &visitor, path).unwrap_or_else(|| Visit { state: starting_state(&source, file), tried: Vec::new() });
         let before = crate::with_shared(&source, &visit.state, &current);
@@ -840,12 +843,15 @@ fn reply_to(site: &Site, mut request: tiny_http::Request) {
     let header = |name: &str| request.headers().iter().find(|h| h.field.as_str().as_str().eq_ignore_ascii_case(name)).map(|h| h.value.as_str().to_string()).unwrap_or_default();
     let (accept, cookie, content_type, origin, host, referer) = (header("Accept"), header("Cookie"), header("Content-Type"), header("Origin"), header("Host"), header("Referer"));
     let peer=request.remote_addr().map(|p|p.ip().to_string()).unwrap_or_default();
+    // Toutes les lignes `X-Forwarded-For`, dans l'ordre : un proxy en ajoute une à la fin, ou
+    // complète la dernière ; seule la dernière adresse vient de lui (client_address).
+    let forwarded = request.headers().iter().filter(|h| h.field.as_str().as_str().eq_ignore_ascii_case("X-Forwarded-For")).map(|h| h.value.as_str()).collect::<Vec<_>>().join(", ");
     let method = request.method().as_str().to_string();
     let url = request.url().to_string();
     // Une page qui écoute ses valeurs partagées en direct (ADR-079) : la connexion reste ouverte,
     // tenue par un fil à elle ; ce fil-ci retourne aussitôt servir les autres.
     if method == "GET" && accept.contains("text/event-stream") {
-        let ask = Ask { method: &method, url: &url, accept: &accept, cookie: &cookie, content_type: &content_type, origin: &origin, host: &host, referer: &referer, peer: &peer, body: &[] };
+        let ask = Ask { method: &method, url: &url, accept: &accept, cookie: &cookie, content_type: &content_type, origin: &origin, host: &host, referer: &referer, peer: &peer, forwarded: &forwarded, body: &[] };
         match site.live_page(&ask) {
             Ok((key, source)) => site.listen(&key, &source, request.into_writer()),
             Err(reply) => {
@@ -865,7 +871,7 @@ fn reply_to(site: &Site, mut request: tiny_http::Request) {
         let limit = if content_type.starts_with("multipart/form-data") { WITH_FILES_MAX } else { BODY_MAX };
         let _ = request.as_reader().take(limit + 1).read_to_end(&mut body);
     }
-    let reply = site.answer(&Ask { method: &method, url: &url, accept: &accept, cookie: &cookie, content_type: &content_type, origin: &origin, host: &host, referer: &referer, peer: &peer, body: &body });
+    let reply = site.answer(&Ask { method: &method, url: &url, accept: &accept, cookie: &cookie, content_type: &content_type, origin: &origin, host: &host, referer: &referer, peer: &peer, forwarded: &forwarded, body: &body });
     let mut response = tiny_http::Response::from_data(if method == "HEAD" { Vec::new() } else { reply.body }).with_status_code(reply.status);
     for (name, value) in reply.headers {
         if let Ok(header) = tiny_http::Header::from_bytes(name.as_bytes(), value.as_bytes()) {
@@ -1191,7 +1197,7 @@ mod tests {
     }
 
     fn ask<'a>(method: &'a str, url: &'a str, cookie: &'a str, body: &'a [u8]) -> Ask<'a> {
-        Ask { method, url, accept: "text/html", cookie, content_type: "application/x-www-form-urlencoded", origin: "", host: "localhost:8080", referer: "", peer: "127.0.0.1", body }
+        Ask { method, url, accept: "text/html", cookie, content_type: "application/x-www-form-urlencoded", origin: "", host: "localhost:8080", referer: "", peer: "127.0.0.1", forwarded: "", body }
     }
 
     #[test]
@@ -1654,7 +1660,7 @@ mod tests {
         let (site, folder) = site();
         std::fs::write(folder.join("concert.holo"), CONCERT).unwrap();
         // Seule une page qui partage des valeurs s'écoute ; pas depuis un autre site.
-        let listen_ask = |url: &'static str| Ask { method: "GET", url, accept: "text/event-stream", cookie: "", content_type: "", origin: "", host: "localhost:8080", referer: "", peer: "127.0.0.1", body: b"" };
+        let listen_ask = |url: &'static str| Ask { method: "GET", url, accept: "text/event-stream", cookie: "", content_type: "", origin: "", host: "localhost:8080", referer: "", peer: "127.0.0.1", forwarded: "", body: b"" };
         assert_eq!(site.live_page(&listen_ask("/shop.holo")).err().map(|r| r.status), Some(404));
         let mut foreign = listen_ask("/concert.holo");
         foreign.origin = "https://ailleurs.example";
@@ -1709,8 +1715,26 @@ mod tests {
     }
 }
 
+/// Le visiteur réel, pour les freins (ADR-080, ADR-083) : l'adresse du pair TCP. Derrière le
+/// proxy HTTPS de l'auteur (`HOLO_ORIGIN` fixé, et la demande vient de ce PC : c'est le proxy),
+/// tous les visiteurs arriveraient de 127.0.0.1 et partageraient un seul frein ; c'est alors la
+/// dernière adresse de `X-Forwarded-For`, celle qu'a écrite ce proxy. Une adresse écrite par un
+/// visiteur qui parle directement au serveur n'est jamais crue ; une adresse illisible non plus.
+pub(crate) fn client_address(site: &Site, ask: &Ask) -> String {
+    forwarded_client(ask.peer, ask.forwarded, site.passkeys_origin.is_some())
+}
+
+fn forwarded_client(peer: &str, forwarded: &str, behind_proxy: bool) -> String {
+    let Ok(peer) = peer.parse::<std::net::IpAddr>() else { return peer.to_string() };
+    if !behind_proxy || !peer.is_loopback() {
+        return peer.to_string();
+    }
+    forwarded.rsplit(',').next().and_then(|last| last.trim().parse::<std::net::IpAddr>().ok()).unwrap_or(peer).to_string()
+}
+
 /// Un visiteur : soixante touchers par adresse et minute. Une IP : cent quatre-vingts,
-// afin qu'effacer le cookie ne suffise pas. Aucune adresse fournie dans un en-tête n'est crue.
+// afin qu'effacer le cookie ne suffise pas. Aucune adresse fournie dans un en-tête n'est crue,
+// sauf celle qu'écrit le proxy de l'auteur (client_address).
 fn shared_allowed(base:&Connection,visitor:&str,peer:&str,page:&str,now:u64)->bool{
  if peer.parse::<std::net::IpAddr>().is_err(){return false;}
  if base.execute("DELETE FROM shared_limits WHERE started<=?1",params![now.saturating_sub(60)as i64]).is_err(){return false;}
@@ -1740,5 +1764,20 @@ mod sharing_completion_tests{
   assert!(shared_allowed(&base,"visitor","127.0.0.1","/other",1001));
   assert!(shared_allowed(&base,"visitor","127.0.0.1","/book",1060));
   assert!(!shared_allowed(&base,"third","forged","/book",1060));
+ }
+ #[test]
+ fn the_real_client_is_read_only_behind_the_authors_proxy() {
+  // Sans proxy déclaré (HOLO_ORIGIN absent), X-Forwarded-For n'est jamais cru.
+  assert_eq!(forwarded_client("127.0.0.1", "203.0.113.7", false), "127.0.0.1");
+  // Derrière le proxy de l'auteur, la demande vient de ce PC : la dernière adresse est celle
+  // que le proxy a écrite ; celles d'avant viennent du visiteur.
+  assert_eq!(forwarded_client("127.0.0.1", "198.51.100.1, 203.0.113.7", true), "203.0.113.7");
+  assert_eq!(forwarded_client("::1", "2001:db8::5", true), "2001:db8::5");
+  // Un visiteur du Wi-Fi qui parle directement au serveur : son adresse, jamais celle qu'il écrit.
+  assert_eq!(forwarded_client("192.168.1.20", "203.0.113.7", true), "192.168.1.20");
+  // Rien de lisible : le pair, donc un frein commun, jamais aucun frein.
+  for unreadable in ["", "unknown", "203.0.113.7:4000", "203.0.113.7, x"] {
+   assert_eq!(forwarded_client("127.0.0.1", unreadable, true), "127.0.0.1", "{unreadable}");
+  }
  }
 }
