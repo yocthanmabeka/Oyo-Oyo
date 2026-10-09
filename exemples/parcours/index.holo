@@ -10,7 +10,8 @@ A("6 — Réservation en direct", to: "reservation.holo"),
 A("7 — Compte local et panier", to: "/account/signup"),
 A("8 — Profil public 123", to: "profil/123"),
 A("9 — Article et vidéo sous-titrée", to: "article.holo"),
-])]), P("Le parcours 10, le tableau de bord, attend l'intégration des capacités du lot 9. Les essais au TalkBack et sur un téléphone réel restent nécessaires.")])
+A("10 — Tableau de bord", to: "dashboard.holo"),
+])]), P("Les essais au TalkBack et sur un téléphone réel restent nécessaires.")])
 Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; computer: { max-width: 960px; } print: { background: white; color: black; } }
 H1 { color: #E9B44C; font-size: 28px; print: { color: black; } }
 H2 { color: #E9B44C; font-size: 22px; print: { color: black; } }
