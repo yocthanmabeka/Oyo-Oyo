@@ -10,10 +10,10 @@
 | | Mesure | Détail |
 |---|---|---|
 | **HoloCode** | 378 mots | 344 décidés, 34 à l’essai |
-| HTML | 62 éléments | 51 oui, 5 en partie, 3 non, 3 refusés |
+| HTML | 62 éléments | 52 oui, 4 en partie, 3 non, 3 refusés |
 | CSS | 34 éléments | 28 oui, 4 en partie, 0 non, 2 refusés |
 | JavaScript | 34 éléments | 16 oui, 10 en partie, 6 non, 1 refusés, 1 sans objet |
-| HTML, CSS, JS ensemble | 130 éléments | 95 oui, 19 en partie, 9 non, 6 refusés, 1 sans objet |
+| HTML, CSS, JS ensemble | 130 éléments | 96 oui, 18 en partie, 9 non, 6 refusés, 1 sans objet |
 
 # Partie 1 — Les mots de HoloCode
 
@@ -58,6 +58,8 @@
 | `Image` | Une image | `img` | Décidé (ADR-009) |
 | `Sound` | Un son qu'une règle fait entendre | `audio` | Décidé (ADR-031) |
 | `Shape` | Une forme : rond, carré, triangle, losange | `div + CSS, svg` | Décidé (ADR-032) |
+| `Drawing` | Un dessin vectoriel, fait de formes, nommé pour le lecteur d'écran | `svg role=img aria-label` | Décidé (ADR-086) |
+| `Rect, Circle, Line, Path` | Les formes d'un dessin : rectangle, rond, trait, tracé | `rect, circle, line, path` | Décidé (ADR-086) |
 | `Video` | Une vidéo, avec ses boutons, jamais lancée seule | `video controls` | Décidé (ADR-038) |
 
 ## Blocs : la disposition
@@ -520,7 +522,7 @@
 | `Video(source:, label:, captions:)` | `video, track` | une vidéo, ses sous-titres | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038) ; les sous-titres le 2026-10-07 (ADR-073). |
 | `Sound(…) et .play ; Sound(label:) pour un lecteur` | `audio` | un son, un lecteur | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
 | `Point, World, Shape` | `canvas, WebGL` | un dessin libre, de la 3D | En partie | Oui, utile | Des points et quatre formes ; pas de dessin libre ni de modèles 3D. |
-| `comme fichier d'image` | `svg dans la page` | un dessin vectoriel | En partie | Plus tard | — |
+| `Drawing(label:, width:, height:, children: [ Rect, Circle, Line, Path ])` | `svg dans la page` | un dessin vectoriel | Oui | Déjà là | Ajouté le 2026-10-07 (ADR-086) : en SVG, nommé pour le lecteur d'écran ; une mesure peut suivre un nombre de la page. |
 | `Point(inside: "x.holo")` | `iframe, embed, object` | une page dans la page | En partie | Déjà là | On entre dans un autre fichier HoloCode ; pas dans un autre site. |
 
 ## HTML — Tableaux
@@ -677,7 +679,7 @@
 | En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|
 | `Sound(volume:, loop:), play, stop` | `Web Audio` | jouer, régler un son | En partie | Déjà là | Volume, boucle, arrêt (ADR-061). Pas de mélange ni d'effets. |
-| `Shape` | `Canvas 2D` | dessiner librement | En partie | Plus tard | — |
+| `Shape`, `Drawing` | `Canvas 2D` | dessiner librement | En partie | Plus tard | Le dessin déclaré existe (`Drawing`, ADR-086) ; le dessin trait par trait reste refusé ; un module qui rend des ordres de dessin : l'étape 4 du lot 9. |
 | `le moteur dessine des points` | `WebGL, WebGPU` | la 3D | En partie | Oui, utile | Pas encore d'objets pleins : l'essai de la chaise. |
 | — | `géolocalisation, caméra, vibration` | l'appareil du visiteur | Non | Plus tard | — |
 | — | `presse-papiers, partage` | copier, partager | Non | Plus tard | — |

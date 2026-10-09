@@ -18,6 +18,7 @@ pub mod blocks;
 pub mod components;
 pub mod computed;
 pub mod dates;
+pub mod drawing;
 pub mod state;
 pub mod files;
 pub mod format;
@@ -74,6 +75,8 @@ pub fn check_page(source: &str) -> Result<Program, Error> {
     view::settings(&program)?;
     // Les modules enfermés, et leur annonce en haut du fichier (ADR-045).
     modules::modules(&program)?;
+    // Les mesures d'un dessin liées à des valeurs de la page (ADR-086).
+    drawing::check(&program)?;
     // Les fichiers qu'un formulaire envoie (ADR-059).
     files::files(&program)?;
     // Ce que l'affichage refuserait (une adresse en `javascript:`, une image hors du dossier)

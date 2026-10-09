@@ -732,6 +732,13 @@
         if (values.has(placed.dataset[axis])) placed.style.setProperty(`--${axis}`, Math.min(100, Number(values.get(placed.dataset[axis]))));
       }
     }
+    // Un dessin suit les nombres qui disent ses mesures : Circle(y: sun) (ADR-086).
+    for (const shape of or_.querySelectorAll("[data-svg]")) {
+      for (const pair of shape.dataset.svg.split(" ")) {
+        const [attribute, name] = pair.split(":");
+        if (values.has(name)) shape.setAttribute(attribute, Math.min(4000, Number(values.get(name))));
+      }
+    }
     // Les conditions : If(count, is: 0). C'est le moteur qui répond ; la page ne compare rien
     // elle-même, elle cache ce que le moteur dit faux.
     const blocks = or_.querySelectorAll("[data-if],[data-else]");

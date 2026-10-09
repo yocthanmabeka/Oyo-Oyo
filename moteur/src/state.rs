@@ -1765,7 +1765,7 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
         // une place sur un plateau : ils prennent un nombre entier.
         for parameter in ["value", "x", "y"] {
             if let Some(Argument { value: Value::Name(v), pos, .. }) = block.argument(parameter) {
-                if places(program, v) > 0 && (matches!(block.name.as_str(), "Slider" | "Progress" | "Checkbox") || parameter != "value") {
+                if places(program, v) > 0 && !crate::drawing::SHAPES.contains(&block.name.as_str()) && (matches!(block.name.as_str(), "Slider" | "Progress" | "Checkbox") || parameter != "value") {
                     return Err(Error { message: format!("« {}({parameter}: {v}) » : « {v} » a des chiffres après la virgule ; une glissière, une barre, une case ou une place sur un plateau prennent un nombre entier", block.name), pos: *pos });
                 }
             }
