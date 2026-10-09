@@ -1718,6 +1718,32 @@ Page(
 
 La leçon est `99-un-tableau-de-bord.holo`.
 
+## 6 duodequadragies. Une liste de définitions : `Term`
+
+Un terme et sa définition, toujours ensemble (`ADR-097`) : une fiche technique, un glossaire.
+
+```holo
+Page(
+  title: "The workshop lamp",
+  state: State(price: 189.00),
+  children: [
+    H1("The workshop lamp"),
+    List(children: [
+      Term("Height", "45 cm"),
+      Term("Weight", "2 kg"),
+      Term("Colour", "Night blue, or **copper**"),
+      Term("Price", "{price} €"),
+    ]),
+  ],
+)
+```
+
+- **`Term("Weight", "2 kg")`** : le terme, puis sa définition. Une `List` dont les éléments sont des `Term` devient une liste de définitions (`dl`, `dt`, `dd`) ; le lecteur d'écran annonce chaque terme, puis sa définition.
+- La définition lit les valeurs de la page (`{price}`) et le texte enrichi (`**copper**`).
+- Refusés : un `Term` hors d'une liste ; une liste qui mélange des `Term` et autre chose ; `ordered: true` (une liste de termes ne se numérote pas) ; un `Term` sans sa définition.
+
+La leçon est `120-une-liste-de-definitions.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo

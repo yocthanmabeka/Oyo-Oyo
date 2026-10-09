@@ -1,0 +1,44 @@
+// Leçon 120 — Une liste de définitions
+//
+// Ce qu'on apprend :
+//   Term("Poids", "2 kg") : un terme et sa définition, toujours ensemble. Une List dont les
+//   éléments sont des Term devient une liste de définitions : une fiche technique, un
+//   glossaire. Le lecteur d'écran annonce chaque terme, puis sa définition.
+//   Une définition lit les valeurs de la page ({prix}) et le texte enrichi (**cuivre**).
+//
+// À essayer :
+//   Ajoute Term("Garantie", "2 ans") à la fiche. Puis mets un Term dans une liste où il y a
+//   aussi une phrase seule : le moteur le refuse, et dit pourquoi.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 120 : une liste de définitions",
+  state: State(prix: 189.00),
+  children: [
+    H1("La lampe d'atelier"),
+    P("La fiche technique :"),
+    List.fiche(children: [
+      Term("Hauteur", "45 cm"),
+      Term("Poids", "2 kg"),
+      Term("Couleur", "Bleu nuit, ou **cuivre**"),
+      Term("Prix", "{prix} €"),
+    ]),
+    H2("Le petit glossaire de l'atelier"),
+    List(children: [
+      Term("Lumen", "La quantité de lumière qu'une lampe donne."),
+      Term("Kelvin", "La couleur de la lumière : 2 700 K est chaude, 6 500 K est froide."),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 115 : des polices pour toutes les écritures", to: "115-des-polices-pour-toutes-les-ecritures.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+H2 { color: #E9B44C; font-size: 22px; }
+A { color: #8fd3ff; }
+.fiche { padding: 12px 16px; border: 1px solid #E9B44C; border-radius: 8px; }

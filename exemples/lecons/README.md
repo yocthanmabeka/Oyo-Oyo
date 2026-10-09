@@ -119,6 +119,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 113 | [Une rangée qui se serre](113-une-rangee-qui-se-serre.holo) | `narrow: { … }` dans les cases d'un `Row` : `.carte { width: 45%; narrow: { padding: 8px; } }` |
 | 114 | [L'historique dans une page](114-l-historique-dans-une-page.holo) | `address: [onglet, page]` : les valeurs dans l'adresse, un pas d'historique par toucher, une adresse qui se partage |
 | 115 | [Des polices pour toutes les écritures](115-des-polices-pour-toutes-les-ecritures.holo) | `Font(family: "Inter")` sans fichier : les polices libres du moteur, l'arabe, le devanagari, le japonais, l'éthiopien |
+| 120 | [Une liste de définitions](120-une-liste-de-definitions.holo) | `List(children: [ Term("Poids", "2 kg") ])` : un terme et sa définition, toujours ensemble ; une fiche technique, un glossaire |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 
