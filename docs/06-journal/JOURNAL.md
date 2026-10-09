@@ -33,6 +33,20 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Le grand tableau du web, avec les petites dettes et la fin des comptes
+
+- Fait (issue #186, la session du nuage, après la fusion des PR 220 à 227) :
+  - La page en ligne, version 35, bâtie sur la version 34 telle qu'elle était en ligne (personne ne l'avait changée depuis). Les mots des petites dettes du web, à l'essai : `Term`, `Abbreviation`, `abbreviations`, `Address`, `Fields`, `suggestions:`, `<<…>>`, `_…_`, `work:` (`ADR-097` à `ADR-101`). Ceux de la fin des lots 6 et 7, décidés : la liste partagée (`ADR-080`) ; les pages `/account/passkeys`, `/account/code/setup` et `/account/delete` (`ADR-082`, `ADR-083`).
+  - Face au web : `dl, dt, dd`, `abbr, time, address`, `fieldset, legend, datalist` et `blockquote, q, cite` passent à « oui » ; une ligne nouvelle, `WebAuthn (clés d'accès)`, à « oui ». Les raisons de `Date` (les calculs de l'`ADR-067`), de `paiement, comptes` (les clés d'accès, le QR, les codes de secours, l'effacement, le frein par adresse) et de `WebSocket` (les listes et les textes partagés) sont mises à jour.
+  - `TABLEAU-WEB.md` refait depuis la page par `outils/web_table.py`. La session du PC, revenue entre-temps, l'a refait aussi depuis la même page, à l'identique, et l'a fusionné par la PR #228 ; la PR #229 apporte cette entrée et `AGENTS.md`, où la ligne des petites dettes du web est faite et la suite des leçons va jusqu'à la 124.
+- Exécuté :
+  - `python3 outils/web_table.py <page> docs/01-holocode/TABLEAU-WEB.md --date 2026-10-09`, puis `--check` : identique à la page.
+  - La page ouverte dans Chromium, à 412 px en clair et en sombre, et à 1280 px : aucune erreur, rien ne déborde, et les comptes du haut se refont : 457 mots (446 décidés, 11 à l'essai) ; 135 éléments du web : 106 oui, 21 en partie, 1 non, 6 refusés, 1 sans objet.
+- Ensuite : la session du PC a publié la version 36, où ces 9 mots, et les 2 des `ADR-091` et `ADR-092`, passent à « décidés », avec la validation de Yocthan (PR #230, entrée ci-dessus) : 457 mots, tous décidés.
+- Reste : le seul « non » est `cookies, sessionStorage` ; 21 éléments restent « en partie ».
+
+---
+
 ## 2026-10-09 — Une citation courte au milieu d'une phrase, le titre d'une œuvre
 
 - Fait (issue #217, prise dans la file par la session du nuage ; `ADR-101`, PROPOSITION) :
