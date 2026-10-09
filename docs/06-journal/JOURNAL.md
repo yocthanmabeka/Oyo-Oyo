@@ -6,13 +6,14 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
-## 2026-10-09 — Le tableau du web : les mots des lots 7 et 9, la police du moteur, et un outil qui refait le fichier
+## 2026-10-09 — Le tableau du web : les mots des lots 7 et 9, offset, la police du moteur, et un outil qui refait le fichier
 
 - Fait (issue #186, première partie, prise par la session du nuage à la demande de Yocthan) : la page en ligne « HoloCode face au web » et `TABLEAU-WEB.md` ont les mots qui manquaient.
   - Lot 9 : les paramètres du dessin (`width`, `height`, `r`, `radius`, `d`, `from`, `to`, `fill`, `stroke`, `thickness`, ADR-086), `kind` et `bars, line, pie` (ADR-087), `shapes` et `x1`…`y2` (ADR-088).
   - Lot 7 : `access, members, everyone`, `signedIn, {account}`, `/account` et ses pages (ADR-081) ; « paiement, comptes » passe de « non » à « en partie ».
+  - `offset` dans `Filter`, et des listes de deux cents éléments (ADR-084, fusionné par #211).
   - La police du moteur, `Font(family: "…")` sans fichier (ADR-092, à l'essai).
-  - Le lot 6 (`Shared`) y était déjà. 422 mots : 420 décidés, 2 à l'essai ; 132 éléments du web.
+  - Le lot 6 (`Shared`) y était déjà. 423 mots : 421 décidés, 2 à l'essai ; 132 éléments du web.
 - `outils/web_table.py` refait `TABLEAU-WEB.md` depuis la page enregistrée, comptes compris, comptés comme la page les compte ; `--check` vérifie sans écrire. Vérifié par un aller-retour : la page d'avant redonnait le fichier de `main` à l'identique, sauf les deux lignes des polices que #195 avait écrites seulement dans le fichier.
 - Réparé en route : deux cases mal affichées sur GitHub (une barre verticale dans `Input(type: date | time | color)`, des accents graves imbriqués) ; sur un téléphone, la page en ligne débordait en largeur à cause d'une pastille longue : elle passe maintenant à la ligne.
 - Reste (deuxième partie de l'issue) : les mots de la fin du lot 9 (#203), et ceux des reprises des lots 6 et 7 (ADR-080, ADR-082, ADR-083), dès leur fusion.

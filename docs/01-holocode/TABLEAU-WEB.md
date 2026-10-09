@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-09). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (422 mots : 420 décidés, 2 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (132) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (423 mots : 421 décidés, 2 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (132) et ce que HoloCode en a.
 - **Existe ?** : le jugement de Claude, élément par élément (oui, en partie, non) ; ce n’est pas une mesure. Le tableau ne donne pas de pourcentage : aucune méthode reproductible ne mesure la part d’un élément du web qu’on obtient en HoloCode (consigne de Yocthan du 2026-10-07). Les comptes se refont en comptant les lignes.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,7 +9,7 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 422 mots | 420 décidés, 2 à l’essai |
+| **HoloCode** | 423 mots | 421 décidés, 2 à l’essai |
 | HTML | 62 éléments | 52 oui, 4 en partie, 3 non, 3 refusés |
 | CSS | 35 éléments | 29 oui, 4 en partie, 0 non, 2 refusés |
 | JavaScript | 35 éléments | 18 oui, 11 en partie, 4 non, 1 refusés, 1 sans objet |
@@ -168,7 +168,7 @@
 | `from, to (dans Line)` | Les deux bouts d'un trait : from: [0, 132] | `x1, y1, x2, y2` | Décidé (ADR-086) |
 | `fill, stroke, thickness` | Le remplissage, le bord, l'épaisseur du trait : une couleur des styles, ou "none" | `fill, stroke, stroke-width` | Décidé (ADR-086) |
 | `kind (dans Chart)` | La sorte d'un graphique ; over, value et label disent sa liste, le champ du nombre et celui du nom | `type (Chart.js)` | Décidé (ADR-087) |
-| `shapes` | Les formes d'un dessin venues d'une liste à champs, une par élément, vérifiées une à une ; cent au plus | `un tableau d'objets, dessiné à la main (d3)` | Décidé (ADR-088) |
+| `shapes` | Les formes d'un dessin venues d'une liste à champs, une par élément, vérifiées une à une ; deux cents au plus | `un tableau d'objets, dessiné à la main (d3)` | Décidé (ADR-088) |
 | `x1, y1, x2, y2 (dans shapes)` | Les bouts d'un trait venu d'une liste ; form dit la sorte de chaque forme : "rect", "circle", "line" ou "path" | `x1, y1, x2, y2` | Décidé (ADR-088) |
 
 ## Paramètres : la disposition
@@ -447,6 +447,7 @@
 | `Item (dans State), item.title` | Les éléments à champs d'une liste, et leurs champs dans une ligne | `objets JavaScript` | Décidé (ADR-051) |
 | `computed, Filter(name:, from:, contains:, in:, sortBy:, limit:)` | Une liste calculée : chercher, trier, montrer plus (l'écriture A, choisie par Yocthan) | `filter, sort, slice` | Décidé (ADR-062) |
 | `field, is, reverse (dans Filter)` | Garder une sorte d'éléments ; trier du plus grand au plus petit | `filter, reverse` | Décidé (ADR-062) |
+| `offset (dans Filter)` | Combien d'éléments sauter, après la recherche et le tri, avant limit : la page suivante d'un catalogue ; le total compte avant les deux coupes | `OFFSET (SQL), slice(start)` | Décidé (ADR-084) |
 | `empty (dans Repeat)` | Ce qu'on écrit quand une liste est vide | `if (list.length === 0)` | Décidé (ADR-062) |
 | `name (dans Data), Shop.done, Shop.failed, Shop.refresh` | Des données qui disent « arrivées » ou « échec », et se relisent ; 10 secondes au plus | `fetch, response.ok, AbortController` | Décidé (ADR-064) |
 | `key (dans Repeat(over:)), total (dans Filter)` | Une clé choisie pour chaque ligne, le clavier gardé ; le nombre trouvé avant de couper | `key de React, filtered.length` | Décidé (ADR-065) |
@@ -668,7 +669,7 @@
 | `add, sub, mul, div, set, random` | `calcul (+ − × ÷)` | calculer | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-043). En nombres entiers ; pas de pourcentage ni de racine. |
 | `If(…, else: […]), When(…) ; un texte : If(size, is: "L")` | `if, else` | décider | Oui | Déjà là | Le « sinon » ajouté le 2026-10-06 (ADR-039) ; comparer des textes, If(size, is: "L") et When(answer, is: "Paris"), le 2026-10-07 (ADR-063). |
 | `State(articles: [ Item(…) ]), push(Item(…)), item.done.set(1)` | `tableaux, objets` | des listes de valeurs | Oui | Déjà là | Des listes à champs, qui changent pendant la visite (ADR-044, ADR-051, ADR-057). |
-| `Repeat(items:, children:, rules:) ; Filter(…) pour chercher, filtrer, trier` | `for, map` | répéter pour chaque élément | Oui | Déjà là | Déplié à la lecture (ADR-040) ; des listes calculées pour chercher, filtrer, trier et montrer plus (ADR-062). |
+| `Repeat(items:, children:, rules:) ; Filter(…) pour chercher, filtrer, trier` | `for, map` | répéter pour chaque élément | Oui | Déjà là | Déplié à la lecture (ADR-040) ; des listes calculées pour chercher, filtrer, trier et montrer plus (ADR-062) ; la page suivante d'une liste, offset, et deux cents éléments par liste (ADR-084). |
 | `Module(…) : du code WebAssembly enfermé` | `fonctions` | du calcul réutilisable | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-045) : un nombre en entrée, un nombre en sortie, arrêté s'il dure trop. Le 2026-10-07 (ADR-077) : des nombres à virgule, des textes et des listes, en entrée et en sortie. |
 | `{nom} dans un texte` | `texte (majuscules, longueur, découper)` | travailler un texte | En partie | Plus tard | — |
 | `random, rejouable` | `Math.random` | le hasard | Oui | Déjà là | Mieux pour un jeu : la même partie se rejoue. |
@@ -708,7 +709,7 @@
 | En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|
 | `Sound(volume:, loop:), play, stop` | `Web Audio` | jouer, régler un son | En partie | Déjà là | Volume, boucle, arrêt (ADR-061). Pas de mélange ni d'effets. |
-| `Shape, Drawing, Drawing(shapes:)` | `Canvas 2D` | dessiner librement | En partie | Plus tard | Le dessin déclaré existe (`Drawing`, ADR-086), et un module peut rendre une liste de formes vérifiées (ADR-088) ; le dessin trait par trait reste refusé ; cent formes par liste. |
+| `Shape, Drawing, Drawing(shapes:)` | `Canvas 2D` | dessiner librement | En partie | Plus tard | Le dessin déclaré existe (`Drawing`, ADR-086), et un module peut rendre une liste de formes vérifiées (ADR-088) ; le dessin trait par trait reste refusé ; deux cents formes par liste. |
 | `le moteur dessine des points` | `WebGL, WebGPU` | la 3D | En partie | Oui, utile | Pas encore d'objets pleins : l'essai de la chaise. |
 | — | `géolocalisation, caméra, vibration` | l'appareil du visiteur | Non | Plus tard | — |
 | — | `presse-papiers, partage` | copier, partager | Non | Plus tard | — |
