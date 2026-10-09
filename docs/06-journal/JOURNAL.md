@@ -6,6 +6,19 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Le parcours 10, le tableau de bord : les dix parcours du web sont là
+
+- Repris de la PR 204 de Codex (fermée : elle doublait d'autres PR), et d'elle seulement : le tableau de bord (`exemples/parcours/dashboard.holo`), ses ventes fictives (`sales.json`), sa ligne dans l'index des parcours et son essai. Sur `integration/parcours-10`, à partir de `main`. Les ventes, reçues du serveur, sont dessinées en barres et en parts ; une vente s'ajoute au clavier, avec ou sans JavaScript ; les chiffres se lisent dans le tableau caché du graphique.
+- Ajouté : le tableau de bord dans l'audit d'accessibilité des parcours (dix pages, quatre modes). Mis à jour : le README des parcours (« dix parcours », et le tableau de bord dans ce qu'il faut refaire sur le téléphone), le compte rendu de Codex (le parcours 10 fait ; axe-core lu depuis la copie locale), l'`ADR-084` et `AGENTS.md`.
+- Exécuté : `holo check` → `dashboard.holo` et l'index acceptés ; `node outils/browser-tests.mjs parcours` → 12 essais `OK`, aucun raté, 307 s : `cargo test --release --locked` (196 tests), onze fichiers `.holo` vérifiés, les parcours 1 à 10 (le 10 : trois ventes puis quatre, barres et parts, au clavier, JavaScript coupé puis activé, 180 dans le tableau et dans l'arbre d'accessibilité), 40 audits axe-core sans défaut.
+- Reste, pour dire le web fini (compte rendu de Codex) : faire les dix parcours au clavier et au TalkBack avec une personne, puis sur le vrai Samsung, et mesurer la durée, la mémoire, la chaleur et la batterie.
+
+**Erreurs en route**
+
+- Aucune dans cette étape.
+
+---
+
 ## 2026-10-09 — Si le PC s'arrête, la session du nuage reprend tout le travail
 
 - Yocthan : « au cas où ta session lâche, si le PC s'éteint, que tu laisses à la session sur téléphone continuer, pour qu'on ne puisse pas avoir des arrêts inutiles ».
