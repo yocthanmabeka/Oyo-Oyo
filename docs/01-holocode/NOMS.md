@@ -129,7 +129,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Quote` | `blockquote`, `q`, `cite` | changé : un mot au lieu de trois |
 | `Code` | `pre`, `code` | repris |
 | `State` | `let`, `useState`, les signaux | changé : une déclaration, pas une variable libre |
-| `Shared`, `shared:` | une base et une API côté serveur, puis `fetch`, un `WebSocket` ou un `EventSource` côté page (Firebase, Meteor, Phoenix LiveView) | nouveau : une déclaration ; le serveur de l'auteur garde la valeur pour tous, l'arbitre avec le même moteur que la page, et l'envoie en direct (`ADR-079`, à valider) |
+| `Shared`, `shared:` | une base et une API côté serveur, puis `fetch`, un `WebSocket` ou un `EventSource` côté page (Firebase, Meteor, Phoenix LiveView) | nouveau : une déclaration ; le serveur de l'auteur garde la valeur pour tous, l'arbitre avec le même moteur que la page, et l'envoie en direct (`ADR-079`, à valider) ; une liste aussi, dont la ligne touchée se désigne par sa clé (`ADR-080`) |
 | `Data` | `fetch`, puis `JSON.parse`, puis la mise à jour de la page | changé : une déclaration ; l'arbitre range ce qui arrive |
 | `Prices` | un objet JavaScript `{ sunrise: 120 }` | changé : une table déclarée |
 | `Zoom` | `meta viewport`, la propriété `zoom` | changé |
@@ -283,10 +283,9 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 - Mots nouveaux : environ 30, presque tous autour du point, du monde et de la façon de regarder la page.
 - Noms contestés : aucun. Les quatorze sont tranchés le 2026-10-06 (`ADR-047`).
 
-Proposition ADR-083 : aucun nouveau mot HoloCode pour le secours ou l'effacement. Les pages réservées du moteur sont `/account/code/setup`, `/account/code` et `/account/delete`. Les champs de leurs formulaires ne deviennent pas des réglages du langage.
+## Comptes et partage, la suite : aucun mot nouveau (`ADR-080`, `ADR-082`, `ADR-083`, décidées le 2026-10-09)
 
-
-Clés d’accès proposées dans #181 : aucun nouveau mot de HoloCode. `/account/passkeys` appartient au serveur. `HOLO_ORIGIN` est sa configuration d’adresse HTTPS, fixée chez l’auteur. Leçon 107.
-
-
-Partage proposé dans #182 : `Shared(names: [])`, textes seulement dans cette première liste publique ; les mots `push` et `clear` gardent leur sens. `Input(value: title)` prépare le texte et un bouton le confirme par `title.set(title)`. Aucun nouveau mot. Leçons 102 et 103.
+- **Une liste partagée** (`ADR-080`) : `Shared(groceries: [ Item(what: "Du pain", done: 0) ])`, ou des textes, `Shared(names: [])` ; `push`, `remove(item)`, `item.done.set(1)` et `clear()` gardent le sens qu'ils ont pour une liste à soi (`ADR-044`, `ADR-057`). La ligne touchée se désigne par la clé qu'elle a déjà dans la page (`data-key`, `ADR-065`) : aucun mot à écrire. Leçon 102.
+- **Un texte partagé confirmé** (`ADR-080`) : `Input(value: title)`, puis `On(Save.tap, effect: title.set(title))` ; aucun mot nouveau. Leçon 103.
+- **Les clés d'accès** (`ADR-082`) : aucun mot de HoloCode ; `/account/passkeys` est une page du serveur, comme les autres pages de compte. `HOLO_ORIGIN` est un réglage du serveur, chez l'auteur (son adresse HTTPS), pas du langage. Leçon 107.
+- **Le QR, les codes de secours, l'effacement** (`ADR-083`) : aucun mot de HoloCode ; `/account/code/setup`, `/account/code` et `/account/delete` sont des pages du serveur, et les champs de leurs formulaires ne deviennent pas des réglages du langage. Leçon 108.
