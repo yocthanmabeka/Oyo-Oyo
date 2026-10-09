@@ -6,6 +6,30 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Les « en partie » du tableau : douze vrais manques à construire, huit limites soumises aux autres IA
+
+- Yocthan : « pourquoi il y a toujours 21 en partie ? Réponds-moi vraiment, sérieusement. Et si c'est utile, oui ou non ? ».
+- Réponse de Claude, ligne par ligne :
+  - 2 sont la 3D, la phase suivante ;
+  - 11 sont de vrais petits manques, plus le seul « non » (`sessionStorage`) : 12 en tout ;
+  - 8 sont limités exprès : iframe, champ mot de passe, `fetch` vers d'autres serveurs, 3D libre, paquets extérieurs, dessin libre, notifications « push », paiement.
+- **Les 12 vrais manques** : Yocthan, « tu le valides déjà, tu le fais déjà ». Ils sont dans la file, les issues 231 à 242 (`ADR-102` à `ADR-113`, leçons 125 à 136, décidées d'avance). Trois agents de la session du PC en prennent 8 ; la session du nuage, les 4 autres.
+- **Les 8 limites**, Yocthan n'est pas d'accord sur plusieurs :
+  - les réseaux sociaux marchent avec des iframes ;
+  - un champ mot de passe est dans tous les formulaires ;
+  - `fetch` est essentiel en JavaScript ;
+  - tôt ou tard il faudra importer des modules ;
+  - un site de dessin où l'on ne dessine pas n'a pas de sens ;
+  - il n'aime pas les services extérieurs pour le « push » ;
+  - un paiement est possible avec un bon serveur.
+
+  Le prompt `docs/05-discussions/prompts/2026-10-09-contraintes-des-huit-limites.md` demande aux autres IA de trouver, ou d'inventer, des contraintes pour chacune, avec leurs sources, et de confirmer ou de contredire. Claude fait la même recherche de son côté. Le tableau ne change pas avant leurs réponses.
+- **Corrigé par Claude en répondant** :
+  - il avait confondu le code de dessin écrit par l'auteur (refusé) et un visiteur qui dessine librement (utile : un bloc à faire) ;
+  - « pas de code extérieur » était trop fort : un module extérieur enfermé est déjà permis.
+
+---
+
 ## 2026-10-09 — Le web est fini, et validé par Yocthan
 
 - Yocthan, après avoir tout essayé : « j'ai tout essayé et c'est bon déjà ». À sa demande (« fini le travail correctement »), tout ce qui était prêt est fusionné, et tout ce qui restait « à valider » passe en `ACCEPTÉ` : `ADR-090`, `091`, `092` et `097` à `101`. Seule HoloIR (`ADR-006`) reste une proposition, puisque rien n'en est construit.
