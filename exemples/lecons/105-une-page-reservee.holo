@@ -1,0 +1,38 @@
+// Leçon 105 — Une page réservée aux membres
+//
+// Ce qu'on apprend :
+//   Page(access: members, …)   la page n'est montrée qu'aux personnes connectées.
+//   Les autres sont menées à la page « Se connecter » ; une fois connectées (et le code donné,
+//   s'il est activé), elles reviennent ici. Rien de la page ne leur arrive avant : ni la page
+//   fabriquée, ni son texte, ni ses boutons. Sans « access », la page est à tout le monde
+//   (c'est « access: everyone », qu'on n'écrit pas).
+//   Sur une page réservée, {account} est toujours là : le nom de qui la lit.
+//   C'est le serveur qui décide, avant d'envoyer quoi que ce soit : une page réservée ne s'ouvre
+//   qu'avec holo serve. Le serveur d'essai (node outils/server.mjs), qui n'a pas de comptes, dit
+//   qu'il faut holo serve au lieu de la montrer.
+//
+// À essayer (avec holo serve, voir la leçon 104) :
+//   Ouvre cette page sans être connecté : tu arrives sur « Se connecter ». Connecte-toi : te revoici.
+//   Déconnecte-toi depuis ton compte, puis reviens ici : la page ne s'ouvre plus.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 105 : une page réservée",
+  access: members,
+  children: [
+    H1("Réservé aux membres"),
+    P("Bonjour, {account}. Seules les personnes connectées voient cette page."),
+    A("Mon compte : le code à 6 chiffres, se déconnecter", to: "/account"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 104 : se connecter", to: "104-se-connecter.holo"),
+      A("Leçon 106 : le panier qui suit le compte →", to: "106-le-panier-qui-suit-le-compte.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

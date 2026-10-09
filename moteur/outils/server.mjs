@@ -527,6 +527,25 @@ function respond(res, code, text) {
   res.end(text);
 }
 
+// Les comptes (ADR-081) n'existent que dans le vrai serveur, holo serve : c'est lui qui les garde,
+// dans la base du site. Ce serveur d'essai le dit, à la place des pages de compte (/account…) et
+// d'une page réservée aux membres (access: members), qu'il ne montre à personne.
+const MEMBERS_ONLY = /\baccess\s*:\s*members\b/;
+const MEMBERS_REFUSAL = "page réservée aux membres : les comptes demandent holo serve";
+const membersOnly = async (file) => MEMBERS_ONLY.test((await readFile(file, "utf8").catch(() => "")).replace(/\/\/.*$/gm, ""));
+function accountsElsewhere(res, code, page = "") {
+  const command = "target/release/holo serve ../exemples/lecons 8090";
+  const reserved = page ? `<p>La page <code>${page.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`)}</code> est réservée aux membres (<code>access: members</code>) : seules les personnes connectées la voient.</p>` : "";
+  res.writeHead(code, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+  res.end(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Les comptes demandent holo serve</title>
+<style>body{margin:0;background:#101020;color:#f2f2f5;font:1.0625rem/1.5 system-ui,sans-serif}main{max-width:36rem;margin:0 auto;padding:2rem 1rem}h1{color:#E9B44C;font-size:1.6rem}code,pre{font:.95rem ui-monospace,Consolas,monospace}pre{background:#000;padding:.75rem;border-radius:.5rem;overflow-x:auto}</style></head>
+<body><main><h1>Les comptes demandent holo serve</h1>${reserved}
+<p>Ce serveur d'essai (<code>node outils/server.mjs</code>) n'a pas de comptes : on n'y crée pas de compte, on ne s'y connecte pas, et il ne montre pas les pages réservées aux membres.</p>
+<p>Les comptes sont gardés par le vrai serveur, dans la base du site, sur ton ordinateur. Lance-le depuis le dossier <code>moteur</code> :</p>
+<pre>${command}</pre>
+<p>puis ouvre <code>http://localhost:8090/104-se-connecter.holo</code>.</p></main></body></html>`);
+}
+
 createServer(async (req, res) => {
   try {
     // L'adresse telle qu'elle est dans l'URL (encodée), et décodée.
@@ -546,9 +565,12 @@ createServer(async (req, res) => {
     }
     if (url === "/stack/listen") return listenToStack(req, res);
     if (url === "/stack/show" && req.method === "POST") return await showInStack(req, res);
-    // Une page qui écoute ses valeurs partagées en direct (ADR-079).
+    if (url === "/account" || url.startsWith("/account/")) return accountsElsewhere(res, 501);
+    // Une page qui écoute ses valeurs partagées en direct (ADR-079). Une page réservée aux
+    // membres (ADR-081) n'est ni écoutée ni touchée ici : les comptes sont dans holo serve.
     if (req.method === "GET" && /text\/event-stream/.test(req.headers.accept ?? "")) {
       const target = await sharedTarget(url, rawPath);
+      if (target && (await membersOnly(target.file))) return respond(res, 401, MEMBERS_REFUSAL);
       return target ? listenToShared(req, res, url, target) : respond(res, 404, "introuvable");
     }
     if (req.method === "POST") {
@@ -569,6 +591,7 @@ createServer(async (req, res) => {
         try { gesture = JSON.parse(preread.toString("utf8")); } catch { /* un formulaire mal écrit : receiveMessage le dira */ }
         if (gesture && typeof gesture === "object" && "signal" in gesture) {
           const target = await sharedTarget(url, rawPath);
+          if (target && (await membersOnly(target.file))) return respond(res, 401, MEMBERS_REFUSAL);
           return target ? share(res, url, target, gesture) : respond(res, 404, "page introuvable");
         }
       }
@@ -576,9 +599,12 @@ createServer(async (req, res) => {
       // l'adresse d'un modèle (ADR-078), où la page envoie son formulaire ; il est alors vérifié
       // avec les valeurs de cette adresse.
       const pageHolo = url.startsWith("/exemples/") ? join(examples, normalize(url.slice("/exemples/".length))) : "";
-      if (url.endsWith(".holo") && pageHolo.startsWith(examples) && existsSync(pageHolo)) return await receiveMessage(req, res, url, pageHolo, null, preread);
+      // Une page réservée aux membres ne reçoit rien ici : les comptes sont dans holo serve (ADR-081).
+      if (url.endsWith(".holo") && pageHolo.startsWith(examples) && existsSync(pageHolo)) {
+        return (await membersOnly(pageHolo)) ? respond(res, 401, MEMBERS_REFUSAL) : await receiveMessage(req, res, url, pageHolo, null, preread);
+      }
       const model = url.startsWith("/exemples/") ? await findModel(rawPath) : null;
-      if (model) return await receiveMessage(req, res, url, model.file, model, preread);
+      if (model) return (await membersOnly(model.file)) ? respond(res, 401, MEMBERS_REFUSAL) : await receiveMessage(req, res, url, model.file, model, preread);
       return url.endsWith(".holo") ? respond(res, 404, "page introuvable") : refused();
     }
     // Le retard ne compte qu'une fois, sur la première pièce du moteur.
@@ -600,9 +626,11 @@ createServer(async (req, res) => {
     // celle des pages ou celle des points selon le premier bloc du fichier.
     const forDisplay = !model && extname(path) === ".holo" && /text\/html/.test(req.headers.accept ?? "");
     let toServe = model ? join(root, "web", "page.html") : path;
-    if (forDisplay) {
-      const source = (await readFile(path, "utf8")).replace(/\/\/.*$/gm, "");
-      toServe = join(root, "web", /^\s*Point/.test(source) ? "index.html" : "page.html");
+    if (forDisplay || model) {
+      const source = (await readFile(model ? model.file : path, "utf8")).replace(/\/\/.*$/gm, "");
+      // Une page réservée aux membres (ADR-081) : les comptes sont dans holo serve, pas ici.
+      if (MEMBERS_ONLY.test(source)) return accountsElsewhere(res, 401, url);
+      if (forDisplay) toServe = join(root, "web", /^\s*Point/.test(source) ? "index.html" : "page.html");
     }
     let { raw, br } = await file(toServe);
     if (model) {

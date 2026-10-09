@@ -799,6 +799,11 @@ pub fn read(source: &str) -> Result<Program, Error> {
     }
     // Les valeurs partagées rejoignent celles de la page, après celles de l'adresse (ADR-079).
     crate::shared::inject(&mut program)?;
+    // Ce que la page sait du visiteur connecté (ADR-081), si elle le lit : le nom joint par le
+    // serveur, sinon un visiteur qui n'est pas connecté. Après les valeurs partagées : un nom
+    // donné par le serveur ne peut être ni dans State ni dans Shared.
+    let account = provided.iter().find(|(name, _)| *name == crate::account::ACCOUNT_FILE).map(|(_, text)| *text);
+    crate::account::inject(&mut program, account)?;
     Ok(program)
 }
 

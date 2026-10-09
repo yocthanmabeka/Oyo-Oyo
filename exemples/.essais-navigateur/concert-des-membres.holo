@@ -1,0 +1,23 @@
+Page(
+      title: "Concert des membres", access: members,
+      state: State(booked: 0, cart: 0, note: "", price: 12.50, agreed: 0, level: 0, size: "S"),
+      shared: Shared(seats: 3, likes: 0, last: ""),
+      children: [
+        H1("Concert"), P("{seats} places"), P("{cart} articles"),
+        Input(value: note, label: "Nom", max: 5),
+        Input(value: price, label: "Montant", max: 20),
+        Checkbox(value: agreed, label: "Accord"),
+        Slider(value: level, label: "Niveau", min: 0, max: 10),
+        Choice(value: size, label: "Taille", options: ["S", "L"]),
+        If(seats, over: 0, children: [
+          If(booked, is: 0, children: [Button(name: Book, text: "Réserver")])
+        ]),
+        Button(name: Add, text: "Ajouter"),
+        Button(name: Like, text: "J'aime ({likes})"),
+      ],
+      rules: [
+        On(Book.tap, effect: [seats.sub(1), booked.set(1), last.set(note)]),
+        On(Add.tap, effect: cart.add(1)),
+        On(Like.tap, effect: likes.add(1)),
+      ],
+    )

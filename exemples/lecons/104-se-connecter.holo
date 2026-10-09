@@ -1,0 +1,51 @@
+// Leçon 104 — Se connecter : un compte gardé chez toi
+//
+// Ce qu'on apprend :
+//   Une page sait si le visiteur est connecté, et sous quel nom :
+//     signedIn     vaut 1 quand il est connecté, 0 sinon        If(signedIn, is: 1, children: [ … ])
+//     {account}    son nom, dans un texte (vide sinon)           P("Bonjour, {account}")
+//   Elle les lit comme ses autres valeurs, sans jamais pouvoir les changer : c'est le serveur qui
+//   les donne, à chaque visite, comme il donne l'heure.
+//   Les pages pour créer un compte, se connecter, activer le code à 6 chiffres et se déconnecter
+//   sont fabriquées par le moteur : on n'en écrit aucune, on y mène par un lien.
+//     A("Se connecter", to: "/account/signin")      A("Créer un compte", to: "/account/signup")
+//     A("Mon compte", to: "/account")               (le code à 6 chiffres, se déconnecter)
+//   Ce sont les seuls liens qui partent de la racine du site : ce sont les pages du serveur.
+//   Les comptes sont gardés par holo serve, dans la base du site, sur l'ordinateur de l'auteur :
+//   ni Google, ni Apple, ni adresse e-mail. Le mot de passe n'y est jamais gardé en clair ; le code
+//   à 6 chiffres est calculé par une application du téléphone (Aegis, FreeOTP…), sans Internet.
+//
+// À essayer (les comptes demandent holo serve ; depuis le dossier moteur :
+//   target/release/holo serve ../exemples/lecons 8090, puis http://localhost:8090/104-se-connecter.holo) :
+//   Crée un compte : tu reviens ici, et la page te dit bonjour.
+//   Sur la page de ton compte, active le code à 6 chiffres. Déconnecte-toi, puis reconnecte-toi :
+//   après le mot de passe, la page demande le code.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 104 : se connecter",
+  children: [
+    H1("Se connecter"),
+    If(signedIn, is: 1, children: [
+      P("Bonjour, {account} : tu es connecté."),
+      A("Mon compte : le code à 6 chiffres, se déconnecter", to: "/account"),
+    ], else: [
+      P("Tu n'es pas connecté. Ton compte sera gardé par ce site, sur l'ordinateur de son auteur."),
+      List(children: [
+        A("Créer un compte", to: "/account/signup"),
+        A("Se connecter", to: "/account/signin"),
+      ]),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 101 : une valeur partagée", to: "101-une-valeur-partagee.holo"),
+      A("Leçon 105 : une page réservée →", to: "105-une-page-reservee.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
