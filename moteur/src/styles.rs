@@ -657,6 +657,8 @@ mod tests {
             // Trois dettes des lots 4 et 5 (ADR-090).
             include_str!("../../exemples/lecons/112-une-adresse-qui-se-souvient.holo"),
             include_str!("../../exemples/lecons/113-une-rangee-qui-se-serre.holo"),
+            // L'historique dans une page (ADR-091).
+            include_str!("../../exemples/lecons/114-l-historique-dans-une-page.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();

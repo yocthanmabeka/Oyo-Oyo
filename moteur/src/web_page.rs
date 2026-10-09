@@ -125,6 +125,24 @@ pub fn page_title(source: &str, state: &str) -> String {
     crate::page_title(source, state)
 }
 
+/// Les valeurs que l'adresse porte après le `?`, posées sur l'état (ADR-091).
+#[wasm_bindgen]
+pub fn from_query(source: &str, state: &str, query: &str) -> String {
+    crate::from_query(source, state, query)
+}
+
+/// L'adresse que demandent les valeurs de la page, après le `?` (ADR-091).
+#[wasm_bindgen]
+pub fn address_query(source: &str, state: &str) -> String {
+    crate::address_query(source, state)
+}
+
+/// Les noms des valeurs que la page écrit dans son adresse : `tab,page` (ADR-091).
+#[wasm_bindgen]
+pub fn address_names(source: &str) -> String {
+    crate::address_names(source)
+}
+
 /// Ce qu'il faut pour faire tourner un module : `somme.wasm|10|100|16|1` (le dernier chiffre : le
 /// premier contrat suffit, ADR-077).
 #[wasm_bindgen]

@@ -113,6 +113,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 111 | [Un chronomètre](111-un-chronometre.holo) | `Stopwatch`, `start`, `stop`, `reset`, `stopped`, `{temps:stopwatch}` |
 | 112 | [Une adresse qui se souvient](112-une-adresse-qui-se-souvient.holo) | `keep` dans un modèle d'adresse, `112-carnets/{nom}.holo` : chaque adresse garde ses valeurs ; `title: "Le carnet de {nom} : {pages} page(s)"` |
 | 113 | [Une rangée qui se serre](113-une-rangee-qui-se-serre.holo) | `narrow: { … }` dans les cases d'un `Row` : `.carte { width: 45%; narrow: { padding: 8px; } }` |
+| 114 | [L'historique dans une page](114-l-historique-dans-une-page.holo) | `address: [onglet, page]` : les valeurs dans l'adresse, un pas d'historique par toucher, une adresse qui se partage |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 

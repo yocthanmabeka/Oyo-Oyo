@@ -173,7 +173,7 @@ impl Site {
         // modèle `profil/{id}.holo`) est toujours une page (ADR-078).
         if holo.ends_with(".holo") && (ask.accept.contains("text/html") || holo != path) {
             let visit = visitor_of(ask.cookie).and_then(|visitor| self.stored(&visitor, path));
-            return match self.page(&file, path, &holo, &values, visit) {
+            return match self.page(&file, path, &holo, &values, visit, query_of(ask.url)) {
                 Ok(html) => {
                     let mut reply = Reply { status: 200, headers: vec![("Content-Type".into(), "text/html; charset=utf-8".into())], body: html.into_bytes() };
                     reply.headers.extend(common_headers());
@@ -226,6 +226,9 @@ impl Site {
             None => (new_visitor(), true),
         };
         let mut visit = self.stored(&visitor, path).unwrap_or_else(|| Visit { state: starting_state(&source, &file), tried: Vec::new() });
+        // Le geste part de la page que montre le navigateur, avec les valeurs de son adresse
+        // (ADR-091), même si le visiteur est revenu en arrière depuis.
+        visit.state = with_query(&source, &visit.state, query_of(ask.url));
         let fields = crate::gestures::read_form(&String::from_utf8_lossy(ask.body));
         let tap = fields.iter().find(|(name, signal)| name == crate::gestures::SIGNAL && crate::gestures::is_tap(signal)).map(|(_, signal)| signal.as_str()).unwrap_or("");
         // Une page qui partage des valeurs (ADR-079) : les champs, puis le toucher, arbitré avec les
@@ -261,7 +264,11 @@ impl Site {
         if visit.state.len() <= STATE_MAX {
             self.store(&visitor, path, &visit);
         }
-        let mut headers = vec![("Location".to_string(), path.to_string())];
+        // La page à jour, à l'adresse de ses nouvelles valeurs (ADR-091) : sans JavaScript aussi,
+        // « Précédent » revient à l'onglet d'avant.
+        let query = crate::address_query(&source, &visit.state);
+        let location = if query.is_empty() { path.to_string() } else { format!("{path}?{query}") };
+        let mut headers = vec![("Location".to_string(), location)];
         if new_visitor {
             headers.push(("Set-Cookie".into(), format!("{COOKIE}={visitor}; Path=/; HttpOnly; SameSite=Lax; Max-Age={FORGET_AFTER}")));
         }
@@ -321,14 +328,17 @@ impl Site {
 
     /// La page d'entrée, avec la page du fichier déjà fabriquée dedans, comme le fait
     /// outils/server.mjs. Un fichier de points (`Point`) ouvre la porte des mondes.
-    fn page(&self, file: &Path, path: &str, holo: &str, values: &[(String, String)], visit: Option<Visit>) -> Result<String, String> {
+    fn page(&self, file: &Path, path: &str, holo: &str, values: &[(String, String)], visit: Option<Visit>, query: &str) -> Result<String, String> {
         let source = source_at(file, values).map_err(|e| e.to_string())?;
         if source.lines().map(|line| line.split("//").next().unwrap_or("").trim()).find(|line| !line.is_empty()).is_some_and(|line| line.starts_with("Point")) {
             return std::fs::read_to_string(self.web.join("index.html")).map_err(|e| e.to_string());
         }
         let template = std::fs::read_to_string(self.web.join("page.html")).map_err(|e| format!("page d'entrée du moteur introuvable : {e}"))?;
         set_clock();
-        let visit = visit.unwrap_or_else(|| Visit { state: starting_state(&source, file), tried: Vec::new() });
+        let mut visit = visit.unwrap_or_else(|| Visit { state: starting_state(&source, file), tried: Vec::new() });
+        // Les valeurs que l'adresse porte après le `?` (ADR-091) : l'adresse les dit, même
+        // revenue en arrière ; celles qu'elle ne dit pas reprennent leur départ.
+        visit.state = with_query(&source, &visit.state, query);
         let _ = path;
         let base = &holo[..=holo.rfind('/').unwrap_or(0)];
         // Le fichier de la page (ADR-078) : le moteur du navigateur y lit son texte, même quand
@@ -935,6 +945,17 @@ fn read_with_imports(file: &Path) -> std::io::Result<String> {
 
 /// La page du fichier posée dans la page d'entrée, avec son titre, sa langue, sa description,
 /// son image de partage et sa petite image d'onglet (ADR-038, ADR-042).
+/// Ce que l'adresse porte après le `?`, sans le `#…` : `tab=photos&page=2`.
+fn query_of(url: &str) -> &str {
+    url.split('#').next().unwrap_or("").split_once('?').map_or("", |(_, query)| query)
+}
+
+/// L'état d'un visiteur avec les valeurs de l'adresse (ADR-091) ; tel quel si le moteur refuse.
+fn with_query(source: &str, state: &str, query: &str) -> String {
+    let after = crate::from_query(source, state, query);
+    if after.is_empty() { state.to_string() } else { after }
+}
+
 fn filled_template(template: &str, html: &str) -> String {
     let head = &html[..html.len().min(20_000)];
     let read = |name: &str| {
@@ -1060,6 +1081,33 @@ mod tests {
         let (page, model): (String, String) = base.query_row("SELECT page, model FROM messages", [], |row| Ok((row.get(0)?, row.get(1)?))).unwrap();
         assert_eq!((page.as_str(), model.as_str()), ("/profils/ada", "/profils/{nom}.holo"));
         drop(base);
+        let _ = std::fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn the_address_carries_the_history_of_a_page_without_javascript() {
+        // ADR-091 : `address: [tab, page]` ; l'adresse dit l'onglet, même sans JavaScript.
+        let (site, folder) = site();
+        std::fs::write(
+            folder.join("galerie.holo"),
+            "Page(title: \"Galerie\", state: State(tab: \"toiles\", page: 1), address: [tab, page], children: [ P(\"Onglet {tab}, page {page}\"), Button(name: Dessins, text: \"Dessins\"), Button(name: Next, text: \"Suivante\") ], rules: [ On(Dessins.tap, effect: [tab.set(\"dessins\"), page.set(1)]), On(Next.tap, effect: page.add(1)) ])",
+        )
+        .unwrap();
+        // Une adresse partagée : la page fabriquée a ses valeurs.
+        let shared = String::from_utf8(site.answer(&ask("GET", "/galerie.holo?tab=dessins&page=3", "", b"")).body).unwrap();
+        assert!(shared.contains("Onglet <span data-state=\"tab\">dessins</span>, page <span data-state=\"page\">3</span>"), "{shared}");
+        // Un toucher sans JavaScript mène à l'adresse des nouvelles valeurs.
+        let touched = site.answer(&ask("POST", "/galerie.holo?tab=dessins&page=3", "", b"signal=Next.tap"));
+        assert!(touched.headers.iter().any(|(name, value)| name == "Location" && value == "/galerie.holo?tab=dessins&page=4"), "{:?}", touched.headers);
+        let cookie = touched.headers.iter().find(|(name, _)| name == "Set-Cookie").map(|(_, value)| value.split(';').next().unwrap().to_string()).unwrap();
+        // « Précédent » : le navigateur redemande l'adresse d'avant ; elle dit encore la page 3.
+        let back = String::from_utf8(site.answer(&ask("GET", "/galerie.holo?tab=dessins&page=3", &cookie, b"")).body).unwrap();
+        assert!(back.contains("page <span data-state=\"page\">3</span>"), "{back}");
+        // Et l'adresse nue, la page du début.
+        let start = String::from_utf8(site.answer(&ask("GET", "/galerie.holo", &cookie, b"")).body).unwrap();
+        assert!(start.contains("Onglet <span data-state=\"tab\">toiles</span>, page <span data-state=\"page\">1</span>"), "{start}");
+        let first = site.answer(&ask("POST", "/galerie.holo", &cookie, b"signal=Dessins.tap"));
+        assert!(first.headers.iter().any(|(name, value)| name == "Location" && value == "/galerie.holo?tab=dessins"), "{:?}", first.headers);
         let _ = std::fs::remove_dir_all(&folder);
     }
 

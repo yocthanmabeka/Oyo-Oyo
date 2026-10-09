@@ -6,6 +6,20 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-08 — L'historique dans une page : `address: [onglet, page]`
+
+- Fait (`ADR-091`, PROPOSITION ; une des tâches confiées par Yocthan à la session du nuage, laissée par le lot 8 en attendant le serveur) : `Page(address: [onglet, page])` écrit ces valeurs dans l'adresse, après le `?`. Un toucher qui les change fait un pas que « Précédent » défait ; une adresse partagée arrive sur les mêmes valeurs, fabriquée par le serveur d'essai, par `holo serve` et par `holo html` ; sans JavaScript, `holo serve` mène chaque toucher à l'adresse des nouvelles valeurs. Un seul chemin dans le moteur (`src/history.rs`). Leçon 114.
+- Ce qui arrive par l'adresse vient de n'importe qui : seules les valeurs nommées, dans leurs bornes ; un texte que la page n'écrit qu'avec des mots fixes n'en prend pas d'autre (`?onglet=pirate` montre l'onglet du début).
+- Exécuté : `cargo test` → 160 tests passent (trois nouveaux) ; dans Chrome, l'essai de la leçon 114 passe (deux pas, « Précédent » deux fois, « Suivant », une adresse partagée, `?values` gardé, des valeurs forgées).
+- À valider par Yocthan : le nom `address:` (ou `history:`).
+
+**Erreurs en route**
+
+- Mon premier essai acceptait `?onglet=pirate` : un texte que rien ne borne. Le moteur relève maintenant les mots qu'une page peut écrire dans une valeur ; une adresse forgée ne met plus la page dans un état qu'elle ne peut pas atteindre.
+- En relançant le serveur d'essai, ma commande d'arrêt (`pkill -f`) s'est reconnue elle-même dans sa propre ligne et s'est arrêtée.
+
+---
+
 ## 2026-10-08 — Trois dettes des lots 4 et 5 : un titre qui lit les valeurs, `narrow:` dans un `Row`, `keep` par adresse
 
 - Fait (`ADR-090`, PROPOSITION ; une des tâches confiées par Yocthan à la session du nuage) : `Page(title: "Le carnet de {nom} : {pages} page(s)")` écrit les valeurs dans l'onglet, et le récrit quand elles changent ; `narrow: { … }` vaut aussi dans les cases de `Row` et de `Column` ; les valeurs gardées (`keep`) sont rangées sous l'adresse, une par adresse d'un modèle. Leçons 112 (et son modèle `112-carnets/{nom}.holo`) et 113 ; la leçon 100 a un titre par profil.
