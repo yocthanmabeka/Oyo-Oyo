@@ -17,6 +17,7 @@ const BASE: &str = "\
 :where(img.holo-Image){object-fit:cover}\
 :where(.holo-Page>main,.holo-Page>header,.holo-Page>footer,.holo-panel,.holo-Header,.holo-Footer,.holo-Main)>*{display:block;box-sizing:border-box;margin:0 0 16px 0}\
 :where(.holo-Nav)>*{margin:0}\
+:where(address.holo-Address){font-style:normal}:where(abbr[title]){cursor:help}\
 :where(.holo-Stack){display:inline-grid;position:relative;max-width:100%;vertical-align:top}:where(.holo-Stack>:first-child .holo-Image){width:100%;display:block}:where(.holo-Stack)>*{grid-area:1/1;min-width:0;margin:0}\
 :where(.holo-stacked){z-index:1;margin:6px}\
 :where(.holo-Button){font:inherit;color:inherit;cursor:pointer;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 12px}\
@@ -62,6 +63,8 @@ transition:left .12s linear,top .12s linear,transform .12s linear}\
 :where(.holo-Dialog)::backdrop{background:rgba(0,0,0,0.5)}:where(.holo-Dialog>*){margin:0 0 12px 0}:where(.holo-close){display:flex;justify-content:flex-end;margin:0}\
 :where(.holo-close button){font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;font-size:1.2em;line-height:1}\
 :where(.holo-Lines,.holo-line){display:contents}:where(.holo-Form){display:block}:where(.holo-error){font-weight:bold;margin:4px 0 0 0}:where(.holo-error)::before{content:\"⚠ \"}:where([aria-invalid=true]){outline:2px solid currentColor;outline-offset:2px}:where(.holo-Form>*){box-sizing:border-box;margin:0 0 16px 0}:where(.holo-Form>:not(.holo-Input)){display:block}\
+:where(.holo-Fields){border:0;padding:0;margin:0 0 16px 0;min-width:0}:where(.holo-Fields>legend){float:left;width:100%;padding:0;margin:0 0 8px 0;white-space:normal;font-weight:bold}:where(.holo-Fields>legend+*){clear:left}\
+:where(.holo-Fields>:not(legend)){box-sizing:border-box;margin:0 0 12px 0}:where(.holo-Fields>:last-child){margin-bottom:0}\
 :where(.holo-Shape){display:block;width:var(--holo-size,48px);height:var(--holo-size,48px);padding:0;border:0;background:var(--holo-color,currentColor)}\
 :where(button.holo-Shape){cursor:pointer}\
 :where(.holo-forme-circle){border-radius:50%}\
@@ -70,6 +73,7 @@ transition:left .12s linear,top .12s linear,transform .12s linear}\
 :where(.holo-forme-triangle){clip-path:polygon(50% 0,100% 100%,0 100%)}\
 :where(.holo-forme-diamond){clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}\
 :where(.holo-Hr){border:0;border-top:1px solid currentColor;opacity:0.4;height:0}\
+:where(dl.holo-List dt){font-weight:bold}:where(dl.holo-List dd){margin:0 0 8px 0}\
 :where(.holo-Quote){border-left:3px solid currentColor;padding:0 0 0 12px;font-style:italic}\
 :where(.holo-Quote>p){margin:0 0 4px 0}:where(.holo-Quote>footer){font-style:normal;font-size:0.9em;opacity:0.7}\
 :where(.holo-Code){font-family:ui-monospace,Consolas,monospace;background:rgba(127,127,127,0.18);padding:8px 12px;border-radius:6px;overflow:auto;white-space:pre-wrap}\
@@ -127,6 +131,172 @@ fn set_language(program: &Program) {
     LANGUAGE.with(|l| *l.borrow_mut() = language);
 }
 
+thread_local! {
+    /// Les abréviations de la page en cours (ADR-098) : la forme courte, son sens, et le texte
+    /// du paragraphe où le sens s'écrit, la première fois qu'elle y vient ; `written` dit que
+    /// c'est fait, pour cette page.
+    static ABBREVIATIONS: std::cell::RefCell<Vec<Abbreviation>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+struct Abbreviation {
+    short: String,
+    meaning: String,
+    first: Option<String>,
+    written: bool,
+}
+
+/// Les abréviations d'une page, vérifiées : `abbreviations: [ Abbreviation("HTML", "HyperText
+/// Markup Language") ]`. Cinquante au plus ; une forme courte de 1 à 20 signes (lettres,
+/// chiffres, point, tiret, apostrophe, esperluette, espace), un sens de 1 à 200, chacune une fois.
+fn read_abbreviations(page: &Block) -> Result<Vec<(String, String)>, Error> {
+    let Some(argument) = page.argument("abbreviations") else { return Ok(Vec::new()) };
+    let example = "abbreviations: [ Abbreviation(\"HTML\", \"HyperText Markup Language\") ]";
+    let Value::List(list) = &argument.value else {
+        return Err(Error { message: format!("« abbreviations » est une liste d'abréviations : {example}"), pos: argument.pos });
+    };
+    if list.is_empty() || list.len() > 50 {
+        return Err(Error { message: format!("une page déclare de 1 à 50 abréviations : {example}"), pos: argument.pos });
+    }
+    let mut found: Vec<(String, String)> = Vec::new();
+    for element in list {
+        let Value::Block(block) = element else {
+            return Err(Error { message: format!("« abbreviations » contient des « Abbreviation(…) » : {example}"), pos: argument.pos });
+        };
+        if block.name != "Abbreviation" {
+            return Err(Error { message: format!("« abbreviations » contient des « Abbreviation(…) », pas des « {} »", block.name), pos: block.pos });
+        }
+        let texts: Vec<&str> = block.arguments.iter().filter_map(|a| match (&a.name, &a.value) {
+            (None, Value::Text(t)) => Some(t.as_str()),
+            _ => None,
+        }).collect();
+        let [short, meaning] = texts[..] else {
+            return Err(Error { message: format!("« Abbreviation » attend la forme courte, puis son sens : {example}"), pos: block.pos });
+        };
+        if block.arguments.len() != 2 {
+            return Err(Error { message: format!("« Abbreviation » attend la forme courte, puis son sens, sans autre paramètre : {example}"), pos: block.pos });
+        }
+        let allowed = |c: char| c.is_alphanumeric() || matches!(c, '.' | '-' | '\'' | '&' | ' ');
+        if short.is_empty() || short.chars().count() > 20 || !short.chars().all(allowed) || !short.chars().any(char::is_alphanumeric) || short.starts_with(' ') || short.ends_with(' ') {
+            return Err(Error { message: format!("« Abbreviation(\"{short}\", …) » : la forme courte a de 1 à 20 signes, des lettres, des chiffres, et seulement « . - ' & » ou une espace entre eux"), pos: block.pos });
+        }
+        if meaning.trim().is_empty() || meaning.chars().count() > 200 || meaning.contains('\n') {
+            return Err(Error { message: format!("« Abbreviation(\"{short}\", …) » : son sens est un texte d'une ligne, de 1 à 200 signes"), pos: block.pos });
+        }
+        if found.iter().any(|(known, _)| known == short) {
+            return Err(Error { message: format!("l'abréviation « {short} » est déclarée deux fois"), pos: block.pos });
+        }
+        found.push((short.to_string(), meaning.to_string()));
+    }
+    Ok(found)
+}
+
+/// Une forme courte est-elle dans ce texte, comme un mot entier ? « HTML » est dans « le HTML, »,
+/// pas dans « HTML5 » ni dans « XHTML ».
+fn has_word(text: &str, word: &str) -> bool {
+    text.match_indices(word).any(|(at, _)| {
+        let before = text[..at].chars().next_back();
+        let after = text[at + word.len()..].chars().next();
+        !before.is_some_and(char::is_alphanumeric) && !after.is_some_and(char::is_alphanumeric)
+    })
+}
+
+/// Prépare les abréviations de la page à fabriquer. Avec `site`, le sens de chacune s'écrit dans
+/// le premier paragraphe (`P`, `Text`) du site où elle vient, dans l'ordre de la page, sauf si la
+/// page l'écrit déjà elle-même ; jamais dans une liste qui change (`Repeat(over:)`), redessinée seule.
+fn set_abbreviations(found: Vec<(String, String)>, site: Option<&Block>) {
+    fn walk<'a>(value: &'a Value, paragraphs: &mut Vec<&'a str>, texts: &mut Vec<&'a str>) {
+        match value {
+            Value::Text(t) => texts.push(t),
+            Value::List(list) => list.iter().for_each(|v| walk(v, paragraphs, texts)),
+            Value::Block(block) => {
+                // Une liste qui change, et les déclarations elles-mêmes, ne comptent pas.
+                if block.name == "Repeat" && block.argument("over").is_some() || block.name == "Abbreviation" {
+                    return;
+                }
+                if block.name == "P" || block.name == "Text" {
+                    if let Some(Value::Text(t)) = block.arguments.iter().find(|a| a.name.is_none()).map(|a| &a.value) {
+                        paragraphs.push(t);
+                    }
+                }
+                block.arguments.iter().for_each(|a| walk(&a.value, paragraphs, texts));
+            }
+            _ => {}
+        }
+    }
+    let (mut paragraphs, mut texts) = (Vec::new(), Vec::new());
+    if let Some(site) = site {
+        site.arguments.iter().for_each(|a| walk(&a.value, &mut paragraphs, &mut texts));
+    }
+    let list = found
+        .into_iter()
+        .map(|(short, meaning)| {
+            let lower = meaning.to_lowercase();
+            let explained = texts.iter().any(|t| t.to_lowercase().contains(&lower));
+            let first = if explained { None } else { paragraphs.iter().find(|p| has_word(p, &short)).map(|p| p.to_string()) };
+            Abbreviation { short, meaning, first, written: false }
+        })
+        .collect();
+    ABBREVIATIONS.with(|a| *a.borrow_mut() = list);
+}
+
+/// Marque chaque abréviation déclarée dans le HTML d'un texte : `<abbr title="…">HTML</abbr>`,
+/// hors des balises et du code ; et, dans son premier paragraphe, écrit son sens juste après,
+/// entre parenthèses, une seule fois : le lecteur d'écran le lit, le téléphone le montre.
+fn mark_abbreviations(text: &str, html: String) -> String {
+    ABBREVIATIONS.with(|cell| {
+        let mut list = cell.borrow_mut();
+        if list.is_empty() || !list.iter().any(|a| has_word(text, &a.short)) {
+            return html;
+        }
+        // Les plus longues d'abord : « U.S.A. » avant « U.S ».
+        let mut order: Vec<usize> = (0..list.len()).collect();
+        order.sort_by_key(|&i| std::cmp::Reverse(list[i].short.len()));
+        let shorts: Vec<String> = list.iter().map(|a| escape(&a.short)).collect();
+        let mut output = String::with_capacity(html.len() + 64);
+        let (mut rest, mut in_code) = (html.as_str(), false);
+        while !rest.is_empty() {
+            if rest.starts_with('<') {
+                let end = rest.find('>').map_or(rest.len(), |e| e + 1);
+                let tag = &rest[..end];
+                in_code = if tag.starts_with("<code") { true } else if tag == "</code>" { false } else { in_code };
+                output.push_str(tag);
+                rest = &rest[end..];
+                continue;
+            }
+            let chunk_end = rest.find('<').unwrap_or(rest.len());
+            let chunk = &rest[..chunk_end];
+            rest = &rest[chunk_end..];
+            if in_code {
+                output.push_str(chunk);
+                continue;
+            }
+            let mut at = 0;
+            'chunk: while at < chunk.len() {
+                let before = chunk[..at].chars().next_back();
+                if !before.is_some_and(char::is_alphanumeric) {
+                    for &i in &order {
+                        let short = &shorts[i];
+                        if chunk[at..].starts_with(short.as_str()) && !chunk[at + short.len()..].chars().next().is_some_and(char::is_alphanumeric) {
+                            let entry = &mut list[i];
+                            output.push_str(&format!("<abbr title=\"{}\">{short}</abbr>", escape(&entry.meaning)));
+                            if !entry.written && entry.first.as_deref() == Some(text) {
+                                output.push_str(&format!(" ({})", escape(&entry.meaning)));
+                                entry.written = true;
+                            }
+                            at += short.len();
+                            continue 'chunk;
+                        }
+                    }
+                }
+                let c = chunk[at..].chars().next().unwrap_or(' ');
+                output.push(c);
+                at += c.len_utf8();
+            }
+        }
+        output
+    })
+}
+
 /// Ce que lit un lecteur d'écran après un lien qui s'ouvre dans un nouvel onglet.
 fn new_tab_text() -> &'static str {
     LANGUAGE.with(|l| if l.borrow().starts_with("fr") || l.borrow().is_empty() { " (s'ouvre dans un nouvel onglet)" } else { " (opens in a new tab)" })
@@ -148,6 +318,8 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
     if page.name != "Page" && page.name != "World" {
         return Err(Error { message: format!("la vue à plat affiche une « Page » ; ce fichier commence par « {} »", page.name), pos: page.pos });
     }
+    // Les abréviations du fichier (ADR-098), marquées dans tous les textes du site.
+    set_abbreviations(read_abbreviations(&program.root)?, Some(page));
     let mut body = String::new();
     let mut worlds = String::new();
     // Les repères (ADR-036) : un `Header` et un `Footer` posés directement dans la page en
@@ -208,9 +380,11 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
     };
     for (name, text) in &texts {
         let mut places = vec![(format!("<span data-state=\"{name}\"></span>"), format!("<span data-state=\"{name}\">{}</span>", escape(text)))];
+        // Une date, aussi pour les machines (ADR-098) : `datetime` quand c'est un jour du calendrier.
+        let datetime = if crate::dates::days(text).is_some() { format!(" datetime=\"{}\"", escape(text)) } else { String::new() };
         for format in crate::dates::FORMATS {
-            let opening = format!("<span data-state=\"{name}\" data-format=\"{format}\">");
-            places.push((format!("{opening}</span>"), format!("{opening}{}</span>", escape(&crate::dates::format(text, format, page_language)))));
+            let opening = format!("<time data-state=\"{name}\" data-format=\"{format}\"");
+            places.push((format!("{opening}></time>"), format!("{opening}{datetime}>{}</time>", escape(&crate::dates::format(text, format, page_language)))));
         }
         for (empty, full_one) in &places {
             body = body.replace(empty, full_one);
@@ -907,6 +1081,26 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
             output.push_str(&format!("</{tag}>"));
         }
         "Main" => return Err(Error { message: "« Main » se place directement dans la page : Page(children: [ Header(…), Main(children: [ … ]), Footer(…) ])".into(), pos: block.pos }),
+        // Les moyens de joindre l'auteur de la page (ADR-098) : une adresse, un lien, un numéro.
+        // Ni titre ni repère dedans, comme en HTML.
+        "Address" => {
+            allowed_landmarks(block)?;
+            fn refused(value: &Value) -> Option<&Block> {
+                match value {
+                    Value::List(list) => list.iter().find_map(refused),
+                    Value::Block(b) if matches!(b.name.as_str(), "H1" | "H2" | "H3" | "H4" | "H5" | "H6" | "Header" | "Footer" | "Nav" | "Main" | "Aside" | "Address") => Some(b),
+                    Value::Block(b) => b.arguments.iter().find_map(|a| refused(&a.value)),
+                    _ => None,
+                }
+            }
+            if let Some(inside) = block.argument("children").and_then(|a| refused(&a.value)) {
+                return Err(Error { message: format!("« Address » range des moyens de joindre (un texte, un lien) : pas de « {} » dedans", inside.name), pos: inside.pos });
+            }
+            output.push_str(&format!("<address class=\"{classes}\"{name}>"));
+            children(block, output, worlds, base)?;
+            output.push_str("</address>");
+        }
+        "Abbreviation" => return Err(Error { message: "« Abbreviation » se déclare pour toute la page : Page(abbreviations: [ Abbreviation(\"HTML\", \"HyperText Markup Language\") ])".into(), pos: block.pos }),
         // La superposition (ADR-036) : le premier enfant donne la taille ; les autres se posent
         // dessus, chacun à sa place (align:), comme un badge sur une image.
         "Stack" => {
@@ -999,6 +1193,36 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
                 Some(_) => return Err(Error { message: "« Image(caption: …) » attend un texte entre guillemets : la légende".into(), pos: block.pos }),
             }
         }
+        // Une liste de termes et de leurs définitions (ADR-097) : un glossaire, une fiche technique.
+        "List" if block.argument("children").is_some_and(|a| matches!(&a.value, Value::List(e) if e.iter().any(|v| matches!(v, Value::Block(b) if b.name == "Term")))) => {
+            let Some(Value::List(elements)) = block.argument("children").map(|a| &a.value) else { unreachable!() };
+            if block.argument("ordered").is_some() {
+                return Err(Error { message: "« List(ordered: …) » numérote des éléments ; une liste de termes ne se numérote pas".into(), pos: block.pos });
+            }
+            output.push_str(&format!("<dl class=\"{classes}\"{name}>"));
+            for element in elements {
+                let Value::Block(term) = element else {
+                    return Err(Error { message: "une liste qui a des « Term » n'a que des « Term » : List(children: [ Term(\"Poids\", \"2 kg\"), Term(\"Couleur\", \"Bleu nuit\") ])".into(), pos: block.pos });
+                };
+                if term.name != "Term" {
+                    return Err(Error { message: format!("une liste qui a des « Term » n'a que des « Term » ; « {} » n'en est pas un", term.name), pos: term.pos });
+                }
+                // Un terme ne bouge pas seul (ADR-034) : le mouvement l'envelopperait d'une boîte, que
+                // `dl` n'accepte pas autour de ses termes. La liste bouge, chaque terme à son tour.
+                if let Some(moving) = term.arguments.iter().find(|a| matches!(a.name.as_deref(), Some("enter" | "loop"))) {
+                    return Err(Error { message: "« Term » ne bouge pas seul : fais bouger la liste, chaque terme à son tour, List(enter: Enter(opacity: 0, each: 0.1s), children: [ … ])".into(), pos: moving.pos });
+                }
+                // Le terme et sa définition vont ensemble : aucun des deux ne se perd, ni ne s'écrit seul.
+                let texts: Vec<&str> = term.arguments.iter().filter_map(|a| match (&a.name, &a.value) { (None, Value::Text(t)) => Some(t.as_str()), _ => None }).collect();
+                let [word, definition] = texts[..] else {
+                    return Err(Error { message: "« Term » attend le terme puis sa définition, entre guillemets : Term(\"Poids\", \"2 kg\")".into(), pos: term.pos });
+                };
+                let term_name = name_of(term).map(|n| format!(" data-name=\"{}\"", escape(n))).unwrap_or_default();
+                output.push_str(&format!("<div class=\"{}\"{term_name}><dt>{}</dt><dd>{}</dd></div>", self::classes(term), markdown(word), markdown(definition)));
+            }
+            output.push_str("</dl>");
+        }
+        "Term" => return Err(Error { message: "« Term » se place dans une liste : List(children: [ Term(\"Poids\", \"2 kg\") ])".into(), pos: block.pos }),
         "List" => {
             // `ordered: true` : une liste numérotée.
             let tag = if matches!(block.argument("ordered").map(|a| &a.value), Some(Value::Bool(true))) { "ol" } else { "ul" };
@@ -1137,6 +1361,43 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
                 }
                 output.push_str("</fieldset>");
             }
+        }
+        // Un groupe de champs et son nom (ADR-099) : une adresse, des cases sur une même question.
+        // Le lecteur d'écran dit le nom en entrant dans le groupe, puis chaque champ.
+        "Fields" => {
+            let example = "Fields(label: \"Adresse de livraison\", children: [ Input(…), Input(…) ])";
+            if let Some(argument) = block.arguments.iter().find(|a| a.name.is_none()) {
+                return Err(Error { message: format!("chaque paramètre de « Fields » est nommé : {example}"), pos: argument.pos });
+            }
+            let label = match block.argument("label") {
+                Some(Argument { value: Value::Text(label), .. }) if !label.trim().is_empty() => label,
+                other => return Err(Error { message: format!("« Fields » attend « label » : le nom du groupe, entre guillemets, que le lecteur d'écran annonce ; {example}"), pos: other.map_or(block.pos, |a| a.pos) }),
+            };
+            // Ses champs, même rangés plus bas (dans un Row, un If) : au moins deux.
+            let mut fields: Vec<&Block> = Vec::new();
+            if let Some(Value::List(inside)) = block.argument("children").map(|a| &a.value) {
+                for value in inside {
+                    if let Value::Block(child) = value {
+                        let _ = crate::rules::for_each_block(child, &mut |b| {
+                            if matches!(b.name.as_str(), "Input" | "Checkbox" | "Choice" | "Slider") {
+                                fields.push(b);
+                            }
+                            Ok(())
+                        });
+                    }
+                }
+            }
+            match fields[..] {
+                [] => return Err(Error { message: format!("« Fields » réunit des champs (Input, Checkbox, Choice, Slider) ; pour un titre, écris H2(…), pour un encadré, Aside(…) ; {example}"), pos: block.pos }),
+                [only] if only.name == "Choice" => {
+                    return Err(Error { message: "un « Choice » est déjà un groupe, et son « label: » est sa légende : il n'a pas besoin d'un « Fields » autour".into(), pos: block.pos })
+                }
+                [_] => return Err(Error { message: format!("un champ seul a déjà son nom, son « label: » ; « Fields » réunit au moins deux champs : {example}"), pos: block.pos }),
+                _ => {}
+            }
+            output.push_str(&format!("<fieldset class=\"{classes}\"{name}><legend>{}</legend>", markdown(label)));
+            children(block, output, worlds, base)?;
+            output.push_str("</fieldset>");
         }
         // Une vidéo : avec ses commandes, jamais lancée toute seule (ADR-038).
         "Video" => {
@@ -1657,19 +1918,12 @@ fn lines(repeat: &Block, list: &str, base: &str) -> Result<String, Error> {
         // l'on écrit, un pli ouvert, le focus restent où ils sont.
         // Avec `key: id`, la clé est ce champ : elle reste la même quand le reste de l'élément change,
         // et la page garde la ligne (le focus avec) ; elle commence par « k: ».
-        let key = match repeat.argument("key").map(|a| &a.value) {
-            Some(Value::Name(field)) => {
-                let of = |e: &String| crate::lists::fields(e).into_iter().find(|(c, _)| c == field).map(|(_, v)| v).unwrap_or_default();
-                let value = of(element);
-                let already = elements[..rank].iter().filter(|e| of(e) == value).count();
-                format!("k:{}-{already}", escape(&value))
-            }
-            _ => {
-                let already = elements[..rank].iter().filter(|e| *e == element).count();
-                let hash = element.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, o| (h ^ u64::from(o)).wrapping_mul(0x0100_0000_01b3));
-                format!("{hash:x}-{already}")
-            }
+        // La même clé désigne la ligne quand on la touche, dans une liste partagée (ADR-080).
+        let field = match repeat.argument("key").map(|a| &a.value) {
+            Some(Value::Name(field)) => Some(field.as_str()),
+            _ => None,
         };
+        let key = escape(&crate::lists::line_key(elements, rank, field));
         output.push_str(&format!("<div class=\"holo-line\" data-rank=\"{rank}\" data-key=\"{key}\">{line}</div>"));
     }
     // Une liste vide dit ce qu'on a écrit dans `empty:` (lot 2 du web) ; un lecteur d'écran
@@ -1687,6 +1941,7 @@ pub fn list_lines(program: &Program, base: &str, numbers: &crate::state::State, 
     crate::lists::set_running(lists.clone());
     crate::format::set_decimals(crate::state::decimals(program));
     set_language(program);
+    set_abbreviations(read_abbreviations(&program.root).unwrap_or_default(), None);
     // `tasks@12:5` : la répétition de « tasks » écrite ligne 12, colonne 5 ; `tasks` seul : la première.
     let (name, place) = name.split_once('@').map_or((name, None), |(n, p)| (n, Some(p)));
     let written_at = |repeat: &Block| place.is_none_or(|p| p == format!("{}:{}", repeat.pos.line, repeat.pos.column));
@@ -1924,9 +2179,11 @@ fn markdown(text: &str) -> String {
             (places, "number") if places > 0 => format!("nd{places}"),
             _ => format.to_string(),
         };
-        html = html.replace(&format!("{{{name}:{format}}}"), &format!("<span data-state=\"{name}\" data-format=\"{shown}\"></span>"));
+        // Une date montrée (ADR-067) se lit aussi par les machines : `<time datetime="2026-10-10">`.
+        let tag = if crate::dates::FORMATS.contains(&format) { "time" } else { "span" };
+        html = html.replace(&format!("{{{name}:{format}}}"), &format!("<{tag} data-state=\"{name}\" data-format=\"{shown}\"></{tag}>"));
     }
-    html
+    mark_abbreviations(text, html)
 }
 
 #[cfg(test)]
@@ -2608,6 +2865,196 @@ mod title_tests {
         assert_eq!(crate::page_title(page, &start), "1 tâche(s)");
         let after = crate::arbitrate(page, &crate::input(page, &start, "task", "lait"), "Add.tap");
         assert_eq!(crate::page_title(page, &after), "2 tâche(s)");
+    }
+}
+
+#[cfg(test)]
+mod definition_tests {
+    #[test]
+    fn a_list_of_terms_gives_a_description_list() {
+        // Une fiche technique : le terme, puis sa définition, qui peut lire une valeur de la page.
+        let page = "Page(state: State(weight: 2), children: [ List.sheet(children: [ Term(\"Poids\", \"{weight} kg\"), Term(\"Couleur\", \"**Bleu** nuit\") ]) ])\nTerm { padding: 4px; }\n.sheet { margin: 8px; }";
+        let html = crate::flat_view(page, "").unwrap();
+        assert!(html.contains("<dl class=\"holo-List holo-s-sheet\">"), "{html}");
+        assert!(html.contains("<div class=\"holo-Term\"><dt>Poids</dt><dd><span data-state=\"weight\">2</span> kg</dd></div>"), "{html}");
+        assert!(html.contains("<dt>Couleur</dt><dd><strong>Bleu</strong> nuit</dd>"), "{html}");
+        // Une liste ordinaire ne change pas.
+        let plain = crate::flat_view("Page(children: [ List(children: [ \"Pain\", \"Lait\" ]) ])", "").unwrap();
+        assert!(plain.contains("<ul class=\"holo-List\"><li>Pain</li><li>Lait</li></ul>"), "{plain}");
+    }
+
+    #[test]
+    fn a_term_goes_with_its_definition_inside_a_list() {
+        let refused = |page: &str| crate::check_page(page).unwrap_err().message;
+        assert!(refused("Page(children: [ Term(\"Poids\", \"2 kg\") ])").contains("se place dans une liste"));
+        assert!(refused("Page(children: [ List(children: [ Term(\"Poids\", \"2 kg\"), \"Lait\" ]) ])").contains("n'a que des « Term »"));
+        assert!(refused("Page(children: [ List(children: [ Term(\"Poids\", \"2 kg\"), P(\"Lait\") ]) ])").contains("« P » n'en est pas un"));
+        assert!(refused("Page(children: [ List(ordered: true, children: [ Term(\"Poids\", \"2 kg\") ]) ])").contains("ne se numérote pas"));
+        assert!(refused("Page(children: [ List(children: [ Term(\"Poids\") ]) ])").contains("attend le terme puis sa définition"));
+        assert!(refused("Page(children: [ List(children: [ Term(\"Poids\", \"2 kg\", \"3 kg\") ]) ])").contains("attend le terme puis sa définition"));
+    }
+
+    #[test]
+    fn a_term_does_not_move_alone() {
+        // Relecture de la PR 220 : `enter:` et `loop:` passaient la vérification sur un `Term`, puis
+        // le moteur les avalait en silence. Ils sont refusés, avec la façon de faire bouger la liste.
+        let refused = |page: &str| crate::check_page(page).unwrap_err().message;
+        assert!(refused("Page(children: [ List(children: [ Term(\"Poids\", \"2 kg\", enter: Enter(opacity: 0)) ]) ])").contains("« Term » ne bouge pas seul"));
+        assert!(refused("Page(children: [ List(children: [ Term(\"Poids\", \"2 kg\", loop: Loop(scale: 1.2, for: 0.8s)) ]) ])").contains("« Term » ne bouge pas seul"));
+        // Ce que propose le message marche : la liste entre, un terme après l'autre.
+        let html = crate::flat_view("Page(children: [ List(enter: Enter(opacity: 0, each: 0.1s), children: [ Term(\"Poids\", \"2 kg\"), Term(\"Couleur\", \"Bleu nuit\") ]) ])", "").unwrap();
+        assert!(html.contains("<div class=\"holo-animated hm") && html.contains("><dl class=\"holo-List\"><div class=\"holo-Term\"><dt>Poids</dt>"), "{html}");
+        assert!(html.contains(">*>:nth-child(2){animation:"), "{html}");
+    }
+}
+
+#[cfg(test)]
+mod abbreviation_tests {
+    const HTML: &str = "<abbr title=\"HyperText Markup Language\">HTML</abbr>";
+
+    #[test]
+    fn an_abbreviation_is_marked_everywhere_and_explained_once() {
+        let source = "Page(
+          abbreviations: [ Abbreviation(\"HTML\", \"HyperText Markup Language\"), Abbreviation(\"CSS\", \"Cascading Style Sheets\") ],
+          children: [
+            H1(\"Learn HTML\"),
+            P(\"HTML gives the structure, CSS the look.\"),
+            P(\"After HTML5 and XHTML, HTML stays; `HTML` in code is left alone.\"),
+            Button(text: \"Open the HTML guide\"),
+          ],
+        )";
+        let html = crate::flat_view(source, "").unwrap();
+        // Dans un titre : marquée, sans son sens.
+        assert!(html.contains(&format!("<h1 class=\"holo-H1\">Learn {HTML}</h1>")), "{html}");
+        // Dans le premier paragraphe où elle vient : son sens, entre parenthèses, une seule fois.
+        assert!(html.contains(&format!("<p class=\"holo-P\">{HTML} (HyperText Markup Language) gives the structure, <abbr title=\"Cascading Style Sheets\">CSS</abbr> (Cascading Style Sheets) the look.</p>")), "{html}");
+        assert_eq!(html.matches(" (HyperText Markup Language)").count(), 1, "{html}");
+        // Un mot entier seulement, et jamais dans du code.
+        assert!(html.contains(&format!("<p class=\"holo-P\">After HTML5 and XHTML, {HTML} stays; <code>HTML</code> in code is left alone.</p>")), "{html}");
+        assert!(html.contains(&format!(">Open the {HTML} guide</button>")), "{html}");
+    }
+
+    #[test]
+    fn a_page_that_writes_the_meaning_is_not_explained_twice() {
+        let source = "Page(abbreviations: [ Abbreviation(\"HTML\", \"HyperText Markup Language\") ], children: [
+            P(\"The hypertext markup language (HTML) describes a page.\"), P(\"HTML is everywhere.\") ])";
+        let html = crate::flat_view(source, "").unwrap();
+        assert!(!html.contains("(HyperText Markup Language)"), "{html}");
+        assert!(html.contains(&format!("<p class=\"holo-P\">The hypertext markup language ({HTML}) describes a page.</p>")), "{html}");
+        // Une page sans abréviation n'en garde aucune de la page d'avant.
+        let plain = crate::flat_view("Page(children: [ P(\"HTML\") ])", "").unwrap();
+        assert!(plain.contains("<p class=\"holo-P\">HTML</p>"), "{plain}");
+    }
+
+    #[test]
+    fn abbreviations_are_checked() {
+        for (source, refusal) in [
+            ("Page(abbreviations: [ Abbreviation(\"HTML\", \"a\"), Abbreviation(\"HTML\", \"b\") ], children: [])", "déclarée deux fois"),
+            ("Page(abbreviations: [ Abbreviation(\"HTML\") ], children: [])", "attend la forme courte, puis son sens"),
+            ("Page(abbreviations: [ Abbreviation(\"A very long abbreviation\", \"x\") ], children: [])", "de 1 à 20 signes"),
+            ("Page(abbreviations: [ Abbreviation(\"<b>\", \"x\") ], children: [])", "de 1 à 20 signes"),
+            ("Page(abbreviations: [ Abbreviation(\"HTML\", \"\") ], children: [])", "de 1 à 200 signes"),
+            ("Page(abbreviations: [ Font(family: \"Inter\") ], children: [])", "pas des « Font »"),
+            ("Page(children: [ Abbreviation(\"HTML\", \"HyperText Markup Language\") ])", "se déclare pour toute la page"),
+        ] {
+            let error = crate::flat_view(source, "").unwrap_err();
+            assert!(error.message.contains(refusal), "{source} : {error}");
+        }
+    }
+
+    #[test]
+    fn a_date_shown_is_a_time_for_machines() {
+        let source = "Page(state: State(due: \"2026-12-24\", arrival: \"\"), children: [
+            P(\"Due {due:date} ({due:weekday}), raw {due}.\"),
+            Input(value: arrival, label: \"Arrival\", type: date), P(\"Arrival: {arrival:date}\") ])";
+        let html = crate::flat_view(source, "").unwrap();
+        assert!(html.contains("Due <time data-state=\"due\" data-format=\"date\" datetime=\"2026-12-24\">24 décembre 2026</time> (<time data-state=\"due\" data-format=\"weekday\" datetime=\"2026-12-24\">jeudi</time>), raw <span data-state=\"due\">2026-12-24</span>."), "{html}");
+        // Une date vide n'a pas de `datetime`.
+        assert!(html.contains("Arrival: <time data-state=\"arrival\" data-format=\"date\"></time>"), "{html}");
+    }
+
+    #[test]
+    fn an_address_holds_ways_to_reach_the_author() {
+        let html = crate::flat_view("Page(children: [ Footer(children: [ Address(children: [ P(\"Atelier Mabeka\"), P(\"12 rue des Arts, Paris\"), A(\"The map\", to: \"map.holo\") ]) ]) ])", "").unwrap();
+        assert!(html.contains("<footer class=\"holo-Footer\"><address class=\"holo-Address\"><p class=\"holo-P\">Atelier Mabeka</p><p class=\"holo-P\">12 rue des Arts, Paris</p><a class=\"holo-A\" href=\"map.holo\">The map</a></address></footer>"), "{html}");
+        assert!(html.contains(":where(address.holo-Address){font-style:normal}"), "{html}");
+        for inside in ["H1(\"Contact\")", "Column(children: [ H1(\"Us\") ])", "Nav(children: [])", "Address(children: [])"] {
+            let error = crate::flat_view(&format!("Page(children: [ Address(children: [ P(\"x\"), {inside} ]) ])"), "").unwrap_err();
+            assert!(error.message.contains("« Address » range des moyens de joindre"), "{inside} : {error}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod fields_tests {
+    #[test]
+    fn a_group_of_fields_carries_its_name() {
+        // Une adresse et des cases sur une même question : chaque groupe a son nom (ADR-099).
+        let page = "Page(state: State(street: \"\", city: \"\", mail: 0, sms: 0, slot: \"\"), children: [ Fields.box(name: Delivery, label: \"Adresse de **livraison**\", children: [ Input(value: street, label: \"Rue\"), Row(children: [ Input(value: city, label: \"Ville\") ]) ]), Fields(label: \"Pour te prévenir\", children: [ Checkbox(value: mail, label: \"Par e-mail\"), Checkbox(value: sms, label: \"Par SMS\"), Choice(value: slot, label: \"Jour\", options: [\"Mardi\", \"Samedi\"]) ]) ])\nFields { margin: 0 0 24px 0; }\n.box { padding: 12px; }";
+        let html = crate::flat_view(page, "").unwrap();
+        assert!(html.contains("<fieldset class=\"holo-Fields holo-s-box\" data-name=\"Delivery\"><legend>Adresse de <strong>livraison</strong></legend><label class=\"holo-Input\"><span>Rue</span>"), "{html}");
+        assert!(html.contains("<div class=\"holo-Row\" style=\"\"><label class=\"holo-Input\"><span>Ville</span>"), "{html}");
+        assert!(html.contains("<fieldset class=\"holo-Fields\"><legend>Pour te prévenir</legend><label class=\"holo-Checkbox\"><input type=\"checkbox\" data-bind=\"mail\"><span>Par e-mail</span></label>"), "{html}");
+        // Un Choice garde son propre groupe, avec sa légende, dans celui qui l'entoure.
+        assert!(html.contains("<fieldset class=\"holo-Choice\" data-group=\"slot\"><legend>Jour</legend>"), "{html}");
+        assert!(html.contains("<span>Samedi</span></label></fieldset></fieldset>"), "{html}");
+        // Le style de base : ni la bordure du navigateur, ni un groupe plus large que l'écran.
+        assert!(html.contains(":where(.holo-Fields){border:0;padding:0;margin:0 0 16px 0;min-width:0}"), "{html}");
+    }
+
+    #[test]
+    fn a_group_has_a_name_and_at_least_two_fields() {
+        let two = "Input(value: a, label: \"A\"), Input(value: b, label: \"B\")";
+        for (children, expected) in [
+            // Un groupe sans nom ne dit rien au lecteur d'écran.
+            (format!("Fields(children: [ {two} ])"), "« Fields » attend « label »"),
+            (format!("Fields(label: \" \", children: [ {two} ])"), "« Fields » attend « label »"),
+            (format!("Fields(label: a, children: [ {two} ])"), "« Fields » attend « label »"),
+            (format!("Fields(\"Adresse\", children: [ {two} ])"), "chaque paramètre de « Fields » est nommé"),
+            // Le nom s'écrit label:, comme pour Choice ; les mots de HTML sont refusés avec le bon mot.
+            (format!("Fields(legend: \"Adresse\", children: [ {two} ])"), "« Fields » n'a pas de paramètre « legend » ; paramètres possibles : name, label, children"),
+            (format!("Fieldset(children: [ {two} ])"), "s'écrit « Fields(label:"),
+            // Un groupe sans champ n'est pas un groupe de champs ; un champ seul a déjà son nom.
+            ("Fields(label: \"Adresse\", children: [ P(\"Rien à remplir\") ])".to_string(), "réunit des champs"),
+            ("Fields(label: \"Adresse\")".to_string(), "réunit des champs"),
+            ("Fields(label: \"Adresse\", children: [ Input(value: a, label: \"A\"), P(\"Une aide\") ])".to_string(), "un champ seul a déjà son nom"),
+            ("Fields(label: \"Livraison\", children: [ Choice(value: slot, label: \"Jour\", options: [\"Mardi\", \"Samedi\"]) ])".to_string(), "est déjà un groupe"),
+        ] {
+            let error = crate::check_page(&format!("Page(state: State(a: \"\", b: \"\", slot: \"\"), children: [ {children} ])")).unwrap_err();
+            assert!(error.message.contains(expected), "{children}\n→ {error}");
+        }
+        // Deux champs, même rangés plus bas : c'est permis.
+        crate::check_page(&format!("Page(state: State(a: \"\", b: \"\"), children: [ Fields(label: \"Adresse\", children: [ Row(children: [ {two} ]) ]) ])")).unwrap();
+    }
+
+    #[test]
+    fn the_fields_of_a_group_are_sent_and_checked_with_their_form() {
+        // Le groupe ne change rien à l'envoi (ADR-042, ADR-068) : ses champs partent et sont vérifiés.
+        let page = "Page(state: State(street: \"\", city: \"\", sms: 0), children: [ Form(name: Order, children: [ Fields(label: \"Adresse\", children: [ Input(value: street, label: \"Rue\", required: true), Input(value: city, label: \"Ville\") ]), Checkbox(value: sms, label: \"Par SMS\"), Button(name: Send, text: \"Commander\") ]) ], rules: [ On(Send.tap, effect: Order.send) ])";
+        let start = crate::initial_state(page);
+        assert_eq!(crate::form_errors(page, &start, "Order"), "street|Ce champ est obligatoire.");
+        let filled = crate::input(page, &start, "street", "12 rue des Arts");
+        assert_eq!(crate::form_errors(page, &filled, "Order"), "");
+        assert_eq!(crate::submission(page, &filled, "Order"), r#"{"form":"Order","values":{"street":"12 rue des Arts","city":"","sms":0}}"#);
+        // Sans JavaScript (ADR-075), le message s'écrit sous son champ, dans le groupe.
+        let html = crate::gestures::with_errors(&crate::flat_view(page, "").unwrap(), "Order", &[("street".into(), "Ce champ est obligatoire.".into())]);
+        assert!(html.contains("data-bind=\"street\"></label><p class=\"holo-error\" id=\"holo-error-Order-street\">Ce champ est obligatoire.</p><label class=\"holo-Input\"><span>Ville</span>"), "{html}");
+    }
+
+    #[test]
+    fn a_required_choice_is_a_radio_group_checked_at_send() {
+        // Des boutons ronds obligatoires (ADR-068) : un groupe que le lecteur d'écran dit obligatoire,
+        // vérifié à l'envoi. `required:` était refusé à tort par la vérification de Choice.
+        let page = "Page(state: State(slot: \"\"), children: [ Form(name: Order, children: [ Choice(value: slot, label: \"Jour de livraison\", options: [\"Mardi\", \"Samedi\"], required: true), Button(name: Send, text: \"Commander\") ]) ], rules: [ On(Send.tap, effect: Order.send) ])";
+        let html = crate::flat_view(page, "").unwrap();
+        assert!(html.contains("<fieldset class=\"holo-Choice\" role=\"radiogroup\" aria-required=\"true\" data-group=\"slot\"><legend>Jour de livraison</legend>"), "{html}");
+        let start = crate::initial_state(page);
+        assert_eq!(crate::form_errors(page, &start, "Order"), "slot|Choisis une réponse.");
+        assert_eq!(crate::form_errors(page, &crate::input(page, &start, "slot", "Samedi"), "Order"), "");
+        // Hors d'un formulaire, ou avec autre chose que true ou false : refusé, avec la raison.
+        let outside = page.replace("Form(name: Order, children: [ Choice", "Choice").replace("), Button(name: Send, text: \"Commander\") ])", "), Form(name: Order, children: [ Button(name: Send, text: \"Commander\") ])");
+        assert!(crate::check_page(&outside).unwrap_err().message.contains("est vérifié à l'envoi d'un formulaire"), "{outside}");
+        assert!(crate::check_page(&page.replace("required: true", "required: oui")).unwrap_err().message.contains("« Choice(required: …) » attend true ou false"));
     }
 }
 

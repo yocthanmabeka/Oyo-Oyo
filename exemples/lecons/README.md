@@ -109,9 +109,13 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 99 | [Un tableau de bord](99-un-tableau-de-bord.holo) | `Chart(kind: bars \| line \| pie, over:, value:, label:, title:)`, des données reçues, dessinées |
 | 100 | [Une adresse qui porte une valeur](100-une-adresse-qui-porte-une-valeur.holo) | un fichier nommé `100-profils/{nom}.holo`, `{nom}` dans un texte, `If(nom, is: "yocthan")` ; la valeur se lit, ne se change pas |
 | 101 | [Une valeur partagée](101-une-valeur-partagee.holo) | `shared: Shared(seats: 20, likes: 0)`, `{seats}`, `If(seats, over: 0, …)`, `seats.sub(1)` par un toucher ; le serveur arbitre et l'envoie en direct à toutes les pages ouvertes |
+| 102 | [Une liste partagée](102-une-liste-partagee.holo) | `shared: Shared(groceries: [ Item(…) ])`, `push`, `item.done.set(1)`, `remove(item)`, `clear()` : la liste de tous, arbitrée par le serveur ; une ligne touchée se désigne par sa clé, jamais par son rang |
+| 103 | [Confirmer un texte partagé](103-un-texte-partage-confirme.holo) | `Input(value: title)` et `On(Save.tap, effect: title.set(title))` : un brouillon à toi, publié par un toucher, avec ou sans JavaScript |
 | 104 | [Se connecter : un compte gardé chez toi](104-se-connecter.holo) | `signedIn`, `{account}`, `A(to: "/account/signin")` ; les pages de compte et le code à 6 chiffres, fabriqués par le moteur (avec `holo serve`) |
 | 105 | [Une page réservée aux membres](105-une-page-reservee.holo) | `Page(access: members)` ; sans être connecté, on est mené à « Se connecter », puis ramené |
 | 106 | [Le panier qui suit le compte](106-le-panier-qui-suit-le-compte.holo) | rien à écrire : connecté, le panier est gardé par le compte, sur le téléphone comme sur l'ordinateur, avec ou sans JavaScript |
+| 107 | [Une clé d’accès](107-se-connecter-par-une-cle.holo) | WebAuthn vérifié localement ; localhost ou HTTPS ; ajouter et retirer après confirmation |
+| 108 | [Protéger et effacer son compte](108-proteger-et-effacer-son-compte.holo) | QR local, dix codes de secours à usage unique, effacement confirmé, frein par IP |
 | 109 | [Un catalogue, page par page](109-un-catalogue-page-par-page.holo) | `Filter(…, offset: offset, limit: 20, total: matching)` : deux cents produits, vingt par page, « Page suivante » et « Page précédente » ; le total compté avant la coupe (de Codex) |
 | 110 | [Un module qui dessine](110-un-module-qui-dessine.holo) | `Drawing(shapes: fleur)`, une liste de formes rendue par un module |
 | 111 | [Un chronomètre](111-un-chronometre.holo) | `Stopwatch`, `start`, `stop`, `reset`, `stopped`, `{temps:stopwatch}` |
@@ -123,6 +127,9 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 117 | [L'appareil sur permission](117-appareil-sur-permission.holo) | `Device(kind: position \| clipboard \| camera \| microphone)`, `request`, `write`, `stop` : sur un bouton, jamais à l'ouverture ; rien n'est envoyé ; arrêt d'office (de Codex) |
 | 118 | [Des notifications locales](118-notifications-locales.holo) | `Notification(title:, body:, after: 3s)`, `show`, `stop` : un rappel tant que la page reste ouverte ; permission et refus (de Codex) |
 | 119 | [Une page hors-ligne](119-une-page-hors-ligne.holo) | `Offline(files: [])`, `save`, `remove` : une copie publique, rechargée sans réseau, puis effacée ; sans JavaScript, la page reste une page comme les autres (de Codex) |
+| 120 | [Une liste de définitions](120-une-liste-de-definitions.holo) | `List(children: [ Term("Poids", "2 kg") ])` : un terme et sa définition, toujours ensemble ; une fiche technique, un glossaire |
+| 121 | [Une abréviation, une date, une adresse](121-une-abreviation-une-date-une-adresse.holo) | `Page(abbreviations: [ Abbreviation("MJC", "…") ])` : le sens écrit à la première venue ; une date montrée lisible par les machines (`<time>`) ; `Address(children: [ … ])` |
+| 122 | [Un groupe de champs](122-un-groupe-de-champs.holo) | `Fields(label: "Adresse de livraison", children: [ … ])` : des champs qui vont ensemble, et le nom du groupe que le lecteur d'écran annonce ; des cases sur une même question |
 | 123 | [Des suggestions dans un champ](123-des-suggestions-dans-un-champ.holo) | `Input(suggestions: ["Pomme", "Poire"])`, `suggestions: villes` : le champ propose, on peut écrire autre chose ; les suggestions suivent la liste pendant la visite |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.

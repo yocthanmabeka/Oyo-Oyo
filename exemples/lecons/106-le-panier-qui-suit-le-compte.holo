@@ -38,7 +38,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 105 : une page réservée", to: "105-une-page-reservee.holo"),
-      A("Leçon 109 : un catalogue, page par page →", to: "109-un-catalogue-page-par-page.holo"),
+      A("Leçon 107 : une clé d'accès →", to: "107-se-connecter-par-une-cle.holo"),
     ]),
   ],
   rules: [

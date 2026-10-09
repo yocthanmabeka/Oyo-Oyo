@@ -20,6 +20,126 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Un groupe de champs : `Fields(label: "Adresse de livraison", children: [ … ])`
+
+- Fait (issue #215, prise par la session du PC, qui s'est éteinte sans rien envoyer ; reprise depuis le début par la session du nuage ; `ADR-099`, PROPOSITION) :
+  - Vérifié d'abord : un `Choice` en boutons ronds était déjà un `fieldset` avec sa `legend` (lot 1, `ADR-038`), que Chrome annonce comme un groupe nommé. Ce qui manquait vraiment : réunir plusieurs champs sous un nom (une adresse, des cases à cocher sur une même question).
+  - `Fields(label: "Adresse de livraison", children: [ … ])` : `fieldset` et `legend` ; au moins deux champs, rangés comme on veut ; le nom dans `label:`, comme pour un champ. Sans la bordure du navigateur : le nom en gras au-dessus des champs, un groupe jamais plus large que l'écran, le nom dans le cadre quand un style en ajoute un. `Fieldset`, `Group` et `FieldGroup` écartés (la comparaison est dans l'ADR).
+  - Refusés, avec la raison : un groupe sans nom ; sans champ, ou d'un seul ; un `Choice` seul ; `legend:` ; `Fieldset` et `Legend`, avec le bon mot.
+  - Trouvé et réparé : `Choice(required: true)` (`ADR-068`) était refusé comme « mal écrit » par la vérification de `Choice` ; aucune leçon ne l'employait.
+  - La leçon 122 ; le guide (chapitre « 6 quadragies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+- Exécuté :
+  - `cargo test --release` → 202 tests passent (quatre nouveaux) ; `holo check` sur la leçon 122 ; `holo fmt` : déjà en forme.
+  - Dans Chrome, l'essai de la leçon 122 passe : trois groupes nommés dans l'arbre d'accessibilité (« Adresse de livraison », « Pour te prévenir », et le `radiogroup` « Jour de livraison ») ; sans bordure ; rien ne déborde à 360 px ; à l'envoi, trois messages dans les groupes, le clavier sur « Rue ».
+  - Il rate quand le moteur écrit une boîte et un titre au lieu de `fieldset` et `legend` : le lecteur d'écran n'entend plus que le groupe du `Choice`. Il rate aussi quand le style de base perd la légende flottante et `min-width: 0` (« none / min-content / 0 »).
+  - L'essai `a_required_choice_is_a_radio_group_checked_at_send` rate sans la réparation (« est mal écrit »).
+  - La suite entière (`CI=1`, axe-core 4.10.3) : 66 essais sur 69 passent. Les 3 ratés sont ceux de ce conteneur : « pincer à deux doigts » (il passe relancé seul), « la vue points se lit au lecteur d'écran », et la vidéo des parcours 8 et 9, en H.264, que le Chromium du conteneur ne lit pas.
+  - axe-core 4.10.3 sur la leçon 122, à 1000 et à 360 px, à l'ouverture et après un envoi refusé (4 messages) : 0 défaut.
+- Erreurs en route : mes premiers essais nommaient une valeur `day`, réservée au jour du visiteur ; l'essai Chrome attendait le moteur avant de toucher « Commander », et perdait 40 secondes : le moteur ne vient qu'au premier geste.
+- Reste : `required:` sur un groupe de cases ; l'essai humain au TalkBack ; à la fusion, la suite des leçons (119 → 120 → … → 124), les lignes des fichiers partagés rangées par numéro, et le grand tableau du web (`fieldset, legend` à « oui »).
+
+---
+
+## 2026-10-09 — Une abréviation expliquée, une date pour les machines, une adresse
+
+- Fait (issue #214, prise dans la file par la session du nuage ; `ADR-098`, PROPOSITION) :
+  - `Page(abbreviations: [ Abbreviation("MJC", "Maison des jeunes et de la culture") ])` : déclarée une fois, l'abréviation est marquée (`abbr`) partout où elle vient comme un mot entier, sauf dans du code ; la première fois qu'elle vient dans un paragraphe, le moteur écrit son sens juste après, entre parenthèses, une seule fois, sauf si la page l'écrit déjà. Le `title` de HTML ne se voit pas au doigt et la plupart des lecteurs d'écran ne le lisent pas : le sens écrit, lui, est lu et vu partout.
+  - Une date montrée (`{ouverture:date}`, `{ouverture:weekday}`) devient `<time datetime="2026-11-14">`, sans mot nouveau ; la page change `datetime` quand un geste change la date.
+  - `Address(children: [ … ])` : les moyens de joindre l'auteur, en `<address>`, le texte droit ; ni titre ni repère dedans. `Contact` écarté : sur le web, c'est un formulaire, et nos leçons nomment un formulaire `Contact`.
+  - La leçon 121 ; la leçon 119 y mène. Le guide (chapitre « 6 undequadragies »), `NOMS.md`, `DECISIONS.md`.
+- Exécuté : `cargo test --release` → 201 tests passent (cinq nouveaux ; celui des dates mis à jour : `<span>` devient `<time>`) ; `holo check` sur toutes les leçons ; dans Chrome, l'essai de la leçon 121 passe, et rate quand la page ne met plus `datetime` à jour (la date montrée passe au 21 novembre, `datetime` reste au 14).
+- Erreur en route : le sens n'était jamais écrit. Le moteur le cherchait dans tous les textes de la page pour savoir si l'auteur l'avait déjà écrit, et le trouvait dans la déclaration elle-même. Les déclarations ne comptent plus.
+- Reste : une heure seule (« 14 h 30 ») n'est pas un `<time>` ; un lien `mailto:` ou `tel:` dans une `Address` n'existe pas encore. Avec la PR de la leçon 120 (#220), la suite des leçons deviendra 119 → 120 → 121.
+
+---
+
+## 2026-10-09 — Une liste de définitions : `List(children: [ Term("Poids", "2 kg") ])`
+
+- Fait (issue #213, prise dans la file par la session du nuage ; `ADR-097`, PROPOSITION) : `Term("Poids", "2 kg")`, un terme et sa définition, toujours ensemble ; une `List` dont les éléments sont des `Term` devient une liste de définitions (`dl`, `dt`, `dd`). Un seul mot nouveau. Leçon 120 : la fiche technique d'une lampe d'atelier, et un petit glossaire.
+- Refusés, avec la raison : un `Term` hors d'une liste, une liste qui mélange des `Term` et autre chose, `ordered:`, un terme sans sa définition.
+- Exécuté : `cargo test --release` → 194 tests passent (deux nouveaux) ; dans Chrome, l'essai de la leçon 120 passe (6 termes et 6 définitions dans l'arbre d'accessibilité, aucun élément à puces) ; la suite entière : 55 essais passent, et les 3 ratés propres à ce conteneur (« pincer à deux doigts », qui passe relancé seul ; « la vue points se lit au lecteur d'écran » ; la vidéo des parcours 8 et 9, en H.264, que le Chromium du conteneur ne lit pas).
+
+---
+
+## 2026-10-09 — Reprise par la session du nuage, le PC éteint : la fin des lots 6 et 7, raccordée à `main`
+
+- Le PC de Yocthan s'est éteint au milieu de cette intégration ; Yocthan a demandé que la session du nuage reprenne tout le travail de la session du PC. Repris tel quel depuis son dernier envoi, `wip/integration-codex-comptes-partage` (56d9606, 16 h 44 UTC), sur `integration/codex-comptes-partage` : rien de son travail n'est réécrit.
+- Fusionnée dans la branche : `main`, qui avait reçu depuis les corrections du nuage (PR 208) et le tableau du web (PR 210). Trois conflits, résolus en gardant les deux intentions :
+  - `page-engine.js`, `emit` : cette branche y ajoutait la clé de la ligne touchée (`Remove.tap@2#<clé>`, `ADR-080`), la PR 208 le pas dans l'historique d'un toucher partagé (`isStep`). Gardés les deux ; le pas se lit sur le signal sans la clé, que l'expression de `isStep` ne reconnaîtrait pas ;
+  - `AGENTS.md` : la ligne des lots 5, 6, 7 de cette branche (la fin des lots 6 et 7), celle du lot 9 de `main` (« intégrée par la PR 219 ») ;
+  - le journal : l'entrée de cette branche d'abord, puis celles de `main`.
+  - La correction de `Module(output: …)` était faite des deux côtés, à l'identique (la PR 208 et l'`ADR-080`) : Git l'a gardée une seule fois, avec son essai.
+- Réparé : rien. Après la fusion, tout est vert, aux ratés connus de ce conteneur près ; aucune vérification n'est changée, aucun essai mis de côté.
+- Exécuté, dans le conteneur du nuage (Linux, Chromium 1194), après une reconstruction complète (les deux WebAssembly, `holo`, les liaisons, sans erreur) :
+  - `cargo test --release` → 214 tests passent (les 198 de `main` et les 16 de cette branche) ; `cargo test --release --locked`, lancé par l'essai des parcours → 214 ; `cargo test --locked`, en debug comme la CI → 214 ;
+  - `holo check` sur les 121 fichiers de `exemples/lecons/` → tous `ok`, dont les leçons 102, 103, 107 et 108 ;
+  - `node outils/browser-tests.mjs` (axe-core 4.10.3) → 73 essais `OK` sur 76, 119 leçons ouvertes, 533 s. Les huit essais des comptes, des clés d'accès et du partage passent (l'authentificateur virtuel de Chrome, le QR relu par jsQR, le frein par adresse, deux profils Chrome), et les trois de la PR 208. Les trois ratés sont ceux de ce conteneur : « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium), et « pincer à deux doigts », qui passe relancé seul (`OK`, 6 s).
+- Reste :
+  - sur le téléphone de Yocthan : la clé d'accès (avec un proxy HTTPS et `HOLO_ORIGIN`), le QR dans une vraie application d'authentification, la leçon 102 sur deux appareils en même temps, l'effacement d'un compte ;
+  - le tableau du web (issue 186) : les mots des `ADR-080`, `ADR-082` et `ADR-083`, après la fusion ;
+  - les leçons 103, 107 et 108, écrites par Codex, n'ont pas encore l'en-tête des autres (« Ce qu'on apprend », « À essayer ») ;
+  - après la fusion : fermer les PR 205, 206 et 207, que cette branche remplace.
+
+---
+
+## 2026-10-09 — Les comptes et le partage de Codex, relus, corrigés et intégrés ; la suite de Gemini finie
+
+- Yocthan : « tu valides tout ce qu'on avait fait avec Codex », y compris `p256` et `sha2`, et continuer nous-mêmes le travail de Codex et de Gemini.
+- Repris sur `reprise/codex-fin` : la chaîne de Codex 205 (les protections du compte), 206 (les clés d'accès) et 207 (le partage), puis le travail laissé en cours par Gemini (5211a68). Rejoué ensuite sur `main` (les lots 7 et 9, le catalogue de Codex, PR 177 et 211), sans la PR 204, refusée : `integration/codex-comptes-partage`. Les commits de Codex et de Gemini sont gardés tels quels ; chaque correction est un commit à part.
+- **Les défauts trouvés à la relecture, corrigés :**
+  - 205 :
+    - la page des codes de secours menait à `/account`, sans la nouvelle « Le code à 6 chiffres est activé », et l'essai du lot 7 ratait, avec et sans JavaScript : elle mène maintenant à `/account?done=code` ;
+    - l'essai du frein par adresse appelait `fetch` depuis une page de compte, que sa CSP interdit : 31 vrais formulaires, envoyés par Chrome, dont les réponses sont lues par le protocole ;
+    - un fichier privé qui ne s'efface pas (pris sous Windows) empêchait `holo serve` de démarrer : il est dit, gardé en attente, et les autres fichiers sont essayés ;
+    - jsQR venait d'unpkg pendant les essais : la version 1.4.0 (Apache-2.0) est gardée dans `moteur/outils/vendor/jsqr-1.4.0/`, avec sa licence, après vérification de son empreinte sur le registre npm.
+  - 206 :
+    - l'essai lisait `added.authenticatorId` au lieu de `result.authenticatorId` : l'authentificateur virtuel n'était jamais retrouvé. La création, la connexion, les altérations, le réemploi et le retrait tournent maintenant pour de vrai dans Chrome ;
+    - l'essai de l'adresse IP appelait localhost ; il appelle `127.0.0.1` (refusé), puis localhost (admis) ;
+    - l'essai lançait `rustfmt`, qui réécrivait `src/passkeys.rs`, et vidait `Cargo.lock` et la source dans les journaux : retiré ;
+    - `Cargo.lock` : `p256`, `sha2` et leurs dépendances y sont (depuis le commit de Gemini), `--locked` passe ;
+    - derrière le proxy HTTPS de l'auteur, tout le site partageait un seul frein de 30 envois par minute (tout vient de 127.0.0.1) : avec `HOLO_ORIGIN`, et seulement pour une demande venue de ce PC, le frein prend la dernière adresse de `X-Forwarded-For`, celle qu'écrit le proxy.
+  - 207 :
+    - le partage ne compilait pas (`shared::written` et `shared::merged` appelés avec leurs anciens arguments ; corrigé par Gemini, vérifié) ;
+    - ses tests n'avaient jamais tourné : `names.clear` au lieu de `names.clear()`, dans un test et dans la leçon 102, et un texte codé attendu en clair ;
+    - `Module(output: …)` : la correction et le message de la PR 208, une seule fois pour les deux.
+- **La suite de Gemini** : il retrouvait la ligne touchée d'une liste partagée d'après la copie de la liste envoyée par la page. C'était juste pour un visiteur avec JavaScript ; pas pour un membre, dont le serveur ne lit pas cette copie, ni sans JavaScript, qui n'envoie rien. La ligne porte maintenant sa clé (celle de `data-key`) : `Remove.tap@2#<clé>`, dans le geste envoyé par la page comme dans le bouton du formulaire sans JavaScript. Le serveur la retrouve dans sa liste ; sinon, il refuse. Les fiches se partagent (`Shared(groceries: [ Item(…) ])`), et `item.done.set(1)` part au serveur. La leçon 102 devient une liste de courses partagée.
+- Décidées le 2026-10-09 : `ADR-080` (listes et texte partagés), `ADR-082` (clés d'accès), `ADR-083` (QR, secours, effacement, frein). Le guide et `NOMS.md` sont à jour ; les leçons s'enchaînent 100 → 101 → 102 → 103 → 104 → 105 → 106 → 107 → 108 → 109 → 110.
+- Exécuté, après une reconstruction complète (les deux WebAssembly et `holo`, sans avertissement) :
+  - sur `reprise/codex-fin` : `cargo test --release --locked` → 210 tests passent ; `cargo test` → 210 ; la suite entière dans Chrome → 72 essais `OK`, aucun raté (550 s) ;
+  - sur `integration/codex-comptes-partage` : `cargo test --release --locked` → 208 tests passent ; `cargo test` → 208 ; la suite entière dans Chrome → 64 essais `OK` sur 65 (505 s) ; le 65e, l'audit axe-core des parcours, demande `npm install` que je ne fais pas : relancé seul avec la même version 4.10.3 déjà présente sur ce PC, hors du dépôt (`NODE_PATH`) → 36 audits, zéro défaut.
+
+**Erreurs en route**
+
+- J'ai découpé les commits avec `git apply --unidiff-zero`, qui place un morceau d'après son numéro de ligne : un test s'est retrouvé hors de son module, parce que les morceaux sautés décalaient les numéros. Je l'ai vu en relisant le commit, et j'ai refait le fichier avant de continuer.
+- Une première suite complète dans Chrome est restée bloquée plus de trois heures pendant la pause de la session (l'ordinateur en veille ; l'essai attendait une réponse du protocole qui ne venait plus) : arrêtée, puis relancée.
+
+---
+
+## 2026-10-09 — Le parcours 10, le tableau de bord : les dix parcours du web sont là
+
+- Repris de la PR 204 de Codex (fermée : elle doublait d'autres PR), et d'elle seulement : le tableau de bord (`exemples/parcours/dashboard.holo`), ses ventes fictives (`sales.json`), sa ligne dans l'index des parcours et son essai. Sur `integration/parcours-10`, à partir de `main`. Les ventes, reçues du serveur, sont dessinées en barres et en parts ; une vente s'ajoute au clavier, avec ou sans JavaScript ; les chiffres se lisent dans le tableau caché du graphique.
+- Ajouté : le tableau de bord dans l'audit d'accessibilité des parcours (dix pages, quatre modes). Mis à jour : le README des parcours (« dix parcours », et le tableau de bord dans ce qu'il faut refaire sur le téléphone), le compte rendu de Codex (le parcours 10 fait ; axe-core lu depuis la copie locale), l'`ADR-084` et `AGENTS.md`.
+- Exécuté : `holo check` → `dashboard.holo` et l'index acceptés ; `node outils/browser-tests.mjs parcours` → 12 essais `OK`, aucun raté, 307 s : `cargo test --release --locked` (196 tests), onze fichiers `.holo` vérifiés, les parcours 1 à 10 (le 10 : trois ventes puis quatre, barres et parts, au clavier, JavaScript coupé puis activé, 180 dans le tableau et dans l'arbre d'accessibilité), 40 audits axe-core sans défaut.
+- Reste, pour dire le web fini (compte rendu de Codex) : faire les dix parcours au clavier et au TalkBack avec une personne, puis sur le vrai Samsung, et mesurer la durée, la mémoire, la chaleur et la batterie.
+
+**Erreurs en route**
+
+- Aucune dans cette étape.
+
+---
+
+## 2026-10-09 — Si le PC s'arrête, la session du nuage reprend tout le travail
+
+- Yocthan : « au cas où ta session lâche, si le PC s'éteint, que tu laisses à la session sur téléphone continuer, pour qu'on ne puisse pas avoir des arrêts inutiles ».
+- Écrit dans `AGENTS.md` (« Si le PC s'arrête, la session du nuage reprend tout le travail ») :
+  - rien ne vit seulement sur le disque du PC : la session du PC et ses agents envoient leur travail après chaque étape (la branche de la PR quand c'est vert, sinon `wip/<branche>`) et écrivent une ligne d'état sur l'issue de la tâche ;
+  - le nuage sait que le PC est arrêté quand Yocthan le lui dit, ou quand aucune branche en cours du PC n'a reçu d'envoi depuis plus d'une heure ;
+  - il reprend chaque tâche là où elle est, en le disant en commentaire ;
+  - quand le PC revient, il relit la file : une tâche reprise par le nuage reste au nuage jusqu'à ce qu'il la rende.
+- Les trois agents en cours ont reçu la consigne : envoyer après chaque étape et écrire leur état sur les issues 180 à 183 et 213, et sur la PR 208. La session du nuage a reçu l'état exact du travail en cours.
+
+---
+
 ## 2026-10-09 — Les corrections du nuage (PR 208) relues, et raccordées à la fin du lot 9
 
 - Relue : la PR 208 de la session du nuage, qui répond aux remarques de Codex sur la chaîne du lot 9 (huit corrections, deux défauts anciens du démarrage). Bonne : chaque correction a son essai, écrit pour rater avec l'ancien code ; le code reste sobre (un chronomètre rangé sous `fichier|nom`, l'adresse qui ne compte au démarrage que si elle nomme une valeur de la page, un nom inconnu après le `#` qui laisse la page où elle est, comme un navigateur devant une ancre inconnue). Ses deux remarques refusées sont justifiées.

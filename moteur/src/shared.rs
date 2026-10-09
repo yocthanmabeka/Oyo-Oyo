@@ -19,6 +19,9 @@ pub const SHARED_MAX: usize = 16;
 /// Un texte partagé, au plus : un nom, une phrase courte. Le serveur le garde pour tous, et
 /// chaque page ouverte le reçoit : il reste court.
 pub const SHARED_TEXT_MAX: usize = 200;
+/// Première liste partagée : cinquante textes et 16 Kio pour toutes les valeurs codées.
+pub const SHARED_LIST_MAX: usize = 50;
+pub const SHARED_BYTES_MAX: usize = 16_384;
 
 const EXAMPLE: &str = "shared: Shared(seats: 20, likes: 0)";
 
@@ -53,7 +56,16 @@ pub fn inject(program: &mut Program) -> Result<(), Error> {
             Value::Integer(_) | Value::Number { unit: None, .. } => {}
             Value::Text(text) if text.chars().count() <= SHARED_TEXT_MAX => {}
             Value::Text(_) => return refusal(format!("« {name} » : un texte partagé fait au plus {SHARED_TEXT_MAX} caractères ; chaque page ouverte le reçoit")),
-            Value::List(_) => return refusal(format!("« {name} » : une liste partagée n'existe pas encore (une dette de l'ADR-079) ; on partage un nombre ou un texte, Shared({name}: 0)")),
+            // Une liste partagée (ADR-080) : cinquante textes, ou cinquante fiches `Item(…)`, de deux
+            // cents caractères par texte ; la forme des fiches est vérifiée avec les autres listes.
+            Value::List(elements)
+                if elements.len() <= SHARED_LIST_MAX
+                    && elements.iter().all(|element| match element {
+                        Value::Text(text) => text.chars().count() <= SHARED_TEXT_MAX,
+                        Value::Block(item) if item.name == "Item" => item.arguments.iter().all(|a| !matches!(&a.value, Value::Text(text) if text.chars().count() > SHARED_TEXT_MAX)),
+                        _ => false,
+                    }) => {}
+            Value::List(_) => return refusal(format!("« {name} » : une liste partagée attend au plus {SHARED_LIST_MAX} textes, ou fiches Item(…), de {SHARED_TEXT_MAX} caractères par texte")),
             _ => return refusal(format!("« {name} » : une valeur partagée est un nombre entier, un nombre à virgule ou un texte : Shared(seats: 20, price: 12.50, last: \"\")")),
         }
         // L'adresse d'abord : sa valeur est aussi dans State, mais c'est d'elle qu'elle vient.
@@ -115,7 +127,9 @@ pub fn check(program: &Program) -> Result<(), Error> {
             }
             "Input" | "Checkbox" | "Choice" | "Slider" => {
                 if let Some(Argument { value: Value::Name(name), pos, .. }) = block.argument("value").filter(|a| matches!(&a.value, Value::Name(n) if is_shared(n))) {
-                    return Err(Error { message: format!("« {}(value: {name}) » : « {name} » est partagée par tous les visiteurs ; un champ ne la change pas encore (une dette de l'ADR-079) : un bouton et sa règle, On(Book.tap, effect: {name}.sub(1))", block.name), pos: *pos });
+                    if block.name != "Input" || !crate::state::initial_texts(program).iter().any(|(n,_)|n==name) || !has_confirmation(program,name) {
+                        return Err(Error { message: format!("« {}(value: {name}) » : un champ ne la change pas encore sans confirmation ; un texte partagé se prépare par Input(value: {name}), puis On(Save.tap, effect: {name}.set({name}))", block.name), pos: *pos });
+                    }
                 }
             }
             "Module" => {
@@ -133,6 +147,8 @@ pub fn check(program: &Program) -> Result<(), Error> {
             }
             _ => {}
         }
+        // Une liste partagée se change comme une autre (push, remove(item), clear(), item.done.set(1)),
+        // vérifiée par les listes : une ligne touchée se désigne par sa clé (ADR-080, line_by_key).
         // Un bloc qu'on fait glisser change sa place : elle ne peut pas être partagée.
         if matches!(block.argument("drag").map(|a| &a.value), Some(Value::Bool(true))) {
             for axis in ["x", "y"] {
@@ -143,6 +159,8 @@ pub fn check(program: &Program) -> Result<(), Error> {
         }
         Ok(())
     })?;
+    let start=written(program,&crate::state::initial(program).unwrap_or_default(),&crate::state::initial_texts(program),&crate::lists::initial(program));
+    if start.len()>SHARED_BYTES_MAX{return Err(Error{message:format!("valeurs partagées : {SHARED_BYTES_MAX} octets codés au plus"),pos:program.root.pos});}
     // Garder dans le navigateur ce que le serveur garde pour tous n'aurait pas de sens.
     if let Some(Argument { value: Value::List(kept), pos, .. }) = program.root.argument("keep") {
         if let Some(name) = kept.iter().find_map(|value| match value {
@@ -157,13 +175,15 @@ pub fn check(program: &Program) -> Result<(), Error> {
 
 /// Les valeurs partagées d'un état, dans l'ordre de la page, écrites comme l'état :
 /// `seats=19;likes=3;last='Ada`. Un texte partagé est coupé à sa longueur permise.
-pub fn written(program: &Program, numbers: &State, texts: &Texts) -> String {
+pub fn written(program: &Program, numbers: &State, texts: &Texts, lists: &crate::lists::Lists) -> String {
     let mut chunks = Vec::new();
     for name in &program.shared {
         if let Some((_, value)) = numbers.iter().find(|(known, _)| known == name) {
             chunks.push(format!("{name}={value}"));
         } else if let Some((_, text)) = texts.iter().find(|(known, _)| known == name) {
             chunks.push(format!("{name}='{}", crate::state::encode(&cut(text))));
+        } else if let Some((_,values))=lists.iter().find(|(n,_)|n==name){
+            chunks.push(crate::lists::write(&vec![(name.clone(),values.clone())]));
         }
     }
     chunks.join(";")
@@ -173,7 +193,7 @@ pub fn written(program: &Program, numbers: &State, texts: &Texts) -> String {
 /// garde) à la place des siennes. `given` est relu avec méfiance, comme tout état : seules les
 /// valeurs partagées de la page en sont prises, dans leurs bornes ; une valeur absente vaut son
 /// départ, celui du fichier.
-pub fn merged(program: &Program, numbers: &State, texts: &Texts, given: &str) -> (State, Texts) {
+pub fn merged(program: &Program, numbers: &State, texts: &Texts, lists: &crate::lists::Lists, given: &str) -> (State, Texts, crate::lists::Lists) {
     let (given_numbers, given_texts) = (crate::state::reread(program, given), crate::state::reread_texts(program, given));
     let is_shared = |name: &str| program.shared.iter().any(|known| known == name);
     let numbers = numbers
@@ -190,7 +210,9 @@ pub fn merged(program: &Program, numbers: &State, texts: &Texts, given: &str) ->
             None => (name.clone(), text.clone()),
         })
         .collect();
-    (numbers, texts)
+    let authoritative=crate::lists::reread(program,given);
+    let lists=lists.iter().map(|(name,items)|{let items=authoritative.iter().find(|(n,_)|n==name).filter(|_|is_shared(name)).map_or(items,|(_,v)|v);(name.clone(),items.clone())}).collect();
+    (numbers, texts, lists)
 }
 
 /// Un texte partagé, coupé à sa longueur permise.
@@ -311,7 +333,9 @@ mod tests {
             assert!(refused(&module).contains("« seats » est partagée ; un module tourne"), "{output} : {}", refused(&module));
         }
         // Les sortes et les limites.
-        assert!(refused("Page(shared: Shared(seats: [\"a\"]), children: [ \"x\" ])").contains("une liste partagée n'existe pas encore"));
+        assert!(refused("Page(shared: Shared(seats: [1, 2]), children: [ \"x\" ])").contains("une liste partagée attend"));
+        let fifty_one: Vec<String> = (0..51).map(|i| format!("\"n{i}\"")).collect();
+        assert!(refused(&format!("Page(shared: Shared(names: [{}]), children: [ \"x\" ])", fifty_one.join(", "))).contains("une liste partagée attend au plus 50"));
         assert!(refused(&format!("Page(shared: Shared(last: \"{}\"), children: [ \"x\" ])", "a".repeat(201))).contains("au plus 200 caractères"));
         let many: Vec<String> = (0..17).map(|i| format!("v{i}: 0")).collect();
         assert!(refused(&format!("Page(shared: Shared({}), children: [ \"x\" ])", many.join(", "))).contains("au plus 16"));
@@ -370,5 +394,250 @@ mod tests {
         let forged = format!("name='{}", crate::state::encode(&"é".repeat(300)));
         let (after, accepted) = crate::share(SEATS, &forged, "", "Book.tap");
         assert!(accepted && after.ends_with(&format!("last='{}", crate::state::encode(&"é".repeat(200)))), "{after}");
+    }
+}
+
+/// Le champ prépare un texte ; seul son toucher de confirmation le publie.
+fn has_confirmation(program:&Program,name:&str)->bool{
+ let mut yes=false;let _=for_each_block(&program.root,&mut|b|{
+  let tap=b.name=="On"&&b.arguments.iter().find(|a|a.name.is_none()).is_some_and(|a|matches!(&a.value,Value::Name(n) if n.ends_with(".tap")));
+  if tap&&crate::state::requests_of(b).iter().any(|r|r.name==format!("{name}.set")&&matches!(r.arguments.as_slice(),[Argument{name:None,value:Value::Name(n),..}]if n==name)){yes=true;}Ok(())
+ });yes
+}
+/// Copier la proposition d'un champ dans la seule demande explicite qui la confirme.
+/// La condition et l'état partagé restent ceux du serveur, jamais ceux du brouillon.
+pub fn with_drafts(program:&Program,candidate:&str,signal:&str)->Program{
+ let mut result=program.clone();let names=crate::state::initial_texts(program).into_iter().filter(|(n,_)|program.shared.contains(n)&&has_confirmation(program,n)).map(|(n,_)|n).collect::<Vec<_>>();
+ let parsed=crate::state::reread_texts(program,candidate);
+ let values=names.into_iter().filter_map(|n|{
+  // Un champ absent ne publie pas sa valeur de départ.
+  if !candidate.split(';').any(|c|c.starts_with(&format!("{n}='"))){return None;}
+  let value=parsed.iter().find(|(known,_)|known==&n)?.1.clone();
+  let checked=crate::state::input_text(program,&parsed,&n,&value);
+  Some((n.clone(),cut(&checked.iter().find(|(known,_)|known==&n)?.1)))
+ }).collect::<Vec<_>>();
+ fn visit(b:&mut Block,values:&[(String,String)],signal:&str){
+  let is_tap=b.name=="On"&&b.arguments.iter().find(|a|a.name.is_none()).is_some_and(|a|matches!(&a.value,Value::Name(n)if n==signal));
+  if is_tap{if let Some(a)=b.arguments.iter_mut().find(|a|a.name.as_deref()==Some("effect")){
+   fn change(v:&mut Value,values:&[(String,String)]){match v{Value::Block(r)=>{
+    if let Some((n,_))=r.name.split_once('.').filter(|(_,verb)|*verb=="set"){
+     if let Some((_,text))=values.iter().find(|(known,_)|known==n){if let [Argument{name:None,value:Value::Name(own),..}]=r.arguments.as_slice(){if own==n{r.arguments[0].value=Value::Text(text.clone());}}}
+    }
+   },Value::List(a)=>a.iter_mut().for_each(|v|change(v,values)),_=>{}}}
+   change(&mut a.value,values);
+  }}
+  fn child(v:&mut Value,values:&[(String,String)],signal:&str){match v{Value::Block(b)=>visit(b,values,signal),Value::List(a)=>a.iter_mut().for_each(|v|child(v,values,signal)),_=>{}}}
+  for a in &mut b.arguments{child(&mut a.value,values,signal);}
+ }visit(&mut result.root,&values,crate::lists::signal_and_line(signal).0);result
+}
+/// Une liste partagée reste dans ses bornes : cinquante éléments, des textes (ou des champs de
+/// fiche) de deux cents caractères, 16 Kio pour toutes les valeurs partagées codées.
+pub fn within_budget(program:&Program,state:&str)->bool{
+ let lists=crate::lists::reread(program,state);
+ let short=|text:&str|text.chars().count()<=SHARED_TEXT_MAX;
+ lists.iter().filter(|(n,_)|program.shared.contains(n)).all(|(_,v)|v.len()<=SHARED_LIST_MAX&&v.iter().all(|t|if t.starts_with(crate::lists::RECORD){crate::lists::fields(t).iter().all(|(_,field)|short(field))}else{short(t)}))
+ &&written(program,&crate::state::reread(program,state),&crate::state::reread_texts(program,state),&lists).len()<=SHARED_BYTES_MAX
+}
+
+/// Les listes dont une ligne se désigne par sa clé (ADR-080) : les listes partagées, et les
+/// listes calculées d'après elles (`Filter(from: names, …)`).
+pub fn keyed_lists(program: &Program) -> Vec<String> {
+    let mut keyed: Vec<String> = program.shared.iter().filter(|name| crate::lists::kind(program, name).is_some()).cloned().collect();
+    for (_, list) in crate::lists::repeats(program) {
+        let from_shared = crate::computed::is_computed(program, &list) && crate::computed::source_of(program, &list).is_some_and(|source| program.shared.contains(&source));
+        if from_shared && !keyed.contains(&list) {
+            keyed.push(list);
+        }
+    }
+    keyed
+}
+
+/// Les répétitions dont une règle de ligne répond à ce geste (`Remove.tap`), avec leur liste.
+fn answering<'a>(program: &'a Program, base: &str) -> Vec<(&'a Block, String)> {
+    crate::lists::repeats(program)
+        .into_iter()
+        .filter(|(repeat, _)| match repeat.argument("rules").map(|a| &a.value) {
+            Some(Value::List(rules)) => rules.iter().any(|rule| matches!(rule, Value::Block(b) if b.name == "On" && matches!(b.arguments.iter().find(|a| a.name.is_none()).map(|a| &a.value), Some(Value::Name(s)) if s == base))),
+            _ => false,
+        })
+        .collect()
+}
+
+/// Ce geste de ligne change-t-il une fiche d'une liste partagée (`item.done.set(1)`) ? Il part
+/// alors au serveur, comme un geste qui demande la liste elle-même.
+pub fn changes_shared_line(program: &Program, signal: &str) -> bool {
+    let base = crate::lists::signal_and_line(signal).0;
+    let keyed = keyed_lists(program);
+    answering(program, base).into_iter().filter(|(_, list)| keyed.contains(list)).any(|(repeat, _)| match repeat.argument("rules").map(|a| &a.value) {
+        Some(Value::List(rules)) => rules.iter().any(|rule| match rule {
+            Value::Block(b) if b.name == "On" && matches!(b.arguments.iter().find(|a| a.name.is_none()).map(|a| &a.value), Some(Value::Name(s)) if s == base) => crate::state::requests_of(b).iter().any(|r| r.name.starts_with("item.")),
+            _ => false,
+        }),
+        _ => false,
+    })
+}
+
+/// Le geste d'une ligne d'une liste partagée porte la clé de la ligne touchée
+/// (`Remove.tap@2#k:Ada-0`, ADR-080) : entre la page vue et le toucher, d'autres ont pu ajouter ou
+/// retirer des lignes, et le rang ne dit plus laquelle. Le serveur la retrouve par sa clé dans la
+/// liste qu'il garde (`written`), et rend le geste au rang qu'elle y a maintenant
+/// (`Remove.tap@0`). Sans clé, si la ligne n'y est plus, ou si deux répétitions répondent au même
+/// geste : `None`, le geste est refusé. La ligne d'une liste à chaque visiteur garde son rang.
+pub fn line_by_key(program: &Program, written: &str, signal: &str) -> Option<String> {
+    let (base, Some(_)) = crate::lists::signal_and_line(signal) else { return Some(signal.to_string()) };
+    let plain = signal.split_once('#').map_or(signal, |(plain, _)| plain).to_string();
+    let keyed = keyed_lists(program);
+    let answering = answering(program, base);
+    if !answering.iter().any(|(_, list)| keyed.contains(list)) {
+        return Some(plain);
+    }
+    let [(repeat, list)] = answering.as_slice() else { return None };
+    let key = crate::lists::line_key_of(signal)?;
+    let numbers = crate::state::reread(program, written);
+    let texts = crate::state::reread_texts(program, written);
+    let lists = crate::lists::reread(program, written);
+    let computed = crate::computed::apply(program, &numbers, &texts, &lists);
+    let elements = &lists.iter().chain(computed.iter()).find(|(name, _)| name == list)?.1;
+    let field = match repeat.argument("key").map(|a| &a.value) {
+        Some(Value::Name(field)) => Some(field.as_str()),
+        _ => None,
+    };
+    let rank = (0..elements.len()).find(|rank| crate::lists::line_key(elements, *rank, field) == key)?;
+    Some(format!("{base}@{rank}"))
+}
+
+#[cfg(test)]
+mod completion_tests {
+    use crate::state::encode;
+
+    const NAMES: &str = "Page(state: State(note: \"\", sent: 0), shared: Shared(names: []), children: [Input(value: note, label: \"Nom\"), Button(name: Add, text: \"Ajouter\"), Button(name: Clear, text: \"Effacer\"), Repeat(over: names, children: [P(\"{item}\"), Button(name: Remove, text: \"Retirer\")], rules: [On(Remove.tap, effect: names.remove(item))])], rules: [On(Add.tap, effect: [names.push(note), note.set(\"\"), sent.add(1)]), On(Clear.tap, effect: names.clear())])";
+
+    /// Les clés des lignes d'une liste, telles que la page les écrit (`data-key`).
+    fn keys(source: &str, state: &str, list: &str) -> Vec<String> {
+        crate::list_html(source, "", state, list).split(" data-key=\"").skip(1).map(|rest| rest[..rest.find('"').unwrap()].replace("&amp;", "&")).collect()
+    }
+
+    #[test]
+    fn concurrent_list_appends_start_from_server_and_stay_bounded() {
+        let mut shared = String::new();
+        for i in 0..50 {
+            let forged = format!("sent=0;note='Nom{i};names=[Forged]");
+            let (after, accepted) = crate::share(NAMES, &forged, &shared, "Add.tap");
+            assert!(accepted, "{i} : {after}");
+            shared = crate::shared_of(NAMES, &after);
+            assert!(!shared.contains("Forged"));
+        }
+        let (after, accepted) = crate::share(NAMES, "sent=0;note='EnTrop", &shared, "Add.tap");
+        assert!(!accepted);
+        assert_eq!(crate::shared_of(NAMES, &after), shared);
+        assert!(after.contains("sent=0"));
+        let (after, accepted) = crate::share(NAMES, "", &shared, "Clear.tap");
+        assert!(accepted);
+        assert_eq!(crate::shared_of(NAMES, &after), "names=[]");
+    }
+
+    #[test]
+    fn a_shared_field_is_a_draft_until_its_explicit_confirmation() {
+        let source = "Page(shared: Shared(title: \"Initial\"), children: [Input(value: title, label: \"Titre\"), If(title, is: \"Initial\", children: [Button(name: Save, text: \"Publier\")])], rules: [On(Save.tap, effect: title.set(title))])";
+        let (after, accepted) = crate::share(source, "title='Brouillon", "title='Initial", "Save.tap");
+        assert!(accepted);
+        assert_eq!(after, "title='Brouillon");
+        // Une valeur forgée ne révèle pas au serveur un bouton maintenant caché.
+        let published = format!("title='{}", encode("Publié"));
+        let (after, accepted) = crate::share(source, "title='Initial", &published, "Save.tap");
+        assert!(!accepted);
+        assert_eq!(after, published);
+        let absent = "Page(shared: Shared(title: \"\"), children: [Input(value: title, label: \"Titre\")])";
+        assert!(crate::check_page(absent).unwrap_err().message.contains("sans confirmation"));
+    }
+
+    #[test]
+    fn a_line_of_a_shared_list_is_found_by_its_key() {
+        // Deux pages voient Ada, Bob et Cy ; la première retire Ada.
+        let start = crate::input(NAMES, &crate::initial_state(NAMES), "note", "Ada");
+        let mut shared = String::new();
+        for name in ["Ada", "Bob", "Cy"] {
+            let (after, _) = crate::share(NAMES, &crate::input(NAMES, &start, "note", name), &shared, "Add.tap");
+            shared = crate::shared_of(NAMES, &after);
+        }
+        let seen = crate::with_shared(NAMES, "", &shared);
+        let shown = keys(NAMES, &seen, "names");
+        assert_eq!(shown.len(), 3);
+        let (after, accepted) = crate::share(NAMES, &seen, &shared, &format!("Remove.tap@0#{}", shown[0]));
+        assert!(accepted, "{after}");
+        shared = crate::shared_of(NAMES, &after);
+        assert_eq!(shared, "names=[Bob,Cy]");
+        // La seconde, en retard, touche « Retirer » sur la ligne de Bob, au rang 1 qu'elle voit
+        // encore : c'est Bob qui part, et non Cy, qui est maintenant au rang 1.
+        let (after, accepted) = crate::share(NAMES, &seen, &shared, &format!("Remove.tap@1#{}", shown[1]));
+        assert!(accepted, "{after}");
+        shared = crate::shared_of(NAMES, &after);
+        assert_eq!(shared, "names=[Cy]");
+        // Ada n'y est plus : son geste est refusé. De même sans clé, ou avec une clé inventée.
+        for signal in [format!("Remove.tap@0#{}", shown[0]), "Remove.tap@0".to_string(), "Remove.tap@0#abc-0".to_string()] {
+            let (after, accepted) = crate::share(NAMES, &seen, &shared, &signal);
+            assert!(!accepted, "{signal}");
+            assert_eq!(crate::shared_of(NAMES, &after), "names=[Cy]", "{signal}");
+        }
+        // Le geste part au serveur, avec ou sans clé : la page ne le joue pas seule.
+        assert!(crate::touches_shared(NAMES, "Remove.tap@0") && crate::touches_shared(NAMES, &format!("Remove.tap@0#{}", shown[2])));
+        // Sans JavaScript, chaque bouton de ligne porte la clé de sa ligne.
+        let page = crate::visitor_page(NAMES, "", &crate::with_shared(NAMES, "", &shared), &[]).unwrap();
+        let cy = keys(NAMES, &crate::with_shared(NAMES, "", &shared), "names").remove(0);
+        assert!(page.contains(&format!("value=\"Remove.tap@0#{cy}\"")), "{page}");
+        // Deux éléments pareils : chacun a sa clé, et le premier part d'abord.
+        let twins = "names=[Ana,Ana]";
+        let both = keys(NAMES, &crate::with_shared(NAMES, "", twins), "names");
+        assert_ne!(both[0], both[1]);
+        let (after, accepted) = crate::share(NAMES, "", twins, &format!("Remove.tap@1#{}", both[1]));
+        assert!(accepted);
+        assert_eq!(crate::shared_of(NAMES, &after), "names=[Ana]");
+    }
+
+    const CHORES: &str = "Page(state: State(what: \"\"), shared: Shared(chores: [Item(what: \"Pain\", done: 0)]), children: [Input(value: what, label: \"Quoi\"), Button(name: Add, text: \"Ajouter\"), Repeat(over: chores, children: [P(\"{item.what}\"), Button(name: Done, text: \"Fait\"), Button(name: Remove, text: \"Retirer\")], rules: [On(Done.tap, effect: item.done.set(1)), On(Remove.tap, effect: chores.remove(item))])], rules: [On(Add.tap, effect: [chores.push(Item(what: what, done: 0)), what.set(\"\")])])";
+
+    #[test]
+    fn shared_records_are_added_ticked_and_removed_by_their_key() {
+        let program = crate::check_page(CHORES).unwrap();
+        let fields = |state: &str| -> Vec<Vec<(String, String)>> { crate::lists::reread(&program, state).into_iter().find(|(name, _)| name == "chores").unwrap().1.iter().map(|e| crate::lists::fields(e)).collect() };
+        let pair = |what: &str, done: &str| vec![("what".to_string(), what.to_string()), ("done".to_string(), done.to_string())];
+        // Une fiche ajoutée, avec le texte du champ.
+        let (after, accepted) = crate::share(CHORES, &crate::input(CHORES, &crate::initial_state(CHORES), "what", "Lait"), "", "Add.tap");
+        assert!(accepted);
+        let shared = crate::shared_of(CHORES, &after);
+        assert_eq!(fields(&shared), [pair("Pain", "0"), pair("Lait", "0")]);
+        // Cocher une fiche change la liste de tous : le geste part au serveur.
+        assert!(crate::touches_shared(CHORES, "Done.tap@1"));
+        let seen = crate::with_shared(CHORES, "", &shared);
+        let shown = keys(CHORES, &seen, "chores");
+        let (after, accepted) = crate::share(CHORES, &seen, &shared, &format!("Done.tap@1#{}", shown[1]));
+        assert!(accepted);
+        let ticked = crate::shared_of(CHORES, &after);
+        assert_eq!(fields(&ticked), [pair("Pain", "0"), pair("Lait", "1")]);
+        // La fiche a changé, sa clé aussi : un geste d'une page en retard sur elle est refusé.
+        let (after, accepted) = crate::share(CHORES, &seen, &ticked, &format!("Remove.tap@1#{}", shown[1]));
+        assert!(!accepted);
+        assert_eq!(crate::shared_of(CHORES, &after), ticked);
+        // Retirer le pain, par sa clé.
+        let (after, accepted) = crate::share(CHORES, &seen, &ticked, &format!("Remove.tap@0#{}", shown[0]));
+        assert!(accepted);
+        assert_eq!(fields(&crate::shared_of(CHORES, &after)), [pair("Lait", "1")]);
+        // Des fiches de deux cents caractères par champ, cinquante au plus.
+        let long = format!("Page(shared: Shared(chores: [Item(what: \"{}\")]), children: [ \"x\" ])", "a".repeat(201));
+        assert!(crate::check_page(&long).unwrap_err().message.contains("une liste partagée attend"));
+    }
+
+    #[test]
+    fn a_line_of_a_list_computed_from_a_shared_list_is_found_in_its_source() {
+        let source = "Page(state: State(search: \"\"), shared: Shared(names: [\"Ada\", \"Bob\", \"Abe\"]), computed: [Filter(name: found, from: names, contains: search)], children: [Input(value: search, label: \"Chercher\"), Repeat(over: found, children: [P(\"{item}\"), Button(name: Remove, text: \"x\")], rules: [On(Remove.tap, effect: names.remove(item))])])";
+        assert_eq!(super::keyed_lists(&crate::check_page(source).unwrap()), ["names", "found"]);
+        let seen = crate::input(source, &crate::initial_state(source), "search", "A");
+        let found = keys(source, &seen, "found");
+        assert!(!found.is_empty());
+        let before = crate::lists::reread(&crate::check_page(source).unwrap(), &seen).into_iter().find(|(n, _)| n == "names").unwrap().1;
+        let (after, accepted) = crate::share(source, &seen, "", &format!("Remove.tap@0#{}", found[0]));
+        assert!(accepted, "{after}");
+        let left = crate::lists::reread(&crate::check_page(source).unwrap(), &after).into_iter().find(|(n, _)| n == "names").unwrap().1;
+        assert_eq!(left.len(), before.len() - 1);
     }
 }

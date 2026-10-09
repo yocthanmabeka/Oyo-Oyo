@@ -1,0 +1,17 @@
+// Leçon 108 — Protéger et effacer son compte
+// Les pages du compte sont fabriquées par holo serve, avec et sans JavaScript.
+Page(title: "Leçon 108 : protéger et effacer son compte", lang: "fr", children: [
+ H1("Mon compte reste chez l'auteur"),
+ P("Ouvre cette leçon avec holo serve. Le code à six chiffres s'active par un QR local ou une clé à recopier."),
+ P("À l'activation, garde les dix codes de secours. La liste n'est montrée qu'une fois. Après ton mot de passe, chaque code permet une seule connexion."),
+ A("Ouvrir mon compte", to: "/account"),
+ P("Pour effacer ton compte, ouvre le lien dans ton compte, redonne ton mot de passe et confirme ton nom. Si tu as activé le code, donne aussi un code actuel ou un code de secours."),
+ P("Le moteur retire les données qui te sont associées de la base et de ses sauvegardes locales. Les copies sorties du dossier restent à l'auteur ; le contenu public partagé appartient à la page."),
+ Hr(),
+ Row(gap: 16px, align: between, children: [
+  A("← Leçon 107 : une clé d'accès", to: "107-se-connecter-par-une-cle.holo"),
+  A("Leçon 109 : un catalogue, page par page →", to: "109-un-catalogue-page-par-page.holo"),
+ ]),
+])
+Page { background: white; color: #17202a; padding: 24px; max-width: 900px; dark: { background: #17202a; color: white; } }
+A { color: #174d70; dark: { color: #a8dbff; } }

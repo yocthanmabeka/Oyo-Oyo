@@ -1665,6 +1665,9 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
             for argument in &block.arguments {
                 match (argument.name.as_deref(), &argument.value) {
                     (Some("name"), _) | (Some("label"), Value::Text(_)) | (Some("menu"), Value::Bool(_)) => {}
+                    // Obligatoire (ADR-068) : vérifié plus bas, avec les autres champs. (Avant ADR-099, il
+                    // était refusé ici comme « mal écrit ».)
+                    (Some("required"), _) => {}
                     (Some("value"), Value::Name(value)) if is_text(value) => {}
                     (Some("value"), Value::Name(value)) => {
                         return Err(Error { message: format!("« Choice(value: {value}) » : un choix présente un texte ; déclare-le ainsi : state: State({value}: \"\")"), pos: argument.pos })
@@ -2766,9 +2769,10 @@ mod tests {
         let text_of = |state: &str, name: &str| reread_texts(&program, state).into_iter().find(|(n, _)| n == name).map(|(_, t)| t).unwrap_or_default();
         assert_eq!(text_of(&start, "today"), "2026-10-07");
         let html = crate::flat_view(source, "").unwrap();
-        assert!(html.contains(r#"<span data-state="today" data-format="date">7 octobre 2026</span> (<span data-state="today" data-format="weekday">mercredi</span>, <span data-state="today">2026-10-07</span>)"#), "{html}");
+        // Une date montrée est aussi lisible par les machines (ADR-098).
+        assert!(html.contains(r#"<time data-state="today" data-format="date" datetime="2026-10-07">7 octobre 2026</time> (<time data-state="today" data-format="weekday" datetime="2026-10-07">mercredi</time>, <span data-state="today">2026-10-07</span>)"#), "{html}");
         assert!(html.contains(r#"<input type="date" min="2026-10-07" value="" data-bind="arrival">"#), "{html}");
-        assert!(html.contains(r#"<span data-state="due" data-format="date">1er octobre 2026</span>"#), "{html}");
+        assert!(html.contains(r#"<time data-state="due" data-format="date" datetime="2026-10-01">1er octobre 2026</time>"#), "{html}");
         // Une date vide ne compare rien.
         assert_eq!(crate::conditions(source, &start), "arrival|under=today:0;arrival|over=due:0");
         // Une date avant « min » est refusée ; un jour qui n'existe pas aussi ; une bonne date est prise.

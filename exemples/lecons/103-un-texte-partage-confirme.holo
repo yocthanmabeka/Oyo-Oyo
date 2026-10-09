@@ -1,0 +1,24 @@
+// Leçon 103 — Un texte partagé, après confirmation.
+// Écrire prépare un brouillon local. Publier le soumet au serveur.
+// Si quelqu'un publie pendant que tu écris, ton champ garde ton brouillon.
+// Avec JavaScript coupé, le formulaire ordinaire publie aussi par le bouton.
+Page(
+ title: "Leçon 103 : confirmer un texte partagé",
+ shared: Shared(title: "Titre commun"),
+ children: [
+  H1("Notre titre"),
+  P("Titre publié : {title}"),
+  Input(value: title, label: "Préparer le prochain titre", max: 200),
+  Button(name: Save, text: "Publier le titre"),
+  P("La frappe ne publie rien. Le bouton confirme la demande au serveur."),
+  Hr(),
+  Row(gap: 16px, align: between, children: [
+   A("← Leçon 102 : une liste partagée", to: "102-une-liste-partagee.holo"),
+   A("Leçon 104 : se connecter →", to: "104-se-connecter.holo"),
+  ]),
+ ],
+ rules: [On(Save.tap, effect: title.set(title))],
+)
+Page { background: #101020; color: white; padding: 24px 16px; max-width: 720px; }
+Button { background: #E9B44C; color: #101020; padding: 12px; }
+A { color: #8fd3ff; }

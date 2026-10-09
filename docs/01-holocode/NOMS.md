@@ -56,6 +56,10 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Device(kind: position \| clipboard \| camera \| microphone)`, `request`, `write`, `stop` | `navigator.geolocation`, `navigator.clipboard`, `getUserMedia()` | nouveau : un mot pour l'appareil, quatre sortes nommées ; sur le toucher d'un bouton ; rien n'est envoyé ; l'arrêt vient d'office (`ADR-094`) |
 | `Notification(title:, body:, after:)`, `show`, `stop` | `Notification.requestPermission()`, `showNotification()`, `setTimeout` | repris : le nom du web ; un rappel seulement tant que la page est ouverte, sans « push » (`ADR-095`) |
 | `Offline(files:)`, `save`, `remove` | un service worker et `CacheStorage` écrits à la main | nouveau : une copie d'une page publique, demandée par le visiteur ; le réseau d'abord ; rien n'est mis en attente ni rejoué (`ADR-096`) |
+| `abbreviations: [ Abbreviation("MJC", "…") ]` | `<abbr title="…">` à chaque venue | changé : déclarée une fois pour la page ; le moteur la marque partout et écrit son sens à sa première venue dans un paragraphe, lu et vu aussi au doigt (`ADR-098`, à valider) |
+| (rien : `{ouverture:date}`) | `<time datetime="…">` | nouveau sans mot : chaque date montrée est aussi lisible par les machines (`ADR-098`, à valider) |
+| `Address(children: [ … ])` | `address` | repris : le nom de HTML, les moyens de joindre l'auteur ; ni titre ni repère dedans ; le texte reste droit (`ADR-098`, à valider) |
+| `Fields(label:, children:)` | `fieldset`, `legend` | changé : un groupe de champs et son nom, écrit `label:` comme celui d'un champ ; au moins deux champs ; sans la bordure du navigateur, jamais plus large que l'écran (`ADR-099`, à valider) |
 | `Input(suggestions: ["Paris", "Lyon"])`, `suggestions: villes` | `input list="…"`, `datalist`, `option` | changé : un paramètre du champ au lieu d'un élément relié par un `id` ; écrites, ou une liste de la page suivie pendant la visite ; on peut toujours écrire autre chose (`ADR-100`, à valider) |
 | `Enter` | `@keyframes` + `animation` (de… vers…), ou `element.animate()` | changé : on écrit seulement d'où le bloc part |
 | `Loop` | `animation: … infinite alternate` | changé : on écrit seulement où il va |
@@ -70,6 +74,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Data(name: Shop)`, `Shop.done`, `Shop.failed`, `Shop.refresh` | `fetch().then().catch()`, `response.ok`, `AbortController`, un bouton qui rappelle `fetch` | changé : un échec couvre l'erreur du serveur, le fichier trop gros ou illisible, et 10 secondes ; relectures espacées d'office (`ADR-064`, à valider) |
 | `Sound` | `audio`, `new Audio().play()` | changé : un bruit qu'une règle déclenche, pas un lecteur |
 | `List` | `ul`, `ol`, `li` | changé : un bloc au lieu de trois balises |
+| `Term` dans `List` | `dl`, `dt`, `dd` | changé : une liste dont les éléments sont des termes ; un terme porte sa définition, ils ne se séparent pas (`ADR-097`, à valider) |
 | `Row` | `display: flex` | changé : mot de Flutter |
 | `Column` | `display: flex; flex-direction: column` | changé : mot de Flutter |
 | `Grid` | `display: grid` | repris de CSS, devenu un bloc |
@@ -134,7 +139,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Quote` | `blockquote`, `q`, `cite` | changé : un mot au lieu de trois |
 | `Code` | `pre`, `code` | repris |
 | `State` | `let`, `useState`, les signaux | changé : une déclaration, pas une variable libre |
-| `Shared`, `shared:` | une base et une API côté serveur, puis `fetch`, un `WebSocket` ou un `EventSource` côté page (Firebase, Meteor, Phoenix LiveView) | nouveau : une déclaration ; le serveur de l'auteur garde la valeur pour tous, l'arbitre avec le même moteur que la page, et l'envoie en direct (`ADR-079`, à valider) |
+| `Shared`, `shared:` | une base et une API côté serveur, puis `fetch`, un `WebSocket` ou un `EventSource` côté page (Firebase, Meteor, Phoenix LiveView) | nouveau : une déclaration ; le serveur de l'auteur garde la valeur pour tous, l'arbitre avec le même moteur que la page, et l'envoie en direct (`ADR-079`, à valider) ; une liste aussi, dont la ligne touchée se désigne par sa clé (`ADR-080`) |
 | `Data` | `fetch`, puis `JSON.parse`, puis la mise à jour de la page | changé : une déclaration ; l'arbitre range ce qui arrive |
 | `Prices` | un objet JavaScript `{ sunrise: 120 }` | changé : une table déclarée |
 | `Zoom` | `meta viewport`, la propriété `zoom` | changé |
@@ -287,3 +292,10 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 - Mots changés : environ 30.
 - Mots nouveaux : environ 30, presque tous autour du point, du monde et de la façon de regarder la page.
 - Noms contestés : aucun. Les quatorze sont tranchés le 2026-10-06 (`ADR-047`).
+
+## Comptes et partage, la suite : aucun mot nouveau (`ADR-080`, `ADR-082`, `ADR-083`, décidées le 2026-10-09)
+
+- **Une liste partagée** (`ADR-080`) : `Shared(groceries: [ Item(what: "Du pain", done: 0) ])`, ou des textes, `Shared(names: [])` ; `push`, `remove(item)`, `item.done.set(1)` et `clear()` gardent le sens qu'ils ont pour une liste à soi (`ADR-044`, `ADR-057`). La ligne touchée se désigne par la clé qu'elle a déjà dans la page (`data-key`, `ADR-065`) : aucun mot à écrire. Leçon 102.
+- **Un texte partagé confirmé** (`ADR-080`) : `Input(value: title)`, puis `On(Save.tap, effect: title.set(title))` ; aucun mot nouveau. Leçon 103.
+- **Les clés d'accès** (`ADR-082`) : aucun mot de HoloCode ; `/account/passkeys` est une page du serveur, comme les autres pages de compte. `HOLO_ORIGIN` est un réglage du serveur, chez l'auteur (son adresse HTTPS), pas du langage. Leçon 107.
+- **Le QR, les codes de secours, l'effacement** (`ADR-083`) : aucun mot de HoloCode ; `/account/code/setup`, `/account/code` et `/account/delete` sont des pages du serveur, et les champs de leurs formulaires ne deviennent pas des réglages du langage. Leçon 108.

@@ -19,7 +19,7 @@
 2. **Le total compte avant les deux coupes** : `total: matching` dit combien la recherche trouve, pas combien la page en montre (« 20 sur 200 »). Une position au-delà de la fin donne une page vide, jamais une erreur.
 3. `offset` prend un entier positif ou nul, ou le nom d'un nombre entier de la page. Un grand nombre est borné à la longueur réelle de la liste avant d'être converti : aucune allocation en proportion, aucune troncature sur un navigateur 32 bits.
 4. **Deux cents éléments par liste**, comme une répétition : une liste de `State`, une liste reçue par `Data` (les deux cents premiers sont gardés), une liste calculée. Un fichier qui en déclare plus est refusé, avec la raison. Les autres bornes ne changent pas : deux cents caractères par champ, seize champs par élément, 64 Ko de données reçues.
-5. Un catalogue de démonstration de deux cents produits, la leçon 109 et le site des parcours (`exemples/parcours/`) : le catalogue, une fiche et son panier (une TVA fictive calculée en décimaux exacts), une inscription, un contact avec une image, un menu, une réservation en direct, un compte, un profil, un article et une vidéo sous-titrée. Neuf des dix parcours du plan ; le dixième (un tableau de bord) vient du lot 9.
+5. Un catalogue de démonstration de deux cents produits, la leçon 109 et le site des parcours (`exemples/parcours/`) : le catalogue, une fiche et son panier (une TVA fictive calculée en décimaux exacts), une inscription, un contact avec une image, un menu, une réservation en direct, un compte, un profil, un article et une vidéo sous-titrée. Neuf des dix parcours du plan ; le dixième, un tableau de bord (des ventes reçues, dessinées en barres et en parts, une vente ajoutée au clavier), a suivi le lot 9 : repris de la PR 204 de Codex le 2026-10-09.
 
 ## Comparaison faite avant de choisir
 
@@ -51,5 +51,5 @@
 ## Critères de validation
 
 - Tests du moteur : `two_hundred_products_are_searched_sorted_and_paged` (dix pages de vingt, sans doublon ni oubli après le tri ; le produit 200 retrouvé ; une position au-delà de la fin ; deux cent un éléments refusés) ; `a_page_offset_refuses_text_decimals_units_and_unknown_names`.
-- Dans Chrome (`node outils/browser-tests.mjs parcours`) : les parcours 1 à 9 de Codex, avec `holo serve` (le catalogue dans le HTML du serveur, les pages au clavier et sans JavaScript, le panier exact avec et sans JavaScript, les erreurs reliées, l'image aux mêmes octets, le menu à 360 et 1280 pixels, la réservation vue dans un second profil, le compte retrouvé, le profil, la vidéo, l'impression) ; l'audit axe-core, neuf pages en quatre modes.
+- Dans Chrome (`node outils/browser-tests.mjs parcours`) : les parcours 1 à 9 de Codex, puis le 10, avec `holo serve` (le catalogue dans le HTML du serveur, les pages au clavier et sans JavaScript, le panier exact avec et sans JavaScript, les erreurs reliées, l'image aux mêmes octets, le menu à 360 et 1280 pixels, la réservation vue dans un second profil, le compte retrouvé, le profil, la vidéo, l'impression) ; l'audit axe-core, neuf pages en quatre modes (dix, avec le tableau de bord).
 - Leçon `109-un-catalogue-page-par-page.holo`.

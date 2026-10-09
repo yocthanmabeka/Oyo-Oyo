@@ -1,0 +1,60 @@
+// Leçon 122 — Un groupe de champs
+//
+// Ce qu'on apprend :
+//   Fields(label: "Adresse de livraison", children: [ … ]) : des champs qui vont ensemble, et
+//   le nom de leur groupe. Le lecteur d'écran dit ce nom en entrant dans le groupe, puis chaque
+//   champ : « Adresse de livraison, groupe ; Rue ». Des cases à cocher qui répondent à une même
+//   question se regroupent de la même façon : « Pour te prévenir ».
+//   Un groupe réunit au moins deux champs, rangés comme on veut (ici, dans un Row). Un Choice
+//   en boutons ronds est déjà un groupe : son label: est son nom.
+//   Au départ, le groupe n'a pas de bordure : son nom en gras, puis ses champs. Un style peut
+//   l'encadrer : la bordure entoure alors le nom et les champs.
+//
+// À essayer :
+//   Avec un lecteur d'écran (TalkBack, Narrateur), passe d'un champ à l'autre : le nom du groupe
+//   est dit en y entrant. Ajoute un groupe « Adresse de facturation », avec sa Rue et sa Ville :
+//   le lecteur d'écran ne les confond pas avec celles de la livraison. Puis ne laisse qu'un champ
+//   dans un Fields : le moteur le refuse, et dit pourquoi.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 122 : un groupe de champs",
+  state: State(street: "", postcode: "", city: "", byMail: 0, bySms: 0, delivery: "", sent: 0, failed: 0),
+  children: [
+    H1("Commander un tableau"),
+    Form(name: Order, children: [
+      Fields.adresse(label: "Adresse de livraison", children: [
+        Input(value: street, label: "Rue", required: true),
+        Row(gap: 12px, children: [
+          Input(value: postcode, label: "Code postal", required: true, max: 5),
+          Input(value: city, label: "Ville", required: true),
+        ]),
+      ]),
+      Fields(label: "Pour te prévenir", children: [
+        Checkbox(value: byMail, label: "Par e-mail"),
+        Checkbox(value: bySms, label: "Par SMS"),
+      ]),
+      Choice(value: delivery, label: "Jour de livraison", options: ["Mardi", "Samedi"], required: true),
+      Button(name: Send, text: "Commander"),
+    ]),
+    If(sent, is: 1, children: [ P("Merci, ta commande est partie.") ]),
+    If(failed, is: 1, children: [ P("La commande n'est pas partie : réessaie plus tard.") ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 121 : une abréviation, une date, une adresse", to: "121-une-abreviation-une-date-une-adresse.holo"),
+      A("Leçon 123 : des suggestions dans un champ →", to: "123-des-suggestions-dans-un-champ.holo"),
+    ]),
+  ],
+  rules: [
+    On(Send.tap, effect: Order.send),
+    On(Order.sent, effect: [sent.set(1), failed.set(0)]),
+    On(Order.failed, effect: [failed.set(1), sent.set(0)]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+Button { background: #E9B44C; color: #101020; padding: 10px 16px; border-radius: 8px; }
+.adresse { border: 1px solid #E9B44C; border-radius: 8px; padding: 12px 16px; }
