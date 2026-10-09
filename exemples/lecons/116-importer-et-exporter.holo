@@ -1,0 +1,31 @@
+// Leçon 116 — Importer et exporter (de Codex, PR 203)
+//
+// Ce qu'on apprend :
+//   Transfer(name: File, label: "…", file: "notes.json", values: [note, notes]) annonce un
+//   fichier JSON et les valeurs qu'il porte, des valeurs de State seulement.
+//   File.export le télécharge. File.import le relit en entier avant de rien changer : une valeur
+//   inconnue, manquante ou de la mauvaise sorte, et tout est refusé. 64 Ko au plus.
+//   À la fin : File.done, ou File.failed et sa raison, annoncée au lecteur d'écran.
+//
+// À essayer :
+//   « Exporter mes notes », modifie le fichier, puis « Importer mes notes ».
+//   Une valeur inconnue dans le fichier refuse tout.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(title: "Leçon 116 : importer et exporter", state: State(note: "Bonjour", notes: ["Première note"], finished: 0), children: [
+ H1("Un fichier de mes valeurs"),
+ Input(label: "Ma note", value: note),
+ Transfer(name: File, label: "Mes notes personnelles", file: "notes.json", values: [note, notes]),
+ Button(name: Export, text: "Exporter mes notes"), Button(name: Import, text: "Importer mes notes"),
+ Repeat(over: notes, children: [P("{item}")]), P("Transferts terminés : {finished}"),
+
+ Hr(),
+ Row(gap: 16px, align: between, children: [
+   A("← Leçon 115 : des polices pour toutes les écritures", to: "115-des-polices-pour-toutes-les-ecritures.holo"),
+   A("Leçon 117 : l'appareil sur permission →", to: "117-appareil-sur-permission.holo"),
+ ]),
+], rules: [On(Export.tap, effect: File.export), On(Import.tap, effect: File.import), On(File.done, effect: finished.add(1))])
+Page { background: white; color: #17202a; max-width: 900px; padding: 24px; dark: { background: #17202a; color: white; } }
+Button { background: #174d70; color: white; padding: 12px; border-radius: 8px; }
+A { color: #174d70; dark: { color: #8fd3ff; } }

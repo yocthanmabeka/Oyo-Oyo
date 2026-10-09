@@ -39,6 +39,23 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — La fin du lot 9 de Codex intégrée : un fichier, l'appareil, une notification, une copie hors-ligne
+
+- Fusionnée sur `integration/codex-203`, après la PR 201 : la PR 203 de Codex. Quatre blocs, rangés dans les enfants de `Page`, qui ne demandent rien au navigateur sans le toucher d'un bouton : `Transfer` (un fichier JSON des valeurs annoncées, importé tout entier ou refusé), `Device` (la position, le presse-papiers, un aperçu de la caméra, le microphone ; arrêt d'office), `Notification` (un rappel tant que la page est ouverte), `Offline` (la copie d'une page publique, le réseau d'abord, rien de mis en attente). Les leçons 116 à 119, et ses essais dans Chrome.
+- Écrites et décidées : `ADR-093` à `ADR-096`, `ACCEPTÉ`, validées par Yocthan le 2026-10-09 (« intégrer le travail de Codex quand il est bien fait »), Codex nommé comme auteur ; leurs lignes dans `DECISIONS.md`. Le guide a sa section « 6 quatertricies » (celle de Codex portait le numéro « 10 bis », déjà pris, après la section 11), quatre lignes dans le tableau des notions et ce qui manque encore ; `NOMS.md`, quatre lignes dans le tableau des blocs. Les leçons 116 à 119 ont pris la forme des autres (« Ce qu'on apprend », les liens ← →) : 115 → 116 → … → 119 → 1. La ligne vide qui coupait le tableau des leçons est retirée.
+- **Corrigé : la page hors-ligne sans JavaScript.** `holo serve` servait toute page `Offline` par un chemin à part, toujours avec ses valeurs de départ et sans le formulaire des gestes : sans JavaScript, un toucher ne changeait rien de visible. Elle passe maintenant par le chemin de toutes les pages (les valeurs du visiteur, les boutons qui marchent). La copie, elle, est demandée par le service worker sans cookie : le serveur rend la page d'un premier visiteur. Le service worker refusait aussi toute page qui porte `data-visit` (l'état que `holo serve` écrit dans chaque page) : sans le chemin à part, aucune copie n'aurait marché ; cette vérification est retirée, la demande sans cookie suffit.
+- **Corrigé : le service worker et le direct.** Installé, il tenait tout le site, et faisait passer par lui le direct des valeurs partagées (`text/event-stream`) ; sans réseau, il aurait servi une page HTML à la place du flux. Il laisse maintenant passer le direct et toutes les écritures (ce qui n'est pas `GET`).
+- Gardé par deux essais nouveaux, qui ratent avec l'ancien code : `an_offline_page_keeps_its_values_without_javascript` (avec l'ancien chemin, la page n'a pas de formulaire des gestes) ; dans Chrome, « holo serve : une page hors-ligne sans JavaScript ; le service worker laisse le direct et les écritures » (avec l'ancien service worker : « le direct passe à côté : … "worker": true »).
+- Exécuté, après une reconstruction complète (les deux WebAssembly, `holo`, les liaisons) : `holo check` → les leçons 115 à 119 et les exemples du guide et des ADR acceptés ; `cargo test --release` → 196 tests passent ; `cargo test` → 196 ; `node outils/browser-tests.mjs` → 65 essais `OK`, aucun raté, 115 leçons ouvertes, 503 s (dont les six essais de Codex pour le lot 9 et les parcours 1 à 9).
+- Pas fait ici : le tableau en ligne et `TABLEAU-WEB.md` (les mots `offset`, `Transfer`, `Device`, `Notification`, `Offline`), que la session du PC republie.
+
+**Erreurs en route**
+
+- Ma première fusion de la PR 203 est partie sans l'identité du dépôt (« Committer identity unknown ») : refaite avec l'adresse noreply.
+- Le premier jet de l'`ADR-096` disait qu'une réponse qui pose un cookie est refusée : un service worker ne voit jamais l'en-tête `Set-Cookie`, cette vérification ne refuse rien. Corrigé avant l'envoi : c'est la demande sans cookie qui protège la copie.
+
+---
+
 ## 2026-10-09 — Les petites dettes HTML dans la file de travail
 
 - Yocthan a demandé : « Sur 100 % du web, ton travail est à combien ? Et pourquoi ça traîne encore ? ». Réponse, comptée ligne par ligne dans le grand tableau (le jugement par élément est celui de Claude) :

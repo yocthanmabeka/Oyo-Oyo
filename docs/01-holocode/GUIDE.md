@@ -1797,6 +1797,41 @@ Page(
 
 La leçon est `99-un-tableau-de-bord.holo`.
 
+## 6 quatertricies. Les capacités du navigateur : un fichier, l'appareil, une notification, une copie hors-ligne
+
+```holo
+Page(
+  title: "Notes",
+  state: State(note: "Hello", notes: ["First note"], place: ""),
+  children: [
+    Input(label: "My note", value: note),
+    Transfer(name: File, label: "My notes", file: "notes.json", values: [note, notes]),
+    Button(name: Export, text: "Export my notes"),
+    Button(name: Import, text: "Import my notes"),
+    Device(name: Position, label: "My position", kind: position, value: place),
+    Button(name: Locate, text: "Ask for my position"),
+    Notification(name: Reminder, label: "A reminder", title: "Break", body: "Time to rest.", after: 600s),
+    Button(name: Remind, text: "Remind me in ten minutes"),
+  ],
+  rules: [
+    On(Export.tap, effect: File.export), On(Import.tap, effect: File.import),
+    On(Locate.tap, effect: Position.request), On(Remind.tap, effect: Reminder.show),
+  ],
+)
+```
+
+- Quatre blocs, rangés directement dans les enfants de `Page`, chacun avec un nom et une étiquette (`label:`, lue par le lecteur d'écran) : `Transfer` (un fichier, `ADR-093`), `Device` (l'appareil, `ADR-094`), `Notification` (`ADR-095`) et `Offline` (une copie hors-ligne, `ADR-096`). L'auteur n'écrit aucun JavaScript.
+- **Seulement sur un bouton** : ce qui demande quelque chose au navigateur (`export`, `import`, `request`, `write`, `show`, `save`, `remove`) ne part que de `On(Bouton.tap, …)`, jamais du démarrage, d'un minuteur ni d'une autre fin. `stop` part de n'importe quelle règle : arrêter est toujours permis.
+- Chacun dit sa fin, `File.done` ou `File.failed`, avec la raison écrite dans un état que le lecteur d'écran annonce. Un refus laisse la page utilisable.
+- **`Transfer(file: "notes.json", values: [note, notes])`** : `export` télécharge les valeurs annoncées (de 1 à 16, déclarées dans `State`), 64 Ko au plus ; `import` relit le fichier en entier avant de rien changer : une valeur inconnue, manquante, répétée ou de la mauvaise sorte, et rien ne change. Jamais une valeur partagée, calculée, ni le compte.
+- **`Device(kind: position | clipboard | camera | microphone)`** : la position (un texte JSON : latitude, longitude, précision ; le langage n'a pas encore de nombres négatifs) et le presse-papiers (`request` lit, `write` copie) écrivent un texte de `State` (`value:`) ; la caméra montre un aperçu local, le microphone s'active localement, sans rien enregistrer ni envoyer. Une capture s'arrête par `stop`, après une minute, quand la page change ou se cache. Il faut `localhost` ou HTTPS.
+- **`Notification(title:, body:, after:)`** : `show` demande la permission, puis montre la notification, tout de suite ou après le délai (de `0s` à `3600s`) ; `stop` annule. Le rappel ne vit que tant que la page reste ouverte : pas de service extérieur, rien de promis après la fermeture.
+- **`Offline(files: ["image.svg"])`** : `save` garde une copie de la page dans le navigateur (la page, son texte, le moteur léger, et jusqu'à 16 fichiers nommés ; 16 Mio par copie, huit pages au plus) ; `remove` l'efface. Le réseau passe d'abord ; la copie sert seulement quand il manque. Seule une page publique se copie : pas de compte, de formulaire, de valeurs partagées, de données reçues, de module, ni d'autre capacité. Rechargée hors-ligne, elle repart de ses valeurs de départ ; rien n'est mis en attente pour être envoyé plus tard.
+- Avec `holo serve`, une page `Offline` reste une page comme les autres : sans JavaScript, ses boutons marchent et elle montre les valeurs du visiteur. La copie est demandée sans cookie : c'est celle d'un premier visiteur. Le service worker du moteur, installé seulement quand un visiteur demande une copie ou une notification, laisse passer sans y toucher les écritures (tout ce qui n'est pas `GET`) et le direct des valeurs partagées (`text/event-stream`).
+- Le code du navigateur pour ces capacités (`capabilities.js`) n'est chargé que par une page qui en déclare une.
+
+Les quatre blocs sont décidés (`ADR-093` à `ADR-096`, validés par Yocthan le 2026-10-09 ; proposés et construits par Codex). Les leçons sont `116-importer-et-exporter.holo`, `117-appareil-sur-permission.holo`, `118-notifications-locales.holo` et `119-une-page-hors-ligne.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo
@@ -2423,6 +2458,11 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Envoyer un formulaire | `Form(name:)`, `Contact.send`, `sent`, `failed` | fait |
 | Un compte, une page réservée aux membres | `Page(access: members)`, `signedIn`, `{account}`, `A(to: "/account/signin")` | fait, avec `holo serve` (`ADR-081`) |
 | Une clé d'accès, un QR, des codes de secours, effacer son compte | rien à écrire : les pages de compte de `holo serve` | fait (`ADR-082`, `ADR-083`) |
+| Chercher, filtrer, trier ; une page d'une liste | `computed: [ Filter(…, offset:, limit:, total:) ]` | fait (`ADR-062`, `ADR-084`) |
+| Un fichier de ses valeurs, exporté puis importé | `Transfer(file:, values:)`, `export`, `import` | fait (`ADR-093`) |
+| L'appareil : la position, le presse-papiers, la caméra, le microphone | `Device(kind:)`, `request`, `write`, `stop` | fait (`ADR-094`) |
+| Une notification, un rappel | `Notification(title:, body:, after:)`, `show`, `stop` | fait (`ADR-095`) |
+| Une page lisible hors-ligne | `Offline(files:)`, `save`, `remove` | fait (`ADR-096`) |
 | Multiplier, diviser | les demandes `mul`, `div` | fait |
 | Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait |
 | Une liste qui change pendant la visite | `State(tasks: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` | fait |
@@ -2447,6 +2487,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 - Les données venues d'un autre serveur.
 - Pour les valeurs partagées (`ADR-080`) : un champ qui change un nombre ou une liste partagés (seul un texte partagé se prépare, puis se confirme) ; une condition sur l'élément d'une ligne partagée, que le serveur ne vérifie pas encore ; une valeur « une fois par compte ».
 - Pour les comptes (`ADR-081` à `ADR-083`) : changer son mot de passe ; un compte créé par une clé d'accès seule ; de nouveaux codes de secours sans retirer le code à 6 chiffres ; la clé d'accès essayée sur un vrai téléphone, en HTTPS.
+- Pour les capacités du navigateur (`ADR-093` à `ADR-096`) : la caméra ne prend pas de photo, le microphone ne donne pas de son ; pas de rappel après la fermeture de la page (il faudrait un serveur de « push ») ; pas d'import en CSV ni par glisser-déposer ; pas de copie hors-ligne d'une page qui a un compte, un formulaire ou des valeurs partagées, ni d'envoi mis en attente.
 - Pour les valeurs : pas de nombre négatif ; une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.

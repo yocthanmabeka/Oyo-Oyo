@@ -198,6 +198,10 @@ impl Site {
 
     fn get(&self, ask: &Ask, path: &str, raw: &str) -> Reply {
         let Some((file, holo, values)) = self.locate(path, raw) else { return Reply::text(404, "introuvable") };
+        // Une page qui offre une copie hors-ligne (`Offline`, ADR-096) est servie comme les autres :
+        // avec les valeurs du visiteur, et ses boutons marchent sans JavaScript. La copie, elle, est
+        // demandée par le service worker sans cookie : le serveur, qui ne connaît pas ce visiteur,
+        // rend la page de départ, la même pour tous.
         // Un .holo demandé pour être affiché : sa page, fabriquée pour ce visiteur. Demandé par le
         // moteur (`text/plain`), le fichier lui-même. Une adresse sans `.holo` (`/contact`, un
         // modèle `profil/{id}.holo`) est toujours une page (ADR-078).
@@ -1288,6 +1292,30 @@ mod tests {
         let reopened = Site::open(&folder, &web).unwrap();
         let html = String::from_utf8(reopened.answer(&ask("GET", "/shop.holo", &cookie, b"")).body).unwrap();
         assert!(html.contains("Panier : <span data-state=\"cart\">2</span>"), "{html}");
+        let _ = std::fs::remove_dir_all(folder);
+    }
+
+    #[test]
+    fn an_offline_page_keeps_its_values_without_javascript() {
+        // ADR-096 : une page qui offre une copie hors-ligne est une page comme les autres. Sans
+        // JavaScript, ses boutons partent par le formulaire des gestes, et elle montre les valeurs
+        // du visiteur (la première version la servait toujours avec celles du départ).
+        let (site, folder) = site();
+        std::fs::write(folder.join("carnet.holo"), include_str!("../../exemples/lecons/119-une-page-hors-ligne.holo")).unwrap();
+        let first = String::from_utf8(site.answer(&ask("GET", "/carnet.holo", "", b"")).body).unwrap();
+        assert!(first.contains("Compteur local : <span data-state=\"count\">0</span>") && first.contains("value=\"Add.tap\"") && first.contains("class=\"holo-Offline\""), "{first}");
+        let reply = site.answer(&ask("POST", "/carnet.holo", "", b"signal=Add.tap"));
+        assert_eq!(reply.status, 303);
+        let cookie = reply.headers.iter().find(|(n, _)| n == "Set-Cookie").map(|(_, v)| v.split(';').next().unwrap().to_string()).unwrap();
+        assert_eq!(site.answer(&ask("POST", "/carnet.holo", &cookie, b"signal=Add.tap")).status, 303);
+        let html = String::from_utf8(site.answer(&ask("GET", "/carnet.holo", &cookie, b"")).body).unwrap();
+        assert!(html.contains("Compteur local : <span data-state=\"count\">2</span>") && html.contains(" data-visit=\"count=2"), "{html}");
+        // La copie, demandée sans cookie par le service worker : la page d'un premier visiteur, sans
+        // rien qui la ferait refuser (une réponse privée, un cookie, un compte, des valeurs partagées).
+        let copy = site.answer(&ask("GET", "/carnet.holo", "", b""));
+        assert!(copy.headers.iter().all(|(n, v)| n != "Set-Cookie" && !(n == "Cache-Control" && (v.contains("private") || v.contains("no-store")))), "{:?}", copy.headers);
+        let copy = String::from_utf8(copy.body).unwrap();
+        assert!(copy.contains("Compteur local : <span data-state=\"count\">0</span>") && !copy.contains("holo-account") && !copy.contains("data-shared="), "{copy}");
         let _ = std::fs::remove_dir_all(folder);
     }
 

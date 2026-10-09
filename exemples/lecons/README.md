@@ -123,6 +123,10 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 113 | [Une rangée qui se serre](113-une-rangee-qui-se-serre.holo) | `narrow: { … }` dans les cases d'un `Row` : `.carte { width: 45%; narrow: { padding: 8px; } }` |
 | 114 | [L'historique dans une page](114-l-historique-dans-une-page.holo) | `address: [onglet, page]` : les valeurs dans l'adresse, un pas d'historique par toucher, une adresse qui se partage |
 | 115 | [Des polices pour toutes les écritures](115-des-polices-pour-toutes-les-ecritures.holo) | `Font(family: "Inter")` sans fichier : les polices libres du moteur, l'arabe, le devanagari, le japonais, l'éthiopien |
+| 116 | [Importer et exporter](116-importer-et-exporter.holo) | `Transfer(file: "notes.json", values: [note, notes])`, `File.export`, `File.import` : un fichier JSON des valeurs annoncées ; l'import est complet ou refusé (de Codex) |
+| 117 | [L'appareil sur permission](117-appareil-sur-permission.holo) | `Device(kind: position \| clipboard \| camera \| microphone)`, `request`, `write`, `stop` : sur un bouton, jamais à l'ouverture ; rien n'est envoyé ; arrêt d'office (de Codex) |
+| 118 | [Des notifications locales](118-notifications-locales.holo) | `Notification(title:, body:, after: 3s)`, `show`, `stop` : un rappel tant que la page reste ouverte ; permission et refus (de Codex) |
+| 119 | [Une page hors-ligne](119-une-page-hors-ligne.holo) | `Offline(files: [])`, `save`, `remove` : une copie publique, rechargée sans réseau, puis effacée ; sans JavaScript, la page reste une page comme les autres (de Codex) |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 
