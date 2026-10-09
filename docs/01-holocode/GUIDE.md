@@ -1613,6 +1613,8 @@ Page(
 
 La leçon est `98-un-dessin.holo`.
 
+**Des formes venues d'une liste** (`ADR-088`) : `Drawing(…, shapes: flower)`, une forme par élément, `Item(form: "circle", x: 10, y: 20, r: 5, fill: "#E9B44C")` (`form` vaut `"rect"`, `"circle"`, `"line"` ou `"path"` ; un trait prend `x1`, `y1`, `x2`, `y2`). Un module enfermé peut rendre cette liste : il « dessine » sans toucher au dessin du navigateur, et le moteur vérifie chaque forme. La leçon est `110-un-module-qui-dessine.holo`.
+
 ## 6 tertricies. Un tableau de bord : `Chart`
 
 Un graphique, dessiné par le moteur d'après une liste à champs (`ADR-087`).
@@ -2161,7 +2163,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Repeat` | `items`, `children`, `rules` | Dans `children` |
 | `Font` | `family`, `source` | Dans `fonts:` d'une `Page` |
 | `Module` | `name`, `source`, `input`, `output` (un nom, ou une liste de noms, `ADR-077`), `time`, `memory` ; capacité `run` ; signaux `done`, `failed` | Dans `modules:` d'une `Page` ; annoncé en haut du fichier, `module "…"` |
-| `Drawing` | `label`, `width`, `height`, `children` | Partout dans `children` ; contient des formes |
+| `Drawing` | `label`, `width`, `height`, `children`, `shapes` (une liste de formes, `ADR-088`) | Partout dans `children` ; contient des formes |
 | `Rect`, `Circle`, `Line`, `Path` | `x`, `y`, `width`, `height`, `radius` ; `r` ; `from`, `to` ; `d` ; et `fill`, `stroke`, `thickness`, `opacity` | Seulement dans un `Drawing` |
 | `Chart` | `kind` (`bars`, `line`, `pie`), `over`, `value`, `label`, `title`, `color` | Partout dans `children` |
 | `Item` | `key`, et les champs de l'élément | Dans `items` d'un `Repeat` |
@@ -2263,7 +2265,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 
 ## 11. Ce qui n'existe pas encore
 
-- Un module ne dessine pas encore (des ordres de dessin, l'étape 4 du lot 9) ; un dessin n'a pas encore de texte ni de dégradé.
+- Un dessin n'a pas encore de texte ni de dégradé ; une liste de formes en garde cent au plus.
 - Les données venues d'un autre serveur ; les comptes.
 - Pour les valeurs partagées : un champ qui en change une, une liste partagée, une limite au nombre de touchers d'un visiteur.
 - Pour les valeurs : pas de nombre négatif ; une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).

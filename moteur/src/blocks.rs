@@ -38,7 +38,7 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     ("Filter", crate::computed::PARAMS),
     ("Days", crate::computed::DAYS_PARAMS),
     ("Shape", &["name", "form", "color", "size"]),
-    ("Drawing", &["name", "label", "width", "height", "children"]),
+    ("Drawing", &["name", "label", "width", "height", "children", "shapes"]),
     ("Chart", crate::chart::PARAMS),
     ("Rect", crate::drawing::RECT),
     ("Circle", crate::drawing::CIRCLE),

@@ -601,6 +601,17 @@ pub fn chart_html(source: &str, state: &str, spec: &str) -> String {
     chart::drawing(&spec, elements)
 }
 
+/// Les formes d'un dessin venues d'une liste, pour cet état (ADR-088) : la page les pose à la
+/// place des anciennes quand la liste change. Vide si la liste n'existe pas.
+pub fn shapes_html(source: &str, state: &str, list: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    let (numbers, texts) = (state::reread(&program, state), state::reread_texts(&program, state));
+    let mut lists = lists::reread(&program, state);
+    let computed = computed::apply(&program, &numbers, &texts, &lists);
+    lists.extend(computed);
+    lists.iter().find(|(name, _)| name == list).map(|(_, elements)| drawing::listed_shapes(elements)).unwrap_or_default()
+}
+
 /// Les valeurs qu'un signal fait changer (`time;score`) : leurs horloges repartent de zéro.
 pub fn touched_ones(source: &str, signal: &str) -> String {
     let signal = lists::signal_and_line(signal).0;

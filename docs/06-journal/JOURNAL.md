@@ -89,6 +89,17 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-08 — Lot 9, quatrième pas : un module qui dessine
+
+- Fait (`ADR-088`) : `Drawing(…, shapes: fleur)` ; les formes d'un dessin peuvent venir d'une liste à champs, une par élément (`form`, et les champs des formes écrites). Un module rend cette liste comme n'importe quelle valeur : il « dessine » sans toucher au dessin du navigateur ; le moteur vérifie chaque forme et laisse de côté les fausses. Leçon 110 : une fleur dont le module calcule les pétales (un sinus sans bibliothèque).
+- Raté puis corrigé : le premier essai déclarait dans `State` des éléments aux champs différents, ce que le moteur refuse ; les formes d'une liste arrivent pendant la visite (un module, des données), et l'essai les fait maintenant arriver ainsi.
+- Vérifié : tous les tests du moteur ; dans Chrome, aucune forme au départ, puis 6 pétales et le cœur, puis 9 pétales (« 11 formes dessinées ») ; le module essayé dans Node avant, de 0 à 99 pétales (borné à 24).
+- La session du PC a ouvert la PR 173 (lot 5, les adresses, sur `holo serve`) ; elle relie la leçon 96 à sa leçon 100, et ce lot la relie à la 97 : la suite finale est notée dans le tableau « Qui fait quoi ».
+
+![La leçon 110 : une fleur à six pétales, dessinée par un module](images/2026-10-08-web-lot9-un-module-qui-dessine.png)
+
+---
+
 ## 2026-10-07 — Lot 9, troisième pas : un tableau de bord, `Chart`
 
 - Fait (`ADR-087`) : `Chart(kind: bars | line | pie, over:, value:, label:, title:)`, dessiné par le moteur en SVG d'après une liste à champs ; un tableau caché donne les mêmes chiffres au lecteur d'écran ; le graphique suit sa liste. Leçon 99 : des ventes reçues du serveur, en barres et en parts ; une vente ajoutée se dessine tout de suite. C'est le dixième parcours du « web viable » : recevoir, calculer, dessiner.

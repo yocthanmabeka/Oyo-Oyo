@@ -645,10 +645,11 @@ mod tests {
             // Le HTML et les médias qui manquent (ADR-073).
             include_str!("../../exemples/lecons/95-un-article-long.holo"),
             include_str!("../../exemples/lecons/96-une-video-sous-titree.holo"),
-            // Les capacités larges (ADR-077, ADR-086, ADR-087).
+            // Les capacités larges (ADR-077, ADR-086, ADR-087, ADR-088).
             include_str!("../../exemples/lecons/97-un-module-qui-recoit-une-liste.holo"),
             include_str!("../../exemples/lecons/98-un-dessin.holo"),
             include_str!("../../exemples/lecons/99-un-tableau-de-bord.holo"),
+            include_str!("../../exemples/lecons/110-un-module-qui-dessine.holo"),
             // Les valeurs partagées (ADR-079).
             include_str!("../../exemples/lecons/101-une-valeur-partagee.holo"),
         ];

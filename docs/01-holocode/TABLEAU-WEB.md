@@ -680,7 +680,7 @@
 | En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|
 | `Sound(volume:, loop:), play, stop` | `Web Audio` | jouer, régler un son | En partie | Déjà là | Volume, boucle, arrêt (ADR-061). Pas de mélange ni d'effets. |
-| `Shape`, `Drawing` | `Canvas 2D` | dessiner librement | En partie | Plus tard | Le dessin déclaré existe (`Drawing`, ADR-086) ; le dessin trait par trait reste refusé ; un module qui rend des ordres de dessin : l'étape 4 du lot 9. |
+| `Shape`, `Drawing`, `Drawing(shapes:)` | `Canvas 2D` | dessiner librement | En partie | Plus tard | Le dessin déclaré existe (`Drawing`, ADR-086), et un module peut rendre une liste de formes vérifiées (ADR-088) ; le dessin trait par trait reste refusé ; cent formes par liste. |
 | `le moteur dessine des points` | `WebGL, WebGPU` | la 3D | En partie | Oui, utile | Pas encore d'objets pleins : l'essai de la chaise. |
 | — | `géolocalisation, caméra, vibration` | l'appareil du visiteur | Non | Plus tard | — |
 | — | `presse-papiers, partage` | copier, partager | Non | Plus tard | — |

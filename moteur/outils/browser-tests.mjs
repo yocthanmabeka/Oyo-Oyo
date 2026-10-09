@@ -346,6 +346,18 @@ const tests = [
     const ok = bars === 5 && parts === 5 && captions === "Les ventes de la semaine, en euros | La part de chaque jour" && grown && kept && table.includes("Samedi180") && hidden;
     return [ok, `5 barres et 5 parts au départ : ${bars}, ${parts} ; titres : ${captions} ; une vente ajoutée, 6 et 6 : ${grown}, gardée : ${kept} ; tableau caché, « Samedi 180 » : ${table.includes("Samedi180")}, caché : ${hidden}`];
   }],
+  ["un module qui dessine : il rend une liste de formes, le moteur les vérifie et les dessine (leçon 110)", async (p) => {
+    await p.open("/exemples/lecons/110-un-module-qui-dessine.holo");
+    const shapes = () => p.value(`document.querySelectorAll("svg.holo-Drawing .holo-shapes > *").length`);
+    const before = await shapes();
+    await p.click('[data-name="Dessiner"]');
+    const six = await p.until(`document.querySelectorAll("svg.holo-Drawing .holo-shapes circle").length === 7`, 40000);
+    await p.value(`(() => { const s = document.querySelector('[data-bind="petales"]'); s.value = "9"; s.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+    await p.click('[data-name="Dessiner"]');
+    const nine = await p.until(`document.querySelectorAll("svg.holo-Drawing .holo-shapes circle").length === 10 && document.getElementById("page").innerText.includes("11 formes dessinées.")`, 10000);
+    const ok = before === 0 && six && nine;
+    return [ok, `avant : ${before} forme ; 6 pétales et le cœur : ${six} ; 9 pétales, « 11 formes dessinées » : ${nine}`];
+  }],
   ["un module enfermé rend son nombre", async (p) => {
     await p.open("/exemples/lecons/69-module-enferme.holo");
     await p.click('[data-name="Calculer"]');
