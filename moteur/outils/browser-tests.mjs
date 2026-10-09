@@ -1,5 +1,3 @@
-import { sharingTests } from "../../proposals/GPT5.6/fin-partage-2026-10-08/browser-tests.mjs";
-import { passkeyTests } from "../../proposals/GPT5.6/fin-passkeys-2026-10-08/browser-tests.mjs";
 // Les essais dans un vrai navigateur : Chrome sans fenêtre, piloté par son protocole (DevTools),
 // sans rien installer. Le serveur d'essai est lancé sur un port libre ; chaque essai ouvre une
 // page, joue des gestes comme une main (souris, clavier, doigts) et vérifie ce qui doit se passer.
@@ -14,6 +12,8 @@ import { passkeyTests } from "../../proposals/GPT5.6/fin-passkeys-2026-10-08/bro
 // Rend « OK » ou « RATÉ » par essai, et un code de sortie 1 s'il y a un raté.
 
 import { accountDebtTests } from "../../proposals/GPT5.6/fin-comptes-2026-10-08/browser-tests.mjs";
+import { passkeyTests } from "../../proposals/GPT5.6/fin-passkeys-2026-10-08/browser-tests.mjs";
+import { sharingTests } from "../../proposals/GPT5.6/fin-partage-2026-10-08/browser-tests.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { createHmac } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
