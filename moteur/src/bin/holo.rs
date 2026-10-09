@@ -282,7 +282,7 @@ fn main() -> ExitCode {
             // Les valeurs que l'adresse porte après le `?` (ADR-091), que donne le serveur
             // (HOLO_QUERY=tab=photos&page=2) : la page est fabriquée avec elles.
             match json {
-                Some(json) => holo_engine::flat_view_with_data(&source, folder, &json),
+                Some(json) => holo_engine::flat_view_with_data_at(&source, folder, &json, &std::env::var("HOLO_QUERY").unwrap_or_default()),
                 None => holo_engine::flat_view_at(&source, folder, &std::env::var("HOLO_QUERY").unwrap_or_default()),
             }
         }

@@ -18,6 +18,34 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Les corrections du nuage (PR 208) relues, et raccordées à la fin du lot 9
+
+- Relue : la PR 208 de la session du nuage, qui répond aux remarques de Codex sur la chaîne du lot 9 (huit corrections, deux défauts anciens du démarrage). Bonne : chaque correction a son essai, écrit pour rater avec l'ancien code ; le code reste sobre (un chronomètre rangé sous `fichier|nom`, l'adresse qui ne compte au démarrage que si elle nomme une valeur de la page, un nom inconnu après le `#` qui laisse la page où elle est, comme un navigateur devant une ancre inconnue). Ses deux remarques refusées sont justifiées.
+- `main` (la fin du lot 9, PR 219 ; les petites dettes HTML, PR 218) fusionnée dans sa branche, `langage/lot9-corrections`, pour que la PR 208 se fusionne telle quelle. Un seul conflit de code, dans `openFile` (`page-engine.js`), où chacune ajoutait sa ligne après `displaySite(…)` : gardées les deux, dans l'ordre que la PR 208 indiquait, `if (inHistory) followAddress(false);` puis `await prepareHost();`. Le journal : toutes les entrées gardées.
+- Exécuté, après une reconstruction complète (les deux WebAssembly, `holo`, les liaisons) : `cargo test --release` → 198 tests passent (les deux nouveaux de la PR 208) ; `cargo test` → 198 ; `node outils/browser-tests.mjs` → 68 essais `OK`, aucun raté, 115 leçons ouvertes, 483 s (dont les trois essais nouveaux de la PR 208).
+
+**Erreurs en route**
+
+- J'ai d'abord fusionné la PR 208 dans une branche à moi, par-dessus la fin du lot 9 ; la session du PC a préféré que la PR 208 se fusionne elle-même : refait dans sa branche, à partir de `main`, avec le même code (vérifié : seuls les documents diffèrent).
+- Une première passe de la suite dans Chrome s'est figée sur la leçon 9 (l'outil attendait une réponse de Chrome qui n'est jamais venue ; la page, elle, répondait) : arrêtée, l'essai relancé seul passe (115 leçons), puis la suite entière.
+
+---
+
+## 2026-10-09 — Le tableau du web : les mots des lots 7 et 9, offset, la police du moteur, et un outil qui refait le fichier
+
+- Fait (issue #186, première partie, prise par la session du nuage à la demande de Yocthan) : la page en ligne « HoloCode face au web » et `TABLEAU-WEB.md` ont les mots qui manquaient.
+  - Lot 9 : les paramètres du dessin (`width`, `height`, `r`, `radius`, `d`, `from`, `to`, `fill`, `stroke`, `thickness`, ADR-086), `kind` et `bars, line, pie` (ADR-087), `shapes` et `x1`…`y2` (ADR-088).
+  - Lot 7 : `access, members, everyone`, `signedIn, {account}`, `/account` et ses pages (ADR-081) ; « paiement, comptes » passe de « non » à « en partie ».
+  - `offset` dans `Filter`, et des listes de deux cents éléments (ADR-084, fusionné par #211).
+  - La police du moteur, `Font(family: "…")` sans fichier (ADR-092, à l'essai).
+  - Le lot 6 (`Shared`) y était déjà. 423 mots : 421 décidés, 2 à l'essai ; 132 éléments du web.
+- `outils/web_table.py` refait `TABLEAU-WEB.md` depuis la page enregistrée, comptes compris, comptés comme la page les compte ; `--check` vérifie sans écrire. Vérifié par un aller-retour : la page d'avant redonnait le fichier de `main` à l'identique, sauf les deux lignes des polices que #195 avait écrites seulement dans le fichier.
+- Réparé en route : deux cases mal affichées sur GitHub (une barre verticale dans `Input(type: date | time | color)`, des accents graves imbriqués) ; sur un téléphone, la page en ligne débordait en largeur à cause d'une pastille longue : elle passe maintenant à la ligne.
+- Puis la fin du lot 9, fusionnée par #219 (ADR-093 à 096 : `Transfer`, `Device`, `Notification`, `Offline`, leurs paramètres et leurs demandes) : ajoutée à la page en ligne par la session du PC (version 33), et le même ajout fait en même temps par la session du nuage, abandonné pour garder le sien. La version 34 retire une phrase restée de l'ancien tableau (« le pourcentage dit… ») ; `TABLEAU-WEB.md` est refait par l'outil depuis elle : 444 mots (442 décidés, 2 à l'essai), 134 éléments du web.
+- Reste (fin de l'issue) : les mots des reprises des lots 6 et 7 (ADR-080, ADR-082, ADR-083), dès leur fusion ; et `Term` (ADR-097, #220) à sa fusion.
+
+---
+
 ## 2026-10-09 — La fin du lot 9 de Codex intégrée : un fichier, l'appareil, une notification, une copie hors-ligne
 
 - Fusionnée sur `integration/codex-203`, après la PR 201 : la PR 203 de Codex. Quatre blocs, rangés dans les enfants de `Page`, qui ne demandent rien au navigateur sans le toucher d'un bouton : `Transfer` (un fichier JSON des valeurs annoncées, importé tout entier ou refusé), `Device` (la position, le presse-papiers, un aperçu de la caméra, le microphone ; arrêt d'office), `Notification` (un rappel tant que la page est ouverte), `Offline` (la copie d'une page publique, le réseau d'abord, rien de mis en attente). Les leçons 116 à 119, et ses essais dans Chrome.
@@ -55,6 +83,31 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
   - issue 217 : la citation courte.
 
   Chacune a sa décision (`ADR-097` à `ADR-101`) et sa leçon (120 à 124). Les fichiers partagés se modifient en ajout seulement. La réserve est écrite dans `AGENTS.md`.
+
+---
+
+## 2026-10-09 — Les remarques de Codex sur la chaîne du nuage : huit corrections, et deux défauts anciens
+
+- Fait : les remarques de la relecture automatique de Codex sur les PR #191 à #195, vérifiées une à une. Huit étaient justes, corrigées dans une PR à part, à la suite de la chaîne :
+  - une page servie avec ses données et ouverte sur un endroit (`#section`) relit ses données tout de suite, au lieu de rester sur l'état du début ;
+  - un chronomètre est rangé sous son fichier et son nom : celui d'une autre page est un autre chronomètre ; revenu sur sa page, son cadran suit ;
+  - un module ne rend jamais une valeur partagée, même dans une liste (`output: [best, seats]`) ;
+  - `holo html` fabrique la page avec ses données, puis avec l'adresse ; le navigateur les reprend dans le même ordre ;
+  - « Précédent » entre deux adresses qui gardent un endroit (`?onglet=b#details`) remet aussi les valeurs ;
+  - le titre compte les éléments des listes (`{tasks} tâche(s)`) après chaque ajout ;
+  - un toucher arbitré par le serveur (`Shared`) fait un pas dans l'historique, comme les autres ;
+  - une page où le moteur revient par un point (`inside: "fichier.holo"`) remet ses valeurs dans l'adresse.
+- En essayant la première, deux défauts plus anciens, aussi sur `main` : une page servie, ouverte sur un endroit (`#Bas`), arrêtait le moteur au démarrage (« Le moteur a refusé ce fichier ») : il cherchait les points du site affiché avant d'en afficher un. Et un nom que rien ne porte après le `#` (un lien ancien, une faute) l'arrêtait aussi. Corrigés : devant un nom inconnu, la page reste où elle est, comme un navigateur devant une ancre inconnue, au démarrage comme avec « Précédent ».
+- Deux n'étaient pas justes : un graphique sur une liste calculée suit bien ses changements (l'état que le moteur écrit contient les listes calculées) ; les noms français des leçons et de leurs modules suivent la règle (`AGENTS.md` : « les leçons et la documentation restent en français »).
+- La fin du lot 9 (étapes 5 à 8 : import et export, appareil, notifications, hors-ligne) est reprise par Codex, à la demande de Yocthan (issue #202, PR #203) : la session du nuage ne la refait pas.
+- Exécuté : `cargo test` → 175 tests passent (deux nouveaux, un complété) ; dans Chrome, trois essais nouveaux (« passer d'un fichier à l'autre », « une page servie avec ses données, ouverte sur un endroit ou sur un nom inconnu », « une valeur d'adresse donnée par les données reste, sur une adresse nue »), qui ratent avec l'ancien code ; la suite entière : 42 essais passent, et les 2 ratés déjà connus dans ce conteneur (« pincer à deux doigts », qui passe relancé seul, et « la vue points se lit au lecteur d'écran »).
+
+**Erreurs en route**
+
+- Mes deux premiers essais suivaient les liens d'une leçon à l'autre : un lien recharge toute la page, il ne passe jamais par le chemin que Codex décrivait (le moteur qui passe lui-même d'un fichier à l'autre, par un point). Deux pages d'essai passent maintenant par des points.
+- Mon premier essai de l'endroit (`#rien`) nommait un endroit qui n'existe pas : le moteur s'arrêtait avec ou sans la correction. Avec un vrai endroit, il s'arrêtait aussi : c'est ainsi que sont apparus les deux défauts anciens.
+- Dans l'essai, passer de `#Bas` à `#rien` ne rechargeait pas la page (seul le `#` changeait) : il ouvre maintenant une autre page entre les deux.
+- Ma correction de l'ordre (les données, puis l'adresse) remettait au départ, sur une adresse nue, une valeur d'adresse que les données donnent : le serveur montrait la page 5, le moteur repassait à la page 1. Codex l'a relevé sur #208. L'adresse ne compte maintenant au démarrage que si elle nomme une valeur de la page (une adresse nue, ou `?values`, garde les données), sur le serveur comme dans le navigateur.
 
 ---
 
