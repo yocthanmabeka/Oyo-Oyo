@@ -1,0 +1,1 @@
+La vidéo montre une mire de couleurs et joue un son continu. Ce fichier donne la même information sans la vidéo.
