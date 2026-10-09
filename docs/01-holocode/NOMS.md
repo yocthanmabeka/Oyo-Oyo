@@ -48,6 +48,10 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Button` | `button` | repris, avec une majuscule |
 | `Image` | `img` | changé : le mot entier |
 | `Shape` | `div` avec du CSS, ou `svg` | changé : quatre formes nommées |
+| `Drawing` | `svg role="img" aria-label` | changé : le nom (`label`) est obligatoire ; les mesures sont celles du dessin, qui garde ses proportions |
+| `Rect`, `Circle`, `Line`, `Path` | `rect`, `circle`, `line`, `path` | repris, avec des mots lisibles : `x`, `y`, `r`, `radius`, `from`, `to`, `thickness` au lieu de `cx`, `rx`, `x1`, `stroke-width` ; un tracé filtré |
+| `Chart` | une bibliothèque de graphiques en JavaScript (Chart.js), ou `svg` à la main | nouveau : un mot pour une intention fréquente ; dessiné par le moteur, avec un tableau caché pour le lecteur d'écran |
+| `Stopwatch`, `start`, `stop`, `reset`, `stopped` | `performance.now()`, `requestAnimationFrame`, `role="timer"` | nouveau : un chronomètre que la page fait tourner ; le moteur ne reçoit que le temps final |
 | `Enter` | `@keyframes` + `animation` (de… vers…), ou `element.animate()` | changé : on écrit seulement d'où le bloc part |
 | `Loop` | `animation: … infinite alternate` | changé : on écrit seulement où il va |
 | `Scenes`, `Scene` | une suite de `animation-delay` calculés à la main, ou un chef d'orchestre en JavaScript | changé : les scènes s'enchaînent seules |
@@ -79,13 +83,13 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `--or` (une variable) | `--or` et `var(--or)` | repris, employé sans `var( )` ; refusé s'il n'est défini nulle part |
 | `dark:`, `phone:` dans un style | `@media (prefers-color-scheme: dark)`, `@media (max-width: 640px)` | changé : des états du style, comme `hover:` |
 | `computer:` dans un style | `@media (min-width: 1024px)` | changé : un état du style, comme `phone:` (`ADR-069`, à valider) |
-| `narrow:` dans un style | `@container (max-width: …)`, avec `container-type` déclaré à la main | changé : la case de `Grid` fait moins de 320px ; rien à déclarer, la page mesure chaque case (`ADR-069`, à valider) |
+| `narrow:` dans un style | `@container (max-width: …)`, avec `container-type` déclaré à la main | changé : la case de `Grid`, ou la part d'un `Row` ou d'un `Column` (`grow:`, une largeur en %), fait moins de 320px ; rien à déclarer, la page mesure chaque case (`ADR-069`, `ADR-090`, à valider) |
 | `Font(family:, source:)` et `fonts:` | `@font-face` | changé : déclaré sur la page ; toujours `font-display: swap` |
 | `url("fond.jpg")` dans `background` | `background-image`, `background-size`, `background-repeat` | changé : l'image couvre toujours le bloc |
 | `State(tasks: [])`, `push`, `remove(item)`, `clear` | un tableau JavaScript, `push`, `splice`, `length = 0` | changé : une valeur de la page, changée par des demandes ; on retire la ligne touchée |
 | `Repeat(over: tasks)` | `map` qui fabrique du HTML à chaque changement | changé : le moteur fabrique les lignes, et échappe ce que le visiteur a écrit |
 | `text.set("")` | `input.value = ""` | changé : une demande |
-| `module "…"`, `Module`, `run`, `done`, `failed` | `<script src>`, `new Worker`, `WebAssembly.instantiate` | changé : annoncé en haut du fichier, enfermé (un fil à part, une mémoire plafonnée, rien d'autre), arrêté s'il dure trop |
+| `module "…"`, `Module`, `run`, `done`, `failed` | `<script src>`, `new Worker`, `WebAssembly.instantiate` | changé : annoncé en haut du fichier, enfermé (un fil à part, une mémoire plafonnée, rien d'autre), arrêté s'il dure trop ; il reçoit et rend des valeurs de la page en JSON, relu avec méfiance (`ADR-077`) |
 | `bridge js`, `bridge css` | `<script>`, `<link>` vers du code existant | refusés (`ADR-011`, partie B) |
 | `mul`, `div` | `*=`, `/=`, `Math.floor` | changé : deux demandes, en nombres entiers |
 | `computed:`, `Filter(name:, from:)` | `array.filter()`, `array.sort()`, `array.slice()` | changé : une liste nommée, refaite seule à chaque changement (`ADR-062`) |
@@ -154,6 +158,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `meets:`, `within:` | aucun | nouveaux |
 | `drag:` | `draggable`, `pointermove` | changé : un réglage, rien à programmer |
 | `keep:` | `localStorage` | changé : une liste de noms, rien à programmer |
+| `address:` (sur `Page`) | `history.pushState`, `URLSearchParams`, `popstate` | changé : une liste de noms ; un toucher fait un pas d'historique, le serveur lit les mêmes valeurs (`ADR-091`, à valider) |
 | `x:`, `y:` | `left`, `top` | changés : de 0 à 100, jamais hors du plateau |
 | `by:` | `cite` | changé |
 | `is:`, `not:`, `over:`, `under:` | `===`, `!==`, `>`, `<` | changés : des mots, pas des signes |

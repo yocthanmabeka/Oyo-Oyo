@@ -27,7 +27,7 @@
 
 ## Ce qui n'est pas fait
 
-- **L'historique** (avant, arrière) à l'intérieur d'une page : chaque fichier `.holo` a déjà son adresse, et « retour » marche entre les pages et les mondes ; garder l'état d'une page dans son adresse viendra avec le premier vrai serveur (lot 5, des adresses comme `/profil/123`).
+- **L'historique** (avant, arrière) à l'intérieur d'une page : chaque fichier `.holo` a déjà son adresse, et « retour » marche entre les pages et les mondes ; garder l'état d'une page dans son adresse viendra avec le premier vrai serveur (lot 5, des adresses comme `/profil/123`). Réglé par l'`ADR-091` : `Page(address: [onglet, page])`.
 - Plusieurs pistes de sous-titres, une audiodescription, une image d'attente pour la vidéo.
 
 ## Critères de validation

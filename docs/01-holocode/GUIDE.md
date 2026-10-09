@@ -1170,7 +1170,8 @@ Page(
 - **`On(Card.hover, …)` et `On(Card.hoverEnd, …)`** : la souris arrive sur un bloc nommé, puis le quitte. Le clavier y arrive aussi (Tab), et le doigt sur un téléphone : toucher le bloc le survole, toucher ailleurs le quitte. Un survol change des valeurs ou joue un son ; pour entrer dans un monde, il faut toucher. Pour changer seulement l'allure, un style suffit : `hover: { … }`.
 - **`else: [ … ]`** dans un `If` : ce qu'on montre quand la condition est fausse.
 - **`After(3s, effect: …)`** : une seule fois, plus tard. Dans les règles de la page, l'attente part à l'ouverture ; sous une condition, elle part quand la condition devient vraie. Ici, « Added. » s'efface trois secondes après l'ajout.
-- **L'heure du visiteur** : `year`, `month`, `day`, `weekday` (1 lundi … 7 dimanche), `hour`, `minute`. On les montre et on les compare ; on ne les change pas. La page se tient à jour à chaque minute.
+- **L'heure du visiteur** : `year`, `month`, `day`, `weekday` (1 lundi … 7 dimanche), `hour`, `minute`, `second`. On les montre et on les compare ; on ne les change pas. La page se tient à jour à chaque minute ; à chaque seconde si elle montre `{second}` (`ADR-089`).
+- **Un chronomètre** (`ADR-089`) : `Stopwatch(name: Chrono, value: time, label: "My race")`, et `Chrono.start`, `Chrono.stop`, `Chrono.reset`. La page le fait tourner au centième ; le moteur reçoit le temps final, en millisecondes, dans `time`, puis `Chrono.stopped`. `{time:stopwatch}` l'écrit `01:23,45`. Leçon `111-un-chronometre.holo`.
 
 Ces ajouts sont décidés (`ADR-039`). Les leçons sont `45-survol-qui-agit.holo` à `48-heure.holo`.
 
@@ -1412,12 +1413,31 @@ Page(
 ```
 
 - **`module "sum.wasm"`** en haut du fichier : chaque module y est annoncé.
-- **`Module(name:, source:, input:, output:, time:, memory:)`** : il reçoit un nombre et en rend un ; `time` de 10ms à 5s, `memory` de 64KB à 16MB.
+- **`Module(name:, source:, input:, output:, time:, memory:)`** : il reçoit un nombre et en rend un, ou plusieurs valeurs (voir plus bas) ; `time` de 10ms à 5s, `memory` de 64KB à 16MB.
 - **`Sum.run`** le lance ; **`Sum.done`** : le nombre est arrivé ; **`Sum.failed`** : il a été arrêté.
 - La boîte : un fil à part (la page ne se bloque jamais), une mémoire plafonnée, rien d'autre (ni réseau, ni page, ni heure). Au-delà de son temps, il est arrêté.
 - `bridge js` et `bridge css` sont refusés : un pont ferait entrer du code sans garantie.
 
 Cette écriture est décidée (`ADR-045`). La leçon est `69-module-enferme.holo` ; ses trois modules, dans `exemples/lecons/modules/`.
+
+**Plusieurs valeurs, des textes, des listes** (`ADR-077`) : `input:` et `output:` acceptent une liste de noms.
+
+```holo
+module "marks.wasm"
+Page(
+  title: "Marks",
+  state: State(marks: [ Item(subject: "Maths", mark: "15.5") ], average: 0.0, best: "", count: 0),
+  modules: [ Module(name: Report, source: "marks.wasm", input: [marks], output: [average, best, count]) ],
+  children: [ Button(name: Go, text: "Compute"), P("{count} marks, average {average}, best: {best}") ],
+  rules: [ On(Go.tap, effect: Report.run) ],
+)
+```
+
+- Le module reçoit un texte JSON, `{"marks":[{"subject":"Maths","mark":"15.5"}]}`, et rend un objet JSON, `{"average":15.5,"best":"Maths","count":1}`.
+- Il offre `alloc(taille)` (où écrire ce qu'il reçoit) et `run(adresse, taille)` (l'adresse et la taille de sa réponse) : c'est le second contrat. Un module du premier, `run(nombre)`, marche toujours.
+- Le moteur relit la réponse comme des données d'un serveur : une valeur non annoncée dans `output`, ou de la mauvaise sorte, et toute la réponse est refusée (`Report.failed`) ; rien ne change.
+
+La leçon est `97-un-module-qui-recoit-une-liste.holo` ; ses modules, `bulletin.rs` et `menteur.rs`, dans `exemples/lecons/modules/`.
 
 ## 6 undetricies. Des adresses qui portent des valeurs : `profil/{id}.holo`
 
@@ -1439,9 +1459,43 @@ Page(
 - On la lit, on ne la change pas : `id.set(…)`, `Input(value: id)` et `State(id: …)` sont refusés.
 - `holo serve` (`ADR-074`) fabrique la page de l'adresse, avec ou sans JavaScript, garde l'état de chaque visiteur pour cette adresse, et range un formulaire envoyé de là avec son adresse ; `/contact` mène aussi à `contact.holo`.
 - `holo check profil/{id}.holo` vérifie le modèle, chaque nom valant un texte vide.
+- **Le titre lit les valeurs**, comme un texte : `title: "Le profil de {id}"` écrit « Le profil de ada » dans l'onglet ; un titre qui lit une valeur qui change (`{pages}`) suit ses changements (`ADR-090`).
+- **Les valeurs gardées (`keep`) sont rangées par adresse** : `/profil/ada` retrouve les siennes, `/profil/bob` part de zéro (`ADR-090` ; la leçon est `112-une-adresse-qui-se-souvient.holo`).
 - **Un lien remonte d'un dossier**, comme sur le web : `A(to: "../profiles.holo")` ; il porte aussi des lettres accentuées, `A(to: "profil/Adé")`.
 
 Cette écriture est proposée (`ADR-078`) ; la forme, l'adresse dite par le nom du fichier, est celle choisie par Yocthan. La leçon est `100-une-adresse-qui-porte-une-valeur.holo`.
+
+### L'historique dans une page : `address: [onglet, page]`
+
+```holo
+Page(
+  title: "Gallery",
+  state: State(tab: "paintings", page: 1),
+  address: [tab, page],
+  children: [
+    Row(gap: 8px, children: [
+      Button(name: Paintings, text: "Paintings"),
+      Button(name: Drawings, text: "Drawings"),
+    ]),
+    If(tab, is: "drawings", children: [ P("Charcoal, ink, red chalk.") ]),
+    P("Page {page}"),
+    Button(name: Next, text: "Next page"),
+  ],
+  rules: [
+    On(Paintings.tap, effect: [tab.set("paintings"), page.set(1)]),
+    On(Drawings.tap, effect: [tab.set("drawings"), page.set(1)]),
+    On(Next.tap, effect: page.add(1)),
+  ],
+)
+```
+
+- **`address: [tab, page]`** écrit ces valeurs dans l'adresse, après le `?` : `gallery.holo?tab=drawings&page=2`. Une valeur à son départ n'y est pas : la page du début garde son adresse nue.
+- **Un toucher ou une touche qui les change fait un pas** : « Précédent » revient à l'onglet d'avant, « Suivant » y retourne. Ce qu'on écrit dans un champ, le temps, les données reçues mettent l'adresse à jour sans faire de pas.
+- **L'adresse se partage** : la page arrive avec ses valeurs, fabriquée par le serveur, et même sans JavaScript avec `holo serve`.
+- Ce qui arrive par l'adresse vient de n'importe qui : seules les valeurs nommées sont reprises, dans leurs bornes ; un texte que la page n'écrit qu'avec des mots fixes (`tab.set("drawings")`, les options d'un `Choice`) n'en prend pas d'autre. Une valeur mal écrite part de son départ.
+- Refusés : une liste, une valeur gardée (`keep`), l'heure, une valeur du nom du fichier, et les noms que le moteur lit déjà dans une adresse (`values`, `view`, `zoom`, `x`, `y`…).
+
+Cette écriture est proposée (`ADR-091`) ; le nom `address:` est à valider par Yocthan. La leçon est `114-l-historique-dans-une-page.holo`.
 
 ## 6 tricies. Des valeurs partagées, en direct : `Shared`
 
@@ -1502,7 +1556,7 @@ H2 { font-size: 22px; narrow: { font-size: 16px; } }
 ```
 
 - **`phone: { … }`** vaut sur un écran plus étroit que la page (640px) ; **`computer: { … }`**, sur un écran de 1024px ou plus. `Page { max-width: 960px; }`, ou la même chose dans `computer:`, élargit la page (640px sans rien écrire).
-- **`narrow: { … }`** vaut quand la case de `Grid` où se trouve le bloc fait moins de 320px, quel que soit l'écran : c'est la place du bloc qui compte. Rien à déclarer : la page mesure chaque case.
+- **`narrow: { … }`** vaut quand la case de `Grid` où se trouve le bloc fait moins de 320px, quel que soit l'écran : c'est la place du bloc qui compte. Rien à déclarer : la page mesure chaque case. Dans un `Row` ou un `Column`, les cases mesurées sont celles qui reçoivent une part de la place, `grow:` ou une largeur en % : une carte de `width: 45%` se serre sur un téléphone, pas sur un ordinateur (`ADR-090` ; la leçon est `113-une-rangee-qui-se-serre.holo`).
 - **`display: none`** cache un bloc, dans `phone:`, `computer:` et `narrow:` seulement ; jamais ce qui agit (un bouton, un lien, un champ, un formulaire, un bloc qu'une règle écoute) : décision de Yocthan du 2026-10-07, sa règle de parité. Une phrase ou une image peuvent se cacher sur un seul appareil.
 
 ```holo
@@ -1564,6 +1618,63 @@ Aside { print: { display: none; } }
 - **`print: { … }`** dans un style : ce qui change sur papier ; `print: { display: none; }` cache un bloc. Le moteur cache de lui-même ses outils et écrit l'adresse des liens du web.
 
 Cette écriture est décidée (`ADR-073`). Les leçons sont `95-un-article-long.holo` et `96-une-video-sous-titree.holo`.
+
+## 6 duotricies. Un dessin : `Drawing` et ses formes
+
+Un dessin vectoriel, net à toute taille, que le lecteur d'écran lit par son nom (`ADR-086`).
+
+```holo
+Page(
+  title: "A landscape",
+  state: State(sun: 70),
+  children: [
+    Drawing(label: "A house, a hill and the sun", width: 320, height: 160, children: [
+      Rect(x: 0, y: 0, width: 320, height: 160, radius: 12, fill: "#16213e"),
+      Circle(x: 250, y: sun, r: 18, fill: "#E9B44C"),
+      Path(d: "M0 120 Q160 92 320 120 L320 160 L0 160 Z", fill: "#1f4037"),
+      Line(from: [0, 132], to: [320, 132], stroke: "#8fd3ff", thickness: 1),
+    ]),
+    Button(name: Rise, text: "Raise the sun"),
+  ],
+  rules: [ On(Rise.tap, effect: sun.sub(20)) ],
+)
+```
+
+- **`Drawing(label:, width:, height:, children:)`** : `label` dit ce que montre le dessin, pour qui ne le voit pas ; `width` et `height` sont les unités du dessin, qui garde ces proportions sur tous les écrans.
+- **Les formes**, seulement dans un `Drawing` : `Rect(x:, y:, width:, height:, radius:)`, `Circle(x:, y:, r:)`, `Line(from: [x, y], to: [x, y])`, `Path(d: "M… L… Z")` (un tracé SVG : M pour aller à un point, L pour tracer jusqu'à un autre, Q pour une courbe, Z pour fermer).
+- **`fill`** remplit, **`stroke`** trace le bord, **`thickness`** dit son épaisseur, **`opacity`** va de 0 à 1. Les formes se dessinent dans l'ordre : la dernière passe devant.
+- **Une mesure peut être le nom d'un nombre entier de la page** (`y: sun`) : la forme le suit.
+- Pas de dessin trait par trait en JavaScript : refusé.
+
+La leçon est `98-un-dessin.holo`.
+
+**Des formes venues d'une liste** (`ADR-088`) : `Drawing(…, shapes: flower)`, une forme par élément, `Item(form: "circle", x: 10, y: 20, r: 5, fill: "#E9B44C")` (`form` vaut `"rect"`, `"circle"`, `"line"` ou `"path"` ; un trait prend `x1`, `y1`, `x2`, `y2`). Un module enfermé peut rendre cette liste : il « dessine » sans toucher au dessin du navigateur, et le moteur vérifie chaque forme. La leçon est `110-un-module-qui-dessine.holo`.
+
+## 6 tertricies. Un tableau de bord : `Chart`
+
+Un graphique, dessiné par le moteur d'après une liste à champs (`ADR-087`).
+
+```holo
+Page(
+  title: "Sales",
+  state: State(sales: [], period: "", amount: ""),
+  data: Data(from: "sales.json"),
+  children: [
+    Chart(kind: bars, over: sales, value: amount, label: period, title: "Sales of the week"),
+    Chart(kind: pie, over: sales, value: amount, label: period, title: "Share of each day"),
+    Input(value: period, label: "Period"),
+    Input(value: amount, label: "Amount"),
+    Button(name: Add, text: "Add a sale"),
+  ],
+  rules: [ On(Add.tap, effect: [sales.push(Item(period: period, amount: amount)), period.set(""), amount.set("")]) ],
+)
+```
+
+- **`kind`** : `bars` (des barres), `line` (une courbe) ou `pie` (des parts) ; **`over`** : la liste ; **`value`** : le champ du nombre ; **`label`** : le champ du nom ; **`title`** : le titre, obligatoire ; **`color`** : la couleur des barres ou de la courbe.
+- Le lecteur d'écran lit un tableau caché, avec les mêmes chiffres.
+- Le graphique suit sa liste : des données reçues, une liste calculée, un élément ajouté.
+
+La leçon est `99-un-tableau-de-bord.holo`.
 
 ## 6 quinvicies. Des formulaires qui vérifient
 
@@ -2086,7 +2197,10 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `After` | la durée, puis `effect:` | Dans `rules` |
 | `Repeat` | `items`, `children`, `rules` | Dans `children` |
 | `Font` | `family`, `source` | Dans `fonts:` d'une `Page` |
-| `Module` | `name`, `source`, `input`, `output`, `time`, `memory` ; capacité `run` ; signaux `done`, `failed` | Dans `modules:` d'une `Page` ; annoncé en haut du fichier, `module "…"` |
+| `Module` | `name`, `source`, `input`, `output` (un nom, ou une liste de noms, `ADR-077`), `time`, `memory` ; capacité `run` ; signaux `done`, `failed` | Dans `modules:` d'une `Page` ; annoncé en haut du fichier, `module "…"` |
+| `Drawing` | `label`, `width`, `height`, `children`, `shapes` (une liste de formes, `ADR-088`) | Partout dans `children` ; contient des formes |
+| `Rect`, `Circle`, `Line`, `Path` | `x`, `y`, `width`, `height`, `radius` ; `r` ; `from`, `to` ; `d` ; et `fill`, `stroke`, `thickness`, `opacity` | Seulement dans un `Drawing` |
+| `Chart` | `kind` (`bars`, `line`, `pie`), `over`, `value`, `label`, `title`, `color` | Partout dans `children` |
 | `Item` | `key`, et les champs de l'élément | Dans `items` d'un `Repeat` |
 | `Repeat(over:)` | `over` (une liste de la page), `children`, `rules` | Dans `children` |
 | `When` | le nom d'une valeur, puis `is`, `not`, `over`, `under` ; ou le nom d'un bloc, puis `meets` et `within` ; et `effect:` | Dans `rules` |
@@ -2186,7 +2300,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 
 ## 11. Ce qui n'existe pas encore
 
-- Un module n'échange encore qu'un nombre contre un nombre.
+- Un dessin n'a pas encore de texte ni de dégradé ; une liste de formes en garde cent au plus.
 - Les données venues d'un autre serveur ; les comptes.
 - Pour les valeurs partagées : un champ qui en change une, une liste partagée, une limite au nombre de touchers d'un visiteur.
 - Pour les valeurs : pas de nombre négatif ; une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).

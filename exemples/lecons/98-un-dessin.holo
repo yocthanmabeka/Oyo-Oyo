@@ -1,0 +1,56 @@
+// Leçon 98 — Un dessin
+//
+// Ce qu'on apprend :
+//   Drawing(label: …, width: …, height: …, children: [ … ]) : un dessin, fait de formes. Il reste
+//   net à toute taille, et le lecteur d'écran lit son « label », comme le texte d'une image.
+//   Les formes :
+//     Rect : un rectangle (x, y, width, height ; radius arrondit ses coins) ;
+//     Circle : un rond (x, y, et r, son rayon) ;
+//     Line : un trait (from: [x, y], to: [x, y]) ;
+//     Path : un tracé, comme en SVG : M pour aller à un point, L pour tracer jusqu'à un autre,
+//            Z pour fermer.
+//   fill remplit une forme, stroke trace son bord, thickness dit l'épaisseur du trait.
+//   Les mesures sont dans les unités du dessin (ici 320 sur 160) : il garde ses proportions sur
+//   tous les écrans. Une mesure peut être le nom d'un nombre de la page : la forme le suit.
+//   Les formes se dessinent dans l'ordre : la dernière passe devant les autres.
+//
+// À essayer :
+//   « Lever le soleil », « Coucher le soleil » : il passe derrière la colline. Rétrécis la
+//   fenêtre : le dessin reste net.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 98 : un dessin",
+  state: State(soleil: 70),
+  children: [
+    H1("Un dessin"),
+    Drawing(label: "Un paysage : une maison, une colline, et le soleil", width: 320, height: 160, children: [
+      Rect(x: 0, y: 0, width: 320, height: 160, radius: 12, fill: "#16213e"),
+      Circle(x: 250, y: soleil, r: 18, fill: "#E9B44C"),
+      Path(d: "M0 120 Q160 92 320 120 L320 160 L0 160 Z", fill: "#1f4037"),
+      Line(from: [0, 132], to: [320, 132], stroke: "#8fd3ff", thickness: 1, opacity: 0.4),
+      Rect(x: 60, y: 82, width: 60, height: 40, fill: "#e0e0e0"),
+      Path(d: "M52 82 L90 54 L128 82 Z", fill: "#c0392b"),
+      Rect(x: 82, y: 100, width: 16, height: 22, fill: "#6d4c41"),
+    ]),
+    Row(gap: 8px, children: [
+      Button(name: Lever, text: "Lever le soleil"),
+      Button(name: Coucher, text: "Coucher le soleil"),
+    ]),
+    P("Le soleil est à {soleil} unités du haut du dessin."),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 97 : un module qui reçoit une liste", to: "97-un-module-qui-recoit-une-liste.holo"),
+      A("Leçon 99 : un tableau de bord →", to: "99-un-tableau-de-bord.holo"),
+    ]),
+  ],
+  rules: [
+    On(Lever.tap, effect: soleil.sub(20)),
+    On(Coucher.tap, effect: soleil.add(20)),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

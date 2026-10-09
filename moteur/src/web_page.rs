@@ -101,7 +101,50 @@ pub fn delays(source: &str, state: &str) -> String {
     crate::delays(source, state)
 }
 
-/// Ce qu'il faut pour faire tourner un module : `somme.wasm|10|100|16`.
+/// La seconde de l'appareil du visiteur (ADR-089).
+#[wasm_bindgen]
+pub fn set_second(second: u32) {
+    crate::set_second(u64::from(second));
+}
+
+/// Le fichier lit-il la seconde ? (ADR-089)
+#[wasm_bindgen]
+pub fn reads_seconds(source: &str) -> bool {
+    crate::reads_seconds(source)
+}
+
+/// Un chronomètre s'est arrêté : son temps final, en millisecondes (ADR-089).
+#[wasm_bindgen]
+pub fn stopwatch_stopped(source: &str, state: &str, name: &str, milliseconds: f64) -> String {
+    crate::stopwatch_stopped(source, state, name, milliseconds.max(0.0) as u64)
+}
+
+/// Le titre de la page pour cet état (ADR-090).
+#[wasm_bindgen]
+pub fn page_title(source: &str, state: &str) -> String {
+    crate::page_title(source, state)
+}
+
+/// Les valeurs que l'adresse porte après le `?`, posées sur l'état (ADR-091).
+#[wasm_bindgen]
+pub fn from_query(source: &str, state: &str, query: &str) -> String {
+    crate::from_query(source, state, query)
+}
+
+/// L'adresse que demandent les valeurs de la page, après le `?` (ADR-091).
+#[wasm_bindgen]
+pub fn address_query(source: &str, state: &str) -> String {
+    crate::address_query(source, state)
+}
+
+/// Les noms des valeurs que la page écrit dans son adresse : `tab,page` (ADR-091).
+#[wasm_bindgen]
+pub fn address_names(source: &str) -> String {
+    crate::address_names(source)
+}
+
+/// Ce qu'il faut pour faire tourner un module : `somme.wasm|10|100|16|1` (le dernier chiffre : le
+/// premier contrat suffit, ADR-077).
 #[wasm_bindgen]
 pub fn module_info(source: &str, state: &str, name: &str) -> String {
     crate::module_info(source, state, name)
@@ -111,6 +154,30 @@ pub fn module_info(source: &str, state: &str, name: &str) -> String {
 #[wasm_bindgen]
 pub fn module_finished(source: &str, state: &str, name: &str, value: f64) -> String {
     crate::module_finished(source, state, name, value.max(0.0) as u64)
+}
+
+/// Ce que reçoit un module du second contrat, en JSON (ADR-077).
+#[wasm_bindgen]
+pub fn module_input(source: &str, state: &str, name: &str) -> String {
+    crate::module_input(source, state, name)
+}
+
+/// La réponse d'un module du second contrat : le nouvel état, ou la raison du refus.
+#[wasm_bindgen]
+pub fn module_received(source: &str, state: &str, name: &str, json: &str) -> Result<String, JsValue> {
+    crate::module_received(source, state, name, json).map_err(|reason| JsValue::from_str(&reason))
+}
+
+/// Les formes d'un dessin venues d'une liste, pour cet état (ADR-088).
+#[wasm_bindgen]
+pub fn shapes_html(source: &str, state: &str, list: &str) -> String {
+    crate::shapes_html(source, state, list)
+}
+
+/// Le dessin d'un graphique pour cet état (ADR-087).
+#[wasm_bindgen]
+pub fn chart_html(source: &str, state: &str, spec: &str) -> String {
+    crate::chart_html(source, state, spec)
 }
 
 /// Les lignes d'une liste pour cet état.

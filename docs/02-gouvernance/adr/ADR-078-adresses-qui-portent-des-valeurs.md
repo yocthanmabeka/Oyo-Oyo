@@ -37,8 +37,8 @@
 ## Dettes
 
 - La proposition de la session du nuage reste ouverte : remplir une page de profil par `Data(from: "profils/{id}.json")`, lu par le serveur, et répondre « introuvable » sans ce fichier. Elle demande de restreindre `{id}` à des lettres, des chiffres, `-` et `_` (un nom de fichier) : à décider avec Yocthan.
-- Les valeurs gardées d'une page (`keep`) sont rangées sous le nom du modèle : `/profil/ada` et `/profil/yocthan` les partagent.
-- Le titre d'une page (`Page(title:)`) ne lit pas encore `{id}`.
+- ~~Les valeurs gardées d'une page (`keep`) sont rangées sous le nom du modèle : `/profil/ada` et `/profil/yocthan` les partagent.~~ Réglé par l'`ADR-090` : une par adresse.
+- ~~Le titre d'une page (`Page(title:)`) ne lit pas encore `{id}`.~~ Réglé par l'`ADR-090`.
 - Dans un modèle rangé dans un dossier `{x}`, un lien relatif part du dossier écrit (`…/{x}/`), pas de l'adresse.
 - L'extension VS Code est corrigée (`holo check` d'un modèle ; le bouton ▶ et Ctrl+Alt+H, cassés depuis l'`ADR-060`), mais à réemballer : `python outils/vscode-holocode/package.py`.
 

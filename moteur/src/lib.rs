@@ -15,15 +15,19 @@
 
 pub mod address;
 pub mod blocks;
+pub mod chart;
 pub mod components;
 pub mod computed;
 pub mod dates;
+pub mod drawing;
 pub mod state;
+pub mod stopwatch;
 pub mod files;
 pub mod format;
 pub mod gestures;
 pub mod seed;
 pub mod holo;
+pub mod history;
 pub mod lists;
 pub mod modules;
 pub mod mosaic;
@@ -73,9 +77,13 @@ pub fn check_page(source: &str) -> Result<Program, Error> {
     rules::check_rules(&program)?;
     view::settings(&program)?;
     // Les modules enfermés, et leur annonce en haut du fichier (ADR-045).
-    modules::modules(&program, &state::initial(&program)?)?;
+    modules::modules(&program)?;
+    // Les mesures d'un dessin liées à des valeurs de la page (ADR-086).
+    drawing::check(&program)?;
     // Les fichiers qu'un formulaire envoie (ADR-059).
     files::files(&program)?;
+    // Les chronomètres et la valeur de leur temps (ADR-089).
+    stopwatch::check(&program)?;
     // Ce que l'affichage refuserait (une adresse en `javascript:`, une image hors du dossier)
     // est refusé dès la vérification : on fabrique la page à blanc (revue Codex, B-11).
     if program.root.name == "Page" {
@@ -544,17 +552,33 @@ pub fn keypresses(source: &str) -> String {
 pub fn module_info(source: &str, state: &str, name: &str) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
     let numbers = state::reread(&program, state);
-    let Some(module) = modules::modules(&program, &numbers).ok().and_then(|m| m.into_iter().find(|m| m.name == name)) else { return String::new() };
-    let entry = module.entry.and_then(|e| numbers.iter().find(|(c, _)| c == e)).map_or(0, |(_, v)| *v);
-    format!("{}|{entry}|{}|{}", module.source, module.time, module.pages)
+    let Some(module) = modules::modules(&program).ok().and_then(|m| m.into_iter().find(|m| m.name == name)) else { return String::new() };
+    let entry = module.inputs.first().and_then(|e| numbers.iter().find(|(c, _)| c == e)).map_or(0, |(_, v)| *v);
+    format!("{}|{entry}|{}|{}|{}", module.source, module.time, module.pages, u8::from(module.simple(&program)))
 }
 
-/// Le module a rendu son nombre : le nouvel état, après `Nom.done`.
+/// Le module du premier contrat a rendu son nombre : le nouvel état, après `Nom.done`.
 pub fn module_finished(source: &str, state: &str, name: &str, value: u64) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
     state::requested_capabilities();
     let texts = state::reread_texts(&program, state);
     write_all(&program, &modules::finished(&program, &state::reread(&program, state), &texts, name, value), &texts, &lists::reread(&program, state))
+}
+
+/// Ce que reçoit un module du second contrat (ADR-077) : ses valeurs `input`, en un texte JSON.
+pub fn module_input(source: &str, state: &str, name: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    let Some(module) = modules::modules(&program).ok().and_then(|m| m.into_iter().find(|m| m.name == name)) else { return String::new() };
+    modules::input_json(&program, &state::reread(&program, state), &state::reread_texts(&program, state), &lists::reread(&program, state), &module)
+}
+
+/// La réponse d'un module du second contrat (ADR-077) : le nouvel état, après `Nom.done` ; ou la
+/// raison du refus (le module a alors échoué, `Nom.failed`).
+pub fn module_received(source: &str, state: &str, name: &str, json: &str) -> Result<String, String> {
+    let program = check_page(source).map_err(|e| e.message)?;
+    state::requested_capabilities();
+    let (numbers, texts, lists) = modules::received(&program, &state::reread(&program, state), &state::reread_texts(&program, state), &lists::reread(&program, state), name, json)?;
+    Ok(arbitrate(source, &write_all(&program, &numbers, &texts, &lists), &format!("{name}.done")))
 }
 
 /// Les lignes d'une liste pour cet état (ADR-044) : la page les pose à la place des anciennes.
@@ -565,6 +589,63 @@ pub fn list_html(source: &str, base: &str, state: &str, name: &str) -> String {
     let computed = computed::apply(&program, &numbers, &texts, &lists);
     lists.extend(computed);
     flat::list_lines(&program, base, &numbers, &texts, &lists, name)
+}
+
+/// Le dessin d'un graphique pour cet état (ADR-087) : la page le pose à la place de l'ancien
+/// quand sa liste change. `spec` est celui que la page a reçu (`bars|sales|amount|day|`) ; vide
+/// s'il ne désigne pas une liste de la page.
+pub fn chart_html(source: &str, state: &str, spec: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    let Some(spec) = chart::Spec::read(spec) else { return String::new() };
+    let (numbers, texts) = (state::reread(&program, state), state::reread_texts(&program, state));
+    let mut lists = lists::reread(&program, state);
+    let computed = computed::apply(&program, &numbers, &texts, &lists);
+    lists.extend(computed);
+    let Some((_, elements)) = lists.iter().find(|(name, _)| name == spec.over) else { return String::new() };
+    chart::drawing(&spec, elements)
+}
+
+/// Les formes d'un dessin venues d'une liste, pour cet état (ADR-088) : la page les pose à la
+/// place des anciennes quand la liste change. Vide si la liste n'existe pas.
+pub fn shapes_html(source: &str, state: &str, list: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    let (numbers, texts) = (state::reread(&program, state), state::reread_texts(&program, state));
+    let mut lists = lists::reread(&program, state);
+    let computed = computed::apply(&program, &numbers, &texts, &lists);
+    lists.extend(computed);
+    lists.iter().find(|(name, _)| name == list).map(|(_, elements)| drawing::listed_shapes(elements)).unwrap_or_default()
+}
+
+/// La seconde de l'appareil du visiteur, de 0 à 59 (ADR-089).
+pub fn set_second(second: u64) {
+    state::set_second(second);
+}
+
+/// Le fichier lit-il la seconde ? La page donne alors l'heure chaque seconde (ADR-089).
+pub fn reads_seconds(source: &str) -> bool {
+    check_page(source).is_ok_and(|program| state::reads_seconds(&program))
+}
+
+/// Un chronomètre s'est arrêté (ADR-089) : son temps final, en millisecondes, va dans sa valeur,
+/// bornée, et les règles qui la guettent répondent ; puis `Chrono.stopped`.
+pub fn stopwatch_stopped(source: &str, state: &str, name: &str, milliseconds: u64) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    state::requested_capabilities();
+    let (mut numbers, texts, lists) = (state::reread(&program, state), state::reread_texts(&program, state), lists::reread(&program, state));
+    if let Some(value) = stopwatch::value_of(&program, name) {
+        numbers = state::received_number(&program, &numbers, &texts, value, milliseconds);
+    }
+    arbitrate(source, &write_all(&program, &numbers, &texts, &lists), &format!("{name}.stopped"))
+}
+
+/// Le titre de la page pour cet état, quand il lit des valeurs (ADR-090) : « Mon panier (3) ».
+/// La page le donne à l'onglet quand ses valeurs changent. Vide sans titre.
+pub fn page_title(source: &str, state: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    let Some(holo::Value::Text(model)) = program.root.argument("title").map(|a| &a.value) else { return String::new() };
+    format::set_decimals(state::decimals(&program));
+    let shown = state::to_show(&program, &state::reread(&program, state));
+    flat::plain_text(model, &shown, &state::reread_texts(&program, state))
 }
 
 /// Les valeurs qu'un signal fait changer (`time;score`) : leurs horloges repartent de zéro.
@@ -624,6 +705,44 @@ pub fn to_keep(source: &str, state: &str) -> String {
     let texts: state::Texts = state::reread_texts(&program, state).into_iter().filter(|(name, _)| kept_values.contains(name)).collect();
     let lists: lists::Lists = lists::reread(&program, state).into_iter().filter(|(name, _)| kept_values.contains(name)).collect();
     [state::write(&numbers), state::write_texts(&texts), lists::write(&lists)].into_iter().filter(|chunk| !chunk.is_empty()).collect::<Vec<_>>().join(";")
+}
+
+/// L'historique dans une page (ADR-091) : les valeurs que l'adresse porte (`tab=photos&page=2`,
+/// telle qu'après le `?`), posées sur l'état. Seules celles que la page nomme (`address: [tab]`) ;
+/// une valeur absente ou mal écrite reprend son départ. L'état tel quel pour une page qui n'en
+/// nomme pas.
+pub fn from_query(source: &str, state: &str, query: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    state::requested_capabilities();
+    if history::names(&program).unwrap_or_default().is_empty() {
+        return state.to_string();
+    }
+    let (numbers, texts) = history::from_query(&program, &state::reread(&program, state), &state::reread_texts(&program, state), query);
+    write_all(&program, &numbers, &texts, &lists::reread(&program, state))
+}
+
+/// L'adresse que demandent les valeurs de la page, après le `?` : `tab=photos&page=2` ; vide
+/// quand elles sont toutes à leur départ (ADR-091).
+pub fn address_query(source: &str, state: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    history::query(&program, &state::reread(&program, state), &state::reread_texts(&program, state))
+}
+
+/// Les noms des valeurs que la page écrit dans son adresse : `tab,page` (ADR-091).
+pub fn address_names(source: &str) -> String {
+    check_page(source).ok().and_then(|program| history::names(&program).ok()).unwrap_or_default().join(",")
+}
+
+/// La page fabriquée par un serveur pour une adresse qui porte des valeurs après le `?`
+/// (ADR-091) : celles que la page nomme, sinon la page de départ.
+pub fn flat_view_at(source: &str, base: &str, query: &str) -> Result<String, Error> {
+    let program = check_page(source)?;
+    if query.is_empty() || history::names(&program)?.is_empty() {
+        return flat_view(source, base);
+    }
+    let written = from_query(source, &initial_state(source), query);
+    let start = (state::reread(&program, &written), state::reread_texts(&program, &written), lists::reread(&program, &written));
+    flat::site_html_from(&program, &program.root, base, "", Some(&start))
 }
 
 /// L'état de départ d'une page, avec ce qu'elle avait gardé d'une visite précédente.

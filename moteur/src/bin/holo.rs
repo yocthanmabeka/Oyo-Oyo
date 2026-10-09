@@ -279,9 +279,11 @@ fn main() -> ExitCode {
                 .map(|f| here.join(f))
                 .filter(|path| std::fs::metadata(path).is_ok_and(|m| m.len() <= holo_engine::state::DATA_BYTES as u64))
                 .and_then(|path| std::fs::read_to_string(path).ok());
+            // Les valeurs que l'adresse porte après le `?` (ADR-091), que donne le serveur
+            // (HOLO_QUERY=tab=photos&page=2) : la page est fabriquée avec elles.
             match json {
                 Some(json) => holo_engine::flat_view_with_data(&source, folder, &json),
-                None => holo_engine::flat_view(&source, folder),
+                None => holo_engine::flat_view_at(&source, folder, &std::env::var("HOLO_QUERY").unwrap_or_default()),
             }
         }
     };
