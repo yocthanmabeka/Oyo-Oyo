@@ -486,6 +486,22 @@ const tests = [
     const ok = spot && unknown && stays;
     return [ok, `#Bas : ${spotSaid} ; #rien : ${unknownSaid} ; #ailleurs tapé ensuite : ${stays ? "la page reste" : b.errors.join(" | ") || "la page a changé"}`];
   }],
+  ["une valeur d'adresse donnée par les données reste, sur une adresse nue", async (p) => {
+    const shows = (text) => `document.getElementById("page").innerText.includes(${JSON.stringify(text)})`;
+    const page = "/exemples/.essais-navigateur/donnees-et-adresse.holo";
+    // Sans « ? » : la valeur reçue (5), sur la page du serveur puis avec le moteur.
+    await p.open(page);
+    const served = await p.value(shows("Page 5"));
+    const started = await p.until("window.__holoStarted === true");
+    await pause(500);
+    const kept = await p.value(shows("Page 5"));
+    // Avec ?page=9 : l'adresse l'emporte, des deux côtés.
+    await p.open("/exemples/lecons/01-page.holo");
+    await p.open(`${page}?page=9`);
+    const asked = await p.until(`window.__holoStarted === true && ${shows("Page 9")}`);
+    const ok = served && started && kept && asked;
+    return [ok, `servie : ${served} ; gardée avec le moteur : ${kept} ; ?page=9 : ${asked}`];
+  }],
   ["des polices libres pour toutes les écritures : Font(family: \"Inter\") (leçon 115)", async (p) => {
     await p.open("/exemples/lecons/115-des-polices-pour-toutes-les-ecritures.holo");
     // Les polices du moteur arrivent ; pour le japonais, seulement les morceaux de la phrase.

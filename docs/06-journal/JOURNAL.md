@@ -20,13 +20,14 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 - En essayant la première, deux défauts plus anciens, aussi sur `main` : une page servie, ouverte sur un endroit (`#Bas`), arrêtait le moteur au démarrage (« Le moteur a refusé ce fichier ») : il cherchait les points du site affiché avant d'en afficher un. Et un nom que rien ne porte après le `#` (un lien ancien, une faute) l'arrêtait aussi. Corrigés : devant un nom inconnu, la page reste où elle est, comme un navigateur devant une ancre inconnue, au démarrage comme avec « Précédent ».
 - Deux n'étaient pas justes : un graphique sur une liste calculée suit bien ses changements (l'état que le moteur écrit contient les listes calculées) ; les noms français des leçons et de leurs modules suivent la règle (`AGENTS.md` : « les leçons et la documentation restent en français »).
 - La fin du lot 9 (étapes 5 à 8 : import et export, appareil, notifications, hors-ligne) est reprise par Codex, à la demande de Yocthan (issue #202, PR #203) : la session du nuage ne la refait pas.
-- Exécuté : `cargo test` → 175 tests passent (deux nouveaux, un complété) ; dans Chrome, deux essais nouveaux (« passer d'un fichier à l'autre », « une page servie avec ses données, ouverte sur un endroit ou sur un nom inconnu »), qui ratent avec l'ancien code ; la suite entière : 41 essais passent, et les 2 ratés déjà connus dans ce conteneur (« pincer à deux doigts », qui passe relancé seul, et « la vue points se lit au lecteur d'écran »).
+- Exécuté : `cargo test` → 175 tests passent (deux nouveaux, un complété) ; dans Chrome, trois essais nouveaux (« passer d'un fichier à l'autre », « une page servie avec ses données, ouverte sur un endroit ou sur un nom inconnu », « une valeur d'adresse donnée par les données reste, sur une adresse nue »), qui ratent avec l'ancien code ; la suite entière : 42 essais passent, et les 2 ratés déjà connus dans ce conteneur (« pincer à deux doigts », qui passe relancé seul, et « la vue points se lit au lecteur d'écran »).
 
 **Erreurs en route**
 
 - Mes deux premiers essais suivaient les liens d'une leçon à l'autre : un lien recharge toute la page, il ne passe jamais par le chemin que Codex décrivait (le moteur qui passe lui-même d'un fichier à l'autre, par un point). Deux pages d'essai passent maintenant par des points.
 - Mon premier essai de l'endroit (`#rien`) nommait un endroit qui n'existe pas : le moteur s'arrêtait avec ou sans la correction. Avec un vrai endroit, il s'arrêtait aussi : c'est ainsi que sont apparus les deux défauts anciens.
 - Dans l'essai, passer de `#Bas` à `#rien` ne rechargeait pas la page (seul le `#` changeait) : il ouvre maintenant une autre page entre les deux.
+- Ma correction de l'ordre (les données, puis l'adresse) remettait au départ, sur une adresse nue, une valeur d'adresse que les données donnent : le serveur montrait la page 5, le moteur repassait à la page 1. Codex l'a relevé sur #208. L'adresse ne compte maintenant au démarrage que si elle nomme une valeur de la page (une adresse nue, ou `?values`, garde les données), sur le serveur comme dans le navigateur.
 
 ---
 

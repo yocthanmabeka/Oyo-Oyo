@@ -234,7 +234,8 @@ pub fn flat_view_with_data(source: &str, base: &str, json: &str) -> Result<Strin
 }
 
 /// La même, pour une adresse qui porte des valeurs après le `?` (ADR-091) : les données d'abord,
-/// puis l'adresse, que le visiteur a choisie ; le navigateur les reprend dans le même ordre.
+/// puis l'adresse, que le visiteur a choisie, si elle nomme une valeur de la page ; le navigateur
+/// les reprend dans le même ordre.
 pub fn flat_view_with_data_at(source: &str, base: &str, json: &str, query: &str) -> Result<String, Error> {
     let program = check_page(source)?;
     if state::data_source(&program).ok().flatten().is_none() || !lists::is_json_object(json) {
@@ -244,7 +245,7 @@ pub fn flat_view_with_data_at(source: &str, base: &str, json: &str, query: &str)
     if let Some(name) = state::data_name(&program) {
         written = arbitrate(source, &written, &format!("{name}.done"));
     }
-    if !query.is_empty() {
+    if history::names_a_value(&program, query) {
         written = from_query(source, &written, query);
     }
     let start = (state::reread(&program, &written), state::reread_texts(&program, &written), lists::reread(&program, &written));

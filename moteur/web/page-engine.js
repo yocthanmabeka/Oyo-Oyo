@@ -1821,8 +1821,10 @@
     }
     // Les valeurs que l'adresse porte après le « ? » (ADR-091), seulement celles que la page
     // nomme : un lien partagé arrive sur le même onglet. Après les données servies : l'adresse,
-    // choisie par le visiteur, l'emporte, comme sur le serveur qui a fabriqué la page.
-    if (addressNames.length) states.set(path, from_query(source, states.get(path) ?? "", location.search.slice(1)) || states.get(path));
+    // choisie par le visiteur, l'emporte, comme sur le serveur qui a fabriqué la page. Une
+    // adresse qui n'en nomme aucune (nue, ou ?values) laisse les valeurs reçues.
+    const addressed = [...new URLSearchParams(location.search).keys()].some((name) => addressNames.includes(name));
+    if (addressed) states.set(path, from_query(source, states.get(path) ?? "", location.search.slice(1)) || states.get(path));
     // Les valeurs partagées du moment, que le serveur a mises dans la page (ADR-079) : le moteur
     // part d'elles, puis les reçoit en direct.
     const sharedNow = !location.hash.slice(1) && root.querySelector(".holo-Page")?.dataset.shared;
