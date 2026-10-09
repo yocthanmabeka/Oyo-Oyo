@@ -14,6 +14,29 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Les petites dettes HTML dans la file de travail
+
+- Yocthan a demandé : « Sur 100 % du web, ton travail est à combien ? Et pourquoi ça traîne encore ? ». Réponse, comptée ligne par ligne dans le grand tableau (le jugement par élément est celui de Claude) :
+  - sur 131 éléments de HTML, CSS et JavaScript, 98 « oui », 18 « en partie » et 8 « non » ; 6 sont refusés exprès et 1 est sans objet ;
+  - soit 98 sur les 124 éléments à avoir, 79 % ;
+  - le tableau est en retard sur ce qui vient d'être fusionné (les comptes, le mot de passe, les sessions) et sur ce qui est en cours (le hors-ligne, l'appareil, le presse-papiers et le partage).
+- Les raisons de la lenteur, dites franchement :
+  - le quota s'est coupé deux fois ;
+  - pendant la nuit, trois IA ont produit une vingtaine de PR empilées, dont des doublons, trois aux essais rouges, une qui ne compilait pas, et deux IA ont travaillé dans le dossier principal ;
+  - chaque fusion attend ses essais ;
+  - le journal entre en conflit à chaque PR ;
+  - deux vrais défauts ont été trouvés et corrigés avant de fusionner.
+- Ajoutées à la file à sa demande (« Oui »), pour que plusieurs IA avancent en parallèle :
+  - issue 213 : les listes de définitions ;
+  - issue 214 : `abbr`, `time` et `address` ;
+  - issue 215 : `fieldset` et `legend` ;
+  - issue 216 : `datalist` ;
+  - issue 217 : la citation courte.
+
+  Chacune a sa décision (`ADR-097` à `ADR-101`) et sa leçon (120 à 124). Les fichiers partagés se modifient en ajout seulement. La réserve est écrite dans `AGENTS.md`.
+
+---
+
 ## 2026-10-09 — Le plan 3D précisé : le garde des paliers, les surfaces, la piste de l'IA
 
 - La conversation Claude de Yocthan a renvoyé trois compléments. Yocthan a demandé : « Tu les trouves bonnes ces réflexions ? Si oui tu les ajoutes, sinon non. » Avis de Claude : bonnes, car elles prolongent ce qui est décidé et corrigent un vrai risque, les bords de tuiles qui ne se raccordent pas. Ajoutées à `docs/04-roadmap/PLAN-3D.md`, sans toucher au code ni aux ADR.
