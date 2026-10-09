@@ -838,6 +838,10 @@
     for (const bar of or_.querySelectorAll("[data-progress]")) {
       if (values.has(bar.dataset.progress)) bar.value = Number(values.get(bar.dataset.progress));
     }
+    // Un son suit la valeur qui règle son volume, de 0 à 100 : volume: pluie (ADR-112).
+    for (const sound of or_.querySelectorAll("audio[data-volume-of]")) {
+      if (values.has(sound.dataset.volumeOf)) follow(sound, Number(values.get(sound.dataset.volumeOf)));
+    }
     // Sur un plateau, un bloc suit les valeurs qui disent sa place : Point(x: starX, y: starY).
     for (const axis of ["x", "y"]) {
       for (const placed of or_.querySelectorAll(`[data-${axis}]`)) {
@@ -1847,6 +1851,98 @@
     for (const effect of effects(source, `${name}.done`).split(",").filter(Boolean)) apply(effect, `${name}.done`);
   }
 
+  // Le mélange des sons (ADR-112). Plusieurs sons jouent déjà ensemble : chacun est son propre
+  // <audio>. Un son qui a un fondu (fade: 2s) ou un volume qui suit une valeur (volume: pluie)
+  // passe en plus par le mélangeur de la page (Web Audio) : son volume, puis son fondu, deux
+  // gains que le moteur fait glisser au lieu de les changer d'un coup (un son qui saute claque).
+  // Sur iPhone, le volume d'un <audio> ne se règle pas par la page ; un gain, si. Le mélangeur
+  // s'endort quand aucun de ses sons ne joue. Un son venu d'un autre serveur n'y passe pas : le
+  // navigateur le rendrait muet ; il joue à son volume, sans fondu.
+  let mixer = null;
+  const tracks = new WeakMap(); // un son → ses deux gains, ou null s'il ne passe pas par le mélangeur
+  const mixedSounds = new Set();
+  const GLIDE = 0.1; // le temps, en secondes, que met un volume à rejoindre sa valeur
+  const mixable = (sound) => "fade" in sound.dataset || "volumeOf" in sound.dataset;
+  const levelOf = (sound) => Math.min(1, Math.max(0, Number(sound.dataset.level ?? 1)));
+  function track(sound) {
+    if (tracks.has(sound)) return tracks.get(sound);
+    let found = null;
+    try {
+      if (window.AudioContext && new URL(sound.src, location.href).origin === location.origin) {
+        mixer ??= new AudioContext();
+        const [volume, fade] = [mixer.createGain(), mixer.createGain()];
+        volume.gain.value = levelOf(sound);
+        mixer.createMediaElementSource(sound).connect(volume).connect(fade).connect(mixer.destination);
+        found = { volume, fade, end: 0 };
+        mixedSounds.add(sound);
+        sound.addEventListener("pause", rest);
+        sound.addEventListener("ended", rest);
+      }
+    } catch { found = null; }
+    tracks.set(sound, found);
+    return found;
+  }
+  // Aucun son du mélangeur ne joue : il s'endort, et ne tient plus l'appareil éveillé. Un son
+  // retiré de la page (on est passé à un autre site) est détaché du mélangeur.
+  function rest() {
+    for (const sound of mixedSounds) {
+      if (sound.isConnected) continue;
+      tracks.get(sound)?.fade.disconnect();
+      mixedSounds.delete(sound);
+    }
+    if (mixer?.state === "running" && [...mixedSounds].every((sound) => sound.paused)) mixer.suspend().catch(() => {});
+  }
+  // Un gain glisse de là où il en est jusqu'à `value`, en `seconds` secondes.
+  function glide(gain, value, seconds) {
+    const now = mixer.currentTime;
+    gain.cancelScheduledValues(now);
+    gain.setValueAtTime(gain.value, now);
+    gain.linearRampToValueAtTime(value, now + seconds);
+  }
+  // Jouer un son mélangé : il repart du début et monte depuis le silence. L'arrêter : il descend
+  // jusqu'au silence, puis se met en pause et revient au début (stop, ADR-061).
+  function mix(sound, capability) {
+    // Arrêter un son qui n'a pas encore joué ne réveille pas le mélangeur.
+    const t = capability === "play" ? track(sound) : tracks.get(sound);
+    const seconds = Number(sound.dataset.fade ?? 0) / 1000;
+    const rewind = () => { sound.pause(); sound.currentTime = 0; };
+    if (!t) {
+      // Sans mélangeur (un son venu d'un autre serveur) : son volume, sans fondu.
+      if (t === null) sound.volume = levelOf(sound);
+      rewind();
+      if (capability === "play") sound.play().catch(() => {});
+      return;
+    }
+    clearTimeout(t.end);
+    if (capability === "play") {
+      mixer.resume().catch(() => {});
+      const now = mixer.currentTime;
+      t.fade.gain.cancelScheduledValues(now);
+      t.fade.gain.setValueAtTime(seconds ? 0 : 1, now);
+      if (seconds) t.fade.gain.linearRampToValueAtTime(1, now + seconds);
+      rewind();
+      sound.play().catch(rest);
+    } else if (seconds && !sound.paused) {
+      glide(t.fade.gain, 0, seconds);
+      t.end = setTimeout(rewind, seconds * 1000);
+    } else rewind();
+  }
+  // Le volume d'un son suit sa valeur, de 0 à 100 (volume: pluie) : il glisse jusqu'à elle.
+  function follow(sound, value) {
+    const level = Math.min(100, Math.max(0, value)) / 100;
+    if (Number(sound.dataset.level) === level) return;
+    sound.dataset.level = String(level);
+    const t = tracks.get(sound);
+    if (t) glide(t.volume.gain, level, GLIDE);
+    else if (t === null) sound.volume = level;
+  }
+  // Pour les essais : ce qu'on entend d'un son mélangé (son volume × son fondu), et le mélangeur.
+  window.__holoMixer = (name) => {
+    const sound = root.querySelector(`audio[data-name="${CSS.escape(name)}"]`);
+    const t = sound && tracks.get(sound);
+    return { heard: t ? t.volume.gain.value * t.fade.gain.value : null, state: mixer?.state ?? "absent" };
+  };
+
   function apply(effect, signal = "") {
     const [name, capability] = effect.split(".");
     if (root.querySelector(`[data-browser-capability][data-name="${CSS.escape(name)}"]`)) { host?.run(name, capability); return; }
@@ -1860,7 +1956,12 @@
       // Faire entendre un son, ou l'arrêter (ADR-061). Un navigateur ne joue un son qu'après un
       // premier geste du visiteur : avant, il refuse, et la page continue sans lui.
       const sound = root.querySelector(`audio[data-name="${CSS.escape(name)}"]`);
-      if (sound) {
+      // Le moteur est plus strict que le navigateur (ADR-112) : avant le premier geste du visiteur
+      // sur la page, aucun son ne part, même là où le navigateur le permettrait (un site souvent
+      // écouté, un réglage). La demande est oubliée, pas gardée pour plus tard.
+      if (capability === "play" && navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
+      if (sound && mixable(sound)) mix(sound, capability);
+      else if (sound) {
         if (sound.dataset.volume) sound.volume = Number(sound.dataset.volume);
         sound.pause();
         sound.currentTime = 0;

@@ -1,0 +1,19 @@
+// Une page d'essai (moteur/outils/browser-tests.mjs), pas une leçon : une règle de temps demande
+// deux sons dès l'ouverture, l'un ordinaire, l'autre avec un fondu (ADR-112). Le moteur n'en joue
+// aucun avant un geste du visiteur, même dans un Chrome qui le permettrait (les essais lancent
+// Chrome avec --autoplay-policy=no-user-gesture-required).
+
+Page(
+  title: "Un son attend un geste",
+  state: State(tours: 0),
+  children: [
+    H1("Un son attend un geste"),
+    P("La règle a demandé les sons {tours} fois."),
+    Sound(name: Tic, source: "tic.wav"),
+    Sound(name: Tac, source: "tic.wav", fade: 200ms),
+    Button(name: Toucher, text: "Toucher la page"),
+  ],
+  rules: [
+    Every(400ms, effect: [tours.add(1), Tic.play, Tac.play]),
+  ],
+)

@@ -34,7 +34,8 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     ("A", &["name", "to", "newTab", "download"]),
     ("Button", &["name", "text"]),
     ("Image", &["name", "source", "weight", "alt", "phone", "caption"]),
-    ("Sound", &["name", "source", "weight", "label", "volume", "loop"]),
+    // Le fondu d'un son, à l'entrée et à la sortie (ADR-112) : fade: 2s.
+    ("Sound", &["name", "source", "weight", "label", "volume", "loop", "fade"]),
     ("Filter", crate::computed::PARAMS),
     ("Days", crate::computed::DAYS_PARAMS),
     ("Shape", &["name", "form", "color", "size"]),
