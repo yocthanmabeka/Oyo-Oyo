@@ -1969,6 +1969,39 @@ Page(
 
 La leçon est `124-une-citation-courte.holo`.
 
+## 6 duodequinquagies. Partager la page : `Device(kind: share)`
+
+Le bouton « Partager » du téléphone, dans la page (`ADR-107`) : le visiteur envoie la page à un ami, par un message ou un e-mail.
+
+```holo
+Page(
+  title: "The Saturday market",
+  state: State(shared: 0, missed: 0),
+  children: [
+    H1("The Saturday market"),
+    Device(name: Share, kind: share, label: "Sharing this page"),
+    Button(name: ShareIt, text: "Share this page"),
+    P("Shared {shared} times during this visit."),
+    If(missed, over: 0, children: [ P("Sharing did not work: copy the address written above the button.") ]),
+  ],
+  rules: [
+    On(ShareIt.tap, effect: Share.request),
+    On(Share.done, effect: shared.add(1)),
+    On(Share.failed, effect: missed.add(1)),
+  ],
+)
+```
+
+- **`Device(kind: share)`** : une sorte d'appareil de plus (`ADR-094`). `Share.request`, sur le toucher d'un bouton, ouvre la feuille de partage du téléphone avec le titre de la page et son adresse, telle que la barre d'adresse la montre.
+- **Sur un ordinateur sans feuille de partage**, le même bouton copie l'adresse dans le presse-papiers. Le bouton marche partout.
+- **La page dit ce qui s'est passé**, à l'écran et au lecteur d'écran, dans la zone d'état du bloc : « Page partagée. », « Adresse de la page copiée : colle-la où tu veux. », « Partage annulé. », ou la panne, avec l'adresse écrite en entier, à copier à la main.
+- `Share.done` : partagée, ou l'adresse copiée. `Share.failed` : rien n'a marché. **Fermer la feuille sans rien choisir n'est pas une panne** : ni l'un ni l'autre.
+- Le moteur appelle le navigateur pendant le toucher même, avant toute attente : le navigateur n'ouvre la feuille que pendant le geste du visiteur. Jamais d'une minuterie, d'une règle qui guette ni d'une fin.
+- Sans JavaScript, le bloc dit comment partager quand même : copier l'adresse dans la barre du navigateur, ou prendre « Partager » dans son menu.
+- Refusés : `Share.write` (un partage s'ouvre, il ne s'écrit pas) ; `value:` (le partage ne rend rien à la page).
+
+La leçon est `130-partager-la-page.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo
@@ -2598,6 +2631,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Chercher, filtrer, trier ; une page d'une liste | `computed: [ Filter(…, offset:, limit:, total:) ]` | fait (`ADR-062`, `ADR-084`) |
 | Un fichier de ses valeurs, exporté puis importé | `Transfer(file:, values:)`, `export`, `import` | fait (`ADR-093`) |
 | L'appareil : la position, le presse-papiers, la caméra, le microphone | `Device(kind:)`, `request`, `write`, `stop` | fait (`ADR-094`) |
+| Partager la page : la feuille du téléphone, ou l'adresse copiée | `Device(kind: share)`, `request` | fait (`ADR-107`) |
 | Une notification, un rappel | `Notification(title:, body:, after:)`, `show`, `stop` | fait (`ADR-095`) |
 | Une page lisible hors-ligne | `Offline(files:)`, `save`, `remove` | fait (`ADR-096`) |
 | Des termes et leurs définitions : une fiche technique, un glossaire | `List(children: [ Term("Poids", "2 kg") ])` | fait (`ADR-097`) |
