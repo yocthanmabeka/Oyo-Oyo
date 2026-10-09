@@ -6,6 +6,26 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Un groupe de champs : `Fields(label: "Adresse de livraison", children: [ … ])`
+
+- Fait (issue #215, prise par la session du PC, qui s'est éteinte sans rien envoyer ; reprise depuis le début par la session du nuage ; `ADR-099`, PROPOSITION) :
+  - Vérifié d'abord : un `Choice` en boutons ronds était déjà un `fieldset` avec sa `legend` (lot 1, `ADR-038`), que Chrome annonce comme un groupe nommé. Ce qui manquait vraiment : réunir plusieurs champs sous un nom (une adresse, des cases à cocher sur une même question).
+  - `Fields(label: "Adresse de livraison", children: [ … ])` : `fieldset` et `legend` ; au moins deux champs, rangés comme on veut ; le nom dans `label:`, comme pour un champ. Sans la bordure du navigateur : le nom en gras au-dessus des champs, un groupe jamais plus large que l'écran, le nom dans le cadre quand un style en ajoute un. `Fieldset`, `Group` et `FieldGroup` écartés (la comparaison est dans l'ADR).
+  - Refusés, avec la raison : un groupe sans nom ; sans champ, ou d'un seul ; un `Choice` seul ; `legend:` ; `Fieldset` et `Legend`, avec le bon mot.
+  - Trouvé et réparé : `Choice(required: true)` (`ADR-068`) était refusé comme « mal écrit » par la vérification de `Choice` ; aucune leçon ne l'employait.
+  - La leçon 122 ; le guide (chapitre « 6 quadragies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+- Exécuté :
+  - `cargo test --release` → 202 tests passent (quatre nouveaux) ; `holo check` sur la leçon 122 ; `holo fmt` : déjà en forme.
+  - Dans Chrome, l'essai de la leçon 122 passe : trois groupes nommés dans l'arbre d'accessibilité (« Adresse de livraison », « Pour te prévenir », et le `radiogroup` « Jour de livraison ») ; sans bordure ; rien ne déborde à 360 px ; à l'envoi, trois messages dans les groupes, le clavier sur « Rue ».
+  - Il rate quand le moteur écrit une boîte et un titre au lieu de `fieldset` et `legend` : le lecteur d'écran n'entend plus que le groupe du `Choice`. Il rate aussi quand le style de base perd la légende flottante et `min-width: 0` (« none / min-content / 0 »).
+  - L'essai `a_required_choice_is_a_radio_group_checked_at_send` rate sans la réparation (« est mal écrit »).
+  - La suite entière (`CI=1`, axe-core 4.10.3) : 66 essais sur 69 passent. Les 3 ratés sont ceux de ce conteneur : « pincer à deux doigts » (il passe relancé seul), « la vue points se lit au lecteur d'écran », et la vidéo des parcours 8 et 9, en H.264, que le Chromium du conteneur ne lit pas.
+  - axe-core 4.10.3 sur la leçon 122, à 1000 et à 360 px, à l'ouverture et après un envoi refusé (4 messages) : 0 défaut.
+- Erreurs en route : mes premiers essais nommaient une valeur `day`, réservée au jour du visiteur ; l'essai Chrome attendait le moteur avant de toucher « Commander », et perdait 40 secondes : le moteur ne vient qu'au premier geste.
+- Reste : `required:` sur un groupe de cases ; l'essai humain au TalkBack ; à la fusion, la suite des leçons (119 → 120 → … → 124), les lignes des fichiers partagés rangées par numéro, et le grand tableau du web (`fieldset, legend` à « oui »).
+
+---
+
 ## 2026-10-09 — Une abréviation expliquée, une date pour les machines, une adresse
 
 - Fait (issue #214, prise dans la file par la session du nuage ; `ADR-098`, PROPOSITION) :

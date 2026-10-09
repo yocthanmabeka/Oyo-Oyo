@@ -59,6 +59,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `abbreviations: [ Abbreviation("MJC", "…") ]` | `<abbr title="…">` à chaque venue | changé : déclarée une fois pour la page ; le moteur la marque partout et écrit son sens à sa première venue dans un paragraphe, lu et vu aussi au doigt (`ADR-098`, à valider) |
 | (rien : `{ouverture:date}`) | `<time datetime="…">` | nouveau sans mot : chaque date montrée est aussi lisible par les machines (`ADR-098`, à valider) |
 | `Address(children: [ … ])` | `address` | repris : le nom de HTML, les moyens de joindre l'auteur ; ni titre ni repère dedans ; le texte reste droit (`ADR-098`, à valider) |
+| `Fields(label:, children:)` | `fieldset`, `legend` | changé : un groupe de champs et son nom, écrit `label:` comme celui d'un champ ; au moins deux champs ; sans la bordure du navigateur, jamais plus large que l'écran (`ADR-099`, à valider) |
 | `Enter` | `@keyframes` + `animation` (de… vers…), ou `element.animate()` | changé : on écrit seulement d'où le bloc part |
 | `Loop` | `animation: … infinite alternate` | changé : on écrit seulement où il va |
 | `Scenes`, `Scene` | une suite de `animation-delay` calculés à la main, ou un chef d'orchestre en JavaScript | changé : les scènes s'enchaînent seules |

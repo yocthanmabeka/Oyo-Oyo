@@ -1885,6 +1885,44 @@ Page(
 
 La leçon est `121-une-abreviation-une-date-une-adresse.holo`.
 
+## 6 quadragies. Un groupe de champs : `Fields`
+
+Des champs qui vont ensemble, et le nom de leur groupe (`ADR-099`) : une adresse, des cases qui répondent à une même question.
+
+```holo
+Page(
+  title: "Order a painting",
+  state: State(street: "", postcode: "", city: "", byMail: 0, bySms: 0, delivery: ""),
+  children: [
+    Form(name: Order, children: [
+      Fields(label: "Delivery address", children: [
+        Input(value: street, label: "Street", required: true),
+        Row(children: [
+          Input(value: postcode, label: "Postcode"),
+          Input(value: city, label: "City", required: true),
+        ]),
+      ]),
+      Fields(label: "How should we tell you?", children: [
+        Checkbox(value: byMail, label: "By e-mail"),
+        Checkbox(value: bySms, label: "By text message"),
+      ]),
+      Choice(value: delivery, label: "Delivery day", options: ["Tuesday", "Saturday"], required: true),
+      Button(name: Send, text: "Order"),
+    ]),
+  ],
+  rules: [ On(Send.tap, effect: Order.send) ],
+)
+```
+
+- **`Fields(label: "Delivery address", children: [ … ])`** : le moteur écrit `fieldset` et `legend`. Le lecteur d'écran dit le nom en entrant dans le groupe, puis chaque champ : « Delivery address, groupe ; Street ». Deux adresses (la livraison, la facturation) peuvent avoir chacune leur « Street » sans se confondre.
+- Au moins deux champs (`Input`, `Checkbox`, `Choice`, `Slider`), rangés comme on veut (ici, dans un `Row`). Le nom s'écrit `label:`, comme celui d'un champ.
+- Un **`Choice`** en boutons ronds est déjà un groupe : son `label:` est sa légende. Avec `required: true`, le lecteur d'écran le dit obligatoire.
+- Dans un `Form`, rien ne change à l'envoi : les champs du groupe partent et sont vérifiés comme les autres. Hors d'un formulaire, un groupe réunit des réglages qui agissent tout de suite.
+- Au départ, ni bordure ni retrait : le nom en gras, puis les champs ; le groupe ne s'élargit jamais au-delà de l'écran. `Fields { border: 1px solid gray; padding: 12px; }` encadre le nom et les champs.
+- Refusés : un groupe sans nom ; sans champ, ou avec un seul ; un `Choice` seul dans un groupe ; `legend:` (le nom s'écrit `label:`) ; `Fieldset` et `Legend`, avec le bon mot.
+
+La leçon est `122-un-groupe-de-champs.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo

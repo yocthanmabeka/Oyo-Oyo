@@ -129,6 +129,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 119 | [Une page hors-ligne](119-une-page-hors-ligne.holo) | `Offline(files: [])`, `save`, `remove` : une copie publique, rechargée sans réseau, puis effacée ; sans JavaScript, la page reste une page comme les autres (de Codex) |
 | 120 | [Une liste de définitions](120-une-liste-de-definitions.holo) | `List(children: [ Term("Poids", "2 kg") ])` : un terme et sa définition, toujours ensemble ; une fiche technique, un glossaire |
 | 121 | [Une abréviation, une date, une adresse](121-une-abreviation-une-date-une-adresse.holo) | `Page(abbreviations: [ Abbreviation("MJC", "…") ])` : le sens écrit à la première venue ; une date montrée lisible par les machines (`<time>`) ; `Address(children: [ … ])` |
+| 122 | [Un groupe de champs](122-un-groupe-de-champs.holo) | `Fields(label: "Adresse de livraison", children: [ … ])` : des champs qui vont ensemble, et le nom du groupe que le lecteur d'écran annonce ; des cases sur une même question |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 

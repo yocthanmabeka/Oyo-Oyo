@@ -63,6 +63,8 @@ transition:left .12s linear,top .12s linear,transform .12s linear}\
 :where(.holo-Dialog)::backdrop{background:rgba(0,0,0,0.5)}:where(.holo-Dialog>*){margin:0 0 12px 0}:where(.holo-close){display:flex;justify-content:flex-end;margin:0}\
 :where(.holo-close button){font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;font-size:1.2em;line-height:1}\
 :where(.holo-Lines,.holo-line){display:contents}:where(.holo-Form){display:block}:where(.holo-error){font-weight:bold;margin:4px 0 0 0}:where(.holo-error)::before{content:\"⚠ \"}:where([aria-invalid=true]){outline:2px solid currentColor;outline-offset:2px}:where(.holo-Form>*){box-sizing:border-box;margin:0 0 16px 0}:where(.holo-Form>:not(.holo-Input)){display:block}\
+:where(.holo-Fields){border:0;padding:0;margin:0 0 16px 0;min-width:0}:where(.holo-Fields>legend){float:left;width:100%;padding:0;margin:0 0 8px 0;white-space:normal;font-weight:bold}:where(.holo-Fields>legend+*){clear:left}\
+:where(.holo-Fields>:not(legend)){box-sizing:border-box;margin:0 0 12px 0}:where(.holo-Fields>:last-child){margin-bottom:0}\
 :where(.holo-Shape){display:block;width:var(--holo-size,48px);height:var(--holo-size,48px);padding:0;border:0;background:var(--holo-color,currentColor)}\
 :where(button.holo-Shape){cursor:pointer}\
 :where(.holo-forme-circle){border-radius:50%}\
@@ -1234,6 +1236,43 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
                 }
                 output.push_str("</fieldset>");
             }
+        }
+        // Un groupe de champs et son nom (ADR-099) : une adresse, des cases sur une même question.
+        // Le lecteur d'écran dit le nom en entrant dans le groupe, puis chaque champ.
+        "Fields" => {
+            let example = "Fields(label: \"Adresse de livraison\", children: [ Input(…), Input(…) ])";
+            if let Some(argument) = block.arguments.iter().find(|a| a.name.is_none()) {
+                return Err(Error { message: format!("chaque paramètre de « Fields » est nommé : {example}"), pos: argument.pos });
+            }
+            let label = match block.argument("label") {
+                Some(Argument { value: Value::Text(label), .. }) if !label.trim().is_empty() => label,
+                other => return Err(Error { message: format!("« Fields » attend « label » : le nom du groupe, entre guillemets, que le lecteur d'écran annonce ; {example}"), pos: other.map_or(block.pos, |a| a.pos) }),
+            };
+            // Ses champs, même rangés plus bas (dans un Row, un If) : au moins deux.
+            let mut fields: Vec<&Block> = Vec::new();
+            if let Some(Value::List(inside)) = block.argument("children").map(|a| &a.value) {
+                for value in inside {
+                    if let Value::Block(child) = value {
+                        let _ = crate::rules::for_each_block(child, &mut |b| {
+                            if matches!(b.name.as_str(), "Input" | "Checkbox" | "Choice" | "Slider") {
+                                fields.push(b);
+                            }
+                            Ok(())
+                        });
+                    }
+                }
+            }
+            match fields[..] {
+                [] => return Err(Error { message: format!("« Fields » réunit des champs (Input, Checkbox, Choice, Slider) ; pour un titre, écris H2(…), pour un encadré, Aside(…) ; {example}"), pos: block.pos }),
+                [only] if only.name == "Choice" => {
+                    return Err(Error { message: "un « Choice » est déjà un groupe, et son « label: » est sa légende : il n'a pas besoin d'un « Fields » autour".into(), pos: block.pos })
+                }
+                [_] => return Err(Error { message: format!("un champ seul a déjà son nom, son « label: » ; « Fields » réunit au moins deux champs : {example}"), pos: block.pos }),
+                _ => {}
+            }
+            output.push_str(&format!("<fieldset class=\"{classes}\"{name}><legend>{}</legend>", markdown(label)));
+            children(block, output, worlds, base)?;
+            output.push_str("</fieldset>");
         }
         // Une vidéo : avec ses commandes, jamais lancée toute seule (ADR-038).
         "Video" => {
@@ -2818,5 +2857,78 @@ mod abbreviation_tests {
             let error = crate::flat_view(&format!("Page(children: [ Address(children: [ P(\"x\"), {inside} ]) ])"), "").unwrap_err();
             assert!(error.message.contains("« Address » range des moyens de joindre"), "{inside} : {error}");
         }
+    }
+}
+
+#[cfg(test)]
+mod fields_tests {
+    #[test]
+    fn a_group_of_fields_carries_its_name() {
+        // Une adresse et des cases sur une même question : chaque groupe a son nom (ADR-099).
+        let page = "Page(state: State(street: \"\", city: \"\", mail: 0, sms: 0, slot: \"\"), children: [ Fields.box(name: Delivery, label: \"Adresse de **livraison**\", children: [ Input(value: street, label: \"Rue\"), Row(children: [ Input(value: city, label: \"Ville\") ]) ]), Fields(label: \"Pour te prévenir\", children: [ Checkbox(value: mail, label: \"Par e-mail\"), Checkbox(value: sms, label: \"Par SMS\"), Choice(value: slot, label: \"Jour\", options: [\"Mardi\", \"Samedi\"]) ]) ])\nFields { margin: 0 0 24px 0; }\n.box { padding: 12px; }";
+        let html = crate::flat_view(page, "").unwrap();
+        assert!(html.contains("<fieldset class=\"holo-Fields holo-s-box\" data-name=\"Delivery\"><legend>Adresse de <strong>livraison</strong></legend><label class=\"holo-Input\"><span>Rue</span>"), "{html}");
+        assert!(html.contains("<div class=\"holo-Row\" style=\"\"><label class=\"holo-Input\"><span>Ville</span>"), "{html}");
+        assert!(html.contains("<fieldset class=\"holo-Fields\"><legend>Pour te prévenir</legend><label class=\"holo-Checkbox\"><input type=\"checkbox\" data-bind=\"mail\"><span>Par e-mail</span></label>"), "{html}");
+        // Un Choice garde son propre groupe, avec sa légende, dans celui qui l'entoure.
+        assert!(html.contains("<fieldset class=\"holo-Choice\" data-group=\"slot\"><legend>Jour</legend>"), "{html}");
+        assert!(html.contains("<span>Samedi</span></label></fieldset></fieldset>"), "{html}");
+        // Le style de base : ni la bordure du navigateur, ni un groupe plus large que l'écran.
+        assert!(html.contains(":where(.holo-Fields){border:0;padding:0;margin:0 0 16px 0;min-width:0}"), "{html}");
+    }
+
+    #[test]
+    fn a_group_has_a_name_and_at_least_two_fields() {
+        let two = "Input(value: a, label: \"A\"), Input(value: b, label: \"B\")";
+        for (children, expected) in [
+            // Un groupe sans nom ne dit rien au lecteur d'écran.
+            (format!("Fields(children: [ {two} ])"), "« Fields » attend « label »"),
+            (format!("Fields(label: \" \", children: [ {two} ])"), "« Fields » attend « label »"),
+            (format!("Fields(label: a, children: [ {two} ])"), "« Fields » attend « label »"),
+            (format!("Fields(\"Adresse\", children: [ {two} ])"), "chaque paramètre de « Fields » est nommé"),
+            // Le nom s'écrit label:, comme pour Choice ; les mots de HTML sont refusés avec le bon mot.
+            (format!("Fields(legend: \"Adresse\", children: [ {two} ])"), "« Fields » n'a pas de paramètre « legend » ; paramètres possibles : name, label, children"),
+            (format!("Fieldset(children: [ {two} ])"), "s'écrit « Fields(label:"),
+            // Un groupe sans champ n'est pas un groupe de champs ; un champ seul a déjà son nom.
+            ("Fields(label: \"Adresse\", children: [ P(\"Rien à remplir\") ])".to_string(), "réunit des champs"),
+            ("Fields(label: \"Adresse\")".to_string(), "réunit des champs"),
+            ("Fields(label: \"Adresse\", children: [ Input(value: a, label: \"A\"), P(\"Une aide\") ])".to_string(), "un champ seul a déjà son nom"),
+            ("Fields(label: \"Livraison\", children: [ Choice(value: slot, label: \"Jour\", options: [\"Mardi\", \"Samedi\"]) ])".to_string(), "est déjà un groupe"),
+        ] {
+            let error = crate::check_page(&format!("Page(state: State(a: \"\", b: \"\", slot: \"\"), children: [ {children} ])")).unwrap_err();
+            assert!(error.message.contains(expected), "{children}\n→ {error}");
+        }
+        // Deux champs, même rangés plus bas : c'est permis.
+        crate::check_page(&format!("Page(state: State(a: \"\", b: \"\"), children: [ Fields(label: \"Adresse\", children: [ Row(children: [ {two} ]) ]) ])")).unwrap();
+    }
+
+    #[test]
+    fn the_fields_of_a_group_are_sent_and_checked_with_their_form() {
+        // Le groupe ne change rien à l'envoi (ADR-042, ADR-068) : ses champs partent et sont vérifiés.
+        let page = "Page(state: State(street: \"\", city: \"\", sms: 0), children: [ Form(name: Order, children: [ Fields(label: \"Adresse\", children: [ Input(value: street, label: \"Rue\", required: true), Input(value: city, label: \"Ville\") ]), Checkbox(value: sms, label: \"Par SMS\"), Button(name: Send, text: \"Commander\") ]) ], rules: [ On(Send.tap, effect: Order.send) ])";
+        let start = crate::initial_state(page);
+        assert_eq!(crate::form_errors(page, &start, "Order"), "street|Ce champ est obligatoire.");
+        let filled = crate::input(page, &start, "street", "12 rue des Arts");
+        assert_eq!(crate::form_errors(page, &filled, "Order"), "");
+        assert_eq!(crate::submission(page, &filled, "Order"), r#"{"form":"Order","values":{"street":"12 rue des Arts","city":"","sms":0}}"#);
+        // Sans JavaScript (ADR-075), le message s'écrit sous son champ, dans le groupe.
+        let html = crate::gestures::with_errors(&crate::flat_view(page, "").unwrap(), "Order", &[("street".into(), "Ce champ est obligatoire.".into())]);
+        assert!(html.contains("data-bind=\"street\"></label><p class=\"holo-error\" id=\"holo-error-Order-street\">Ce champ est obligatoire.</p><label class=\"holo-Input\"><span>Ville</span>"), "{html}");
+    }
+
+    #[test]
+    fn a_required_choice_is_a_radio_group_checked_at_send() {
+        // Des boutons ronds obligatoires (ADR-068) : un groupe que le lecteur d'écran dit obligatoire,
+        // vérifié à l'envoi. `required:` était refusé à tort par la vérification de Choice.
+        let page = "Page(state: State(slot: \"\"), children: [ Form(name: Order, children: [ Choice(value: slot, label: \"Jour de livraison\", options: [\"Mardi\", \"Samedi\"], required: true), Button(name: Send, text: \"Commander\") ]) ], rules: [ On(Send.tap, effect: Order.send) ])";
+        let html = crate::flat_view(page, "").unwrap();
+        assert!(html.contains("<fieldset class=\"holo-Choice\" role=\"radiogroup\" aria-required=\"true\" data-group=\"slot\"><legend>Jour de livraison</legend>"), "{html}");
+        let start = crate::initial_state(page);
+        assert_eq!(crate::form_errors(page, &start, "Order"), "slot|Choisis une réponse.");
+        assert_eq!(crate::form_errors(page, &crate::input(page, &start, "slot", "Samedi"), "Order"), "");
+        // Hors d'un formulaire, ou avec autre chose que true ou false : refusé, avec la raison.
+        let outside = page.replace("Form(name: Order, children: [ Choice", "Choice").replace("), Button(name: Send, text: \"Commander\") ])", "), Form(name: Order, children: [ Button(name: Send, text: \"Commander\") ])");
+        assert!(crate::check_page(&outside).unwrap_err().message.contains("est vérifié à l'envoi d'un formulaire"), "{outside}");
+        assert!(crate::check_page(&page.replace("required: true", "required: oui")).unwrap_err().message.contains("« Choice(required: …) » attend true ou false"));
     }
 }
