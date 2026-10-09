@@ -44,7 +44,7 @@ Page(
     Hr(),
     Row(gap: 16px, align: between, children: [
       A("← Leçon 121 : une abréviation, une date, une adresse", to: "121-une-abreviation-une-date-une-adresse.holo"),
-      A("Leçon 1 : une page →", to: "01-page.holo"),
+      A("Leçon 123 : des suggestions dans un champ →", to: "123-des-suggestions-dans-un-champ.holo"),
     ]),
   ],
   rules: [

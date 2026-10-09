@@ -631,6 +631,27 @@ const tests = [
     const ok = heard && look === "none / 0px / 13" && wide <= 360 && checked && first === "street";
     return [ok, `lecteur d'écran : ${groups.join(" | ")} ; allure (bordure / largeur la plus petite / nom sous le cadre) : ${look} ; téléphone : ${wide} px pour 360 ; à l'envoi, messages dans les groupes : ${checked}, le clavier sur « ${first} »`];
   }],
+  ["des suggestions dans un champ, écrites ou venues d'une liste qui change ; on écrit autre chose (leçon 123)", async (p, b) => {
+    await p.open("/exemples/lecons/123-des-suggestions-dans-un-champ.holo");
+    // Chaque champ porte ses suggestions (input.list) : écrites dans la page, ou venues d'une liste.
+    const options = (bind) => `[...(document.querySelector('[data-bind="${bind}"]').list?.options ?? [])].map((o) => o.value).join(", ")`;
+    const fruits = await p.value(options("fruit"));
+    const before = await p.value(options("ville"));
+    // On écrit autre chose qu'une suggestion : le champ le garde, la page le montre.
+    await p.type('[data-bind="ville"]', "Grenoble");
+    const kept = await p.until(`document.querySelector("main").textContent.includes("Tu vas à Grenoble.")`);
+    // Retenue, la ville rejoint la liste, et les suggestions la suivent pendant la visite.
+    await p.click('[data-name="Retenir"]');
+    const followed = await p.until(`[...(document.querySelector('[data-bind="ville"]').list?.options ?? [])].some((o) => o.value === "Grenoble")`, 10000);
+    const after = await p.value(options("ville"));
+    // Le lecteur d'écran : un champ qu'on écrit et qui propose une liste (pas le texte de l'étiquette).
+    const { nodes } = (await b.send("Accessibility.getFullAXTree")).result;
+    const field = nodes.find((n) => !n.ignored && n.name?.value === "La ville où tu vas" && !["StaticText", "InlineTextBox"].includes(n.role?.value));
+    const [role, proposes] = [field?.role?.value, field?.properties?.find((q) => q.name === "autocomplete")?.value?.value];
+    const ok = fruits === "Pomme, Poire, Abricot, Mirabelle" && before === "Paris, Lyon, Marseille, Lille, Bordeaux" && kept && followed
+      && after === "Paris, Lyon, Marseille, Lille, Bordeaux, Grenoble" && role === "combobox" && proposes === "list";
+    return [ok, `fruits : ${fruits} ; villes : ${before} → ${after} ; « Grenoble » écrit : ${kept ? "gardé" : "perdu"} ; lecteur d'écran : ${role}, autocomplete ${proposes}`];
+  }],
   ["les touches du clavier, et les lettres qu'on coupe", async (p) => {
     await p.open("/exemples/lecons/77-toutes-les-touches.holo");
     if (!(await p.until(`document.getElementById("shortcuts")`))) return [false, "le moteur n'est pas arrivé"];

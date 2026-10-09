@@ -64,7 +64,8 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     ("Stack", &["name", "children"]),
     ("Board", &["name", "children", "height"]),
     ("Point", &["name", "seed", "brightness", "fragments", "color", "palette", "budget", "inside", "above"]),
-    ("Input", &["name", "value", "label", "min", "max", "lines", "type", "accept", "required"]),
+    // Des suggestions pendant qu'on écrit (ADR-100) : suggestions: ["Paris", "Lyon"], ou une liste de la page.
+    ("Input", &["name", "value", "label", "min", "max", "lines", "type", "accept", "required", "suggestions"]),
     ("Slider", &["name", "value", "label", "min", "max"]),
     ("Progress", &["name", "value", "max", "label"]),
     ("Details", &["name", "summary", "children", "open"]),

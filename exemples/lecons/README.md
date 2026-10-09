@@ -130,6 +130,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 120 | [Une liste de définitions](120-une-liste-de-definitions.holo) | `List(children: [ Term("Poids", "2 kg") ])` : un terme et sa définition, toujours ensemble ; une fiche technique, un glossaire |
 | 121 | [Une abréviation, une date, une adresse](121-une-abreviation-une-date-une-adresse.holo) | `Page(abbreviations: [ Abbreviation("MJC", "…") ])` : le sens écrit à la première venue ; une date montrée lisible par les machines (`<time>`) ; `Address(children: [ … ])` |
 | 122 | [Un groupe de champs](122-un-groupe-de-champs.holo) | `Fields(label: "Adresse de livraison", children: [ … ])` : des champs qui vont ensemble, et le nom du groupe que le lecteur d'écran annonce ; des cases sur une même question |
+| 123 | [Des suggestions dans un champ](123-des-suggestions-dans-un-champ.holo) | `Input(suggestions: ["Pomme", "Poire"])`, `suggestions: villes` : le champ propose, on peut écrire autre chose ; les suggestions suivent la liste pendant la visite |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 

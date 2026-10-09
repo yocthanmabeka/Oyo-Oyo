@@ -481,11 +481,134 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
             }
         }
     }
+    // Les suggestions des champs (ADR-100) : chaque datalist une seule fois, après le pied de page.
+    // Il ne se voit pas ; les champs s'y relient par `list`, ceux des lignes d'une liste aussi.
+    footer.push_str(&datalists(program, page)?);
     Ok(format!(
         "<style>{}{BASE}{}</style><div class=\"{classes}\" data-title=\"{title}\"{title_follows}{live}{share}>{header}<main>{body}</main>{footer}{worlds}</div>",
         fonts(&program.root, base)?,
         css(program, base)
     ))
+}
+
+/// Le datalist des suggestions d'un champ (ADR-100) : celui de la liste de la page qu'il nomme
+/// (`suggestions: cities` → `holo-list-cities`), ou celui de ses suggestions écrites, tiré de
+/// leur texte : deux champs qui proposent les mêmes suggestions partagent le même.
+fn suggestions_id(block: &Block) -> Option<String> {
+    match &block.argument("suggestions")?.value {
+        Value::Name(list) => Some(format!("holo-list-{}", escape(list))),
+        Value::List(elements) => {
+            let written: Vec<&str> = elements.iter().filter_map(|e| if let Value::Text(t) = e { Some(t.as_str()) } else { None }).collect();
+            let hash = written.join("\n").bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, o| (h ^ u64::from(o)).wrapping_mul(0x0100_0000_01b3));
+            Some(format!("holo-suggestions-{hash:x}"))
+        }
+        _ => None,
+    }
+}
+
+/// Les options d'un datalist : chaque texte une fois, dans l'ordre, sans les vides. Un élément à
+/// champs propose son premier champ, comme `{item}`. Une suggestion est un seul texte : ce
+/// qu'on voit est ce qui s'écrit dans le champ (pas de `label` qui s'afficherait autrement).
+pub fn options(elements: &[String]) -> String {
+    let mut seen: Vec<String> = Vec::new();
+    let mut output = String::new();
+    for element in elements {
+        let text = crate::lists::text_of(element);
+        if text.trim().is_empty() || seen.contains(&text) {
+            continue;
+        }
+        output.push_str(&format!("<option value=\"{}\"></option>", escape(&text)));
+        seen.push(text);
+    }
+    output
+}
+
+/// Les datalists de la page (ADR-100), chacun une fois : un par liste de la page nommée dans
+/// `suggestions:`, qui la suit pendant la visite (`data-suggestions` : la page le refait quand la
+/// liste change), et un par groupe de suggestions écrites. Chaque champ qui en propose est
+/// vérifié ici, ceux du modèle d'une liste vide compris.
+fn datalists(program: &Program, page: &Block) -> Result<String, Error> {
+    let lists = crate::lists::running();
+    let mut written_ones: Vec<String> = Vec::new();
+    let mut output = String::new();
+    crate::rules::for_each_block(page, &mut |block| {
+        let Some(argument) = block.argument("suggestions").filter(|_| block.name == "Input") else { return Ok(()) };
+        check_suggestions(program, block, argument)?;
+        let Some(id) = suggestions_id(block).filter(|id| !written_ones.contains(id)) else { return Ok(()) };
+        match &argument.value {
+            Value::Name(list) => {
+                let elements = lists.iter().find(|(name, _)| name == list).map(|(_, e)| e.as_slice()).unwrap_or_default();
+                output.push_str(&format!("<datalist id=\"{id}\" data-suggestions=\"{}\">{}</datalist>", escape(list), options(elements)));
+            }
+            Value::List(elements) => {
+                let texts: Vec<String> = elements.iter().filter_map(|e| if let Value::Text(t) = e { Some(t.clone()) } else { None }).collect();
+                output.push_str(&format!("<datalist id=\"{id}\">{}</datalist>", options(&texts)));
+            }
+            _ => {}
+        }
+        written_ones.push(id);
+        Ok(())
+    })?;
+    Ok(output)
+}
+
+/// Vérifie les suggestions d'un champ (ADR-100). Elles aident à écrire un texte d'une ligne,
+/// sans obliger à en prendre une : des textes écrits entre crochets, ou une liste de textes de
+/// la page. Chaque refus dit pourquoi.
+fn check_suggestions(program: &Program, block: &Block, argument: &Argument) -> Result<(), Error> {
+    let refused = |message: String| Err(Error { message, pos: argument.pos });
+    let example = "suggestions: [\"Paris\", \"Lyon\"], ou le nom d'une liste de la page, suggestions: cities";
+    let texts = crate::state::initial_texts(program);
+    let is_text = |name: &str| texts.iter().any(|(known, _)| known == name);
+    let value = match block.argument("value").map(|a| &a.value) {
+        Some(Value::Name(value)) => value.as_str(),
+        _ => "city",
+    };
+    if !is_text(value) {
+        return refused(format!("« Input(suggestions: …) » propose des textes : la valeur du champ est un texte, state: State({value}: \"\")"));
+    }
+    if block.argument("type").is_some() || block.argument("lines").is_some() {
+        return refused("« Input(suggestions: …) » aide à écrire un texte d'une ligne : un champ avec type: ou lines: n'en propose pas".into());
+    }
+    // Une suggestion écrite tient dans le champ : 80 caractères, ou ce que dit max:.
+    let length = match block.argument("max").map(|a| &a.value) {
+        Some(Value::Integer(max)) => (*max as usize).min(crate::state::TEXT_MAX),
+        _ => crate::state::TEXT_SHORT,
+    };
+    match &argument.value {
+        Value::List(elements) if elements.is_empty() || elements.len() > crate::lists::ELEMENTS_MAX => {
+            refused(format!("« Input(suggestions: […]) » propose de 1 à {} textes", crate::lists::ELEMENTS_MAX))
+        }
+        Value::List(elements) => {
+            let mut seen: Vec<&str> = Vec::new();
+            for element in elements {
+                let Value::Text(text) = element else { return refused(format!("une suggestion est un texte entre guillemets : {example}")) };
+                if text.trim().is_empty() {
+                    return refused("une suggestion vide ne propose rien : écris un texte entre les guillemets".into());
+                }
+                if text.contains('\n') {
+                    return refused(format!("la suggestion « {} » tient sur une ligne, comme le champ", text.lines().next().unwrap_or_default()));
+                }
+                if text.chars().count() > length {
+                    return refused(format!("la suggestion « {text} » est plus longue que le champ ({length} caractères) : raccourcis-la, ou allonge le champ, max: {}", text.chars().count()));
+                }
+                if seen.contains(&text.as_str()) {
+                    return refused(format!("la suggestion « {text} » est écrite deux fois"));
+                }
+                seen.push(text.as_str());
+            }
+            Ok(())
+        }
+        Value::Name(list) if crate::lists::is_list(program, list) => match crate::lists::kind(program, list) {
+            Some(crate::lists::Kind::Records(fields)) => {
+                refused(format!("les éléments de « {list} » ont des champs ({}) ; une suggestion est un texte : State({list}: [\"Paris\", \"Lyon\"])", fields.join(", ")))
+            }
+            _ => Ok(()),
+        },
+        Value::Name(other) if is_text(other) => refused(format!("« {other} » est un texte, pas une liste : {example}")),
+        Value::Name(other) => refused(format!("« suggestions: {other} » : aucune liste ne s'appelle « {other} » ; déclare-la sur la page, state: State({other}: [\"Paris\", \"Lyon\"])")),
+        _ => refused(format!("« Input(suggestions: …) » attend des textes entre crochets, {example}")),
+    }
 }
 
 /// Un texte sans balises, ses valeurs écrites (ADR-090) : le titre d'une page, « Profil de ada ».
@@ -1199,8 +1322,10 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
                     _ => String::new(),
                 };
                 let (max, min) = (written("max"), written("min"));
+                // Des suggestions (ADR-100) : le champ se relie au datalist que la page écrit une fois.
+                let suggested = suggestions_id(block).map(|id| format!(" list=\"{id}\"")).unwrap_or_default();
                 output.push_str(&format!(
-                    "<label class=\"{classes}\"{name}><span>{}</span><input{MARK}!{value}|{max}|{min}{MARK}{} value=\"{MARK}#{value}{MARK}\" data-bind=\"{value}\"></label>",
+                    "<label class=\"{classes}\"{name}><span>{}</span><input{MARK}!{value}|{max}|{min}{MARK}{suggested}{} value=\"{MARK}#{value}{MARK}\" data-bind=\"{value}\"></label>",
                     markdown(label),
                     checked_by_form(block)
                 ));
@@ -2930,5 +3055,103 @@ mod fields_tests {
         let outside = page.replace("Form(name: Order, children: [ Choice", "Choice").replace("), Button(name: Send, text: \"Commander\") ])", "), Form(name: Order, children: [ Button(name: Send, text: \"Commander\") ])");
         assert!(crate::check_page(&outside).unwrap_err().message.contains("est vérifié à l'envoi d'un formulaire"), "{outside}");
         assert!(crate::check_page(&page.replace("required: true", "required: oui")).unwrap_err().message.contains("« Choice(required: …) » attend true ou false"));
+    }
+}
+
+#[cfg(test)]
+mod suggestion_tests {
+    #[test]
+    fn written_suggestions_give_one_datalist() {
+        // Deux champs qui proposent les mêmes fruits partagent un seul datalist, après le contenu.
+        let page = "Page(state: State(fruit: \"\", other: \"\"), children: [ Input(value: fruit, label: \"Fruit\", suggestions: [\"Pomme\", \"Poire\"]), Input(value: other, label: \"Autre\", suggestions: [\"Pomme\", \"Poire\"]) ])";
+        let html = crate::flat_view(page, "").unwrap();
+        let id = html.split("list=\"").nth(1).unwrap().split('"').next().unwrap().to_string();
+        assert!(id.starts_with("holo-suggestions-"), "{html}");
+        assert!(html.contains(&format!("<input type=\"text\" maxlength=\"80\" list=\"{id}\" value=\"\" data-bind=\"fruit\">")), "{html}");
+        assert_eq!(html.matches(&format!(" list=\"{id}\"")).count(), 2, "{html}");
+        assert_eq!(html.matches("<datalist").count(), 1, "{html}");
+        assert!(html.contains(&format!("</main><datalist id=\"{id}\"><option value=\"Pomme\"></option><option value=\"Poire\"></option></datalist></div>")), "{html}");
+        // D'autres suggestions, un autre datalist ; un texte écrit ne devient jamais une balise.
+        let other = crate::flat_view(&page.replace("[\"Pomme\", \"Poire\"]) ])", "[\"<b>Kiwi</b>\"]) ])"), "").unwrap();
+        assert_eq!(other.matches("<datalist").count(), 2, "{other}");
+        assert!(other.contains("<option value=\"&lt;b&gt;Kiwi&lt;/b&gt;\"></option>"), "{other}");
+        // Un champ sans suggestions ne change pas.
+        let plain = crate::flat_view("Page(state: State(fruit: \"\"), children: [ Input(value: fruit, label: \"Fruit\") ])", "").unwrap();
+        assert!(!plain.contains(" list=") && !plain.contains("datalist"), "{plain}");
+    }
+
+    #[test]
+    fn suggestions_from_a_list_follow_it_with_or_without_javascript() {
+        let page = "Page(state: State(city: \"\", cities: [\"Paris\", \"Lyon\", \"Paris\"]), children: [ Input(value: city, label: \"Ville\", suggestions: cities), Button(name: Keep, text: \"Retenir\") ], rules: [ On(Keep.tap, effect: cities.push(city)) ])";
+        let html = crate::flat_view(page, "").unwrap();
+        assert!(html.contains("<input type=\"text\" maxlength=\"80\" list=\"holo-list-cities\" value=\"\" data-bind=\"city\">"), "{html}");
+        // Une ville répétée dans la liste n'est proposée qu'une fois.
+        assert!(html.contains("<datalist id=\"holo-list-cities\" data-suggestions=\"cities\"><option value=\"Paris\"></option><option value=\"Lyon\"></option></datalist>"), "{html}");
+        // On écrit autre chose qu'une suggestion : le champ le prend. Retenue, la ville est proposée.
+        let start = crate::initial_state(page);
+        let written = crate::input(page, &start, "city", "Grenoble");
+        assert!(written.contains("city='Grenoble"), "{written}");
+        let after = crate::arbitrate(page, &written, "Keep.tap");
+        assert_eq!(crate::suggestions_html(page, &after, "cities"), "<option value=\"Paris\"></option><option value=\"Lyon\"></option><option value=\"Grenoble\"></option>");
+        // Sans JavaScript (holo serve), la page servie après le geste la propose aussi.
+        let served = crate::visitor_page(page, "", &after, &[]).unwrap();
+        assert!(served.contains(" list=\"holo-list-cities\"") && served.contains("<option value=\"Grenoble\"></option></datalist>"), "{served}");
+        // Ce que le visiteur a écrit ne devient jamais une balise ; une liste inconnue ne donne rien.
+        let trap = crate::arbitrate(page, &crate::input(page, &start, "city", "<b>Nice</b>"), "Keep.tap");
+        assert!(crate::suggestions_html(page, &trap, "cities").ends_with("<option value=\"&lt;b&gt;Nice&lt;/b&gt;\"></option>"));
+        assert_eq!(crate::suggestions_html(page, &after, "absent"), "");
+    }
+
+    #[test]
+    fn a_computed_list_gives_suggestions_too() {
+        // Les deux villes les plus proches de ce qu'on écrit, refaites à chaque lettre.
+        let page = "Page(state: State(city: \"\", cities: [\"Paris\", \"Lyon\", \"Lille\", \"Laval\"]), computed: [ Filter(name: near, from: cities, contains: city, limit: 2) ], children: [ Input(value: city, label: \"Ville\", suggestions: near) ])";
+        let html = crate::flat_view(page, "").unwrap();
+        assert!(html.contains("<datalist id=\"holo-list-near\" data-suggestions=\"near\"><option value=\"Paris\"></option><option value=\"Lyon\"></option></datalist>"), "{html}");
+        let written = crate::input(page, &crate::initial_state(page), "city", "l");
+        assert_eq!(crate::suggestions_html(page, &written, "near"), "<option value=\"Lyon\"></option><option value=\"Lille\"></option>");
+    }
+
+    #[test]
+    fn an_element_with_fields_proposes_its_first_field() {
+        // Une liste déclarée vide reçoit un élément à champs : il propose son premier champ, comme {item}.
+        let page = "Page(state: State(city: \"\", recent: []), children: [ Input(value: city, label: \"Ville\", suggestions: recent), Button(name: Keep, text: \"Retenir\") ], rules: [ On(Keep.tap, effect: recent.push(Item(name: city, zip: \"69000\"))) ])";
+        let after = crate::arbitrate(page, &crate::input(page, &crate::initial_state(page), "city", "Lyon"), "Keep.tap");
+        assert_eq!(crate::suggestions_html(page, &after, "recent"), "<option value=\"Lyon\"></option>");
+    }
+
+    #[test]
+    fn a_field_in_the_lines_of_a_list_uses_the_datalist_of_the_page() {
+        let page = "Page(state: State(city: \"\", cities: [\"Paris\"], stops: [\"1\", \"2\"]), children: [ Repeat(over: stops, children: [ Input(value: city, label: \"Ville\", suggestions: cities) ]) ])";
+        let html = crate::flat_view(page, "").unwrap();
+        assert_eq!(html.matches(" list=\"holo-list-cities\"").count(), 2, "{html}");
+        assert_eq!(html.matches("<datalist").count(), 1, "{html}");
+        // Les lignes refaites pendant la visite ne refont pas le datalist.
+        let lines = crate::list_html(page, "", &crate::initial_state(page), "stops");
+        assert!(lines.contains(" list=\"holo-list-cities\"") && !lines.contains("<datalist"), "{lines}");
+    }
+
+    #[test]
+    fn suggestions_are_checked() {
+        let refused = |page: &str| crate::check_page(page).unwrap_err().message;
+        let field = |settings: &str| format!("Page(state: State(city: \"\", cities: [\"Paris\"], shops: [ Item(name: \"A\", zip: \"1\") ]), children: [ Input(value: city, label: \"Ville\", {settings}) ])");
+        assert!(refused("Page(state: State(n: 0), children: [ Input(value: n, label: \"N\", suggestions: [\"1\", \"2\"]) ])").contains("la valeur du champ est un texte, state: State(n: \"\")"));
+        assert!(refused(&field("type: email, suggestions: [\"a@b.fr\"]")).contains("un champ avec type: ou lines: n'en propose pas"));
+        assert!(refused(&field("lines: 3, suggestions: [\"Paris\"]")).contains("un champ avec type: ou lines: n'en propose pas"));
+        assert!(refused(&field("suggestions: []")).contains("propose de 1 à 200 textes"));
+        assert!(refused(&field("suggestions: [\" \"]")).contains("une suggestion vide ne propose rien"));
+        assert!(refused(&field("suggestions: [\"Paris\", 3]")).contains("une suggestion est un texte entre guillemets"));
+        assert!(refused(&field("suggestions: [\"Paris\", \"Paris\"]")).contains("la suggestion « Paris » est écrite deux fois"));
+        assert!(refused(&field("max: 5, suggestions: [\"Marseille\"]")).contains("plus longue que le champ (5 caractères)"));
+        assert!(refused(&field("suggestions: [\"\"\"\n  Paris\n  Lyon\n\"\"\"]")).contains("la suggestion « Paris » tient sur une ligne"));
+        assert!(refused(&field("suggestions: villes")).contains("aucune liste ne s'appelle « villes »"));
+        assert!(refused(&field("suggestions: city")).contains("« city » est un texte, pas une liste"));
+        assert!(refused(&field("suggestions: shops")).contains("les éléments de « shops » ont des champs (name, zip)"));
+        assert!(refused(&field("suggestions: 3")).contains("attend des textes entre crochets"));
+        // Dans le modèle d'une liste vide aussi ; et seulement dans un champ.
+        assert!(refused("Page(state: State(city: \"\", rows: []), children: [ Repeat(over: rows, children: [ Input(value: city, label: \"Ville\", suggestions: []) ]) ])").contains("propose de 1 à 200 textes"));
+        assert!(refused("Page(state: State(gift: 0), children: [ Checkbox(value: gift, label: \"Cadeau\", suggestions: [\"Oui\"]) ])").contains("n'a pas de paramètre « suggestions »"));
+        // Une liste vide au départ est permise : elle se remplit pendant la visite.
+        crate::check_page("Page(state: State(city: \"\", recent: []), children: [ Input(value: city, label: \"Ville\", suggestions: recent) ])").unwrap();
     }
 }

@@ -6,6 +6,20 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Des suggestions dans un champ
+
+- Fait (issue #216, prise par la session du PC, puis reprise depuis le début par la session du nuage quand le PC s'est éteint ; `ADR-100`, PROPOSITION) :
+  - `Input(value: city, label: "Ville", suggestions: ["Paris", "Lyon"])` : le navigateur propose ces textes pendant qu'on écrit, et on peut écrire autre chose ; c'est la différence avec `Choice`. Le moteur écrit le `datalist` de HTML une seule fois pour la page et y relie le champ par `list` : rien à nommer ni à recopier ; plusieurs champs, et un champ dans les lignes d'une liste, partagent le même, sans `id` en double.
+  - `suggestions: villes` : les suggestions viennent d'une liste de la page (déclarée, calculée, ou remplie par `Data`). Quand elle change pendant la visite, la page demande les nouvelles options au moteur (`suggestions_html`) et les pose, comme pour un graphique ; sans JavaScript, `holo serve` fabrique la page avec la liste du visiteur. Un texte répété n'est proposé qu'une fois.
+  - Le mot `suggestions:`, plutôt que `list:` (qui se confondrait avec les listes de la page), `options:` (qui ferait croire qu'il faut choisir) ou `autocomplete:` (en HTML, ce que le navigateur retient du visiteur).
+  - Les refus, avec leur raison : un nombre, `type:`, `lines:`, une liste écrite vide ou trop longue, une suggestion vide, sur plusieurs lignes, plus longue que le champ ou écrite deux fois, une liste à champs, un nom qui n'est pas une liste.
+  - La leçon 123 (elle revient à la 119, qui n'est pas touchée). Le guide (chapitre « 6 unquadragies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+- Exécuté : `cargo test --release` → 204 tests passent (six nouveaux : `written_suggestions_give_one_datalist`, `suggestions_from_a_list_follow_it_with_or_without_javascript`, `a_computed_list_gives_suggestions_too`, `an_element_with_fields_proposes_its_first_field`, `a_field_in_the_lines_of_a_list_uses_the_datalist_of_the_page`, `suggestions_are_checked`) ; `holo check` sur les 118 fichiers de leçons : tous `ok` ; dans Chrome, l'essai de la leçon 123 passe, et rate quand la page ne refait plus le `datalist` (« Grenoble », retenue, n'arrive pas dans les suggestions) ; axe-core 4.10.3 sur la leçon 123 : 0 défaut ; la suite Chrome entière : 66 essais sur 69 passent, 116 leçons ouvertes, 504 s. Les 3 ratés sont ceux du conteneur : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium).
+- Erreur en route : mon premier essai dans Chrome cherchait le champ dans l'arbre d'accessibilité par son nom, et trouvait d'abord le texte de son étiquette (« StaticText ») ; il prend maintenant le nœud qui n'est pas du texte, la « combobox ».
+- Reste : des suggestions demandées au serveur pendant qu'on écrit ; choisir le champ d'une liste à champs ; la liste qui s'ouvre garde l'allure du navigateur. Avec les PR des leçons 120, 121 et 124, la suite des leçons et les lignes des fichiers partagés seront rangées par numéro à la fusion (119 → 120 → … → 124).
+
+---
+
 ## 2026-10-09 — Un groupe de champs : `Fields(label: "Adresse de livraison", children: [ … ])`
 
 - Fait (issue #215, prise par la session du PC, qui s'est éteinte sans rien envoyer ; reprise depuis le début par la session du nuage ; `ADR-099`, PROPOSITION) :

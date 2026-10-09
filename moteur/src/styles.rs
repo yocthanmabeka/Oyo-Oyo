@@ -670,6 +670,8 @@ mod tests {
             include_str!("../../exemples/lecons/121-une-abreviation-une-date-une-adresse.holo"),
             // Un groupe de champs et son nom (ADR-099).
             include_str!("../../exemples/lecons/122-un-groupe-de-champs.holo"),
+            // Des suggestions dans un champ (ADR-100).
+            include_str!("../../exemples/lecons/123-des-suggestions-dans-un-champ.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();
