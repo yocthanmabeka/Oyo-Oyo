@@ -261,7 +261,7 @@ pub fn visitor_page(source: &str, base: &str, state: &str, tried: &[String]) -> 
     let start = (state::reread(&program, state), state::reread_texts(&program, state), lists::reread(&program, state));
     let html = with_shared_mark(&program, flat::site_html_from(&program, &program.root, base, "", Some(&start))?, state);
     let written = state.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
-    let mut page = gestures::without_script(&html.replacen(" data-title=\"", &format!(" data-visit=\"{written}\" data-title=\""), 1));
+    let mut page = gestures::without_script(&html.replacen(" data-title=\"", &format!(" data-visit=\"{written}\" data-title=\""), 1), &shared::keyed_lists(&program));
     for form in tried {
         let errors: Vec<(String, String)> = form_errors(source, state, form).lines().filter_map(|line| line.split_once('|')).map(|(bind, message)| (bind.to_string(), message.to_string())).collect();
         page = gestures::with_errors(&page, form, &errors);
@@ -322,10 +322,11 @@ pub fn with_shared(source: &str, state: &str, shared: &str) -> String {
 }
 
 /// Ce geste change-t-il une valeur partagée ? Un toucher dont une règle demande de la changer
-/// (ADR-079) : la page l'envoie alors au serveur, qui l'arbitre, au lieu de l'arbitrer seule.
+/// (ADR-079), ou change une fiche d'une liste partagée (`item.done.set(1)`, ADR-080) : la page
+/// l'envoie alors au serveur, qui l'arbitre, au lieu de l'arbitrer seule.
 pub fn touches_shared(source: &str, signal: &str) -> bool {
     let Ok(program) = check_page(source) else { return false };
-    gestures::is_tap(signal) && state::touched_ones(&program, lists::signal_and_line(signal).0).iter().any(|value| program.shared.contains(value))
+    gestures::is_tap(signal) && (state::touched_ones(&program, lists::signal_and_line(signal).0).iter().any(|value| program.shared.contains(value)) || shared::changes_shared_line(&program, signal))
 }
 
 /// Le serveur arbitre un geste sur une page qui partage des valeurs (ADR-079). `state` est l'état
@@ -339,60 +340,11 @@ pub fn share(source: &str, state: &str, shared: &str, signal: &str) -> (String, 
     if !gestures::is_tap(signal) || !shared::shown(&program, &merged, signal) {
         return (merged, false);
     }
-    let prepared=shared::with_drafts(&program,state,signal);
-    
-    let mut mapped_signal = signal.to_string();
-    if let (base, Some(rank)) = lists::signal_and_line(signal) {
-        if let Some((_, list)) = lists::line_rules(&program).into_iter().find(|(rule, _)| {
-            rule.name == "On" && rule.arguments.iter().find(|a| a.name.is_none()).is_some_and(|a| matches!(&a.value, Value::Name(ref n) if n == base))
-        }) {
-            if program.shared.iter().any(|s| *s == list) {
-                let (visitor_texts, visitor_lists) = (state::reread_texts(&program, state), lists::reread(&program, state));
-                let visitor_computed = computed::apply(&program, &state::reread(&program, state), &visitor_texts, &visitor_lists);
-                if let Some(elements) = visitor_lists.iter().chain(visitor_computed.iter()).find(|(n, _)| n == &list).map(|(_, e)| e) {
-                    if let Some(target_element) = elements.get(rank) {
-                        let repeat = lists::repeats(&program).into_iter().find(|(_, l)| l == &list).map(|(r, _)| r);
-                        let key_field = repeat.and_then(|r| r.argument("key")).and_then(|a| match &a.value { Value::Name(n) => Some(n), _ => None });
-                        
-                        let key_of = |e: &String, index: usize, slice: &[String]| -> String {
-                            match key_field {
-                                Some(field) => {
-                                    let of = |elem: &String| lists::fields(elem).into_iter().find(|(c, _)| c == field).map(|(_, v)| v).unwrap_or_default();
-                                    let value = of(e);
-                                    let already = slice[..index].iter().filter(|el| of(el) == value).count();
-                                    format!("k:{}-{}", value, already)
-                                }
-                                None => {
-                                    let already = slice[..index].iter().filter(|el| *el == e).count();
-                                    let hash = e.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, o| (h ^ u64::from(o)).wrapping_mul(0x0100_0000_01b3));
-                                    format!("{hash:x}-{already}")
-                                }
-                            }
-                        };
-                        
-                        let target_key = key_of(target_element, rank, elements);
-                        
-                        let (server_texts, server_lists) = (state::reread_texts(&program, &merged), lists::reread(&program, &merged));
-                        let server_computed = computed::apply(&program, &state::reread(&program, &merged), &server_texts, &server_lists);
-                        if let Some(server_elements) = server_lists.iter().chain(server_computed.iter()).find(|(n, _)| n == &list).map(|(_, e)| e) {
-                            let new_rank = server_elements.iter().enumerate().find(|(i, e)| key_of(e, *i, server_elements) == target_key).map(|(i, _)| i);
-                            if let Some(new_rank) = new_rank {
-                                mapped_signal = format!("{}@{}", base, new_rank);
-                            } else {
-                                return (merged, false);
-                            }
-                        } else {
-                            return (merged, false);
-                        }
-                    } else {
-                        return (merged, false);
-                    }
-                }
-            }
-        }
-    }
-
-    match arbitrate_program(&prepared, &merged, &mapped_signal) {
+    // La ligne touchée d'une liste partagée se retrouve par sa clé, dans la liste que garde le
+    // serveur, au rang qu'elle y a maintenant (ADR-080) ; jamais par le rang qu'avait la page.
+    let Some(signal) = shared::line_by_key(&program, &merged, signal) else { return (merged, false) };
+    let prepared = shared::with_drafts(&program, state, &signal);
+    match arbitrate_program(&prepared, &merged, &signal) {
         after if after.is_empty() || !shared::within_budget(&program,&after) => (merged, false),
         after => (cut_shared(&program, &after), true),
     }
