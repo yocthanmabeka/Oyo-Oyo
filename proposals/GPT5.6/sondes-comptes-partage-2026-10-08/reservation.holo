@@ -1,0 +1,21 @@
+Page(
+  title: "Sondes comptes et partage",
+  access: members,
+  state: State(booked: 0, cart: 0, note: ""),
+  shared: Shared(seats: 3),
+  children: [
+    H1("Une place par compte"),
+    P("Places : {seats}"),
+    P("Panier : {cart}"),
+    P("Réservé : {booked}"),
+    Input(label: "Note", value: note),
+    If(booked, is: 0, children: [
+      If(seats, over: 0, children: [
+        Button(name: Reserve, text: "Réserver"),
+      ]),
+    ]),
+  ],
+  rules: [
+    On(Reserve.tap, effect: [seats.sub(1), booked.set(1)]),
+  ],
+)

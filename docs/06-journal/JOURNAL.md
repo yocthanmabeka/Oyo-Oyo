@@ -6,6 +6,32 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-08 — Tout ce que Yocthan a validé passe en « décidé »
+
+- Yocthan, en regardant le tableau en ligne : « Pourquoi y a toujours "20 en partie" ? Tout doit être en décidé car je les ai validés », puis « Valides les "34 à l'essai" ». Il avait essayé au doigt les leçons 1 à 100 : « tout marche ».
+- Passées en `ACCEPTÉ` le 2026-10-08 : `ADR-063` à `ADR-069` (les lots 2 à 4 du web), `ADR-078` (les adresses) et `ADR-079` (les valeurs partagées). Les 34 mots « à l'essai » du tableau sont décidés : 380 mots sur 380, lot 6 compris. `ADR-006` (HoloIR) reste une proposition, car rien n'en est construit.
+- Expliqué à Yocthan : « en partie » n'est pas un statut de décision. C'est la part d'un élément de HTML, CSS ou JavaScript que HoloCode sait faire. Pour 20 éléments, il n'en fait encore qu'une partie (par exemple le dessin libre, qu'apporte le lot 9). Ce chiffre baisse en construisant, pas en validant.
+- Le tableau compte maintenant le direct : « parler en direct avec un serveur » passe de « non » à « oui » (`shared: Shared(…)`, `ADR-079`). Résultat : 95 oui, 20 en partie, 8 non, 6 refusés, 1 sans objet. La page en ligne est republiée (version 28), et `TABLEAU-WEB.md` est refait à partir d'elle.
+- Le 2026-10-09, après la fusion du lot 9 (PR 171, 172, 174, 191 à 194), le tableau est repris :
+  - La session du nuage avait écrit ses lignes directement dans `TABLEAU-WEB.md`. Un outil les a reprises dans la page en ligne, d'où le fichier est refait. Il a été vérifié par un aller-retour sur l'ancien tableau : aucune différence.
+  - Il compte maintenant **394 mots** : 393 décidés, et `address` (l'historique dans une page, `ADR-091`) à l'essai, car Yocthan ne l'a pas encore essayé.
+  - Face au web : **98 oui, 18 en partie, 8 non**.
+- Erreur évitée : la première version de l'outil coupait les lignes aux barres verticales placées dans le code (`date | time | color`). Elle a été corrigée avant tout envoi.
+
+---
+
+## 2026-10-08 — Qui fusionne quand le PC dort ; une file de travail pour toutes les IA
+
+- Yocthan : « dès que tu es en mode remote control, c'est toi qui fais la fusion ; si mon PC s'arrête ou passe en veille, c'est à la session qui est sur le téléphone de faire les fusions », puis « une sorte de queue, pour que chaque IA que je vais brancher puisse avoir le travail qui n'est pas encore fait », sans « vous entremêler », pour aller plus vite et consommer moins.
+- Écrit dans `AGENTS.md` (« Qui fusionne, et la file de travail »), dans la passation et dans `GEMINI.md` :
+  - la session du PC fusionne tant qu'elle tourne ;
+  - PC éteint ou en veille, la session du nuage fusionne, avec les mêmes règles ;
+  - Gemini, ChatGPT et Codex ne fusionnent jamais.
+- La file se trouve dans les issues GitHub : une tâche par issue, avec ses chemins réservés, ses numéros et ce qu'elle attend. On la prend par une étiquette (`etat:en-cours`) et un commentaire « Pris par … ». Si on s'arrête, on la rend. Créées : les issues 180 à 189, dont sept à prendre et trois déjà en cours (le lot 7, les parcours du web viable, le lot 9 du nuage).
+- Fusionnée le même jour : la PR 153 de Codex (« Holoverse de 1970 à 2026 », une proposition) ; ses six tests sont verts, et la fusion porte l'adresse `noreply`.
+
+---
+
 ## 2026-10-08 — Des polices libres pour toutes les écritures : `Font(family: "Inter")`
 
 - Fait (`ADR-092`, PROPOSITION ; une des tâches confiées par Yocthan à la session du nuage, sa demande de la leçon 54) : 32 polices libres gardées dans le projet (`moteur/web/fonts/`), nommées sans fichier. Le latin, le cyrillique, le grec, l'arabe, l'hébreu, le devanagari, le bengali, le tamoul, le thaï, l'éthiopien, l'adlam, le n'ko, le tifinagh, le chinois, le japonais, le coréen. Le navigateur ne télécharge que les morceaux dont la page a besoin : la phrase japonaise de la leçon 115 fait venir 1 morceau sur 124. Leçon 115.

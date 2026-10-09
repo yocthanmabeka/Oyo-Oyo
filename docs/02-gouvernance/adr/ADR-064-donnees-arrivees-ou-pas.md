@@ -1,6 +1,6 @@
 # ADR-064 — Des données qui disent « arrivées » ou « échec »
 
-- Statut : PROPOSITION (construit et essayé ; attend la validation de Yocthan)
+- Statut : ACCEPTÉ (validé par Yocthan le 2026-10-08, après avoir essayé les leçons : « tout doit être en décidé car je les ai validés »)
 - Date : 2026-10-07
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'ordre de Yocthan du 2026-10-07 (« terminer les données : … chargement et erreur ») ; l'exploration de l'issue #82 (piste 1 : un échec de `Data` passe sans rien dire ; défaut D10 : une seule image refusée efface toute la liste).

@@ -1,6 +1,6 @@
 # ADR-066 — Des nombres à virgule, exacts
 
-- Statut : PROPOSITION (construit et essayé ; attend la validation de Yocthan)
+- Statut : ACCEPTÉ (validé par Yocthan le 2026-10-08, après avoir essayé les leçons : « tout doit être en décidé car je les ai validés »)
 - Date : 2026-10-07
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'ordre de Yocthan du 2026-10-07 (« terminer les données : … nombres décimaux ») ; l'exploration de l'issue #82 ; `ADR-043` (multiplier et diviser des nombres entiers ; les prix en centimes, `{price:cents}`).

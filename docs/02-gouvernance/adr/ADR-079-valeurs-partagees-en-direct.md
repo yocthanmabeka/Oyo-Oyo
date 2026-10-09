@@ -1,6 +1,6 @@
 # ADR-079 — Lot 6 du web : des valeurs partagées, en direct (`shared: Shared(seats: 20)`)
 
-- Statut : PROPOSITION (construit et essayé ; le sens de « partager » est celui décidé par Yocthan, la forme `Shared(…)` et le reste attendent sa validation)
+- Statut : ACCEPTÉ (validé par Yocthan le 2026-10-08, après avoir essayé les leçons : « tout doit être en décidé car je les ai validés »)
 - Date : 2026-10-08
 - Responsable : Yocthan Mabeka
 - Discussions sources : le plan en neuf lots (`proposals/Claude/tout-le-web-2026-10/SYNTHESE.md`, lot 6) ; la proposition du serveur (`proposals/Claude/serveur-et-comptes-2026-10-07.md`) ; la décision de Yocthan du 2026-10-08, transmise par la session principale ; le serveur des `ADR-074` à `ADR-076` et les adresses de l'`ADR-078`.

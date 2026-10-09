@@ -1,7 +1,7 @@
 """Fabrique le manifest de l'extension VS Code, sans rien installer d'autre que Python.
 
     python outils/vscode-holocode/package.py
-    code --install-extension outils/vscode-holocode/holocode-0.2.0.vsix
+    code --install-extension outils/vscode-holocode/holocode-0.2.1.vsix
 
 Un file .vsix est une archive zip : l'extension dans un dossier « extension », plus deux
 fichiers de description que VS Code attend.
