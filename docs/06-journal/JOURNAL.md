@@ -31,6 +31,23 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Le lot 7 décidé, avec la correction de Codex ; les lots 9 et les polices fusionnés dedans
+
+- Yocthan : intégrer tout le travail de Codex quand il est bien fait, et le continuer nous-mêmes ; « tu valides tout ce qu'on avait fait ». L'`ADR-081` (les comptes) passe en `ACCEPTÉ`.
+- Fusionnés dans `langage/lot7-comptes` : `main` (le lot 9, PR 171 à 194 ; les polices, PR 195 ; les sondes de Codex, PR 198), puis la correction de Codex (PR 199). La PR 204 de Codex, qui faisait la même fusion, est refusée : elle doublait 177, 199 et 201.
+- **La correction de Codex (PR 199)**, relue et éprouvée avant : pour un membre, un geste partagé part de l'état que le serveur garde pour son compte ; de l'état envoyé par la page, il ne prend que les champs. Ses sondes HTTP (PR 198) : P03 (une seconde réservation forgée, `booked=0`) et P04 (`cart=777` gardé après un refus) ratées avec l'ancien serveur, les cinq passent avec le nouveau. La dette de l'`ADR-081` est payée, Codex est nommé.
+- **Ma correction du toucher renvoyé** (`?mirror`), gardée et combinée avec la file de Codex : la demande est faite avant que la page joue le toucher (les champs tels qu'écrits, l'adresse d'avant), puis elle part dans la file commune aux touchers partagés, dix secondes au plus. Un essai dans Chrome la garde ; il rate avec l'ancien ordre (« vue 4 », la note perdue).
+- Pendant la fusion avec le lot 9 : sur une page réservée, le titre lit `{account}` (`ADR-090`) et l'adresse porte ses valeurs (`ADR-091`) ; `address: [account]` est refusé ; les leçons s'enchaînent 100, 101, 104, 105, 106, 110.
+- Rangé : la page d'essai de Codex, `exemples/.essais-navigateur/concert-des-membres.holo` (elle était dans `proposals/`) ; le commentaire coupé en deux dans `page-engine.js`.
+- Exécuté, après une reconstruction complète : les deux WebAssembly et `holo` sans avertissement ; `cargo test --release` → 190 tests passent ; `cargo test` → 190 ; les sondes de Codex → 5 sur 5 ; la suite entière dans Chrome → 46 essais `OK`, aucun raté, 110 leçons (339 s).
+
+**Erreurs en route**
+
+- Dans ma première fusion avec le lot 9, le toucher renvoyé partait avec les champs et l'adresse d'après le toucher : une note vide rangée, une page comptée deux fois. Trouvé en relisant le code de l'historique, corrigé, gardé par un essai.
+- Une première version de cet essai attendait le moteur par un `focus()` écrit par script, qui ne le fait pas venir : l'essai ratait alors que la page était juste.
+
+---
+
 ## 2026-10-08 — Tout ce que Yocthan a validé passe en « décidé »
 
 - Yocthan, en regardant le tableau en ligne : « Pourquoi y a toujours "20 en partie" ? Tout doit être en décidé car je les ai validés », puis « Valides les "34 à l'essai" ». Il avait essayé au doigt les leçons 1 à 100 : « tout marche ».
@@ -63,6 +80,21 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 - Licences vérifiées : toutes sous l'OFL 1.1. Quatre avaient un « nom réservé », que la licence interdit de garder sur des fichiers découpés pour le web : Lora, Merriweather, Playfair Display et Dancing Script sont remplacées par Literata, Noto Serif, Fraunces et Kalam. Le fichier `LICENSE` du dépôt dit que ces polices gardent leur licence.
 - 20 Mo dans le dépôt, dont 12,6 Mo pour le chinois, le japonais et le coréen ; aucun visiteur ne les télécharge toutes. À valider par Yocthan : la sélection.
 - Exécuté : `cargo test` → 162 tests passent (deux nouveaux) ; dans Chrome, l'essai de la leçon 115 passe ; une capture sur un téléphone de 412px montre les huit écritures de la leçon.
+
+---
+
+## 2026-10-08 — Le lot 7 rejoint le lot 6 : la fusion de `main` dans `langage/lot7-comptes`
+
+- Yocthan : « fais la fusion de tout ce qui est bien ». Le lot 6 est sur `main` (PR 179) ; `main` est fusionnée dans la branche du lot 7 (PR 177), qui sera fusionnée par la session principale.
+- Onze fichiers en conflit, tous résolus en gardant les deux lots : `server.rs`, `page-engine.js`, `browser-tests.mjs`, `server.mjs`, `blocks.rs`, `holo.rs` ; le guide, les décisions, l'index des leçons, `AGENTS.md`, ce journal.
+- Les deux chemins de la page vers le serveur restent deux : le geste partagé (lot 6 : la page attend, le serveur arbitre les valeurs partagées) et le toucher renvoyé d'un membre (`?mirror`, lot 7 : après coup, pour son état). Ils ne font pas le même travail, et un toucher ne prend que l'un des deux : rien n'est joué deux fois. La dette (pour un membre, que le serveur prenne l'état de son compte plutôt que celui envoyé par la page) est écrite dans l'`ADR-081`.
+- Ajouté pendant la fusion : le geste partagé d'un membre est arbitré avec son nom (`signedIn`, `{account}`) et gardé sous son compte ; une page réservée ne reçoit ni geste partagé ni écoute en direct sans être membre, dans `holo serve` comme dans le serveur d'essai. Un nouveau test le garde : un bouton montré aux seuls membres (`If(signedIn, is: 1, …)`) ne se touche pas avec un état forgé `signedIn=1`. Les leçons s'enchaînent : 100, 101, 104, 105, 106.
+- Exécuté, après une reconstruction complète (`moteur/target` avait été effacé) : les deux WebAssembly et `holo` se construisent sans avertissement ; `cargo test --release` → 173 tests passent (166 du lot 7, 6 du lot 6, 1 nouveau) ; `cargo test` en mode debug → 173 ; la suite entière dans Chrome → 36 essais `OK`, aucun raté, 101 leçons ouvertes sans erreur (269 s).
+
+**Erreurs en route**
+
+- Le serveur du lot 6 construisait deux demandes (`Ask`) sans le champ `referer` du lot 7 : elles ne compilaient plus. Ajouté.
+- Sans y prendre garde, la fusion laissait la page réservée écoutable en direct, et ses valeurs partagées lisibles par tous : vu en relisant `live_page`, corrigé, essayé.
 
 ---
 
@@ -134,6 +166,34 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
   - une section en haut d'`AGENTS.md`.
 - `main` est protégée sur GitHub : envoi direct refusé, envoi forcé et effacement refusés, et une pull request n'entre qu'avec ses trois tests verts (« Moteur Rust », « Suite de conformité », « Navigateur »). La règle « personne d'autre ne fusionne » ne peut pas être imposée par GitHub, car toutes les IA passent par le même compte : c'est une consigne écrite.
 - Les deux agents des lots 6 et 7 ont reçu l'ordre d'enregistrer et d'envoyer leur travail tel quel, sans rien fusionner, puis de s'arrêter. Lot 7 : PR 177. Lot 6 : branche `langage/lot6-partage`, PR en brouillon.
+
+---
+
+## 2026-10-08 — Lot 7 : des comptes chez l'auteur, une page réservée, le panier qui suit le compte
+
+- Décidé par Yocthan le 2026-10-08 (« je suis d'accord avec tes recommandations ») : se connecter par **un mot de passe puis un code à 6 chiffres**, les clés d'accès ensuite ; **tout chez l'auteur**, comme Django, sans prestataire ; des pages qui marchent aussi sans JavaScript.
+- Fait (`ADR-081`, PROPOSITION) : `holo serve` garde les comptes dans la base du site. Le mot de passe n'y est jamais en clair (son empreinte Argon2id) ; le code à 6 chiffres suit la RFC 6238, calculé par une application du téléphone (Aegis, FreeOTP…), sans Internet ni SMS ; un code ne sert qu'une fois ; cinq essais ratés, puis une attente qui double ; le même message pour un nom ou un mot de passe faux, et le même temps de réponse ; une session de 128 bits tirée au hasard, cookie `HttpOnly; SameSite=Lax`, dont la base ne garde que l'empreinte, oubliée après 14 jours sans visite, effacée en se déconnectant.
+- Les pages de compte (`/account/signup`, `/account/signin`, `/account/code`, `/account`) sont fabriquées par le moteur, en HTML ordinaire, sans script, accessibles (étiquettes, erreurs reliées aux champs et lues par un lecteur d'écran, `autocomplete`).
+- Dans la page : `Page(access: members)` ; `signedIn` et `{account}`, lus comme les autres valeurs, jamais changés. Les liens vers `/account`, `/account/signin`, `/account/signup` sont les seuls qui partent de la racine du site.
+- Le panier suit le compte : sans JavaScript par les touchers, comme avant ; avec JavaScript, la page renvoie chaque toucher au serveur (`?mirror`), qui le rejoue avec le même arbitre sur l'état du compte. Jamais de valeurs. Ce qui était dans le panier avant la connexion suit aussi.
+- Bibliothèques ajoutées, pour le PC seulement : `argon2` 0.6, `hmac` 0.13, `sha1` 0.11 (RustCrypto, la nouvelle génération). Pas de QR code (aucune bibliothèque de plus) : la clé se recopie, ou s'ouvre par un lien `otpauth://` sur le téléphone. Les clés d'accès restent la prochaine étape : il faudra `p256` et `sha2`, à accepter par Yocthan.
+- Leçons 104 (se connecter), 105 (une page réservée), 106 (le panier qui suit le compte). Le serveur d'essai dit qu'il faut `holo serve` à la place des pages de compte et des pages réservées.
+- Pour la fusion avec le lot 6 (construit en même temps) : la leçon 104 revient à la leçon 100 (les leçons 101 à 103 viendront entre les deux) ; la section du guide s'appelle « 6 untricies » pour ne pas prendre le nom que le lot 6 choisira.
+- Exécuté : `cargo test --release` → 166 tests passent (dix nouveaux, dont les valeurs de référence de la RFC 6238) ; `cargo test` en mode debug, celui de GitHub : les tests des comptes en 5 secondes ; dans Chrome, `node outils/browser-tests.mjs compte` → 3 essais `OK` (le serveur d'essai ; un compte, son code calculé par l'essai, une page réservée, avec et sans JavaScript ; le panier sur trois appareils, avec et sans JavaScript) ; les essais `serve` → 8 `OK` ; la suite entière → 34 essais `OK`, aucun raté, 100 leçons ouvertes sans erreur (263 s).
+
+![La page réservée mène à « Se connecter », qui dit pourquoi](images/2026-10-08-lot7-se-connecter.png)
+
+![Créer un compte : un mot de passe trop court, refusé, le message sous le champ](images/2026-10-08-lot7-mot-de-passe-trop-court.png)
+
+![Activer le code à 6 chiffres : la clé à recopier dans l'application](images/2026-10-08-lot7-activer-le-code.png)
+
+**Erreurs en route**
+
+- Une erreur de compilation : j'avais écrit l'empreinte « pour rien » (un nom inconnu) de façon que Rust croie que l'empreinte d'un vrai compte devait vivre aussi longtemps que le programme.
+- La vérification « on le lit, on ne le change pas » ne se faisait que si la page lisait `signedIn` : une page qui l'écrivait sans le lire passait jusqu'à une autre erreur, moins claire. Le test l'a vu ; la vérification se fait maintenant toujours.
+- En relisant le diff : pour un membre connecté, toutes les réponses étaient marquées « jamais en cache », le moteur et son WebAssembly compris ; seules les pages et leurs textes le sont maintenant.
+- Sur les captures : la page « Se connecter » ne disait pas pourquoi on y arrivait depuis une page réservée ; et « Le compte n'est pas créé : Le mot de passe… » était mal ponctué. Corrigés.
+- Une de mes assertions attendait les attributs d'un champ dans le mauvais ordre.
 
 ---
 

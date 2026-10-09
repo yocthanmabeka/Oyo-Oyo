@@ -628,7 +628,7 @@ pub fn take_values(program: &Program, state: &State, texts: &Texts, json: &str) 
         match datum {
             Datum::Number(number) => {
                 let ceiling = ceiling(program, &key);
-                if let Some((_, place)) = state.iter_mut().find(|(known, _)| *known == key && known != DRAWS && !CLOCK.contains(&known.as_str())) {
+                if let Some((_, place)) = state.iter_mut().find(|(known, _)| *known == key && known != DRAWS && !CLOCK.contains(&known.as_str()) && !crate::account::GIVEN.contains(&known.as_str())) {
                     *place = number.saturating_mul(scale(places)).min(ceiling);
                 }
             }
@@ -641,7 +641,8 @@ pub fn take_values(program: &Program, state: &State, texts: &Texts, json: &str) 
             }
             Datum::Decimal(_) => {}
             Datum::Text(text) => {
-                if let Some((_, place)) = texts.iter_mut().find(|(known, _)| *known == key) {
+                // Le nom du membre connecté ne vient que du serveur (ADR-081), jamais de données.
+                if let Some((_, place)) = texts.iter_mut().find(|(known, _)| *known == key && !crate::account::GIVEN.contains(&known.as_str())) {
                     *place = clean(&text, TEXT_MAX);
                 }
             }
@@ -920,8 +921,9 @@ pub fn reread_texts(program: &Program, written: &str) -> Texts {
     let mut texts = initial_texts(program);
     for chunk in written.split(';') {
         if let Some((name, code)) = chunk.split_once("='") {
-            // La date du jour ne se relit pas : le moteur la redonne.
-            if name == crate::dates::TODAY {
+            // La date du jour ne se relit pas : le moteur la redonne. Le nom du membre connecté
+            // non plus : le serveur le redonne à chaque visite (ADR-081).
+            if name == crate::dates::TODAY || crate::account::GIVEN.contains(&name) {
                 continue;
             }
             if let (Some((_, place)), Some(text)) = (texts.iter_mut().find(|(known, _)| known == name), decode(code)) {
@@ -2316,8 +2318,9 @@ pub fn reread(program: &Program, written: &str) -> State {
                 state.push((DRAWS.to_string(), n));
                 continue;
             }
-            // L'heure n'est jamais reprise de l'état écrit : c'est celle donnée au moteur.
-            if CLOCK.contains(&name) {
+            // L'heure n'est jamais reprise de l'état écrit : c'est celle donnée au moteur. Ce que
+            // le serveur dit du visiteur connecté non plus (ADR-081).
+            if CLOCK.contains(&name) || crate::account::GIVEN.contains(&name) {
                 continue;
             }
             if let (Some((_, place)), Ok(value)) = (state.iter_mut().find(|(known, _)| known == name), value.parse::<u64>()) {
