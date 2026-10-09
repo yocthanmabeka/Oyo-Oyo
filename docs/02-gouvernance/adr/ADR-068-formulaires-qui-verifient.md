@@ -1,6 +1,6 @@
 # ADR-068 — Des formulaires qui vérifient
 
-- Statut : PROPOSITION (construit et essayé ; attend la validation de Yocthan)
+- Statut : ACCEPTÉ (validé par Yocthan le 2026-10-08, après avoir essayé les leçons : « tout doit être en décidé car je les ai validés »)
 - Date : 2026-10-07
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'ordre de Yocthan du 2026-10-07, lot 3 (« champs obligatoires, e-mail, longueurs, messages d'erreur accessibles, touche Entrée, envoi unique et délai maximal ») ; `ADR-042` (le formulaire `Form`, `send`, `sent`, `failed`) ; l'exploration #82 (piste 2).
