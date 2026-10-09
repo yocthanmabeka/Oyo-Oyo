@@ -6,6 +6,18 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Si le PC s'arrête, la session du nuage reprend tout le travail
+
+- Yocthan : « au cas où ta session lâche, si le PC s'éteint, que tu laisses à la session sur téléphone continuer, pour qu'on ne puisse pas avoir des arrêts inutiles ».
+- Écrit dans `AGENTS.md` (« Si le PC s'arrête, la session du nuage reprend tout le travail ») :
+  - rien ne vit seulement sur le disque du PC : la session du PC et ses agents envoient leur travail après chaque étape (la branche de la PR quand c'est vert, sinon `wip/<branche>`) et écrivent une ligne d'état sur l'issue de la tâche ;
+  - le nuage sait que le PC est arrêté quand Yocthan le lui dit, ou quand aucune branche en cours du PC n'a reçu d'envoi depuis plus d'une heure ;
+  - il reprend chaque tâche là où elle est, en le disant en commentaire ;
+  - quand le PC revient, il relit la file : une tâche reprise par le nuage reste au nuage jusqu'à ce qu'il la rende.
+- Les trois agents en cours ont reçu la consigne : envoyer après chaque étape et écrire leur état sur les issues 180 à 183 et 213, et sur la PR 208. La session du nuage a reçu l'état exact du travail en cours.
+
+---
+
 ## 2026-10-09 — La fin du lot 9 de Codex intégrée : un fichier, l'appareil, une notification, une copie hors-ligne
 
 - Fusionnée sur `integration/codex-203`, après la PR 201 : la PR 203 de Codex. Quatre blocs, rangés dans les enfants de `Page`, qui ne demandent rien au navigateur sans le toucher d'un bouton : `Transfer` (un fichier JSON des valeurs annoncées, importé tout entier ou refusé), `Device` (la position, le presse-papiers, un aperçu de la caméra, le microphone ; arrêt d'office), `Notification` (un rappel tant que la page est ouverte), `Offline` (la copie d'une page publique, le réseau d'abord, rien de mis en attente). Les leçons 116 à 119, et ses essais dans Chrome.

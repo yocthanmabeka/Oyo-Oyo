@@ -6,6 +6,7 @@ Décision de Yocthan, le 2026-10-08 : « reprendre à la main sans pour autant c
 
 ## Les règles, sans exception
 
+0. **Si tu es la session Claude du nuage et que le PC s'est arrêté**, tu reprends tout le travail en cours, pas seulement les fusions. La règle est dans `AGENTS.md`, « Si le PC s'arrête, la session du nuage reprend tout le travail ». Les règles qui suivent valent pour les autres IA.
 1. **Tu ne fusionnes jamais.** Cela vaut pour toute pull request, même la tienne, même avec tous ses tests verts. Seule une session Claude fusionne, après avoir relu : celle du PC de Yocthan tant qu'il tourne, celle du nuage (sur son téléphone) quand le PC est éteint ou en veille.
 2. **Tu ne touches jamais à `main`.**
    - Pas d'envoi direct (`git push origin main`), pas d'envoi forcé (`--force`).
