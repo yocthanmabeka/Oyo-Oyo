@@ -6,6 +6,29 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Un monde en fragments, et l'IA dans le langage après la 3D
+
+- Dans une conversation Claude séparée, Yocthan a réfléchi à un monde découpé en fragments de la sphère, avec cinq idées :
+  - un fragment égale un budget de mémoire ;
+  - un quadtree sphérique ;
+  - ne charger que le fragment courant et ses voisins ;
+  - des transitions en fondu ;
+  - une IA d'optimisation réveillée au-delà d'un seuil.
+
+  Il a demandé un prompt complet de l'état du projet, avec la réponse à ces idées : `docs/05-discussions/prompts/2026-10-09-claude-etat-du-projet-et-monde-en-fragments.md`.
+- La réponse, vérifiée dans le code :
+  - l'arbre existe déjà : le point se morcelle en enfants par graines (`navigation.rs`), et la vue points se coupe en grilles (`mosaic.rs`, un quadtree en 2 × 2) ;
+  - le monde intérieur est calculé en aperçu avant d'entrer, et le parent s'efface pendant le morcellement ;
+  - le budget d'un point est vérifié (`Point(budget:)`).
+- Ce qui ne s'applique pas tel quel :
+  - un budget de 1 Go par fragment (sur un téléphone, l'onglet entier vise moins de 160 à 220 Mo, et 88 Mo ont été mesurés) ;
+  - le streaming depuis un disque (les mondes se calculent ; le chargement vaudra pour `Point(inside:)` et les objets 3D) ;
+  - une IA pendant la visite (contraire au déterminisme, au budget et à la règle « aucun prestataire »).
+- Le garde par seuils est l'étape 9 du plan 3D. Les niveaux de détail et le lointain sont l'étape 8.
+- Décidé par Yocthan : **l'intégration de l'IA dans le langage se réfléchira à la fin de la 3D**. C'est noté dans `docs/04-roadmap/PLAN-3D.md`.
+
+---
+
 ## 2026-10-08 — Tout ce que Yocthan a validé passe en « décidé »
 
 - Yocthan, en regardant le tableau en ligne : « Pourquoi y a toujours "20 en partie" ? Tout doit être en décidé car je les ai validés », puis « Valides les "34 à l'essai" ». Il avait essayé au doigt les leçons 1 à 100 : « tout marche ».
