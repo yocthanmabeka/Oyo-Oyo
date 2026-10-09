@@ -1,0 +1,19 @@
+// Une page d'essai (moteur/outils/browser-tests.mjs), pas une leçon : on en sort par un point
+// vers un autre fichier, puis on y revient par un autre point. Le moteur passe d'un fichier à
+// l'autre sans recharger la page ; revenue, la page reprend ses valeurs, et l'adresse les dit.
+
+Page(
+  title: "Essai : des onglets, et un passage",
+  state: State(onglet: "toiles"),
+  address: [onglet],
+  children: [
+    P("Onglet {onglet}"),
+    Button(name: Aquarelles, text: "Aquarelles"),
+    Button(name: Suite, text: "Aller au chronomètre"),
+    Point(name: VersChrono, seed: 4, inside: "passage-chrono.holo"),
+  ],
+  rules: [
+    On(Aquarelles.tap, effect: onglet.set("aquarelles")),
+    On(Suite.tap, effect: VersChrono.enter),
+  ],
+)
