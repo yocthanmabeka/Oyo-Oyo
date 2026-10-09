@@ -337,7 +337,7 @@
 | `--or (variables)` | Une couleur ou une taille nommée dans le style de la page | `--or, var(--or)` | Décidé (ADR-041) |
 | `dark, phone` | Le thème sombre ; un écran de téléphone | `@media` | Décidé (ADR-041) |
 | `print` | Ce qui change sur papier ; print: { display: none; } cache un bloc à l'impression | `@media print` | Décidé (ADR-073) |
-| `computer, narrow` | Un écran d'ordinateur (1024px et plus) ; une case de grille étroite (moins de 320px), quel que soit l'écran | `@media, @container` | À l’essai (ADR-069) |
+| `computer, narrow` | Un écran d'ordinateur (1024px et plus) ; une case étroite (moins de 320px) de grille, ou une part étroite d'un `Row` ou d'un `Column`, quel que soit l'écran | `@media, @container` | À l’essai (ADR-069, ADR-090) |
 | `aspect-ratio, object-fit, object-position` | Garder des proportions ; l'image remplit son cadre ou se voit en entier, jamais déformée | `les mêmes` | À l’essai (ADR-069) |
 | `overflow, overflow-x, overflow-y, white-space, line-clamp` | Ce qui dépasse : couper, faire défiler, ne pas passer à la ligne, « … » après quelques lignes | `les mêmes, -webkit-line-clamp` | À l’essai (ADR-069) |
 | `cursor, justify` | La forme du curseur, ou un curseur dessiné ; le texte justifié, les mots coupés | `cursor, text-align: justify, hyphens` | À l’essai (ADR-069) |
@@ -472,7 +472,7 @@
 | En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|
 | `Page(…)` | `html, head, body, main` | la page entière | Oui | Déjà là | Une page HoloCode est un seul bloc Page. |
-| `Page(title:)` | `title` | le titre de l'onglet | Oui | Déjà là | — |
+| `Page(title:)` | `title` | le titre de l'onglet | Oui | Déjà là | Il lit les valeurs, dont celles d'une adresse (`{id}`), et suit leurs changements (ADR-090). |
 | `toujours UTF-8` | `meta charset` | l'encodage | Oui | Déjà là | Rien à écrire. |
 | `Zoom(active:, max:)` | `meta viewport` | le zoom sur téléphone | Oui | Déjà là | Fait autrement : le zoom est au cœur de HoloCode. |
 | `Page(description:, image:)` | `meta description, image de partage` | ce que montrent Google et les réseaux | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
@@ -604,7 +604,7 @@
 | — | `display, position, float, z-index` | placer à la main | Refusé exprès | Non | Refusé (ADR-017) : la disposition vient des blocs. |
 | `Row, Column (gap, align, grow)` | `flexbox (en ligne, en colonne)` | côte à côte, l'un sous l'autre | Oui | Déjà là | grow: prend la place qui reste (ADR-052). |
 | `Grid(columns:, gap:)` | `grid` | une grille | En partie | Déjà là | Pas de zones nommées ni de case sur deux colonnes. |
-| `automatique, et phone:, computer:, narrow: { … } ; Page { max-width: }` | `@media, @container (s'adapter à l'écran, à la place)` | changer selon la taille | Oui | Déjà là | phone: (ADR-041) ; computer: (1024px et plus) et narrow: (une case de grille de moins de 320px, quel que soit l'écran) ajoutés le 2026-10-07 (ADR-069). Rien à déclarer : le moteur mesure les cases. |
+| `automatique, et phone:, computer:, narrow: { … } ; Page { max-width: }` | `@media, @container (s'adapter à l'écran, à la place)` | changer selon la taille | Oui | Déjà là | phone: (ADR-041) ; computer: (1024px et plus) et narrow: (une case de grille de moins de 320px, quel que soit l'écran) ajoutés le 2026-10-07 (ADR-069) ; narrow: aussi dans les parts d'un Row ou d'un Column (grow:, une largeur en %) le 2026-10-08 (ADR-090). Rien à déclarer : le moteur mesure les cases. |
 | `aspect-ratio, object-fit, object-position` | `aspect-ratio, object-fit, object-position` | garder des proportions | Oui | Déjà là | Ajouté le 2026-10-07 (ADR-069). Une image n'est jamais déformée sans le demander (object-fit: cover au départ). |
 | `Stack et align:` | `position: absolute (badge, pastille)` | poser un bloc sur un autre | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-036). Pas encore de bulle attachée à un bloc. |
 | `P { }, .carte { }` | `sélecteurs par balise et par nom` | viser des blocs | Oui | Déjà là | — |
@@ -664,7 +664,7 @@
 | `Data(from:, every:)` | `fetch (lire)` | lire des données d'un serveur | En partie | Déjà là | Des valeurs et des listes d'objets JSON (ADR-051) ; seulement le serveur d'où vient la page. |
 | `Contact.send` | `fetch (envoyer)` | envoyer au serveur | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). Les valeurs d'un formulaire, au serveur d'où vient la page. |
 | — | `WebSocket` | parler en direct avec un serveur | Non | Plus tard | Pour le jeu à plusieurs, après votre validation locale. |
-| `keep: [panier]` | `localStorage` | garder dans le navigateur | Oui | Déjà là | — |
+| `keep: [panier]` | `localStorage` | garder dans le navigateur | Oui | Déjà là | Rangé sous l'adresse : un modèle d'adresse garde des valeurs pour chacune (ADR-090). |
 | — | `cookies, sessionStorage` | se souvenir le temps d'une visite | Non | Plus tard | — |
 | — | `service worker (hors ligne)` | marcher sans réseau | Non | Plus tard | — |
 

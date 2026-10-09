@@ -637,6 +637,16 @@ pub fn stopwatch_stopped(source: &str, state: &str, name: &str, milliseconds: u6
     arbitrate(source, &write_all(&program, &numbers, &texts, &lists), &format!("{name}.stopped"))
 }
 
+/// Le titre de la page pour cet état, quand il lit des valeurs (ADR-090) : « Mon panier (3) ».
+/// La page le donne à l'onglet quand ses valeurs changent. Vide sans titre.
+pub fn page_title(source: &str, state: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    let Some(holo::Value::Text(model)) = program.root.argument("title").map(|a| &a.value) else { return String::new() };
+    format::set_decimals(state::decimals(&program));
+    let shown = state::to_show(&program, &state::reread(&program, state));
+    flat::plain_text(model, &shown, &state::reread_texts(&program, state))
+}
+
 /// Les valeurs qu'un signal fait changer (`time;score`) : leurs horloges repartent de zéro.
 pub fn touched_ones(source: &str, signal: &str) -> String {
     let signal = lists::signal_and_line(signal).0;

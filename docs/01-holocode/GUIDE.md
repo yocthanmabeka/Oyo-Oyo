@@ -1459,6 +1459,8 @@ Page(
 - On la lit, on ne la change pas : `id.set(…)`, `Input(value: id)` et `State(id: …)` sont refusés.
 - `holo serve` (`ADR-074`) fabrique la page de l'adresse, avec ou sans JavaScript, garde l'état de chaque visiteur pour cette adresse, et range un formulaire envoyé de là avec son adresse ; `/contact` mène aussi à `contact.holo`.
 - `holo check profil/{id}.holo` vérifie le modèle, chaque nom valant un texte vide.
+- **Le titre lit les valeurs**, comme un texte : `title: "Le profil de {id}"` écrit « Le profil de ada » dans l'onglet ; un titre qui lit une valeur qui change (`{pages}`) suit ses changements (`ADR-090`).
+- **Les valeurs gardées (`keep`) sont rangées par adresse** : `/profil/ada` retrouve les siennes, `/profil/bob` part de zéro (`ADR-090` ; la leçon est `112-une-adresse-qui-se-souvient.holo`).
 - **Un lien remonte d'un dossier**, comme sur le web : `A(to: "../profiles.holo")` ; il porte aussi des lettres accentuées, `A(to: "profil/Adé")`.
 
 Cette écriture est proposée (`ADR-078`) ; la forme, l'adresse dite par le nom du fichier, est celle choisie par Yocthan. La leçon est `100-une-adresse-qui-porte-une-valeur.holo`.
@@ -1522,7 +1524,7 @@ H2 { font-size: 22px; narrow: { font-size: 16px; } }
 ```
 
 - **`phone: { … }`** vaut sur un écran plus étroit que la page (640px) ; **`computer: { … }`**, sur un écran de 1024px ou plus. `Page { max-width: 960px; }`, ou la même chose dans `computer:`, élargit la page (640px sans rien écrire).
-- **`narrow: { … }`** vaut quand la case de `Grid` où se trouve le bloc fait moins de 320px, quel que soit l'écran : c'est la place du bloc qui compte. Rien à déclarer : la page mesure chaque case.
+- **`narrow: { … }`** vaut quand la case de `Grid` où se trouve le bloc fait moins de 320px, quel que soit l'écran : c'est la place du bloc qui compte. Rien à déclarer : la page mesure chaque case. Dans un `Row` ou un `Column`, les cases mesurées sont celles qui reçoivent une part de la place, `grow:` ou une largeur en % : une carte de `width: 45%` se serre sur un téléphone, pas sur un ordinateur (`ADR-090` ; la leçon est `113-une-rangee-qui-se-serre.holo`).
 - **`display: none`** cache un bloc, dans `phone:`, `computer:` et `narrow:` seulement ; jamais ce qui agit (un bouton, un lien, un champ, un formulaire, un bloc qu'une règle écoute) : décision de Yocthan du 2026-10-07, sa règle de parité. Une phrase ou une image peuvent se cacher sur un seul appareil.
 
 ```holo

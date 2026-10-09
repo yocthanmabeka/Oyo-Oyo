@@ -5,7 +5,7 @@
   // dessin (les points, les mondes, la vue points) est un second moteur, chargé seulement quand
   // la page s'en sert : une page qui ne fait que bouger ne le télécharge jamais.
   import init, {
-    flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, chart_html, shapes_html, module_info, module_finished, module_input, module_received, delays, reads_time, set_now, set_second, reads_seconds, stopwatch_stopped, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
+    flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, page_title, chart_html, shapes_html, module_info, module_finished, module_input, module_received, delays, reads_time, set_now, set_second, reads_seconds, stopwatch_stopped, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
     shared_names, with_shared, touches_shared,
   } from "/pkg-light/holo_engine.js";
   let drawing = null;
@@ -254,7 +254,9 @@
     // L'état de départ, avec ce que la page a gardé d'une visite précédente (keep: […]).
     if (!states.has(path)) {
       let kept = "";
-      try { kept = localStorage.getItem(`holo:${path}`) ?? ""; } catch { /* stockage refusé : on part du départ */ }
+      // Rangé sous l'adresse de la page : un modèle (/profil/{id}.holo) garde des valeurs pour
+      // chaque adresse qu'il sert, /profil/ada et /profil/bob chacune les siennes (ADR-090).
+      try { kept = localStorage.getItem(`holo:${addressOf(path)}`) ?? ""; } catch { /* stockage refusé : on part du départ */ }
       states.set(path, resume(source, kept));
     }
     setClocks();
@@ -684,7 +686,7 @@
   function keep() {
     try {
       const kept = to_keep(source, states.get(path) ?? "");
-      if (kept) localStorage.setItem(`holo:${path}`, kept);
+      if (kept) localStorage.setItem(`holo:${addressOf(path)}`, kept);
     } catch { /* stockage refusé ou plein : la page marche sans */ }
   }
 
@@ -739,6 +741,8 @@
     // Un texte voyage codé, précédé d'une apostrophe : buyer='Zo%C3%A9. Un nombre, tel quel.
     // Une liste voyage entre crochets : elle se montre par son nombre d'éléments (ADR-044).
     const readable = (value) => (value.startsWith("'") ? decodeURIComponent(value.slice(1)) : value.startsWith("[") ? String(value.slice(1, -1).split(",").filter(Boolean).length) : value);
+    // Le titre de l'onglet lit les valeurs (ADR-090) : « Mon panier (3) », « Profil de ada ».
+    if (or_ === root && root.querySelector(".holo-Page")?.hasAttribute("data-title-model")) document.title = page_title(fileText, written) || document.title;
     const values = new Map(written.split(";").filter(Boolean).map((chunk) => {
       const cut = chunk.indexOf("=");
       return [chunk.slice(0, cut), readable(chunk.slice(cut + 1))];

@@ -654,6 +654,9 @@ mod tests {
             include_str!("../../exemples/lecons/101-une-valeur-partagee.holo"),
             // Les secondes et le chronomètre (ADR-089).
             include_str!("../../exemples/lecons/111-un-chronometre.holo"),
+            // Trois dettes des lots 4 et 5 (ADR-090).
+            include_str!("../../exemples/lecons/112-une-adresse-qui-se-souvient.holo"),
+            include_str!("../../exemples/lecons/113-une-rangee-qui-se-serre.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();

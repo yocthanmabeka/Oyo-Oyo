@@ -119,6 +119,12 @@ pub fn stopwatch_stopped(source: &str, state: &str, name: &str, milliseconds: f6
     crate::stopwatch_stopped(source, state, name, milliseconds.max(0.0) as u64)
 }
 
+/// Le titre de la page pour cet état (ADR-090).
+#[wasm_bindgen]
+pub fn page_title(source: &str, state: &str) -> String {
+    crate::page_title(source, state)
+}
+
 /// Ce qu'il faut pour faire tourner un module : `somme.wasm|10|100|16|1` (le dernier chiffre : le
 /// premier contrat suffit, ADR-077).
 #[wasm_bindgen]
