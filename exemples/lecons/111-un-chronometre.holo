@@ -1,0 +1,53 @@
+// Leçon 111 — Un chronomètre
+//
+// Ce qu'on apprend :
+//   Stopwatch(name: Chrono, value: temps, label: "…") : un chronomètre, au centième de seconde.
+//   Trois demandes : Chrono.start (démarrer), Chrono.stop (arrêter), Chrono.reset (remettre à
+//   zéro). La page le fait tourner elle-même, au rythme de l'écran ; le moteur ne reçoit que le
+//   temps final, en millisecondes, dans la valeur « temps », puis le signal Chrono.stopped.
+//   {temps:stopwatch} écrit ce temps comme un chronomètre : 01:23,45.
+//   Le lecteur d'écran n'annonce pas chaque centième, seulement le temps à l'arrêt.
+//   Démarrer à nouveau continue le compte ; remettre à zéro efface le cadran (la valeur garde le
+//   dernier temps).
+//   When(temps, under: meilleur, …) : une règle qui guette le temps reçu (leçon 29).
+//
+// À essayer :
+//   « Démarrer », puis « Arrêter » : ton temps s'écrit dessous, et le meilleur est gardé.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 111 : un chronomètre",
+  state: State(temps: 0, meilleur: 0, essais: 0),
+  children: [
+    H1("Un chronomètre"),
+    Stopwatch.cadran(name: Chrono, value: temps, label: "Mon chronomètre"),
+    Row(gap: 8px, children: [
+      Button(name: Partir, text: "Démarrer"),
+      Button(name: Stop, text: "Arrêter"),
+      Button(name: Zero, text: "Remettre à zéro"),
+    ]),
+    If(essais, over: 0, children: [
+      P("Dernier temps : {temps:stopwatch}. Meilleur temps : {meilleur:stopwatch}. Essais : {essais}."),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 110 : un module qui dessine", to: "110-un-module-qui-dessine.holo"),
+      A("Leçon 112 : une adresse qui se souvient →", to: "112-une-adresse-qui-se-souvient.holo"),
+    ]),
+  ],
+  rules: [
+    On(Partir.tap, effect: Chrono.start),
+    On(Stop.tap, effect: Chrono.stop),
+    On(Zero.tap, effect: Chrono.reset),
+    On(Chrono.stopped, effect: essais.add(1)),
+    // Le meilleur temps : le premier, puis tout temps plus court.
+    When(essais, is: 1, effect: meilleur.set(temps)),
+    When(temps, under: meilleur, effect: meilleur.set(temps)),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.cadran { font-size: 48px; color: #E9B44C; }

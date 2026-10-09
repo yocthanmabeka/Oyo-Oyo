@@ -5,7 +5,7 @@
   // dessin (les points, les mondes, la vue points) est un second moteur, chargé seulement quand
   // la page s'en sert : une page qui ne fait que bouger ne le télécharge jamais.
   import init, {
-    flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, module_info, module_finished, delays, reads_time, set_now, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
+    flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, page_title, from_query, address_query, address_names, chart_html, shapes_html, module_info, module_finished, module_input, module_received, delays, reads_time, set_now, set_second, reads_seconds, stopwatch_stopped, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
     shared_names, with_shared, touches_shared,
   } from "/pkg-light/holo_engine.js";
   let drawing = null;
@@ -166,6 +166,7 @@
   let inWorld = false;      // on est dans un monde calculé, ouvert en profondeur
   let source = "";
   let site = "";            // le site affiché : "" pour la page du fichier, sinon le chemin des points traversés
+  let addressNames = [];    // les valeurs que la page écrit dans son adresse, après le « ? » (ADR-091)
   let frame = null;         // l'élément .holo-Page
   let page = null;          // son contenu, <main>
   let engineStarted = false;
@@ -261,9 +262,13 @@
     // L'état de départ, avec ce que la page a gardé d'une visite précédente (keep: […]).
     if (!states.has(path)) {
       let kept = "";
-      try { kept = localStorage.getItem(`holo:${path}`) ?? ""; } catch { /* stockage refusé : on part du départ */ }
+      // Rangé sous l'adresse de la page : un modèle (/profil/{id}.holo) garde des valeurs pour
+      // chaque adresse qu'il sert, /profil/ada et /profil/bob chacune les siennes (ADR-090).
+      try { kept = localStorage.getItem(`holo:${addressOf(path)}`) ?? ""; } catch { /* stockage refusé : on part du départ */ }
       states.set(path, resume(source, kept));
     }
+    // Les valeurs que la page écrit dans son adresse (ADR-091) : address: [tab, page].
+    addressNames = address_names(source).split(",").filter(Boolean);
     setClocks();
     sharedNames = shared_names(source).split(";").filter(Boolean);
     listenShared();
@@ -477,6 +482,10 @@
     dataReading = false;
     if (name && for_ === path) emit(`${name}.${arrived ? "done" : "failed"}`);
   }
+  // La page fabriquée par le serveur arrive avec ses données (ADR-064) : les relire tout de suite
+  // ne servirait à rien, et effacerait ce que le visiteur aurait changé entre-temps (une vente
+  // ajoutée à la liste avant leur retour). La première lecture attend donc le rythme de la page.
+  let servedData = Boolean(root.querySelector(".holo-Page")?.dataset.received);
   function setData() {
     clearInterval(refresh);
     clearTimeout(dataLater);
@@ -484,7 +493,8 @@
     const [file, rhythm, name] = data(source).split("|");
     if (!file) return;
     const for_ = path;
-    loadData(file, for_, name);
+    if (servedData) servedData = false;
+    else loadData(file, for_, name);
     if (Number(rhythm) > 0) {
       refresh = setInterval(() => {
         if (for_ !== path) clearInterval(refresh);
@@ -548,23 +558,63 @@
       }
     });
   }
-  // L'heure du visiteur (ADR-039) : celle de son appareil, donnée au moteur à chaque minute.
+  // L'heure du visiteur (ADR-039) : celle de son appareil, donnée au moteur à chaque minute ; et
+  // chaque seconde à une page qui affiche la seconde (ADR-089), à elle seulement.
   function giveTime() {
     const d = new Date();
     set_now(d.getFullYear(), d.getMonth() + 1, d.getDate(), ((d.getDay() + 6) % 7) + 1, d.getHours(), d.getMinutes());
+    set_second(d.getSeconds());
   }
   let nextMinute = 0;
   function followTime() {
     clearTimeout(nextMinute);
     if (!reads_time(source)) return;
     const d = new Date();
+    const wait = reads_seconds(source) ? 1000 - d.getMilliseconds() + 20 : (60 - d.getSeconds()) * 1000 - d.getMilliseconds() + 50;
     nextMinute = setTimeout(() => {
       giveTime();
       const before = states.get(path) ?? "";
       const after = store(advance_clock(source, before));
       if (after && after !== before) changeState(after);
       followTime();
-    }, (60 - d.getSeconds()) * 1000 - d.getMilliseconds() + 50);
+    }, wait);
+  }
+
+  // Les chronomètres (ADR-089) : la page compte elle-même, au rythme de l'écran, et ne donne au
+  // moteur que le temps final, quand une règle l'arrête. Compté d'après l'horloge de l'appareil :
+  // juste, même si l'onglet a été caché un moment.
+  const stopwatches = new Map();
+  function showStopwatch(name, element, watch) {
+    const elapsed = watch.elapsed + (watch.since ? performance.now() - watch.since : 0);
+    const language = root.querySelector("[data-lang]")?.dataset.lang || document.documentElement.lang || "fr";
+    element.textContent = format_value("time", Math.round(elapsed), "stopwatch", language);
+    return Math.round(elapsed);
+  }
+  function stopwatch(name, capability, element) {
+    const watch = stopwatches.get(name) ?? { elapsed: 0, since: 0, frame: 0 };
+    stopwatches.set(name, watch);
+    if (capability === "start" && !watch.since) {
+      watch.since = performance.now();
+      const tick = () => {
+        showStopwatch(name, element, watch);
+        watch.frame = requestAnimationFrame(tick);
+      };
+      tick();
+    } else if (capability === "stop" && watch.since) {
+      watch.elapsed += performance.now() - watch.since;
+      watch.since = 0;
+      cancelAnimationFrame(watch.frame);
+      const final = showStopwatch(name, element, watch);
+      announce(`${element.getAttribute("aria-label")} : ${element.textContent}`);
+      const after = store(stopwatch_stopped(source, states.get(path) ?? "", name, final));
+      if (after) changeState(after);
+      for (const effect of effects(source, `${name}.stopped`).split(",").filter(Boolean)) apply(effect, `${name}.stopped`);
+    } else if (capability === "reset") {
+      // Le cadran revient à zéro ; la valeur garde le dernier temps final.
+      cancelAnimationFrame(watch.frame);
+      Object.assign(watch, { elapsed: 0, since: 0, frame: 0 });
+      showStopwatch(name, element, watch);
+    }
   }
   // Les listes qui changent pendant la visite (ADR-044) : quand une liste change, le moteur
   // fabrique ses lignes à nouveau, et la page les pose à la place des anciennes.
@@ -625,14 +675,41 @@
       (twin(again) ?? again.querySelector("button, a[href], input, select, textarea, summary"))?.focus({ preventScroll: true });
     }
   }
-  // Un nouvel état : la page le montre, le garde, et regarde quelles attentes courent.
-  function changeState(after) {
+  // Un nouvel état : la page le montre, le garde, et regarde quelles attentes courent. `step` :
+  // un toucher ou une touche, qui fait un pas dans l'historique s'il change l'adresse (ADR-091).
+  function changeState(after, step = false) {
     states.set(path, after);
     redrawLists();
     showValues();
     placePixels();
     keep();
     setDelays();
+    followAddress(step);
+  }
+
+  // L'historique dans la page (ADR-091) : les valeurs que la page nomme (address: [tab]) sont
+  // écrites dans son adresse, après les réglages du moteur (?values…). Un toucher ou une touche
+  // qui les change fait un pas, que « Précédent » défait ; le reste (ce qu'on écrit dans un champ,
+  // le temps, les données reçues) met l'adresse à jour sans faire de pas.
+  function followAddress(step) {
+    if (!addressNames.length || site || fromElsewhere(path) || fileAt(location.pathname) !== path) return;
+    const nameOf = (piece) => { try { return decodeURIComponent(piece.split("=")[0].replace(/\+/g, " ")); } catch { return piece; } };
+    const others = location.search.slice(1).split("&").filter((piece) => piece && !addressNames.includes(nameOf(piece)));
+    const own = address_query(source, states.get(path) ?? "");
+    const search = [...others, ...(own ? [own] : [])].join("&");
+    const wanted = search ? `?${search}` : "";
+    if (wanted === location.search) return;
+    history[step ? "pushState" : "replaceState"](history.state, "", location.pathname + wanted + location.hash);
+  }
+  // Les valeurs que dit l'adresse, reprises après un pas d'historique (« Précédent »). Vrai si
+  // elles ont changé quelque chose.
+  function readAddress() {
+    if (!addressNames.length) return false;
+    const before = states.get(path) ?? "";
+    const after = from_query(source, before, location.search.slice(1));
+    if (!after || after === before) return false;
+    changeState(store(after));
+    return true;
   }
 
   // Un geste vient de changer des valeurs : l'horloge de chacune repart de zéro. « Play » remet
@@ -646,7 +723,7 @@
   function keep() {
     try {
       const kept = to_keep(source, states.get(path) ?? "");
-      if (kept) localStorage.setItem(`holo:${path}`, kept);
+      if (kept) localStorage.setItem(`holo:${addressOf(path)}`, kept);
     } catch { /* stockage refusé ou plein : la page marche sans */ }
   }
 
@@ -701,6 +778,8 @@
     // Un texte voyage codé, précédé d'une apostrophe : buyer='Zo%C3%A9. Un nombre, tel quel.
     // Une liste voyage entre crochets : elle se montre par son nombre d'éléments (ADR-044).
     const readable = (value) => (value.startsWith("'") ? decodeURIComponent(value.slice(1)) : value.startsWith("[") ? String(value.slice(1, -1).split(",").filter(Boolean).length) : value);
+    // Le titre de l'onglet lit les valeurs (ADR-090) : « Mon panier (3) », « Profil de ada ».
+    if (or_ === root && root.querySelector(".holo-Page")?.hasAttribute("data-title-model")) document.title = page_title(fileText, written) || document.title;
     const values = new Map(written.split(";").filter(Boolean).map((chunk) => {
       const cut = chunk.indexOf("=");
       return [chunk.slice(0, cut), readable(chunk.slice(cut + 1))];
@@ -739,6 +818,30 @@
         if (values.has(placed.dataset[axis])) placed.style.setProperty(`--${axis}`, Math.min(100, Number(values.get(placed.dataset[axis]))));
       }
     }
+    // Un dessin suit les nombres qui disent ses mesures : Circle(y: sun) (ADR-086).
+    for (const shape of or_.querySelectorAll("[data-svg]")) {
+      for (const pair of shape.dataset.svg.split(" ")) {
+        const [attribute, name] = pair.split(":");
+        if (values.has(name)) shape.setAttribute(attribute, Math.min(4000, Number(values.get(name))));
+      }
+    }
+    // Les formes d'un dessin venues d'une liste suivent elle aussi (ADR-088).
+    for (const group of or_.querySelectorAll("[data-shapes]")) {
+      const list = written.split(";").find((chunk) => chunk.startsWith(`${group.dataset.shapes}=[`)) ?? "";
+      if (group.dataset.drawn === list) continue;
+      group.innerHTML = shapes_html(fileText, written, group.dataset.shapes);
+      group.dataset.drawn = list;
+    }
+    // Un graphique suit sa liste (ADR-087) : le moteur le redessine quand elle change.
+    for (const chart of or_.querySelectorAll("[data-chart]")) {
+      const over = chart.dataset.chart.split("|")[1];
+      const list = written.split(";").find((chunk) => chunk.startsWith(`${over}=[`)) ?? "";
+      if (chart.dataset.drawn === list) continue;
+      const drawing = chart.querySelector(".holo-chart-drawing");
+      const fresh = chart_html(fileText, written, chart.dataset.chart);
+      if (drawing && fresh) drawing.outerHTML = fresh;
+      chart.dataset.drawn = list;
+    }
     // Les conditions : If(count, is: 0). C'est le moteur qui répond ; la page ne compare rien
     // elle-même, elle cache ce que le moteur dit faux.
     const blocks = or_.querySelectorAll("[data-if],[data-else]");
@@ -760,12 +863,16 @@
     // Un toucher qui change une valeur partagée : c'est le serveur qui arbitre (ADR-079).
     if (sharedNames.length && touches_shared(source, signal)) return shareGesture(signal);
     const before = states.get(path) ?? "";
+    // Ce que le serveur rejouera pour un membre (ADR-081) : les champs et l'adresse d'avant le
+    // toucher, comme les enverrait la page sans JavaScript.
+    const replay = mirrorRequest(signal, before);
     const after = store(arbitrate(source, before, signal));
     if (valuesPanel) lastGesture = { signal, before, after };
     // Ce qui apparaît ou disparaît déplace le reste de la page : changerLEtat replace les pixels.
-    if (after !== before) changeState(after);
+    // Un toucher ou une touche fait un pas dans l'historique, s'il change l'adresse (ADR-091).
+    if (after !== before) changeState(after, /\.tap(@\d+)?$/.test(signal) || signal.startsWith("Key."));
     restartClocks(signal);
-    mirror(signal);
+    mirror(replay);
     for (const effect of effects(source, signal).split(",").filter(Boolean)) {
       apply(effect, signal);
     }
@@ -778,9 +885,12 @@
   // toucher après l'autre, dans l'ordre ; une panne du réseau ne change rien à la page. Un toucher
   // qui change une valeur partagée ne passe pas par ici : il part au serveur, qui l'arbitre et garde
   // aussi l'état du compte (shareGesture, ADR-079).
-  let mirrored = Promise.resolve();
-  function mirror(signal) {
-    if (!member || path !== pageFile || !/^[A-Z][A-Za-z0-9]{0,63}\.tap(@\d{1,6})?$/.test(signal)) return;
+  //
+  // La demande est faite avant que la page joue le toucher : les champs tels que le visiteur les a
+  // écrits (une règle peut les vider, `text.set("")`) et les valeurs de l'adresse d'avant (ADR-091 :
+  // le serveur part de celles que l'adresse dit). Rien pour un visiteur, ni pour un autre geste.
+  function mirrorRequest(signal, before) {
+    if (!member || path !== pageFile || !/^[A-Z][A-Za-z0-9]{0,63}\.tap(@\d{1,6})?$/.test(signal)) return null;
     const fields = new URLSearchParams();
     for (const field of root.querySelectorAll("input[data-bind], textarea[data-bind], select[data-bind]")) {
       const bind = field.dataset.bind;
@@ -790,8 +900,13 @@
       else fields.set(bind, field.value);
     }
     fields.set("signal", signal);
-    const body = fields.toString();
-    mirrored = mirrored.then(() => fetch(`${addressOf(path)}?mirror`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body }).catch(() => {}));
+    const query = addressNames.length ? address_query(source, before) : "";
+    return { address: `${addressOf(path)}?${query ? `${query}&` : ""}mirror`, body: fields.toString() };
+  }
+  let mirrored = Promise.resolve();
+  function mirror(request) {
+    if (!request) return;
+    mirrored = mirrored.then(() => fetch(request.address, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: request.body }).catch(() => {}));
     window.__holoMirrored = mirrored; // pour les essais : le dernier toucher renvoyé
   }
 
@@ -1593,14 +1708,29 @@
   // démarre pas. Son temps court à partir du moment où il commence ; au-delà, le fil est arrêté.
   // Les noms des messages sont les mêmes des deux côtés (la traduction en anglais avait oublié
   // ce texte : la boîte attendait encore « octets », « entree », et aucun module ne marchait plus).
-  const SANDBOX_CODE = `onmessage = async ({ data: { bytes, entry, pages } }) => {
+  // Deux contrats (ADR-077). Le premier : run(nombre) rend un nombre. Le second : le module offre
+  // alloc(taille), qui dit où écrire ce qu'il reçoit (un texte JSON), et run(adresse, taille), qui
+  // rend l'adresse et la taille de sa réponse, en un seul nombre de 64 bits. La réponse est lue
+  // dans sa mémoire, 64 Ko au plus, puis relue par le moteur avec méfiance.
+  const SANDBOX_CODE = `onmessage = async ({ data: { bytes, entry, json, simple, pages } }) => {
     try {
       const memory = new WebAssembly.Memory({ initial: pages, maximum: pages });
       const { instance } = await WebAssembly.instantiate(bytes, { env: { memory } });
-      if (typeof instance.exports.run !== "function") throw new Error("le module n'offre pas run");
+      const { run, alloc } = instance.exports;
+      if (typeof run !== "function") throw new Error("le module n'offre pas run");
+      const second = typeof alloc === "function" && run.length === 2;
+      if (!second && !simple) throw new Error("ce module ne sait recevoir et rendre qu'un nombre : il ne lit pas des textes ni des listes");
       postMessage({ start: true });
-      const output = instance.exports.run(entry >>> 0);
-      postMessage({ ok: true, output: output >>> 0 });
+      if (!second) return postMessage({ ok: true, output: run(entry >>> 0) >>> 0 });
+      const input = new TextEncoder().encode(json);
+      const at = alloc(input.length) >>> 0;
+      if (at === 0 || at + input.length > memory.buffer.byteLength) throw new Error("le module n'a pas la place de lire ce qu'il reçoit");
+      new Uint8Array(memory.buffer, at, input.length).set(input);
+      const answer = run(at, input.length);
+      if (typeof answer !== "bigint") throw new Error("run doit rendre l'adresse et la taille de sa réponse, en un nombre de 64 bits");
+      const where = Number(BigInt.asUintN(64, answer) >> 32n), size = Number(BigInt.asUintN(64, answer) & 0xffffffffn);
+      if (size > 65536 || where + size > memory.buffer.byteLength) throw new Error("une réponse de plus de 64 Ko, ou hors de sa mémoire");
+      postMessage({ ok: true, json: new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array(memory.buffer, where, size)) });
     } catch (e) {
       postMessage({ ok: false, reason: String((e && e.message) || e) });
     }
@@ -1608,7 +1738,7 @@
   const runningModules = new Set();
   async function execute(name) {
     if (runningModules.has(name)) return;
-    const [file, entry, time, pages] = module_info(source, states.get(path) ?? "", name).split("|");
+    const [file, entry, time, pages, simple] = module_info(source, states.get(path) ?? "", name).split("|");
     if (!file) return;
     runningModules.add(name);
     const for_ = path;
@@ -1631,22 +1761,35 @@
             } else finish(data);
           };
           box.onerror = () => finish({ ok: false, reason: "erreur du module" });
-          box.postMessage({ bytes, entry: Number(entry), pages: Number(pages) }, [bytes]);
+          const json = module_input(source, states.get(path) ?? "", name);
+          box.postMessage({ bytes, entry: Number(entry), json, simple: simple === "1", pages: Number(pages) }, [bytes]);
         });
       }
     } catch { /* pas de réseau */ }
     runningModules.delete(name);
+    // La réponse du second contrat, relue par le moteur : refusée, le module a échoué.
+    let after = "";
+    if (result.ok && result.json !== undefined) {
+      try {
+        after = for_ === path ? store(module_received(source, states.get(path) ?? "", name, result.json)) : "";
+      } catch (refusal) {
+        result = { ok: false, reason: String(refusal), answer: result.json.slice(0, 200) };
+      }
+    }
     (window.__holoModules ??= []).push({ name, ...result }); // ce qui s'est passé, pour le vérifier
     if (for_ !== path) return;
     if (!result.ok) return emit(`${name}.failed`);
-    const after = store(module_finished(source, states.get(path) ?? "", name, result.output));
+    if (result.json === undefined) after = store(module_finished(source, states.get(path) ?? "", name, result.output));
     if (after) changeState(after);
     for (const effect of effects(source, `${name}.done`).split(",").filter(Boolean)) apply(effect, `${name}.done`);
   }
 
   function apply(effect, signal = "") {
     const [name, capability] = effect.split(".");
-    if (capability === "enter" && containedSites().some((s) => s.name === name)) {
+    const watch = ["start", "stop", "reset"].includes(capability) && root.querySelector(`.holo-Stopwatch[data-name="${CSS.escape(name)}"]`);
+    if (watch) {
+      stopwatch(name, capability, watch);
+    } else if (capability === "enter" && containedSites().some((s) => s.name === name)) {
       // Le signal vient-il du point lui-même, ou d'un bouton qui y mène ?
       enterInto(name, signal === `${name}.tap`);
     } else if (capability === "play" || capability === "stop") {
@@ -1700,6 +1843,10 @@
     // serveur après des touchers faits sans JavaScript. Le moteur repart de là.
     const visit = !location.hash.slice(1) && root.querySelector(".holo-Page")?.dataset.visit;
     if (visit) states.set(path, visit);
+    // Les valeurs que l'adresse porte après le « ? » (ADR-091), seulement celles que la page
+    // nomme : un lien partagé arrive sur le même onglet. Le serveur les a déjà posées sur la
+    // page qu'il a fabriquée ; les reposer ne change rien.
+    if (addressNames.length) states.set(path, from_query(source, states.get(path) ?? "", location.search.slice(1)) || states.get(path));
     const received = !visit && !location.hash.slice(1) && root.querySelector(".holo-Page")?.dataset.received;
     if (received) {
       const dataName = data(source).split("|")[2];
@@ -1734,7 +1881,9 @@
       // Un fichier d'ailleurs déjà lu pendant cette visite : le visiteur l'avait choisi. Sinon, on propose.
       if (sitePath.startsWith("@") && readFiles.has(sitePath.slice(1))) openFile(sitePath.slice(1), "", { inHistory: false });
       else if (sitePath.startsWith("@")) proposePassage(sitePath.slice(1));
-      else if (here !== path && here.endsWith(".holo")) openFile(here, sitePath, { inHistory: false });
+      else if (here !== path && here.endsWith(".holo")) openFile(here, sitePath, { inHistory: false }).then(readAddress);
+      // Un pas d'historique dans la page (ADR-091) : seules ses valeurs changent.
+      else if (sitePath === site && readAddress()) return;
       // Un lien vers un endroit de la page (ADR-042) : le navigateur y descend, rien d'autre.
       else if (pageSpot(sitePath)) return;
       else displaySite(sitePath, { inHistory: false });

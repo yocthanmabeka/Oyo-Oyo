@@ -1,0 +1,7 @@
+{ "ventes": [
+  { "jour": "Lundi", "montant": "120" },
+  { "jour": "Mardi", "montant": "80" },
+  { "jour": "Mercredi", "montant": "150" },
+  { "jour": "Jeudi", "montant": "95" },
+  { "jour": "Vendredi", "montant": "210" }
+] }

@@ -324,6 +324,152 @@ const tests = [
       }
     }
   }],
+  ["un module reçoit une liste et rend trois valeurs ; une réponse non annoncée est refusée (leçon 97)", async (p) => {
+    await p.open("/exemples/lecons/97-un-module-qui-recoit-une-liste.holo");
+    await p.click('[data-name="Calculer"]');
+    const computed = await p.until(`document.getElementById("page").innerText.includes("3 notes ; moyenne : 13,5 ; la meilleure : Maths.")`, 40000);
+    // Une note de plus, avec des signes qui pourraient tromper un lecteur de JSON.
+    await p.type('[data-bind="matiere"]', 'Arts "plastiques" {x}');
+    await p.type('[data-bind="note"]', "18");
+    await p.click('[data-name="Ajouter"]');
+    await p.click('[data-name="Calculer"]');
+    const again = await p.until(`document.getElementById("page").innerText.includes('4 notes ; moyenne : 14,6 ; la meilleure : Arts "plastiques" {x}.')`, 10000);
+    const before = await p.text();
+    await p.click('[data-name="Mentir"]');
+    const refused = await p.until(`document.getElementById("page").innerText.includes("Refusé : ce module a rendu une valeur")`, 10000);
+    const after = await p.text();
+    const reason = await p.value(`(window.__holoModules ?? []).filter((m) => m.name === "Menteur").map((m) => m.reason).join(" | ")`);
+    const unchanged = after.includes("4 notes ; moyenne : 14,6");
+    return [computed && again && refused && unchanged && reason.includes("admin"), `calculé : ${computed} ; avec une note de plus : ${again} ; refusé : ${refused} (${reason}) ; rien changé : ${unchanged}${before ? "" : ""}`];
+  }],
+  ["un dessin en SVG, lu par le lecteur d'écran, dont une forme suit une valeur (leçon 98)", async (p, b) => {
+    await p.open("/exemples/lecons/98-un-dessin.holo");
+    const svg = await p.value(`(() => { const s = document.querySelector("svg.holo-Drawing"); return s && s.getAttribute("role") + "|" + s.getAttribute("aria-label") + "|" + s.querySelectorAll("rect,circle,line,path").length; })()`);
+    const { result } = await b.send("Accessibility.getFullAXTree");
+    const named = result.nodes.some((n) => ["image", "img"].includes(n.role?.value) && n.name?.value === "Un paysage : une maison, une colline, et le soleil" && !n.ignored);
+    const sun = () => p.value(`document.querySelector("svg.holo-Drawing circle").getAttribute("cy")`);
+    const start = await sun();
+    await p.click('[data-name="Lever"]');
+    await p.until(`document.querySelector("svg.holo-Drawing circle").getAttribute("cy") === "50"`, 40000);
+    await p.click('[data-name="Lever"]');
+    const raised = await p.until(`document.querySelector("svg.holo-Drawing circle").getAttribute("cy") === "30"`, 5000);
+    // Le dessin rétrécit avec l'écran, sans se déformer.
+    const shape = await p.value(`(() => { const r = document.querySelector("svg.holo-Drawing").getBoundingClientRect(); return Math.round(r.width / r.height * 100) / 100; })()`);
+    const ok = svg === "img|Un paysage : une maison, une colline, et le soleil|7" && named && start === "70" && raised && shape === 2;
+    return [ok, `SVG : ${svg} ; nommé pour le lecteur d'écran : ${named} ; soleil ${start} → 30 : ${raised} ; proportions : ${shape}`];
+  }],
+  ["un tableau de bord : des données reçues, dessinées en barres et en parts, qui suivent la liste (leçon 99)", async (p) => {
+    await p.open("/exemples/lecons/99-un-tableau-de-bord.holo");
+    const count = (selector) => p.value(`document.querySelectorAll(${JSON.stringify(selector)}).length`);
+    const bars = await count('.holo-Chart:first-of-type svg rect');
+    const parts = await count('.holo-Chart:nth-of-type(2) svg path');
+    const captions = await p.value(`[...document.querySelectorAll(".holo-Chart figcaption")].map((c) => c.textContent).join(" | ")`);
+    await p.type('[data-bind="jour"]', "Samedi");
+    await p.type('[data-bind="montant"]', "180");
+    await p.click('[data-name="Ajouter"]');
+    const grown = await p.until(`document.querySelectorAll(".holo-Chart:first-of-type svg rect").length === 6 && document.querySelectorAll(".holo-Chart:nth-of-type(2) svg path").length === 6`, 40000);
+    // Les données du serveur ne reviennent pas effacer la vente ajoutée.
+    await pause(1500);
+    const kept = await p.value(`document.querySelectorAll(".holo-Chart:first-of-type svg rect").length === 6`);
+    const table = await p.value(`document.querySelector(".holo-Chart table").textContent`);
+    const hidden = await p.value(`(() => { const t = document.querySelector(".holo-Chart .holo-hidden").getBoundingClientRect(); return t.width <= 1 && t.height <= 1 && document.documentElement.scrollWidth <= innerWidth; })()`);
+    const ok = bars === 5 && parts === 5 && captions === "Les ventes de la semaine, en euros | La part de chaque jour" && grown && kept && table.includes("Samedi180") && hidden;
+    return [ok, `5 barres et 5 parts au départ : ${bars}, ${parts} ; titres : ${captions} ; une vente ajoutée, 6 et 6 : ${grown}, gardée : ${kept} ; tableau caché, « Samedi 180 » : ${table.includes("Samedi180")}, caché : ${hidden}`];
+  }],
+  ["un module qui dessine : il rend une liste de formes, le moteur les vérifie et les dessine (leçon 110)", async (p) => {
+    await p.open("/exemples/lecons/110-un-module-qui-dessine.holo");
+    const shapes = () => p.value(`document.querySelectorAll("svg.holo-Drawing .holo-shapes > *").length`);
+    const before = await shapes();
+    await p.click('[data-name="Dessiner"]');
+    const six = await p.until(`document.querySelectorAll("svg.holo-Drawing .holo-shapes circle").length === 7`, 40000);
+    await p.value(`(() => { const s = document.querySelector('[data-bind="petales"]'); s.value = "9"; s.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+    await p.click('[data-name="Dessiner"]');
+    const nine = await p.until(`document.querySelectorAll("svg.holo-Drawing .holo-shapes circle").length === 10 && document.getElementById("page").innerText.includes("11 formes dessinées.")`, 10000);
+    const ok = before === 0 && six && nine;
+    return [ok, `avant : ${before} forme ; 6 pétales et le cœur : ${six} ; 9 pétales, « 11 formes dessinées » : ${nine}`];
+  }],
+  ["les secondes défilent, et un chronomètre au centième (leçons 48 et 111)", async (p) => {
+    await p.open("/exemples/lecons/48-heure.holo");
+    const second = () => p.value(`Number(document.querySelector('[data-state="second"]').textContent)`);
+    await p.until("window.__holoStarted === true");
+    const first = await second();
+    const ticked = await p.until(`Number(document.querySelector('[data-state="second"]').textContent) !== ${first}`, 3000);
+    await p.open("/exemples/lecons/111-un-chronometre.holo");
+    const dial = () => p.value(`document.querySelector(".holo-Stopwatch").textContent`);
+    const atRest = await dial();
+    await p.click('[data-name="Partir"]');
+    await p.until("window.__holoStarted === true");
+    await pause(700);
+    const running = await dial();
+    await pause(300);
+    const later = await dial();
+    await p.click('[data-name="Stop"]');
+    const stopped = await dial();
+    await pause(400);
+    const still = await dial();
+    const written = await p.until(`document.getElementById("page").innerText.includes("Dernier temps : " + document.querySelector(".holo-Stopwatch").textContent)`, 3000);
+    const timer = await p.value(`document.querySelector(".holo-Stopwatch").getAttribute("role")`);
+    await p.click('[data-name="Zero"]');
+    const reset = await dial();
+    const ok = ticked && atRest === "00:00,00" && running !== atRest && later !== running && stopped === still && written && timer === "timer" && reset === "00:00,00";
+    return [ok, `la seconde change : ${ticked} ; au repos ${atRest}, en marche ${running} puis ${later}, arrêté ${stopped} (fixe : ${stopped === still}) ; écrit dessous : ${written} ; role=${timer} ; remis à zéro : ${reset}`];
+  }],
+  ["un titre qui lit les valeurs, des valeurs gardées par adresse, narrow dans un Row (leçons 112 et 113)", async (p, b) => {
+    const pages = () => p.value(`document.getElementById("page").innerText.match(/(\\d+) page\\(s\\)/)?.[1]`);
+    await p.open("/exemples/lecons/112-carnets/ada", 300);
+    await p.value(`localStorage.clear()`);
+    await p.open("/exemples/lecons/112-carnets/ada");
+    const titleAda = await p.value("document.title");
+    await p.click('[data-name="Ecrire"]');
+    await p.until(`document.getElementById("page").innerText.includes("1 page(s)")`, 40000);
+    await p.click('[data-name="Ecrire"]');
+    await p.until(`document.getElementById("page").innerText.includes("2 page(s)")`, 5000);
+    const titleFollows = await p.until(`document.title === "Le carnet de ada : 2 page(s)"`, 3000);
+    await p.open("/exemples/lecons/112-carnets/bob");
+    const titleBob = await p.value("document.title");
+    const bob = await pages();
+    await p.open("/exemples/lecons/112-carnets/ada");
+    await p.until("window.__holoStarted === true", 40000);
+    const ada = await p.until(`document.getElementById("page").innerText.includes("2 page(s)")`, 5000);
+    // Une case de Row de moins de 320px est « étroite » : sur un ordinateur non, sur un téléphone oui.
+    await b.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
+    await p.open("/exemples/lecons/113-une-rangee-qui-se-serre.holo");
+    const wide = await p.until(`[...document.querySelectorAll(".holo-s-carte")].length === 2 && ![...document.querySelectorAll(".holo-s-carte")].some((c) => c.classList.contains("holo-narrow"))`, 5000);
+    await b.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 800, deviceScaleFactor: 1, mobile: true });
+    const narrow = await p.until(`[...document.querySelectorAll(".holo-s-carte")].every((c) => c.classList.contains("holo-narrow") && getComputedStyle(c).paddingTop === "8px")`, 5000);
+    await b.send("Emulation.clearDeviceMetricsOverride");
+    const ok = titleAda === "Le carnet de ada : 0 page(s)" && titleFollows && titleBob === "Le carnet de bob : 0 page(s)" && bob === "0" && ada && wide && narrow;
+    return [ok, `titres : ${titleAda} / ${titleBob} ; le titre suit les pages : ${titleFollows} ; Bob : ${bob} page ; Ada garde ses 2 pages : ${ada} ; cartes larges sur ordinateur : ${wide} ; étroites sur téléphone : ${narrow}`];
+  }],
+  ["l'historique dans une page : address: [onglet, page] (leçon 114)", async (p) => {
+    const lesson = "/exemples/lecons/114-l-historique-dans-une-page.holo";
+    const shows = (text) => `document.getElementById("page").innerText.includes(${JSON.stringify(text)})`;
+    const at = (search) => `location.search === ${JSON.stringify(search)}`;
+    await p.open(lesson);
+    // Chaque toucher qui change l'onglet ou la page fait un pas dans l'historique.
+    await p.click('[data-name="Aquarelles"]');
+    const tab = await p.until(`${at("?onglet=aquarelles")} && ${shows("Les aquarelles")}`, 40000);
+    await p.click('[data-name="Apres"]');
+    const next = await p.until(`${at("?onglet=aquarelles&page=2")} && ${shows("Page 2")}`, 5000);
+    // « Précédent » défait un pas, puis l'autre ; « Suivant » le refait.
+    await p.value("history.back()");
+    const back = await p.until(`${at("?onglet=aquarelles")} && ${shows("Page 1")} && ${shows("Les aquarelles")}`, 5000);
+    await p.value("history.back()");
+    const start = await p.until(`${at("")} && ${shows("Les toiles")}`, 5000);
+    await p.value("history.forward()");
+    const again = await p.until(`${at("?onglet=aquarelles")} && ${shows("Les aquarelles")}`, 5000);
+    // Une adresse partagée : la page fabriquée par le serveur a ses valeurs, avant le moteur ;
+    // les réglages du moteur (?values) restent dans l'adresse.
+    await p.open(`${lesson}?values&onglet=dessins&page=3`);
+    const shared = await p.value(`${shows("Les dessins")} && ${shows("Page 3")}`);
+    await p.click('[data-name="Apres"]');
+    const kept = await p.until(`${at("?values&onglet=dessins&page=4")} && ${shows("Page 4")}`, 40000);
+    // Une valeur mal écrite part de son départ, sans erreur.
+    await p.open(`${lesson}?page=abc&onglet=pirate`);
+    const forged = await p.until(`window.__holoStarted === true && ${shows("Page 1")} && ${shows("Les toiles")}`, 40000);
+    const ok = tab && next && back && start && again && shared && kept && forged;
+    return [ok, `onglet : ${tab} ; page suivante : ${next} ; précédent : ${back}, puis le début : ${start} ; suivant : ${again} ; adresse partagée : ${shared} ; ?values gardé : ${kept} ; valeurs forgées : ${forged}`];
+  }],
   ["un module enfermé rend son nombre", async (p) => {
     await p.open("/exemples/lecons/69-module-enferme.holo");
     await p.click('[data-name="Calculer"]');
@@ -1221,6 +1367,58 @@ const tests = [
       return [ok, `téléphone, sans JavaScript : ${phone} (nommé : ${named}) ; ordinateur, pas connecté : ${anonymous}, connecté : ${computer} ; avec JavaScript, compté : ${counted}, renvoyé : ${mirrored} ; un troisième appareil : ${third} ; déconnecté : ${out}`];
     } finally {
       await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      served.stop();
+    }
+  }],
+  ["un membre : le toucher renvoyé porte les champs et l'adresse d'avant le toucher (compte, serve)", async (_, b) => {
+    // ADR-081 avec l'ADR-091 : le serveur rejoue le toucher d'un membre avec ce que la page avait
+    // AVANT de le jouer. Une règle qui vide le champ (`text.set("")`) ne fait pas ranger une note
+    // vide ; une valeur de l'adresse n'est pas comptée deux fois (`seen` vaut 3, pas 4 ni 2).
+    const served = await startHoloServe([]);
+    writeFileSync(join(served.folder, "notes.holo"), `Page(title: "Les notes de {account}", access: members, state: State(text: "", page: 1, seen: 0, tasks: []), address: [page], children: [
+  Input(value: text, label: "Note"),
+  Button(name: Add, text: "Ajouter"),
+  Button(name: Next, text: "Page suivante"),
+  P("Page {page}, vue {seen}"),
+  Repeat(over: tasks, children: [ Text("Note : {item}") ]),
+], rules: [ On(Add.tap, effect: [tasks.push(text), text.set("")]), On(Next.tap, effect: [page.add(1), seen.set(page)]) ])
+`);
+    const q = page(b, served.base);
+    const after = (expression, timeout = 10000) => q.until(`document.readyState === "complete" && (${expression})`, timeout);
+    const password = "une phrase que je connais";
+    try {
+      await b.send("Network.clearBrowserCookies");
+      await q.open("/account/signup?next=/notes.holo", 300);
+      await q.type("#name", "Dora");
+      await q.type("#password", password);
+      await q.type("#again", password);
+      await q.click('main form button[type="submit"]');
+      await after(`location.pathname === "/notes.holo"`);
+      const titled = await q.value("document.title");
+      // Le moteur d'abord, puis une note, puis deux pages.
+      await q.click("#toggle");
+      const started = await q.until("window.__holoStarted === true", 40000);
+      await q.click("#toggle");
+      await q.type('[data-bind="text"]', "Laver le pinceau");
+      await q.click('[data-name="Add"]');
+      await q.until(`document.getElementById("page").innerText.includes("Note : Laver le pinceau")`, 10000);
+      await q.click('[data-name="Next"]');
+      await q.until(`location.search === "?page=2"`, 10000);
+      await q.click('[data-name="Next"]');
+      const local = await q.until(`location.search === "?page=3" && document.getElementById("page").innerText.includes("vue 3")`, 10000);
+      const sent = await q.until("window.__holoMirrored", 5000) && (await q.value("window.__holoMirrored.then(() => true)"));
+      // Un autre appareil : ce que le compte garde.
+      await b.send("Network.clearBrowserCookies");
+      await q.open("/account/signin?next=/notes.holo", 300);
+      await q.type("#name", "Dora");
+      await q.type("#password", password);
+      await q.click('main form button[type="submit"]');
+      await after(`location.pathname === "/notes.holo"`);
+      const elsewhere = await q.text();
+      const ok = titled === "Les notes de Dora" && started && local && sent && elsewhere.includes("Note : Laver le pinceau") && (elsewhere.match(/Note :/g) ?? []).length === 1 && elsewhere.includes("vue 3");
+      return [ok, `titre : « ${titled} » ; moteur : ${started} ; dans la page : page 3, vue 3 : ${local} ; renvoyé : ${sent} ; sur un autre appareil : ${elsewhere.replace(/\s+/g, " ").slice(0, 160)}`];
+    } finally {
+      await b.send("Network.clearBrowserCookies");
       served.stop();
     }
   }],

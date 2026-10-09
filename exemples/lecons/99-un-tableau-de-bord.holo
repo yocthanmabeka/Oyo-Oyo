@@ -1,0 +1,44 @@
+// Leçon 99 — Un tableau de bord
+//
+// Ce qu'on apprend :
+//   Chart(kind: bars, over: ventes, value: montant, label: jour, title: "…") : un graphique,
+//   dessiné par le moteur d'après une liste à champs. « value » est le champ du nombre,
+//   « label » celui du nom de chaque élément.
+//   kind: bars (des barres), line (une courbe) ou pie (des parts).
+//   « title » est le titre, montré au-dessus ; le lecteur d'écran lit en plus un tableau caché,
+//   avec les mêmes chiffres.
+//   Le graphique suit sa liste : ici, les ventes arrivent du serveur (Data, leçon 84), et une
+//   vente ajoutée se dessine tout de suite.
+//
+// À essayer :
+//   Ajoute une vente, « Samedi » et « 180 » : les barres et les parts changent.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 99 : un tableau de bord",
+  state: State(ventes: [], jour: "", montant: ""),
+  data: Data(from: "99-ventes.json"),
+  children: [
+    H1("Un tableau de bord"),
+    Chart(kind: bars, over: ventes, value: montant, label: jour, title: "Les ventes de la semaine, en euros"),
+    Chart(kind: pie, over: ventes, value: montant, label: jour, title: "La part de chaque jour"),
+    Row(gap: 8px, children: [
+      Input(value: jour, label: "Jour", max: 20),
+      Input(value: montant, label: "Montant", max: 6),
+      Button(name: Ajouter, text: "Ajouter la vente"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 98 : un dessin", to: "98-un-dessin.holo"),
+      A("Leçon 100 : une adresse qui porte une valeur →", to: "100-une-adresse-qui-porte-une-valeur.holo"),
+    ]),
+  ],
+  rules: [
+    On(Ajouter.tap, effect: [ventes.push(Item(jour: jour, montant: montant)), jour.set(""), montant.set("")]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

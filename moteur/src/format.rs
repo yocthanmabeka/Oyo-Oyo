@@ -31,11 +31,11 @@ pub fn decimal_places(name: &str) -> u32 {
 }
 
 /// Les formats connus, pour les messages.
-pub const FORMATS: &[&str] = &["00", "number", "cents", "name"];
+pub const FORMATS: &[&str] = &["00", "number", "cents", "name", "stopwatch"];
 
 /// Un format est-il connu ? `00` à `000000` : autant de chiffres au moins.
 pub fn is_format(format: &str) -> bool {
-    (2..=6).contains(&format.len()) && format.chars().all(|c| c == '0') || matches!(format, "number" | "cents" | "name")
+    (2..=6).contains(&format.len()) && format.chars().all(|c| c == '0') || matches!(format, "number" | "cents" | "name" | "stopwatch")
 }
 
 const DAYS_FR: [&str; 7] = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
@@ -80,6 +80,17 @@ pub fn format_value(name: &str, value: u64, format: &str, language: &str) -> Str
             let scale = 10u64.pow(places);
             let whole = if f.starts_with('n') { grouper(value / scale, thousands) } else { (value / scale).to_string() };
             if places == 0 { whole } else { format!("{whole}{decimals}{:0width$}", value % scale, width = places as usize) }
+        }
+        // Un temps de chronomètre, gardé en millisecondes (ADR-089) : « 01:23,45 », et les heures
+        // devant quand il y en a, « 1:02:03,45 ».
+        "stopwatch" => {
+            let hundredths = value / 10;
+            let (hours, minutes, seconds, rest) = (hundredths / 360_000, hundredths / 6_000 % 60, hundredths / 100 % 60, hundredths % 100);
+            if hours > 0 {
+                format!("{hours}:{minutes:02}:{seconds:02}{decimals}{rest:02}")
+            } else {
+                format!("{minutes:02}:{seconds:02}{decimals}{rest:02}")
+            }
         }
         "name" => {
             let (days, month) = if english { (DAYS_EN, MONTHS_EN) } else { (DAYS_FR, MONTHS_FR) };
@@ -145,6 +156,10 @@ mod tests {
         assert_eq!(format_value("n", 1234567, "number", "en"), "1,234,567");
         assert_eq!(format_value("total", 123450, "cents", "fr"), "1\u{202F}234,50");
         assert_eq!(format_value("total", 7, "cents", "en"), "0.07");
+        // Un chronomètre (ADR-089) : des millisecondes, écrites en minutes, secondes et centièmes.
+        assert_eq!(format_value("time", 83_456, "stopwatch", "fr"), "01:23,45");
+        assert_eq!(format_value("time", 3_723_450, "stopwatch", "en"), "1:02:03.45");
+        assert_eq!(format_value("time", 0, "stopwatch", "fr"), "00:00,00");
         assert_eq!(format_value("weekday", 2, "name", "fr"), "mardi");
         assert_eq!(format_value("month", 10, "name", "en"), "October");
         assert_eq!(format_value("month", 0, "name", "fr"), "0");

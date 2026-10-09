@@ -645,8 +645,20 @@ mod tests {
             // Le HTML et les médias qui manquent (ADR-073).
             include_str!("../../exemples/lecons/95-un-article-long.holo"),
             include_str!("../../exemples/lecons/96-une-video-sous-titree.holo"),
+            // Les capacités larges (ADR-077, ADR-086, ADR-087, ADR-088).
+            include_str!("../../exemples/lecons/97-un-module-qui-recoit-une-liste.holo"),
+            include_str!("../../exemples/lecons/98-un-dessin.holo"),
+            include_str!("../../exemples/lecons/99-un-tableau-de-bord.holo"),
+            include_str!("../../exemples/lecons/110-un-module-qui-dessine.holo"),
             // Les valeurs partagées (ADR-079).
             include_str!("../../exemples/lecons/101-une-valeur-partagee.holo"),
+            // Les secondes et le chronomètre (ADR-089).
+            include_str!("../../exemples/lecons/111-un-chronometre.holo"),
+            // Trois dettes des lots 4 et 5 (ADR-090).
+            include_str!("../../exemples/lecons/112-une-adresse-qui-se-souvient.holo"),
+            include_str!("../../exemples/lecons/113-une-rangee-qui-se-serre.holo"),
+            // L'historique dans une page (ADR-091).
+            include_str!("../../exemples/lecons/114-l-historique-dans-une-page.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();
@@ -659,7 +671,7 @@ mod tests {
         for (setting, _) in SETTINGS {
             assert!(source.contains(&format!("{setting}:")), "le réglage « {setting} » manque dans l'exemple");
         }
-        for word in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave", "state:", "prices:", "{count}", "{total}", ".add(", ".sub(", ".set(", "gap:", "align:", "columns:", "alt:", "is:", "over:", "by:", ".random(", "x:", "y:", "keep:", "value:", "label:", "max:", "Key.left", "meets:", "drag:", "data:", "from:", ".play", "form:", "enter:", "loop:", "letters:", "each:", "repeat:", "ease:", "rotate:", "flip:", "tilt:", "blur:", "hue:", "round:", "scale:", "opacity:", "hover:", "focus:", "active:", "topRight", ".hover", ".hoverEnd", "else:", "{year}", "{month}", "{day}", "weekday", "{hour}", "{minute}", "items:", "key:", "{item.", "item.add(", "dark:", "phone:", "display: none", "linear-gradient(", "url(", "fonts:", "family:", ": --", "~~", "==", "^2^", "~2~", "to: \"#", "caption:", "phone:", "type: date", "type: time", "type: color", "summary:", "open: true", ".open", ".close", ".send", ".sent", ".failed", "icon:", ".mul(", ".div(", ":00}", ":number}", ":cents}", ":name}", "over:", ".push(", ".remove(item)", ".clear()", ".set(\"\")", "module \"", "modules:", ".run", ".done", "time:", "memory:", ".refresh", "computer:", "narrow:", "detach:", "justify"] {
+        for word in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave", "state:", "prices:", "{count}", "{total}", ".add(", ".sub(", ".set(", "gap:", "align:", "columns:", "alt:", "is:", "over:", "by:", ".random(", "x:", "y:", "keep:", "value:", "label:", "max:", "Key.left", "meets:", "drag:", "data:", "from:", ".play", "form:", "enter:", "loop:", "letters:", "each:", "repeat:", "ease:", "rotate:", "flip:", "tilt:", "blur:", "hue:", "round:", "scale:", "opacity:", "hover:", "focus:", "active:", "topRight", ".hover", ".hoverEnd", "else:", "{year}", "{month}", "{day}", "weekday", "{hour}", "{minute}", "{second}", ":stopwatch}", "items:", "key:", "{item.", "item.add(", "dark:", "phone:", "display: none", "linear-gradient(", "url(", "fonts:", "family:", ": --", "~~", "==", "^2^", "~2~", "to: \"#", "caption:", "phone:", "type: date", "type: time", "type: color", "summary:", "open: true", ".open", ".close", ".send", ".sent", ".failed", "icon:", ".mul(", ".div(", ":00}", ":number}", ":cents}", ":name}", "over:", ".push(", ".remove(item)", ".clear()", ".set(\"\")", "module \"", "modules:", ".run", ".done", "time:", "memory:", ".refresh", "computer:", "narrow:", "detach:", "justify"] {
             assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
     }

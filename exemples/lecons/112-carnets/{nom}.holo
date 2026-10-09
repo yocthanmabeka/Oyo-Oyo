@@ -1,0 +1,25 @@
+// Le modèle de la leçon 112 : il sert 112-carnets/ada, 112-carnets/bob… Chaque adresse garde son
+// nombre de pages (keep), et l'onglet porte le nom du carnet et ses pages (title lit {nom} et
+// {pages}).
+
+Page(
+  title: "Le carnet de {nom} : {pages} page(s)",
+  state: State(pages: 0),
+  keep: [pages],
+  children: [
+    H1("Le carnet de {nom}"),
+    P("{pages} page(s) écrite(s) dans ce carnet."),
+    Button(name: Ecrire, text: "Écrire une page"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 112 : une adresse qui se souvient", to: "../112-une-adresse-qui-se-souvient.holo"),
+    ]),
+  ],
+  rules: [
+    On(Ecrire.tap, effect: pages.add(1)),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

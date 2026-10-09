@@ -61,7 +61,7 @@ La forme des pages de compte, comparée avant de choisir : (a) des pages écrite
 ## Ce qui est refusé, et pourquoi
 
 - `access:` autre que `members` ou `everyone` ; `access` ailleurs que sur `Page`.
-- Changer `signedIn` ou `account` (une demande, un champ, un module, un glissement), les déclarer dans `State`, les garder par `keep` : c'est le serveur qui dit qui est connecté, jamais la page.
+- Changer `signedIn` ou `account` (une demande, un champ, un module, un glissement), les déclarer dans `State`, les garder par `keep`, les mettre dans l'adresse (`address:`, `ADR-091`) : c'est le serveur qui dit qui est connecté, jamais la page ni son adresse.
 - Un nom de compte avec des accents ou des espaces : deux écritures d'un « é » (une lettre, ou un « e » suivi d'un accent) se ressemblent sans être le même nom ; les noms se comparent sans les majuscules (« Ada » et « ADA » sont le même).
 - Un mot de passe de moins de 12 caractères ; deux mots de passe différents à la création.
 - Se déconnecter par un lien (GET) : seulement par le bouton (POST).
@@ -85,6 +85,11 @@ Les deux lots ont été construits en même temps, puis fusionnés (le lot 6 d'a
 - Le geste partagé d'un membre garde son état sous son compte, comme ses autres touchers.
 - Une page réservée (`access: members`) ne reçoit ni geste partagé ni écoute en direct de qui n'est pas membre (`401`), dans `holo serve` comme dans le serveur d'essai.
 - **Deux chemins restent entre la page et le serveur**, parce qu'ils ne font pas le même travail : le geste partagé (`ADR-079` : en JSON, la page attend, le serveur arbitre les valeurs partagées et les envoie en direct) et le toucher renvoyé (`?mirror`, ce lot : après coup, sans attendre, pour l'état personnel du membre). Un toucher qui change une valeur partagée ne prend que le premier ; les autres touchers d'un membre, que le second : rien n'est joué deux fois.
+
+## Avec le lot 9 (le titre qui lit les valeurs, `ADR-090` ; l'historique dans une page, `ADR-091`)
+
+- Sur une page réservée, le titre lit `{account}` et les autres valeurs (`title: "Le carnet de {account} : page {page}"`), et `address: [page]` porte ses valeurs : la page « Se connecter » ramène à l'adresse avec ses valeurs (`/carnet.holo?page=3`).
+- Le toucher renvoyé d'un membre (`?mirror`) porte ce que la page avait **avant** de jouer le toucher : les champs tels que le visiteur les a écrits (une règle peut les vider, `text.set("")`), et les valeurs de l'adresse d'avant, que le serveur reprend comme pour un toucher sans JavaScript. Corrigé pendant la fusion : la page envoyait les champs et l'adresse d'après le toucher (une note vide rangée, une page comptée deux fois). Un essai dans Chrome le garde.
 
 ## Dettes
 

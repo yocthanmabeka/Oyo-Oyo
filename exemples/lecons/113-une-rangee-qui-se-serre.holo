@@ -1,0 +1,36 @@
+// Leçon 113 — Une rangée qui se serre
+//
+// Ce qu'on apprend :
+//   narrow: { … } (leçon 89) vaut aussi dans un Row et un Column, plus seulement dans une
+//   grille : pour une case qui reçoit une part de la place (grow:, ou une largeur en %), quand
+//   elle a moins de 320px. C'est la place que reçoit la case qui compte, pas la largeur de
+//   l'écran : ici, la page est large (max-width: 960px) et chaque carte prend 45% de la rangée.
+//   Sur un ordinateur, une carte a plus de 320px ; sur un téléphone, moins. Un lien ou un bouton
+//   qui n'a que la largeur de son texte n'est pas une case.
+//
+// À essayer :
+//   Rétrécis la fenêtre, ou ouvre la page sur un téléphone : les deux cartes restent côte à côte,
+//   leur texte rapetisse et leur marge aussi.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 113 : une rangée qui se serre",
+  children: [
+    H1("Une rangée qui se serre"),
+    Row(gap: 12px, children: [
+      P.carte("La rivière, à l'aube : une toile de 60 sur 40, à l'huile."),
+      P.carte("Le phare, un soir d'orage : une aquarelle de 30 sur 40."),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 112 : une adresse qui se souvient", to: "112-une-adresse-qui-se-souvient.holo"),
+      A("Leçon 114 : l'historique dans une page →", to: "114-l-historique-dans-une-page.holo"),
+    ]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; max-width: 960px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.carte { width: 45%; border: 1px solid #2a2a4e; border-radius: 8px; padding: 24px; font-size: 20px; narrow: { padding: 8px; font-size: 15px; } }

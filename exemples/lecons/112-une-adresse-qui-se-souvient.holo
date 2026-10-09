@@ -1,0 +1,35 @@
+// Leçon 112 — Une adresse qui se souvient
+//
+// Ce qu'on apprend :
+//   Un modèle d'adresse (leçon 100) peut garder des valeurs d'une visite à l'autre (keep,
+//   leçon 17) : chaque adresse garde les siennes. Le carnet d'Ada et celui de Bob sont le même
+//   fichier, 112-carnets/{nom}.holo, mais chacun compte ses pages.
+//   Le titre d'une page lit les valeurs, comme un texte : title: "Le carnet de {nom} : {pages}
+//   page(s)" écrit, dans l'onglet, « Le carnet de ada : 2 page(s) », et suit chaque page écrite.
+//
+// À essayer :
+//   Ouvre le carnet d'Ada, écris deux pages ; ouvre celui de Bob : il est vide. Reviens chez
+//   Ada : ses deux pages sont là, même après avoir rechargé.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 112 : une adresse qui se souvient",
+  children: [
+    H1("Une adresse qui se souvient"),
+    P("Deux carnets, un seul fichier : chacun garde son nombre de pages."),
+    List(children: [
+      A("Le carnet d'Ada", to: "112-carnets/ada"),
+      A("Le carnet de Bob", to: "112-carnets/bob"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 111 : un chronomètre", to: "111-un-chronometre.holo"),
+      A("Leçon 113 : une rangée qui se serre →", to: "113-une-rangee-qui-se-serre.holo"),
+    ]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

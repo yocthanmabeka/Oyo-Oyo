@@ -55,7 +55,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 45 | [Le survol qui agit](45-survol-qui-agit.holo) | `On(Carte.hover)`, `hoverEnd` |
 | 46 | [Sinon](46-sinon.holo) | `If(…, else: [ … ])` |
 | 47 | [Une seule fois, plus tard](47-plus-tard.holo) | `After` |
-| 48 | [L'heure du visiteur](48-heure.holo) | `year`, `month`, `day`, `weekday`, `hour`, `minute` |
+| 48 | [L'heure du visiteur](48-heure.holo) | `year`, `month`, `day`, `weekday`, `hour`, `minute`, `second` |
 | 49 | [Écrire une carte une fois, la répéter](49-repeter.holo) | `Repeat`, `Item`, `item` |
 | 50 | [Un texte soigné](50-texte-soigne.holo) | `line-height`, `letter-spacing`, `text-transform`, `text-decoration`, `text-shadow` |
 | 51 | [Ombres, fonds, et une pose qui bouge](51-ombres-et-fonds.holo) | `box-shadow`, `linear-gradient`, `url(…)`, `rotate`, `scale`, `transition` |
@@ -104,11 +104,19 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 94 | [Décrocher la page](94-decrocher-la-page.holo) | `Zoom(detach: true)`, « Décrocher », « Accrocher » |
 | 95 | [Un article long](95-un-article-long.holo) | `Aside`, `A(newTab: true)`, `A(download: true)`, `print: { … }`, les images qui viennent en approchant |
 | 96 | [Une vidéo sous-titrée](96-une-video-sous-titree.holo) | `Video(captions: "film.vtt")` |
+| 97 | [Un module qui reçoit une liste](97-un-module-qui-recoit-une-liste.holo) | `Module(input: [notes], output: [moyenne, meilleure, nombre])`, le second contrat, une réponse refusée |
+| 98 | [Un dessin](98-un-dessin.holo) | `Drawing`, `Rect`, `Circle`, `Line`, `Path`, `fill`, `stroke`, `thickness`, une mesure qui suit une valeur |
+| 99 | [Un tableau de bord](99-un-tableau-de-bord.holo) | `Chart(kind: bars \| line \| pie, over:, value:, label:, title:)`, des données reçues, dessinées |
 | 100 | [Une adresse qui porte une valeur](100-une-adresse-qui-porte-une-valeur.holo) | un fichier nommé `100-profils/{nom}.holo`, `{nom}` dans un texte, `If(nom, is: "yocthan")` ; la valeur se lit, ne se change pas |
 | 101 | [Une valeur partagée](101-une-valeur-partagee.holo) | `shared: Shared(seats: 20, likes: 0)`, `{seats}`, `If(seats, over: 0, …)`, `seats.sub(1)` par un toucher ; le serveur arbitre et l'envoie en direct à toutes les pages ouvertes |
 | 104 | [Se connecter : un compte gardé chez toi](104-se-connecter.holo) | `signedIn`, `{account}`, `A(to: "/account/signin")` ; les pages de compte et le code à 6 chiffres, fabriqués par le moteur (avec `holo serve`) |
 | 105 | [Une page réservée aux membres](105-une-page-reservee.holo) | `Page(access: members)` ; sans être connecté, on est mené à « Se connecter », puis ramené |
 | 106 | [Le panier qui suit le compte](106-le-panier-qui-suit-le-compte.holo) | rien à écrire : connecté, le panier est gardé par le compte, sur le téléphone comme sur l'ordinateur, avec ou sans JavaScript |
+| 110 | [Un module qui dessine](110-un-module-qui-dessine.holo) | `Drawing(shapes: fleur)`, une liste de formes rendue par un module |
+| 111 | [Un chronomètre](111-un-chronometre.holo) | `Stopwatch`, `start`, `stop`, `reset`, `stopped`, `{temps:stopwatch}` |
+| 112 | [Une adresse qui se souvient](112-une-adresse-qui-se-souvient.holo) | `keep` dans un modèle d'adresse, `112-carnets/{nom}.holo` : chaque adresse garde ses valeurs ; `title: "Le carnet de {nom} : {pages} page(s)"` |
+| 113 | [Une rangée qui se serre](113-une-rangee-qui-se-serre.holo) | `narrow: { … }` dans les cases d'un `Row` : `.carte { width: 45%; narrow: { padding: 8px; } }` |
+| 114 | [L'historique dans une page](114-l-historique-dans-une-page.holo) | `address: [onglet, page]` : les valeurs dans l'adresse, un pas d'historique par toucher, une adresse qui se partage |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 

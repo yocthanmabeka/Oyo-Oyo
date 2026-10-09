@@ -71,6 +71,7 @@ function engineEnv(address = "", more = {}) {
   const env = { ...process.env };
   delete env.HOLO_ADDRESS;
   delete env.HOLO_SHARED;
+  delete env.HOLO_QUERY;
   Object.assign(env, more);
   if (address) env.HOLO_ADDRESS = address;
   return env;
@@ -78,15 +79,16 @@ function engineEnv(address = "", more = {}) {
 
 // `address` : les valeurs de l'adresse pour un modèle (« nom=ada »), sinon rien. `shared` : les
 // valeurs partagées gardées pour cette adresse (ADR-079) ; le moteur ne s'en sert que pour une
-// page qui en déclare.
-function prerenderedPage(template, holoPath, folder, address = "", shared = "") {
+// page qui en déclare. `query` : ce que l'adresse porte après le « ? » (« tab=photos ») ; la page
+// en garde ce qu'elle nomme (ADR-091).
+function prerenderedPage(template, holoPath, folder, address = "", shared = "", query = "") {
   if (!renderer) return template;
   try {
     // L'heure du lieu, pour une page qui la lit (ADR-039) : le moteur la corrige ensuite avec
     // celle de l'appareil du visiteur.
     const d = new Date();
     const HOLO_NOW = [d.getFullYear(), d.getMonth() + 1, d.getDate(), ((d.getDay() + 6) % 7) + 1, d.getHours(), d.getMinutes()].join(",");
-    const html = execFileSync(renderer, ["html", holoPath, folder], { encoding: "utf8", timeout: 5000, maxBuffer: 4e6, env: engineEnv(address, { HOLO_NOW, HOLO_SHARED: shared }) }).trim();
+    const html = execFileSync(renderer, ["html", holoPath, folder], { encoding: "utf8", timeout: 5000, maxBuffer: 4e6, env: engineEnv(address, { HOLO_NOW, HOLO_SHARED: shared, HOLO_QUERY: query }) }).trim();
     const title = /data-title="([^"]*)"/.exec(html)?.[1] || "HoloCode";
     // La langue, la description et l'image de partage de la page (ADR-038), dans l'en-tête :
     // pour les lecteurs d'écran, pour Google, et pour l'aperçu d'un lien partagé.
@@ -154,9 +156,9 @@ async function findModel(rawPath) {
 // La page d'une adresse qui porte des valeurs : fabriquée par le moteur avec ces valeurs, et le
 // modèle nommé dans l'en-tête (<meta name="holo-file">), pour que le moteur de la page lise ce
 // fichier-là. La balise est posée même si le moteur refuse le fichier : la page dira l'erreur.
-function addressPage(template, model) {
+function addressPage(template, model, query = "") {
   const content = model.url.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  return prerenderedPage(template, model.file, model.folder, model.values, sharedOf(sharedKey(model.url, model)).values).replace('<meta charset="utf-8">', () => `<meta charset="utf-8"><meta name="holo-file" content="${content}">`);
+  return prerenderedPage(template, model.file, model.folder, model.values, sharedOf(sharedKey(model.url, model)).values, query).replace('<meta charset="utf-8">', () => `<meta charset="utf-8"><meta name="holo-file" content="${content}">`);
 }
 
 async function file(path) {
@@ -632,10 +634,10 @@ createServer(async (req, res) => {
     }
     let { raw, br } = await file(toServe);
     if (model) {
-      raw = Buffer.from(addressPage(raw.toString("utf8"), model));
+      raw = Buffer.from(addressPage(raw.toString("utf8"), model, new URL(req.url, "http://x").search.slice(1)));
       br = brotliCompressSync(raw, { params: { [constants.BROTLI_PARAM_QUALITY]: 5 } });
     } else if (forDisplay && toServe.endsWith("page.html")) {
-      raw = Buffer.from(prerenderedPage(raw.toString("utf8"), path, url.slice(0, url.lastIndexOf("/") + 1), "", sharedOf(url).values));
+      raw = Buffer.from(prerenderedPage(raw.toString("utf8"), path, url.slice(0, url.lastIndexOf("/") + 1), "", sharedOf(url).values, new URL(req.url, "http://x").search.slice(1)));
       br = brotliCompressSync(raw, { params: { [constants.BROTLI_PARAM_QUALITY]: 5 } });
     }
     const type = types[extname(toServe)] ?? "application/octet-stream";

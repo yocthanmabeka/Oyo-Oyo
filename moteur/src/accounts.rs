@@ -1123,6 +1123,37 @@ mod tests {
     }
 
     #[test]
+    fn a_members_page_with_its_title_and_its_address() {
+        // Avec le lot 9 : sur une page réservée, le titre lit les valeurs (ADR-090) et l'adresse
+        // porte des valeurs (ADR-091).
+        let (site, folder) = site();
+        std::fs::write(
+            folder.join("carnet.holo"),
+            "Page(title: \"Le carnet de {account} : page {page}\", access: members, state: State(page: 1, seen: 0), address: [page], children: [ P(\"Page {page}, vue {seen}\"), Button(name: Next, text: \"Suivante\") ], rules: [ On(Next.tap, effect: [page.add(1), seen.set(page)]) ])",
+        )
+        .unwrap();
+        // Sans être membre : « Se connecter », qui ramènera à l'adresse avec ses valeurs.
+        let away = site.answer(&ask("GET", "/carnet.holo?page=3", "", b""));
+        assert_eq!(header(&away, "Location"), "/account/signin?next=/carnet.holo%3Fpage%3D3&for=members");
+        let created = site.answer(&ask("POST", "/account/signup", "", b"name=Ada&password=une+phrase+assez+longue&again=une+phrase+assez+longue&next=%2Fcarnet.holo%3Fpage%3D3"));
+        assert_eq!(header(&created, "Location"), "/carnet.holo?page=3");
+        let ada = session(&created);
+        let page = text(site.answer(&ask("GET", "/carnet.holo?page=3", &ada, b"")));
+        assert!(page.contains("<title>Le carnet de Ada : page 3</title>") && page.contains("Page <span data-state=\"page\">3</span>"), "{page}");
+        // Le toucher renvoyé par le moteur porte l'adresse d'avant : le serveur part de la page 3.
+        assert_eq!(site.answer(&ask("POST", "/carnet.holo?page=3&mirror", &ada, b"signal=Next.tap")).status, 204);
+        let kept: String = site.base.lock().unwrap().query_row("SELECT state FROM visits WHERE visitor LIKE 'account:%' AND page = '/carnet.holo'", [], |row| row.get(0)).unwrap();
+        assert!(kept.split(';').any(|part| part == "seen=4"), "{kept}");
+        // Sans JavaScript, le toucher mène à l'adresse des nouvelles valeurs.
+        let touched = site.answer(&ask("POST", "/carnet.holo?page=4", &ada, b"signal=Next.tap"));
+        assert_eq!(header(&touched, "Location"), "/carnet.holo?page=5");
+        // Le titre suit le visiteur : l'adresse nue, la page 1 ; la vue gardée par le compte.
+        let start = text(site.answer(&ask("GET", "/carnet.holo", &ada, b"")));
+        assert!(start.contains("<title>Le carnet de Ada : page 1</title>") && start.contains("vue <span data-state=\"seen\">5</span>"), "{start}");
+        let _ = std::fs::remove_dir_all(folder);
+    }
+
+    #[test]
     fn a_stolen_session_expires() {
         let (site, folder) = site();
         let cookie = sign_up(&site, "Ada", "une+phrase+assez+longue");

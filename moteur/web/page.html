@@ -187,10 +187,10 @@
         watcher.unobserve(entry.target);
       }
     }, { rootMargin: "0px 0px -10% 0px" });
-    // La place que reçoit un bloc (ADR-069) : une case de grille de moins de 20rem (320px) est
-    // marquée « holo-narrow », et les styles « narrow: { … } » s'y appliquent, à la case comme à
-    // ce qu'elle contient. Mesuré après la mise en page et avant le dessin : rien ne saute.
-    // Seulement si un style de la page le demande.
+    // La place que reçoit un bloc (ADR-069) : une case de grille, ou une part d'un Row ou d'un
+    // Column (ADR-090), de moins de 20rem (320px) est marquée « holo-narrow », et les styles
+    // « narrow: { … } » s'y appliquent, à la case comme à ce qu'elle contient. Mesuré après la
+    // mise en page et avant le dessin : rien ne saute. Seulement si un style de la page le demande.
     const cells = "ResizeObserver" in window && new ResizeObserver((entries) => {
       const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
       for (const entry of entries) {
@@ -200,6 +200,21 @@
     });
     // Les cases d'une grille : ses enfants, ou ceux d'un bloc invisible (If, Repeat) posé dedans.
     const gridItems = (parent) => [...parent.children].flatMap((child) => (getComputedStyle(child).display === "contents" ? gridItems(child) : [child]));
+    // Dans un Row ou un Column (ADR-090), seulement les cases qui reçoivent une part de la place :
+    // grow:, ou une largeur en % dans un style de la page. Un bouton ou un lien qui n'a que la
+    // largeur de son texte n'est pas « étroit » pour autant.
+    const shares = () => {
+      const selectors = [".holo-grow"];
+      const visit = (rules) => {
+        for (const rule of rules) {
+          if (rule.style?.width?.endsWith("%") && /^\.holo-(s-|c-|[A-Z])/.test(rule.selectorText) && !rule.selectorText.includes("holo-narrow")) selectors.push(rule.selectorText);
+          // Les règles d'un état (phone: dans un @media), et celles qu'une règle imbrique.
+          if (rule.cssRules?.length) visit(rule.cssRules);
+        }
+      };
+      for (const style of root.querySelectorAll("style")) { try { visit(style.sheet?.cssRules ?? []); } catch { /* feuille illisible */ } }
+      return selectors.join(",");
+    };
     // Aussi après chaque morceau de page fabriqué par le moteur. Et le volume des sons (ADR-061).
     window.__holoWatchEntrances = (inside = root) => {
       for (const block of inside.querySelectorAll(".holo-in-view:not(.holo-seen)")) {
@@ -209,6 +224,8 @@
       for (const sound of inside.querySelectorAll("audio[data-volume]")) sound.volume = Number(sound.dataset.volume);
       if (cells && [...root.querySelectorAll("style")].some((style) => style.textContent.includes("holo-narrow"))) {
         for (const grid of inside.querySelectorAll(".holo-Grid")) for (const cell of gridItems(grid)) cells.observe(cell);
+        const share = shares();
+        for (const line of inside.querySelectorAll(".holo-Row,.holo-Column")) for (const cell of gridItems(line)) if (cell.matches(share)) cells.observe(cell);
       }
     };
     window.__holoWatchEntrances();
@@ -322,10 +339,9 @@
     const spot = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)));
     if (!root.querySelector("[data-title]") || root.querySelector("[data-live]") || location.search || (location.hash && !spot)) load();
     // Des valeurs gardées d'une visite précédente (keep) : le moteur les remet. Le visiteur est
-    // déjà venu, son navigateur a sans doute gardé le moteur. Elles sont rangées sous le nom du
-    // fichier, celui que le serveur nomme dans l'en-tête s'il l'a fait (ADR-078).
-    const file = document.querySelector('meta[name="holo-file"]')?.getAttribute("content") || location.pathname;
-    try { if (localStorage.getItem(`holo:${file}`)) load(); } catch { /* stockage refusé */ }
+    // déjà venu, son navigateur a sans doute gardé le moteur. Elles sont rangées sous l'adresse de
+    // la page : un modèle (/profil/{id}.holo) en garde pour chaque adresse qu'il sert (ADR-090).
+    try { if (localStorage.getItem(`holo:${location.pathname}`)) load(); } catch { /* stockage refusé */ }
   })();
 </script>
 </body></html>

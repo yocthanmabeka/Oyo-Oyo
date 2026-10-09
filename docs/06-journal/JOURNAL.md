@@ -21,6 +21,43 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-08 — L'historique dans une page : `address: [onglet, page]`
+
+- Fait (`ADR-091`, PROPOSITION ; une des tâches confiées par Yocthan à la session du nuage, laissée par le lot 8 en attendant le serveur) : `Page(address: [onglet, page])` écrit ces valeurs dans l'adresse, après le `?`. Un toucher qui les change fait un pas que « Précédent » défait ; une adresse partagée arrive sur les mêmes valeurs, fabriquée par le serveur d'essai, par `holo serve` et par `holo html` ; sans JavaScript, `holo serve` mène chaque toucher à l'adresse des nouvelles valeurs. Un seul chemin dans le moteur (`src/history.rs`). Leçon 114.
+- Ce qui arrive par l'adresse vient de n'importe qui : seules les valeurs nommées, dans leurs bornes ; un texte que la page n'écrit qu'avec des mots fixes n'en prend pas d'autre (`?onglet=pirate` montre l'onglet du début).
+- Exécuté : `cargo test` → 160 tests passent (trois nouveaux) ; dans Chrome, l'essai de la leçon 114 passe (deux pas, « Précédent » deux fois, « Suivant », une adresse partagée, `?values` gardé, des valeurs forgées).
+- À valider par Yocthan : le nom `address:` (ou `history:`).
+
+**Erreurs en route**
+
+- Mon premier essai acceptait `?onglet=pirate` : un texte que rien ne borne. Le moteur relève maintenant les mots qu'une page peut écrire dans une valeur ; une adresse forgée ne met plus la page dans un état qu'elle ne peut pas atteindre.
+- En relançant le serveur d'essai, ma commande d'arrêt (`pkill -f`) s'est reconnue elle-même dans sa propre ligne et s'est arrêtée.
+
+---
+
+## 2026-10-08 — Trois dettes des lots 4 et 5 : un titre qui lit les valeurs, `narrow:` dans un `Row`, `keep` par adresse
+
+- Fait (`ADR-090`, PROPOSITION ; une des tâches confiées par Yocthan à la session du nuage) : `Page(title: "Le carnet de {nom} : {pages} page(s)")` écrit les valeurs dans l'onglet, et le récrit quand elles changent ; `narrow: { … }` vaut aussi dans les cases de `Row` et de `Column` ; les valeurs gardées (`keep`) sont rangées sous l'adresse, une par adresse d'un modèle. Leçons 112 (et son modèle `112-carnets/{nom}.holo`) et 113 ; la leçon 100 a un titre par profil.
+- Exécuté : `cargo test` → 157 tests passent (un nouveau : `the_title_reads_the_values_of_the_page`) ; dans Chrome, l'essai « un titre qui lit les valeurs, des valeurs gardées par adresse, narrow dans un Row » passe.
+
+**Erreurs en route**
+
+- La page légère vérifiait les valeurs gardées sous le nom du fichier, le moteur les rangeait sous l'adresse : le carnet d'Ada ne retrouvait pas ses pages. Les deux lisent maintenant l'adresse.
+- Ma première leçon 113 ne se serrait jamais sur un téléphone : dans un `Row`, deux longues cartes passent chacune à la ligne et reçoivent toute la largeur (358px). Puis elle se serrait aussi sur un ordinateur : la page fait 640px, deux cartes côte à côte y ont moins de 320px. La leçon donne 45% de la rangée à chaque carte, dans une page élargie à 960px.
+- La suite entière a trouvé mon erreur suivante : en mesurant tous les blocs d'un `Row` et d'un `Column`, la leçon 89 avait 11 cases « étroites » au lieu de 3 (ses titres, ses liens). Un lien court mesure moins de 320px par son seul texte, même sur un grand écran. Seules les cases qui reçoivent une part de la place (`grow:`, une largeur en %) sont mesurées. Et dans Chrome, une règle CSS ordinaire a aussi sa liste de règles imbriquées (vide) : ma première lecture des styles s'y perdait.
+
+---
+
+## 2026-10-08 — Les secondes, et un chronomètre (tâche confiée à la session du nuage)
+
+- Confié par Yocthan à la session du nuage, avec trois autres tâches (tableau « Qui fait quoi », PR 175 de la session du PC) ; la session du PC l'a fait savoir par un message, que la session du nuage ne peut pas encore lui rendre.
+- Fait (`ADR-089`) : `{second}`, donnée chaque seconde à une page qui l'affiche, à elle seulement ; `Stopwatch(name:, value:, label:)` avec `start`, `stop`, `reset` et le signal `stopped` ; la page le fait tourner au centième, le moteur ne reçoit que le temps final ; `{time:stopwatch}`. Leçon 48 : les secondes défilent ; leçon 111 : un chronomètre qui garde le meilleur temps.
+- Raté puis corrigé : le temps final arrivait sans que les règles qui le guettent répondent (le meilleur temps ne se gardait pas) ; il passe maintenant par elles. `font-variant-numeric` n'est pas un style de HoloCode : le moteur donne lui-même des chiffres de largeur égale au cadran. La leçon 48 doit garder `{minute}` tel quel : un essai du moteur vérifie que chaque mot est montré quelque part.
+- Vérifié : tous les tests du moteur ; dans Chrome, la seconde change, le chronomètre tourne puis s'arrête et reste fixe, le temps s'écrit dessous, la remise à zéro efface le cadran.
+- Pas encore envoyé : la session du nuage n'a plus le droit d'écrire sur GitHub (le dépôt s'appelle maintenant Oyo-Oyo ; l'application Claude n'y a pas accès pour le compte relié à cette session).
+
+---
+
 ## 2026-10-08 — Lot 6 : des valeurs partagées, en direct
 
 - Fait (`ADR-079`, PROPOSITION ; le sens de « partager » est celui décidé par Yocthan le 2026-10-08) : `shared: Shared(seats: 20, likes: 0)` à côté de `state:`. Le serveur garde ces valeurs pour tout le monde, une fois par adresse (`/concert/12` et `/concert/13` ont chacune leurs places) ; seul un toucher les change, et c'est le serveur qui l'arbitre, avec le même moteur, chacun son tour ; les changements arrivent en direct dans toutes les pages ouvertes ; sans JavaScript, la page reste juste (le formulaire des gestes, `ADR-074`).
@@ -129,6 +166,52 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 - Un essai du serveur de la session du nuage ratait sous Windows : il effaçait le dossier d'essai pendant que la base était encore prise. L'effacement réessaie.
 - Mon assertion sur une page fabriquée était fausse : le contenu d'un `If` faux reste dans la page, caché (`hidden`).
 - Trouvés en passant par l'agent : le bouton ▶ de l'extension VS Code ne marchait plus depuis la traduction en anglais ; une adresse mal encodée donnait 500 au lieu de 400 au serveur d'essai. Corrigés.
+
+---
+
+## 2026-10-08 — Lot 9, quatrième pas : un module qui dessine
+
+- Fait (`ADR-088`) : `Drawing(…, shapes: fleur)` ; les formes d'un dessin peuvent venir d'une liste à champs, une par élément (`form`, et les champs des formes écrites). Un module rend cette liste comme n'importe quelle valeur : il « dessine » sans toucher au dessin du navigateur ; le moteur vérifie chaque forme et laisse de côté les fausses. Leçon 110 : une fleur dont le module calcule les pétales (un sinus sans bibliothèque).
+- Raté puis corrigé : le premier essai déclarait dans `State` des éléments aux champs différents, ce que le moteur refuse ; les formes d'une liste arrivent pendant la visite (un module, des données), et l'essai les fait maintenant arriver ainsi.
+- Vérifié : tous les tests du moteur ; dans Chrome, aucune forme au départ, puis 6 pétales et le cœur, puis 9 pétales (« 11 formes dessinées ») ; le module essayé dans Node avant, de 0 à 99 pétales (borné à 24).
+- La session du PC a ouvert la PR 173 (lot 5, les adresses, sur `holo serve`) ; elle relie la leçon 96 à sa leçon 100, et ce lot la relie à la 97 : la suite finale est notée dans le tableau « Qui fait quoi ».
+
+![La leçon 110 : une fleur à six pétales, dessinée par un module](images/2026-10-08-web-lot9-un-module-qui-dessine.png)
+
+---
+
+## 2026-10-07 — Lot 9, troisième pas : un tableau de bord, `Chart`
+
+- Fait (`ADR-087`) : `Chart(kind: bars | line | pie, over:, value:, label:, title:)`, dessiné par le moteur en SVG d'après une liste à champs ; un tableau caché donne les mêmes chiffres au lecteur d'écran ; le graphique suit sa liste. Leçon 99 : des ventes reçues du serveur, en barres et en parts ; une vente ajoutée se dessine tout de suite. C'est le dixième parcours du « web viable » : recevoir, calculer, dessiner.
+- Trouvé et corrigé : le moteur relisait au démarrage les données que le serveur venait de mettre dans la page ; une vente ajoutée avant leur retour était effacée (vu sur une capture où la sixième barre manquait). Une page servie avec ses données ne les relit plus qu'à son rythme.
+- Raté puis corrigé : le tableau caché gardait sa vraie taille (un tableau ne se réduit pas à un pixel) et aurait pu faire défiler la page de côté sur un téléphone ; il est rangé dans un bloc caché.
+- Vérifié : tous les tests du moteur ; dans Chrome, cinq puis six barres et parts, la vente gardée, le tableau caché lu ; les essais des données (« pas de lecture en trop », « gardées sans les relire ») ; axe-core, 99 leçons, 0 défaut en clair, et en sombre sur téléphone le seul défaut connu de la leçon 90.
+
+![La leçon 99 : les ventes en barres et en parts, avec la vente du samedi ajoutée](images/2026-10-07-web-lot9-un-tableau-de-bord.png)
+
+---
+
+## 2026-10-07 — Lot 9, deuxième pas : le dessin vectoriel, `Drawing` ; GitHub Actions bloqué
+
+- Fait (`ADR-086`) : `Drawing(label:, width:, height:, children: [ … ])`, fabriqué en SVG, nommé pour le lecteur d'écran ; quatre formes, `Rect`, `Circle`, `Line`, `Path` ; `fill`, `stroke`, `thickness`, `opacity` ; une mesure peut être le nom d'un nombre de la page, et la forme le suit. Le dessin trait par trait reste refusé. Leçon 98 : un paysage dont le soleil se lève et se couche derrière la colline.
+- Vérifié : tous les tests du moteur ; dans Chrome, un SVG à sept formes, nommé pour le lecteur d'écran, le soleil de 70 à 30 en deux touchers, les proportions gardées.
+- Raté puis corrigé : une vérification plus ancienne refusait un nombre à virgule dans `x` avec un message qui parlait de glissière et de plateau ; un dessin donne maintenant le sien.
+- **Bloqué** : sur la PR 171, aucune vérification de GitHub n'a démarré. GitHub écrit : « The job was not started because recent account payments have failed or your spending limit needs to be increased » (les minutes de GitHub Actions du compte sont épuisées, ou un paiement a échoué). Sans CI verte, rien n'est fusionné : les PR 171 et suivantes attendent que Yocthan règle « Billing & plans » sur GitHub. Le travail continue en local, vérifié par les mêmes tests.
+
+![La leçon 98 : un paysage dessiné en SVG ; le soleil a été levé de deux crans](images/2026-10-07-web-lot9-un-dessin.png)
+
+---
+
+## 2026-10-07 — Lot 9, premier pas : des modules qui reçoivent une liste et rendent plusieurs valeurs
+
+- Pris par la session du nuage, selon le tableau « Qui fait quoi » relu sur `main` après la PR 170.
+- Fait (`ADR-077`) : `Module(input: [notes], output: [moyenne, meilleure, nombre])` ; des nombres à virgule, des textes, des listes. Le second contrat : le module offre `alloc` et `run(adresse, taille)` et échange un texte JSON ; le moteur relit sa réponse comme des données d'un serveur, et refuse toute la réponse si une valeur n'est pas annoncée ou n'a pas la bonne sorte. Le premier contrat (un nombre, un nombre) marche toujours. Leçon 97, avec deux modules en Rust : `bulletin.rs` et un `menteur.rs`, exprès.
+- Vérifié : tous les tests du moteur ; dans Chrome, « 3 notes ; moyenne : 13,5 », puis 14,6 avec une note dont la matière contient des guillemets et des accolades ; le module menteur refusé (« admin »), rien de changé ; la leçon 69 rend toujours 5 050.
+- Raté puis corrigé : le module de la leçon cherchait un guillemet avec une fonction qui saute les textes, et ne trouvait donc jamais de champ ; puis il prenait la liste entière pour le premier élément. Essayé dans Node avant le navigateur, avec des matières piégées.
+- Corrigé au passage, dans les leçons du lot 8 (session du nuage) : la leçon 95 renvoyait à la leçon 88 au lieu de la 94 (relevé par la session du PC) ; la 96 mène maintenant à la 97.
+- Audit axe-core : 97 leçons, 0 défaut en clair. En sombre sur téléphone (390 px), un défaut, dans la leçon 90 du lot 4 (session du PC) : la boîte qui défile (`.boite`) n'est pas atteignable au clavier (« scrollable-region-focusable »). Noté pour la session du PC, sans le corriger (règle du tableau « Qui fait quoi »).
+
+![La leçon 97 : le module a rendu trois valeurs ; la réponse du module qui ment est refusée](images/2026-10-07-web-lot9-un-module-qui-recoit-une-liste.png)
 
 ---
 

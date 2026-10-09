@@ -73,7 +73,7 @@ Chaque refus dit pourquoi, ou donne le bon mot.
 
 ## Dettes
 
-- `narrow:` ne mesure que les cases de `Grid`, pas celles de `Row` ni de `Column`. Sans JavaScript, il ne vaut pas : c'est la page qui mesure.
+- ~~`narrow:` ne mesure que les cases de `Grid`, pas celles de `Row` ni de `Column`.~~ Réglé par l'`ADR-090`. Sans JavaScript, il ne vaut pas : c'est la page qui mesure.
 - `computer:` n'a qu'un seuil (1024px).
 - Les touches à l'écran sont une rangée, pas une croix dessinée, et l'auteur ne peut pas les cacher.
 - La pile de feuilles derrière une page décrochée attend la 3D.

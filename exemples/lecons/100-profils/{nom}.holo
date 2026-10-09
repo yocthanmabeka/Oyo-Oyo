@@ -8,7 +8,7 @@
 // (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
 
 Page(
-  title: "Leçon 100 : un profil",
+  title: "Leçon 100 : le profil de {nom}",
   children: [
     H1("Bonjour, {nom}"),
     P("Cette page est la même pour tous les profils : seule la fin de l'adresse change."),

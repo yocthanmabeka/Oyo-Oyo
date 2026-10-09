@@ -330,8 +330,16 @@ fn clean_element(element: &str) -> String {
 /// textes ; un tableau d'objets remplit une liste à champs (seuls les champs déclarés sont repris,
 /// ceux qui manquent valent "" ou 0). Une liste que la page ne déclare pas est laissée de côté.
 pub fn receive(program: &Program, lists: &Lists, json: &str) -> Lists {
+    if crate::state::data_source(program).ok().flatten().is_none() {
+        return lists.clone();
+    }
+    take_lists(program, lists, json)
+}
+
+/// Range les listes reçues, d'un serveur ou d'un module (ADR-077), comme `receive`.
+pub fn take_lists(program: &Program, lists: &Lists, json: &str) -> Lists {
     let mut lists = lists.clone();
-    if crate::state::data_source(program).ok().flatten().is_none() || json.len() > crate::state::DATA_BYTES {
+    if json.len() > crate::state::DATA_BYTES {
         return lists;
     }
     let Some(Json::Object(keys)) = Json::read(json) else { return lists };

@@ -10,10 +10,10 @@
 | | Mesure | Détail |
 |---|---|---|
 | **HoloCode** | 378 mots | 344 décidés, 34 à l’essai |
-| HTML | 62 éléments | 51 oui, 5 en partie, 3 non, 3 refusés |
+| HTML | 62 éléments | 52 oui, 4 en partie, 3 non, 3 refusés |
 | CSS | 34 éléments | 28 oui, 4 en partie, 0 non, 2 refusés |
-| JavaScript | 34 éléments | 15 oui, 11 en partie, 6 non, 1 refusés, 1 sans objet |
-| HTML, CSS, JS ensemble | 130 éléments | 94 oui, 20 en partie, 9 non, 6 refusés, 1 sans objet |
+| JavaScript | 34 éléments | 16 oui, 10 en partie, 6 non, 1 refusés, 1 sans objet |
+| HTML, CSS, JS ensemble | 130 éléments | 96 oui, 18 en partie, 9 non, 6 refusés, 1 sans objet |
 
 # Partie 1 — Les mots de HoloCode
 
@@ -58,6 +58,9 @@
 | `Image` | Une image | `img` | Décidé (ADR-009) |
 | `Sound` | Un son qu'une règle fait entendre | `audio` | Décidé (ADR-031) |
 | `Shape` | Une forme : rond, carré, triangle, losange | `div + CSS, svg` | Décidé (ADR-032) |
+| `Drawing` | Un dessin vectoriel, fait de formes, nommé pour le lecteur d'écran | `svg role=img aria-label` | Décidé (ADR-086) |
+| `Rect, Circle, Line, Path` | Les formes d'un dessin : rectangle, rond, trait, tracé | `rect, circle, line, path` | Décidé (ADR-086) |
+| `Chart` | Un graphique d'après une liste : barres, courbe ou parts ; un tableau caché pour le lecteur d'écran | `svg + table` (une bibliothèque de graphiques, en JavaScript) | Décidé (ADR-087) |
 | `Video` | Une vidéo, avec ses boutons, jamais lancée seule | `video controls` | Décidé (ADR-038) |
 
 ## Blocs : la disposition
@@ -300,7 +303,8 @@
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `{year}, {month}, {day}, {weekday}, {hour}, {minute}` | L'heure de l'appareil du visiteur, tenue à jour | `new Date()` | Décidé (ADR-039) |
+| `{year}, {month}, {day}, {weekday}, {hour}, {minute}, {second}` | L'heure de l'appareil du visiteur, tenue à jour ; chaque seconde pour une page qui montre la seconde | `new Date()` | Décidé (ADR-039, ADR-089) |
+| `Stopwatch, start, stop, reset, stopped, {time:stopwatch}` | Un chronomètre au centième ; le moteur reçoit le temps final | `performance.now() + requestAnimationFrame` | Décidé (ADR-089) |
 
 ## Blocs : les valeurs
 
@@ -333,7 +337,7 @@
 | `--or (variables)` | Une couleur ou une taille nommée dans le style de la page | `--or, var(--or)` | Décidé (ADR-041) |
 | `dark, phone` | Le thème sombre ; un écran de téléphone | `@media` | Décidé (ADR-041) |
 | `print` | Ce qui change sur papier ; print: { display: none; } cache un bloc à l'impression | `@media print` | Décidé (ADR-073) |
-| `computer, narrow` | Un écran d'ordinateur (1024px et plus) ; une case de grille étroite (moins de 320px), quel que soit l'écran | `@media, @container` | À l’essai (ADR-069) |
+| `computer, narrow` | Un écran d'ordinateur (1024px et plus) ; une case étroite (moins de 320px) de grille, ou une part étroite d'un `Row` ou d'un `Column`, quel que soit l'écran | `@media, @container` | À l’essai (ADR-069, ADR-090) |
 | `aspect-ratio, object-fit, object-position` | Garder des proportions ; l'image remplit son cadre ou se voit en entier, jamais déformée | `les mêmes` | À l’essai (ADR-069) |
 | `overflow, overflow-x, overflow-y, white-space, line-clamp` | Ce qui dépasse : couper, faire défiler, ne pas passer à la ligne, « … » après quelques lignes | `les mêmes, -webkit-line-clamp` | À l’essai (ADR-069) |
 | `cursor, justify` | La forme du curseur, ou un curseur dessiné ; le texte justifié, les mots coupés | `cursor, text-align: justify, hyphens` | À l’essai (ADR-069) |
@@ -438,13 +442,13 @@
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `Module` | Du code WebAssembly enfermé : un fil à part, une mémoire plafonnée, arrêté s'il dure trop | `new Worker, WebAssembly` | Décidé (ADR-045) |
+| `Module` | Du code WebAssembly enfermé : un fil à part, une mémoire plafonnée, arrêté s'il dure trop ; il reçoit et rend des nombres, des textes et des listes, en JSON relu avec méfiance | `new Worker, WebAssembly` | Décidé (ADR-045, ADR-077) |
 
 ## Paramètres : la page
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `modules, input, output, time, memory` | Les modules de la page ; ce qu'un module reçoit, rend, et ses limites | — | Décidé (ADR-045) |
+| `modules, input, output, time, memory` | Les modules de la page ; ce qu'un module reçoit, rend (un nom, ou une liste de noms), et ses limites | — | Décidé (ADR-045, ADR-077) |
 | `components, params, emits` | Les composants de la page ; leurs paramètres (avec valeurs par défaut) ; les signaux qu'ils émettent | `props, emit` | Décidé (ADR-050, ADR-056) |
 | `children (dans un composant)` | L'emplacement où va le contenu donné à l'appel | `slot, children` | Décidé (ADR-058) |
 
@@ -468,7 +472,7 @@
 | En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|
 | `Page(…)` | `html, head, body, main` | la page entière | Oui | Déjà là | Une page HoloCode est un seul bloc Page. |
-| `Page(title:)` | `title` | le titre de l'onglet | Oui | Déjà là | — |
+| `Page(title:)` | `title` | le titre de l'onglet | Oui | Déjà là | Il lit les valeurs, dont celles d'une adresse (`{id}`), et suit leurs changements (ADR-090). |
 | `toujours UTF-8` | `meta charset` | l'encodage | Oui | Déjà là | Rien à écrire. |
 | `Zoom(active:, max:)` | `meta viewport` | le zoom sur téléphone | Oui | Déjà là | Fait autrement : le zoom est au cœur de HoloCode. |
 | `Page(description:, image:)` | `meta description, image de partage` | ce que montrent Google et les réseaux | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
@@ -520,7 +524,7 @@
 | `Video(source:, label:, captions:)` | `video, track` | une vidéo, ses sous-titres | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038) ; les sous-titres le 2026-10-07 (ADR-073). |
 | `Sound(…) et .play ; Sound(label:) pour un lecteur` | `audio` | un son, un lecteur | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
 | `Point, World, Shape` | `canvas, WebGL` | un dessin libre, de la 3D | En partie | Oui, utile | Des points et quatre formes ; pas de dessin libre ni de modèles 3D. |
-| `comme fichier d'image` | `svg dans la page` | un dessin vectoriel | En partie | Plus tard | — |
+| `Drawing(label:, width:, height:, children: [ Rect, Circle, Line, Path ])` | `svg dans la page` | un dessin vectoriel | Oui | Déjà là | Ajouté le 2026-10-07 (ADR-086) : en SVG, nommé pour le lecteur d'écran ; une mesure peut suivre un nombre de la page. |
 | `Point(inside: "x.holo")` | `iframe, embed, object` | une page dans la page | En partie | Déjà là | On entre dans un autre fichier HoloCode ; pas dans un autre site. |
 
 ## HTML — Tableaux
@@ -600,7 +604,7 @@
 | — | `display, position, float, z-index` | placer à la main | Refusé exprès | Non | Refusé (ADR-017) : la disposition vient des blocs. |
 | `Row, Column (gap, align, grow)` | `flexbox (en ligne, en colonne)` | côte à côte, l'un sous l'autre | Oui | Déjà là | grow: prend la place qui reste (ADR-052). |
 | `Grid(columns:, gap:)` | `grid` | une grille | En partie | Déjà là | Pas de zones nommées ni de case sur deux colonnes. |
-| `automatique, et phone:, computer:, narrow: { … } ; Page { max-width: }` | `@media, @container (s'adapter à l'écran, à la place)` | changer selon la taille | Oui | Déjà là | phone: (ADR-041) ; computer: (1024px et plus) et narrow: (une case de grille de moins de 320px, quel que soit l'écran) ajoutés le 2026-10-07 (ADR-069). Rien à déclarer : le moteur mesure les cases. |
+| `automatique, et phone:, computer:, narrow: { … } ; Page { max-width: }` | `@media, @container (s'adapter à l'écran, à la place)` | changer selon la taille | Oui | Déjà là | phone: (ADR-041) ; computer: (1024px et plus) et narrow: (une case de grille de moins de 320px, quel que soit l'écran) ajoutés le 2026-10-07 (ADR-069) ; narrow: aussi dans les parts d'un Row ou d'un Column (grow:, une largeur en %) le 2026-10-08 (ADR-090). Rien à déclarer : le moteur mesure les cases. |
 | `aspect-ratio, object-fit, object-position` | `aspect-ratio, object-fit, object-position` | garder des proportions | Oui | Déjà là | Ajouté le 2026-10-07 (ADR-069). Une image n'est jamais déformée sans le demander (object-fit: cover au départ). |
 | `Stack et align:` | `position: absolute (badge, pastille)` | poser un bloc sur un autre | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-036). Pas encore de bulle attachée à un bloc. |
 | `P { }, .carte { }` | `sélecteurs par balise et par nom` | viser des blocs | Oui | Déjà là | — |
@@ -639,7 +643,7 @@
 | `If(…, else: […]), When(…) ; un texte : If(size, is: "L")` | `if, else` | décider | Oui | Déjà là | Le « sinon » ajouté le 2026-10-06 (ADR-039) ; comparer des textes, If(size, is: "L") et When(answer, is: "Paris"), le 2026-10-07 (ADR-063, à valider). |
 | `State(articles: [ Item(…) ]), push(Item(…)), item.done.set(1)` | `tableaux, objets` | des listes de valeurs | Oui | Déjà là | Des listes à champs, qui changent pendant la visite (ADR-044, ADR-051, ADR-057). |
 | `Repeat(items:, children:, rules:) ; Filter(…) pour chercher, filtrer, trier` | `for, map` | répéter pour chaque élément | Oui | Déjà là | Déplié à la lecture (ADR-040) ; des listes calculées pour chercher, filtrer, trier et montrer plus (ADR-062). |
-| `Module(…) : du code WebAssembly enfermé` | `fonctions` | du calcul réutilisable | En partie | Déjà là | Ajouté le 2026-10-06 (ADR-045) : un nombre en entrée, un nombre en sortie, arrêté s'il dure trop. |
+| `Module(…) : du code WebAssembly enfermé` | `fonctions` | du calcul réutilisable | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-045) : un nombre en entrée, un nombre en sortie, arrêté s'il dure trop. Le 2026-10-07 (ADR-077) : des nombres à virgule, des textes et des listes, en entrée et en sortie. |
 | `{nom} dans un texte` | `texte (majuscules, longueur, découper)` | travailler un texte | En partie | Plus tard | — |
 | `random, rejouable` | `Math.random` | le hasard | Oui | Déjà là | Mieux pour un jeu : la même partie se rejoue. |
 | `{weekday:name} {day} {month:name} {year}, {hour} h {minute:00}` | `Date` | la date et l'heure du jour | En partie | Déjà là | ADR-039 et ADR-043. Pas encore de calcul sur les dates (un compte à rebours). |
@@ -660,7 +664,7 @@
 | `Data(from:, every:)` | `fetch (lire)` | lire des données d'un serveur | En partie | Déjà là | Des valeurs et des listes d'objets JSON (ADR-051) ; seulement le serveur d'où vient la page. |
 | `Contact.send` | `fetch (envoyer)` | envoyer au serveur | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). Les valeurs d'un formulaire, au serveur d'où vient la page. |
 | — | `WebSocket` | parler en direct avec un serveur | Non | Plus tard | Pour le jeu à plusieurs, après votre validation locale. |
-| `keep: [panier]` | `localStorage` | garder dans le navigateur | Oui | Déjà là | — |
+| `keep: [panier]` | `localStorage` | garder dans le navigateur | Oui | Déjà là | Rangé sous l'adresse : un modèle d'adresse garde des valeurs pour chacune (ADR-090). |
 | — | `cookies, sessionStorage` | se souvenir le temps d'une visite | Non | Plus tard | — |
 | — | `service worker (hors ligne)` | marcher sans réseau | Non | Plus tard | — |
 
@@ -670,6 +674,7 @@
 |---|---|---|---|---|---|
 | — | `modifier la page (DOM)` | changer la page à la main | Refusé exprès | Non | Refusé (ADR-015) : c'est le moteur qui change la page. |
 | `Point(inside:), enter, leave ; profil/{id}.holo` | `routeur, historique` | changer de page sans recharger | Oui | Déjà là | Chaque monde a son adresse ; « retour » marche. Une adresse qui porte une valeur : profil/{id}.holo sert /profil/123, fabriquée par le serveur (ADR-078). |
+| `Page(address: [onglet, page])` | `history.pushState, URLSearchParams, popstate` | l'historique dans une page, une adresse qui se partage | Oui | Déjà là | Les valeurs nommées s'écrivent après le « ? » ; un toucher fait un pas que « Précédent » défait ; le serveur fabrique la page avec elles, même sans JavaScript (ADR-091). |
 | `import "commun.holo"` | `import de modules` | découper son code | En partie | Déjà là | — |
 
 ## JavaScript — Médias et appareil
@@ -677,7 +682,7 @@
 | En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|
 | `Sound(volume:, loop:), play, stop` | `Web Audio` | jouer, régler un son | En partie | Déjà là | Volume, boucle, arrêt (ADR-061). Pas de mélange ni d'effets. |
-| `Shape` | `Canvas 2D` | dessiner librement | En partie | Plus tard | — |
+| `Shape`, `Drawing`, `Drawing(shapes:)` | `Canvas 2D` | dessiner librement | En partie | Plus tard | Le dessin déclaré existe (`Drawing`, ADR-086), et un module peut rendre une liste de formes vérifiées (ADR-088) ; le dessin trait par trait reste refusé ; cent formes par liste. |
 | `le moteur dessine des points` | `WebGL, WebGPU` | la 3D | En partie | Oui, utile | Pas encore d'objets pleins : l'essai de la chaise. |
 | — | `géolocalisation, caméra, vibration` | l'appareil du visiteur | Non | Plus tard | — |
 | — | `presse-papiers, partage` | copier, partager | Non | Plus tard | — |

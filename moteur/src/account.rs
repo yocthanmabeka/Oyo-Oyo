@@ -105,11 +105,14 @@ pub fn inject(program: &mut Program, given: Option<&str>) -> Result<(), Error> {
             return Err(Error { message: "« access » dit qui voit la page : access: members (les personnes connectées), ou access: everyone (tout le monde, sans rien écrire)".into(), pos: argument.pos });
         }
     }
-    // Une valeur du visiteur se lit ; elle ne se change pas, et ne se garde pas.
-    if let Some(argument) = program.root.argument("keep") {
-        if let Value::List(names) = &argument.value {
-            if let Some(Value::Name(kept)) = names.iter().find(|n| matches!(n, Value::Name(n) if GIVEN.contains(&n.as_str()))) {
-                return Err(Error { message: format!("« keep » : « {kept} » est donné par le serveur à chaque visite, il ne se garde pas"), pos: argument.pos });
+    // Une valeur du visiteur se lit ; elle ne se change pas, ne se garde pas (`keep`), et ne vient
+    // pas de l'adresse de la page (`address:`, ADR-091).
+    for (setting, why) in [("keep", "il ne se garde pas"), ("address", "l'adresse ne le porte pas")] {
+        if let Some(argument) = program.root.argument(setting) {
+            if let Value::List(names) = &argument.value {
+                if let Some(Value::Name(given)) = names.iter().find(|n| matches!(n, Value::Name(n) if GIVEN.contains(&n.as_str()))) {
+                    return Err(Error { message: format!("« {setting} » : « {given} » est donné par le serveur à chaque visite, {why}"), pos: argument.pos });
+                }
             }
         }
     }
@@ -208,6 +211,7 @@ mod tests {
         assert!(refused("Page(children: [ Input(value: account, label: \"Nom\") ])").contains("on le lit, on ne le change pas"));
         assert!(refused("Page(state: State(account: \"\"), children: [ P(\"{account}\") ])").contains("ne le déclare pas dans State"));
         assert!(refused("Page(keep: [signedIn], children: [ P(\"{signedIn}\") ])").contains("ne se garde pas"));
+        assert!(refused("Page(address: [account], children: [ P(\"{account}\") ])").contains("l'adresse ne le porte pas"));
         assert!(refused("Page(access: friends, children: [ P(\"x\") ])").contains("access: members"));
         assert!(refused("Point(name: A, seed: 1, children: [ P(\"{account}\") ])").contains("se lit dans Page"));
         // Des données reçues ne le changent pas non plus.

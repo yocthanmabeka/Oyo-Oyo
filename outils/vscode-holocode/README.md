@@ -12,12 +12,17 @@ Fait reconnaître les fichiers `.holo` par VS Code.
 
 ```
 python outils/vscode-holocode/package.py
-code --install-extension outils/vscode-holocode/holocode-0.2.0.vsix
+code --install-extension outils/vscode-holocode/holocode-0.2.1.vsix
 ```
 
 Puis recharger la fenêtre de VS Code. Pour souligner les fautes, l'extension se sert du moteur construit dans le dépôt : `cargo build --release --bin holo` dans `moteur/`, une fois.
 
 Le même éditeur existe dans le navigateur, sur le PC et sur le téléphone : `http://localhost:8080/editor?key=…` (l'adresse exacte est affichée par le serveur à son démarrage).
+
+## Versions
+
+- **0.2.1** (2026-10-08) : le bouton ▶ et `Ctrl+Alt+H` remarchent (ils étaient cassés depuis la traduction du moteur en anglais, `ADR-060`, et ont été réparés avec le lot 5) ; un modèle d'adresse (`profil/{id}.holo`, `ADR-078`) est vérifié comme les autres fichiers.
+- **0.2.0** : la faute soulignée à sa place et la correction d'un clic (`ADR-046`).
 
 ## Limites
 
