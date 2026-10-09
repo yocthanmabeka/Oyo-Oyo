@@ -35,6 +35,15 @@ Dans le nuage, Chrome n'a pas de carte graphique : Claude peut écrire et tester
 
 ## Après la chaise (pas dans ce planning)
 
+**À la fin de la 3D : l'IA dans le langage.** Yocthan, le 2026-10-09 : « à la fin de la 3D, on réfléchira à l'intégration de l'IA ». Il n'a jamais vu de langage qui l'inclue. Les contraintes déjà connues :
+
+- aucun prestataire obligatoire ;
+- le déterminisme (`ADR-008`) ;
+- le budget d'un onglet de téléphone ;
+- un point d'appui possible : les modules enfermés (`ADR-045`, `ADR-077`).
+
+L'idée d'un monde en fragments (quadtree sphérique, chargement des voisins, garde par seuils) a reçu sa réponse dans `docs/05-discussions/prompts/2026-10-09-claude-etat-du-projet-et-monde-en-fragments.md` : ses parties utiles rejoignent les étapes 8 et 9.
+
 Les ombres ; plusieurs objets et un budget de scène ; **`Part`** (les pièces d'un objet, ou les blocs d'un monde à la Roblox, mot gardé par `ADR-056`) ; un personnage et la vue qui le suit ; le jeu à plusieurs ; les splats sur PC.
 
 ## Ce qui peut faire échouer ce planning
