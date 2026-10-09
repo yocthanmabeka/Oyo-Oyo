@@ -871,9 +871,12 @@
 
   // Un signal est émis (Add.tap) : l'arbitre du moteur dit ce que deviennent les valeurs, puis
   // les autres effets demandés par les règles sont appliqués.
-  function emit(signal) {
-    // Un toucher qui change une valeur partagée : c'est le serveur qui arbitre (ADR-079).
-    if (sharedNames.length && touches_shared(source, signal)) return shareGesture(signal);
+  // `key` : la clé de la ligne touchée (data-key), pour un bouton dans la ligne d'une liste.
+  function emit(signal, key) {
+    // Un toucher qui change une valeur partagée : c'est le serveur qui arbitre (ADR-079). La ligne
+    // d'une liste partagée part avec sa clé : le serveur la retrouve même si d'autres ont ajouté
+    // ou retiré des lignes depuis (ADR-080).
+    if (sharedNames.length && touches_shared(source, signal)) return shareGesture(key !== undefined && /@\d+$/.test(signal) ? `${signal}#${key}` : signal);
     const before = states.get(path) ?? "";
     const after = store(arbitrate(source, before, signal));
     if (valuesPanel) lastGesture = { signal, before, after };
@@ -1990,9 +1993,11 @@
       }
       const block = event.target.closest("[data-name]");
       if (!block) return;
-      // Un bouton dans la ligne d'une liste dit de quelle ligne il vient : Done.tap@2 (ADR-044).
-      const line = block.closest("[data-rank]")?.dataset.rank;
-      emit(line === undefined ? `${block.dataset.name}.tap` : `${block.dataset.name}.tap@${line}`);
+      // Un bouton dans la ligne d'une liste dit de quelle ligne il vient : Done.tap@2 (ADR-044),
+      // et sa clé, qui la désigne dans une liste partagée (ADR-080).
+      const lineOf = block.closest("[data-rank]");
+      const line = lineOf?.dataset.rank;
+      emit(line === undefined ? `${block.dataset.name}.tap` : `${block.dataset.name}.tap@${line}`, lineOf?.dataset.key);
     });
     // Faire glisser un bloc d'un plateau (drag: true), au doigt ou à la souris. La page dit à
     // l'arbitre où est le doigt, de 0 à 100 ; c'est lui qui change les valeurs.
@@ -2078,7 +2083,9 @@
       const [name, gesture = "tap"] = expected.split(".");
       if (gesture === "tap") {
         const [single, line] = name.split("@");
-        emit(line === undefined ? `${single}.tap` : `${single}.tap@${line}`);
+        // La page n'a pas changé depuis le toucher : la ligne de ce rang donne sa clé (ADR-080).
+        const key = line === undefined ? undefined : root.querySelector(`[data-rank="${CSS.escape(line)}"] [data-name="${CSS.escape(single)}"]`)?.closest("[data-rank]")?.dataset.key;
+        emit(line === undefined ? `${single}.tap` : `${single}.tap@${line}`, key);
         continue;
       }
       // Un survol à la souris ou au clavier est rejoué s'il dure encore ; au doigt, le toucher survole.

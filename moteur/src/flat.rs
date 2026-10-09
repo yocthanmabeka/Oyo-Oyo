@@ -1532,19 +1532,12 @@ fn lines(repeat: &Block, list: &str, base: &str) -> Result<String, Error> {
         // l'on écrit, un pli ouvert, le focus restent où ils sont.
         // Avec `key: id`, la clé est ce champ : elle reste la même quand le reste de l'élément change,
         // et la page garde la ligne (le focus avec) ; elle commence par « k: ».
-        let key = match repeat.argument("key").map(|a| &a.value) {
-            Some(Value::Name(field)) => {
-                let of = |e: &String| crate::lists::fields(e).into_iter().find(|(c, _)| c == field).map(|(_, v)| v).unwrap_or_default();
-                let value = of(element);
-                let already = elements[..rank].iter().filter(|e| of(e) == value).count();
-                format!("k:{}-{already}", escape(&value))
-            }
-            _ => {
-                let already = elements[..rank].iter().filter(|e| *e == element).count();
-                let hash = element.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, o| (h ^ u64::from(o)).wrapping_mul(0x0100_0000_01b3));
-                format!("{hash:x}-{already}")
-            }
+        // La même clé désigne la ligne quand on la touche, dans une liste partagée (ADR-080).
+        let field = match repeat.argument("key").map(|a| &a.value) {
+            Some(Value::Name(field)) => Some(field.as_str()),
+            _ => None,
         };
+        let key = escape(&crate::lists::line_key(elements, rank, field));
         output.push_str(&format!("<div class=\"holo-line\" data-rank=\"{rank}\" data-key=\"{key}\">{line}</div>"));
     }
     // Une liste vide dit ce qu'on a écrit dans `empty:` (lot 2 du web) ; un lecteur d'écran

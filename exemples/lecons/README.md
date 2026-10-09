@@ -109,8 +109,8 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 99 | [Un tableau de bord](99-un-tableau-de-bord.holo) | `Chart(kind: bars \| line \| pie, over:, value:, label:, title:)`, des données reçues, dessinées |
 | 100 | [Une adresse qui porte une valeur](100-une-adresse-qui-porte-une-valeur.holo) | un fichier nommé `100-profils/{nom}.holo`, `{nom}` dans un texte, `If(nom, is: "yocthan")` ; la valeur se lit, ne se change pas |
 | 101 | [Une valeur partagée](101-une-valeur-partagee.holo) | `shared: Shared(seats: 20, likes: 0)`, `{seats}`, `If(seats, over: 0, …)`, `seats.sub(1)` par un toucher ; le serveur arbitre et l'envoie en direct à toutes les pages ouvertes |
-| 102 | [Une liste partagée](102-une-liste-partagee.holo) | Textes publics, ajouts arbitrés, cinquante lignes et frein |
-| 103 | [Confirmer un texte partagé](103-un-texte-partage-confirme.holo) | Brouillon local, bouton de confirmation, même geste sans JS |
+| 102 | [Une liste partagée](102-une-liste-partagee.holo) | `shared: Shared(groceries: [ Item(…) ])`, `push`, `item.done.set(1)`, `remove(item)`, `clear()` : la liste de tous, arbitrée par le serveur ; une ligne touchée se désigne par sa clé, jamais par son rang |
+| 103 | [Confirmer un texte partagé](103-un-texte-partage-confirme.holo) | `Input(value: title)` et `On(Save.tap, effect: title.set(title))` : un brouillon à toi, publié par un toucher, avec ou sans JavaScript |
 | 104 | [Se connecter : un compte gardé chez toi](104-se-connecter.holo) | `signedIn`, `{account}`, `A(to: "/account/signin")` ; les pages de compte et le code à 6 chiffres, fabriqués par le moteur (avec `holo serve`) |
 | 105 | [Une page réservée aux membres](105-une-page-reservee.holo) | `Page(access: members)` ; sans être connecté, on est mené à « Se connecter », puis ramené |
 | 106 | [Le panier qui suit le compte](106-le-panier-qui-suit-le-compte.holo) | rien à écrire : connecté, le panier est gardé par le compte, sur le téléphone comme sur l'ordinateur, avec ou sans JavaScript |
