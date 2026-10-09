@@ -6,6 +6,32 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Les huit limites s'ouvrent sous conditions ; un paiement international
+
+- Les avis sont rangés :
+  - Gemini (`proposals/Gemini/contraintes-2026-10-09/`, PR 245) ;
+  - la conversation Claude de Yocthan (`proposals/Claude/contraintes-2026-10-09/`, PR 244).
+
+  Les deux disent la même chose : aucune des huit ne doit rester fermée, chacune s'ouvre sous conditions, et c'est le moteur qui tient les règles de sécurité. La session Claude du PC s'y range : son « limité exprès » était trop fort.
+- Yocthan : « Oui ». Huit tâches entrent dans la file, les issues 246 à 253 (`ADR-114` à `ADR-121`, leçons 137 à 144) :
+  - le champ mot de passe, que la page ne lit jamais ;
+  - une zone de dessin pour le visiteur ;
+  - les données d'un autre serveur, lues par le serveur de l'auteur ;
+  - une page dans la page, de sites listés, chargée au toucher ;
+  - des modules venus d'ailleurs, avec leur empreinte ;
+  - le « push » avec les clés de l'auteur ;
+  - le paiement ;
+  - des effets 3D prêts à l'emploi, avec la phase 3D.
+- **Le paiement est international** (Yocthan : « ce sera utilisé peut-être par un Chinois à des millions de kilomètres de moi […] il va coder ses propres méthodes de gestion d'argent »). C'est une prise universelle :
+  - la page déclare le montant ;
+  - le serveur de l'auteur passe la main au moyen qu'il a branché ;
+  - une confirmation signée revient au serveur ;
+  - jamais aucun numéro de carte sur la page ni sur le serveur.
+
+  Le mobile money n'est qu'un branchement parmi d'autres.
+
+---
+
 ## 2026-10-09 — Les « en partie » du tableau : douze vrais manques à construire, huit limites soumises aux autres IA
 
 - Yocthan : « pourquoi il y a toujours 21 en partie ? Réponds-moi vraiment, sérieusement. Et si c'est utile, oui ou non ? ».
