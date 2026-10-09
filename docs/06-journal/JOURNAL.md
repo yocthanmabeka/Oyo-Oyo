@@ -6,6 +6,25 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Partager la page : la feuille du téléphone, sinon l'adresse copiée
+
+- Fait (issue #236, prise dans la file par la session du nuage ; `ADR-107`, ACCEPTÉ d'avance par Yocthan) :
+  - `Device(kind: share)` et `Share.request`, sur le toucher d'un bouton : la feuille de partage du téléphone, avec le titre et l'adresse de la page. Le moteur appelle le navigateur dans le clic même, avant toute attente : un navigateur n'ouvre la feuille que pendant le geste du visiteur.
+  - Sans feuille de partage (un ordinateur), le même bouton copie l'adresse. La page dit ce qu'elle a fait, à l'écran et au lecteur d'écran, dans la zone d'état du bloc.
+  - `Share.done` : partagée, ou l'adresse copiée. `Share.failed` : rien n'a marché, et l'adresse est écrite à l'écran. La feuille fermée sans rien choisir (`AbortError`) n'est ni l'un ni l'autre : « Partage annulé. ».
+  - Sans JavaScript, une phrase dit comment partager quand même. Refusés : `Share.write`, `value:`, et le partage hors du toucher d'un bouton.
+  - La leçon 130 ; le guide (chapitre « 6 duodequinquagies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+- Exécuté (`check-locked.sh`) :
+  - `cargo test --release --locked` et `cargo test` : 236 tests passent, dont le nouveau, `a_page_is_shared_from_a_button_and_nothing_else` ;
+  - `holo check` sur la leçon 130 : ok ;
+  - l'essai nouveau dans Chrome passe. Ce Chromium de Linux n'a pas `navigator.share` : l'essai retire le partage avant la page (un ordinateur), puis le remplace avant la page (un téléphone). L'adresse est relue dans le presse-papiers ; le faux partage reçoit le titre et l'adresse pendant le clic (`window.event` : « click ») ; la feuille fermée dit « Partage annulé. » sans compter ; une panne écrit l'adresse ; axe-core : zéro défaut ;
+  - il sait échouer : sans la branche du partage dans `capabilities.js`, il rate (« Requested device not found » : l'ancien code prend la sorte inconnue pour un microphone) ; avec une attente glissée avant l'appel, il rate aussi (le partage n'arrive plus pendant le clic, même si le navigateur dit encore le geste actif) ;
+  - la suite entière : 79 essais sur 83. Les ratés : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium), et « comptes : effacement confirmé… » (« database is locked »), qui passe relancé seul.
+- Erreur en route, relevée dans l'essai de Codex (`proposals/GPT5.6/fin-comptes-2026-10-08/browser-tests.mjs`), sans la corriger : il ouvre la base de `holo serve` pendant que le serveur écrit encore le panier renvoyé par la page, sans délai d'attente ; sous la charge, la base est occupée. Un délai d'attente à l'ouverture de la base le réglerait.
+- Reste : un texte choisi par l'auteur (`text:`) ; un vrai téléphone (la feuille d'Android et de l'iPhone, avec TalkBack) ; le grand tableau, « presse-papiers, partage » à passer en « Oui » à la fusion ; la suite des leçons, 124 → 125 → … → 136 → 1, refaite quand les douze dettes seront dans `main`.
+
+---
+
 ## 2026-10-09 — Les « en partie » du tableau : douze vrais manques à construire, huit limites soumises aux autres IA
 
 - Yocthan : « pourquoi il y a toujours 21 en partie ? Réponds-moi vraiment, sérieusement. Et si c'est utile, oui ou non ? ».
