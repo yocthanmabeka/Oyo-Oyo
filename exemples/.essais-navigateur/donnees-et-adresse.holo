@@ -1,0 +1,18 @@
+// Une page d'essai (moteur/outils/browser-tests.mjs), pas une leçon : une valeur que les données
+// donnent (page: 5) est aussi écrite dans l'adresse. Ouverte sans « ? », la page garde la valeur
+// reçue, sur le serveur comme dans le navigateur ; ouverte avec ?page=9, l'adresse l'emporte.
+
+Page(
+  title: "Essai : des données et une adresse",
+  state: State(page: 1, loading: 1),
+  address: [page],
+  data: Data(name: Feed, from: "donnees-page.json"),
+  children: [
+    P("Page {page}"),
+    Button(name: Next, text: "Page suivante"),
+  ],
+  rules: [
+    On(Feed.done, effect: loading.set(0)),
+    On(Next.tap, effect: page.add(1)),
+  ],
+)

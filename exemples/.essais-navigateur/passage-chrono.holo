@@ -1,0 +1,17 @@
+// Une page d'essai (moteur/outils/browser-tests.mjs), pas une leçon : un chronomètre qu'on
+// laisse tourner en passant dans un autre fichier ; revenu ici, son cadran suit encore.
+
+Page(
+  title: "Essai : un chronomètre, et un passage",
+  state: State(temps: 0),
+  children: [
+    Stopwatch(name: Chrono, value: temps, label: "Chronomètre"),
+    Button(name: Partir, text: "Partir"),
+    Button(name: Retour, text: "Revenir aux onglets"),
+    Point(name: VersOnglets, seed: 3, inside: "passage-onglets.holo"),
+  ],
+  rules: [
+    On(Partir.tap, effect: Chrono.start),
+    On(Retour.tap, effect: VersOnglets.enter),
+  ],
+)

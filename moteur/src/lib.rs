@@ -238,13 +238,23 @@ pub fn flat_view_of(source: &str, base: &str, path: &str) -> Result<String, Erro
 /// ont un nom. La page garde ce qu'elle a reçu dans `data-received` : le navigateur rejoue la même
 /// réception et part du même état. Des données illisibles : la page de départ, sans rien.
 pub fn flat_view_with_data(source: &str, base: &str, json: &str) -> Result<String, Error> {
+    flat_view_with_data_at(source, base, json, "")
+}
+
+/// La même, pour une adresse qui porte des valeurs après le `?` (ADR-091) : les données d'abord,
+/// puis l'adresse, que le visiteur a choisie, si elle nomme une valeur de la page ; le navigateur
+/// les reprend dans le même ordre.
+pub fn flat_view_with_data_at(source: &str, base: &str, json: &str, query: &str) -> Result<String, Error> {
     let program = check_page(source)?;
     if state::data_source(&program).ok().flatten().is_none() || !lists::is_json_object(json) {
-        return flat_view(source, base);
+        return flat_view_at(source, base, query);
     }
     let mut written = receive(source, &initial_state(source), json);
     if let Some(name) = state::data_name(&program) {
         written = arbitrate(source, &written, &format!("{name}.done"));
+    }
+    if history::names_a_value(&program, query) {
+        written = from_query(source, &written, query);
     }
     let start = (state::reread(&program, &written), state::reread_texts(&program, &written), lists::reread(&program, &written));
     let html = flat::site_html_from(&program, &program.root, base, "", Some(&start))?;
@@ -675,8 +685,16 @@ pub fn page_title(source: &str, state: &str) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
     let Some(holo::Value::Text(model)) = program.root.argument("title").map(|a| &a.value) else { return String::new() };
     format::set_decimals(state::decimals(&program));
-    let shown = state::to_show(&program, &state::reread(&program, state));
-    flat::plain_text(model, &shown, &state::reread_texts(&program, state))
+    let (numbers, texts, lists) = (state::reread(&program, state), state::reread_texts(&program, state), lists::reread(&program, state));
+    // Ce qu'un texte peut montrer, comme au premier affichage : les nombres, le nombre d'éléments
+    // d'une liste (« {tasks} tâches »), ceux des listes calculées, leurs totaux, les jours.
+    let mut shown = state::to_show(&program, &numbers);
+    let (computed, totals) = computed::apply_with_totals(&program, &numbers, &texts, &lists);
+    shown.extend(lists::counts(&lists));
+    shown.extend(lists::counts(&computed));
+    shown.extend(totals);
+    shown.extend(computed::days_values(&program, &texts));
+    flat::plain_text(model, &shown, &texts)
 }
 
 /// Les valeurs qu'un signal fait changer (`time;score`) : leurs horloges repartent de zéro.

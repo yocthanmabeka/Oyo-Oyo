@@ -2465,4 +2465,16 @@ mod title_tests {
         let error = crate::check_page("Page(title: \"Panier ({rien})\", children: [])").unwrap_err();
         assert!(error.message.contains("aucune valeur ne s'appelle « rien »"), "{error}");
     }
+
+    #[test]
+    fn the_title_counts_the_items_of_a_list() {
+        // « {tasks} tâche(s) » : le nombre d'éléments, au premier affichage et après chaque ajout.
+        let page = "Page(title: \"{tasks} tâche(s)\", state: State(tasks: [\"pain\"], task: \"\"), children: [ Input(value: task, label: \"Tâche\"), Button(name: Add, text: \"Ajouter\") ], rules: [ On(Add.tap, effect: [tasks.push(task), task.set(\"\")]) ])";
+        let html = crate::flat_view(page, "").unwrap();
+        assert!(html.contains("data-title=\"1 tâche(s)\""), "{html}");
+        let start = crate::initial_state(page);
+        assert_eq!(crate::page_title(page, &start), "1 tâche(s)");
+        let after = crate::arbitrate(page, &crate::input(page, &start, "task", "lait"), "Add.tap");
+        assert_eq!(crate::page_title(page, &after), "2 tâche(s)");
+    }
 }

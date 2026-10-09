@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-09). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (394 mots : 393 décidés, 1 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (131) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (444 mots : 442 décidés, 2 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (134) et ce que HoloCode en a.
 - **Existe ?** : le jugement de Claude, élément par élément (oui, en partie, non) ; ce n’est pas une mesure. Le tableau ne donne pas de pourcentage : aucune méthode reproductible ne mesure la part d’un élément du web qu’on obtient en HoloCode (consigne de Yocthan du 2026-10-07). Les comptes se refont en comptant les lignes.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,11 +9,11 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 394 mots | 393 décidés, 1 à l’essai |
+| **HoloCode** | 444 mots | 442 décidés, 2 à l’essai |
 | HTML | 62 éléments | 52 oui, 4 en partie, 3 non, 3 refusés |
-| CSS | 34 éléments | 28 oui, 4 en partie, 0 non, 2 refusés |
-| JavaScript | 35 éléments | 18 oui, 10 en partie, 5 non, 1 refusés, 1 sans objet |
-| HTML, CSS, JS ensemble | 131 éléments | 98 oui, 18 en partie, 8 non, 6 refusés, 1 sans objet |
+| CSS | 35 éléments | 29 oui, 4 en partie, 0 non, 2 refusés |
+| JavaScript | 37 éléments | 20 oui, 14 en partie, 1 non, 1 refusés, 1 sans objet |
+| HTML, CSS, JS ensemble | 134 éléments | 101 oui, 22 en partie, 4 non, 6 refusés, 1 sans objet |
 
 # Partie 1 — Les mots de HoloCode
 
@@ -159,6 +159,18 @@
 | `source, alt, weight` | Le fichier, son texte de remplacement, son poids | `src, alt` | Décidé (ADR-009, ADR-025) |
 | `form, color, size` | La forme, la couleur et la taille d'une Shape | `CSS` | Décidé (ADR-032) |
 
+## Paramètres : le dessin
+
+| Mot HoloCode | Ce qu’il fait | Sur le web | État |
+|---|---|---|---|
+| `width, height (dans Drawing et Rect)` | Les mesures d'un dessin, en unités du dessin (il garde ses proportions), et celles d'un rectangle | `viewBox, width, height` | Décidé (ADR-086) |
+| `r, radius, d` | Le rayon d'un rond, l'arrondi des coins d'un rectangle, le tracé d'un Path (filtré : des lettres de tracé et des nombres) | `r, rx, d` | Décidé (ADR-086) |
+| `from, to (dans Line)` | Les deux bouts d'un trait : from: [0, 132] | `x1, y1, x2, y2` | Décidé (ADR-086) |
+| `fill, stroke, thickness` | Le remplissage, le bord, l'épaisseur du trait : une couleur des styles, ou "none" | `fill, stroke, stroke-width` | Décidé (ADR-086) |
+| `kind (dans Chart)` | La sorte d'un graphique ; over, value et label disent sa liste, le champ du nombre et celui du nom | `type (Chart.js)` | Décidé (ADR-087) |
+| `shapes` | Les formes d'un dessin venues d'une liste à champs, une par élément, vérifiées une à une ; deux cents au plus | `un tableau d'objets, dessiné à la main (d3)` | Décidé (ADR-088) |
+| `x1, y1, x2, y2 (dans shapes)` | Les bouts d'un trait venu d'une liste ; form dit la sorte de chaque forme : "rect", "circle", "line" ou "path" | `x1, y1, x2, y2` | Décidé (ADR-088) |
+
 ## Paramètres : la disposition
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
@@ -226,6 +238,7 @@
 | `forever` | Des scènes qui recommencent | `animation-iteration-count: infinite` | Décidé (ADR-034) |
 | `grid, row, column, diagonal` | La disposition du carrefour | — | Décidé (ADR-021) |
 | `true, false` | Oui, non | `true, false` | Décidé (ADR-009) |
+| `bars, line, pie` | Les sortes d'un graphique : des barres, une courbe, des parts | `type: 'bar', 'line', 'pie' (Chart.js)` | Décidé (ADR-087) |
 
 ## Signaux et capacités
 
@@ -278,7 +291,7 @@
 |---|---|---|---|
 | `import` | Importer un autre fichier .holo | `link, script src` | Décidé (ADR-029) |
 | `//` | Un commentaire | `<!-- -->, /* */, //` | Décidé (ADR-009) |
-| `**gras**, *italique*, `code`` | Le texte enrichi, en Markdown | `strong, em, code` | Décidé (ADR-019) |
+| `` **gras**, *italique*, `code` `` | Le texte enrichi, en Markdown | `strong, em, code` | Décidé (ADR-019) |
 | `""" … """` | Un texte qui garde ses retours à la ligne | `br` | Décidé (ADR-025) |
 
 ## Blocs : les règles
@@ -347,13 +360,14 @@
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `Font` | Une police rangée à côté, ou une des polices libres du moteur, chargée par la page | `@font-face` | Décidé (ADR-041) ; les polices du moteur proposées (ADR-092) |
+| `Font` | Une police rangée à côté, chargée par la page | `@font-face` | Décidé (ADR-041) |
 
 ## Paramètres : la page
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `fonts, family` | Les polices de la page ; le nom d'une police | `@font-face, font-family` | Décidé (ADR-041) |
+| `Font(family: "…") sans source` | Une des 32 polices libres du moteur, nommée sans fichier ; seuls les morceaux utiles sont téléchargés | `Google Fonts, unicode-range` | À l’essai (ADR-092) |
 
 ## Blocs : agir
 
@@ -362,6 +376,10 @@
 | `Form` | Un formulaire qu'une règle envoie | `form, fetch POST` | Décidé (ADR-042) |
 | `Slider` | Une glissière entre deux bornes | `input type=range` | Décidé (ADR-042) |
 | `Progress` | Une barre de progression | `progress` | Décidé (ADR-042) |
+| `Transfer` | Exporter les valeurs annoncées dans un fichier JSON, et les reprendre : l'import est relu en entier, pris tout entier ou refusé ; 64 Ko | `a download + Blob, input type=file + FileReader, JSON.parse` | Décidé (ADR-093) |
+| `Device` | L'appareil du visiteur, demandé sur le toucher d'un bouton : la position, le presse-papiers, la caméra, le micro ; rien n'est envoyé | `navigator.geolocation, navigator.clipboard, getUserMedia` | Décidé (ADR-094) |
+| `Notification` | Une notification locale, sur permission ; un rappel tant que la page est ouverte, sans « push » | `Notification.requestPermission, showNotification` | Décidé (ADR-095) |
+| `Offline` | La copie d'une page publique, demandée par le visiteur ; le réseau d'abord ; rien n'est mis en attente ni rejoué | `service worker + CacheStorage` | Décidé (ADR-096) |
 
 ## Blocs : ouvrir et fermer
 
@@ -385,6 +403,10 @@
 | `type, min, summary, open` | date, time, color ; le minimum d'une glissière ; le résumé d'un pli, ouvert au départ | `type, min, summary, open` | Décidé (ADR-042) |
 | `type: file, accept` | Choisir un fichier à envoyer par un formulaire : image ou pdf, avec une taille maximale | `input type=file, accept` | Décidé (ADR-059) |
 | `required, type: email, min (longueur d'un texte)` | Un formulaire qui vérifie : obligatoire, e-mail, longueurs ; messages sous les champs ; vérifié aussi au serveur | `required, type=email, minlength` | Décidé (ADR-068) |
+| `file, values (dans Transfer)` | Le nom du fichier, et les valeurs qu'on y garde | `download, Blob` | Décidé (ADR-093) |
+| `kind: position, clipboard, camera, microphone` | La sorte d'appareil demandée | `geolocation, clipboard, getUserMedia` | Décidé (ADR-094) |
+| `title, body, after (dans Notification)` | Le titre, le texte, et le délai d'un rappel | `Notification(title, { body }), setTimeout` | Décidé (ADR-095) |
+| `files (dans Offline)` | Les fichiers que la copie emporte avec la page | `cache.addAll` | Décidé (ADR-096) |
 
 ## Paramètres : la page
 
@@ -423,6 +445,7 @@
 |---|---|---|---|
 | `push, remove, clear` | Ajouter à une liste, retirer la ligne touchée, tout vider | `push, splice, length = 0` | Décidé (ADR-044) |
 | `push(Item(…)), item.done.set(1)` | Ajouter un élément à champs ; changer un champ de la ligne touchée | `push, objet.champ = …` | Décidé (ADR-051, ADR-057) |
+| `export, import, request, write, show, save, remove` | Exporter ou importer (Transfer) ; demander l'appareil, écrire dans le presse-papiers (Device) ; montrer une notification ; garder ou retirer la copie hors ligne | `les appels du navigateur` | Décidé (ADR-093 à ADR-096) |
 
 ## Paramètres : les valeurs
 
@@ -433,6 +456,7 @@
 | `Item (dans State), item.title` | Les éléments à champs d'une liste, et leurs champs dans une ligne | `objets JavaScript` | Décidé (ADR-051) |
 | `computed, Filter(name:, from:, contains:, in:, sortBy:, limit:)` | Une liste calculée : chercher, trier, montrer plus (l'écriture A, choisie par Yocthan) | `filter, sort, slice` | Décidé (ADR-062) |
 | `field, is, reverse (dans Filter)` | Garder une sorte d'éléments ; trier du plus grand au plus petit | `filter, reverse` | Décidé (ADR-062) |
+| `offset (dans Filter)` | Combien d'éléments sauter, après la recherche et le tri, avant limit : la page suivante d'un catalogue ; le total compte avant les deux coupes | `OFFSET (SQL), slice(start)` | Décidé (ADR-084) |
 | `empty (dans Repeat)` | Ce qu'on écrit quand une liste est vide | `if (list.length === 0)` | Décidé (ADR-062) |
 | `name (dans Data), Shop.done, Shop.failed, Shop.refresh` | Des données qui disent « arrivées » ou « échec », et se relisent ; 10 secondes au plus | `fetch, response.ok, AbortController` | Décidé (ADR-064) |
 | `key (dans Repeat(over:)), total (dans Filter)` | Une clé choisie pour chaque ligne, le clavier gardé ; le nombre trouvé avant de couper | `key de React, filtered.length` | Décidé (ADR-065) |
@@ -454,6 +478,7 @@
 | `children (dans un composant)` | L'emplacement où va le contenu donné à l'appel | `slot, children` | Décidé (ADR-058) |
 | `shared` | Les valeurs partagées de la page : seul un toucher les change, arbitré par le serveur | `WebSocket, EventSource` | Décidé (ADR-079) |
 | `address` | Les valeurs de la page écrites dans l’adresse, après le ? : « Précédent » revient à l’onglet d’avant, et l’adresse se partage | `history.pushState, URLSearchParams, popstate` | À l’essai (ADR-091) |
+| `access, members, everyone` | Réserver la page aux membres (access: members) ; everyone, qu'on n'écrit pas, l'ouvre à tous | `@login_required (Django), un middleware (Next.js)` | Décidé (ADR-081) |
 
 ## Signaux et capacités
 
@@ -467,6 +492,13 @@
 |---|---|---|---|
 | `module "…"` | Annoncer un module en haut du fichier | `script src` | Décidé (ADR-045) |
 | `{id} dans le nom du fichier` | Une adresse qui porte une valeur : profil/{id}.holo sert /profil/123 ; la page lit {id}, sans le changer | `[id] (Next.js), :id (Express)` | Décidé (ADR-078) |
+| `/account, /account/signin, /account/signup` | Les pages de compte du serveur (un mot de passe, puis un code à 6 chiffres), fabriquées par le moteur, sans JavaScript ; les seuls liens qui partent de la racine du site | `/accounts/login/ (Django), /users/sign_in (Devise)` | Décidé (ADR-081) |
+
+## Valeurs calculées
+
+| Mot HoloCode | Ce qu’il fait | Sur le web | État |
+|---|---|---|---|
+| `signedIn, {account}` | Deux valeurs que le serveur donne : le visiteur est-il connecté, et le nom de son compte ; la page les lit, ne les change jamais | `request.user, current_user, useSession()` | Décidé (ADR-081) |
 
 # Partie 2 — HoloCode face à HTML, CSS et JavaScript
 
@@ -546,8 +578,8 @@
 | `Checkbox(value:, label:)` | `input checkbox` | une case à cocher | Oui | Déjà là | — |
 | `Choice(value:, label:, options:)` | `input radio` | un choix parmi plusieurs | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
 | `Slider(value:, label:, min:, max:)` | `input range` | un curseur à glisser | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
-| `Input(type: date | time | color)` | `input date, heure, couleur` | choisir une date, une couleur | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
-| `Input(type: file, accept:, max:) dans un Form` | `input email, mot de passe, fichier` | adresse, secret, envoi de fichier | En partie | Déjà là | Le fichier : ajouté le 2026-10-07 (ADR-059). Le courriel et le mot de passe viendront avec des comptes. |
+| `Input(type: date \| time \| color)` | `input date, heure, couleur` | choisir une date, une couleur | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). |
+| `Input(type: file, accept:, max:) dans un Form` | `input email, mot de passe, fichier` | adresse, secret, envoi de fichier | En partie | Déjà là | Le fichier : ajouté le 2026-10-07 (ADR-059) ; l'e-mail aussi (ADR-068). Le mot de passe est sur les pages de compte que fabrique le moteur (ADR-081) : une page n'en demande pas elle-même. |
 | `label: (obligatoire)` | `label` | le nom d'un champ | Oui | Déjà là | Mieux que HTML : impossible de l'oublier. |
 | `Input(…, lines: 5)` | `textarea` | un texte long | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
 | `Choice(…, menu: true)` | `select, option` | une liste déroulante | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-038). |
@@ -646,7 +678,7 @@
 | `add, sub, mul, div, set, random` | `calcul (+ − × ÷)` | calculer | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-043). En nombres entiers ; pas de pourcentage ni de racine. |
 | `If(…, else: […]), When(…) ; un texte : If(size, is: "L")` | `if, else` | décider | Oui | Déjà là | Le « sinon » ajouté le 2026-10-06 (ADR-039) ; comparer des textes, If(size, is: "L") et When(answer, is: "Paris"), le 2026-10-07 (ADR-063). |
 | `State(articles: [ Item(…) ]), push(Item(…)), item.done.set(1)` | `tableaux, objets` | des listes de valeurs | Oui | Déjà là | Des listes à champs, qui changent pendant la visite (ADR-044, ADR-051, ADR-057). |
-| `Repeat(items:, children:, rules:) ; Filter(…) pour chercher, filtrer, trier` | `for, map` | répéter pour chaque élément | Oui | Déjà là | Déplié à la lecture (ADR-040) ; des listes calculées pour chercher, filtrer, trier et montrer plus (ADR-062). |
+| `Repeat(items:, children:, rules:) ; Filter(…) pour chercher, filtrer, trier` | `for, map` | répéter pour chaque élément | Oui | Déjà là | Déplié à la lecture (ADR-040) ; des listes calculées pour chercher, filtrer, trier et montrer plus (ADR-062) ; la page suivante d'une liste, offset, et deux cents éléments par liste (ADR-084). |
 | `Module(…) : du code WebAssembly enfermé` | `fonctions` | du calcul réutilisable | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-045) : un nombre en entrée, un nombre en sortie, arrêté s'il dure trop. Le 2026-10-07 (ADR-077) : des nombres à virgule, des textes et des listes, en entrée et en sortie. |
 | `{nom} dans un texte` | `texte (majuscules, longueur, découper)` | travailler un texte | En partie | Plus tard | — |
 | `random, rejouable` | `Math.random` | le hasard | Oui | Déjà là | Mieux pour un jeu : la même partie se rejoue. |
@@ -669,8 +701,9 @@
 | `Contact.send` | `fetch (envoyer)` | envoyer au serveur | Oui | Déjà là | Ajouté le 2026-10-06 (ADR-042). Les valeurs d'un formulaire, au serveur d'où vient la page. |
 | `shared: Shared(seats: 20)` | `WebSocket` | parler en direct avec un serveur | Oui | Déjà là | Ajouté le 2026-10-08 (ADR-079) : des valeurs gardées par le serveur pour tout le monde, reçues en direct par chaque page ouverte (Server-Sent Events) ; seul un toucher les change, et le serveur l’arbitre. Le jeu à plusieurs viendra après. |
 | `keep: [panier]` | `localStorage` | garder dans le navigateur | Oui | Déjà là | Rangé sous l'adresse : un modèle d'adresse garde des valeurs pour chacune (ADR-090). |
+| `Transfer(file:, values:), export, import` | `Blob, FileReader (exporter, importer)` | garder ses valeurs dans un fichier, les reprendre | Oui | Déjà là | Ajouté le 2026-10-09 (ADR-093) : un fichier JSON des seules valeurs annoncées ; l'import est relu en entier, pris tout entier ou refusé ; 64 Ko au plus. |
 | — | `cookies, sessionStorage` | se souvenir le temps d'une visite | Non | Plus tard | — |
-| — | `service worker (hors ligne)` | marcher sans réseau | Non | Plus tard | — |
+| `Offline(files:), save, remove` | `service worker (hors ligne)` | marcher sans réseau | Oui | Déjà là | Ajouté le 2026-10-09 (ADR-096) : la copie d'une page publique, demandée par le visiteur ; le réseau d'abord ; rien n'est mis en attente ni rejoué ; sans JavaScript, une page comme les autres. |
 
 ## JavaScript — Page et navigation
 
@@ -686,8 +719,9 @@
 | En HoloCode | Élément du web | Rôle | Existe ? | Doit exister ? | Pourquoi |
 |---|---|---|---|---|---|
 | `Sound(volume:, loop:), play, stop` | `Web Audio` | jouer, régler un son | En partie | Déjà là | Volume, boucle, arrêt (ADR-061). Pas de mélange ni d'effets. |
-| `Shape, Drawing, Drawing(shapes:)` | `Canvas 2D` | dessiner librement | En partie | Plus tard | Le dessin déclaré existe (`Drawing`, ADR-086), et un module peut rendre une liste de formes vérifiées (ADR-088) ; le dessin trait par trait reste refusé ; cent formes par liste. |
+| `Shape, Drawing, Drawing(shapes:)` | `Canvas 2D` | dessiner librement | En partie | Plus tard | Le dessin déclaré existe (`Drawing`, ADR-086), et un module peut rendre une liste de formes vérifiées (ADR-088) ; le dessin trait par trait reste refusé ; deux cents formes par liste. |
 | `le moteur dessine des points` | `WebGL, WebGPU` | la 3D | En partie | Oui, utile | Pas encore d'objets pleins : l'essai de la chaise. |
-| — | `géolocalisation, caméra, vibration` | l'appareil du visiteur | Non | Plus tard | — |
-| — | `presse-papiers, partage` | copier, partager | Non | Plus tard | — |
-| — | `paiement, comptes` | payer, se connecter | Non | Plus tard | Bien plus tard, et jamais sans un serveur sûr. |
+| `Device(kind: position \| camera \| microphone), request, stop` | `géolocalisation, caméra, vibration` | l'appareil du visiteur | En partie | Déjà là | Ajouté le 2026-10-09 (ADR-094) : demandé sur le toucher d'un bouton, rien n'est envoyé, une capture s'arrête d'office. Pas encore la vibration. |
+| `Device(kind: clipboard), write` | `presse-papiers, partage` | copier, partager | En partie | Déjà là | Ajouté le 2026-10-09 (ADR-094) : copier dans le presse-papiers, sur un toucher. Pas encore le partage du téléphone. |
+| `Notification(title:, body:, after:), show, stop` | `Notification` | prévenir le visiteur | En partie | Déjà là | Ajouté le 2026-10-09 (ADR-095) : une notification locale, sur permission, tant que la page est ouverte. Pas de « push » envoyé par le serveur. |
+| `Page(access: members), signedIn, {account}` | `paiement, comptes` | payer, se connecter | En partie | Déjà là | Les comptes : ajoutés le 2026-10-08 (ADR-081), gardés par holo serve dans la base du site, un mot de passe puis un code à 6 chiffres, sans prestataire. Pas encore de paiement. |
