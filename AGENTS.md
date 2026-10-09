@@ -23,6 +23,22 @@ Une IA que Yocthan branche (Gemini par Antigravity, ChatGPT, Codex) reprend le t
 - Gemini, ChatGPT, Codex et toute autre IA ne fusionnent jamais.
 - `main` est protégée sur GitHub : un envoi direct y est refusé, et une pull request n'y entre qu'avec ses trois tests verts.
 
+**Si le PC s'arrête, la session du nuage reprend tout le travail** (Yocthan, 2026-10-09 : « pour qu'on ne puisse pas avoir des arrêts inutiles »).
+
+Fusionner ne suffit pas : elle continue aussi les tâches en cours de la session du PC.
+
+1. **Rien ne vit seulement sur le disque du PC.** La session du PC et ses agents envoient leur travail sur GitHub après chaque étape :
+   - sur la branche de la pull request quand c'est vert ;
+   - sinon sur une branche `wip/<branche>`.
+
+   Chacun écrit aussi une ligne d'état sur l'issue de sa tâche : ce qui est fait, ce qui reste, la branche.
+2. **Le nuage sait que le PC est arrêté** quand Yocthan le lui dit, ou quand toutes les branches en cours de la session du PC (`integration/…`, `wip/…`, celles des issues `etat:en-cours` prises par Claude du PC) n'ont reçu aucun envoi depuis plus d'une heure.
+3. **Il reprend chaque tâche là où elle est.**
+   - Il lit la dernière ligne d'état de l'issue, et part de la branche nommée (ou de son `wip/`).
+   - Avant de commencer, il écrit en commentaire « Reprise par Claude (nuage) : le PC ne répond plus ».
+   - Il garde les mêmes règles : essais complets, un journal, ne fusionner que ce qui est vert.
+4. **Quand le PC revient**, sa session relit la file avant de toucher à quoi que ce soit. Une tâche reprise par le nuage reste au nuage jusqu'à ce qu'il la rende (« Rendue au PC »), pour ne jamais travailler à deux sur la même chose.
+
 **La file de travail** (Yocthan : pour aller plus vite, consommer moins, et ne jamais s'entremêler). Tout ce qui reste à faire est dans [les issues marquées `etat:a-prendre`](https://github.com/yocthanmabeka/Oyo-Oyo/issues?q=is%3Aopen+label%3Aetat%3Aa-prendre). Il y a une tâche par issue, avec :
 
 - ses chemins réservés ;

@@ -62,13 +62,13 @@ Le terminal local ne démarre toujours pas (`helper_unknown_error: setup refresh
 - Les données du catalogue sont une photographie locale. Pas d'index de base de données ni de pagination réseau : le navigateur reçoit les 200 petits enregistrements, environ 21 Ko JSON.
 - Une recherche depuis une page avancée exige « Revenir au début des résultats » ; aucun événement nouveau de champ n'est introduit.
 - Les comptes gardent leurs dettes #180/#181 ; le partage garde les siennes #182. Les capacités du nuage #189 ne sont pas modifiées.
-- Les tests d'accessibilité demandent une connexion Internet pour télécharger la bibliothèque de test. Le site lui-même fonctionne sans cette bibliothèque.
+- Les tests d'accessibilité demandaient une connexion Internet pour télécharger la bibliothèque de test. Depuis l'intégration (PR 211), ils lisent la copie locale d'axe-core, comme `moteur/outils/accessibility.mjs` (`npm install --no-save axe-core@4.10.3`, dans `moteur/`). Le site lui-même fonctionne sans cette bibliothèque.
 
 ## Ce qui reste pour déclarer le web fini
 1. Intégrer, après relecture par Claude PC, #199 et cette PR avec les comptes #177.
 2. Finir/revoir les tâches comptes et partage #180 à #182 ; les nouvelles dépendances des clés d'accès attendent l'accord explicite prévu par #181. Les tâches #180 et #182 demandent d'abord la fusion de #177 ; cette fusion est réservée à Claude PC.
 3. Relire et intégrer les PR du lot 9 du nuage ; vérifier ce qui reste de l'appareil, du hors-ligne, des imports/exports et notifications, sans confondre une chaîne de PR avec tout le lot.
-4. Exécuter le parcours 10 avec ces capacités ; compléter le fichier sans-JavaScript si exigé.
+4. Exécuter le parcours 10 avec ces capacités ; compléter le fichier sans-JavaScript si exigé. *Fait le 2026-10-09 : le tableau de bord (`dashboard.holo`, `sales.json`) et son essai, repris de la PR 204, sur `integration/parcours-10`.*
 5. Faire les dix parcours au clavier et au TalkBack avec une personne, puis sur le vrai Samsung ; mesurer la durée, la mémoire, la chaleur et la batterie.
 6. Mettre à jour le grand tableau et le bilan seulement d'après ces preuves.
 

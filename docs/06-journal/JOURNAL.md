@@ -60,6 +60,31 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Le parcours 10, le tableau de bord : les dix parcours du web sont là
+
+- Repris de la PR 204 de Codex (fermée : elle doublait d'autres PR), et d'elle seulement : le tableau de bord (`exemples/parcours/dashboard.holo`), ses ventes fictives (`sales.json`), sa ligne dans l'index des parcours et son essai. Sur `integration/parcours-10`, à partir de `main`. Les ventes, reçues du serveur, sont dessinées en barres et en parts ; une vente s'ajoute au clavier, avec ou sans JavaScript ; les chiffres se lisent dans le tableau caché du graphique.
+- Ajouté : le tableau de bord dans l'audit d'accessibilité des parcours (dix pages, quatre modes). Mis à jour : le README des parcours (« dix parcours », et le tableau de bord dans ce qu'il faut refaire sur le téléphone), le compte rendu de Codex (le parcours 10 fait ; axe-core lu depuis la copie locale), l'`ADR-084` et `AGENTS.md`.
+- Exécuté : `holo check` → `dashboard.holo` et l'index acceptés ; `node outils/browser-tests.mjs parcours` → 12 essais `OK`, aucun raté, 307 s : `cargo test --release --locked` (196 tests), onze fichiers `.holo` vérifiés, les parcours 1 à 10 (le 10 : trois ventes puis quatre, barres et parts, au clavier, JavaScript coupé puis activé, 180 dans le tableau et dans l'arbre d'accessibilité), 40 audits axe-core sans défaut.
+- Reste, pour dire le web fini (compte rendu de Codex) : faire les dix parcours au clavier et au TalkBack avec une personne, puis sur le vrai Samsung, et mesurer la durée, la mémoire, la chaleur et la batterie.
+
+**Erreurs en route**
+
+- Aucune dans cette étape.
+
+---
+
+## 2026-10-09 — Si le PC s'arrête, la session du nuage reprend tout le travail
+
+- Yocthan : « au cas où ta session lâche, si le PC s'éteint, que tu laisses à la session sur téléphone continuer, pour qu'on ne puisse pas avoir des arrêts inutiles ».
+- Écrit dans `AGENTS.md` (« Si le PC s'arrête, la session du nuage reprend tout le travail ») :
+  - rien ne vit seulement sur le disque du PC : la session du PC et ses agents envoient leur travail après chaque étape (la branche de la PR quand c'est vert, sinon `wip/<branche>`) et écrivent une ligne d'état sur l'issue de la tâche ;
+  - le nuage sait que le PC est arrêté quand Yocthan le lui dit, ou quand aucune branche en cours du PC n'a reçu d'envoi depuis plus d'une heure ;
+  - il reprend chaque tâche là où elle est, en le disant en commentaire ;
+  - quand le PC revient, il relit la file : une tâche reprise par le nuage reste au nuage jusqu'à ce qu'il la rende.
+- Les trois agents en cours ont reçu la consigne : envoyer après chaque étape et écrire leur état sur les issues 180 à 183 et 213, et sur la PR 208. La session du nuage a reçu l'état exact du travail en cours.
+
+---
+
 ## 2026-10-09 — Les corrections du nuage (PR 208) relues, et raccordées à la fin du lot 9
 
 - Relue : la PR 208 de la session du nuage, qui répond aux remarques de Codex sur la chaîne du lot 9 (huit corrections, deux défauts anciens du démarrage). Bonne : chaque correction a son essai, écrit pour rater avec l'ancien code ; le code reste sobre (un chronomètre rangé sous `fichier|nom`, l'adresse qui ne compte au démarrage que si elle nomme une valeur de la page, un nom inconnu après le `#` qui laisse la page où elle est, comme un navigateur devant une ancre inconnue). Ses deux remarques refusées sont justifiées.
