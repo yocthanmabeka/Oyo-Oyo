@@ -358,6 +358,32 @@ const tests = [
     const ok = before === 0 && six && nine;
     return [ok, `avant : ${before} forme ; 6 pétales et le cœur : ${six} ; 9 pétales, « 11 formes dessinées » : ${nine}`];
   }],
+  ["les secondes défilent, et un chronomètre au centième (leçons 48 et 111)", async (p) => {
+    await p.open("/exemples/lecons/48-heure.holo");
+    const second = () => p.value(`Number(document.querySelector('[data-state="second"]').textContent)`);
+    await p.until("window.__holoStarted === true");
+    const first = await second();
+    const ticked = await p.until(`Number(document.querySelector('[data-state="second"]').textContent) !== ${first}`, 3000);
+    await p.open("/exemples/lecons/111-un-chronometre.holo");
+    const dial = () => p.value(`document.querySelector(".holo-Stopwatch").textContent`);
+    const atRest = await dial();
+    await p.click('[data-name="Partir"]');
+    await p.until("window.__holoStarted === true");
+    await pause(700);
+    const running = await dial();
+    await pause(300);
+    const later = await dial();
+    await p.click('[data-name="Stop"]');
+    const stopped = await dial();
+    await pause(400);
+    const still = await dial();
+    const written = await p.until(`document.getElementById("page").innerText.includes("Dernier temps : " + document.querySelector(".holo-Stopwatch").textContent)`, 3000);
+    const timer = await p.value(`document.querySelector(".holo-Stopwatch").getAttribute("role")`);
+    await p.click('[data-name="Zero"]');
+    const reset = await dial();
+    const ok = ticked && atRest === "00:00,00" && running !== atRest && later !== running && stopped === still && written && timer === "timer" && reset === "00:00,00";
+    return [ok, `la seconde change : ${ticked} ; au repos ${atRest}, en marche ${running} puis ${later}, arrêté ${stopped} (fixe : ${stopped === still}) ; écrit dessous : ${written} ; role=${timer} ; remis à zéro : ${reset}`];
+  }],
   ["un module enfermé rend son nombre", async (p) => {
     await p.open("/exemples/lecons/69-module-enferme.holo");
     await p.click('[data-name="Calculer"]');

@@ -6,6 +6,16 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-08 — Les secondes, et un chronomètre (tâche confiée à la session du nuage)
+
+- Confié par Yocthan à la session du nuage, avec trois autres tâches (tableau « Qui fait quoi », PR 175 de la session du PC) ; la session du PC l'a fait savoir par un message, que la session du nuage ne peut pas encore lui rendre.
+- Fait (`ADR-089`) : `{second}`, donnée chaque seconde à une page qui l'affiche, à elle seulement ; `Stopwatch(name:, value:, label:)` avec `start`, `stop`, `reset` et le signal `stopped` ; la page le fait tourner au centième, le moteur ne reçoit que le temps final ; `{time:stopwatch}`. Leçon 48 : les secondes défilent ; leçon 111 : un chronomètre qui garde le meilleur temps.
+- Raté puis corrigé : le temps final arrivait sans que les règles qui le guettent répondent (le meilleur temps ne se gardait pas) ; il passe maintenant par elles. `font-variant-numeric` n'est pas un style de HoloCode : le moteur donne lui-même des chiffres de largeur égale au cadran. La leçon 48 doit garder `{minute}` tel quel : un essai du moteur vérifie que chaque mot est montré quelque part.
+- Vérifié : tous les tests du moteur ; dans Chrome, la seconde change, le chronomètre tourne puis s'arrête et reste fixe, le temps s'écrit dessous, la remise à zéro efface le cadran.
+- Pas encore envoyé : la session du nuage n'a plus le droit d'écrire sur GitHub (le dépôt s'appelle maintenant Oyo-Oyo ; l'application Claude n'y a pas accès pour le compte relié à cette session).
+
+---
+
 ## 2026-10-08 — Lot 6 : des valeurs partagées, en direct
 
 - Fait (`ADR-079`, PROPOSITION ; le sens de « partager » est celui décidé par Yocthan le 2026-10-08) : `shared: Shared(seats: 20, likes: 0)` à côté de `state:`. Le serveur garde ces valeurs pour tout le monde, une fois par adresse (`/concert/12` et `/concert/13` ont chacune leurs places) ; seul un toucher les change, et c'est le serveur qui l'arbitre, avec le même moteur, chacun son tour ; les changements arrivent en direct dans toutes les pages ouvertes ; sans JavaScript, la page reste juste (le formulaire des gestes, `ADR-074`).

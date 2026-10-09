@@ -1330,16 +1330,19 @@ pub fn initial(program: &Program) -> Result<State, Error> {
     let mut state = state;
     let now = now();
     for name in clock_read(program) {
-        let rank = CLOCK.iter().position(|h| *h == name).unwrap_or(0);
-        state.push((name.to_string(), now[rank]));
+        let value = match CLOCK.iter().position(|h| *h == name) {
+            Some(rank) if rank < now.len() => now[rank],
+            _ => SECOND.with(std::cell::Cell::get),
+        };
+        state.push((name.to_string(), value));
     }
     Ok(state)
 }
 
 /// L'heure du visiteur, que le moteur donne comme il donne `count` et `total` (ADR-039) :
 /// l'année, le mois (1 à 12), le jour (1 à 31), le jour de la semaine (1 lundi, 7 dimanche),
-/// l'heure (0 à 23) et la minute. On la lit, on ne la change pas.
-pub const CLOCK: &[&str] = &["year", "month", "day", "weekday", "hour", "minute"];
+/// l'heure (0 à 23), la minute, et la seconde (0 à 59, ADR-089). On la lit, on ne la change pas.
+pub const CLOCK: &[&str] = &["year", "month", "day", "weekday", "hour", "minute", "second"];
 
 thread_local! {
     /// L'heure donnée par celui qui appelle le moteur : la page (l'heure de l'appareil du
@@ -1350,6 +1353,16 @@ thread_local! {
 /// Donne l'heure au moteur : année, mois, jour, jour de la semaine, heure, minute.
 pub fn set_now(values: [u64; 6]) {
     NOW.with(|m| m.set(values));
+}
+
+thread_local! {
+    /// La seconde (ADR-089), donnée à part : seule une page qui l'affiche la reçoit, chaque seconde.
+    static SECOND: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// Donne la seconde au moteur, de 0 à 59.
+pub fn set_second(second: u64) {
+    SECOND.with(|s| s.set(second.min(59)));
 }
 
 pub fn now() -> [u64; 6] {
@@ -1398,6 +1411,24 @@ fn clock_read(program: &Program) -> Vec<&'static str> {
     program.root.arguments.iter().for_each(|a| visit(&a.value, &mut read_ones));
     read_ones.sort_by_key(|h| CLOCK.iter().position(|x| x == h));
     read_ones
+}
+
+/// Un nombre qui arrive d'ailleurs que d'un champ : le temps final d'un chronomètre (ADR-089).
+/// Il est rangé dans ses bornes, puis les règles qui le guettent (`When(time, under: best, …)`)
+/// ont leur mot à dire.
+pub fn received_number(program: &Program, state: &State, texts: &Texts, name: &str, value: u64) -> State {
+    let before = state.clone();
+    let mut state = state.clone();
+    if let Some((_, place)) = state.iter_mut().find(|(known, _)| known == name) {
+        *place = value.min(ceiling(program, name));
+    }
+    suites(program, before, texts, state, texts)
+}
+
+/// Le fichier lit-il la seconde (ADR-089) ? La page lui donne alors l'heure chaque seconde, et non
+/// plus chaque minute.
+pub fn reads_seconds(program: &Program) -> bool {
+    clock_read(program).contains(&"second")
 }
 
 /// Le fichier lit-il l'heure ? La page la tient alors à jour, minute après minute.

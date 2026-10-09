@@ -1170,7 +1170,8 @@ Page(
 - **`On(Card.hover, …)` et `On(Card.hoverEnd, …)`** : la souris arrive sur un bloc nommé, puis le quitte. Le clavier y arrive aussi (Tab), et le doigt sur un téléphone : toucher le bloc le survole, toucher ailleurs le quitte. Un survol change des valeurs ou joue un son ; pour entrer dans un monde, il faut toucher. Pour changer seulement l'allure, un style suffit : `hover: { … }`.
 - **`else: [ … ]`** dans un `If` : ce qu'on montre quand la condition est fausse.
 - **`After(3s, effect: …)`** : une seule fois, plus tard. Dans les règles de la page, l'attente part à l'ouverture ; sous une condition, elle part quand la condition devient vraie. Ici, « Added. » s'efface trois secondes après l'ajout.
-- **L'heure du visiteur** : `year`, `month`, `day`, `weekday` (1 lundi … 7 dimanche), `hour`, `minute`. On les montre et on les compare ; on ne les change pas. La page se tient à jour à chaque minute.
+- **L'heure du visiteur** : `year`, `month`, `day`, `weekday` (1 lundi … 7 dimanche), `hour`, `minute`, `second`. On les montre et on les compare ; on ne les change pas. La page se tient à jour à chaque minute ; à chaque seconde si elle montre `{second}` (`ADR-089`).
+- **Un chronomètre** (`ADR-089`) : `Stopwatch(name: Chrono, value: time, label: "My race")`, et `Chrono.start`, `Chrono.stop`, `Chrono.reset`. La page le fait tourner au centième ; le moteur reçoit le temps final, en millisecondes, dans `time`, puis `Chrono.stopped`. `{time:stopwatch}` l'écrit `01:23,45`. Leçon `111-un-chronometre.holo`.
 
 Ces ajouts sont décidés (`ADR-039`). Les leçons sont `45-survol-qui-agit.holo` à `48-heure.holo`.
 

@@ -5,7 +5,7 @@
   // dessin (les points, les mondes, la vue points) est un second moteur, chargé seulement quand
   // la page s'en sert : une page qui ne fait que bouger ne le télécharge jamais.
   import init, {
-    flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, chart_html, shapes_html, module_info, module_finished, module_input, module_received, delays, reads_time, set_now, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
+    flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, chart_html, shapes_html, module_info, module_finished, module_input, module_received, delays, reads_time, set_now, set_second, reads_seconds, stopwatch_stopped, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
     shared_names, with_shared, touches_shared,
   } from "/pkg-light/holo_engine.js";
   let drawing = null;
@@ -546,23 +546,63 @@
       }
     });
   }
-  // L'heure du visiteur (ADR-039) : celle de son appareil, donnée au moteur à chaque minute.
+  // L'heure du visiteur (ADR-039) : celle de son appareil, donnée au moteur à chaque minute ; et
+  // chaque seconde à une page qui affiche la seconde (ADR-089), à elle seulement.
   function giveTime() {
     const d = new Date();
     set_now(d.getFullYear(), d.getMonth() + 1, d.getDate(), ((d.getDay() + 6) % 7) + 1, d.getHours(), d.getMinutes());
+    set_second(d.getSeconds());
   }
   let nextMinute = 0;
   function followTime() {
     clearTimeout(nextMinute);
     if (!reads_time(source)) return;
     const d = new Date();
+    const wait = reads_seconds(source) ? 1000 - d.getMilliseconds() + 20 : (60 - d.getSeconds()) * 1000 - d.getMilliseconds() + 50;
     nextMinute = setTimeout(() => {
       giveTime();
       const before = states.get(path) ?? "";
       const after = store(advance_clock(source, before));
       if (after && after !== before) changeState(after);
       followTime();
-    }, (60 - d.getSeconds()) * 1000 - d.getMilliseconds() + 50);
+    }, wait);
+  }
+
+  // Les chronomètres (ADR-089) : la page compte elle-même, au rythme de l'écran, et ne donne au
+  // moteur que le temps final, quand une règle l'arrête. Compté d'après l'horloge de l'appareil :
+  // juste, même si l'onglet a été caché un moment.
+  const stopwatches = new Map();
+  function showStopwatch(name, element, watch) {
+    const elapsed = watch.elapsed + (watch.since ? performance.now() - watch.since : 0);
+    const language = root.querySelector("[data-lang]")?.dataset.lang || document.documentElement.lang || "fr";
+    element.textContent = format_value("time", Math.round(elapsed), "stopwatch", language);
+    return Math.round(elapsed);
+  }
+  function stopwatch(name, capability, element) {
+    const watch = stopwatches.get(name) ?? { elapsed: 0, since: 0, frame: 0 };
+    stopwatches.set(name, watch);
+    if (capability === "start" && !watch.since) {
+      watch.since = performance.now();
+      const tick = () => {
+        showStopwatch(name, element, watch);
+        watch.frame = requestAnimationFrame(tick);
+      };
+      tick();
+    } else if (capability === "stop" && watch.since) {
+      watch.elapsed += performance.now() - watch.since;
+      watch.since = 0;
+      cancelAnimationFrame(watch.frame);
+      const final = showStopwatch(name, element, watch);
+      announce(`${element.getAttribute("aria-label")} : ${element.textContent}`);
+      const after = store(stopwatch_stopped(source, states.get(path) ?? "", name, final));
+      if (after) changeState(after);
+      for (const effect of effects(source, `${name}.stopped`).split(",").filter(Boolean)) apply(effect, `${name}.stopped`);
+    } else if (capability === "reset") {
+      // Le cadran revient à zéro ; la valeur garde le dernier temps final.
+      cancelAnimationFrame(watch.frame);
+      Object.assign(watch, { elapsed: 0, since: 0, frame: 0 });
+      showStopwatch(name, element, watch);
+    }
   }
   // Les listes qui changent pendant la visite (ADR-044) : quand une liste change, le moteur
   // fabrique ses lignes à nouveau, et la page les pose à la place des anciennes.
@@ -1668,7 +1708,10 @@
 
   function apply(effect, signal = "") {
     const [name, capability] = effect.split(".");
-    if (capability === "enter" && containedSites().some((s) => s.name === name)) {
+    const watch = ["start", "stop", "reset"].includes(capability) && root.querySelector(`.holo-Stopwatch[data-name="${CSS.escape(name)}"]`);
+    if (watch) {
+      stopwatch(name, capability, watch);
+    } else if (capability === "enter" && containedSites().some((s) => s.name === name)) {
       // Le signal vient-il du point lui-même, ou d'un bouton qui y mène ?
       enterInto(name, signal === `${name}.tap`);
     } else if (capability === "play" || capability === "stop") {

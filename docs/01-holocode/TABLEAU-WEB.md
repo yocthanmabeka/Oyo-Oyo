@@ -303,7 +303,8 @@
 
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
-| `{year}, {month}, {day}, {weekday}, {hour}, {minute}` | L'heure de l'appareil du visiteur, tenue à jour | `new Date()` | Décidé (ADR-039) |
+| `{year}, {month}, {day}, {weekday}, {hour}, {minute}, {second}` | L'heure de l'appareil du visiteur, tenue à jour ; chaque seconde pour une page qui montre la seconde | `new Date()` | Décidé (ADR-039, ADR-089) |
+| `Stopwatch, start, stop, reset, stopped, {time:stopwatch}` | Un chronomètre au centième ; le moteur reçoit le temps final | `performance.now() + requestAnimationFrame` | Décidé (ADR-089) |
 
 ## Blocs : les valeurs
 
