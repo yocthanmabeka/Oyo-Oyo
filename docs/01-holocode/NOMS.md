@@ -61,6 +61,8 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Address(children: [ … ])` | `address` | repris : le nom de HTML, les moyens de joindre l'auteur ; ni titre ni repère dedans ; le texte reste droit (`ADR-098`, à valider) |
 | `Fields(label:, children:)` | `fieldset`, `legend` | changé : un groupe de champs et son nom, écrit `label:` comme celui d'un champ ; au moins deux champs ; sans la bordure du navigateur, jamais plus large que l'écran (`ADR-099`, à valider) |
 | `Input(suggestions: ["Paris", "Lyon"])`, `suggestions: villes` | `input list="…"`, `datalist`, `option` | changé : un paramètre du champ au lieu d'un élément relié par un `id` ; écrites, ou une liste de la page suivie pendant la visite ; on peut toujours écrire autre chose (`ADR-100`, à valider) |
+| `<<bonjour>>` dans un texte | `q` | nouveau : une marque du texte enrichi ; le moteur écrit les guillemets de la langue de la page, « » en français avec une espace fine insécable, “ ” en anglais, ceux du second niveau dans une citation (`ADR-101`, à valider) |
+| `_Les Misérables_` dans un texte ; `Quote(work:)` | `cite` | nouveau : le titre d'une œuvre ; un trait bas au milieu d'un mot reste un trait bas (`ADR-101`, à valider) |
 | `Enter` | `@keyframes` + `animation` (de… vers…), ou `element.animate()` | changé : on écrit seulement d'où le bloc part |
 | `Loop` | `animation: … infinite alternate` | changé : on écrit seulement où il va |
 | `Scenes`, `Scene` | une suite de `animation-delay` calculés à la main, ou un chef d'orchestre en JavaScript | changé : les scènes s'enchaînent seules |

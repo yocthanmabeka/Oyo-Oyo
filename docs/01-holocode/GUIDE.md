@@ -1948,6 +1948,27 @@ Page(
 
 Cette écriture est proposée (`ADR-100`) et attend la validation de Yocthan. La leçon est `123-des-suggestions-dans-un-champ.holo`.
 
+## 6 duoquadragies. Une citation courte, le titre d'une œuvre
+
+Citer quelqu'un au milieu d'une phrase, et nommer un livre (`ADR-101`).
+
+```holo
+Page(
+  title: "The reading club",
+  children: [
+    P("This month, the club reads _Les Misérables_, by Victor Hugo."),
+    P("Jean summed it up: <<Valjean becomes good because a bishop called him <<my brother>>.>>"),
+    Quote("Those who live are those who fight.", by: "Victor Hugo", work: "Les Châtiments"),
+  ],
+)
+```
+
+- **`<<bonjour>>`** dans un texte : une citation courte (`q`). Le moteur écrit les guillemets de la langue de la page, pour de vrai (ils se lisent et se copient) : « bonjour » en français, avec une espace fine insécable qui ne laisse jamais un guillemet seul en bout de ligne ; “hello” en anglais. Une citation dans une citation prend ceux du second niveau. Une marque sans sa paire reste du texte.
+- **`_Les Misérables_`** : le titre d'une œuvre (`cite`), en italique. Le trait bas ouvre au début d'un mot et ferme à sa fin : `mon_fichier_final` reste tel quel. Ni l'un ni l'autre dans du code.
+- **`Quote("…", by: "Victor Hugo", work: "Les Châtiments")`** : une citation en bloc, son auteur, et l'œuvre d'où elle vient.
+
+La leçon est `124-une-citation-courte.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo

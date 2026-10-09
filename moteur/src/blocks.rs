@@ -49,7 +49,7 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     // Un terme et sa définition, dans une liste (ADR-097) : Term("Poids", "2 kg").
     ("Term", &["name"]),
     ("Hr", &["name"]),
-    ("Quote", &["name", "by"]),
+    ("Quote", &["name", "by", "work"]),
     ("Code", &["name"]),
     ("Header", &["name", "children"]),
     ("Nav", &["name", "children"]),

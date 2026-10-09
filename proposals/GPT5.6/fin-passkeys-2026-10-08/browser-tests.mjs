@@ -19,7 +19,7 @@ export function passkeyTests({phone,page,startHoloServe}){
    await q.open("/account/signup",200);await q.type("#name","WithPasskey");await q.type("#password","une longue phrase pour ma clé locale");await q.type("#again","une longue phrase pour ma clé locale");await q.click('form button[type="submit"]');
    check(await q.until("location.pathname==='/account'"),"compte non créé");
    await q.open("/account/passkeys",200);await q.type("#label","Clé du PC");await q.type("#password","une longue phrase pour ma clé locale");await q.click("#passkey-button");
-   check(await q.until("document.querySelectorAll('[data-passkey]').length===1",15000),"clé non enregistrée : "+await q.value("document.body.innerText"));
+   const saved=await q.until("document.querySelectorAll('[data-passkey]').length===1",15000);check(saved,saved?"":"clé non enregistrée : "+await q.value("document.body.innerText"));
    const keys=(await b.send("WebAuthn.getCredentials",{authenticatorId:authenticator})).result?.credentials??[];check(keys.length===1&&keys[0].isResidentCredential,"clé découvrable absente : "+JSON.stringify(keys));
    const db=new DatabaseSync(join(served.folder,"holo-data","site.sqlite"));try{check(db.prepare("SELECT COUNT(*) n FROM passkeys").get().n===1,"clé non gardée chez l'auteur");}finally{db.close();}
    await q.open("/account",200);await q.click('form[action="/account/signout"] button');await q.until("location.pathname==='/account/signin'");
@@ -32,7 +32,7 @@ export function passkeyTests({phone,page,startHoloServe}){
     const replay=await q.value("(async()=>{const r=await fetch('/account/passkeys/login/finish',{method:'POST',headers:{'content-type':'application/json'},body:window.__passkeyBody});return r.status;})()");
     check(replay===401,"défi réemployable après refus");
    }
-   await q.open("/account/passkeys",200);await q.click("#passkey-button");check(await q.until("location.pathname==='/account'",15000),"signature correcte refusée : "+await q.value("document.body.innerText"));
+   await q.open("/account/passkeys",200);await q.click("#passkey-button");const signed=await q.until("location.pathname==='/account'",15000);check(signed,signed?"":"signature correcte refusée : "+await q.value("document.body.innerText"));
    // Au clavier, confirmer le retrait ; l'identifiant ne suffit pas sans mot de passe.
    await q.open("/account/passkeys",200);await q.type('li input[name="password"]',"wrong");await q.click('li form button');check(await q.until("document.body.innerText.includes('confirmation du compte')"),"retrait sans mot de passe accepté");
    await q.open("/account/passkeys",200);await q.type('li input[name="password"]',"une longue phrase pour ma clé locale");await q.click('li form button');check(await q.until("location.pathname==='/account/passkeys'&&document.querySelectorAll('[data-passkey]').length===0"),"clé non retirée");

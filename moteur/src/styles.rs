@@ -672,6 +672,8 @@ mod tests {
             include_str!("../../exemples/lecons/122-un-groupe-de-champs.holo"),
             // Des suggestions dans un champ (ADR-100).
             include_str!("../../exemples/lecons/123-des-suggestions-dans-un-champ.holo"),
+            // Une citation courte, le titre d'une œuvre (ADR-101).
+            include_str!("../../exemples/lecons/124-une-citation-courte.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();
