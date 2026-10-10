@@ -291,6 +291,24 @@ pub fn resume(source: &str, kept: &str) -> String {
     crate::resume(source, kept)
 }
 
+/// Les valeurs que la page retient le temps de la visite (ADR-113) : `prenom,personnes`.
+#[wasm_bindgen]
+pub fn visit_names(source: &str) -> String {
+    crate::visit_names(source)
+}
+
+/// Ce que la page écrit dans sa mémoire de visite : une ligne par valeur, son nom et son JSON.
+#[wasm_bindgen]
+pub fn to_visit(source: &str, state: &str) -> String {
+    crate::to_visit(source, state)
+}
+
+/// L'état, avec ce que la mémoire de visite rend, relu avec méfiance.
+#[wasm_bindgen]
+pub fn from_visit(source: &str, state: &str, stored: &str) -> String {
+    crate::from_visit(source, state, stored)
+}
+
 /// Les conditions d'une page et leur réponse pour cet état (`count|is=0:1;…`).
 #[wasm_bindgen]
 pub fn conditions(source: &str, state: &str) -> String {

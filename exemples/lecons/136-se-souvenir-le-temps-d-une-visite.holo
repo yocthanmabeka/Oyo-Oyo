@@ -1,0 +1,44 @@
+// Leçon 136 — Se souvenir le temps d'une visite
+//
+// Ce qu'on apprend :
+//   « visit: [prenom, personnes, atelier] », sur la page, retient ces valeurs le temps de la
+//   visite : d'une page à l'autre du site, dans le même onglet. Une autre page qui retient les
+//   mêmes noms les retrouve : ici, l'étape 2 (136-inscription/etape-2.holo). C'est un
+//   formulaire en plusieurs pages, sans rien envoyer au serveur et sans cookie.
+//   Fermer l'onglet efface tout ; un autre onglet part de zéro.
+//   « keep » (leçon 17) garde des valeurs d'une visite à l'autre, sous l'adresse d'une page ;
+//   « visit » les retient le temps de la visite, sous leur nom, pour tout le site.
+//   Ce qui revient d'une autre page est vérifié par celle-ci : un nombre dans les bornes de
+//   son champ, un atelier parmi ses options. Une valeur qui ne va pas est ignorée, sans erreur.
+//   Sans JavaScript, rien n'est retenu : chaque page part de ses valeurs de départ.
+//
+// À essayer :
+//   Écris ton prénom, choisis un atelier, puis passe à l'étape 2 : tout y est. Change
+//   d'atelier à l'étape 2, reviens à l'étape 1 : il a suivi. Ouvre la leçon dans un nouvel
+//   onglet : elle part de zéro. Ferme l'onglet : tout est oublié.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 136 : se souvenir le temps d'une visite",
+  state: State(prenom: "", personnes: 1, atelier: ""),
+  visit: [prenom, personnes, atelier],
+  children: [
+    H1("Une inscription en deux pages"),
+    P("Étape 1 sur 2 : qui vient ?"),
+    Input(value: prenom, label: "Ton prénom", max: 40),
+    Input(value: personnes, label: "Combien de personnes ?", min: 1, max: 6),
+    Choice(value: atelier, label: "L'atelier", options: ["Aquarelle", "Poterie", "Gravure"]),
+    P("Ces trois valeurs sont retenues tant que l'onglet reste ouvert."),
+    A("Étape 2 : vérifier →", to: "136-inscription/etape-2.holo"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 124 : une citation courte, le titre d'une œuvre", to: "124-une-citation-courte.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

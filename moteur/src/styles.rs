@@ -688,6 +688,9 @@ mod tests {
             include_str!("../../exemples/lecons/133-faire-vibrer-le-telephone.holo"),
             // Mélanger des sons : un fondu, un volume qui suit une valeur (ADR-112).
             include_str!("../../exemples/lecons/135-melanger-des-sons.holo"),
+            // Se souvenir le temps d'une visite, un formulaire en deux pages (ADR-113).
+            include_str!("../../exemples/lecons/136-se-souvenir-le-temps-d-une-visite.holo"),
+            include_str!("../../exemples/lecons/136-inscription/etape-2.holo"),
             // Les données d'un autre site, lues par le serveur de l'auteur (ADR-116).
             include_str!("../../exemples/lecons/139-les-donnees-d-un-autre-site.holo"),
         ];

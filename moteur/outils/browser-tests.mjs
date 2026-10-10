@@ -1017,6 +1017,99 @@ const tests = [
     const ok = asked && before === "Tic muet, Tac muet" && mixer === "absent" && heard;
     return [ok, `demandés au moins 3 fois sans geste : ${asked} ; avant un geste : ${before}, mélangeur ${mixer} ; après un toucher : ${after}`];
   }],
+  ["se souvenir le temps d'une visite : d'une page à l'autre du site, pas dans un autre onglet (leçon 136)", async (p, b) => {
+    const first = "/exemples/lecons/136-se-souvenir-le-temps-d-une-visite.holo";
+    const second = "/exemples/lecons/136-inscription/etape-2.holo";
+    const shows = (text) => `document.getElementById("page").innerText.includes(${JSON.stringify(text)})`;
+    const stored = (name) => `sessionStorage.getItem("holo-visit:${name}")`;
+    const field = (name) => `document.querySelector('[data-bind="${name}"]').value`;
+    const ticked = (option) => `document.querySelector('input[data-bind="atelier"][value="${option}"]').checked`;
+    // L'accessibilité des deux pages, remplies : axe-core, la copie locale, comme pour les parcours.
+    const axeSource = readFileSync(join(engine, "node_modules", "axe-core", "axe.min.js"), "utf8");
+    const audit = async (where) => {
+      await p.value(`${axeSource}\n;window.axe.version`);
+      return (await p.value('window.axe.run(document, { resultTypes: ["violations"] }).then((r) => r.violations.map((v) => v.id))')).map((id) => `${where} : ${id}`);
+    };
+    // Ce que l'onglet envoie pendant l'essai : la mémoire de visite ne part jamais au serveur.
+    const sent = [];
+    await b.send("Network.enable");
+    b.on("Network.requestWillBeSent", ({ request }) => sent.push(request));
+    try {
+      // Les essais d'avant ont ouvert d'autres pages du même site dans cet onglet : on part de rien.
+      await p.open(first, 300);
+      await p.value("sessionStorage.clear()");
+      await p.open(first);
+      // Page 1 : un prénom écrit (avant même l'arrivée du moteur), trois personnes, un atelier.
+      await p.type('[data-bind="prenom"]', "Zoé");
+      await p.until("window.__holoStarted === true", 40000);
+      await p.value(`(() => { const i = document.querySelector('[data-bind="personnes"]'); i.value = "3"; i.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+      await p.click('input[data-bind="atelier"][value="Poterie"]');
+      const written = await p.until(`${stored("prenom")} === '"Zoé"' && ${stored("personnes")} === "3" && ${stored("atelier")} === '"Poterie"'`, 5000);
+      const faults = await audit("page 1");
+      // Page 2, par le lien, dans le même onglet : la page du serveur arrive avec ses valeurs de
+      // départ ; le moteur vient de lui-même, sans geste, et reprend celles de la visite.
+      await p.click('a[href$="136-inscription/etape-2.holo"]');
+      const followed = await p.until(`location.pathname.endsWith("/136-inscription/etape-2.holo") && window.__holoStarted === true && ${shows("Bonjour Zoé, vous serez 3.")} && ${shows("L'atelier : Poterie.")}`, 40000);
+      faults.push(...(await audit("page 2")));
+      // L'atelier change à la page 2 ; « Précédent » : la page 1 a suivi. Deux fois : rendue par le
+      // cache du navigateur, telle qu'on l'avait quittée ; puis rechargée (un écouteur « unload »
+      // interdit au navigateur de la garder), le navigateur remettant dans ses champs ce qu'on y
+      // avait écrit avant : la mémoire de visite, plus récente, passe par-dessus.
+      const backTo = async (option, before) => {
+        await p.click(`input[data-bind="atelier"][value="${option}"]`);
+        await p.until(`${stored("atelier")} === '"${option}"'`, 5000);
+        await p.value("history.back()");
+        const ok = await p.until(`location.pathname.endsWith("136-se-souvenir-le-temps-d-une-visite.holo") && window.__holoStarted === true && ${field("prenom")} === "Zoé" && ${field("personnes")} === "3" && ${ticked(option)} && !${ticked(before)}`, 40000);
+        const how = (await p.value(`performance.getEntriesByType("navigation")[0]?.type`)) === "back_forward" ? "rechargée" : "rendue par le cache";
+        return [ok && (await p.value(`${stored("atelier")} === '"${option}"'`)), how];
+      };
+      const [cached, cachedHow] = await backTo("Gravure", "Poterie");
+      await p.value(`addEventListener("unload", () => {})`);
+      await p.click('a[href$="136-inscription/etape-2.holo"]');
+      await p.until(`location.pathname.endsWith("/136-inscription/etape-2.holo") && window.__holoStarted === true && ${shows("L'atelier : Gravure.")}`, 40000);
+      const [reloaded, reloadedHow] = await backTo("Aquarelle", "Gravure");
+      const back = cached && reloaded;
+      const how = `${cachedHow}, puis ${reloadedHow}`;
+      // Un autre onglet du même navigateur, à la même adresse : il ne les a pas, et la page n'y
+      // fait même pas venir le moteur.
+      const other = await b.tab();
+      const q = page(other, server.base);
+      let fresh = false;
+      let engine = "";
+      try {
+        await q.open(second);
+        fresh = await q.until(`${shows("Tu n'as pas encore écrit ton prénom")} && ${shows("Aucun atelier choisi.")} && sessionStorage.length === 0`, 10000);
+        engine = String(await q.value("window.__holoStarted === true"));
+      } finally {
+        await other.close();
+      }
+      // « Recommencer », à la page 2 : la règle remet les valeurs au départ, et la visite le retient.
+      await p.open(second);
+      await p.until(`window.__holoStarted === true && ${shows("Bonjour Zoé, vous serez 3.")}`, 40000);
+      await p.click('[data-name="Recommencer"]');
+      const again = await p.until(`${stored("prenom")} === '""' && ${stored("personnes")} === "1" && ${stored("atelier")} === '""' && ${shows("Tu n'as pas encore écrit ton prénom")}`, 5000);
+      // Ce qu'une autre page aurait écrit : un prénom juste, un nombre abîmé, un atelier qui n'est
+      // pas une option de celle-ci, suivi d'une ligne qui voudrait glisser six personnes. Le juste
+      // est repris ; les autres sont ignorés seuls, sans erreur, et restent tels quels.
+      await p.value(`sessionStorage.setItem("holo-visit:prenom", '"Zoé"'); sessionStorage.setItem("holo-visit:personnes", "[abîmé"); sessionStorage.setItem("holo-visit:atelier", '"Pirate"\\npersonnes\\t6')`);
+      await p.open(second);
+      const damaged = await p.until(`window.__holoStarted === true && ${shows("Bonjour Zoé, vous serez 1.")} && ${shows("Aucun atelier choisi.")}`, 40000);
+      const untouched = await p.value(`${stored("personnes")} === "[abîmé" && ${stored("atelier")} === '"Pirate"\\npersonnes\\t6'`);
+      const quiet = b.errors.length === 0 && !(await p.value(`document.getElementById("error")?.textContent ?? ""`));
+      // Une page du même site où « prenom » est un nombre : le texte retenu y est ignoré, sans
+      // erreur, et reste pour la leçon.
+      await p.open("/exemples/.essais-navigateur/visite-autre-sorte.holo");
+      const otherSort = await p.until(`window.__holoStarted === true && ${shows("Prénom : 0 ; personnes : 1.")}`, 40000) && b.errors.length === 0;
+      const kept = await p.value(`${stored("prenom")} === '"Zoé"'`);
+      const cookie = await p.value("document.cookie");
+      const leaks = sent.filter((r) => r.method !== "GET" || r.hasPostData || /Zo%C3%A9|Zoé|Poterie|Gravure|Aquarelle|Pirate/.test(r.url)).map((r) => `${r.method} ${r.url}`);
+      const ok = written && followed && back && fresh && engine === "false" && again && damaged && untouched && quiet && otherSort && kept && !cookie && !leaks.length && !faults.length;
+      return [ok, `retenues à la page 1 : ${written} ; la page 2 les a, dans le même onglet : ${followed} ; l'atelier changé à la page 2, la page 1 a suivi : ${back} (${how}) ; un nouvel onglet ne les a pas : ${fresh} (moteur venu : ${engine}) ; recommencer : ${again} ; valeurs abîmées ignorées : ${damaged}, laissées telles quelles : ${untouched}, sans erreur : ${quiet} ; une autre sorte ignorée : ${otherSort}, le prénom gardé pour la leçon : ${kept} ; cookie : ${cookie || "aucun"} ; envoyé au serveur : ${leaks.join(", ") || "rien"} ; axe-core : ${faults.join(", ") || "aucun défaut sur les deux pages"}`];
+    } finally {
+      b.on("Network.requestWillBeSent");
+      await b.send("Network.disable");
+    }
+  }],
   ["les données d'un autre site, lues par holo serve et jamais par le navigateur, avec et sans JavaScript ; l'interrupteur des essais éteint par défaut (leçon 139, serve)", async (p, b) => {
     // ADR-116. Un faux « autre site » sur ce PC : un petit serveur HTTP de Node, qui note chaque
     // demande reçue. holo serve ne l'atteint que par l'interrupteur des essais, allumé ici

@@ -227,6 +227,13 @@ impl Site {
         // Une page faite pour un membre, ou son texte, n'est jamais gardée en cache ; le moteur et les
         // images, si : ils sont les mêmes pour tous.
         let headers = if member.is_some() && holo.ends_with(".holo") { member_headers() } else { common_headers() };
+        // Une même adresse rend la page (`text/html`) ou le fichier lui-même (`text/plain`, pour
+        // le moteur) : le cache du navigateur doit les distinguer. Sans cela, « Précédent », quand
+        // le navigateur n'a pas gardé la page, montrait le texte du fichier lu par le moteur (ADR-113).
+        let mut headers = headers;
+        if holo.ends_with(".holo") {
+            headers.push(("Vary".into(), "Accept".into()));
+        }
         if remote {
             return self.remote_reply(&file, &holo, &values, member.as_ref(), headers);
         }
@@ -1961,4 +1968,31 @@ mod sharing_completion_tests{
    assert_eq!(forwarded_client("127.0.0.1", unreadable, true), "127.0.0.1", "{unreadable}");
   }
  }
+}
+
+#[cfg(test)]
+mod visit_tests {
+    use super::*;
+
+    #[test]
+    fn a_page_and_its_source_say_they_vary_with_accept() {
+        // La même adresse rend la page (text/html) ou le fichier (text/plain, pour le moteur) :
+        // « Vary: Accept », pour que « Précédent » ne montre jamais le texte du fichier (ADR-113).
+        let folder = std::env::temp_dir().join(format!("holo-serve-{}", new_visitor()));
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(folder.join("etape.holo"), include_str!("../../exemples/lecons/136-se-souvenir-le-temps-d-une-visite.holo")).unwrap();
+        let site = Site::open(&folder, &Path::new(env!("CARGO_MANIFEST_DIR")).join("web")).unwrap();
+        let ask = |accept| Ask { method: "GET", url: "/etape.holo", accept, cookie: "", content_type: "", origin: "", host: "localhost:8080", referer: "", peer: "127.0.0.1", forwarded: "", body: b"" };
+        let (page, source) = (site.answer(&ask("text/html")), site.answer(&ask("text/plain")));
+        for reply in [&page, &source] {
+            assert!(reply.headers.iter().any(|(name, value)| name == "Vary" && value == "Accept"), "{:?}", reply.headers);
+            // La mémoire de visite est dans le navigateur : le serveur ne pose aucun cookie.
+            assert!(reply.headers.iter().all(|(name, _)| name != "Set-Cookie"), "{:?}", reply.headers);
+        }
+        // La page fabriquée part des valeurs de départ, et dit à la page légère ce qu'elle retient.
+        let html = String::from_utf8(page.body).unwrap();
+        assert!(html.contains(" data-visit-names=\"prenom personnes atelier\"") && html.contains("value=\"1\""), "{html}");
+        assert!(String::from_utf8(source.body).unwrap().starts_with("// Leçon 136"));
+        let _ = std::fs::remove_dir_all(folder);
+    }
 }
