@@ -90,7 +90,7 @@ export function browserCapabilities({root,source,state,receive,exported,change,e
         if(spec.after>0){clearTimeout(timers.get(name));timers.set(name,setTimeout(show,spec.after*1000));status(e,"Rappel programmé tant que cette page reste ouverte.");}else await show();return true;
       }else if(spec.type==="Offline"){
         const url=new URL(pageKey(),location.origin);if(url.origin!==location.origin||url.search||url.hash)throw Error("Sauvegarde seulement à l'adresse publique, sans paramètres.");
-        const urls=[url.href,...spec.files.map(f=>new URL(f,url).href),...["/page-engine.js","/capabilities.js","/pkg-light/holo_engine.js","/pkg-light/holo_engine_bg.wasm"].map(p=>new URL(p,url).href)];
+        const urls=[url.href,...spec.files.map(f=>new URL(f,url).href),...["/page-engine.js","/capabilities.js","/sketch.js","/pkg-light/holo_engine.js","/pkg-light/holo_engine_bg.wasm"].map(p=>new URL(p,url).href)];
         const saved=await messageWorker({type:action==="remove"?"remove":"save",page:url.href,urls});
         finish(e,name,true,action==="remove"?"Copie hors-ligne effacée.":"Copie hors-ligne prête ("+saved.bytes+" octets).",stamp);return true;
       }else return false;

@@ -747,7 +747,7 @@ pub fn html(block: &Block, classes: &str, name: &str, french: bool) -> Result<St
     let group = format!(" data-group=\"{value}\"");
     let mark = crate::flat::MARK;
     Ok(format!(
-        "<fieldset class=\"{classes}\"{name} data-sketch=\"{value}\"{}{group}><legend>{label}</legend>\
+        "<fieldset class=\"{classes}\"{name} data-sketch=\"{value}\"{}{group} data-start-color=\"{}\" data-start-size=\"{}\"><legend>{label}</legend>\
 <svg class=\"holo-sketch-sheet\" viewBox=\"0 0 {w} {h}\" width=\"{w}\" height=\"{h}\" style=\"width:min(100%,calc(70vh * {w} / {h}))\" role=\"img\" aria-label=\"{label}\" aria-describedby=\"{id}-said\" data-sketch-sheet>\
 <g class=\"holo-sketch-strokes\">{mark}~{value}{mark}</g></svg>\
 <p class=\"holo-sketch-said\" id=\"{id}-said\" role=\"status\">{mark}+{value}{mark}</p>\
@@ -755,6 +755,8 @@ pub fn html(block: &Block, classes: &str, name: &str, french: bool) -> Result<St
 <div class=\"holo-sketch-tools\" hidden>{tools}</div>\
 <noscript><p class=\"holo-sketch-note\">{without_script}</p></noscript></fieldset>",
         if shared { " data-sketch-shared" } else { "" },
+        sheet.colors[0],
+        starting_thickness(&sheet),
     ))
 }
 
@@ -1005,7 +1007,7 @@ mod sketch_tests {
     fn a_sketch_is_a_drawing_area_with_its_tools() {
         let html = crate::flat_view(PAGE, "").unwrap();
         // Un groupe de champs nommé ; la feuille est une image avec son nom et sa description.
-        assert!(html.contains("<fieldset class=\"holo-Sketch\" data-name=\"Cat\" data-sketch=\"drawing\" data-group=\"drawing\"><legend>Ton dessin</legend><svg class=\"holo-sketch-sheet\" viewBox=\"0 0 400 300\" width=\"400\" height=\"300\" style=\"width:min(100%,calc(70vh * 400 / 300))\" role=\"img\" aria-label=\"Ton dessin\" aria-describedby=\"holo-sketch-drawing-said\" data-sketch-sheet><g class=\"holo-sketch-strokes\"></g></svg><p class=\"holo-sketch-said\" id=\"holo-sketch-drawing-said\" role=\"status\">Rien n'est encore dessiné.</p>"), "{html}");
+        assert!(html.contains("<fieldset class=\"holo-Sketch\" data-name=\"Cat\" data-sketch=\"drawing\" data-group=\"drawing\" data-start-color=\"#1a1a1a\" data-start-size=\"5\"><legend>Ton dessin</legend><svg class=\"holo-sketch-sheet\" viewBox=\"0 0 400 300\" width=\"400\" height=\"300\" style=\"width:min(100%,calc(70vh * 400 / 300))\" role=\"img\" aria-label=\"Ton dessin\" aria-describedby=\"holo-sketch-drawing-said\" data-sketch-sheet><g class=\"holo-sketch-strokes\"></g></svg><p class=\"holo-sketch-said\" id=\"holo-sketch-drawing-said\" role=\"status\">Rien n'est encore dessiné.</p>"), "{html}");
         // Les outils, cachés sans JavaScript : six couleurs nommées, trois épaisseurs (la moyenne au
         // départ), annuler, effacer, enregistrer.
         assert!(html.contains("<div class=\"holo-sketch-tools\" hidden><div class=\"holo-sketch-choices\" role=\"radiogroup\" aria-label=\"Couleur\"><label class=\"holo-sketch-choice\"><input type=\"radio\" name=\"holo-sketch-drawing-color\" value=\"#1a1a1a\" data-sketch-color checked><span class=\"holo-sketch-swatch\" style=\"background:#1a1a1a\"></span><span class=\"holo-hidden\">noir</span></label>"), "{html}");
@@ -1308,7 +1310,7 @@ mod sketch_tests {
         // Envoyé : la règle vide la signature.
         assert_eq!(drawing_in(&crate::arbitrate(source, &signed, "Order.sent"), "signature"), "");
         // Dans un formulaire, la zone est un groupe : ses erreurs se posent après elle.
-        assert!(crate::flat_view(source, "").unwrap().contains("<fieldset class=\"holo-Sketch\" data-sketch=\"signature\" data-group=\"signature\"><legend>Ta signature</legend>"));
+        assert!(crate::flat_view(source, "").unwrap().contains("<fieldset class=\"holo-Sketch\" data-sketch=\"signature\" data-group=\"signature\" data-start-color=\"#000080\" data-start-size=\"3\"><legend>Ta signature</legend>"));
     }
 
     #[test]

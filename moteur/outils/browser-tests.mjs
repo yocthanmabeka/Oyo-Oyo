@@ -667,6 +667,234 @@ const tests = [
       && added === "none" && titles === "Les Misérables | Les Châtiments";
     return [ok, `lu : « ${said} » ; citations : ${quotes} ; guillemets du navigateur : ${added} ; œuvres : ${titles}`];
   }],
+  ["une zone de dessin : au doigt, à la souris, au stylet et au clavier ; des traits lissés, simplifiés et bornés ; annuler, effacer ; la page défile hors de la feuille ; gardée, envoyée, partagée, enregistrée en SVG et en PNG ; ce qui est forgé est refusé ; sans JavaScript, le dessin se voit (leçon 138, serve)", async (p, b) => {
+    // ADR-115. holo serve sert la leçon : le formulaire, le mur partagé et les gestes forgés passent
+    // par le vrai serveur. Chaque étape note ce qu'elle a vu ; une seule différence fait rater l'essai.
+    const lesson = "138-une-zone-de-dessin.holo";
+    const served = await startHoloServe([lesson]);
+    const q = page(b, served.base);
+    const binary = ["holo", "holo.exe"].map((name) => join(engine, "target", "release", name)).find(existsSync);
+    const faults = [];
+    const seen = {};
+    const check = (name, ok, what) => { if (!ok) faults.push(`${name} : ${typeof what === "string" ? what : JSON.stringify(what)}`); };
+    const zone = (name) => `document.querySelector('[data-sketch="${name}"]')`;
+    const strokes = (name, where = q) => where.value(`${zone(name)}.querySelectorAll(".holo-sketch-strokes > :not(.holo-sketch-live)").length`);
+    const said = (name, where = q) => where.value(`${zone(name)}.querySelector(".holo-sketch-said").textContent`);
+    // Le dessin gardé par keep, tel que le moteur l'écrit (`#rrggbb épaisseur x,y …`).
+    const kept = (where = q, address = `/${lesson}`) => where.value(`(() => { const m = /(?:^|;)drawing='([^;]*)/.exec(localStorage.getItem("holo:${address}") ?? ""); return m ? decodeURIComponent(m[1]) : ""; })()`);
+    const box = (name, where = q) => where.value(`(() => { const s = ${zone(name)}.querySelector("[data-sketch-sheet]"); s.scrollIntoView({ block: "center" }); const r = s.getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; })()`);
+    // Un trait à la souris ou au stylet, en parts de la feuille : [[0.1, 0.2], [0.5, 0.6], …].
+    const pointer = async (name, parts, pointerType = "mouse", where = q) => {
+      const [left, top, width, height] = await box(name, where);
+      const xy = ([fx, fy]) => ({ x: left + fx * width, y: top + fy * height });
+      await b.send("Input.dispatchMouseEvent", { type: "mousePressed", ...xy(parts[0]), button: "left", clickCount: 1, pointerType });
+      for (const part of parts.slice(1)) await b.send("Input.dispatchMouseEvent", { type: "mouseMoved", ...xy(part), button: "left", buttons: 1, pointerType });
+      await b.send("Input.dispatchMouseEvent", { type: "mouseReleased", ...xy(parts.at(-1)), button: "left", clickCount: 1, pointerType });
+      await pause(250);
+    };
+    const straight = (from, to, n) => Array.from({ length: n }, (_, i) => [from[0] + (to[0] - from[0]) * i / (n - 1), from[1] + (to[1] - from[1]) * i / (n - 1)]);
+    const arc = (n) => Array.from({ length: n }, (_, i) => [0.5 + 0.25 * Math.cos(Math.PI * i / (n - 1)), 0.45 + 0.3 * Math.sin(Math.PI * i / (n - 1))]);
+    const fingers = async (points, moves) => {
+      await b.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: points });
+      for (const step of moves) await b.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: step });
+      await b.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      await pause(400);
+    };
+    const tab = async (selector, back = false) => {
+      for (let i = 0; i < 40 && !(await q.value(`Boolean(document.activeElement?.matches(${JSON.stringify(selector)}))`)); i++) {
+        await b.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9, modifiers: back ? 8 : 0 });
+        await b.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9, modifiers: back ? 8 : 0 });
+      }
+      return q.value(`Boolean(document.activeElement?.matches(${JSON.stringify(selector)}))`);
+    };
+    const arrow = (key, times) => (async () => { for (let i = 0; i < times; i++) await q.key(key, key, { ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40 }[key]); })();
+    const ctrlZ = async () => {
+      await b.send("Input.dispatchKeyEvent", { type: "keyDown", key: "z", code: "KeyZ", windowsVirtualKeyCode: 90, modifiers: 2 });
+      await b.send("Input.dispatchKeyEvent", { type: "keyUp", key: "z", code: "KeyZ", windowsVirtualKeyCode: 90, modifiers: 2 });
+      await pause(250);
+    };
+    const axeSource = readFileSync(join(engine, "node_modules", "axe-core", "axe.min.js"), "utf8");
+    let second = null;
+    try {
+      await b.send("Page.bringToFront");
+      await q.open(`/${lesson}`);
+      check("les trois zones se préparent", await q.until(`document.querySelectorAll(".holo-Sketch[data-sketch-ready]").length === 3`, 20000), b.errors);
+      // 1. Le lecteur d'écran : chaque zone est un groupe nommé ; la feuille, une zone de dessin nommée,
+      // décrite par ce qui a été dessiné ; les couleurs et les épaisseurs, des boutons ronds nommés.
+      const { nodes } = (await b.send("Accessibility.getFullAXTree")).result;
+      const named = (role) => nodes.filter((n) => !n.ignored && n.role?.value === role).map((n) => n.name?.value ?? "");
+      const sheet = nodes.find((n) => !n.ignored && n.role?.value === "application" && n.name?.value === "Ton dessin : un chat");
+      seen.reader = `${sheet?.name?.value} [${sheet?.properties?.find((x) => x.name === "roledescription")?.value?.value}] : ${sheet?.description?.value?.split(".")[0]}`;
+      check("la feuille au lecteur d'écran", seen.reader === "Ton dessin : un chat [zone de dessin] : Rien n'est encore dessiné", seen.reader);
+      check("les couleurs et les épaisseurs nommées", named("radio").join(",") === "noir,rouge,orange,vert,bleu,violet,fin,moyen,épais,bleu foncé,noir,fin,épais" && named("radiogroup").join(",") === "Couleur,Épaisseur,Couleur,Épaisseur", named("radio"));
+      check("les outils, de vrais boutons", ["Annuler", "Effacer", "Enregistrer en SVG", "Enregistrer en PNG"].every((name) => named("button").includes(name)), named("button"));
+      check("le mur partagé, une image nommée", named("image").includes("Le mur : le dernier chat qu'on y a mis"), named("image"));
+      // 2. À la souris : une droite de 31 points bruts devient deux points ; la couleur et l'épaisseur
+      // du départ (noir, moyen).
+      await pointer("drawing", straight([0.1, 0.2], [0.7, 0.5], 31));
+      seen.mouse = await kept();
+      check("à la souris, une droite simplifiée en deux points", /^#1a1a1a 5 \d+,\d+ \d+,\d+$/.test(seen.mouse) && (await strokes("drawing")) === 1, seen.mouse);
+      check("ce qui a été dessiné, dit avec des mots", (await said("drawing")) === "1 trait en noir, au centre.", await said("drawing"));
+      // Rouge et épais, choisis à la souris ; un arc de 40 points, gardé en quelques points, lissé.
+      await q.click('[data-sketch="drawing"] input[value="#c62828"]');
+      await q.click('[data-sketch="drawing"] input[value="12"]');
+      await pointer("drawing", arc(40));
+      const arcPoints = (await kept()).split("|")[1] ?? "";
+      check("un arc de 40 points, en rouge épais, simplifié", arcPoints.startsWith("#c62828 12 ") && arcPoints.split(" ").length - 2 >= 4 && arcPoints.split(" ").length - 2 <= 20, arcPoints);
+      check("la page montre une courbe (des quadratiques)", await q.value(`/Q/.test(${zone("drawing")}.querySelectorAll(".holo-sketch-strokes path")[1]?.getAttribute("d") ?? "")`), "pas de courbe");
+      // Au stylet : le même code que la souris et le doigt.
+      await pointer("drawing", straight([0.8, 0.8], [0.9, 0.9], 10), "pen");
+      seen.pen = await strokes("drawing");
+      check("au stylet, un troisième trait", seen.pen === 3, seen.pen);
+      // 3. Au clavier : Tab jusqu'à la feuille ; Entrée pose le crayon, les flèches tracent, Entrée le lève.
+      await q.value("document.activeElement?.blur(); window.scrollTo(0, 0)");
+      check("Tab atteint la feuille", await tab('[data-sketch="drawing"] [data-sketch-sheet]'), "non");
+      seen.howShown = await q.value(`getComputedStyle(${zone("drawing")}.querySelector(".holo-sketch-how")).display !== "none"`);
+      check("au clavier, la façon de dessiner se montre", seen.howShown, seen.howShown);
+      await q.key("Enter", "Enter", 13, "\r");
+      seen.down = await said("drawing");
+      check("Entrée pose le crayon", seen.down.startsWith("Crayon posé en 200, 150"), seen.down);
+      await arrow("ArrowRight", 6);
+      await arrow("ArrowDown", 4);
+      await q.key("Enter", "Enter", 13, "\r");
+      await pause(200);
+      const typed = (await kept()).split("|")[3] ?? "";
+      seen.keyboard = `${typed} — ${await said("drawing")}`;
+      check("au clavier, un trait gardé", typed.startsWith("#c62828 12 200,150 ") && typed.endsWith(" 260,190") && (await said("drawing")).startsWith("Trait gardé. 4 traits"), seen.keyboard);
+      // Échap oublie le trait en cours ; Ctrl+Z annule le dernier.
+      await q.key(" ", "Space", 32, " ");
+      await arrow("ArrowLeft", 3);
+      await q.key("Escape", "Escape", 27);
+      check("Échap oublie le trait en cours", (await said("drawing")) === "Trait oublié." && (await strokes("drawing")) === 4, await said("drawing"));
+      await ctrlZ();
+      check("Ctrl+Z annule", (await strokes("drawing")) === 3 && (await said("drawing")).startsWith("Annulé. 3 traits"), await said("drawing"));
+      // Choisir au clavier : Tab entre dans le groupe des couleurs, une flèche choisit.
+      check("Tab atteint les couleurs", await tab('[data-sketch="drawing"] input[data-sketch-color]'), "non");
+      await arrow("ArrowRight", 1);
+      seen.colour = await q.value(`${zone("drawing")}.querySelector("[data-sketch-color]:checked").value`);
+      check("une flèche choisit l'orange", seen.colour === "#e65100", seen.colour);
+      // Effacer, puis Annuler, au clavier : le dessin revient.
+      check("Tab atteint « Effacer »", await tab('[data-sketch="drawing"] [data-sketch-do="clear"]'), "non");
+      await q.key("Enter", "Enter", 13, "\r");
+      seen.cleared = `${await strokes("drawing")} — ${await said("drawing")}`;
+      check("Effacer", seen.cleared === "0 — Effacé : « Annuler » le rend. Rien n'est encore dessiné.", seen.cleared);
+      check("Maj+Tab atteint « Annuler »", await tab('[data-sketch="drawing"] [data-sketch-do="undo"]', true), "non");
+      await q.key("Enter", "Enter", 13, "\r");
+      seen.back = `${await strokes("drawing")} — ${await said("drawing")}`;
+      check("Annuler rend le dessin effacé", seen.back.startsWith("3 — Annulé. 3 traits"), seen.back);
+      // 4. L'image enregistrée : le SVG du moteur, tel quel ; le PNG, ce SVG dessiné, 1 600 sur 1 200.
+      await q.value(`(() => { window.__saved = []; HTMLAnchorElement.prototype.click = function () { window.__saved.push([this.download, this.href]); }; })()`);
+      await q.click('[data-sketch="drawing"] [data-sketch-do="svg"]');
+      await q.click('[data-sketch="drawing"] [data-sketch-do="png"]');
+      await q.until("window.__saved.length === 2", 5000);
+      const files = await q.value(`Promise.all(window.__saved.map(async ([name, href]) => { const bytes = new Uint8Array(await (await fetch(href)).arrayBuffer()); return [name, bytes.length, new TextDecoder().decode(bytes.slice(0, 4000)), [...bytes.slice(0, 8)].join(","), new DataView(bytes.buffer).getUint32(16), new DataView(bytes.buffer).getUint32(20)]; }))`);
+      const [svgFile, pngFile] = files ?? [];
+      const tags = [...new Set([...(svgFile?.[2] ?? "").matchAll(/<\/?([a-zA-Z]+)/g)].map((m) => m[1]))].join(",");
+      seen.saved = `${svgFile?.[0]} (${tags}) ; ${pngFile?.[0]} (${pngFile?.[4]} × ${pngFile?.[5]})`;
+      check("le SVG du moteur", svgFile?.[0] === "ton-dessin-un-chat.svg" && svgFile[2].startsWith("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"400\" height=\"300\" viewBox=\"0 0 400 300\"><title>Ton dessin : un chat</title><desc>3 traits (") && tags === "svg,title,desc,rect,path" && !/script|href|style|foreignObject| on/i.test(svgFile[2]), svgFile);
+      check("le PNG, net", pngFile?.[0] === "ton-dessin-un-chat.png" && pngFile[3] === "137,80,78,71,13,10,26,10" && pngFile[4] === 1600 && pngFile[5] === 1200, pngFile?.slice(0, 2).concat(pngFile?.slice(3)));
+      // 5. Au doigt, sur un téléphone : on dessine sur la feuille sans que la page défile ; hors
+      // d'elle, la page défile ; à deux doigts sur la feuille, la page défile, et rien n'est dessiné.
+      try {
+        await b.send("Emulation.setDeviceMetricsOverride", { width: 400, height: 800, deviceScaleFactor: 2, mobile: true });
+        await b.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+        await pause(400);
+        const [left, top, width, height] = await box("drawing");
+        const fixed = await q.value("scrollY");
+        const x = left + width * 0.3, y = top + height * 0.3;
+        await fingers([{ x, y, id: 1 }], Array.from({ length: 20 }, (_, i) => [{ x: x + i * 6, y: y + i * 4, id: 1 }]));
+        seen.finger = [await strokes("drawing"), fixed, await q.value("scrollY")];
+        check("au doigt, un trait, et la page ne défile pas", seen.finger[0] === 4 && seen.finger[1] === seen.finger[2], seen.finger);
+        const outside = await q.value(`(() => { const r = [...document.querySelectorAll("main h2")][1].getBoundingClientRect(); return [r.left + 30, r.top + r.height / 2]; })()`);
+        const before = await q.value("scrollY");
+        await fingers([{ x: outside[0], y: outside[1], id: 1 }], Array.from({ length: 15 }, (_, i) => [{ x: outside[0], y: outside[1] - i * 12, id: 1 }]));
+        seen.outside = [before, await q.value("scrollY")];
+        check("hors de la feuille, le doigt fait défiler la page", seen.outside[1] > seen.outside[0] + 50, seen.outside);
+        const [l2, t2, w2, h2] = await box("drawing");
+        const atTwo = await q.value("scrollY");
+        await fingers([{ x: l2 + w2 * 0.4, y: t2 + h2 * 0.7, id: 1 }, { x: l2 + w2 * 0.6, y: t2 + h2 * 0.7, id: 2 }], Array.from({ length: 10 }, (_, i) => [{ x: l2 + w2 * 0.4, y: t2 + h2 * 0.7 - i * 8, id: 1 }, { x: l2 + w2 * 0.6, y: t2 + h2 * 0.7 - i * 8, id: 2 }]));
+        seen.two = [await strokes("drawing"), atTwo, await q.value("scrollY")];
+        check("à deux doigts sur la feuille, la page défile et rien n'est dessiné", seen.two[0] === 4 && seen.two[2] > seen.two[1] + 30, seen.two);
+        // Rien ne déborde ; la feuille laisse toujours de la place pour faire défiler ; chaque outil se touche (44 px).
+        seen.phone = await q.value(`(() => { const s = ${zone("drawing")}.querySelector("[data-sketch-sheet]").getBoundingClientRect(); const small = [...document.querySelectorAll(".holo-sketch-choice, .holo-sketch-do")].filter((e) => { const r = e.getBoundingClientRect(); return r.width < 44 || r.height < 44; }).length; return [document.documentElement.scrollWidth, Math.round(s.width) + "x" + Math.round(s.height), s.height <= innerHeight * 0.7 + 1, small]; })()`);
+        check("sur un téléphone, rien ne déborde, la feuille laisse de la place, les outils se touchent", seen.phone[0] <= 400 && seen.phone[2] && seen.phone[3] === 0, seen.phone);
+      } finally {
+        await b.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+        await b.send("Emulation.clearDeviceMetricsOverride");
+      }
+      // 7. Partagé : « Le mettre au mur » ; l'autre onglet le voit en direct. Un geste forgé (un dessin
+      // faux dans l'état envoyé) est refusé par holo serve : le mur ne change pas.
+      second = await b.tab();
+      const r = page(second, served.base);
+      await r.open(`/${lesson}`);
+      await r.until(`document.querySelectorAll(".holo-Sketch[data-sketch-ready]").length === 3`, 20000);
+      check("« Le mettre au mur » se montre", await q.until(`document.querySelector('[data-name="Wall"]')?.offsetParent !== null`, 5000), "caché");
+      await q.click('[data-name="Wall"]');
+      const live = await r.until(`document.querySelector('[data-sketch="wall"]').querySelectorAll(".holo-sketch-strokes > *").length === 4`, 10000);
+      seen.wall = `${await strokes("wall", r)} — ${await said("wall", r)}`;
+      check("le mur, en direct dans l'autre onglet", live && (await strokes("wall")) === 4, seen.wall);
+      const forgedGesture = await r.value(`fetch("/${lesson}", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ signal: "Wall.tap", state: "drawing='" + encodeURIComponent("#1a1a1a 5 10,10\\"/><script>") }) }).then(async (x) => x.status + " " + JSON.parse(await x.text()).accepted)`);
+      await pause(500);
+      seen.forgedWall = `${forgedGesture} ; mur : ${await strokes("wall", r)}`;
+      check("un geste partagé forgé, refusé", forgedGesture === "409 false" && (await strokes("wall", r)) === 4, seen.forgedWall);
+      // 8. Envoyé : le prénom et la signature partent ; holo serve range le dessin tel que le moteur
+      // l'écrit. Un dessin forgé est refusé par le serveur, en JSON comme sans JavaScript.
+      await q.type('input[data-bind="name"]', "Ada");
+      await pointer("signature", straight([0.1, 0.7], [0.9, 0.3], 25));
+      await q.click('[data-name="Sign"]');
+      const thanked = await q.until(`document.getElementById("page").innerText.includes("Merci : ta signature est partie.")`, 10000);
+      seen.sent = `${thanked}, signature vidée : ${(await strokes("signature")) === 0}`;
+      const messages = () => spawnSync(binary, ["messages", served.folder], { encoding: "utf8" }).stdout.trim().split("\n").filter(Boolean);
+      const message = messages().at(-1) ?? "";
+      check("le formulaire envoie la signature", thanked && (await strokes("signature")) === 0 && /"name":"Ada","signature":"#000080 3 \d+,\d+ \d+,\d+"/.test(message), `${seen.sent} ; ${message}`);
+      const forgedForm = await q.value(`Promise.all([${JSON.stringify("#000080 3 50,150 601,50")}, ${JSON.stringify("#ff0000 3 50,150")}, ${JSON.stringify("#000080 4 50,150")}].map((signature) => fetch("/${lesson}", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ form: "Book", values: { name: "Eve", signature } }) }).then(async (x) => x.status + " " + (await x.text()).split("\\n")[0])))`);
+      check("un formulaire forgé, refusé par holo serve", forgedForm.every((reply) => reply === "422 signature|un dessin de cette feuille attendu"), forgedForm);
+      const withoutScript = await fetch(`${served.base}/${lesson}`, { method: "POST", redirect: "manual", headers: { "content-type": "application/x-www-form-urlencoded" }, body: `signal=Sign.tap&name=Eve&signature=${encodeURIComponent("#000080 3 50,150 601,50")}` });
+      seen.messages = messages().length;
+      check("sans JavaScript, une signature forgée n'est pas envoyée", withoutScript.status === 303 && seen.messages === 1, `${withoutScript.status}, ${seen.messages} message(s)`);
+      // 9. L'audit axe-core de la leçon, avec ses dessins.
+      await q.value(`${axeSource}\n;window.axe.version`);
+      const violations = await q.value(`window.axe.run(document, { resultTypes: ["violations"] }).then((r) => r.violations.map((v) => v.id + " : " + v.nodes.map((n) => n.html.slice(0, 90)).join(" | ")))`);
+      seen.axe = violations.length ? violations.join(" ; ") : "aucun défaut";
+      check("axe-core", violations.length === 0, violations);
+      // 10. Sans JavaScript : le mur se voit (le serveur fabrique ses traits) ; les outils restent cachés.
+      try {
+        await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+        await q.open(`/${lesson}`, 300);
+        seen.plain = await q.value(`[${zone("wall")}.querySelectorAll(".holo-sketch-strokes > *").length, [...document.querySelectorAll(".holo-sketch-tools")].map((t) => getComputedStyle(t).display).join(","), document.querySelectorAll('[role="application"]').length, ${zone("wall")}.querySelector("[data-sketch-sheet]").getAttribute("role"), ${zone("wall")}.querySelector(".holo-sketch-said").textContent]`);
+      } finally {
+        await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      }
+      check("sans JavaScript, le mur se voit, sans outils", seen.plain?.[0] === 4 && seen.plain[1] === "none,none,none" && seen.plain[2] === 0 && seen.plain[3] === "img" && seen.plain[4].startsWith("4 traits"), seen.plain);
+      check("aucune erreur dans la page", b.errors.length === 0 && second.errors.length === 0, [...b.errors, ...second.errors]);
+      // 11. Gardé (keep), avec le serveur d'essai : la page rechargée repart du même dessin. Un dessin
+      // forgé dans le navigateur (une couleur que la feuille ne propose pas, du code, un point hors de la
+      // feuille) est refusé : la feuille est vide. (holo serve met dans chaque page l'état qu'il garde
+      // pour le visiteur, et la page légère le préfère à keep : voir les limites d'ADR-115.)
+      const home = `/exemples/lecons/${lesson}`;
+      await p.open(home);
+      await p.until(`document.querySelectorAll(".holo-Sketch[data-sketch-ready]").length === 3`, 20000);
+      await pointer("drawing", straight([0.2, 0.2], [0.8, 0.6], 20), "mouse", p);
+      await pointer("drawing", arc(30), "mouse", p);
+      const drawn = await kept(p, home);
+      await p.open(home);
+      await p.until(`document.querySelectorAll(".holo-Sketch[data-sketch-ready]").length === 3`, 20000);
+      seen.kept = `${await strokes("drawing", p)} traits, ${drawn.split(" ").length - 2 * drawn.split("|").length} points`;
+      check("gardé d'une visite à l'autre", (await strokes("drawing", p)) === 2 && (await kept(p, home)) === drawn && drawn.split("|").length === 2, seen.kept);
+      for (const forged of ["#123456 5 10,10 20,20", "#1a1a1a 5 10,10\"/><script>window.__pwned=1</script>", "#1a1a1a 5 401,10", "#1a1a1a 7 10,10"]) {
+        await p.value(`localStorage.setItem("holo:${home}", "drawing='" + encodeURIComponent(${JSON.stringify(forged)}))`);
+        await p.open(home);
+        await p.until(`document.querySelectorAll(".holo-Sketch[data-sketch-ready]").length === 3`, 20000);
+        const after = [await strokes("drawing", p), await said("drawing", p), await p.value("window.__pwned ?? 0"), b.errors.length];
+        check(`gardé forgé (${forged.slice(0, 24)}…), refusé`, after[0] === 0 && after[1] === "Rien n'est encore dessiné." && after[2] === 0 && after[3] === 0, after);
+      }
+      await p.value(`localStorage.removeItem("holo:${home}")`);
+      return [faults.length === 0, faults.length ? faults.join("\n      ") : `lecteur d'écran : ${seen.reader} ; souris : ${seen.mouse} ; stylet : ${seen.pen} traits ; clavier : ${seen.keyboard} ; effacé : ${seen.cleared}, annulé : ${seen.back} ; enregistré : ${seen.saved} ; doigt : ${seen.finger.join("/")}, hors de la feuille ${seen.outside.join(" → ")}, deux doigts ${seen.two.join("/")} ; téléphone : ${seen.phone.join(" ")} ; gardé : ${seen.kept} ; mur : ${seen.wall} ; ${seen.forgedWall} ; envoyé : ${seen.sent} ; formulaires forgés : ${forgedForm.length} refusés ; axe-core : ${seen.axe} ; sans JavaScript : ${seen.plain.join(" | ")}`];
+    } finally {
+      await second?.close();
+      served.stop();
+    }
+  }],
   ["des heures : un compte à rebours qui suit l'horloge, les vraies minutes la nuit du changement d'heure, la langue de la page, au clavier et sans JavaScript (leçon 132)", async (p, b) => {
     const lesson = "/exemples/lecons/132-des-heures.holo";
     const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;

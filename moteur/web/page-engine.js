@@ -12,6 +12,7 @@
     reads_scroll, scrolled,
     set_zone, format_hour,
     module_check,
+    sketch_stroke, sketch_view, sketch_svg,
   } from "/pkg-light/holo_engine.js";
   let host = null;
   const prepareHost = async () => {
@@ -20,6 +21,19 @@
     host = browserCapabilities({root,source:()=>source,state:()=>states.get(path)??"",
       receive:capability_received,exported:capability_export,
       change:written=>changeState(store(written)),emit,pageKey:()=>addressOf(path)});
+  };
+  // La zone de dessin du visiteur (ADR-115) : son module n'arrive que si la page en a une. La page
+  // recueille les points d'un trait ; le moteur le lisse, le simplifie, le borne et le garde.
+  let sketchArea = null;
+  let sketchLoading = null;
+  const prepareSketches = async () => {
+    if (!root.querySelector(".holo-Sketch[data-sketch]")) return;
+    sketchLoading ??= import("/sketch.js").then(({ sketches }) => sketches({
+      root, source: () => source, state: () => states.get(path) ?? "", change: (written) => changeState(store(written)),
+      input, stroke: sketch_stroke, view: sketch_view, image: sketch_svg,
+    }));
+    sketchArea = await sketchLoading;
+    sketchArea.prepare();
   };
   let drawing = null;
   let drawingLoading = null;
@@ -793,6 +807,7 @@
     states.set(path, after);
     redrawLists();
     showValues();
+    sketchArea?.redraw();
     placePixels();
     keep();
     rememberVisit();
@@ -1098,6 +1113,12 @@
       else if (field.type === "checkbox") fields.set(bind, field.checked ? "1" : "0");
       else fields.set(bind, field.value);
     }
+    // Un dessin à soi suit aussi le compte (ADR-115) : le serveur le relit comme une saisie.
+    for (const zone of root.querySelectorAll(".holo-Sketch[data-sketch]:not([data-sketch-shared])")) {
+      const name = zone.dataset.sketch;
+      const code = before.split(";").find((chunk) => chunk.startsWith(`${name}='`))?.slice(name.length + 2);
+      if (/^[A-Za-z0-9]+$/.test(name) && code !== undefined) { try { fields.set(name, decodeURIComponent(code)); } catch { /* illisible : rien */ } }
+    }
     fields.set("signal", signal);
     const query = addressNames.length ? address_query(source, before) : "";
     return { address: `${addressOf(path)}?${query ? `${query}&` : ""}mirror`, body: fields.toString() };
@@ -1258,6 +1279,8 @@
     redrawLists();
     showValues();
     window.__holoWatchEntrances?.();
+    // Une zone de dessin (ADR-115) : on y dessine, et elle montre le dessin gardé (keep).
+    prepareSketches();
     frame = root.querySelector(".holo-Page");
     page = frame.querySelector("main");
     document.title = frame.dataset.title || "HoloCode";
@@ -1859,7 +1882,8 @@
       (group ?? field.closest("label") ?? field).after(note);
       field.setAttribute("aria-invalid", "true");
       field.setAttribute("aria-describedby", id);
-      first ??= group ? group.querySelector("input") : field;
+      // Une zone de dessin (ADR-115) : le clavier va sur sa feuille.
+      first ??= group ? (group.querySelector("[data-sketch-sheet][tabindex]") ?? group.querySelector("input")) : field;
     }
     if (focus && first) {
       first.focus();
