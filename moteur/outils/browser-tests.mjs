@@ -926,6 +926,8 @@ const tests = [
       if (!(await p.until("window.__holoStarted"))) return [false, "le moteur n'est pas arrivé"];
       let m = await seen();
       check("au départ : la barre vide, sans bouton", m.value === 0 && m.percent === "0" && m.back === null && m.bar?.position === "sticky", m);
+      // Le bouton du bas est caché (If faux) : rien ne colle en bas, aucune marge du focus en bas.
+      check("au départ : la marge du focus en haut seulement", m.padding[0] > 0 && m.padding[1] === 0, m);
       const { nodes } = (await b.send("Accessibility.getFullAXTree")).result;
       const named = nodes.find((n) => !n.ignored && n.role?.value === "progressbar")?.name?.value;
       check("le lecteur d'écran nomme la barre", named === "Lecture", named);
@@ -1019,16 +1021,17 @@ const tests = [
       check("téléphone : l'en-tête trop haut, borné au cinquième de l'écran", header.height <= Math.ceil(header.screen / 5) && header.inside, header);
       summary.tall = `en-tête borné à ${header.height}px (contenu plus haut : ${header.inside})`;
       // 8. Le clavier de l'écran, ouvert sur le champ (sa hauteur imitée) : l'en-tête reprend sa
-      // place dans la page ; refermé, il reste de nouveau en haut.
+      // place dans la page, sans marge du focus ; refermé, il reste de nouveau en haut.
       await p.value(`document.querySelector('[data-bind="nom"]').focus()`);
       await pause(300);
       await p.value(`Object.defineProperty(visualViewport, "height", { configurable: true, get: () => 380 }); visualViewport.dispatchEvent(new Event("resize"))`);
       await pause(200);
-      const typing = await p.value(`[document.documentElement.classList.contains("holo-keyboard"), getComputedStyle(document.querySelector('[data-sticky="top"]')).position]`);
+      const underKeyboard = `[document.documentElement.classList.contains("holo-keyboard"), getComputedStyle(document.querySelector('[data-sticky="top"]')).position, getComputedStyle(document.documentElement).scrollPaddingTop]`;
+      const typing = await p.value(underKeyboard);
       await p.value(`delete visualViewport.height; visualViewport.dispatchEvent(new Event("resize"))`);
       await pause(200);
-      const closed = await p.value(`[document.documentElement.classList.contains("holo-keyboard"), getComputedStyle(document.querySelector('[data-sticky="top"]')).position]`);
-      check("le clavier de l'écran : l'en-tête reprend sa place, puis reste de nouveau", typing[0] === true && typing[1] === "static" && closed[0] === false && closed[1] === "sticky", { typing, closed });
+      const closed = await p.value(underKeyboard);
+      check("le clavier de l'écran : l'en-tête reprend sa place, puis reste de nouveau", typing[0] === true && typing[1] === "static" && typing[2] === "auto" && closed[0] === false && closed[1] === "sticky" && closed[2] !== "auto", { typing, closed });
       errors("en-tête trop haut");
       // 9. Un écran trop bas : un téléphone couché (780 × 360), une page grossie à 200 % (un
       // téléphone de 720 × 800 vu à 360 × 400). Rien ne reste : la barre reprend sa place dans la

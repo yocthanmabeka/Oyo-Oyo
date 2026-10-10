@@ -17,7 +17,8 @@
 //   Descends : la barre se remplit, le pourcentage suit, et le bouton apparaît en bas. Touche-le :
 //   te voilà en haut. Touche « Quand les voir » : le titre s'arrête juste sous la barre. Avec Tab, va
 //   de lien en lien : aucun ne passe sous la barre ni sous le bouton.
-//   Sur un téléphone couché, rien ne reste à l'écran : il est trop bas.
+//   Sur un téléphone couché, rien ne reste à l'écran : il est trop bas. Regarde l'aperçu avant
+//   impression : sur papier, la barre garde sa place, sous le titre.
 //
 // (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
 

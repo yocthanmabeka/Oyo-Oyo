@@ -38,8 +38,8 @@ pub const EDGES: &[&str] = &["top", "bottom"];
 /// cinquième. Avec un bloc en haut et un en bas, il reste toujours plus de la moitié de l'écran.
 pub const SHARE: u32 = 20;
 
-/// Sous cette hauteur d'écran, en pixels, aucun bloc ne reste : un téléphone couché, une page
-/// grossie à 200 % ou plus (WCAG 1.4.10), où il prendrait la place de la lecture.
+/// À cette hauteur d'écran ou moins, en pixels, aucun bloc ne reste : un téléphone couché, une
+/// page grossie à 200 % ou plus (WCAG 1.4.10), où il prendrait la place de la lecture.
 pub const LOWEST: u32 = 480;
 
 /// Les blocs qui ne restent pas à l'écran : ils ne se voient pas eux-mêmes, ou ont déjà leur place.
@@ -341,12 +341,6 @@ Page { background: #101020; color: white; dark: { background: --night; } --night
         ] {
             assert!(html.contains(rule), "{rule}\n{html}");
         }
-        // Tout le style tient sous la règle de média, pour l'écran seulement et un pixel au-dessus
-        // de LOWEST : sur papier ou sur un écran bas, rien ne colle, et aucune marge du focus ne
-        // reste posée. Les deux bornes écrites sont celles que le moteur annonce.
-        let media = html.find(&format!("@media screen and (min-height:{}px){{", super::LOWEST + 1)).unwrap_or_else(|| panic!("{html}"));
-        assert!(!html[..media].contains("position:sticky") && !html[..media].contains("scroll-padding"), "{html}");
-        assert!(html.contains(&format!("max-height:{}svh", super::SHARE)) && html.contains(&format!("scroll-padding-top:calc(var(--holo-sticky-top,{}svh)", super::SHARE)), "{html}");
         // Le fond de la page, aussi dans le thème sombre, quand le bloc n'a pas le sien ; et la
         // règle du média se referme après lui.
         assert!(html.contains(".holo-Page{--holo-sticky-background:#101020}@media (prefers-color-scheme:dark){.holo-Page{--holo-sticky-background:var(--night)}}}"), "{html}");
@@ -374,6 +368,42 @@ Page { background: #101020; color: white; dark: { background: --night; } --night
         // Un style de l'auteur ne dit pas « position » : le réglage est sur le bloc.
         let error = crate::check_page("Page(children: [ P.bar(\"x\") ])\n.bar { position: sticky; }").unwrap_err();
         assert!(error.message.contains("écris « sticky: top »"), "{error}");
+    }
+
+    #[test]
+    fn nothing_sticks_on_a_low_screen_nor_on_paper() {
+        // Tout le style des blocs qui restent tient dans une seule règle de média, fabriquée à
+        // partir des deux bornes du moteur : l'écran seulement (sur papier, rien ne colle) et un
+        // pixel au-dessus de LOWEST (un téléphone couché, une page grossie : rien ne colle). Elle
+        // s'ouvre au début du style et se referme sur son dernier caractère : hors d'elle, ni la
+        // place, ni la marge du focus, ni la part de l'écran, ni le fond.
+        let opening = format!("@media screen and (min-height:{}px){{", super::LOWEST + 1);
+        let gradient = "Page(children: [ Header(sticky: top, children: [ Text(\"x\") ]) ])\nPage { background: linear-gradient(to bottom, #101020, #303060); color: white; }";
+        for source in [ARTICLE, gradient] {
+            let css = super::css(&crate::check_page(source).unwrap());
+            assert!(css.starts_with(&opening), "{css}");
+            let mut depth = 0;
+            let closing = css.char_indices().find_map(|(at, c)| {
+                depth += match c {
+                    '{' => 1,
+                    '}' => -1,
+                    _ => 0,
+                };
+                (c == '}' && depth == 0).then_some(at)
+            });
+            assert_eq!(closing, Some(css.len() - 1), "{css}");
+            // Les deux bornes écrites sont celles que le moteur annonce, et aucune autre : la part
+            // de l'écran (la hauteur du bloc, la marge du focus sans JavaScript), la hauteur d'écran.
+            let rest = css.replace(&format!("{}svh", super::SHARE), "").replace(&format!("{}vh", super::SHARE), "");
+            assert!(!rest.contains("vh") && css.contains(&format!("max-height:{}svh", super::SHARE)), "{css}");
+            assert!(css.contains(&format!("scroll-padding-top:calc(var(--holo-sticky-top,{}svh)", super::SHARE)), "{css}");
+            assert_eq!(css.matches("min-height").count(), 1, "{css}");
+            // Dans la page entière, rien d'autre ne colle ni ne pose de marge au focus.
+            let html = crate::flat_view(source, "").unwrap();
+            for property in ["position:sticky", "scroll-padding", "--holo-sticky-background"] {
+                assert_eq!(html.matches(property).count(), css.matches(property).count(), "{property}\n{html}");
+            }
+        }
     }
 
     #[test]
