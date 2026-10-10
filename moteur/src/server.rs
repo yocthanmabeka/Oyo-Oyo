@@ -303,6 +303,11 @@ impl Site {
             if !tap.is_empty()&&!shared_allowed(&base,&visitor,&client_address(self, ask),&key,now()){return shared_limited(new_visitor.then_some(visitor.as_str()));}
             let (current, version) = shared_in(&base, &key);
             visit.state = crate::visitor_gesture(&source, &crate::with_shared(&source, &visit.state, &current), &inputs);
+            // Une ligne déplacée par « Monter » ou « Descendre » (ADR-105) : une liste à soi (une liste
+            // partagée ne se réordonne pas), le même arbitre ; rien ne part aux autres pages.
+            if let Some(moved) = fields.iter().find(|(name, signal)| name == crate::gestures::SIGNAL && crate::reorder::is_move(signal)) {
+                visit.state = crate::visitor_gesture(&source, &visit.state, std::slice::from_ref(moved));
+            }
             let (after, accepted) = if tap.is_empty() { (visit.state.clone(), false) } else { crate::share(&source, &visit.state, &current, tap) };
             if accepted {
                 visit.state = without_sounds(&after);

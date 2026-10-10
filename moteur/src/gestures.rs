@@ -46,6 +46,20 @@ pub fn without_script(html: &str, keyed: &[String]) -> String {
             divs.pop();
         }
         if tag.starts_with("<button type=\"button\"") {
+            // « Monter » et « Descendre » d'une ligne qu'on réordonne (ADR-105) : le geste dit la liste,
+            // le rang de la ligne et sa nouvelle place, `move:tasks@2:1` ; le serveur le passe à l'arbitre.
+            // En tête, « Monter » mène au même rang : rien ne change.
+            if let Some(direction) = attribute(tag, "data-move") {
+                let at = divs.iter().rposition(|(rank, _, _)| rank.is_some());
+                let rank = at.and_then(|at| divs[at].0.as_ref()).and_then(|rank| rank.parse::<usize>().ok());
+                let list = at.and_then(|at| divs[..at].iter().rev().find_map(|(_, _, list)| list.as_ref()));
+                if let (Some(rank), Some(list)) = (rank, list) {
+                    let to = if direction == "up" { rank.saturating_sub(1) } else { rank + 1 };
+                    let sending = format!("<button type=\"submit\" form=\"{FORM}\" name=\"{SIGNAL}\" value=\"{}{list}@{rank}:{to}\"", crate::reorder::MOVE);
+                    output.push_str(&tag.replacen("<button type=\"button\"", &sending, 1));
+                    continue;
+                }
+            }
             let class = attribute(tag, "class").unwrap_or("");
             let tappable = class.split(' ').any(|c| c == "holo-Button" || c.starts_with("holo-Shape"));
             match (tappable, attribute(tag, "data-name")) {

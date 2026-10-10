@@ -133,6 +133,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 123 | [Des suggestions dans un champ](123-des-suggestions-dans-un-champ.holo) | `Input(suggestions: ["Pomme", "Poire"])`, `suggestions: villes` : le champ propose, on peut écrire autre chose ; les suggestions suivent la liste pendant la visite |
 | 124 | [Une citation courte, le titre d'une œuvre](124-une-citation-courte.holo) | `<<bonjour>>` : les guillemets de la langue de la page ; `_Les Misérables_` ; `Quote(by:, work:)` |
 | 125 | [Des nombres négatifs](125-des-nombres-negatifs.holo) | `negative: [temperature]`, `State(temperature: -2)`, `sub` sous zéro, `If(temperature, under: -20)`, `Input(min: -50)` : le signe moins de la langue de la page, un clavier qui l'a |
+| 128 | [Réordonner une liste](128-reordonner-une-liste.holo) | `Repeat(over: tableaux, reorder: true, …)` : la poignée ⠿ à la souris et au doigt ; « Monter » et « Descendre » au doigt, au clavier et au lecteur d'écran, qui annonce la nouvelle place ; sans JavaScript aussi |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 

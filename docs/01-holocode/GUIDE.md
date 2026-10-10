@@ -2003,6 +2003,36 @@ Page(
 
 La leçon est `125-des-nombres-negatifs.holo`.
 
+## 6 sexquadragies. Réordonner une liste : `reorder: true`
+
+Le visiteur range lui-même les lignes d'une liste : ses tâches par ordre d'importance, ses tableaux préférés, les étapes d'un voyage (`ADR-105`).
+
+```holo
+Page(
+  title: "My favourites",
+  state: State(paintings: ["Sunrise", "The river", "The blue door"]),
+  keep: [paintings],
+  children: [
+    H1("My favourites"),
+    Column(gap: 8px, children: [
+      Repeat(over: paintings, reorder: true, children: [ Text("{item}") ]),
+    ]),
+  ],
+)
+```
+
+- **`reorder: true`** dans `Repeat(over: …)` : rien d'autre à écrire, ni règle ni bouton. Le moteur pose sur chaque ligne une **poignée** `⠿`, qu'on fait glisser à la souris ou au doigt, et deux boutons, **« Monter »** (↑) et **« Descendre »** (↓), qu'on touche au doigt, à la souris ou au clavier (Tab, puis Entrée ou Espace). Le lecteur d'écran les nomme avec la ligne : « Monter « The river » ».
+- **C'est l'arbitre qui change l'ordre**, dans les valeurs de la page : la page lui dit seulement « la ligne 3 va en 1 ». La liste se montre partout dans le nouvel ordre ; une liste calculée d'après elle suit ; `keep:` garde l'ordre ; un membre connecté le retrouve sur ses autres appareils.
+- **Chaque déplacement est annoncé** au lecteur d'écran : « « The river » : position 1 sur 3. » En tête, « Monter » ne bouge rien, et le dit.
+- **Pendant qu'on glisse**, les autres lignes s'écartent ; on pose, et c'est un seul geste. Échap ramène la ligne à sa place. Près du haut ou du bas de l'écran, la page défile toute seule : une longue liste se range aussi au doigt.
+- **Le clavier reste** sur le bouton touché, dans la ligne déplacée : trois fois Entrée sur « Descendre », et la ligne descend de trois places.
+- **Sans JavaScript**, avec `holo serve`, la poignée disparaît, et « Monter » et « Descendre » partent au serveur, qui fait le même déplacement.
+- Une ligne qu'on réordonne range son contenu comme une colonne, entre la poignée et les deux boutons. Son nom, pour les boutons et l'annonce, est son texte ; pour une fiche, son premier champ de texte qui n'est pas sa clé (`key:`).
+- Refusés, avec la raison : `reorder:` sur une liste calculée (son ordre vient de `sortBy`) ou sur une liste partagée (pas encore) ; sur `Repeat(items: …)`, écrit dans le fichier ; une autre valeur que `true` ou `false`.
+- Pas encore : faire passer une ligne d'une liste à une autre (des colonnes de tâches) ; « tout en haut » d'un seul geste ; changer l'allure de la poignée et des boutons par un style.
+
+La leçon est `128-reordonner-une-liste.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo
@@ -2590,6 +2620,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Agir au moment où une valeur atteint quelque chose | `When(lives, is: 0, effect:)` | fait |
 | La rencontre de deux objets | `When(Basket, meets: Apple, within:, effect:)` | fait |
 | Faire glisser un objet | `drag: true` sur un bloc d'un `Board` | fait |
+| Réordonner les lignes d'une liste : glisser, monter, descendre | `Repeat(over:, reorder: true)` | fait (`ADR-105`) |
 | Plusieurs demandes dans une règle | `effect: [a.add(1), b.set(0)]` | fait |
 | Le hasard | la demande `random` | fait |
 | Placer librement | `Board`, et `x:`, `y:` sur ses enfants | fait |
