@@ -50,6 +50,8 @@ pub mod repeat;
 pub mod reorder;
 // Où en est le visiteur dans la page, `scroll`, et un bloc qui reste à l'écran, `sticky:` (ADR-106).
 pub mod scroll;
+// Les filtres d'image dans les styles (ADR-108) : grayscale, blur, brightness… et backdrop-blur.
+pub mod filters;
 pub mod shared;
 pub mod styles;
 pub mod universe;

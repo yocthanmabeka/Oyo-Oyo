@@ -298,6 +298,7 @@ Réglages connus :
 | `box-shadow`, `text-shadow` | Décalage, flou, couleur : `0 4px 12px #00000066` ; trois au plus ; ou `none` |
 | `rotate`, `scale` | Une pose : `-3deg` ; `1.05` |
 | `transition` | La durée du passage d'une allure à l'autre : `0.3s` ; ou `none` |
+| `grayscale`, `saturate`, `brightness`, `contrast`, `hue`, `blur`, `backdrop-blur` | Les filtres d'image (`ADR-108`), sur une image, une forme ou un dessin : un réglage par effet, `grayscale: 1`, `brightness: 0.6`, `blur: 3px` ; `backdrop-blur` sur une fenêtre ; voir « 6 undequinquagies » |
 
 **Les variables.** Une couleur ou une taille nommée une fois, dans le style de `Page`, puis employée partout, sans `var( )` :
 
@@ -2139,6 +2140,43 @@ Page(
 
 La leçon est `130-partager-la-page.holo`.
 
+## 6 undequinquagies. Des filtres d'image : gris, flou, luminosité
+
+Une photo en gris qui reprend ses couleurs au survol, une image assombrie sous un titre, la page qui devient floue derrière une fenêtre (`ADR-108`).
+
+```holo
+Page(
+  title: "The lake",
+  children: [
+    H1("The lake"),
+    Image.gray(source: "lake.jpg", alt: "The lake at dawn"),
+    Stack(children: [
+      Image.dimmed(source: "lake.jpg", alt: ""),
+      H2("The lake, at dawn"),
+    ]),
+    Button(name: Open, text: "Open"),
+    Dialog(name: Window, children: [ P("Behind, the page is blurred."), Button(name: Close, text: "Close") ]),
+  ],
+  rules: [ On(Open.tap, effect: Window.open), On(Close.tap, effect: Window.close) ],
+)
+
+.gray { grayscale: 1; transition: 0.4s; hover: { grayscale: 0; } active: { grayscale: 0; } }
+.dimmed { brightness: 0.5; }
+Dialog { backdrop-blur: 6px; }
+```
+
+- **Six réglages**, dans un style comme dans ses états : `grayscale` (de 0, les couleurs, à 1, tout gris), `saturate` (de 0 à 3 ; 1 ne change rien), `brightness` (de 0.2 à 3 ; 1 ne change rien, moins assombrit, plus éclaircit), `contrast` (de 0.2 à 3), `hue` (un angle : les couleurs tournent sur le cercle des teintes, comme dans `Enter`), `blur` (de 0 à 100px). Ce sont les mots du CSS, et des nombres comme `opacity` : jamais `100%`.
+- **Sur une image, une forme ou un dessin** (`Image`, `Shape`, `Drawing`), qui ne portent pas de texte. Jamais sur un bloc qui porte un texte ou un bouton (un paragraphe, une carte, un composant) : assombri ou flou, il se lirait mal, et le contraste vérifié (`ADR-055`) deviendrait faux. Les couleurs d'un texte se changent par `color` et `background`. Jamais sur une vidéo non plus : ses commandes et ses sous-titres seraient filtrés avec elle.
+- **Chaque réglage est à part.** `hover: { grayscale: 0; }` rend les couleurs et garde le flou écrit à côté : le moteur compose les réglages en un seul `filter`, toujours dans le même ordre (gris, saturation, luminosité, contraste, teinte, flou). En CSS, `filter` est une liste, et un état qui en change un l'efface entière.
+- **`backdrop-blur: 6px`**, sur une fenêtre (`Dialog`) : la page, derrière elle, devient floue, en plus de s'assombrir. Il s'écrit dans le style de la fenêtre lui-même, pas dans un état.
+- **Au clavier**, une forme filtrée qu'on touche se montre sans filtre quand elle a le focus : son cadre de focus reste net (un flou le brouillerait, une luminosité basse l'effacerait). Un filtre écrit dans `focus:` est donc refusé.
+- Le passage d'une allure à l'autre (`transition`, ou le survol et l'appui) adoucit aussi les filtres ; un visiteur qui demande moins de mouvement ne voit pas de passage. Le survol n'existe qu'avec une souris : au doigt, l'état `active:` (pendant l'appui) fait la même chose.
+- C'est du CSS : sans JavaScript, la page fabriquée par le serveur est filtrée de la même façon.
+- Refusés, avec le bon mot : `filter` et `backdrop-filter` écrits comme en CSS ; une valeur hors des bornes ou en `%` ; un filtre sur un texte, un bouton ou une vidéo ; un filtre au focus ; `backdrop-blur` ailleurs que sur une fenêtre.
+- Pas encore : `sepia`, `invert`, une ombre qui suit la forme (`drop-shadow`), le verre dépoli sur un bloc posé sur une image ; dans `Enter` et `Loop`, seuls le flou et la teinte bougent.
+
+La leçon est `131-des-filtres-d-image.holo`.
+
 ## 6 unquinquagies. Faire vibrer le téléphone : `Device(kind: vibration)`
 
 Une courte vibration dit « c'est fait » sans qu'on regarde l'écran : un bouton qui répond, une prise dans un jeu (`ADR-110`). Elle accompagne toujours un signe à l'écran.
@@ -2947,6 +2985,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | L'approche d'un personnage, en profondeur | aucun | à faire |
 | Écrire une fois, répéter pour chaque élément | `Repeat(items: [ Item(…) ], children: [ … ])`, `item` | fait |
 | Une couleur nommée, le thème sombre, le téléphone | `--or`, `dark: { … }`, `phone: { … }` | fait |
+| Un filtre d'image : gris, saturation, luminosité, contraste, teinte, flou ; la page floue derrière une fenêtre | `grayscale`, `saturate`, `brightness`, `contrast`, `hue`, `blur` dans le style d'une image, d'une forme, d'un dessin ; `backdrop-blur` dans celui d'une `Dialog` | fait (`ADR-108`) |
 | Sa propre police | `fonts: [ Font(family:, source:) ]` | fait |
 | Une police du moteur, pour toutes les écritures | `fonts: [ Font(family: "Inter") ]` | fait (`ADR-092`) |
 | Envoyer un formulaire | `Form(name:)`, `Contact.send`, `sent`, `failed` | fait |
