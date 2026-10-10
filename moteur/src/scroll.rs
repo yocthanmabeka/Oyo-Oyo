@@ -103,7 +103,8 @@ pub fn reads(program: &Program) -> bool {
 /// Pose `scroll` dans les valeurs de la page, à 0, si elle la lit, comme si elle l'avait déclarée
 /// dans `State`. Refusé, avec la raison : la déclarer (dans `State` ou dans `Shared`), la changer
 /// (une demande, un champ, un module, l'appareil, un glissement, un chronomètre, un fichier
-/// importé), la garder (`keep`) ou la mettre dans l'adresse (`address:`).
+/// importé), la garder (`keep`), la retenir le temps d'une visite (`visit:`, ADR-113) ou la mettre
+/// dans l'adresse (`address:`).
 pub fn inject(program: &mut Program) -> Result<(), Error> {
     for holder in ["state", "shared"] {
         if let Some(Value::Block(block)) = program.root.argument(holder).map(|a| &a.value) {
@@ -112,7 +113,11 @@ pub fn inject(program: &mut Program) -> Result<(), Error> {
             }
         }
     }
-    for (setting, why) in [("keep", "elle ne se garde pas d'une visite à l'autre"), ("address", "l'adresse ne la porte pas")] {
+    for (setting, why) in [
+        ("keep", "elle ne se garde pas d'une visite à l'autre"),
+        ("visit", "elle ne se retient pas d'une page à l'autre, chaque page a la sienne"),
+        ("address", "l'adresse ne la porte pas"),
+    ] {
         if let Some(Argument { value: Value::List(names), pos, .. }) = program.root.argument(setting) {
             if names.iter().any(|n| matches!(n, Value::Name(n) if n == NAME)) {
                 return Err(Error { message: format!("« {setting} » : « scroll » est la place du visiteur dans la page, donnée par le navigateur ; {why}"), pos: *pos });
@@ -415,6 +420,7 @@ Page { background: #101020; color: white; dark: { background: --night; } --night
             ("Page(children: [ Button(name: B, text: \"x\"), P(\"{scroll}\") ], rules: [ On(B.tap, effect: scroll.set(0)) ])", "on la lit, on ne la change pas"),
             ("Page(children: [ Slider(value: scroll, label: \"x\") ])", "on la lit, on ne la change pas"),
             ("Page(keep: [scroll], children: [ P(\"{scroll}\") ])", "elle ne se garde pas"),
+            ("Page(visit: [scroll], children: [ P(\"{scroll}\") ])", "elle ne se retient pas d'une page à l'autre"),
             ("Page(address: [scroll], children: [ P(\"{scroll}\") ])", "l'adresse ne la porte pas"),
             ("Point(name: W, seed: 1, inside: World(children: [ P(\"{scroll}\") ]))", "se lit dans Page"),
             ("Page(children: [ P(\"x\", sticky: middle) ])", "attend top ou bottom"),

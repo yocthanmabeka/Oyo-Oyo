@@ -2102,7 +2102,7 @@ Page(
 - **Son fond** : sans style, celui de la page, pour que le texte qui passe dessous ne se lise pas à travers ; un style le change, `.bar { background: #1a1a2e; }`.
 - **Sans JavaScript**, `scroll` vaut 0 : la barre est vide, le bouton ne vient pas ; le bloc reste quand même à l'écran, et la page se lit entière.
 - **Un essai écrit** fait défiler la page : `scroll 50`, puis `expect scroll = 50`.
-- Refusés, avec la raison : déclarer `scroll`, la changer, la garder (`keep`), la mettre dans l'adresse ; un autre bord (`sticky: middle`) ; un bloc rangé dans un autre (`Row`, `Header`, un monde) ; `sticky` sur `If`, `Repeat`, `Dialog`, `Main`, `Point`, ou un son sans lecteur ; deux blocs au même bord ; `position: sticky` ou `position: fixed` dans un style, avec le bon mot.
+- Refusés, avec la raison : déclarer `scroll`, la changer, la garder (`keep`), la retenir le temps d'une visite (`visit`), la mettre dans l'adresse ; un autre bord (`sticky: middle`) ; un bloc rangé dans un autre (`Row`, `Header`, un monde) ; `sticky` sur `If`, `Repeat`, `Dialog`, `Main`, `Point`, ou un son sans lecteur ; deux blocs au même bord ; `position: sticky` ou `position: fixed` dans un style, avec le bon mot.
 
 La leçon est `129-une-barre-de-lecture.holo`.
 
