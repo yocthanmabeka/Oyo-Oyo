@@ -90,6 +90,8 @@ autre.exemple.org X-Api-Key: ta-clé
 
 Un client HTTPS ne s'écrit pas à la main : TLS est de la cryptographie (`ADR-081`). Une seule bibliothèque, compilée **seulement pour le serveur**, jamais dans le moteur de la page :
 
+**Acceptée par Yocthan le 2026-10-10 : « Oui, accepte-la »** (rapporté par la session du PC sur la PR 264).
+
 | Bibliothèque | Ce qu'elle fait ici | Pourquoi elle |
 |---|---|---|
 | `ureq` 3.4.2 (`=3.4.2`), avec la seule fonction `rustls` | une demande GET en HTTPS, sans rien d'asynchrone | petite, très employée (plus de 220 millions de téléchargements), entretenue (septembre 2026) ; elle laisse remplacer la résolution des noms, ce qu'exige la règle 2 |
