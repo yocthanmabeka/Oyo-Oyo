@@ -678,6 +678,8 @@ mod tests {
             include_str!("../../exemples/lecons/130-partager-la-page.holo"),
             // Réordonner les lignes d'une liste (ADR-105).
             include_str!("../../exemples/lecons/128-reordonner-une-liste.holo"),
+            // Les données d'un autre site, lues par le serveur de l'auteur (ADR-116).
+            include_str!("../../exemples/lecons/139-les-donnees-d-un-autre-site.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();
