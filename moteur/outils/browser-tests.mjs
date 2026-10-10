@@ -1109,6 +1109,150 @@ const tests = [
       await b.send("Network.disable");
     }
   }],
+  ["une page dans la page : rien vers l'autre site avant le toucher ; au toucher, au clavier comme au doigt, la page intégrée enfermée, avec son titre, et le clavier y entre ; frame-src ; sans JavaScript, un lien (leçon 140, serve)", async (p, b) => {
+    // ADR-117. Ce conteneur n'atteint ni OpenStreetMap ni YouTube : Chrome arrête chaque demande vers
+    // « l'autre site » (Fetch) et lui donne une fausse page, qui dit au parent ce qu'elle voit et ce
+    // qu'on lui refuse. holo serve sert la leçon, pour éprouver aussi sa règle des cadres.
+    const lesson = "140-une-page-dans-la-page.holo";
+    const map = "https://www.openstreetmap.org/export/embed.html?bbox=-117.1570%2C32.7310%2C-117.1410%2C32.7400&layer=mapnik";
+    const video = "https://www.youtube-nocookie.com/embed/jNQXAC9IVRw";
+    const elsewhere = /^https:\/\/(www\.openstreetmap\.org|www\.youtube-nocookie\.com|pirate\.example\.org)\//;
+    const fake = `<!doctype html><meta charset="utf-8"><title>Faux site</title><button>Dans la page intégrée</button><script>
+      const tell = (what) => parent.postMessage({ fake: true, ...what }, "*");
+      let page; try { page = parent.document.title; } catch { page = "fermée"; }
+      let popup; try { popup = String(window.open("https://pirate.example.org/")); } catch { popup = "refusée"; }
+      try { top.location.href = "https://pirate.example.org/"; } catch { /* la page de l'auteur reste */ }
+      const features = document.featurePolicy ? document.featurePolicy.allowedFeatures().filter((f) => ["fullscreen", "camera", "microphone", "geolocation", "autoplay", "payment"].includes(f)).sort().join(",") : "?";
+      tell({ ready: true, referrer: document.referrer, page, popup, features });
+      navigator.geolocation.getCurrentPosition(() => tell({ position: "donnée" }), (e) => tell({ position: "refusée (" + e.code + ")" }));
+      addEventListener("keydown", (e) => tell({ key: e.key }));
+    </script>`;
+    const served = await startHoloServe([lesson, "140-carte.svg", "140-video.svg"]);
+    const q = page(b, served.base);
+    const asked = [];
+    const sent = [];
+    const axeSource = readFileSync(join(engine, "node_modules", "axe-core", "axe.min.js"), "utf8");
+    const audit = async (where) => {
+      await q.value(`${axeSource}\n;window.axe.version`);
+      // Les fausses pages n'ont pas axe-core : l'audit ne les attend pas ; il vérifie le titre de chaque cadre.
+      return (await q.value('window.axe.run(document, { resultTypes: ["violations"], iframes: false }).then((r) => r.violations.map((v) => v.id))')).map((id) => `${where} : ${id}`);
+    };
+    const listen = () => q.value(`(() => { window.__fake = []; addEventListener("message", (e) => { if (e.data?.fake) window.__fake.push({ from: e.origin, ...e.data }); }); window.__refused = []; addEventListener("securitypolicyviolation", (e) => window.__refused.push(e.violatedDirective + " " + e.blockedURI)); })()`);
+    const said = (from) => q.value(`JSON.stringify(Object.assign({}, ...(window.__fake ?? []).filter((m) => m.from === ${JSON.stringify(from)})))`).then(JSON.parse);
+    const centre = (selector) => q.value(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); e.scrollIntoView({ block: "center" }); const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+    try {
+      await b.send("Network.enable");
+      b.on("Network.requestWillBeSent", ({ request }) => sent.push(request.url));
+      b.on("Fetch.requestPaused", ({ requestId, request, resourceType }) => {
+        asked.push({ url: request.url, referer: request.headers.Referer ?? "(aucun)", resourceType });
+        b.send("Fetch.fulfillRequest", { requestId, responseCode: 200, responseHeaders: [{ name: "Content-Type", value: "text/html; charset=utf-8" }], body: Buffer.from(fake).toString("base64") });
+      });
+      await b.send("Fetch.enable", { patterns: ["https://www.openstreetmap.org/*", "https://www.youtube-nocookie.com/*", "https://pirate.example.org/*"].map((urlPattern) => ({ urlPattern })) });
+      // La règle des cadres que holo serve donne au navigateur.
+      const policy = (await fetch(`${served.base}/${lesson}`, { headers: { accept: "text/html" } })).headers.get("content-security-policy");
+      await q.open(`/${lesson}`);
+      await listen();
+      // 1. Avant le toucher : rien vers l'autre site. Ni demande, ni cadre, ni connexion préparée,
+      // ni adresse de l'autre site dans un src ou un href ; les images de la façade sont de holo serve.
+      const before = [asked.length, sent.filter((url) => elsewhere.test(url)).length];
+      const untouched = await q.value(`document.querySelectorAll('iframe, link[rel~="preconnect"], link[rel~="dns-prefetch"], link[rel~="prefetch"], link[rel~="preload"], [src*="openstreetmap"], [src*="youtube"], [href*="openstreetmap"], [href*="youtube"], [srcset]').length === 0`);
+      const images = await q.value(`[...document.querySelectorAll(".holo-embed-image")].map((i) => new URL(i.src).origin === location.origin).join(",")`);
+      const shown = await q.value(`[...document.querySelectorAll(".holo-embed-load")].map((f) => !f.hidden && f.offsetHeight > 0).join(",")`);
+      // 2. Le lecteur d'écran : deux vrais boutons, nommés avec le titre, puis le site qui se chargera.
+      const { nodes } = (await b.send("Accessibility.getFullAXTree")).result;
+      const buttons = nodes.filter((n) => !n.ignored && n.role?.value === "button" && /^(Carte|Vidéo) : /.test(n.name?.value ?? "")).map((n) => n.name.value);
+      const faults = await audit("avant le toucher");
+      // 3. Une taille qui suit l'écran : sur un téléphone de 360 px, la carte en 16/9, la vidéo en
+      // 4/3 (son style), rien ne déborde.
+      let phoneSize = "";
+      try {
+        await b.send("Emulation.setDeviceMetricsOverride", { width: 360, height: 760, deviceScaleFactor: 2, mobile: true });
+        await pause(300);
+        phoneSize = await q.value(`[...document.querySelectorAll(".holo-Embed")].map((e) => { const r = e.getBoundingClientRect(); return Math.round(r.width) + "x" + Math.round(r.height); }).join(" ") + " / " + document.documentElement.scrollWidth`);
+      } finally {
+        await b.send("Emulation.clearDeviceMetricsOverride");
+      }
+      // 4. Au clavier : Tab jusqu'à la façade de la carte, puis Entrée.
+      for (let i = 0; i < 20 && !(await q.value(`document.activeElement?.matches(".holo-embed-load")`)); i++) await q.key("Tab", "Tab", 9);
+      const focusedFacade = await q.value(`document.activeElement?.dataset.label ?? ""`);
+      await q.key("Enter", "Enter", 13, "\r");
+      const mapFrame = await q.until(`document.querySelector('iframe[src^="https://www.openstreetmap.org/"]')`, 5000);
+      const mapAttributes = await q.value(`(() => { const f = document.querySelector('iframe[src^="https://www.openstreetmap.org/"]'); return f && [f.getAttribute("sandbox"), f.getAttribute("allow"), f.getAttribute("referrerpolicy"), f.title, f.src].join(" | "); })()`);
+      const inside = await q.value(`document.activeElement?.tagName === "IFRAME" && document.activeElement.src.startsWith("https://www.openstreetmap.org/")`);
+      const mapReady = await q.until(`(window.__fake ?? []).some((m) => m.ready && m.from === "https://www.openstreetmap.org")`, 10000);
+      // Le clavier est dans la page intégrée : la touche « k » y arrive.
+      await q.key("k", "KeyK", 75, "k");
+      const typed = await q.until(`(window.__fake ?? []).some((m) => m.key === "k" && m.from === "https://www.openstreetmap.org")`, 5000);
+      await q.until(`(window.__fake ?? []).some((m) => m.position && m.from === "https://www.openstreetmap.org")`, 5000);
+      const mapSaid = await said("https://www.openstreetmap.org");
+      // 5. Au doigt : toucher la façade de la vidéo.
+      let fingerFrame = false;
+      try {
+        await b.send("Emulation.setDeviceMetricsOverride", { width: 400, height: 800, deviceScaleFactor: 2, mobile: true });
+        await b.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+        await pause(300);
+        const [x, y] = await centre('.holo-embed-load[data-embed^="https://www.youtube-nocookie.com/"]');
+        await b.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y, id: 1 }] });
+        await b.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+        fingerFrame = await q.until(`document.querySelector('iframe[src^="https://www.youtube-nocookie.com/"]')?.title === "Vidéo : Me at the zoo, la première vidéo publiée sur YouTube (2005)"`, 5000);
+        await q.until(`(window.__fake ?? []).some((m) => m.ready && m.from === "https://www.youtube-nocookie.com")`, 10000);
+      } finally {
+        await b.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+        await b.send("Emulation.clearDeviceMetricsOverride");
+      }
+      const videoSaid = await said("https://www.youtube-nocookie.com");
+      // 6. Ce qui est arrivé à l'autre site : une demande par toucher, la page seule, et de la page de
+      // l'auteur, son site seulement (jamais son adresse). La page de l'auteur n'a pas bougé.
+      const reached = asked.map((a) => `${a.resourceType} ${a.url} (Referer : ${a.referer})`);
+      const stayed = await q.value(`location.pathname === "/${lesson}"`);
+      // 7. La règle des cadres : un cadre vers un site non listé, posé par un script, est refusé par
+      // le navigateur, et rien ne part vers lui.
+      await q.value(`(() => { const f = document.createElement("iframe"); f.src = "https://pirate.example.org/piege"; document.body.append(f); })()`);
+      await q.until(`window.__refused.length > 0`, 3000);
+      const refused = await q.value(`window.__refused.join(", ")`);
+      await q.value(`document.querySelector('iframe[src^="https://pirate.example.org/"]').remove()`);
+      faults.push(...(await audit("après le toucher")));
+      // 8. Sans JavaScript : un lien vers la page de l'autre site, avec le titre, dans un nouvel onglet ;
+      // pas de bouton, pas de cadre, rien vers l'autre site.
+      const beforeLinks = asked.length;
+      let links = "";
+      let linkNames = "";
+      let withoutScript = "";
+      try {
+        await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+        await q.open(`/${lesson}`, 300);
+        links = await q.value(`[...document.querySelectorAll("a.holo-embed-link")].map((a) => [a.href, a.target, a.rel].join(" | ")).join(" || ")`);
+        // Le lecteur d'écran : deux liens, nommés avec le titre ; ils disent qu'ils ouvrent un onglet.
+        const { nodes: plain } = (await b.send("Accessibility.getFullAXTree")).result;
+        linkNames = plain.filter((n) => !n.ignored && n.role?.value === "link" && /^(Carte|Vidéo) : /.test(n.name?.value ?? "")).map((n) => n.name.value).join(" | ");
+        withoutScript = await q.value(`[...document.querySelectorAll(".holo-embed-load")].map((f) => getComputedStyle(f).display).join(",") + " / " + document.querySelectorAll("iframe").length`);
+      } finally {
+        await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      }
+      const afterLinks = asked.length - beforeLinks;
+      const origin = `${served.base}/`;
+      const ok = policy === "frame-src https://www.openstreetmap.org https://www.youtube-nocookie.com"
+        && before[0] === 0 && before[1] === 0 && untouched && images === "true,true" && shown === "true,true"
+        && buttons.join(" | ") === "Carte : le zoo de San Diego, charger depuis www.openstreetmap.org | Vidéo : Me at the zoo, la première vidéo publiée sur YouTube (2005), charger depuis www.youtube-nocookie.com"
+        && /^328x185 328x246 \/ 360$/.test(phoneSize)
+        && focusedFacade === "Carte : le zoo de San Diego" && mapFrame && inside && mapReady && typed
+        && mapAttributes === `allow-scripts allow-same-origin | fullscreen | strict-origin | Carte : le zoo de San Diego | ${map}`
+        && mapSaid.referrer === origin && mapSaid.page === "fermée" && mapSaid.popup === "null" && mapSaid.features === "fullscreen" && mapSaid.position === "refusée (1)"
+        && fingerFrame && videoSaid.ready === true && videoSaid.page === "fermée"
+        && reached.join(" ; ") === `Document ${map} (Referer : ${origin}) ; Document ${video} (Referer : ${origin})`
+        && stayed && refused === "frame-src https://pirate.example.org"
+        && links === `${map} | _blank | noopener noreferrer || ${video} | _blank | noopener noreferrer`
+        && linkNames === "Carte : le zoo de San Diego, ouvrir sur www.openstreetmap.org, dans un nouvel onglet | Vidéo : Me at the zoo, la première vidéo publiée sur YouTube (2005), ouvrir sur www.youtube-nocookie.com, dans un nouvel onglet"
+        && withoutScript === "none,none / 0" && afterLinks === 0 && !faults.length;
+      return [ok, `frame-src : ${policy} ; avant le toucher, demandes vers l'autre site : ${before[0]} (Fetch), ${before[1]} (réseau), page sans cadre ni adresse de l'autre site : ${untouched}, images de la façade chez holo serve : ${images}, façades montrées : ${shown} ; lecteur d'écran : ${buttons.join(" | ")} ; téléphone : ${phoneSize} ; au clavier, la façade « ${focusedFacade} », puis Entrée : cadre ${mapFrame} (${mapAttributes}), le clavier dedans : ${inside}, la touche k reçue : ${typed} ; la fausse carte voit : ${JSON.stringify(mapSaid)} ; au doigt, la vidéo : ${fingerFrame} (${JSON.stringify(videoSaid)}) ; arrivé à l'autre site : ${reached.join(" ; ") || "rien"} ; la page de l'auteur reste : ${stayed} ; un cadre non listé : ${refused || "pas refusé"} ; sans JavaScript : ${links} (${linkNames}) ; boutons et cadres : ${withoutScript}, demandes : ${afterLinks} ; axe-core : ${faults.join(", ") || "aucun défaut, avant et après le toucher"}`];
+    } finally {
+      await b.send("Fetch.disable");
+      b.on("Fetch.requestPaused", null);
+      b.on("Network.requestWillBeSent", null);
+      await b.send("Network.disable");
+      served.stop();
+    }
+  }],
   ["les touches du clavier, et les lettres qu'on coupe", async (p) => {
     await p.open("/exemples/lecons/77-toutes-les-touches.holo");
     if (!(await p.until(`document.getElementById("shortcuts")`))) return [false, "le moteur n'est pas arrivé"];

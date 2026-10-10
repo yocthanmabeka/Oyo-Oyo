@@ -239,14 +239,15 @@ pub fn check(program: &Program) -> Result<(), Error> {
 /// le lien est dans `noscript`, que le navigateur ne lit pas quand JavaScript marche.
 pub fn html(block: &Block, classes: &str, name: &str, base: &str, french: bool) -> Result<String, Error> {
     let Parts { address, site, label, image } = parts(block)?;
-    let (load, open) = if french { ("Charger depuis", "Ouvrir sur") } else { ("Load from", "Open on") };
+    let ((load, load_said), (open, open_said)) = if french { (("Charger depuis", "charger depuis"), ("Ouvrir sur", "ouvrir sur")) } else { (("Load from", "load from"), ("Open on", "open on")) };
     let new_tab = if french { "dans un nouvel onglet" } else { "in a new tab" };
     let picture = image.map(|file| format!("<img class=\"holo-embed-image\" src=\"{}{}\" alt=\"\" loading=\"lazy\" decoding=\"async\">", escape(base), escape(file))).unwrap_or_default();
     let (address, label, site) = (escape(address), escape(label), escape(&site));
-    // La virgule cachée sépare, pour le lecteur d'écran, le titre du site qui se chargera.
-    let text = |line: String| format!("<span class=\"holo-embed-text\"><span class=\"holo-embed-label\">{label}</span><span class=\"holo-embed-site\"><span class=\"holo-hidden\">, </span>{line}</span></span>");
+    let text = |line: String| format!("<span class=\"holo-embed-text\"><span class=\"holo-embed-label\">{label}</span><span class=\"holo-embed-site\">{line}</span></span>");
+    // Le nom que dit le lecteur d'écran reprend le texte montré, dans l'ordre, avec une virgule entre
+    // les deux lignes (lu du texte seul, il les collerait : « … San Diego Charger depuis … »).
     Ok(format!(
-        "<div class=\"{classes}\"{name}><button type=\"button\" class=\"holo-embed-load\" data-embed=\"{address}\" data-label=\"{label}\" hidden>{picture}{}</button><noscript><a class=\"holo-embed-link\" href=\"{address}\" target=\"_blank\" rel=\"noopener noreferrer\">{picture}{}</a></noscript></div>",
+        "<div class=\"{classes}\"{name}><button type=\"button\" class=\"holo-embed-load\" data-embed=\"{address}\" data-label=\"{label}\" aria-label=\"{label}, {load_said} {site}\" hidden>{picture}{}</button><noscript><a class=\"holo-embed-link\" href=\"{address}\" target=\"_blank\" rel=\"noopener noreferrer\" aria-label=\"{label}, {open_said} {site}, {new_tab}\">{picture}{}</a></noscript></div>",
         text(format!("{load} {site}")),
         text(format!("{open} {site}, {new_tab}"))
     ))
@@ -292,13 +293,13 @@ mod embed_tests {
             assert!(!text.contains("<iframe") && !text.contains("preconnect") && !text.contains("dns-prefetch") && !text.contains("prefetch") && !text.contains("preload"), "{html}");
             assert!(!text.contains("src=\"https://") && !text.contains("href=\"https://") && !text.contains("srcset"), "{html}");
         }
-        assert!(before.contains(&format!("<div class=\"holo-Embed\" data-name=\"Map\"><button type=\"button\" class=\"holo-embed-load\" data-embed=\"{address}\" data-label=\"Carte : le 'centre' &lt;de&gt; Kinshasa\" hidden>")), "{html}");
+        assert!(before.contains(&format!("<div class=\"holo-Embed\" data-name=\"Map\"><button type=\"button\" class=\"holo-embed-load\" data-embed=\"{address}\" data-label=\"Carte : le 'centre' &lt;de&gt; Kinshasa\" aria-label=\"Carte : le 'centre' &lt;de&gt; Kinshasa, charger depuis www.openstreetmap.org\" hidden>")), "{html}");
         // L'image de la façade est un fichier du site de l'auteur ; le lecteur d'écran entend le titre.
         assert!(before.contains("<img class=\"holo-embed-image\" src=\"/lecons/140-carte.svg\" alt=\"\" loading=\"lazy\" decoding=\"async\">"), "{html}");
-        assert!(before.contains("<span class=\"holo-embed-label\">Carte : le 'centre' &lt;de&gt; Kinshasa</span><span class=\"holo-embed-site\"><span class=\"holo-hidden\">, </span>Charger depuis www.openstreetmap.org</span>"), "{html}");
+        assert!(before.contains("<span class=\"holo-embed-label\">Carte : le 'centre' &lt;de&gt; Kinshasa</span><span class=\"holo-embed-site\">Charger depuis www.openstreetmap.org</span>"), "{html}");
         // Règle 6 : sans JavaScript, un lien vers la page de l'autre site, avec le titre, dans un
         // nouvel onglet, sans dire à l'autre site d'où l'on vient.
-        assert!(inside.starts_with(&format!("<a class=\"holo-embed-link\" href=\"{address}\" target=\"_blank\" rel=\"noopener noreferrer\">")), "{inside}");
+        assert!(inside.starts_with(&format!("<a class=\"holo-embed-link\" href=\"{address}\" target=\"_blank\" rel=\"noopener noreferrer\" aria-label=\"Carte : le 'centre' &lt;de&gt; Kinshasa, ouvrir sur www.openstreetmap.org, dans un nouvel onglet\">")), "{inside}");
         assert!(inside.contains("Ouvrir sur www.openstreetmap.org, dans un nouvel onglet</span>"), "{inside}");
         // En anglais, les mots de la façade suivent la langue de la page ; sans image, la façade reste.
         let english = crate::flat::page_html(&read(&source.replace("Page(title:", "Page(lang: \"en\", title:").replace(", image: \"140-carte.svg\"", "")).unwrap(), "").unwrap();
