@@ -1755,12 +1755,32 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
             let mut source = None;
             // Le volume et la boucle (ADR-061) : `volume: 0.4`, `loop: true`.
             let mut settings = String::new();
+            // Le mélange (ADR-112) : un fondu, `fade: 2s`, ou un volume qui suit une valeur de la
+            // page, `volume: pluie`. Un tel son passe par le mélangeur de la page, son volume écrit
+            // aussi : il est donné au mélangeur (`data-level`), pas à l'élément `audio`.
+            let mixed = block.argument("fade").is_some() || matches!(block.argument("volume").map(|a| &a.value), Some(Value::Name(_)));
+            let volume = if mixed { "level" } else { "volume" };
+            // Le temps du fondu, en millisecondes : de 100ms (en deçà, on ne l'entend pas) à 5s (un
+            // son qu'on arrête se tait vite).
+            let fade = |value: &Value| match value {
+                Value::Number { value, unit: Some(unit), .. } if unit == "s" => Some(value * 1000.0),
+                Value::Number { value, unit: Some(unit), .. } if unit == "ms" => Some(*value),
+                _ => None,
+            }
+            .filter(|ms| (100.0..=5000.0).contains(ms));
             for argument in &block.arguments {
                 match (argument.name.as_deref(), &argument.value) {
                     (Some("name" | "weight"), _) | (Some("label"), Value::Text(_)) => {}
-                    (Some("volume"), Value::Number { value, unit: None, .. }) if (0.0..=1.0).contains(value) => settings.push_str(&format!(" data-volume=\"{value}\"")),
-                    (Some("volume"), Value::Integer(i)) if *i <= 1 => settings.push_str(&format!(" data-volume=\"{i}\"")),
-                    (Some("volume"), _) => return Err(Error { message: "« Sound(volume: …) » attend un nombre de 0 (muet) à 1 (le plus fort), comme l'opacité : volume: 0.4".into(), pos: argument.pos }),
+                    (Some("volume"), Value::Number { value, unit: None, .. }) if (0.0..=1.0).contains(value) => settings.push_str(&format!(" data-{volume}=\"{value}\"")),
+                    (Some("volume"), Value::Integer(i)) if *i <= 1 => settings.push_str(&format!(" data-{volume}=\"{i}\"")),
+                    // Le volume suit une valeur de la page, de 0 (muet) à 100 (le plus fort) : elle est
+                    // vérifiée avec les autres valeurs (state.rs).
+                    (Some("volume"), Value::Name(value)) => settings.push_str(&format!(" data-volume-of=\"{}\"", escape(value))),
+                    (Some("volume"), _) => return Err(Error { message: "« Sound(volume: …) » attend un nombre de 0 (muet) à 1 (le plus fort), comme l'opacité : volume: 0.4 ; ou une valeur de la page, de 0 à 100 : volume: pluie".into(), pos: argument.pos }),
+                    (Some("fade"), value) => match fade(value) {
+                        Some(ms) => settings.push_str(&format!(" data-fade=\"{}\"", ms.round())),
+                        None => return Err(Error { message: "« Sound(fade: …) » attend une durée de 100ms à 5s : le son monte en ce temps quand il commence, et descend en ce temps quand on l'arrête ; fade: 2s".into(), pos: argument.pos }),
+                    },
                     (Some("loop"), Value::Bool(true)) => settings.push_str(" loop"),
                     (Some("loop"), Value::Bool(false)) => {}
                     (Some("loop"), _) => return Err(Error { message: "« Sound(loop: …) » attend true ou false ; un son qui boucle s'arrête par « Rain.stop »".into(), pos: argument.pos }),
@@ -1768,12 +1788,17 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
                     (Some("source"), _) => {
                         return Err(Error { message: "« Sound(source: …) » attend un fichier de son rangé à côté du .holo : \"ding.wav\" (.wav, .mp3 ou .ogg)".into(), pos: argument.pos })
                     }
-                    (Some(other), _) => return Err(Error { message: format!("« Sound » n'a pas de paramètre « {other} » ; paramètres possibles : name, source, label, volume, loop, weight"), pos: argument.pos }),
+                    (Some(other), _) => return Err(Error { message: format!("« Sound » n'a pas de paramètre « {other} » ; paramètres possibles : name, source, label, volume, loop, fade, weight"), pos: argument.pos }),
                     (None, _) => return Err(Error { message: "chaque paramètre de « Sound » est nommé : Sound(name: Ding, source: \"ding.wav\")".into(), pos: argument.pos }),
                 }
             }
             // Avec une étiquette, le son est un lecteur, avec ses boutons, jamais lancé seul (ADR-042).
             if let (Some(source), Some(Value::Text(label))) = (source, block.argument("label").map(|a| &a.value)) {
+                // Un lecteur est dans la main du visiteur : il le lance, l'arrête et règle son volume
+                // lui-même, au clavier comme au doigt (ADR-112).
+                if let Some(argument) = block.arguments.iter().find(|a| a.name.as_deref() == Some("fade") || (a.name.as_deref() == Some("volume") && matches!(a.value, Value::Name(_)))) {
+                    return Err(Error { message: "un lecteur (label:) est dans la main du visiteur, qui le lance, l'arrête et règle son volume lui-même : « fade: » et un volume qui suit une valeur vont à un son qu'une règle fait entendre".into(), pos: argument.pos });
+                }
                 output.push_str(&format!("<audio class=\"{classes}\"{name} controls preload=\"metadata\" src=\"{}{}\" aria-label=\"{}\"{settings}></audio>", escape(base), escape(source), escape(label)));
                 return Ok(());
             }
@@ -3389,5 +3414,52 @@ mod quotation_tests {
         assert!(html.contains("<p>Sans auteur.</p><footer>— <cite>Un proverbe</cite></footer>"), "{html}");
         let error = crate::flat_view("Page(children: [ Quote(\"x\", work: 3) ])", "").unwrap_err();
         assert!(error.message.contains("« Quote(work: …) » attend un texte"), "{error}");
+    }
+}
+
+#[cfg(test)]
+mod sound_mix_tests {
+    #[test]
+    fn a_sound_fades_in_and_out() {
+        // Le fondu, en millisecondes ; un son mélangé donne son volume écrit au mélangeur.
+        let html = crate::flat_view("Page(children: [ Sound(name: Rain, source: \"pluie.wav\", loop: true, volume: 0.4, fade: 2s), Sound(name: Wind, source: \"vent.wav\", fade: 250ms), Sound(name: Ding, source: \"ding.wav\", volume: 0.3) ])", "").unwrap();
+        assert!(html.contains("<audio class=\"holo-Sound\" data-name=\"Rain\" preload=\"auto\" src=\"pluie.wav\" loop data-level=\"0.4\" data-fade=\"2000\"></audio>"), "{html}");
+        assert!(html.contains("src=\"vent.wav\" data-fade=\"250\"></audio>"), "{html}");
+        // Un son sans fondu ni volume suivi ne change pas (ADR-061).
+        assert!(html.contains("src=\"ding.wav\" data-volume=\"0.3\"></audio>"), "{html}");
+        let refused = |page: &str| crate::check_page(page).unwrap_err().message;
+        for fade in ["0s", "50ms", "6s", "2", "\"2s\""] {
+            let message = refused(&format!("Page(children: [ Sound(name: Rain, source: \"pluie.wav\", fade: {fade}) ])"));
+            assert!(message.contains("« Sound(fade: …) » attend une durée de 100ms à 5s"), "{fade} → {message}");
+        }
+        // Un lecteur est dans la main du visiteur : ni fondu, ni volume suivi.
+        let message = refused("Page(children: [ Sound(source: \"pluie.wav\", label: \"La pluie\", fade: 2s) ])");
+        assert!(message.contains("un lecteur (label:) est dans la main du visiteur"), "{message}");
+        let message = refused("Page(state: State(rain: 50), children: [ Sound(source: \"pluie.wav\", label: \"La pluie\", volume: rain) ])");
+        assert!(message.contains("un lecteur (label:) est dans la main du visiteur"), "{message}");
+    }
+
+    #[test]
+    fn a_sound_follows_a_value_of_the_page() {
+        let page = "Page(state: State(rain: 60), children: [ Sound(name: Rain, source: \"pluie.wav\", loop: true, volume: rain, fade: 2s), Slider(value: rain, label: \"Pluie\"), Button(name: Up, text: \"+\") ], rules: [ On(Up.tap, effect: [rain.add(10), Rain.play]) ])";
+        let html = crate::flat_view(page, "").unwrap();
+        assert!(html.contains("src=\"pluie.wav\" loop data-volume-of=\"rain\" data-fade=\"2000\"></audio>"), "{html}");
+        assert_eq!(crate::effects(page, "Up.tap"), ["Rain.play"]);
+        // Une valeur qui règle un volume ne dépasse jamais 100, même sans glissière pour la borner.
+        let alone = "Page(state: State(rain: 60), children: [ Sound(name: Rain, source: \"pluie.wav\", volume: rain), Button(name: Up, text: \"+\") ], rules: [ On(Up.tap, effect: rain.add(50)) ])";
+        assert_eq!(crate::arbitrate(alone, &crate::initial_state(alone), "Up.tap"), "rain=100");
+        let refused = |state: &str| crate::check_page(&format!("Page(state: State({state}), children: [ Sound(name: Rain, source: \"pluie.wav\", volume: rain) ])")).unwrap_err().message;
+        for (state, fault) in [
+            ("wind: 50", "aucune valeur ne s'appelle « rain »"),
+            ("rain: \"fort\"", "« rain » est un texte"),
+            ("rain: [\"a\"]", "« rain » est une liste"),
+            ("rain: 0.5", "« rain » a des chiffres après la virgule"),
+            ("rain: 150", "« rain » part de 150"),
+        ] {
+            let message = refused(state);
+            assert!(message.contains(fault) && message.contains("la lit de 0 (muet) à 100 (le plus fort), comme une glissière"), "{state} → {message}");
+        }
+        // Un volume écrit reste de 0 à 1.
+        assert!(crate::check_page("Page(children: [ Sound(name: Rain, source: \"pluie.wav\", volume: 40) ])").unwrap_err().message.contains("de 0 (muet) à 1"));
     }
 }

@@ -1,0 +1,73 @@
+// Leçon 135 — Mélanger des sons : plusieurs à la fois, un fondu, une glissière par son
+//
+// Ce qu'on apprend :
+//   Plusieurs sons jouent en même temps : chacun est une piste à lui.
+//   Sound(…, fade: 2s)        le son monte en 2 secondes quand il commence, et descend en
+//                             2 secondes quand on l'arrête (de 100ms à 5s)
+//   Sound(…, volume: pluie)   le volume suit la valeur « pluie », de 0 (muet) à 100 (le plus
+//                             fort) ; quand elle change, il glisse jusqu'à elle, sans claquer
+//   Slider(value: pluie, label: "…", min: 0, max: 100)   une glissière par son : une table de mixage
+//   Un son ne part jamais tout seul : ni le navigateur ni le moteur ne le jouent avant un geste
+//   du visiteur. Ici, chaque son a son bouton.
+//
+// À essayer :
+//   Lance la pluie, puis le vent : les deux jouent ensemble. Baisse la pluie avec sa glissière,
+//   au doigt, à la souris ou au clavier (les flèches ; Page précédente et Page suivante, de 10
+//   en 10). Arrête la pluie : elle s'éteint en douceur, le vent continue.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 135 : mélanger des sons",
+  state: State(pluie: 60, vent: 30, pluieJoue: 0, ventJoue: 0),
+  children: [
+    H1("Mélanger des sons"),
+    P("Deux ambiances qui bouclent, chacune avec sa glissière : une petite table de mixage."),
+    Sound(name: Pluie, source: "135-pluie.wav", loop: true, fade: 2s, volume: pluie),
+    Sound(name: Vent, source: "135-vent.wav", loop: true, fade: 3s, volume: vent),
+
+    Grid(columns: 2, children: [
+      Column.piste(children: [
+        H2("La pluie"),
+        Slider(value: pluie, label: "Volume de la pluie", min: 0, max: 100),
+        Text("{pluie} sur 100"),
+        If(pluieJoue, is: 1, children: [ P("La pluie joue.") ], else: [ P("La pluie se tait.") ]),
+        Row(gap: 8px, children: [
+          Button(name: LancerPluie, text: "Lancer la pluie"),
+          Button(name: ArreterPluie, text: "Arrêter la pluie"),
+        ]),
+      ]),
+      Column.piste(children: [
+        H2("Le vent"),
+        Slider(value: vent, label: "Volume du vent", min: 0, max: 100),
+        Text("{vent} sur 100"),
+        If(ventJoue, is: 1, children: [ P("Le vent souffle.") ], else: [ P("Le vent se tait.") ]),
+        Row(gap: 8px, children: [
+          Button(name: LancerVent, text: "Lancer le vent"),
+          Button(name: ArreterVent, text: "Arrêter le vent"),
+        ]),
+      ]),
+    ]),
+    Button(name: Silence, text: "Tout arrêter"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 124 : une citation courte, le titre d'une œuvre", to: "124-une-citation-courte.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+  rules: [
+    // Un son, et un mot à l'écran pour qui ne l'entend pas.
+    On(LancerPluie.tap, effect: [Pluie.play, pluieJoue.set(1)]),
+    On(ArreterPluie.tap, effect: [Pluie.stop, pluieJoue.set(0)]),
+    On(LancerVent.tap, effect: [Vent.play, ventJoue.set(1)]),
+    On(ArreterVent.tap, effect: [Vent.stop, ventJoue.set(0)]),
+    On(Silence.tap, effect: [Pluie.stop, Vent.stop, pluieJoue.set(0), ventJoue.set(0)]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+H2 { color: #E9B44C; font-size: 20px; }
+.piste { border: 1px solid #3a3a5a; border-radius: 12px; padding: 16px; }
+A { color: #8fd3ff; }
