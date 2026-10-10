@@ -715,6 +715,7 @@ const tests = [
       await b.send("Emulation.clearDeviceMetricsOverride");
     }
     return [faults.length === 0, faults.length ? faults.join("\n      ") : "ordinateur : deux colonnes et deux lignes, le menu à gauche du texte, dans l'ordre de lecture ; téléphone (360) et téléphone plié (280) : rien ne déborde, la grande case prend la ligne, les zones s'empilent dans l'ordre"];
+  }],
   ["réordonner une liste : la poignée à la souris et au doigt, Monter et Descendre au clavier, annoncés ; sans JavaScript, holo serve (leçon 128, serve)", async (p, b) => {
     const lesson = "/exemples/lecons/128-reordonner-une-liste.holo";
     // L'ordre gardé par un essai précédent (keep) est oublié : la leçon part de son départ.
