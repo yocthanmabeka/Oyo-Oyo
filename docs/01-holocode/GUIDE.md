@@ -2247,6 +2247,46 @@ autre.exemple.org X-Api-Key: ta-clé
 
 La leçon est `139-les-donnees-d-un-autre-site.holo`.
 
+## 6 duodesexagies. Une page dans la page : `Embed`
+
+Une carte, une vidéo, une publication d'un autre site, posée dans la page. Rien ne part vers l'autre site avant que le visiteur la touche (`ADR-117`).
+
+```holo
+Page(
+  title: "A trip to the zoo",
+  embeds: ["www.openstreetmap.org", "www.youtube-nocookie.com"],
+  children: [
+    H1("A trip to the zoo"),
+    Embed(
+      from: "https://www.openstreetmap.org/export/embed.html?bbox=-117.1570%2C32.7310%2C-117.1410%2C32.7400&layer=mapnik",
+      label: "Map: the San Diego Zoo",
+      image: "map.svg",
+    ),
+    Embed.video(
+      from: "https://www.youtube-nocookie.com/embed/jNQXAC9IVRw",
+      label: "Video: Me at the zoo, the first video on YouTube (2005)",
+      image: "video.svg",
+    ),
+  ],
+)
+.video { aspect-ratio: 4/3; }
+```
+
+- **`Embed(from:, label:, image:)`** : la page d'un autre site. `from:` est son adresse, en HTTPS. `label:` est son titre, obligatoire : le lecteur d'écran le dit, c'est aussi le texte du bouton qui la charge et le titre du cadre. `image:` est l'image de la façade, rangée à côté du fichier ; sans elle, la façade montre le titre sur un fond uni.
+- **`embeds: [ … ]`**, sur la page : les seuls sites permis, chacun écrit en entier, sans `https://` (16 au plus). Le moteur compare le nom exactement : `youtube-nocookie.com` n'est pas `www.youtube-nocookie.com`. Chaque site de la liste sert à au moins un `Embed`.
+- **Rien ne part vers l'autre site avant le toucher.** La page arrive avec une façade : l'image de ton site, le titre, et « Charger depuis www.openstreetmap.org », sur un vrai bouton. Ni cadre, ni connexion préparée d'avance, ni miniature chargée chez l'autre site.
+- **Au toucher**, au doigt, à la souris, avec Entrée ou Espace, la page de l'autre site prend la place de la façade, et le clavier y entre.
+  - Elle est enfermée : elle ne voit pas ta page, n'ouvre pas de fenêtre et ne peut pas emmener ta page ailleurs. Elle n'a ni caméra, ni micro, ni position ; seulement le plein écran.
+  - Elle apprend de quel site vient le visiteur, jamais l'adresse de ta page.
+  - Une vidéo attend un second toucher, dans son lecteur : elle ne part jamais seule.
+- **La taille suit l'écran** : toute la largeur, en 16/9. Un style la change : `.video { aspect-ratio: 4/3; }`.
+- **Sans JavaScript**, la façade est un lien vers la page de l'autre site, avec le titre, qui s'ouvre dans un nouvel onglet.
+- **`holo serve`** dit au navigateur de n'accepter un cadre que de ces sites (`Content-Security-Policy: frame-src`), et aucun pour une page qui n'en liste pas.
+- Une fois chargée, la page intégrée peut pister le visiteur, comme tout site qu'il ouvre : c'est pour cela que rien ne se charge avant son choix. Même `youtube-nocookie.com` garde un identifiant.
+- Refusés, avec la raison : `http://`, `javascript:`, `data:` ; une adresse IP, `localhost`, un nom du réseau local ; un port, `nom@`, une valeur `{…}` ; un site absent de la liste, même un sous-domaine d'un site listé ; un titre vide ; une image qui n'est pas rangée à côté ; dans la liste, `https://…`, `*`, un site écrit deux fois, un site qui ne sert pas ; `embeds:` dans un monde.
+
+La leçon est `140-une-page-dans-la-page.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo

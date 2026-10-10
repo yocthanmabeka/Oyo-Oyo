@@ -6,6 +6,49 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Une page dans la page : `Embed(from:, label:, image:)`
+
+- Fait (issue #249, la session du nuage ; `ADR-117`, ACCEPTÉ) : l'une des huit fonctions ouvertes sous conditions, la page d'un autre site dans la page.
+  - `Embed(from: "https://…", label: "…", image: "…")`, d'un site listé dans `Page(embeds: [ … ])`, comparé exactement, en HTTPS. Le nom que les sites donnent eux-mêmes (« Intégrer », « Embed ») ; les mots repris : `from:`, `label:`, `image:` (la comparaison est dans l'ADR).
+  - Une façade : une image du site de l'auteur, le titre, « Charger depuis www.openstreetmap.org », sur un vrai bouton. Rien ne part vers l'autre site avant le toucher : ni cadre, ni connexion préparée, ni image chargée chez lui ; l'adresse n'est que dans `data-embed`.
+  - Au toucher (doigt, souris, Entrée, Espace), la page légère pose la page intégrée, sans attendre le moteur : `sandbox="allow-scripts allow-same-origin"` (`allow-scripts` seul pour une adresse de la même origine que la page), `allow="fullscreen"`, `referrerpolicy="strict-origin"`, son titre ; le clavier y entre.
+  - Sans JavaScript, un lien dans `noscript`, avec le titre, qui s'ouvre dans un nouvel onglet.
+  - `holo serve` envoie `Content-Security-Policy: frame-src` : les sites listés, `'none'` sinon. Il n'envoyait aucune politique de sécurité du contenu.
+  - La taille suit l'écran : 16/9, un style la change.
+  - La leçon 140 : une carte d'OpenStreetMap et la première vidéo de YouTube, avec deux images de façade de moins de 600 octets. Le guide (chapitre « 6 duodesexagies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons, le README du moteur.
+- Exécuté :
+  - `check-locked.sh` : `cargo test --release --locked` et `cargo test`, **267** tests passent, 0 échec. Nouveaux : les cinq essais de `embed.rs` et `server::embed_tests::a_page_says_which_sites_it_may_embed`.
+  - `holo check` sur la leçon 140 : `ok`.
+  - Dans Chrome, « une page dans la page … (leçon 140, serve) » passe. « L'autre site » est une fausse page, rendue par l'interception des demandes (Fetch), qui dit au parent ce qu'elle voit.
+    - Avant le toucher : 0 demande vers l'autre site (par l'interception et par le réseau), aucun cadre, aucune adresse de l'autre site dans un `src` ou un `href`.
+    - Au clavier, Tab jusqu'à la façade, Entrée : le cadre enfermé, son titre, le clavier dedans (la touche « k » y arrive). Au doigt, la vidéo.
+    - La fausse page : la page de l'auteur lui est fermée ; pendant la touche, ni fenêtre, ni navigation de la page de l'auteur ; seul `fullscreen` ; la position refusée ; elle reçoit `http://localhost:…/`, pas l'adresse de la page.
+    - `frame-src` refuse un cadre non listé ; une adresse de la même origine, sur la leçon servie en HTTPS, n'a que `allow-scripts`.
+    - Sans JavaScript : deux liens nommés, aucun bouton, aucun cadre, aucune demande. axe-core : zéro défaut, avant et après le toucher.
+  - L'essai sait échouer. Chaque mutation a été faite, puis retirée, et l'essai repasse :
+    - le cadre posé d'emblée, comme le web : 2 demandes vers l'autre site avant le toucher ;
+    - sans `frame.focus()` : le clavier n'entre pas ;
+    - sans `sandbox` : pendant une touche, la page intégrée emmène la page de l'auteur vers `https://pirate.example.org/dessus` ;
+    - sans l'en-tête de `holo serve` : pas de `frame-src`, le cadre non listé n'est pas refusé ;
+    - sans la façade : les boutons restent cachés, le clavier ne les atteint pas.
+  - Dans le moteur, `http://` accepté, puis un sous-domaine accepté : `only_https_to_a_listed_site_compared_exactly` rate.
+  - La suite Chrome entière (`CI=1`, axe-core 4.10.3), par `check-locked.sh` (sur 94096fc, puis de nouveau sur fa1606e, après le clavier redonné) : **88 essais sur 91** chaque fois, dont le nouveau ; 132 leçons s'ouvrent sans erreur. Les 3 ratés sont ceux du conteneur : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium).
+- Erreurs en route :
+  - Le nom lu par le lecteur d'écran collait les deux lignes de la façade ; une virgule cachée laissait une espace avant elle (Chrome compte l'élément caché comme un bloc). Le bouton et le lien ont maintenant un nom exact (`aria-label`), qui reprend le texte montré, dans l'ordre.
+  - La fenêtre ouverte sans geste était déjà bloquée par Chrome, enfermée ou non : l'essai ne tranchait pas. La fausse page la tente maintenant pendant une touche, un vrai geste.
+  - La garde de la même origine ne s'éprouvait pas sur `http://localhost` : la page légère refuse d'abord une adresse qui n'est pas en HTTPS. La leçon est servie à une adresse en HTTPS par l'interception, qui prend chaque fichier à `holo serve`.
+  - Le choix de `referrerpolicy` : `no-referrer` aurait fait rater le lecteur de YouTube (« erreur 153 » sans `Referer`, et `Referrer-Policy: same-origin`, l'en-tête de `holo serve`, suffit à la déclencher) ; vu par une recherche, les pages n'étant pas joignables d'ici.
+  - La limite de séance a arrêté l'agent au début, pendant sa lecture ; le conteneur a redémarré, et `main` (les PR 256 à 263) a été fusionnée avant de commencer.
+  - Sur GitHub, le Chrome des machines perdait le clavier : juste après Entrée, le cadre avait le focus, mais la touche « k » n'arrivait pas dans la page intégrée (« la touche k reçue : false », le seul raté de la suite, commit c406cbc), alors que tout passait dans le Chromium du conteneur. La page de l'autre site arrive dans un autre processus du navigateur : quand elle a fini d'arriver, si le clavier est toujours sur le cadre, la page légère le lui redonne (`frame.contentWindow.focus()`). L'essai attend aussi que la fausse page dise qu'elle a le focus, et remet l'onglet au premier plan (un essai d'avant en ouvre un autre). Le conteneur ne reproduit pas ce raté : la preuve que l'essai le voit est le raté de GitHub lui-même. La CI est verte sur fa1606e (les trois travaux), et l'ADR le dit.
+- Reste :
+  - essayer sur les vrais sites, sur un téléphone ;
+  - refermer une page intégrée, et revenir à sa façade ;
+  - `frame-src` aussi avec le serveur d'essai de Node ;
+  - la miniature cherchée par le serveur de l'auteur ;
+  - la suite des leçons (la 140 revient à la 124 et mène à la 1) et le grand tableau du web (`iframe` : « En partie »), refaits à la fin.
+
+---
+
 ## 2026-10-10 — Les données d'un autre site, lues par le serveur de l'auteur : `Data(from: "https://…")`
 
 - Fait (issue #248, prise par un agent de la session du nuage ; `ADR-116`, ACCEPTÉ : Yocthan a dit « Oui » le 2026-10-09 à l'ouverture sous ces conditions) :
