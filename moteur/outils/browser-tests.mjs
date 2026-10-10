@@ -917,7 +917,25 @@ const tests = [
         check("hors HTTPS, la page légère ferme le champ", byBrowser === "false true false true", byBrowser);
         insecure += ` ; serveur d'essai : ${byBrowser}`;
       }
-      // 10. Sans JavaScript, sur ce PC : le champ part avec le formulaire des gestes ; holo serve n'en
+      // 10. Sur un téléphone (360 px) : rien ne déborde, le bouton « Montrer » tient dans l'écran, assez
+      // grand pour un doigt, et répond au doigt.
+      let phoneSaid = "";
+      try {
+        await b.send("Emulation.setDeviceMetricsOverride", { width: 360, height: 760, deviceScaleFactor: 2, mobile: true });
+        await b.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+        await q.open(`/${lesson}`);
+        const box = await q.value(`(() => { ${reveal}.scrollIntoView({ block: "center" }); const r = ${reveal}.getBoundingClientRect(), f = ${field}.getBoundingClientRect(); return [document.documentElement.scrollWidth, Math.round(f.width), Math.round(r.right), Math.round(r.height), r.left + r.width / 2, r.top + r.height / 2]; })()`);
+        await b.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: box[4], y: box[5] }] });
+        await b.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+        await pause(300);
+        const tapped = await q.value(`${field}.type + " " + ${reveal}.getAttribute("aria-pressed")`);
+        phoneSaid = `${box[0]} px de large, le champ ${box[1]} px, le bouton jusqu'à ${box[2]} px et ${box[3]} px de haut ; au doigt : ${tapped}`;
+        check("téléphone", box[0] <= 360 && box[2] <= 360 && box[3] >= 24 && tapped === "text true", phoneSaid);
+      } finally {
+        await b.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+        await b.send("Emulation.clearDeviceMetricsOverride");
+      }
+      // 11. Sans JavaScript, sur ce PC : le champ part avec le formulaire des gestes ; holo serve n'en
       // garde que l'empreinte, et la page revient sans lui.
       let withoutScript = "";
       try {
@@ -936,7 +954,7 @@ const tests = [
       }
       check("axe-core", !violations.length, violations.join(", "));
       if (b.errors.length) faults.push(`erreurs : ${b.errors.join(" | ")}`);
-      return [faults.length === 0, faults.length ? faults.join("\n      ") : `le champ : ${attributes} ; « Montrer » au clavier : ${shown}, puis ${hidden} ; collé : ${pasted} ; trop court : ${short} ; envoyé une fois : ${shape.join(" ; ")}, puis ${after} ; la page ne l'a lu nulle part ; holo serve : l'empreinte seule, rien en clair (base, WAL, journal) ; le compte : faux « ${wrong} », juste ${cancelled} ; hors HTTPS : ${insecure} ; sans JavaScript : ${withoutScript} ; axe-core : zéro défaut`];
+      return [faults.length === 0, faults.length ? faults.join("\n      ") : `le champ : ${attributes} ; « Montrer » au clavier : ${shown}, puis ${hidden} ; collé : ${pasted} ; trop court : ${short} ; envoyé une fois : ${shape.join(" ; ")}, puis ${after} ; la page ne l'a lu nulle part ; holo serve : l'empreinte seule, rien en clair (base, WAL, journal) ; le compte : faux « ${wrong} », juste ${cancelled} ; hors HTTPS : ${insecure} ; téléphone : ${phoneSaid} ; sans JavaScript : ${withoutScript} ; axe-core : zéro défaut`];
     } finally {
       b.on("Network.requestWillBeSent", null);
       await b.send("Network.disable");

@@ -3056,6 +3056,7 @@ Toutes les limites, telles que le moteur les applique (chacune refusée avec un 
 | Les données d'un autre site (`ADR-116`) | HTTPS ; 4 s pour se connecter, 8 s en tout ; 64 Ko ; une demande au plus par adresse et par `every` (60 s au moins, dix minutes sans `every`), un échec gardé une minute ; 32 sites permis, 64 adresses gardées, 8 par site |
 | Les modules | 8 par page ; un fichier de 4 Mo, refusé dès qu'il dépasse ; un temps de 10 ms à 5 s ; une mémoire de 64 Ko à 16 Mo |
 | Un fichier envoyé par un formulaire | 10 Mo au plus (`max:` de 1 KB à 10 MB) |
+| Un mot de passe (`ADR-114`) | un par formulaire ; un nouveau de 12 à 128 caractères, celui du compte 128 au plus, comptés lettre à lettre, jamais coupés ; cinq essais ratés, puis une attente qui double (une heure au plus) ; trente envois par minute et par adresse, comme les comptes |
 | La vue points | 200 000 points à l'écran |
 
 ## 9. Les unités
@@ -3207,6 +3208,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Envoyer un formulaire | `Form(name:)`, `Contact.send`, `sent`, `failed` | fait |
 | Un compte, une page réservée aux membres | `Page(access: members)`, `signedIn`, `{account}`, `A(to: "/account/signin")` | fait, avec `holo serve` (`ADR-081`) |
 | Une clé d'accès, un QR, des codes de secours, effacer son compte | rien à écrire : les pages de compte de `holo serve` | fait (`ADR-082`, `ADR-083`) |
+| Un mot de passe que la page ne lit jamais : confirmer avec celui de son compte, ou en choisir un | `Input(type: password, label:)`, `new: true`, dans un `Form` | fait, avec `holo serve` (`ADR-114`) |
 | Chercher, filtrer, trier ; une page d'une liste | `computed: [ Filter(…, offset:, limit:, total:) ]` | fait (`ADR-062`, `ADR-084`) |
 | Un fichier de ses valeurs, exporté puis importé | `Transfer(file:, values:)`, `export`, `import` | fait (`ADR-093`) |
 | L'appareil : la position, le presse-papiers, la caméra, le microphone | `Device(kind:)`, `request`, `write`, `stop` | fait (`ADR-094`) |
@@ -3242,6 +3244,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 - Pour les données d'un autre site (`ADR-116`) : choisir et nommer une valeur rangée plus bas dans la réponse (`current.temperature_2m`) ; la dernière valeur, avec son âge, pendant une panne ; une clé donnée par une variable d'environnement ; un proxy choisi par l'auteur.
 - Pour les valeurs partagées (`ADR-080`) : un champ qui change un nombre ou une liste partagés (seul un texte partagé se prépare, puis se confirme) ; une condition sur l'élément d'une ligne partagée, que le serveur ne vérifie pas encore ; une valeur « une fois par compte ».
 - Pour les comptes (`ADR-081` à `ADR-083`) : changer son mot de passe ; un compte créé par une clé d'accès seule ; de nouveaux codes de secours sans retirer le code à 6 chiffres ; la clé d'accès essayée sur un vrai téléphone, en HTTPS.
+- Pour le champ mot de passe (`ADR-114`) : la liste des mots de passe courants ou volés ; le bouton « Montrer » sur les pages de compte ; vérifier plus tard un mot de passe choisi (`new: true`) ; un mot de passe qui se vérifie sans `holo serve`.
 - Pour les capacités du navigateur (`ADR-093` à `ADR-096`) : la caméra ne prend pas de photo, le microphone ne donne pas de son ; pas de rappel après la fermeture de la page (il faudrait un serveur de « push ») ; pas d'import en CSV ni par glisser-déposer ; pas de copie hors-ligne d'une page qui a un compte, un formulaire ou des valeurs partagées, ni d'envoi mis en attente.
 - Pour les listes de définitions (`ADR-097`) : pas de liste de termes qui change pendant la visite (`Repeat(over:)`), ni de définition faite de plusieurs paragraphes.
 - Pour les nombres négatifs (`ADR-102`) : une glissière, une valeur partagée, l'adresse et un fichier exporté ne prennent pas encore de nombre négatif.
