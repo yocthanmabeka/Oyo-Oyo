@@ -48,6 +48,49 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Mélanger des sons : un fondu, un volume qui suit une valeur
+
+- Fait (issue #241, la session du nuage ; `ADR-112`, ACCEPTÉ d'avance par Yocthan : « tu le valides déjà, tu le fais déjà ») :
+  - Vérifié d'abord dans Chrome, avec le moteur de `main` (leçon 79) : deux sons différents jouent déjà ensemble, aucun n'est mis en pause ; un même son relancé repart du début. Plusieurs sons à la fois ne demandent donc aucun mot nouveau.
+  - `Sound(fade: 2s)` : le son monte du silence jusqu'à son volume quand il commence ; `stop` le fait descendre jusqu'au silence en jouant encore, puis le met en pause au début. De 100ms à 5s.
+  - `Sound(volume: pluie)` : le volume suit une valeur de la page, de 0 à 100, et glisse jusqu'à elle en un dixième de seconde ; la valeur ne dépasse jamais 100. Une glissière par son fait une table de mixage.
+  - Le mélangeur de la page (Web Audio, deux gains par son) : il naît au premier son mélangé et s'endort quand aucun ne joue ; un son d'un autre serveur n'y passe pas. Sur iPhone, `audio.volume` ne se règle pas, un gain si (pas essayé ici).
+  - Jamais un son avant un geste du visiteur, même si le navigateur le permet : le moteur oublie la demande.
+  - Un lecteur (`Sound(label:)`) ne change pas : `fade:` et un volume suivi y sont refusés.
+  - La leçon 135, avec deux ambiances fabriquées par un petit programme (du bruit filtré qui boucle sans couture : une pluie, un vent, 44 Ko chacune) ; une page d'essai, `son-avant-un-geste.holo` ; le guide (chapitre « 6 terquinquagies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+- Exécuté :
+  - `cargo test --release --locked` → 241 tests passent après la fusion de `main` (237 avant ; deux nouveaux : `a_sound_fades_in_and_out`, `a_sound_follows_a_value_of_the_page`) ; `cargo test` (debug) → 241 ;
+  - `holo check` sur la leçon 135 et la page d'essai → `ok` ;
+  - dans Chrome, les deux essais nouveaux passent : la pluie mesurée 0,05 → 0,17 → 0,29 → 0,41, puis 0,60 ; avec le vent, les deux jouent ; la glissière à 20 au clavier, le volume suit ; arrêtée, la pluie descend 0,14 → 0,09 → 0,05 en jouant, puis se met en pause au début, et le vent continue ; tout arrêté, le mélangeur s'endort ; axe-core sans défaut. Avant un geste, la règle a demandé les sons trois fois : aucun entendu, pas de mélangeur ; après un toucher, les deux ;
+  - ils savent échouer, avant et après la fusion de `main` : sans le fondu (0,60 dès le départ), sans le volume suivi (la pluie à 1,00), sans le fondu de sortie (en pause tout de suite), sans la règle stricte (les deux sons entendus avant tout geste) : RATÉ chaque fois ;
+  - sous la vraie politique de Chrome (`document-user-activation-required`), le premier toucher rejoué après l'arrivée du moteur : la pluie monte (0,02 → 0,14 → 0,26 → 0,38) ; sans geste, rien ;
+  - la suite entière, après la fusion de `main` (PR 257) : 82 essais `OK` sur 85 (avant : 81 sur 84) ; les 3 ratés propres au conteneur : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 ».
+- Erreurs en route :
+  - mon premier mélangeur se réveillait sur un `stop` d'un son qui n'avait jamais joué (« Tout arrêter », touché en premier), et restait éveillé pour rien : un `stop` ne crée plus rien ;
+  - la limite de séance a coupé le travail, puis le conteneur a redémarré, pendant la relance de « pincer à deux doigts » ; rien n'était envoyé, la reprise est partie des commits ;
+  - la PR 257 a apporté un `follow` (une constante d'un bloc intérieur) : ma fonction s'appelle désormais `followVolume`, pour ne pas être masquée à la lecture.
+- Reste : un écho et les autres effets ; `fadeIn:` et `fadeOut:` séparés ; le volume écrit seul passe encore par `audio.volume` (sans effet sur iPhone) ; essayer à l'oreille sur le téléphone de Yocthan, et sur un iPhone ; la leçon 135 revient à la 124 et mène à la 1, en attendant que la suite 124 → … → 136 → 1 soit refaite.
+
+---
+
+
+---
+
+## 2026-10-10 — Des nombres négatifs : `negative: [temperature]`
+
+- Fait (issue #231, prise par un agent de la session du PC ; l'agent précédent s'est arrêté à la limite de séance, un second a repris sur `wip/langage/nombres-negatifs` ; `ADR-102`, ACCEPTÉ : « tu le valides déjà, tu le fais déjà ») :
+  - `negative: [temperature, balance]`, sur la page, comme `keep:` : ces valeurs descendent jusqu'à −1 000 000 000 ; les autres s'arrêtent à 0, comme avant (un panier ne compte jamais −1 article, le défaut classique du compteur JavaScript). `State(temperature: -2)`, `sub` sous zéro, `set(-10)`, `mul(-1)` ; `add(-5)` est refusé avec le bon mot, `sub(5)`. Un nombre négatif se calcule comme sans son signe : −7 ÷ 2 = −3, la moitié s'arrondit en s'éloignant de zéro (−14,025 → −14,03) ; exact, aussi à virgule (`balance: -12.50`, `ADR-066`).
+  - `If(temperature, under: -20)`, `When(balance, under: -100, …)` ; le signe moins de la langue de la page, celui du CLDR : « -2 » en français et en anglais, « −2 » (U+2212) en suédois, une marque de direction en arabe ; jamais « -0 » ; `number`, `cents`, `00` et le titre de l'onglet suivent.
+  - Un champ `Input(value: temperature, min: -50, max: 50)` : `type="number"` sans `inputmode`, pour que le clavier du téléphone ait le signe moins (ceux de `numeric` et `decimal` n'en ont pas sur l'iPhone) ; « -12 » et « −12 » compris. L'état écrit, `keep`, des données reçues, un formulaire et `holo serve` sans JavaScript gardent le signe.
+  - Refusés, avec la raison : un départ sous zéro sans `negative:` ; une valeur négative dans une glissière, une barre, une case, un plateau, un dessin, `limit:`, un module, `Transfer`, l'adresse, un chronomètre ; une valeur partagée ou une quantité qui a un prix dans `negative:`.
+  - Le mot `negative` plutôt que `signed` (se lit « signé » en français) ou `belowZero` ; un réglage de la page plutôt qu'un plancher par valeur (`Number(0, min: -500)`) ou un signe devant le départ (`+0`, obscur, et `-0` est un défaut de JavaScript).
+  - La leçon 125 (précédente : 124, suivante : 1, selon la convention avec la session du nuage) ; le guide (chapitre « 6 terquadragies », une ligne au § 10 bis, le § 11), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons ; l'essai Chrome joue la leçon 125 et une page suédoise (`exemples/.essais-navigateur/nombres-negatifs-suedois.holo`).
+- Exécuté, dans `moteur/` : `cargo test --release --locked` → 245 tests passent (six nouveaux, dans `src/negative.rs`) ; `cargo test` → 245 ; `node outils/browser-tests.mjs` (la suite entière) : 83 essais sur 84 passent, 126 leçons s'ouvrent sans erreur, en 654 s ; le seul raté est l'audit axe-core des parcours, parce qu'axe-core n'est pas sur ce PC et que l'agent n'installe rien (les machines de GitHub l'installent avant la suite). L'essai de la leçon 125 : « départ « -2 °C », il gèle ; −5 = −7 ; +10 = 3 ; champ number, sans inputmode, −50 à 50 ; −40 écrit ; −90 gardé à −50 ; spinbutton ; en suédois « Temperatur: −7 °C » ».
+- Erreurs en route : la reprise a fusionné `main` (PR 243 à 245, 254, 257) dans la branche : quatre conflits dans les fichiers partagés (le guide, `NOMS.md`, `DECISIONS.md`, le sommaire des leçons), résolus en gardant les deux côtés, rangés par numéro (« 6 terquadragies » avant « 6 sexquadragies », `ADR-102` avant `ADR-105`, la leçon 125 avant la 128) ; `browser-tests.mjs`, `lib.rs`, `flat.rs` et `server.rs` se sont fusionnés seuls (`node --check` vert).
+- Reste : une glissière, une valeur partagée, l'adresse et un fichier exporté avec un nombre négatif ; `Days` qui rend 0 quand le départ vient après l'arrivée (`ADR-067`) pourrait compter à rebours ; la lecture TalkBack de « -7 °C » à essayer sur le téléphone de Yocthan. Le grand tableau du web : « variables » peut passer de « en partie » à « oui ».
+
+---
+
 ## 2026-10-09 — Réordonner une liste : `Repeat(over:, reorder: true)`
 
 - Fait (issue #234, prise par un agent de la session du PC ; `ADR-105`, ACCEPTÉ : « tu le valides déjà, tu le fais déjà ») :

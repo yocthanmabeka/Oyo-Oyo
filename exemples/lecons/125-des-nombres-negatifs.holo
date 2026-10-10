@@ -1,0 +1,49 @@
+// Leçon 125 — Des nombres négatifs
+//
+// Ce qu'on apprend :
+//   negative: [temperature] : cette valeur peut descendre sous zéro. Les autres s'arrêtent à 0,
+//   comme avant : un panier ne compte jamais −1 article.
+//   {temperature} la montre avec le signe moins de la langue de la page : « -2 » en français,
+//   « −2 » en suédois (Page(lang: "sv")).
+//     temperature.sub(5)    retire 5, même sous zéro      temperature.set(-10)   fixe sous zéro
+//     If(temperature, under: 0, …)   compare à zéro, ou à un nombre négatif : under: -20
+//   Un champ présente un nombre négatif avec un clavier qui a le signe moins, au doigt comme au
+//   clavier ; min: -50 est le plus petit nombre qu'on peut y écrire.
+//
+// À essayer :
+//   Touche « Plus froid » : -7 °C. Touche deux fois « Plus chaud » : 3 °C, et il ne gèle plus.
+//   Écris -40 dans le champ : grand froid. Puis retire temperature de negative: [ … ] : le moteur
+//   refuse le départ sous zéro, et dit quoi écrire.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 125 : des nombres négatifs",
+  state: State(temperature: -2),
+  negative: [temperature],
+  children: [
+    H1("La météo du sommet"),
+    P("Au sommet : {temperature} °C"),
+    Row(gap: 8px, children: [
+      Button(name: Colder, text: "Plus froid"),
+      Button(name: Warmer, text: "Plus chaud"),
+    ]),
+    Input(value: temperature, label: "Écrire la température", min: -50, max: 50),
+    If(temperature, under: 0, children: [ P("Il gèle.") ], else: [ P("Il ne gèle pas.") ]),
+    If(temperature, under: -20, children: [ P("Grand froid : reste à l'abri.") ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 124 : une citation courte", to: "124-une-citation-courte.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+  rules: [
+    On(Colder.tap, effect: temperature.sub(5)),
+    On(Warmer.tap, effect: temperature.add(5)),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

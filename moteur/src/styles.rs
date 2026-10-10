@@ -686,6 +686,8 @@ mod tests {
             include_str!("../../exemples/lecons/128-reordonner-une-liste.holo"),
             // Faire vibrer le téléphone, d'un toucher ou d'une règle de jeu (ADR-110).
             include_str!("../../exemples/lecons/133-faire-vibrer-le-telephone.holo"),
+            // Mélanger des sons : un fondu, un volume qui suit une valeur (ADR-112).
+            include_str!("../../exemples/lecons/135-melanger-des-sons.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();
