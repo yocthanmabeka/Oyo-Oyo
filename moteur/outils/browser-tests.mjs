@@ -667,6 +667,87 @@ const tests = [
       && added === "none" && titles === "Les Misérables | Les Châtiments";
     return [ok, `lu : « ${said} » ; citations : ${quotes} ; guillemets du navigateur : ${added} ; œuvres : ${titles}`];
   }],
+  ["des heures : un compte à rebours qui suit l'horloge, les vraies minutes la nuit du changement d'heure, la langue de la page, au clavier et sans JavaScript (leçon 132)", async (p, b) => {
+    const lesson = "/exemples/lecons/132-des-heures.holo";
+    const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;
+    // Une horloge que l'essai tient : l'appareil est à Paris, le samedi 24 octobre 2026 à 16 h 30,
+    // la veille du retour à l'heure d'hiver ; l'essai l'avance d'un coup (window.__clock.add), puis
+    // fait revenir l'onglet au premier plan, comme un visiteur qui le retrouve.
+    await b.send("Emulation.setTimezoneOverride", { timezoneId: "Europe/Paris" });
+    const script = (await b.send("Page.addScriptToEvaluateOnNewDocument", { source: `(() => {
+      const Real = Date;
+      let shift = new Real(2026, 9, 24, 16, 30).getTime() - Real.now();
+      window.__clock = { add: (minutes) => { shift += minutes * 60000; } };
+      window.Date = class extends Real {
+        constructor(...given) { if (given.length) super(...given); else super(Real.now() + shift); }
+        static now() { return Real.now() + shift; }
+      };
+    })();` })).result.identifier;
+    const jump = async (minutes) => p.value(`(window.__clock.add(${minutes}), document.dispatchEvent(new Event("visibilitychange")), true)`);
+    const seen = {};
+    try {
+      await p.open(lesson);
+      if (!(await p.until("window.__holoStarted"))) return [false, "le moteur n'est pas arrivé"];
+      // Ce qu'écrirait le navigateur lui-même dans la langue de la page : Intl.DateTimeFormat, Intl.DurationFormat.
+      const intl = (duration) => p.value(`new Intl.DurationFormat("fr", { style: "short" }).format(${JSON.stringify(duration)})`);
+      const clock = await p.value(`new Intl.DateTimeFormat("fr", { timeStyle: "short" }).format(new Date())`);
+      // Les vraies minutes jusqu'au concert, comptées par Date à l'heure de Paris : 68 jours et
+      // 5 heures, dont une rendue la nuit du 25 octobre (à l'horloge, 68 jours et 4 heures).
+      seen.real = await p.value(`Math.round((new Date(2026, 11, 31, 20, 30) - new Date()) / 60000)`);
+      seen.now = await p.value(has(`Il est ${clock}.`));
+      seen.train = await p.until(has(`Le train de 18:45 part dans ${await intl({ hours: 2, minutes: 15 })}.`), 5000);
+      seen.concert = await p.until(has(`à 20:30, commence dans ${await intl({ days: 68, hours: 5 })}.`), 5000);
+      seen.machines = await p.value(`["train", "left", "wait", "concert"].map((n) => document.querySelector('[data-state="' + n + '"]').getAttribute("datetime")).join(" ")`);
+      // Le compte n'est dans aucune région que le lecteur d'écran annonce, et la page ne dit rien quand il change.
+      seen.live = await p.value(`[...document.querySelectorAll('[data-format="duration"]')].some((t) => t.closest('[aria-live], [role="status"], [role="alert"], [role="log"], [role="timer"], [role="marquee"]'))`);
+      const said = () => p.value(`document.getElementById("announcement")?.textContent ?? ""`);
+      const before = await said();
+      // L'onglet revient à 18 h 44, puis 18 h 45, puis 18 h 46 : le compte suit l'horloge tout de suite.
+      await jump(134);
+      seen.oneMinute = await p.until(has(`part dans ${await intl({ minutes: 1 })}.`), 3000);
+      await jump(1);
+      seen.leaving = await p.until(has("Le train de 18:45 part maintenant."), 3000);
+      await jump(1);
+      // Le prochain train, demain à 18 h 45 : la nuit du retour à l'heure d'hiver dure 25 heures,
+      // il reste donc 24 h 59 (à l'horloge, 23 h 59), écrites « 1 j et 59 min ».
+      seen.tomorrow = await p.until(has(`le prochain part demain, dans ${await intl({ days: 1, minutes: 59 })}.`), 3000);
+      seen.quiet = (await said()) === before;
+      // Des heures de travail, de nuit : de 22:00 à 06:00, 8 h.
+      const choose = (bind, hour) => p.value(`(() => { const i = document.querySelector('input[data-bind="${bind}"]'); i.value = "${hour}"; i.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+      await choose("arrival", "22:00");
+      await choose("departure", "06:00");
+      seen.night = await p.until(has(`Temps de travail : ${await intl({ hours: 8 })} (480 minutes).`), 3000);
+      // Pointer l'arrivée, au doigt ou à la souris : l'heure présente (18:46) ; jusqu'à 06:00, 11 h 14.
+      await p.click('[data-name="ClockIn"]');
+      seen.clockIn = await p.until(`document.querySelector('input[data-bind="arrival"]').value === "18:46" && ${has(`Temps de travail : ${await intl({ hours: 11, minutes: 14 })} (674 minutes).`)}`, 3000);
+      // La réunion, au clavier (Entrée sur « Plus tard ») puis à la souris (« Plus tôt »).
+      await p.value(`document.querySelector('[data-name="Later"]').focus()`);
+      await p.key("Enter", "Enter", 13, "\r");
+      seen.later = await p.until(has("La réunion commence à 14:15."), 3000);
+      await p.click('[data-name="Earlier"]');
+      seen.earlier = await p.until(has("La réunion commence à 13:15."), 3000);
+    } finally {
+      await b.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: script });
+      await b.send("Emulation.setTimezoneOverride", { timezoneId: "" });
+    }
+    // Sans JavaScript, avec holo serve : les heures écrites partent avec le toucher, le serveur compte.
+    const served = await startHoloServe(["132-des-heures.holo"]);
+    const q = page(b, served.base);
+    try {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+      await q.open("/132-des-heures.holo", 300);
+      seen.servedStart = await q.value(has("Temps de travail : 8 h et 30 min (510 minutes)."));
+      await q.value(`(() => { document.querySelector('input[data-bind="arrival"]').value = "22:00"; document.querySelector('input[data-bind="departure"]').value = "06:00"; })()`);
+      await q.click('[data-name="Later"]');
+      seen.served = await q.until(`document.readyState === "complete" && ${has("La réunion commence à 14:15.")} && ${has("Temps de travail : 8 h (480 minutes).")}`, 5000);
+    } finally {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      served.stop();
+    }
+    const ok = seen.real === 68 * 1440 + 5 * 60 && seen.now && seen.train && seen.concert && seen.machines === "18:45 PT2H15M P68DT5H 2026-12-31T20:30" && seen.live === false
+      && seen.oneMinute && seen.leaving && seen.tomorrow && seen.quiet && seen.night && seen.clockIn && seen.later && seen.earlier && seen.servedStart && seen.served;
+    return [ok, `Paris, 24 octobre 16 h 30 : « Il est … » ${seen.now} ; le train dans 2 h et 15 min : ${seen.train} ; le concert dans 68 j et 5 h (Date compte ${seen.real} min) : ${seen.concert} ; pour les machines : ${seen.machines} ; région vivante : ${seen.live} ; l'onglet revient à 18:44 (1 min), 18:45 (maintenant), 18:46 (demain, dans 1 j et 59 min) : ${seen.oneMinute}, ${seen.leaving}, ${seen.tomorrow} ; rien d'annoncé : ${seen.quiet} ; de nuit, 8 h : ${seen.night} ; pointé à 18:46 : ${seen.clockIn} ; au clavier 14:15 : ${seen.later}, à la souris 13:15 : ${seen.earlier} ; sans JavaScript, 8 h et 30 min puis 8 h, 14:15 : ${seen.servedStart}, ${seen.served}`];
+  }],
   ["une grille : une case sur deux colonnes et deux lignes, des zones dans l'ordre de lecture ; rien ne déborde sur un téléphone (leçon 127)", async (p, b) => {
     const faults = [];
     const check = (name, ok, seen) => { if (!ok) faults.push(`${name} : ${seen}`); };

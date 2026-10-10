@@ -722,6 +722,8 @@ mod tests {
             include_str!("../../exemples/lecons/128-reordonner-une-liste.holo"),
             // Les filtres d'image dans les styles (ADR-108).
             include_str!("../../exemples/lecons/131-des-filtres-d-image.holo"),
+            // Les calculs sur les heures : un compte à rebours, des heures de travail (ADR-109).
+            include_str!("../../exemples/lecons/132-des-heures.holo"),
             // Faire vibrer le téléphone, d'un toucher ou d'une règle de jeu (ADR-110).
             include_str!("../../exemples/lecons/133-faire-vibrer-le-telephone.holo"),
             // Mélanger des sons : un fondu, un volume qui suit une valeur (ADR-112).
@@ -750,6 +752,10 @@ mod tests {
         }
         // Une grille qui place ses cases (ADR-104).
         for word in ["columnSpan:", "rowSpan:", "areas:", "area:"] {
+            assert!(source.contains(word), "« {word} » manque dans l'exemple");
+        }
+        // Les calculs sur les heures : now, Minutes, une durée, une heure, un décalage (ADR-109).
+        for word in ["Minutes(", "{now:time}", ":duration}", ":time}", ".add(15min)", ".sub(1h)", ".set(now)", "If(now, under:"] {
             assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
         // Une page dans la page : les sites permis, l'image de la façade (ADR-117).

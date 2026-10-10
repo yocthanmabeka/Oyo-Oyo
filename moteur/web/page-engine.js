@@ -9,6 +9,7 @@
     shared_names, with_shared, touches_shared, capability_export, capability_received,
     suggestions_html,
     visit_names, to_visit, from_visit,
+    set_zone, format_hour,
   } from "/pkg-light/holo_engine.js";
   let host = null;
   const prepareHost = async () => {
@@ -590,6 +591,33 @@
     const d = new Date();
     set_now(d.getFullYear(), d.getMonth() + 1, d.getDate(), ((d.getDay() + 6) % 7) + 1, d.getHours(), d.getMinutes());
     set_second(d.getSeconds());
+    giveZone(d.getTime());
+  }
+  // Le fuseau du visiteur (ADR-109) : la minute présente en temps universel, le décalage de son
+  // horloge, et ses changements d'heure de l'année passée et de l'année qui vient, cherchés à la
+  // minute près d'après l'appareil. Le moteur compte ainsi les vraies minutes entre deux moments,
+  // même la nuit d'un changement d'heure, sans base des fuseaux à lui. Cherchés une fois.
+  let zone = null;
+  function giveZone(now) {
+    const MINUTE = 60000, DAY = 86400000;
+    if (!zone || now < zone.from + 30 * DAY || now > zone.until - 30 * DAY) {
+      const offset = (t) => -new Date(t).getTimezoneOffset();
+      const from = Math.floor(now / MINUTE) * MINUTE - 400 * DAY, until = from + 800 * DAY;
+      const changes = [];
+      let before = offset(from);
+      for (let t = from + DAY; t <= until; t += DAY) {
+        if (offset(t) === before) continue;
+        let low = t - DAY, high = t;
+        while (high - low > MINUTE) {
+          const middle = low + Math.floor((high - low) / MINUTE / 2) * MINUTE;
+          if (offset(middle) === before) low = middle; else high = middle;
+        }
+        before = offset(high);
+        changes.push(`;${high / MINUTE}:${before}`);
+      }
+      zone = { from, until, text: `${offset(from)}${changes.join("")}` };
+    }
+    set_zone(`${Math.floor(now / MINUTE)};${zone.text}`);
   }
   let nextMinute = 0;
   function followTime() {
@@ -605,6 +633,17 @@
       followTime();
     }, wait);
   }
+  // Un compte qui suit l'horloge (ADR-109) : quand l'onglet revient au premier plan, l'heure est
+  // redonnée tout de suite, sans attendre la minute suivante (un navigateur ralentit les minuteries
+  // d'un onglet caché). Le compte est refait d'après l'horloge, jamais décompté : il ne dérive pas.
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden || !source || !reads_time(source)) return;
+    giveTime();
+    const before = states.get(path) ?? "";
+    const after = store(advance_clock(source, before));
+    if (after && after !== before) changeState(after);
+    followTime();
+  });
 
   // Les chronomètres (ADR-089) : la page compte elle-même, au rythme de l'écran, et ne donne au
   // moteur que le temps final, quand une règle l'arrête. Compté d'après l'horloge de l'appareil :
@@ -883,6 +922,13 @@
       place.textContent = !format ? value : format === "date" || format === "weekday" ? format_date(value, format, language) : format_value(place.dataset.state, Number(value), format, language);
       // Une date montrée se lit aussi par les machines (ADR-098) : <time datetime="2026-10-10">.
       if (place.localName === "time") /^\d{4}-\d{2}-\d{2}$/.test(value) ? place.setAttribute("datetime", value) : place.removeAttribute("datetime");
+      // Une heure, un moment, une durée (ADR-109) : écrits par le moteur dans la langue de la page,
+      // et pour les machines, <time datetime="18:45">, <time datetime="PT2H15M">.
+      if (format === "time" || format === "duration" || ((format === "date" || format === "weekday") && /^\d{4}-\d\d-\d\d[T ]\d\d:\d\d/.test(value))) {
+        const [shown, machine = ""] = format_hour(value, format, language).split("\n");
+        place.textContent = shown;
+        if (place.localName === "time") machine ? place.setAttribute("datetime", machine) : place.removeAttribute("datetime");
+      }
     }
     // Le champ partagé garde son brouillon même sans focus ; les textes montrent la valeur publiée.
     for (const field of or_.querySelectorAll("[data-bind]")) {
