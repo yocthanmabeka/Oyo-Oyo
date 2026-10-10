@@ -39,6 +39,20 @@ export function browserCapabilities({root,source,state,receive,exported,change,e
           }finally{picker.remove();}
           if(stamp!==epoch||token.cancelled)return true;change(receive(source(),state(),name,json));
         }else throw Error("Action de transfert inconnue.");
+      }else if(spec.type==="Device"&&spec.kind==="share"){
+        // Partager la page (ADR-107) : la feuille de partage du téléphone, avec le titre et l'adresse ;
+        // sans elle (un ordinateur), l'adresse copiée. L'appel part dans le toucher même, avant toute
+        // attente : un navigateur n'ouvre la feuille (et Safari ne copie) que pendant le geste du visiteur.
+        if(action!=="request")throw Error("Action de partage inconnue.");
+        const data={title:document.title,url:location.href},sheet=typeof navigator.share==="function"&&(!navigator.canShare||navigator.canShare(data));
+        try{await(sheet?navigator.share(data):navigator.clipboard.writeText(data.url));}
+        catch(error){
+          // Fermer la feuille sans rien choisir n'est pas une panne : ni done, ni failed.
+          if(sheet&&error?.name==="AbortError"){if(stamp===epoch&&!token.cancelled)status(e,"Partage annulé.");return true;}
+          throw Error("Partage impossible ici. L'adresse de la page, à copier : "+data.url);
+        }
+        if(stamp!==epoch||token.cancelled)return true;
+        finish(e,name,true,sheet?"Page partagée.":"Adresse de la page copiée : colle-la où tu veux.",stamp);return true;
       }else if(spec.type==="Device"){
         if(!isSecureContext)throw Error("L'appareil demande localhost ou HTTPS.");
         if(action==="write"&&spec.kind==="clipboard"){const json=JSON.parse(exported(source(),state(),name));await navigator.clipboard.writeText(json[spec.value]);}

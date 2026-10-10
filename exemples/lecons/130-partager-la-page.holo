@@ -1,0 +1,48 @@
+// Leçon 130 — Partager la page
+//
+// Ce qu'on apprend :
+//   Device(name: Partage, kind: share, label: "…") : le partage de la page, comme le bouton
+//   « Partager » du téléphone. On(Envoyer.tap, effect: Partage.request) ouvre la feuille de
+//   partage du téléphone, avec le titre et l'adresse de la page : le visiteur choisit où les
+//   envoyer, un message, un e-mail. Sur un ordinateur qui ne sait pas partager, le même bouton
+//   copie l'adresse, et la page le dit, à l'écran et au lecteur d'écran.
+//   Partage.done : la page est partagée, ou son adresse copiée. Partage.failed : rien n'a marché,
+//   et l'adresse est écrite à l'écran, à copier à la main. Fermer la feuille sans rien choisir
+//   n'est pas une panne : ni l'un ni l'autre.
+//
+// À essayer :
+//   Sur ton téléphone, touche « Partager cette page », puis ferme la feuille sans rien choisir : la
+//   page dit « Partage annulé. » et le compte ne bouge pas. Sur l'ordinateur, touche le bouton, puis
+//   colle l'adresse (Ctrl + V) dans un nouvel onglet.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 130 : partager la page",
+  state: State(partages: 0, pannes: 0),
+  children: [
+    H1("Le marché du samedi"),
+    P("Des fruits, des pagnes et de la musique, de 8 h à midi. Un ami cherche une idée pour samedi ? Envoie-lui cette page."),
+    Device(name: Partage, kind: share, label: "Le partage de cette page"),
+    Button(name: Envoyer, text: "Partager cette page"),
+    P("Partagée {partages} fois pendant cette visite."),
+    If(pannes, over: 0, children: [
+      P("Le partage n'a pas marché : l'adresse est écrite au-dessus du bouton, copie-la à la main."),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 124 : une citation courte, le titre d'une œuvre", to: "124-une-citation-courte.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+  rules: [
+    On(Envoyer.tap, effect: Partage.request),
+    On(Partage.done, effect: partages.add(1)),
+    On(Partage.failed, effect: pannes.add(1)),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; max-width: 720px; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+Button { background: #E9B44C; color: #101020; font-weight: bold; padding: 12px 20px; border-radius: 999px; }
+A { color: #8fd3ff; }
