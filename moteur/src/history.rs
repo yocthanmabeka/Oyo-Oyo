@@ -35,6 +35,10 @@ pub fn names(program: &Program) -> Result<Vec<String>, Error> {
         let Value::Name(name) = name else {
             return Err(error("« address » attend des noms de valeurs : address: [tab]".into()));
         };
+        // Le moment présent (ADR-109) : le moteur le redonne, il ne voyage pas dans l'adresse.
+        if name == crate::hours::NOW {
+            return Err(error("« address » : « now » est le moment présent, il ne va pas dans l'adresse".into()));
+        }
         let message = if crate::state::CLOCK.contains(&name.as_str()) || name == crate::dates::TODAY {
             format!("« address » : « {name} » est l'heure du visiteur, elle ne va pas dans l'adresse")
         } else if program.address.contains(name) {

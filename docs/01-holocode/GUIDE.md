@@ -2218,6 +2218,51 @@ Dialog { backdrop-blur: 6px; }
 
 La leçon est `131-des-filtres-d-image.holo`.
 
+## 6 quinquagies. Des heures : un compte à rebours, `Minutes`, `{left:duration}`
+
+Compter les heures et les minutes entre deux moments, ajouter une durée à une heure, écrire « le train part dans 2 h et 15 min » (`ADR-109`).
+
+```holo
+Page(
+  title: "The train",
+  state: State(train: "18:45", concert: "2026-12-31T20:30", arrival: "09:00", departure: "17:30", meeting: "14:00"),
+  computed: [
+    Minutes(name: left, from: now, to: train),
+    Minutes(name: wait, from: now, to: concert),
+    Minutes(name: worked, from: arrival, to: departure),
+  ],
+  children: [
+    P("It is {now:time}."),
+    If(now, under: train, children: [ P("The {train:time} train leaves in {left:duration}.") ]),
+    P("The concert, on {concert:weekday} {concert:date} at {concert:time}, starts in {wait:duration}."),
+    Input(value: arrival, label: "Arrival", type: time),
+    Input(value: departure, label: "Departure", type: time),
+    Button(name: ClockIn, text: "Clock in"),
+    P("Worked: {worked:duration}."),
+    Button(name: Later, text: "15 min later"),
+    P("The meeting starts at {meeting:time}."),
+  ],
+  rules: [
+    On(ClockIn.tap, effect: arrival.set(now)),
+    On(Later.tap, effect: meeting.add(15min)),
+  ],
+)
+```
+
+- **Une heure est un texte « HH:MM »**, celui que donne un champ heure (`Input(type: time)`) ; **un moment, un texte « AAAA-MM-JJTHH:MM »**, une date et une heure. Sans fuseau : c'est l'heure de l'horloge du visiteur.
+- **`now`** est le moment présent, donné par l'appareil du visiteur, comme `today` ; la page le tient à jour à chaque minute. On ne le déclare pas, on ne le garde pas.
+- **`Minutes(name: left, from: now, to: train)`**, dans `computed: [ … ]`, compte les minutes, comme `Days` compte les jours. Entre deux moments, ce sont les vraies minutes, même la nuit du changement d'heure (à Paris, la nuit du 25 octobre 2026, de 22 h à 4 h : 7 h). Vers une heure seule, le compte avance jusqu'à la prochaine fois que l'horloge la montre : de 22:00 à 06:00, 8 h ; de `now` à « 18:45 », jusqu'à ce soir, ou demain si l'heure est passée. Il vaut 0 si une valeur manque ou si le moment est passé, sauf avec `negative: [left]` (`ADR-102`).
+- Le compte se montre en minutes (`{left}`), se compare (`If(left, under: 60)`), se guette (`When(left, is: 0, effect: …)`) et sert dans une demande (`pay.mul(worked)`).
+- **`{left:duration}`** l'écrit dans la langue de la page, comme `Intl.DurationFormat` : « 2 h et 15 min », « 2 hr, 15 min », « 3 j, 4 h et 5 min », et « 0 min » à zéro. **`{train:time}`** écrit une heure : « 18:45 », « 6:45 PM » en anglais. Un moment se montre aussi par sa date : `{concert:date}`, `{concert:weekday}`. Tous se lisent aussi par les machines (`<time datetime="PT2H15M">`).
+- **Une heure avance d'une durée écrite avec son unité** : `meeting.add(15min)`, `meeting.sub(2h)`, ou d'un nombre de minutes de la page, `end.add(length)`. Une heure seule fait le tour du cadran (23:50 + 15min = 00:05) ; un moment change de jour. `arrival.set(now)` y met l'heure présente.
+- **Deux heures se comparent** : `If(now, under: train)`, `If(now, over: "18:45")`, `When(now, is: "07:00", effect: …)`. Un moment face à une heure seule se compare par son heure.
+- **Le compte suit l'horloge** : la page redonne l'heure au moteur au début de chaque minute, et dès que l'onglet revient au premier plan. Il n'est jamais décompté, donc il ne dérive pas. Un lecteur d'écran ne l'entend pas à chaque minute : on le lit en arrivant dessus.
+- Sans JavaScript, `holo serve` fabrique la page avec ses comptes, et recompte une heure écrite dans un champ ; `now` y est l'heure du serveur.
+- Refusés, avec le bon mot : `now` déclaré, gardé ou écrit ; `meeting.add(15)` sans unité, ou à la seconde ; `{train:duration}` (pour une heure, `{train:time}`) ; une heure seule comparée à une date ; un champ heure à « 25:99 ».
+- Pas encore : un moment avec son fuseau (« …Z », « +01:00 »), un champ pour un moment, les bornes d'un champ heure, une heure dans les éléments d'une liste, les secondes dans un compte.
+
+La leçon est `132-des-heures.holo`.
+
 ## 6 unquinquagies. Faire vibrer le téléphone : `Device(kind: vibration)`
 
 Une courte vibration dit « c'est fait » sans qu'on regarde l'écran : un bouton qui répond, une prise dans un jeu (`ADR-110`). Elle accompagne toujours un signe à l'écran.

@@ -1,0 +1,79 @@
+// Leçon 132 — Des heures
+//
+// Ce qu'on apprend :
+//   Une heure est un texte « HH:MM », celui que donne un champ heure :
+//     Input(value: arrival, label: "Arrivée", type: time)
+//   Un moment est une date et une heure : « 2026-12-31T20:30 ». now est le moment présent,
+//   donné par l'appareil du visiteur, comme today.
+//   computed: [ Minutes(name: left, from: now, to: train) ] compte les minutes entre deux heures
+//   ou deux moments ; {left:duration} les écrit dans la langue de la page : « 2 h et 15 min ».
+//     Entre deux moments : les vraies minutes, même la nuit du changement d'heure.
+//     Vers une heure seule : jusqu'à la prochaine fois que l'horloge la montre ; de 22:00 à
+//     06:00, 8 h.
+//   {train:time} montre une heure : « 18:45 » (« 6:45 PM » en anglais) ; {concert:date} et
+//   {concert:weekday}, la date d'un moment.
+//   Une heure avance d'une durée écrite avec son unité : meeting.add(15min), meeting.sub(1h) ;
+//   arrival.set(now) y met l'heure présente. Deux heures se comparent : If(now, under: train, …).
+//
+// À essayer :
+//   Le compte à rebours change à chaque minute, d'après l'horloge de l'appareil : il ne dérive
+//   pas, même après un moment dans un onglet caché. Un lecteur d'écran ne l'annonce pas à chaque
+//   minute : on le lit en arrivant dessus.
+//   Écris une arrivée à 22:00 et un départ à 06:00 : 8 h de travail, de nuit. Touche « Pointer
+//   l'arrivée » : l'heure présente s'y met. « Plus tard » repousse la réunion d'un quart d'heure.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 132 : des heures",
+  state: State(train: "18:45", concert: "2026-12-31T20:30", arrival: "09:00", departure: "17:30", meeting: "14:00"),
+  computed: [
+    Minutes(name: left, from: now, to: train),
+    Minutes(name: wait, from: now, to: concert),
+    Minutes(name: worked, from: arrival, to: departure),
+  ],
+  children: [
+    H1("Des heures"),
+    P("Il est {now:time}."),
+
+    H2("Un compte à rebours"),
+    If(left, is: 0, children: [ P("Le train de {train:time} part maintenant.") ], else: [
+      If(now, under: train, children: [
+        P("Le train de {train:time} part dans {left:duration}."),
+      ], else: [ P("Le train de {train:time} est parti ; le prochain part demain, dans {left:duration}.") ]),
+    ]),
+    P("Le concert du {concert:weekday} {concert:date}, à {concert:time}, commence dans {wait:duration}."),
+
+    H2("Des heures de travail"),
+    Input(value: arrival, label: "Arrivée", type: time),
+    Input(value: departure, label: "Départ", type: time),
+    Row(gap: 8px, children: [
+      Button(name: ClockIn, text: "Pointer l'arrivée"),
+      Button(name: ClockOut, text: "Pointer le départ"),
+    ]),
+    P("Temps de travail : {worked:duration} ({worked} minutes)."),
+
+    H2("Une réunion"),
+    P("La réunion commence à {meeting:time}."),
+    Row(gap: 8px, children: [
+      Button(name: Later, text: "Plus tard (15 min)"),
+      Button(name: Earlier, text: "Plus tôt (1 h)"),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 124 : une citation courte, le titre d'une œuvre", to: "124-une-citation-courte.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+  rules: [
+    On(ClockIn.tap, effect: arrival.set(now)),
+    On(ClockOut.tap, effect: departure.set(now)),
+    On(Later.tap, effect: meeting.add(15min)),
+    On(Earlier.tap, effect: meeting.sub(1h)),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

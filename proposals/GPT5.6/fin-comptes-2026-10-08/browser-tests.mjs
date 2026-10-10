@@ -32,7 +32,8 @@ export function accountDebtTests({engine,phone,page,startHoloServe,pause,totp,st
     await q.type("#code",totp(key,stepNow()));await button(q,'main form button[type="submit"]');
     check(await q.until("document.querySelectorAll('[data-recovery]').length===10"),"dix codes absents");
     const clear=await q.value("[...document.querySelectorAll('[data-recovery]')].map(e=>e.textContent)");
-    const db=new DatabaseSync(join(served.folder,"holo-data","site.sqlite"));
+    // holo serve écrit dans la même base : attendre jusqu'à 5 s qu'elle se libère, au lieu de rater (« database is locked »).
+    const db=new DatabaseSync(join(served.folder,"holo-data","site.sqlite"));db.exec("PRAGMA busy_timeout = 5000");
     try{const prints=db.prepare("SELECT fingerprint FROM recoveries").all();check(prints.length>=10 && prints.every(p=>!clear.includes(p.fingerprint)),"codes en clair dans la base");}finally{db.close();}
     await q.open("/account",200);check(!await q.value("document.querySelector('[data-recovery]')"),"secours montré à nouveau");
     await button(q,'form[action="/account/signout"] button');check(await q.until("location.pathname==='/account/signin'"),"déconnexion absente");
@@ -49,13 +50,13 @@ export function accountDebtTests({engine,phone,page,startHoloServe,pause,totp,st
   try{
    await b.send("Network.clearBrowserCookies");await create(q,"EraseMe");
    await q.open("/106-le-panier-qui-suit-le-compte.holo",200);await q.click("[data-name=Ajouter]");check(await q.until("document.getElementById('page').innerText.includes('Dans le panier : 1')"),"panier absent");
-   const db=new DatabaseSync(join(served.folder,"holo-data","site.sqlite"));let id,backup;
+   const db=new DatabaseSync(join(served.folder,"holo-data","site.sqlite"));db.exec("PRAGMA busy_timeout = 5000");let id,backup;
    try{id=db.prepare("SELECT id FROM accounts WHERE name='EraseMe'").get().id;db.prepare("INSERT INTO messages(received,page,form,submission,account) VALUES(1,'/x','X','{}',?)").run(id);}finally{db.close();}
    await pause(1100);
    const r=spawnSync(join(engine,"target","release",process.platform==="win32"?"holo.exe":"holo"),["backup",served.folder],{encoding:"utf8",timeout:10000});check(r.status===0,"sauvegarde impossible");backup=r.stdout.trim();check(backup&&existsSync(backup),"chemin de sauvegarde absent : "+r.stdout);
    await q.open("/account/delete",200);await q.type("#password","wrong");await q.type("#confirm","EraseMe");await button(q,'main form button[type="submit"]');check(await q.until("document.querySelector('[role=alert]')"),"mauvais mot de passe non refusé");
    await q.type("#password",password);await q.type("#confirm","EraseMe");await button(q,'main form button[type="submit"]');check(await q.until("document.body.innerText.includes('Compte effacé')"),"compte non effacé");
-   for(const path of [join(served.folder,"holo-data","site.sqlite"),backup]){const base=new DatabaseSync(path);try{for(const query of ["SELECT COUNT(*) n FROM accounts WHERE id=?","SELECT COUNT(*) n FROM sessions WHERE account=?","SELECT COUNT(*) n FROM messages WHERE account=?"])check(base.prepare(query).get(id).n===0,"donnée encore gardée : "+query);}finally{base.close();}}
+   for(const path of [join(served.folder,"holo-data","site.sqlite"),backup]){const base=new DatabaseSync(path);base.exec("PRAGMA busy_timeout = 5000");try{for(const query of ["SELECT COUNT(*) n FROM accounts WHERE id=?","SELECT COUNT(*) n FROM sessions WHERE account=?","SELECT COUNT(*) n FROM messages WHERE account=?"])check(base.prepare(query).get(id).n===0,"donnée encore gardée : "+query);}finally{base.close();}}
    await q.open("/account",200);check(await q.value("location.pathname==='/account/signin'"),"ancienne session encore utilisable");
    return [true,"mot de passe incorrect refusé ; confirmation au clavier ; compte, session et messages retirés de la base et de sa sauvegarde ; tests Rust couvrent aussi le fichier privé et les autres comptes"];
   }finally{served.stop();}
@@ -81,7 +82,7 @@ export function accountDebtTests({engine,phone,page,startHoloServe,pause,totp,st
    const statuses=answers.map(r=>r.status);
    check(statuses.slice(0,30).every(s=>s===422)&&statuses[30]===429&&header(answers[30],"retry-after")==="60","limite IP incorrecte : "+JSON.stringify(statuses)+" ; Retry-After : "+header(answers[30],"retry-after"));
    check(await q.until("document.body.innerText.includes('Trop de demandes depuis cette adresse')"),"le refus ne se lit pas : "+await q.value("document.body.innerText"));
-   const db=new DatabaseSync(join(served.folder,"holo-data","site.sqlite"));
+   const db=new DatabaseSync(join(served.folder,"holo-data","site.sqlite"));db.exec("PRAGMA busy_timeout = 5000");
    try{check(db.prepare("SELECT COUNT(*) n FROM accounts").get().n===0,"un compte créé malgré le refus");}finally{db.close();}
    return [true,"31 vrais formulaires sous 31 noms : 30 refusés (422), le 31e freiné (429, Retry-After : 60, le message lu) ; aucun compte créé ; IP du pair TCP"];
   }finally{b.on("Network.requestWillBeSent");b.on("Network.responseReceived");await b.send("Network.disable");served.stop();}
