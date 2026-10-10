@@ -76,6 +76,9 @@ pub struct Site {
     /// Les pages ouvertes en direct (ADR-079) : chacune reçoit les valeurs partagées de son
     /// adresse quand elles changent. On prend toujours la base avant cette liste, jamais l'inverse.
     lives: Arc<Mutex<Lives>>,
+    /// Les autres sites que ses pages lisent (ADR-116) : ceux qui sont permis, leurs clés, ce qui
+    /// est gardé. Ce serveur seul leur parle, jamais le navigateur du visiteur.
+    pub(crate) remote: crate::remote::Remote,
 }
 
 /// Les pages ouvertes en direct, et le numéro de la prochaine.
@@ -176,7 +179,8 @@ impl Site {
         if let Err(error) = crate::accounts::retry_erased_files(&folder, &base) {
             eprintln!("Effacement en attente : {error}");
         }
-        Ok(Site { passkeys_origin: crate::passkeys::configured_origin()?, folder, web: web.to_path_buf(), base: Mutex::new(base), gestures: Mutex::new(()), lives: Arc::default() })
+        let remote = crate::remote::Remote::open(&folder)?;
+        Ok(Site { passkeys_origin: crate::passkeys::configured_origin()?, folder, web: web.to_path_buf(), base: Mutex::new(base), gestures: Mutex::new(()), lives: Arc::default(), remote })
     }
 
     /// Répond à une demande. Tout passe par ici : c'est ce que les essais éprouvent.
@@ -205,7 +209,10 @@ impl Site {
         // Un .holo demandé pour être affiché : sa page, fabriquée pour ce visiteur. Demandé par le
         // moteur (`text/plain`), le fichier lui-même. Une adresse sans `.holo` (`/contact`, un
         // modèle `profil/{id}.holo`) est toujours une page (ADR-078).
-        let shown = holo.ends_with(".holo") && (ask.accept.contains("text/html") || holo != path);
+        // Les données d'un autre site (ADR-116), que le moteur de la page demande à sa propre
+        // adresse, `?remote-data` : jamais une page.
+        let remote = holo.ends_with(".holo") && query_of(ask.url) == crate::state::REMOTE_DATA_QUERY;
+        let shown = !remote && holo.ends_with(".holo") && (ask.accept.contains("text/html") || holo != path);
         // Le membre connecté (ADR-081). Une page réservée aux membres n'est ni fabriquée, ni donnée
         // au moteur, pour qui ne l'est pas : il est mené à « Se connecter », puis ramené ici.
         let member = crate::accounts::member_of(self, ask.cookie);
@@ -220,6 +227,9 @@ impl Site {
         // Une page faite pour un membre, ou son texte, n'est jamais gardée en cache ; le moteur et les
         // images, si : ils sont les mêmes pour tous.
         let headers = if member.is_some() && holo.ends_with(".holo") { member_headers() } else { common_headers() };
+        if remote {
+            return self.remote_reply(&file, &holo, &values, member.as_ref(), headers);
+        }
         if shown {
             let visit = visit_key(member.as_ref(), ask.cookie).and_then(|key| self.stored(&key, path));
             return match self.page(&file, path, &holo, &values, visit, member.as_ref(), query_of(ask.url)) {
@@ -244,6 +254,9 @@ impl Site {
     /// Un toucher envoyé sans JavaScript (ADR-074) : le même arbitre, puis la page à jour par
     /// une nouvelle demande (`303`), pour qu'un rechargement ne rejoue pas le geste.
     fn gesture(&self, ask: &Ask, path: &str, raw: &str) -> Reply {
+        // Les données d'un autre site que ce geste va lire (ADR-116) : demandées avant le verrou
+        // des gestes, pour qu'un site lent ne retienne pas les gestes des autres visiteurs.
+        self.prefetch(ask, path, raw);
         let Ok(_gesture)=self.gestures.lock() else{return Reply::text(500,"arbitre indisponible")};
         let Some((file, holo, values)) = self.locate(path, raw) else { return Reply::text(404, "page introuvable") };
         if !holo.ends_with(".holo") {
@@ -285,7 +298,7 @@ impl Site {
         // rejoue sur l'état qu'il garde, pour que le compte le retrouve ailleurs. Il n'envoie rien
         // (le moteur s'en charge), et répond sans renvoyer la page.
         let mirror = ask.url.split_once('?').is_some_and(|(_, query)| query.split('&').any(|part| part == "mirror"));
-        let mut visit = self.stored(&visitor, path).unwrap_or_else(|| Visit { state: starting_state(&source, &file), tried: Vec::new() });
+        let mut visit = self.stored(&visitor, path).unwrap_or_else(|| Visit { state: self.starting_state(&source, &file, &holo, false), tried: Vec::new() });
         // Le geste part de la page que montre le navigateur, avec les valeurs de son adresse
         // (ADR-091), même si le visiteur est revenu en arrière depuis.
         visit.state = with_query(&source, &visit.state, query_of(ask.url));
@@ -315,6 +328,14 @@ impl Site {
             }
             if accepted { tap } else { "" }
         };
+        // `Shop.refresh` sans JavaScript (ADR-064, ADR-116) : le serveur relit les données, comme le
+        // moteur de la page l'aurait fait, puis `Shop.done` ou `Shop.failed`. Celles d'un autre site
+        // viennent de ce qu'il garde, demandé juste avant, hors du verrou : un visiteur ne force
+        // jamais une demande.
+        if refreshes(&source, signal) {
+            let read = self.data_for(&source, &file, &holo, false).or(Some(Err(())));
+            visit.state = without_sounds(&with_data(&source, visit.state, read));
+        }
         // Un toucher qui envoie un formulaire (`On(Send.tap, effect: Contact.send)`) : le serveur
         // vérifie, range le message, puis `Contact.sent` ; ou garde les messages d'erreur.
         // Un toucher renvoyé par le moteur (`?mirror`, ADR-081) : le moteur a déjà fait l'envoi.
@@ -404,7 +425,7 @@ impl Site {
         }
         let template = std::fs::read_to_string(self.web.join("page.html")).map_err(|e| format!("page d'entrée du moteur introuvable : {e}"))?;
         set_clock();
-        let mut visit = visit.unwrap_or_else(|| Visit { state: starting_state(&source, file), tried: Vec::new() });
+        let mut visit = visit.unwrap_or_else(|| Visit { state: self.starting_state(&source, file, holo, true), tried: Vec::new() });
         // Les valeurs que l'adresse porte après le `?` (ADR-091) : l'adresse les dit, même
         // revenue en arrière ; celles qu'elle ne dit pas reprennent leur départ.
         visit.state = with_query(&source, &visit.state, query);
@@ -437,6 +458,68 @@ impl Site {
         }
     }
 
+    /// L'état de départ d'une page : ses valeurs de départ, puis ses données (ADR-064), rangées
+    /// par l'arbitre, et `Shop.done`. Celles d'un autre site qui ne sont pas arrivées donnent
+    /// `Shop.failed` : un visiteur sans JavaScript voit l'échec (ADR-116). `may_ask` : faux sous un
+    /// verrou, où seul ce qui est déjà gardé sert.
+    fn starting_state(&self, source: &str, file: &Path, holo: &str, may_ask: bool) -> String {
+        without_sounds(&with_data(source, crate::initial_state(source), self.data_for(source, file, holo, may_ask)))
+    }
+
+    /// Les données de la page, lues par ce serveur : le fichier de `Data(from:)`, rangé à côté du
+    /// `.holo` et de 64 Ko au plus (ADR-064) ; ou celles d'un autre site (ADR-116), réduites à ce
+    /// que la page déclare. `None` : rien à dire (pas de données, un fichier absent ou trop gros,
+    /// rien de gardé) ; `Some(Ok(json))` : arrivées ; `Some(Err(()))` : pas arrivées.
+    fn data_for(&self, source: &str, file: &Path, holo: &str, may_ask: bool) -> Option<Result<String, ()>> {
+        if let Some((written, every)) = crate::remote_source(source) {
+            let read = if may_ask { Some(self.remote.read(holo, &written, every).map_err(drop)) } else { self.remote.kept(&written, every) };
+            return read.map(|read| read.ok().and_then(|json| crate::data_for_page(source, &json)).ok_or(()));
+        }
+        let data = crate::data(source);
+        let from = data.split('|').next().unwrap_or("");
+        if from.is_empty() || from.contains("..") || from.contains("://") || from.starts_with('?') {
+            return None;
+        }
+        let path = file.parent().unwrap_or(Path::new(".")).join(from);
+        if !std::fs::metadata(&path).is_ok_and(|m| m.len() <= crate::state::DATA_BYTES as u64) {
+            return None;
+        }
+        std::fs::read_to_string(path).ok().map(Ok)
+    }
+
+    /// Les données d'un autre site qu'un geste sans JavaScript va lire (ADR-116) : pour un nouveau
+    /// visiteur (sa page part de ses données), ou pour `Meteo.refresh`. Demandées ici, avant le
+    /// verrou des gestes ; depuis ce qui est gardé si c'est frais (au plus une demande par minute).
+    fn prefetch(&self, ask: &Ask, path: &str, raw: &str) {
+        let Some((file, holo, values)) = self.locate(path, raw) else { return };
+        let member = crate::accounts::member_of(self, ask.cookie);
+        if !holo.ends_with(".holo") || (member.is_none() && members_only(&file, &values)) {
+            return;
+        }
+        let Ok(source) = source_for(&file, &values, member.as_ref()) else { return };
+        let Some((written, every)) = crate::remote_source(&source) else { return };
+        let fields = crate::gestures::read_form(&String::from_utf8_lossy(ask.body));
+        let tap = fields.iter().find(|(name, signal)| name == crate::gestures::SIGNAL && crate::gestures::is_tap(signal)).map_or("", |(_, signal)| signal.as_str());
+        let new = visit_key(member.as_ref(), ask.cookie).and_then(|key| self.stored(&key, path)).is_none();
+        if new || refreshes(&source, tap) {
+            let _ = self.remote.read(&holo, &written, every);
+        }
+    }
+
+    /// `?remote-data` (ADR-116) : les données de l'autre site que lit la page, pour son moteur.
+    /// `200` et le JSON réduit à ce que la page déclare ; `502` si elles ne sont pas arrivées (la
+    /// raison est au journal de l'auteur, pas dans la réponse) ; `404` si la page n'en lit pas.
+    fn remote_reply(&self, file: &Path, holo: &str, values: &[(String, String)], member: Option<&crate::accounts::Member>, headers: Vec<(String, String)>) -> Reply {
+        let Ok(source) = source_for(file, values, member) else { return Reply::text(404, "introuvable") };
+        let Some((written, every)) = crate::remote_source(&source) else { return Reply::text(404, "cette page ne lit aucun autre site") };
+        let mut reply = match self.remote.read(holo, &written, every).ok().and_then(|json| crate::data_for_page(&source, &json)) {
+            Some(json) => Reply { status: 200, headers: vec![("Content-Type".into(), "application/json; charset=utf-8".into())], body: json.into_bytes() },
+            None => Reply::text(502, "les données de l'autre site ne sont pas arrivées"),
+        };
+        reply.headers.extend(headers);
+        reply
+    }
+
     /// Un geste partagé envoyé par le moteur de la page (ADR-079) : `{"signal": "Book.tap",
     /// "state": "…"}`. Le serveur prend la base, arbitre avec les valeurs qu'il garde (l'état du
     /// visiteur, qu'il a pu forger, n'en change aucune), range les nouvelles, les envoie en direct
@@ -465,7 +548,7 @@ impl Site {
         let key = shared_key(holo, values);
         if !shared_allowed(&base,&visitor,&client_address(self, ask),&key,now()){return shared_limited(new_visitor.then_some(visitor.as_str()));}
         let (current, mut version) = shared_in(&base, &key);
-        let mut visit = stored_in(&base, &visitor, path).unwrap_or_else(|| Visit { state: starting_state(&source, file), tried: Vec::new() });
+        let mut visit = stored_in(&base, &visitor, path).unwrap_or_else(|| Visit { state: self.starting_state(&source, file, holo, false), tried: Vec::new() });
         let before = crate::with_shared(&source, &visit.state, &current);
         let candidate = if member.is_some() {
             // La copie de la page n'est qu'un transport pour ses champs : elle ne peut ni remettre
@@ -803,6 +886,10 @@ pub fn serve(folder: &Path, web: &Path, port: u16) -> Result<(), String> {
     println!("Sa base         : {}", site.folder.join(DATA_FOLDER).join("site.sqlite").display());
     println!("Sur ce PC       : http://localhost:{port}");
     println!("Sur le téléphone (même Wi-Fi) : http://<adresse de ce PC>:{port}");
+    // Les autres sites permis, ce qui ne va pas, et l'interrupteur des essais s'il est allumé (ADR-116).
+    for line in site.remote.announce(&site.folder) {
+        println!("{line}");
+    }
     // Une sauvegarde au départ si la dernière a plus d'un jour, puis une par jour (ADR-076).
     {
         let site = Arc::clone(&site);
@@ -997,19 +1084,12 @@ fn new_visitor() -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-/// L'état de départ d'une page : ses valeurs de départ, et ses données (`Data(from:)`) si le
-/// fichier est rangé à côté et pèse 64 Ko au plus (ADR-064).
-fn starting_state(source: &str, file: &Path) -> String {
-    let mut state = crate::initial_state(source);
-    let data = crate::data(source);
-    let mut parts = data.split('|');
-    let (from, name) = (parts.next().unwrap_or(""), parts.nth(1).unwrap_or(""));
-    if from.is_empty() || from.contains("..") || from.contains("://") {
-        return state;
-    }
-    let path = file.parent().unwrap_or(Path::new(".")).join(from);
-    if std::fs::metadata(&path).is_ok_and(|m| m.len() <= crate::state::DATA_BYTES as u64) {
-        if let Ok(json) = std::fs::read_to_string(path) {
+/// Range des données lues par le serveur (ADR-064, ADR-116), puis `done` si elles ont un nom ;
+/// des données qui ne sont pas arrivées : `failed`. `None` : rien ne change.
+fn with_data(source: &str, mut state: String, read: Option<Result<String, ()>>) -> String {
+    let name = crate::data(source).split('|').nth(2).unwrap_or("").to_string();
+    match read {
+        Some(Ok(json)) => {
             let received = crate::receive(source, &state, &json);
             if !received.is_empty() {
                 state = received;
@@ -1021,8 +1101,22 @@ fn starting_state(source: &str, file: &Path) -> String {
                 }
             }
         }
+        Some(Err(())) if !name.is_empty() => {
+            let failed = crate::arbitrate(source, &state, &format!("{name}.failed"));
+            if !failed.is_empty() {
+                state = failed;
+            }
+        }
+        _ => {}
     }
-    without_sounds(&state)
+    state
+}
+
+/// Ce signal relit-il les données de la page (`On(Retry.tap, effect: Shop.refresh)`, ADR-064) ?
+fn refreshes(source: &str, signal: &str) -> bool {
+    let data = crate::data(source);
+    let name = data.split('|').nth(2).unwrap_or("");
+    !signal.is_empty() && !name.is_empty() && crate::effects(source, signal).iter().any(|effect| effect.strip_suffix(".refresh") == Some(name))
 }
 
 /// Extrait d'une copie d'état seulement les saisies que la page déclare. Leur validation
@@ -1637,6 +1731,65 @@ mod tests {
         assert!(member_state(&site, &ada).contains("booked=1;cart=0"));
         drop(site);
         std::fs::remove_dir_all(folder).unwrap();
+    }
+
+    const METEO: &str = "Page(\n  title: \"Météo\",\n  state: State(loading: 1, broken: 0, temperature: 0, sky: \"\"),\n  data: Data(name: Meteo, from: \"https://meteo.exemple.org/v1/now?city=Kinshasa\", every: 600s),\n  children: [\n    If(loading, is: 1, children: [ P(\"Chargement…\") ]),\n    If(broken, is: 1, children: [ P(\"La météo n'est pas arrivée.\"), Button(name: Retry, text: \"Réessayer\") ]),\n    P(\"{temperature} degrés, {sky}\"),\n  ],\n  rules: [\n    On(Meteo.done, effect: [loading.set(0), broken.set(0)]),\n    On(Meteo.failed, effect: [loading.set(0), broken.set(1)]),\n    On(Retry.tap, effect: [loading.set(1), broken.set(0), Meteo.refresh]),\n  ],\n)\n";
+
+    #[test]
+    fn another_site_is_read_by_this_server_with_and_without_javascript() {
+        // ADR-116 : la page lit un autre site par son serveur ; le navigateur ne lui parle jamais.
+        let (mut site, folder) = site();
+        std::fs::write(folder.join("meteo.holo"), METEO).unwrap();
+        std::fs::write(folder.join("ailleurs.holo"), METEO.replace("meteo.exemple.org", "ailleurs.exemple.org")).unwrap();
+        std::fs::write(folder.join("membres.holo"), METEO.replace("title: \"Météo\",", "title: \"Météo\",\n  access: members,")).unwrap();
+        std::fs::write(folder.join(DATA_FOLDER).join("sites.txt"), "meteo.exemple.org X-Api-Key: s3cr3t-cle-meteo\n").unwrap();
+        let answer = br#"{"temperature": 31, "sky": "soleil", "account": "compte-42", "clientIp": "203.0.113.5"}"#;
+        let (remote, asked, journal) = crate::remote::fake(&folder, move |_| Ok(crate::remote::Incoming { status: 200, body: answer.to_vec() }));
+        site.remote = remote;
+        // Sans JavaScript : la page arrive avec ses données, rangées par l'arbitre, puis Meteo.done.
+        let page = String::from_utf8(site.answer(&ask("GET", "/meteo.holo", "", b"")).body).unwrap();
+        assert!(page.contains("<span data-state=\"temperature\">31</span> degrés, <span data-state=\"sky\">soleil</span>") && page.contains("data-if=\"loading|is=1\" hidden"), "{page}");
+        assert_eq!(asked.lock().unwrap().len(), 1);
+        // Avec JavaScript : le moteur de la page demande ?remote-data à sa propre adresse. La réponse
+        // est réduite à ce que la page déclare : ni le compte, ni l'adresse IP vue par l'autre site.
+        let mut json = ask("GET", "/meteo.holo?remote-data", "holo_visitor=0123456789abcdef0123456789abcdef; autre=1", b"");
+        (json.accept, json.referer, json.forwarded, json.peer) = ("application/json", "https://moi.exemple/", "198.51.100.9", "192.168.1.20");
+        let reply = site.answer(&json);
+        assert_eq!((reply.status, String::from_utf8(reply.body.clone()).unwrap()), (200, r#"{"temperature":31,"sky":"soleil"}"#.to_string()));
+        // Cent demandes de plus, et « Réessayer » touché sans JavaScript : rien de plus vers l'autre site.
+        for _ in 0..100 {
+            assert_eq!(site.answer(&json).status, 200);
+        }
+        let retry = site.answer(&ask("POST", "/meteo.holo", "", b"signal=Retry.tap"));
+        assert_eq!(retry.status, 303);
+        let after = String::from_utf8(site.answer(&ask("GET", "/meteo.holo", &cookie_of(&retry), b"")).body).unwrap();
+        assert!(after.contains("data-if=\"loading|is=1\" hidden") && after.contains(">31</span> degrés") && after.contains("data-visit=\"loading=0;broken=0;temperature=31;"), "{after}");
+        let sent = asked.lock().unwrap().clone();
+        assert_eq!(sent.len(), 1);
+        // Ce qui part : l'adresse écrite par l'auteur, notre User-Agent, Accept et la clé ; rien du visiteur.
+        assert_eq!(sent[0].address, "https://meteo.exemple.org/v1/now?city=Kinshasa");
+        assert_eq!(sent[0].headers.iter().map(|(name, _)| name.as_str()).collect::<Vec<_>>(), ["User-Agent", "Accept", "X-Api-Key"]);
+        assert!(sent[0].headers.iter().all(|(_, value)| ["holo_visitor", "198.51.100.9", "192.168.1.20", "moi.exemple"].iter().all(|visitor| !value.contains(visitor))));
+        // La clé n'est ni dans la page, ni dans une réponse, ni au journal.
+        assert!(!page.contains("s3cr3t") && !after.contains("s3cr3t") && !String::from_utf8_lossy(&reply.body).contains("s3cr3t"));
+        assert!(journal.lock().unwrap().iter().all(|line| !line.contains("s3cr3t")));
+        // Un site qui n'est pas permis : la page dit l'échec, sans JavaScript aussi ; ?remote-data
+        // répond 502 ; aucune demande ; le journal dit à l'auteur quoi écrire.
+        let refused = String::from_utf8(site.answer(&ask("GET", "/ailleurs.holo", "", b"")).body).unwrap();
+        assert!(refused.contains("La météo n'est pas arrivée.") && refused.contains("data-if=\"broken|is=1\">"), "{refused}");
+        let mut other = ask("GET", "/ailleurs.holo?remote-data", "", b"");
+        other.accept = "application/json";
+        assert_eq!(site.answer(&other).status, 502);
+        assert_eq!(asked.lock().unwrap().len(), 1);
+        assert!(journal.lock().unwrap().iter().any(|line| line.contains("/ailleurs.holo : « ailleurs.exemple.org » n'est pas dans holo-data/sites.txt")), "{:?}", journal.lock().unwrap());
+        // Une page réservée aux membres ne donne ses données qu'à un membre ; une page sans autre site : 404.
+        let mut members = ask("GET", "/membres.holo?remote-data", "", b"");
+        members.accept = "application/json";
+        assert_eq!(site.answer(&members).status, 401);
+        let mut plain = ask("GET", "/shop.holo?remote-data", "", b"");
+        plain.accept = "application/json";
+        assert_eq!(site.answer(&plain).status, 404);
+        let _ = std::fs::remove_dir_all(folder);
     }
 
     /// Ce qu'une page en direct reçoit, pour les essais.

@@ -1026,6 +1026,29 @@ mod tests {
     }
 
     #[test]
+    fn the_data_of_another_site_is_reduced_to_what_the_page_declares() {
+        // ADR-116 : le moteur de la page ne reçoit jamais l'adresse de l'autre site, et ne reçoit que
+        // ce que la page déclare ; il en fait le même état qu'avec la réponse entière.
+        let source = r#"Page(
+  state: State(temperature: 0.0, sky: "", days: [ Item(name: "", max: 0) ], tags: ["x"]),
+  data: Data(name: Meteo, from: "https://api.exemple.org/v1/now?city=Kinshasa", every: 600s),
+  children: [ P("{temperature} {sky}"), Repeat(over: days, children: [ Text("{item.name} {item.max}") ]) ],
+)"#;
+        assert_eq!(data(source), "?remote-data|600000|Meteo");
+        assert_eq!(remote_source(source), Some(("https://api.exemple.org/v1/now?city=Kinshasa".to_string(), 600_000)));
+        let json = r#"{"temperature": 24.5, "sky": "soleil", "account": "compte-42", "days": [{"name": "lundi", "max": 31, "secret": "x", "nothing": null}, "texte"], "tags": ["a", {"b": 1}], "clientIp": "203.0.113.5", "sky2": 3}"#;
+        let reduced = data_for_page(source, json).unwrap();
+        assert_eq!(reduced, r#"{"temperature":24.5,"sky":"soleil","days":[{"name":"lundi","max":31}],"tags":["a"]}"#);
+        let start = initial_state(source);
+        assert_eq!(receive(source, &start, json), receive(source, &start, &reduced));
+        assert_eq!(data_for_page(source, "[1, 2]"), None);
+        assert_eq!(data_for_page(source, "pas du json"), None);
+        // Un fichier à côté de la page : rien ne change.
+        let local = source.replace("https://api.exemple.org/v1/now?city=Kinshasa", "meteo.json");
+        assert_eq!((data(&local).as_str(), remote_source(&local)), ("meteo.json|600000|Meteo", None));
+    }
+
+    #[test]
     fn the_guide_examples_are_accepted_by_the_engine() {
         // Un dépôt extrait sous Windows peut avoir des fins de ligne « \r\n » (relevé par Codex).
         let guide = include_str!("../../docs/01-holocode/GUIDE.md").replace("\r\n", "\n");

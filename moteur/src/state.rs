@@ -2768,7 +2768,8 @@ mod tests {
         assert_eq!(crate::receive(&without, &crate::initial_state(&without), r#"{"stock": 4}"#), crate::initial_state(&without));
         assert_eq!(crate::data(&without), "");
         for (source, message) in [
-            ("Page(data: Data(from: \"https://ailleurs.example/x.json\"))", "rangé à côté"),
+            // Un autre site se lit par le serveur de l'auteur, en HTTPS seulement (ADR-116).
+            ("Page(data: Data(from: \"http://ailleurs.example/x.json\"))", "HTTPS seulement"),
             ("Page(data: Data(from: \"../secret.json\"))", "rangé à côté"),
             ("Page(data: Data(from: \"stock.txt\"))", "rangé à côté"),
             ("Page(data: Data(every: 30s))", "attend « from »"),
@@ -3357,5 +3358,63 @@ mod tests {
             let error = page(source).unwrap_err();
             assert!(error.message.contains(message), "{source}\n→ {error}");
         }
+    }
+}
+
+#[cfg(test)]
+mod remote_address_tests {
+    use super::*;
+
+    #[test]
+    fn another_site_is_https_and_a_name_never_an_ip() {
+        // ADR-116, règle 1, dans le moteur (holo check, la page, le serveur) : HTTPS seulement, un
+        // nom de site, jamais une adresse IP écrite à sa place ; ni port, ni nom et mot de passe.
+        let fine = remote_address("https://fr.wikipedia.org/api/rest_v1/page/summary/Kinshasa").unwrap();
+        assert_eq!((fine.host.as_str(), fine.target.as_str()), ("fr.wikipedia.org", "/api/rest_v1/page/summary/Kinshasa"));
+        assert_eq!(remote_address("https://API.Exemple.org?q=1").unwrap(), RemoteAddress { host: "api.exemple.org".into(), target: "/?q=1".into() });
+        assert!(remote_address("https://api.exemple.org/v1/forecast?latitude=-4.32&longitude=15.31&current=temperature_2m,wind_speed_10m&filter[x]=a%20b").is_ok());
+        for (written, said) in [
+            ("http://api.exemple.org/m", "HTTPS seulement"),
+            ("https://93.184.216.34/m", "adresse IP"),
+            ("https://127.0.0.1/m", "adresse IP"),
+            ("https://127.1/m", "adresse IP"),
+            ("https://2130706433/m", "adresse IP"),
+            ("https://0x7f.0.0.1/m", "adresse IP"),
+            ("https://[::1]/m", "adresse IP"),
+            ("https://[2606:4700::1111]/m", "adresse IP"),
+            ("https://localhost/m", "localhost"),
+            ("https://api.localhost/m", "localhost"),
+            ("https://moi:mdp@api.exemple.org/m", "ni nom ni mot de passe"),
+            ("https://api.exemple.org:8443/m", "sans port"),
+            ("https://api.exemple.org/m#haut", "sans « # »"),
+            ("https://api.exemple.org/profil/{id}", "ne lit aucune valeur"),
+            ("https://api.exemple.org/m n", "sans espace"),
+            ("https://api.exemple.org/météo", "ni accent"),
+            ("https://api.exemple.org/m%2", "« % »"),
+            ("https://", "suit « https:// »"),
+            ("https://exemple/m", "n'est pas un nom de site"),
+            ("https://api.exemple.org./m", "n'est pas un nom de site"),
+            ("https://api_x.exemple.org/m", "n'est pas un nom de site"),
+            ("https://-api.exemple.org/m", "n'est pas un nom de site"),
+        ] {
+            let refusal = remote_address(written).unwrap_err();
+            assert!(refusal.contains(said), "{written} → {refusal}");
+        }
+        assert!(remote_address(&format!("https://api.exemple.org/{}", "a".repeat(REMOTE_ADDRESS_MAX))).unwrap_err().contains("2048"));
+        // Dans une page : refusé avec sa raison et sa ligne ; un autre site se relit au plus une fois par minute.
+        let page = |data: &str| format!("Page(\n  state: State(t: \"\"),\n  data: {data},\n  children: [ P(\"{{t}}\") ],\n)");
+        assert!(crate::check_page(&page(r#"Data(from: "https://fr.wikipedia.org/api/rest_v1/page/summary/Kinshasa", every: 60s)"#)).is_ok());
+        assert!(crate::check_page(&page(r#"Data(from: "https://fr.wikipedia.org/x")"#)).is_ok());
+        for (data, said) in [
+            (r#"Data(from: "http://fr.wikipedia.org/x")"#, "HTTPS seulement"),
+            (r#"Data(from: "ftp://fr.wikipedia.org/x")"#, "HTTPS seulement"),
+            (r#"Data(from: "https://10.0.0.1/x")"#, "adresse IP"),
+            (r#"Data(from: "https://fr.wikipedia.org/x", every: 30s)"#, "au plus une fois par minute"),
+        ] {
+            let error = crate::check_page(&page(data)).unwrap_err();
+            assert!(error.message.contains(said) && error.pos.line == 3, "{data} → {error}");
+        }
+        // Un fichier à côté reste un fichier, avec son rythme d'une seconde au moins.
+        assert!(crate::check_page(&page(r#"Data(from: "stock.json", every: 1s)"#)).is_ok());
     }
 }

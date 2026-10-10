@@ -609,6 +609,12 @@ pub struct Remote {
     pub fake: Option<FakeSite>,
 }
 
+/// Le temps qu'une réponse est gardée pour une page : son `every`, une minute au moins ; dix
+/// minutes sans `every` (en millisecondes).
+fn keep_for(every: u64) -> u64 {
+    if every == 0 { EVERY_DEFAULT } else { every.max(EVERY_MIN) }
+}
+
 /// Un caractère d'une clé, écrit pour une adresse : tel quel s'il ne demande rien, sinon en %XX.
 fn encoded(text: &str) -> String {
     text.bytes().map(|b| if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'.' | b'_' | b'~') { (b as char).to_string() } else { format!("%{b:02X}") }).collect()
@@ -712,6 +718,18 @@ impl Remote {
         lines
     }
 
+    /// Ce qui est gardé pour une adresse, sans jamais demander ni attendre : sous le verrou des
+    /// gestes, un site lent retiendrait tous les visiteurs. `None` : rien de frais.
+    pub fn kept(&self, written: &str, every: u64) -> Option<Result<String, ()>> {
+        let now = (self.clock)();
+        let cache = self.cache.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        match cache.get(written).map(|entry| &entry.kept) {
+            Some(Kept::Arrived { json, at }) if now < at + keep_for(every) => Some(Ok(json.clone())),
+            Some(Kept::Failed { at }) if now < at + EVERY_MIN => Some(Err(())),
+            _ => None,
+        }
+    }
+
     /// Les données d'un autre site pour une page (ADR-116) : depuis ce qui est gardé, si c'est
     /// encore frais ; sinon une demande, une seule à la fois pour une même adresse, que les autres
     /// visiteurs attendent. `page` : la page, pour le journal ; `written` : l'adresse écrite dans
@@ -734,7 +752,7 @@ impl Remote {
                 return Err(self.refused(page, written, Refusal::KeyNameInPage(host)));
             }
         }
-        let keep = if every == 0 { EVERY_DEFAULT } else { every.max(EVERY_MIN) };
+        let keep = keep_for(every);
         let deadline = Instant::now() + TOTAL_TIMEOUT + Duration::from_secs(2);
         let mut cache = self.cache.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         loop {
@@ -925,6 +943,30 @@ fn pages_reading_other_sites(folder: &Path) -> Vec<(String, String)> {
     let mut found = Vec::new();
     walk(folder, "/", 0, &mut 0, &mut found);
     found
+}
+
+/// Pour les essais de holo serve : un `Remote` dont le transport est un faux, qui note chaque
+/// demande, et dont le journal est gardé.
+#[cfg(test)]
+pub(crate) fn fake(folder: &Path, answer: impl Fn(&Outgoing) -> Result<Incoming, Failure> + Send + Sync + 'static) -> (Remote, Arc<Mutex<Vec<Outgoing>>>, Arc<Mutex<Vec<String>>>) {
+    struct Recorded(Arc<Mutex<Vec<Outgoing>>>, Box<dyn Fn(&Outgoing) -> Result<Incoming, Failure> + Send + Sync>);
+    impl Transport for Recorded {
+        fn get(&self, request: &Outgoing) -> Result<Incoming, Failure> {
+            self.0.lock().unwrap().push(request.clone());
+            (self.1)(request)
+        }
+    }
+    let (asked, journal) = (Arc::new(Mutex::new(Vec::new())), Arc::new(Mutex::new(Vec::new())));
+    let lines = Arc::clone(&journal);
+    let start = Instant::now();
+    let remote = Remote::with_parts(
+        folder,
+        Box::new(Recorded(Arc::clone(&asked), Box::new(answer))),
+        None,
+        Box::new(move || start.elapsed().as_millis() as u64),
+        Box::new(move |line: &str| lines.lock().unwrap().push(line.to_string())),
+    );
+    (remote, asked, journal)
 }
 
 #[cfg(test)]
