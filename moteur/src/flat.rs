@@ -543,6 +543,14 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
             footer = footer.replace(empty, full_one);
         }
     }
+    // Les textes travaillés (ADR-103), à leur départ : `{code:upper}`, `{message:length}`,
+    // `{bio:max40}`. Leur valeur montrée a son propre nom dans l'état, `code:upper`.
+    for (key, worked) in crate::text::shown_values(program, &texts) {
+        let (empty, full_one) = (format!("<span data-state=\"{key}\"></span>"), format!("<span data-state=\"{key}\">{}</span>", escape(&worked)));
+        for html in [&mut body, &mut worlds, &mut header, &mut footer] {
+            *html = html.replace(&empty, &full_one);
+        }
+    }
     // Les valeurs à format, à leur départ, dans la langue de la page.
     let language = match program.root.argument("lang").map(|a| &a.value) {
         Some(Value::Text(l)) => l.as_str(),
@@ -787,6 +795,12 @@ pub fn plain_text(text: &str, shown: &crate::state::State, texts: &crate::state:
         };
         let inside = &remainder[..end];
         let (name, format) = inside.split_once(':').map_or((inside, None), |(name, format)| (name, Some(format)));
+        // Un texte travaillé (ADR-103) : « {code:upper} » dans le titre de l'onglet aussi.
+        if let Some(worked) = format.and_then(|f| crate::text::shown_in(name, f, texts)) {
+            output.push_str(&worked);
+            remainder = &remainder[end + 1..];
+            continue;
+        }
         if let Some((_, text)) = texts.iter().find(|(known, _)| known == name) {
             output.push_str(text);
         } else if let Some((_, value)) = shown.iter().find(|(known, _)| known == name) {
@@ -2100,6 +2114,10 @@ fn lines(repeat: &Block, list: &str, base: &str) -> Result<String, Error> {
                     let inside = &after[1..end];
                     if inside == "item" {
                         output.push(ELEMENT);
+                    } else if let Some(format) = inside.strip_prefix("item:") {
+                        // Le texte de l'élément, travaillé (ADR-103) : `{item:upper}`, `{item:max20}`.
+                        output.push_str(&format!("{FIELD}{}{FIELD}", shown_ones.len()));
+                        shown_ones.push((String::new(), Some(format.to_string())));
                     } else if let Some(field) = inside.strip_prefix("item.") {
                         let (name, format) = field.split_once(':').map_or((field, None), |(n, f)| (n, Some(f.to_string())));
                         output.push_str(&format!("{FIELD}{}{FIELD}", shown_ones.len()));
@@ -2175,6 +2193,13 @@ fn lines(repeat: &Block, list: &str, base: &str) -> Result<String, Error> {
             }
         }
         let mut line = line.replace(ELEMENT, &escape(&crate::lists::text_of(element)));
+        // Un champ travaillé, ou le texte de l'élément (ADR-103) : `{item.title:upper}`, `{item:max20}`.
+        for (i, (name, format)) in shown_ones.iter().enumerate() {
+            if let Some(format) = format.as_deref().filter(|f| crate::text::is_format(f)) {
+                let raw = if name.is_empty() { crate::lists::text_of(element) } else { fields.iter().find(|(c, _)| c == name).map(|(_, v)| v.clone()).unwrap_or_default() };
+                line = line.replace(&format!("{FIELD}{i}{FIELD}"), &escape(&crate::text::apply(&raw, format, &crate::format::language())));
+            }
+        }
         for (i, (name, format)) in shown_ones.iter().enumerate() {
             let raw = fields.iter().find(|(c, _)| c == name).map(|(_, v)| v.clone()).unwrap_or_default();
             let shows = match (format, raw.parse::<u64>()) {
@@ -2453,6 +2478,13 @@ fn markdown(text: &str) -> String {
     for name in crate::state::names_in(text) {
         if crate::format::can_be_negative(name) && crate::format::decimal_places(name) == 0 {
             html = html.replace(&format!("<span data-state=\"{name}\"></span>"), &format!("<span data-state=\"{name}\" data-format=\"d0\"></span>"));
+        }
+    }
+    // Un texte travaillé (ADR-103) : sa valeur montrée a son propre nom dans l'état, `code:upper`,
+    // que la page écrit telle quelle.
+    for (name, format) in crate::format::formats_in(text) {
+        if crate::text::is_format(format) {
+            html = html.replace(&format!("{{{name}:{format}}}"), &format!("<span data-state=\"{name}:{format}\"></span>"));
         }
     }
     // `{minute:00}` : la valeur, avec son format (ADR-043).

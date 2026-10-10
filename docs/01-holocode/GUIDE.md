@@ -2004,6 +2004,46 @@ Page(
 
 La leçon est `125-des-nombres-negatifs.holo`.
 
+## 6 quaterquadragies. Travailler un texte : des majuscules, sa longueur, le couper, le découper
+
+Un compteur sous un message, un code en capitales, l'aperçu d'un texte long, des étiquettes écrites d'une traite (`ADR-103`).
+
+```holo
+Page(
+  title: "Message",
+  state: State(code: "ab-12", message: "", keywords: "art, painting, Paris", posts: []),
+  computed: [
+    Split(name: tags, from: keywords, by: ","),
+    Split(name: words, from: message, by: " "),
+  ],
+  children: [
+    Input(value: code, label: "Your discount code"),
+    P("Printed as: {code:upper}"),
+    Input(value: message, label: "Your message", lines: 3, max: 140),
+    P("{message:length} characters out of 140, {words} word(s)."),
+    P("Preview: {message:max40}"),
+    Button(name: Publish, text: "Publish"),
+    Repeat(over: posts, children: [ P("{item:max40}") ]),
+    Input(value: keywords, label: "Keywords, separated by commas"),
+    P("{tags} tag(s)"),
+    Repeat(over: tags, children: [ Text("#{item:lower}") ]),
+  ],
+  rules: [ On(Publish.tap, effect: posts.push(message)) ],
+)
+```
+
+- **`{code:upper}`**, **`{code:lower}`** : le texte en majuscules, en minuscules, dans la langue de la page : « ß » devient « SS » ; en turc et en azéri (`Page(lang: "tr")`), « i » devient « İ » ; en grec, les accents tombent en majuscules. Ce que le visiteur a écrit ne change pas : seulement ce qu'on montre. Pour l'allure d'un bloc entier, le style `text-transform: uppercase` suffit.
+- **`{message:length}`** : le nombre de caractères, comme une personne les compte. 👍🏽, 🇫🇷, 👨‍👩‍👧, « é » écrit en deux morceaux et « क्षि » comptent chacun pour un, comme `Intl.Segmenter` (en JavaScript, `"👍".length` vaut 2).
+- **`{message:max40}`** : au plus 40 caractères, « … » compris, de `max2` à `max2000`. Plus long, le texte est coupé à la fin d'un mot quand on garde ainsi au moins la moitié de la place, sinon au milieu du mot, jamais au milieu d'une lettre ; « … » dit qu'il continue.
+- **Partout où un texte se montre** : dans une phrase, dans le titre de l'onglet (`Page(title: "Code {code:upper}")`), dans les lignes d'une liste pour un champ (`{item.title:max40}`) ou pour le texte de l'élément (`{item:upper}`), et sans JavaScript, avec `holo serve`.
+- **`Split(name: tags, from: keywords, by: ",")`**, dans `computed: [ … ]` : le texte découpé en liste, qui le suit pendant qu'on écrit. Chaque morceau perd ses blancs autour ; les morceaux vides sont oubliés ; deux cents au plus. `{tags}` compte les morceaux ; `Repeat(over: tags)` les montre ; un `Filter(from: tags, …)` écrit après lui les trie ou les cherche.
+- **`by:`** : `","` coupe aux virgules de toutes les écritures (« 北京，上海、广州 » donne trois morceaux) ; `";"` aux points-virgules ; `" "` aux blancs (des mots : `{words}` les compte) ; `lines` à chaque ligne d'un texte long ; un autre texte, de un à dix signes, tel qu'il est écrit, `by: " - "`.
+- La valeur montrée a son propre nom dans l'état, `code:upper`, `message:length` : `?values` la montre ; l'arbitre ne la relit jamais.
+- Refusés, avec la raison : un format de texte sur un nombre, une liste (son nombre s'écrit `{tasks}`) ou une date ; `{code:uppercase}` (écris `upper`), `{bio:max1}` ; `{item:upper}` hors d'une répétition ; un `Split` sans `from` ou sans `by`, un séparateur vide, un `from` qui n'est pas un texte ; changer ou réordonner une liste découpée (on change son texte).
+- Pas encore : une condition sur une longueur ; la limite d'un champ (`max:`) compte encore les signes écrits, un émoji peut y compter pour plus d'un.
+
+La leçon est `126-travailler-un-texte.holo`.
+
 ## 6 quinquadragies. Une grille qui place ses cases : plusieurs colonnes, des zones
 
 Une case plus grande que les autres, et une page dessinée avec des mots (`ADR-104`).
@@ -3002,6 +3042,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Multiplier, diviser | les demandes `mul`, `div` | fait |
 | Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait |
 | Une valeur qui descend sous zéro : une température, un solde | `negative: [temperature]`, et le signe moins de la langue de la page | fait (`ADR-102`) |
+| Travailler un texte : des majuscules, sa longueur, le couper, le découper en liste | `{code:upper}`, `{code:lower}`, `{message:length}`, `{bio:max40}`, `Split(name:, from:, by:)` | fait (`ADR-103`) |
 | Une liste qui change pendant la visite | `State(tasks: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` | fait |
 | Une liste d'articles à champs, aussi reçue du serveur | `State(articles: [ Item(…) ])`, `{item.title}`, `push(Item(…))`, `Data` | fait |
 | Une valeur partagée par tous les visiteurs, vue en direct | `shared: Shared(seats: 20)`, `seats.sub(1)` par un toucher | fait |
@@ -3027,6 +3068,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 - Pour les capacités du navigateur (`ADR-093` à `ADR-096`) : la caméra ne prend pas de photo, le microphone ne donne pas de son ; pas de rappel après la fermeture de la page (il faudrait un serveur de « push ») ; pas d'import en CSV ni par glisser-déposer ; pas de copie hors-ligne d'une page qui a un compte, un formulaire ou des valeurs partagées, ni d'envoi mis en attente.
 - Pour les listes de définitions (`ADR-097`) : pas de liste de termes qui change pendant la visite (`Repeat(over:)`), ni de définition faite de plusieurs paragraphes.
 - Pour les nombres négatifs (`ADR-102`) : une glissière, une valeur partagée, l'adresse et un fichier exporté ne prennent pas encore de nombre négatif.
+- Pour les textes (`ADR-103`) : une condition sur une longueur ; une limite de champ (`max:`) qui compte les lettres comme `{message:length}` ; rejoindre une liste en un texte.
 - Pour les valeurs : une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
