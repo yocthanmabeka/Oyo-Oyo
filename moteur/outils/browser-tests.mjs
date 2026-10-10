@@ -1946,6 +1946,36 @@ const tests = [
     }
     return [faults.length === 0, faults.length ? faults.join("\n      ") : "sans JavaScript, deux touchers gardés ; avec, les mêmes valeurs ; la copie prête, avec celles d'un premier visiteur ; sous le service worker, la page passe par lui, le direct et le geste partagé à côté"];
   }],
+  ["des filtres d'image : gris, puis les couleurs sous la souris ; assombri, vif, flou ; la page floue derrière une fenêtre (leçon 131)", async (p, b) => {
+    // ADR-108 : un réglage par effet, composés par le moteur en un seul `filter` ; `backdrop-blur`
+    // sur une fenêtre floute toute la page derrière elle (son `::backdrop`).
+    await p.open("/exemples/lecons/131-des-filtres-d-image.holo");
+    const filter = (selector) => p.value(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); return e ? getComputedStyle(e).filter : "absent"; })()`);
+    const gray = await filter(".holo-s-gris");
+    const dim = await filter(".holo-s-sombre");
+    const vivid = await filter(".holo-s-vive");
+    const blurred = await filter(".holo-s-floue");
+    // Le passage d'une allure à l'autre couvre aussi le filtre.
+    const eased = await p.value(`document.querySelector(".holo-s-gris") ? getComputedStyle(document.querySelector(".holo-s-gris")).transitionProperty : "absent"`);
+    // La souris se pose sur l'image grise : elle reprend ses couleurs, en douceur.
+    const box = await p.value(`(() => { const e = document.querySelector(".holo-s-gris"); if (!e) return null; const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+    let colored = false;
+    if (box) {
+      await b.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: box[0], y: box[1] });
+      colored = await p.until(`getComputedStyle(document.querySelector(".holo-s-gris")).filter === "grayscale(0)"`, 5000);
+    }
+    // La fenêtre s'ouvre : derrière elle, la page est floue.
+    let opened = false;
+    let behind = "absent";
+    if (await p.value(`!!document.querySelector('[data-name="Ouvrir"]')`)) {
+      await p.click('[data-name="Ouvrir"]');
+      opened = await p.until(`!!document.querySelector("dialog[open]")`, 10000);
+      behind = await p.value(`(() => { const d = document.querySelector("dialog.holo-Dialog"); return d ? getComputedStyle(d, "::backdrop").backdropFilter : "absent"; })()`);
+    }
+    const ok = gray === "grayscale(1)" && colored && dim === "brightness(0.6) contrast(1.2)" && vivid === "saturate(1.8) hue-rotate(30deg)" && blurred === "blur(3px)"
+      && eased.includes("filter") && opened && behind === "blur(6px)";
+    return [ok, `gris : ${gray}, sous la souris : ${colored ? "grayscale(0)" : "resté gris"} ; assombri : ${dim} ; vif : ${vivid} ; flou : ${blurred} ; transition : ${eased} ; fenêtre ${opened ? "ouverte" : "fermée"}, derrière : ${behind}`];
+  }],
 ];
 
 tests.push(...sharingTests({engine,phone,page,startHoloServe,startChrome,pause}));

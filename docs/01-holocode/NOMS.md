@@ -64,6 +64,8 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `<<bonjour>>` dans un texte | `q` | nouveau : une marque du texte enrichi ; le moteur écrit les guillemets de la langue de la page, « » en français avec une espace fine insécable, “ ” en anglais, ceux du second niveau dans une citation (`ADR-101`) |
 | `_Les Misérables_` dans un texte ; `Quote(work:)` | `cite` | nouveau : le titre d'une œuvre ; un trait bas au milieu d'un mot reste un trait bas (`ADR-101`) |
 | `reorder: true` dans `Repeat(over:)` | `draggable="true"`, `dragstart`, `dragover`, `drop`, `dataTransfer`, et le code qui range le tableau ; ou une bibliothèque (SortableJS) | changé : le mot de Flutter (`ReorderableListView`) ; un réglage, rien à programmer ; la poignée, « Monter » et « Descendre » viennent du moteur, au doigt, à la souris, au clavier, au lecteur d'écran qui entend la nouvelle place, et sans JavaScript ; l'arbitre change la liste (`ADR-105`) |
+| `grayscale`, `saturate`, `brightness`, `contrast`, `hue`, `blur` dans un style | `filter: grayscale(1) blur(4px)` | changé : un réglage par effet, les mots du CSS ; le moteur les compose en un seul `filter`, et un état en change un sans effacer les autres ; des nombres comme `opacity`, jamais `100%` ; `hue` comme dans `Enter` ; le contraste mesuré filtre compris ; le flou jamais sur un texte (`ADR-108`) |
+| `backdrop-blur: 8px` dans un style | `backdrop-filter: blur(8px)`, `-webkit-backdrop-filter`, `dialog::backdrop` | changé : un seul réglage ; sur une `Dialog`, toute la page derrière elle ; refusé avec un fond opaque, où rien ne se verrait (`ADR-108`) |
 | `Enter` | `@keyframes` + `animation` (de… vers…), ou `element.animate()` | changé : on écrit seulement d'où le bloc part |
 | `Loop` | `animation: … infinite alternate` | changé : on écrit seulement où il va |
 | `Scenes`, `Scene` | une suite de `animation-delay` calculés à la main, ou un chef d'orchestre en JavaScript | changé : les scènes s'enchaînent seules |
@@ -234,6 +236,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `aspect-ratio`, `object-fit`, `object-position` | les mêmes | repris ; une image est `cover` sans rien écrire : jamais déformée (`ADR-069`) |
 | `cursor` | `cursor` | repris : 22 formes, ou `url("viseur.svg")` ; le moteur ajoute la forme de secours `auto` (`ADR-069`) |
 | `justify` dans `text-align` | `text-align: justify`, `hyphens: auto` | repris ; les mots se coupent seuls, dans la langue de la page (`ADR-069`) |
+| `grayscale`, `saturate`, `brightness`, `contrast`, `hue`, `blur`, `backdrop-blur` | `filter`, `backdrop-filter` | changés : un réglage par effet, composés par le moteur en un seul `filter` ; des nombres bornés, jamais `%` (`ADR-108`) |
 
 ### Les unités et le reste
 
