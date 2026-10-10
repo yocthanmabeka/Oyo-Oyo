@@ -43,7 +43,8 @@ fn capabilities(block: &str) -> &'static [&'static str] {
         "Form" => &["send"],
         "Module" => &["run"],
         "Transfer" => &["import", "export"],
-        "Device" => &["request", "write", "stop"],
+        // Une vibration se joue comme un son : Buzz.play (ADR-110).
+        "Device" => &["request", "write", "stop", "play"],
         "Notification" => &["show", "stop"],
         "Offline" => &["save", "remove"],
         // Relire les données : On(Retry.tap, effect: Stock.refresh) (ADR-064).
@@ -287,6 +288,9 @@ fn effects_of(rule: &Block) -> Vec<&Value> {
 fn check_effects(rule: &Block, names: &[(&str, &str)], state: &crate::state::State, allowed_capabilities: bool, program: &Program) -> Result<(), Error> {
     let type_of = |name: &str| names.iter().find(|(known, _)| *known == name).map(|(_, block)| *block);
     let expects_request = || Error { message: format!("« {} » attend une demande : {}(…, effect: score.add(1))", rule.name, rule.name), pos: rule.pos };
+    // Ce qui se joue sans geste, là où une règle de temps ou qui guette agit : un son (ADR-061) ou
+    // une vibration (ADR-110), Ding.play, Buzz.play, et leur arrêt.
+    let plays = |target: &str, capability: &str| matches!(capability, "play" | "stop") && (type_of(target) == Some("Sound") || crate::capabilities::vibrates(program, target));
     let effects = effects_of(rule);
     if effects.is_empty() {
         return if allowed_capabilities { name_and_word(rule, None, "l'effet").map(|_| ()) } else { Err(expects_request()) };
@@ -307,7 +311,7 @@ fn check_effects(rule: &Block, names: &[(&str, &str)], state: &crate::state::Sta
                     return Err(Error { message: format!("« {target}.{capability} » s'écrit avec sa quantité, entre parenthèses : {target}.{capability}(1)"), pos: rule.pos });
                 }
                 let target_type = type_of(target).ok_or_else(|| Error { message: format!("aucun bloc ne s'appelle « {target} »"), pos: rule.pos })?;
-                if crate::capabilities::BLOCKS.contains(&target_type) && capability != "stop" {
+                if crate::capabilities::BLOCKS.contains(&target_type) && capability != "stop" && !plays(target, capability) {
                     let trigger = rule.arguments.iter().find(|a| a.name.is_none()).map(|a| &a.value);
                     if !matches!(trigger, Some(Value::Name(s)) if s.ends_with(".tap") && type_of(s.split('.').next().unwrap_or("")) == Some("Button")) {
                         return Err(Error { message: "une permission, un transfert ou une copie hors-ligne demande le toucher d'un bouton explicite".into(), pos: rule.pos });
@@ -324,15 +328,15 @@ fn check_effects(rule: &Block, names: &[(&str, &str)], state: &crate::state::Sta
             // peut pas emmener le visiteur ailleurs sans qu'il ait rien touché.
             Value::Name(_) => {
                 let (target, capability) = name_and_word(rule, Some(effect), "l'effet")?;
-                if (type_of(target) != Some("Sound") || !matches!(capability, "play" | "stop")) && rule.name == "On" {
+                if !plays(target, capability) && rule.name == "On" {
                     return Err(Error {
-                        message: format!("un survol change des valeurs ou joue un son ; « {target}.{capability} » demande que le visiteur touche : On(…tap, effect: {target}.{capability})"),
+                        message: format!("un survol change des valeurs, joue un son ou fait vibrer ; « {target}.{capability} » demande que le visiteur touche : On(…tap, effect: {target}.{capability})"),
                         pos: rule.pos,
                     });
                 }
-                if type_of(target) != Some("Sound") || !matches!(capability, "play" | "stop") {
+                if !plays(target, capability) {
                     return Err(Error {
-                        message: format!("« {} » : en dehors d'une demande, seule la lecture d'un son est permise ici (Ding.play) ; « {target}.{capability} » demande un geste du visiteur, dans une règle « On »", rule.name),
+                        message: format!("« {} » : en dehors d'une demande, seuls un son ou une vibration se jouent ici (Ding.play, Buzz.play) ; « {target}.{capability} » demande un geste du visiteur, dans une règle « On »", rule.name),
                         pos: rule.pos,
                     });
                 }

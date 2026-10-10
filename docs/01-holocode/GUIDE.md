@@ -2003,6 +2003,45 @@ Page(
 
 La leçon est `125-des-nombres-negatifs.holo`.
 
+## 6 quinquadragies. Une grille qui place ses cases : plusieurs colonnes, des zones
+
+Une case plus grande que les autres, et une page dessinée avec des mots (`ADR-104`).
+
+```holo
+Page(
+  title: "The painters' garden",
+  children: [
+    H1("The painters' garden"),
+    Grid(columns: 3, gap: 12px, children: [
+      Column(columnSpan: 2, rowSpan: 2, children: [ H2("The painting of the month"), P("Two columns, two rows.") ]),
+      P("The blue door"),
+      P("Market day"),
+      P("The river"),
+    ]),
+    Grid(areas: [
+      "top  top  top",
+      "menu main main",
+    ], children: [
+      Text("Open from Tuesday to Sunday", area: top),
+      Nav(area: menu, children: [ A("Home", to: "home.holo") ]),
+      Column(area: main, children: [ P("The garden is visited on foot.") ]),
+    ]),
+  ],
+)
+```
+
+- **`columnSpan: 2`** sur un bloc rangé dans `Grid` : sa case prend deux colonnes, au plus celles de la grille (`columns:`, 2 sans rien écrire). **`rowSpan: 2`** : deux lignes, de 2 à 12.
+- **Rien ne déborde.** Une grille perd des colonnes sur un écran étroit (partie 4 bis) ; quand elle n'en a plus assez pour la case, la case prend toute la ligne, et une seule ligne. En CSS, la grille ajouterait une colonne, et la page glisserait de côté sur un téléphone.
+- **`Grid(areas: ["top top top", "menu main main"])`** dessine la grille avec des mots : une ligne de texte par rangée, les noms des zones séparés par des espaces, autant de cases à chaque ligne (12 au plus, et 12 lignes). Une zone prend les cases qui portent son nom, et forme un rectangle ; un point (`.`) laisse une case vide. Les colonnes ont la même largeur : pour un menu plus étroit, on écrit son nom moins de fois (`menu main main`).
+- **`area: menu`** : chaque bloc d'une grille à zones dit sa zone, et chaque zone reçoit un bloc, un seul (pour en ranger plusieurs, un `Column`). Un nom de zone s'écrit comme une valeur : `menu`, `sideMenu`.
+- **Les blocs s'écrivent dans l'ordre des zones**, de gauche à droite puis de haut en bas : l'œil, la touche Tab et le lecteur d'écran suivent ainsi le même chemin. Sinon, le moteur refuse et donne l'ordre. (Le CSS laisse une zone passer devant une autre à l'écran sans changer l'ordre de lecture : un défaut qu'on ne reprend pas.)
+- **Sur un téléphone, les zones passent l'une sous l'autre**, dans cet ordre. Elles restent côte à côte tant que la grille a au moins 480px de large et que chaque zone y garde 120px. C'est la largeur de la grille qui compte, pas celle de l'écran : posée dans une case étroite, une grille à zones s'empile aussi. `phone:` et `narrow:` changent l'allure des cases, comme ailleurs.
+- Un `If` peut remplir une zone : quand il est faux, sa case ne laisse pas de trou. Un bloc qui bouge (`enter:`) garde sa case. Sans JavaScript, tout marche : la grille se mesure elle-même, en CSS fabriqué par le moteur.
+- La place se dit sur le bloc, jamais dans un style : `grid-column`, `grid-row`, `grid-area` et `grid-template-areas` sont refusés dans un style, avec le bon mot.
+- Refusés, avec la raison : `columnSpan:` plus grand que la grille, ou `1` ; `rowSpan:` au-delà de 12 ; ces réglages hors d'une grille, sur une fenêtre (`Dialog`) ou sur un son sans lecteur ; `columns:` avec `areas:` ; des lignes de longueurs différentes, une zone qui n'est pas un rectangle, une ligne de cases vides, une seule zone ; un bloc sans zone, une zone inconnue, deux blocs dans une zone, une zone sans bloc, des blocs dans le désordre ; `columnSpan:` dans une grille à zones.
+
+La leçon est `127-une-grille-et-ses-zones.holo`.
+
 ## 6 sexquadragies. Réordonner une liste : `reorder: true`
 
 Le visiteur range lui-même les lignes d'une liste : ses tâches par ordre d'importance, ses tableaux préférés, les étapes d'un voyage (`ADR-105`).
@@ -2032,6 +2071,75 @@ Page(
 - Pas encore : faire passer une ligne d'une liste à une autre (des colonnes de tâches) ; « tout en haut » d'un seul geste ; changer l'allure de la poignée et des boutons par un style.
 
 La leçon est `128-reordonner-une-liste.holo`.
+
+## 6 duodequinquagies. Partager la page : `Device(kind: share)`
+
+Le bouton « Partager » du téléphone, dans la page (`ADR-107`) : le visiteur envoie la page à un ami, par un message ou un e-mail.
+
+```holo
+Page(
+  title: "The Saturday market",
+  state: State(shared: 0, missed: 0),
+  children: [
+    H1("The Saturday market"),
+    Device(name: Share, kind: share, label: "Sharing this page"),
+    Button(name: ShareIt, text: "Share this page"),
+    P("Shared {shared} times during this visit."),
+    If(missed, over: 0, children: [ P("Sharing did not work: copy the address written above the button.") ]),
+  ],
+  rules: [
+    On(ShareIt.tap, effect: Share.request),
+    On(Share.done, effect: shared.add(1)),
+    On(Share.failed, effect: missed.add(1)),
+  ],
+)
+```
+
+- **`Device(kind: share)`** : une sorte d'appareil de plus (`ADR-094`). `Share.request`, sur le toucher d'un bouton, ouvre la feuille de partage du téléphone avec le titre de la page et son adresse, telle que la barre d'adresse la montre.
+- **Sur un ordinateur sans feuille de partage**, le même bouton copie l'adresse dans le presse-papiers. Le bouton marche partout.
+- **La page dit ce qui s'est passé**, à l'écran et au lecteur d'écran, dans la zone d'état du bloc : « Page partagée. », « Adresse de la page copiée : colle-la où tu veux. », « Partage annulé. », ou la panne, avec l'adresse écrite en entier, à copier à la main.
+- `Share.done` : partagée, ou l'adresse copiée. `Share.failed` : rien n'a marché. **Fermer la feuille sans rien choisir n'est pas une panne** : ni l'un ni l'autre.
+- Le moteur appelle le navigateur pendant le toucher même, avant toute attente : le navigateur n'ouvre la feuille que pendant le geste du visiteur. Jamais d'une minuterie, d'une règle qui guette ni d'une fin.
+- Sans JavaScript, le bloc dit comment partager quand même : copier l'adresse dans la barre du navigateur, ou prendre « Partager » dans son menu.
+- Refusés : `Share.write` (un partage s'ouvre, il ne s'écrit pas) ; `value:` (le partage ne rend rien à la page).
+
+La leçon est `130-partager-la-page.holo`.
+
+## 6 unquinquagies. Faire vibrer le téléphone : `Device(kind: vibration)`
+
+Une courte vibration dit « c'est fait » sans qu'on regarde l'écran : un bouton qui répond, une prise dans un jeu (`ADR-110`). Elle accompagne toujours un signe à l'écran.
+
+```holo
+Page(
+  title: "Catch the diamond",
+  state: State(jumps: 0, caught: 0, x: 10, y: 50, cx: 80, cy: 50),
+  children: [
+    Device(name: Tick, kind: vibration, for: 30ms, label: "A short buzz when you jump"),
+    Device(name: Buzz, kind: vibration, for: [100ms, 80ms, 100ms], label: "Two buzzes when you catch the diamond"),
+    Button(name: Jump, text: "Jump"),
+    P("Jumps: {jumps}. Caught: {caught}."),
+    Board(height: 220px, children: [
+      Shape(name: Target, form: diamond, color: "#FF4D6D", size: 48px, x: cx, y: cy),
+      Shape(name: Me, form: square, color: "#E9B44C", size: 48px, x: x, y: y),
+    ]),
+  ],
+  rules: [
+    On(Jump.tap, effect: [jumps.add(1), y.sub(20), Tick.play]),
+    On(Key.left, effect: x.sub(5)), On(Key.right, effect: x.add(5)),
+    When(Me, meets: Target, effect: [caught.add(1), cx.random(100), cy.random(100), Buzz.play]),
+  ],
+)
+```
+
+- **`Device(kind: vibration)`** : `Buzz.play` fait vibrer le téléphone, `Buzz.stop` arrête. Une vibration se joue comme un son (`Ding.play`), et partout où un son se joue : un toucher, une touche, une règle qui guette (`When`, une rencontre), une règle de temps (`Every`, `After`). Il n'y a pas de permission à demander.
+- **`for:`** dit combien de temps : une durée (`for: 30ms`), ou une liste qui alterne vibration et silence (`for: [100ms, 80ms, 100ms]` : vibre, se tait, vibre). 200 ms si rien n'est écrit. Dix durées au plus, une seconde en tout au plus : c'est un signal, pas une alarme.
+- **Jamais avant que le visiteur ait touché la page** : une page ne secoue pas un téléphone posé sur la table. Une vibration demandée avant est oubliée, sans rien dire.
+- **Jamais s'il demande moins de mouvement** (« Supprimer les animations » sur Android, « Réduire les animations » sur l'iPhone). La page cachée l'arrête aussi.
+- **Sur un iPhone ou un ordinateur**, rien ne vibre et rien ne casse : la page continue. La zone d'état du bloc dit « Ce navigateur ne fait pas vibrer. ».
+- **Elle n'est jamais le seul signe** : elle ne dit rien en retour (`On(Buzz.done, …)` est refusé). Ce qui compte se montre à l'écran, dans la règle qui la joue (`caught.add(1)`).
+- Refusés, avec la raison : `for:` sans unité, nul, trop long, ou sur une autre sorte d'appareil ; `Buzz.request` ; `play` sur une autre sorte ; `value:`.
+
+La leçon est `133-faire-vibrer-le-telephone.holo`.
 
 ## 6 quinvicies. Des formulaires qui vérifient
 
@@ -2663,6 +2771,8 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Chercher, filtrer, trier ; une page d'une liste | `computed: [ Filter(…, offset:, limit:, total:) ]` | fait (`ADR-062`, `ADR-084`) |
 | Un fichier de ses valeurs, exporté puis importé | `Transfer(file:, values:)`, `export`, `import` | fait (`ADR-093`) |
 | L'appareil : la position, le presse-papiers, la caméra, le microphone | `Device(kind:)`, `request`, `write`, `stop` | fait (`ADR-094`) |
+| Partager la page : la feuille du téléphone, ou l'adresse copiée | `Device(kind: share)`, `request` | fait (`ADR-107`) |
+| Faire vibrer le téléphone, d'un toucher ou d'une règle de jeu | `Device(kind: vibration, for:)`, `play`, `stop` | fait (`ADR-110`) |
 | Une notification, un rappel | `Notification(title:, body:, after:)`, `show`, `stop` | fait (`ADR-095`) |
 | Une page lisible hors-ligne | `Offline(files:)`, `save`, `remove` | fait (`ADR-096`) |
 | Des termes et leurs définitions : une fiche technique, un glossaire | `List(children: [ Term("Poids", "2 kg") ])` | fait (`ADR-097`) |
