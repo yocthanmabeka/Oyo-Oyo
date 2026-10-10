@@ -61,6 +61,10 @@ pub mod server;
 pub mod accounts;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod passkeys;
+// Les données d'un autre site, lues par holo serve, jamais par le navigateur du visiteur
+// (ADR-116) : les sites permis, les clés, le client HTTPS, ce qui est gardé. Sur le PC seulement.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod remote;
 
 use holo::{Error, Program, Value};
 use universe::PointDecl;
@@ -743,7 +747,50 @@ pub fn input(source: &str, state: &str, name: &str, written: &str) -> String {
 pub fn data(source: &str) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
     let name = state::data_name(&program).unwrap_or_default();
-    state::data_source(&program).ok().flatten().map(|(file, rhythm)| format!("{file}|{rhythm}|{name}")).unwrap_or_default()
+    state::data_source(&program)
+        .ok()
+        .flatten()
+        .map(|(file, rhythm)| {
+            // Un autre site (ADR-116) : le moteur de la page demande les données à son propre
+            // serveur, à sa propre adresse (`?remote-data`) ; il ne parle jamais à l'autre site.
+            let file = if state::is_remote(&file) { format!("?{}", state::REMOTE_DATA_QUERY) } else { file };
+            format!("{file}|{rhythm}|{name}")
+        })
+        .unwrap_or_default()
+}
+
+/// L'adresse de l'autre site dont la page montre les données, et leur rythme (ADR-116) : pour le
+/// serveur de l'auteur, seul à la lire. `None` pour les données d'un fichier, ou sans données.
+pub fn remote_source(source: &str) -> Option<(String, u64)> {
+    let program = check_page(source).ok()?;
+    state::data_source(&program).ok().flatten().filter(|(from, _)| state::is_remote(from))
+}
+
+/// Les données d'un autre site, réduites à ce que la page déclare (ADR-116) : ses valeurs, ses
+/// textes, ses listes et, dans une liste à champs, ses champs. Le reste de la réponse (un numéro
+/// de compte, l'adresse IP du serveur, ce que la page ne montre pas) reste sur le serveur : il ne
+/// part ni dans la page ni vers le navigateur. `None` si ce n'est pas un objet JSON que la page
+/// sait lire (comme `Data` d'un fichier : 64 Ko, trois niveaux).
+pub fn data_for_page(source: &str, json: &str) -> Option<String> {
+    let program = check_page(source).ok()?;
+    if !lists::is_json_object(json) {
+        return None;
+    }
+    let Some(lists::Json::Object(keys)) = lists::Json::read(json) else { return None };
+    let numbers = state::initial(&program).unwrap_or_default();
+    let texts = state::initial_texts(&program);
+    let declared = lists::initial(&program);
+    let mut kept = Vec::new();
+    for (key, value) in keys {
+        let scalar = matches!(value, lists::Json::Text(_) | lists::Json::Number(_) | lists::Json::Decimal(_));
+        let named =numbers.iter().any(|(name, _)| *name == key) || texts.iter().any(|(name, _)| *name == key);
+        if named && scalar {
+            kept.push((key, value));
+        } else if let (true, lists::Json::Table(elements), Some(kind)) = (declared.iter().any(|(name, _)| *name == key), value, lists::kind(&program, &key)) {
+            kept.push((key.clone(), lists::Json::Table(elements.into_iter().take(lists::ELEMENTS_MAX).filter_map(|element| lists::for_list(element, &kind)).collect())));
+        }
+    }
+    Some(lists::Json::Object(kept).written())
 }
 
 /// Les données viennent d'arriver du serveur : l'arbitre les range et rend le nouvel état.

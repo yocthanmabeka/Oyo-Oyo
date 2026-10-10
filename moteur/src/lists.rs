@@ -370,6 +370,19 @@ pub fn take_lists(program: &Program, lists: &Lists, json: &str) -> Lists {
     lists
 }
 
+/// Un élément reçu d'un autre site, réduit à ce que garde une liste de la page (ADR-116) : un
+/// texte pour une liste de textes ; pour une liste à champs, seulement ses champs, et seulement des
+/// textes et des nombres. Ce que `take_lists` laisserait de côté ne part pas vers le navigateur.
+pub(crate) fn for_list(element: Json, kind: &Kind) -> Option<Json> {
+    let scalar = |value: &Json| matches!(value, Json::Text(_) | Json::Number(_) | Json::Decimal(_));
+    match (element, kind) {
+        (Json::Text(text), Kind::Texts | Kind::Free) => Some(Json::Text(text)),
+        (Json::Object(fields), Kind::Records(expected)) => Some(Json::Object(fields.into_iter().filter(|(name, value)| expected.contains(name) && scalar(value)).collect())),
+        (Json::Object(fields), Kind::Free) => Some(Json::Object(fields.into_iter().filter(|(name, value)| is_field_name(name) && scalar(value)).collect())),
+        _ => None,
+    }
+}
+
 /// Ce texte est-il un objet JSON, `{ "stock": 4 }`, que la page sait lire ?
 pub fn is_json_object(json: &str) -> bool {
     json.len() <= crate::state::DATA_BYTES && matches!(Json::read(json), Some(Json::Object(_)))
@@ -403,6 +416,19 @@ impl Json {
             Json::Number(n) => n.to_string(),
             Json::Decimal(d) => d.clone(),
             _ => String::new(),
+        }
+    }
+
+    /// La valeur réécrite en JSON (ADR-116) : les données d'un autre site, réduites à ce que la
+    /// page déclare, repartent ainsi vers la page. `true` et `false` y valent déjà 1 et 0.
+    pub(crate) fn written(&self) -> String {
+        match self {
+            Json::Text(t) => crate::json_text(t),
+            Json::Number(n) => n.to_string(),
+            Json::Decimal(d) => d.clone(),
+            Json::Table(elements) => format!("[{}]", elements.iter().map(Json::written).collect::<Vec<_>>().join(",")),
+            Json::Object(keys) => format!("{{{}}}", keys.iter().map(|(key, value)| format!("{}:{}", crate::json_text(key), value.written())).collect::<Vec<_>>().join(",")),
+            Json::Other => "null".into(),
         }
     }
 

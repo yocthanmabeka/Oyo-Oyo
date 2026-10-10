@@ -421,15 +421,108 @@ pub const DATA_MAX: u64 = 3_600_000;
 /// La taille d'un fichier de données, au plus.
 pub const DATA_BYTES: usize = 65_536;
 
-/// D'où viennent les données de la page : `data: Data(from: "stock.json", every: 30s)`.
-/// Rend le fichier, et le rythme en millisecondes (0 : une seule fois, à l'ouverture).
+/// Une adresse d'un autre site (ADR-116), au plus.
+pub const REMOTE_ADDRESS_MAX: usize = 2048;
+/// Un autre site se relit au plus une fois par minute (ADR-116) : `every: 60s` au moins.
+pub const REMOTE_EVERY_MIN: u64 = 60_000;
+/// Ce que le moteur de la page ajoute à sa propre adresse pour demander à son serveur les
+/// données d'un autre site (ADR-116) : `/meteo.holo?remote-data`. Jamais l'adresse de l'autre site.
+pub const REMOTE_DATA_QUERY: &str = "remote-data";
+
+/// Une adresse d'un autre site (ADR-116), telle que la page l'écrit : `https://`, le nom du site,
+/// puis, s'il y en a, le chemin et les paramètres. Le serveur de l'auteur la lit ; le navigateur
+/// du visiteur, jamais.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RemoteAddress {
+    /// Le nom du site, en minuscules : `api.open-meteo.com`.
+    pub host: String,
+    /// Le chemin et les paramètres, à partir de `/` : `/v1/forecast?latitude=-4.3`.
+    pub target: String,
+}
+
+/// Les données viennent-elles d'un autre site (`https://…`) plutôt que d'un fichier à côté ?
+pub fn is_remote(from: &str) -> bool {
+    from.starts_with("https://")
+}
+
+/// Lit l'adresse d'un autre site, strictement (ADR-116) : HTTPS seulement, un nom de site et
+/// jamais une adresse IP, ni port, ni nom et mot de passe, ni `#`, ni valeur `{…}`. Rend la
+/// raison d'un refus, en français.
+pub fn remote_address(written: &str) -> Result<RemoteAddress, String> {
+    if written.len() > REMOTE_ADDRESS_MAX {
+        return Err(format!("l'adresse d'un autre site a {REMOTE_ADDRESS_MAX} caractères au plus"));
+    }
+    let Some(rest) = written.strip_prefix("https://") else {
+        return Err("un autre site se lit en HTTPS seulement : « https:// », puis le nom du site".into());
+    };
+    let cut = rest.find(['/', '?']).unwrap_or(rest.len());
+    let (authority, target) = rest.split_at(cut);
+    if authority.starts_with('[') {
+        return Err("une adresse IP écrite à la place d'un nom est refusée : écris le nom du site, comme api.exemple.org".into());
+    }
+    if authority.contains('@') {
+        return Err("ni nom ni mot de passe dans l'adresse : une clé se range sur le serveur, dans holo-data/sites.txt, jamais dans la page".into());
+    }
+    if authority.contains(':') {
+        return Err("l'adresse d'un autre site s'écrit sans port : HTTPS, sur son port habituel".into());
+    }
+    if authority.is_empty() {
+        return Err("le nom du site suit « https:// », comme https://api.exemple.org/meteo".into());
+    }
+    let host = authority.to_ascii_lowercase();
+    check_site_name(&host)?;
+    // Ce qui suit le nom : les caractères d'une adresse (RFC 3986), rien d'autre. Un caractère
+    // spécial s'écrit en %XX ; un « # » ne servirait à rien au serveur ; « {…} » ne lit aucune valeur.
+    for c in target.chars() {
+        match c {
+            '{' | '}' => return Err("« {…} » ne lit aucune valeur dans l'adresse d'un autre site : elle s'écrit telle quelle".into()),
+            '#' => return Err("l'adresse d'un autre site s'écrit sans « # » : le serveur ne s'en sert pas".into()),
+            c if c.is_ascii_alphanumeric() || "-._~!$&'()*+,;=:@/?%[]".contains(c) => {}
+            ' ' => return Err("l'adresse d'un autre site s'écrit sans espace : une espace s'écrit %20".into()),
+            c => return Err(format!("l'adresse d'un autre site s'écrit sans « {c} » ni accent : un caractère spécial s'écrit en %XX")),
+        }
+    }
+    let bytes = target.as_bytes();
+    if bytes.iter().enumerate().any(|(i, b)| *b == b'%' && !(bytes.get(i + 1).is_some_and(u8::is_ascii_hexdigit) && bytes.get(i + 2).is_some_and(u8::is_ascii_hexdigit))) {
+        return Err("un « % » dans l'adresse est suivi de deux chiffres hexadécimaux, comme %20".into());
+    }
+    let target = if target.starts_with('/') { target.to_string() } else { format!("/{target}") };
+    Ok(RemoteAddress { host, target })
+}
+
+/// Un nom de site, comme `api.exemple.org` (ADR-116) : des lettres minuscules, des chiffres et des
+/// tirets, en morceaux séparés par des points. Jamais une adresse IP (`127.0.0.1`, `0x7f.1`,
+/// `2130706433`), jamais ce PC (`localhost`). Le dernier morceau commence par une lettre.
+pub fn check_site_name(host: &str) -> Result<(), String> {
+    let refusal = || format!("« {host} » n'est pas un nom de site : des lettres, des chiffres et des tirets, en morceaux séparés par des points, comme api.exemple.org");
+    if host == "localhost" || host.ends_with(".localhost") {
+        return Err("« localhost » est ce PC : une page ne fait pas lire ce PC à son serveur".into());
+    }
+    if host.is_empty() || host.len() > 253 {
+        return Err(refusal());
+    }
+    let parts: Vec<&str> = host.split('.').collect();
+    // Une adresse IP s'écrit en chiffres (en décimal, en octal ou en hexadécimal, `0x7f`) : son
+    // dernier morceau commence par un chiffre ; celui d'un nom de site, par une lettre.
+    if parts.last().is_some_and(|last| last.starts_with(|c: char| c.is_ascii_digit())) {
+        return Err("une adresse IP écrite à la place d'un nom est refusée : écris le nom du site, comme api.exemple.org".into());
+    }
+    if parts.len() < 2 || parts.iter().any(|part| part.is_empty() || part.len() > 63 || part.starts_with('-') || part.ends_with('-') || !part.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')) {
+        return Err(refusal());
+    }
+    Ok(())
+}
+
+/// D'où viennent les données de la page : `data: Data(from: "stock.json", every: 30s)`, ou un
+/// autre site, `Data(from: "https://…", every: 600s)`, lu par le serveur de l'auteur (ADR-116).
+/// Rend le fichier (ou l'adresse), et le rythme en millisecondes (0 : une seule fois, à l'ouverture).
 pub fn data_source(program: &Program) -> Result<Option<(String, u64)>, Error> {
     let Some(argument) = program.root.argument("data") else { return Ok(None) };
     let block = match &argument.value {
         Value::Block(block) if block.name == "Data" && program.root.name == "Page" => block,
         _ => return Err(Error { message: "« data » attend un bloc « Data(...) », sur la page : data: Data(from: \"stock.json\")".into(), pos: argument.pos }),
     };
-    let (mut file, mut rhythm) = (None, 0);
+    let (mut file, mut rhythm, mut rhythm_pos) = (None, 0, block.pos);
     for argument in &block.arguments {
         match (argument.name.as_deref(), &argument.value) {
             // Un fichier rangé à côté de la page : ni adresse complète, ni remontée de dossier.
@@ -437,13 +530,23 @@ pub fn data_source(program: &Program) -> Result<Option<(String, u64)>, Error> {
             (Some("from"), Value::Text(name)) if name.ends_with(".json") && !name.starts_with('/') && !name.contains("..") && name.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '/')) => {
                 file = Some(name.clone());
             }
-            (Some("from"), _) => return Err(Error { message: "« Data(from: …) » attend un fichier .json rangé à côté de la page, comme \"stock.json\"".into(), pos: argument.pos }),
+            // Un autre site (ADR-116) : c'est le serveur de l'auteur qui le lit, jamais le
+            // navigateur du visiteur ; l'adresse est vérifiée ici, partout où la page est lue.
+            (Some("from"), Value::Text(address)) if is_remote(address) => match remote_address(address) {
+                Ok(_) => file = Some(address.clone()),
+                Err(reason) => return Err(Error { message: format!("« Data(from: …) » : {reason}"), pos: argument.pos }),
+            },
+            (Some("from"), Value::Text(address)) if address.contains("://") || address.starts_with("//") => {
+                return Err(Error { message: "« Data(from: …) » : un autre site se lit en HTTPS seulement, comme \"https://api.exemple.org/meteo\" ; sinon, un fichier .json rangé à côté de la page".into(), pos: argument.pos })
+            }
+            (Some("from"), _) => return Err(Error { message: "« Data(from: …) » attend un fichier .json rangé à côté de la page, comme \"stock.json\", ou l'adresse HTTPS d'un autre site".into(), pos: argument.pos }),
             (Some("every"), Value::Number { value, unit: Some(unit), .. }) if unit == "s" || unit == "ms" => {
                 let ms = if unit == "s" { value * 1000.0 } else { *value };
                 if !(DATA_MIN as f64..=DATA_MAX as f64).contains(&ms) {
                     return Err(Error { message: "« Data(every: …) » va de 1s à 3600s".into(), pos: argument.pos });
                 }
                 rhythm = ms.round() as u64;
+                rhythm_pos = argument.pos;
             }
             (Some("every"), _) => return Err(Error { message: "« Data(every: …) » attend une durée, de 1s à 3600s".into(), pos: argument.pos }),
             // Un nom, pour que les règles sachent si les données sont arrivées (ADR-064).
@@ -454,6 +557,10 @@ pub fn data_source(program: &Program) -> Result<Option<(String, u64)>, Error> {
         }
     }
     match file {
+        // Un autre site se relit au plus une fois par minute (ADR-116), quel que soit le nombre de visiteurs.
+        Some(file) if is_remote(&file) && rhythm > 0 && rhythm < REMOTE_EVERY_MIN => {
+            Err(Error { message: "« Data(every: …) » : un autre site se relit au plus une fois par minute ; écris every: 60s ou plus".into(), pos: rhythm_pos })
+        }
         Some(file) => Ok(Some((file, rhythm))),
         None => Err(Error { message: "« Data » attend « from » : Data(from: \"stock.json\")".into(), pos: block.pos }),
     }
