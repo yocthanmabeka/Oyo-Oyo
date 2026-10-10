@@ -1,0 +1,38 @@
+// Une page d'essai (moteur/outils/browser-tests.mjs), pas une leçon : un en-tête qui reste à
+// l'écran (ADR-106) mais beaucoup trop haut, et un champ plus bas. Le moteur doit borner l'en-tête
+// au cinquième de l'écran ; quand le clavier de l'écran s'ouvre sur le champ, l'en-tête reprend
+// sa place dans la page.
+
+Page(
+  title: "Essai : un bloc qui reste, trop haut",
+  state: State(nom: ""),
+  children: [
+    Header.haut(sticky: top, children: [
+      H1("Un en-tête beaucoup trop haut"),
+      P("Première ligne de l'en-tête."),
+      P("Deuxième ligne de l'en-tête."),
+      P("Troisième ligne de l'en-tête."),
+      P("Quatrième ligne de l'en-tête."),
+      P("Cinquième ligne de l'en-tête."),
+      P("Sixième ligne de l'en-tête."),
+      P("Septième ligne de l'en-tête."),
+      P("Huitième ligne de l'en-tête."),
+      P("Neuvième ligne de l'en-tête."),
+      P("Dixième ligne de l'en-tête."),
+    ]),
+    P("Le texte de la page commence ici. Il est assez long pour qu'on défile, sur un téléphone comme sur un ordinateur."),
+    P("Un paragraphe pour descendre."),
+    P("Un paragraphe pour descendre encore."),
+    Input(value: nom, label: "Ton nom"),
+    P("Un paragraphe après le champ."),
+    P("Un autre paragraphe après le champ."),
+    P("Encore un paragraphe."),
+    P("Et encore un."),
+    P("Le texte continue, pour que la page dépasse l'écran."),
+    P("Presque la fin."),
+    P("La fin de la page."),
+  ],
+)
+
+Page { background: #ffffff; color: #101020; padding: 16px; }
+.haut { padding: 8px 0; }

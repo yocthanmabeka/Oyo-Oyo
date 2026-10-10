@@ -877,6 +877,158 @@ const tests = [
       && gripHidden && withoutScript === "La rivière | Le lever du soleil | La porte bleue | Le jour de marché";
     return [ok, `départ : ${start} ; souris : ${afterMouse} (« ${heardMouse} ») ; clavier : ${afterKey}, le focus sur ${focus} (« ${heardKey} ») ; Monter en tête : « ${heardTop} », rien ne bouge : ${unchanged} ; lecteur d'écran : ${named} boutons nommés, poignée entendue : ${gripHeard} ; doigt : ${afterFinger} ; gardé : ${keptFinger.includes("Le%20jour%20de%20march%C3%A9,La%20porte")} ; sans JavaScript, poignée cachée : ${gripHidden}, après Descendre : ${withoutScript}`];
   }],
+  ["une barre de lecture et un retour en haut : scroll au plus dix fois par seconde, sticky en haut et en bas, le focus jamais caché, un téléphone, le clavier de l'écran, sans JavaScript (leçon 129, défilement)", async (p, b) => {
+    const lesson = "/exemples/lecons/129-une-barre-de-lecture.holo";
+    const tall = "/exemples/.essais-navigateur/bloc-qui-reste-trop-haut.holo";
+    const faults = [];
+    const check = (name, ok, seen) => { if (!ok) faults.push(`${name} : ${JSON.stringify(seen)}`); };
+    const errors = (where) => { if (b.errors.length) faults.push(`${where}, erreurs : ${b.errors.join(" | ")}`); };
+    // Ce que montre la page : la barre du haut, le bouton du bas, la valeur montrée et la place
+    // réelle, la largeur de la page, la place du bouton rond du moteur, la marge laissée au focus.
+    const seen = () => p.value(`(() => {
+      const box = (e) => { if (!e) return null; const r = e.getBoundingClientRect(); return r.height > 0 ? { top: Math.round(r.top), bottom: Math.round(r.bottom), height: Math.round(r.height), position: getComputedStyle(e).position } : null; };
+      const room = document.documentElement.scrollHeight - innerHeight;
+      const html = getComputedStyle(document.documentElement);
+      return { bar: box(document.querySelector('[data-sticky="top"]')), back: box(document.querySelector('[data-sticky="bottom"]')),
+        value: document.querySelector('[data-progress="scroll"]')?.value, percent: document.querySelector('[data-state="scroll"]')?.textContent,
+        real: room > 0 ? Math.round(scrollY / room * 100) : 0, scrollY: Math.round(scrollY), height: innerHeight, wide: document.documentElement.scrollWidth,
+        menu: parseFloat(getComputedStyle(document.getElementById("menu")).bottom), padding: [parseFloat(html.scrollPaddingTop) || 0, parseFloat(html.scrollPaddingBottom) || 0] };
+    })()`);
+    // Toucher un bloc là où il est, sans faire défiler la page avant : un bloc qui reste à l'écran
+    // n'est pas à sa place dans la page.
+    const tapAt = async (selector) => {
+      const at = await p.value(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return null; const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+      if (!at) return false;
+      for (const type of ["mousePressed", "mouseReleased"]) await b.send("Input.dispatchMouseEvent", { type, x: at[0], y: at[1], button: "left", clickCount: 1 });
+      return true;
+    };
+    // Tab, ou Maj + Tab ; puis le temps qu'un bloc apparaisse (If) et que la page le mesure.
+    const tab = async (back) => {
+      for (const type of ["keyDown", "keyUp"]) await b.send("Input.dispatchKeyEvent", { type, key: "Tab", code: "Tab", windowsVirtualKeyCode: 9, modifiers: back ? 8 : 0 });
+      await pause(400);
+    };
+    // Ce qui a le focus, et ce qui le cache : un bloc qui reste à l'écran, ou le bord de l'écran.
+    const focused = () => p.value(`(() => {
+      const e = document.activeElement;
+      if (!e || e === document.body) return { name: "(rien)", hidden: "" };
+      const name = (e.textContent || e.getAttribute("aria-label") || e.tagName).trim().slice(0, 32);
+      if (e.closest("[data-sticky]")) return { name, hidden: "" };
+      const r = e.getBoundingClientRect();
+      const stuck = [...document.querySelectorAll("[data-sticky]")].map((s) => s.getBoundingClientRect()).filter((s) => s.height > 0);
+      const under = stuck.some((s) => r.top < s.bottom - 1 && r.bottom > s.top + 1);
+      return { name, hidden: under ? "sous un bloc qui reste" : r.top < 0 || r.bottom > innerHeight ? "hors de l'écran" : "", at: [Math.round(r.top), Math.round(r.bottom)] };
+    })()`);
+    let summary = {};
+    try {
+      // 1. Sur un ordinateur : la barre en haut, vide, que le lecteur d'écran nomme ; pas de bouton.
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 1000, height: 700, deviceScaleFactor: 1, mobile: false });
+      await p.open(lesson);
+      if (!(await p.until("window.__holoStarted"))) return [false, "le moteur n'est pas arrivé"];
+      let m = await seen();
+      check("au départ : la barre vide, sans bouton", m.value === 0 && m.percent === "0" && m.back === null && m.bar?.position === "sticky", m);
+      const { nodes } = (await b.send("Accessibility.getFullAXTree")).result;
+      const named = nodes.find((n) => !n.ignored && n.role?.value === "progressbar")?.name?.value;
+      check("le lecteur d'écran nomme la barre", named === "Lecture", named);
+      // 2. À mi-page : la barre reste en haut et suit la place ; le bouton reste en bas ; le bouton
+      // rond du moteur monte au-dessus de lui.
+      await p.value("scrollTo(0, (document.documentElement.scrollHeight - innerHeight) / 2)");
+      await p.until(`document.querySelector('[data-state="scroll"]')?.textContent === "50"`, 3000);
+      await pause(400);
+      m = await seen();
+      check("à mi-page : la barre suit, collée en haut", m.percent === "50" && m.value === 50 && m.bar?.top === 0, m);
+      check("à mi-page : le bouton, collé en bas", m.back !== null && m.back.bottom === m.height, m);
+      check("le bouton rond du moteur au-dessus du bouton du bas", m.back !== null && Math.abs(m.menu - (12 + m.back.height)) <= 1, m);
+      summary.half = `barre en haut à ${m.bar?.top}px, « ${m.percent} % », bouton collé en bas (${m.back?.height}px), menu à ${m.menu}px du bas`;
+      // 3. Au plus dix fois par seconde : cinquante pas de défilement en une seconde ; la dernière
+      // place est donnée.
+      await p.value("window.__holoScrollsGiven = 0");
+      await p.value("new Promise((done) => { let step = 0; const t = setInterval(() => { scrollBy(0, step < 25 ? 9 : -5); if (++step === 50) { clearInterval(t); done(); } }, 20); })");
+      await pause(500);
+      const given = await p.value("window.__holoScrollsGiven");
+      m = await seen();
+      check("au plus dix fois par seconde, et la dernière place", given >= 4 && given <= 12 && Number(m.percent) === m.real, { given, percent: m.percent, real: m.real });
+      summary.rate = `${given} fois pour 50 pas en une seconde, finie à ${m.percent} %`;
+      // 4. « Retour en haut » : en haut, la barre vide, le bouton parti.
+      await tapAt('[data-sticky="bottom"] a');
+      await p.until(`scrollY === 0 && document.querySelector('[data-state="scroll"]')?.textContent === "0"`, 3000);
+      await pause(400);
+      m = await seen();
+      check("retour en haut", m.scrollY === 0 && m.percent === "0" && m.back === null, m);
+      // 5. Un lien vers un endroit de la page : le titre s'arrête juste sous la barre (scroll-padding).
+      await tapAt('a[href="#Ou"]');
+      await pause(700);
+      const title = await p.value(`(() => { const t = document.getElementById("Ou").getBoundingClientRect(); const bar = document.querySelector('[data-sticky="top"]').getBoundingClientRect(); return [Math.round(t.top), Math.round(bar.bottom)]; })()`);
+      check("le titre « Où les voir » juste sous la barre", title[0] >= title[1] && title[0] - title[1] <= 32, title);
+      summary.anchor = `titre à ${title[0]}px, barre jusqu'à ${title[1]}px`;
+      // 6. Le clavier : Tab de lien en lien jusqu'au bas, puis Maj + Tab jusqu'en haut ; aucun lien
+      // ne passe sous un bloc qui reste à l'écran (WCAG 2.4.11).
+      await p.value(`scrollTo(0, 0); document.querySelector('a[href="#CeQueCest"]').focus()`);
+      await pause(400);
+      const walk = [];
+      const step = async (back) => {
+        await tab(back);
+        const f = await focused();
+        walk.push(f.name);
+        if (f.hidden) faults.push(`${back ? "Maj + Tab" : "Tab"} : « ${f.name} » ${f.hidden} ${JSON.stringify(f.at)}`);
+        return f.name;
+      };
+      for (let i = 0; i < 10 && (await step(false)) !== "Leçon 1 : une page →"; i++);
+      for (let i = 0; i < 10 && (await step(true)) !== "Ce que c'est"; i++);
+      check("le clavier passe par le bas de la page et revient en haut", walk.includes("Leçon 1 : une page →") && walk.some((n) => n.startsWith("Les Perséides")) && walk.at(-1) === "Ce que c'est", walk);
+      summary.keyboard = walk.join(" → ");
+      errors("ordinateur");
+      // 7. Sur un téléphone (360 × 780) : la barre prend moins du cinquième de l'écran ; rien ne déborde.
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 360, height: 780, deviceScaleFactor: 2, mobile: true });
+      await p.open(lesson);
+      await p.until("window.__holoStarted");
+      await p.value("scrollTo(0, 900)");
+      await pause(500);
+      m = await seen();
+      check("téléphone : la barre collée en haut, au plus le cinquième de l'écran", m.bar?.top === 0 && m.bar.height <= 156 && m.bar.position === "sticky", m);
+      check("téléphone : rien ne déborde", m.wide <= 360, m);
+      summary.phone = `barre de ${m.bar?.height}px sur 780`;
+      errors("téléphone");
+      // Un en-tête beaucoup trop haut : borné au cinquième de l'écran, et ce qui dépasse défile dedans.
+      await p.open(tall);
+      const header = await p.value(`(() => { const h = document.querySelector('[data-sticky="top"]'); return { height: Math.round(h.getBoundingClientRect().height), inside: h.scrollHeight > h.clientHeight, screen: innerHeight }; })()`);
+      check("téléphone : l'en-tête trop haut, borné au cinquième de l'écran", header.height <= Math.ceil(header.screen / 5) && header.inside, header);
+      summary.tall = `en-tête borné à ${header.height}px (contenu plus haut : ${header.inside})`;
+      // 8. Le clavier de l'écran, ouvert sur le champ (sa hauteur imitée) : l'en-tête reprend sa
+      // place dans la page ; refermé, il reste de nouveau en haut.
+      await p.value(`document.querySelector('[data-bind="nom"]').focus()`);
+      await pause(300);
+      await p.value(`Object.defineProperty(visualViewport, "height", { configurable: true, get: () => 380 }); visualViewport.dispatchEvent(new Event("resize"))`);
+      await pause(200);
+      const typing = await p.value(`[document.documentElement.classList.contains("holo-keyboard"), getComputedStyle(document.querySelector('[data-sticky="top"]')).position]`);
+      await p.value(`delete visualViewport.height; visualViewport.dispatchEvent(new Event("resize"))`);
+      await pause(200);
+      const closed = await p.value(`[document.documentElement.classList.contains("holo-keyboard"), getComputedStyle(document.querySelector('[data-sticky="top"]')).position]`);
+      check("le clavier de l'écran : l'en-tête reprend sa place, puis reste de nouveau", typing[0] === true && typing[1] === "static" && closed[0] === false && closed[1] === "sticky", { typing, closed });
+      errors("en-tête trop haut");
+      // 9. Un téléphone couché (780 × 360) : l'écran est trop bas, rien ne reste.
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 780, height: 360, deviceScaleFactor: 2, mobile: true });
+      await p.open(lesson);
+      const lying = await p.value(`getComputedStyle(document.querySelector('[data-sticky="top"]')).position`);
+      check("téléphone couché : rien ne reste", lying === "static", lying);
+      // 10. Sans JavaScript : la barre reste en haut (du CSS), vide ; pas de bouton ; la marge du
+      // focus est le cinquième de l'écran.
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 1000, height: 700, deviceScaleFactor: 1, mobile: false });
+      await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+      try {
+        await p.open(lesson, 300);
+        await p.value("scrollTo(0, 600)");
+        await pause(300);
+        m = await seen();
+        check("sans JavaScript : la barre reste en haut, vide, sans bouton, et la marge du focus est prévue", m.bar?.position === "sticky" && m.bar.top === 0 && m.value === 0 && m.back === null && m.padding[0] >= 140, m);
+        summary.withoutScript = `barre à ${m.bar?.top}px, valeur ${m.value}, marge du focus ${m.padding[0]}px`;
+      } finally {
+        await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      }
+    } finally {
+      await b.send("Emulation.clearDeviceMetricsOverride");
+    }
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : `ordinateur : ${summary.half} ; ${summary.rate} ; retour en haut ; « Où les voir » : ${summary.anchor} ; clavier : ${summary.keyboard}, rien de caché ; téléphone : ${summary.phone}, ${summary.tall}, clavier de l'écran : l'en-tête reprend sa place ; couché : rien ne reste ; sans JavaScript : ${summary.withoutScript}`];
+  }],
   ["faire vibrer le téléphone : un toucher, une rencontre, le mouvement réduit, un navigateur sans vibreur (leçon 133)", async (p, b) => {
     const lesson = "/exemples/lecons/133-faire-vibrer-le-telephone.holo";
     const status = (name) => `document.querySelector('[data-name="${name}"] [data-capability-status]').textContent`;
