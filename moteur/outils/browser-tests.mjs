@@ -16,6 +16,7 @@ import { passkeyTests } from "../../proposals/GPT5.6/fin-passkeys-2026-10-08/bro
 import { sharingTests } from "../../proposals/GPT5.6/fin-partage-2026-10-08/browser-tests.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { createHmac } from "node:crypto";
+import { createServer } from "node:http";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -826,6 +827,144 @@ const tests = [
       && byFinger && afterFinger === "Le lever du soleil | Le jour de marché | La porte bleue | La rivière" && keptFinger.includes("tableaux=[Le%20lever%20du%20soleil,Le%20jour%20de%20march%C3%A9,")
       && gripHidden && withoutScript === "La rivière | Le lever du soleil | La porte bleue | Le jour de marché";
     return [ok, `départ : ${start} ; souris : ${afterMouse} (« ${heardMouse} ») ; clavier : ${afterKey}, le focus sur ${focus} (« ${heardKey} ») ; Monter en tête : « ${heardTop} », rien ne bouge : ${unchanged} ; lecteur d'écran : ${named} boutons nommés, poignée entendue : ${gripHeard} ; doigt : ${afterFinger} ; gardé : ${keptFinger.includes("Le%20jour%20de%20march%C3%A9,La%20porte")} ; sans JavaScript, poignée cachée : ${gripHidden}, après Descendre : ${withoutScript}`];
+  }],
+  ["les données d'un autre site, lues par holo serve et jamais par le navigateur, avec et sans JavaScript ; l'interrupteur des essais éteint par défaut (leçon 139, serve)", async (p, b) => {
+    // ADR-116. Un faux « autre site » sur ce PC : un petit serveur HTTP de Node, qui note chaque
+    // demande reçue. holo serve ne l'atteint que par l'interrupteur des essais, allumé ici
+    // seulement dans son environnement (HOLO_TEST_ONLY_INSECURE_SITE=meteo.test:<port>).
+    const binary = ["holo", "holo.exe"].map((name) => join(engine, "target", "release", name)).find(existsSync);
+    if (!binary) return [false, "holo n'est pas construit : cargo build --release --bin holo"];
+    const KEY = "cle-d-essai-7f3a9c41";
+    const seen = [];
+    const other = createServer((req, res) => {
+      seen.push({ url: req.url, headers: req.headers });
+      if (req.url.startsWith("/meteo.json")) {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ temperature: 31, sky: "Ensoleillé", account: "compte-42" }));
+      } else if (req.url.startsWith("/redirige")) {
+        res.writeHead(302, { location: "/meteo.json" });
+        res.end();
+      } else {
+        res.writeHead(404);
+        res.end();
+      }
+    });
+    await new Promise((ok) => other.listen(0, "127.0.0.1", ok));
+    const otherPort = other.address().port;
+    const folder = mkdtempSync(join(tmpdir(), "holo-serve-"));
+    const meteo = (from) => [
+      'Page(title: "Météo d\'essai", state: State(loading: 1, broken: 0, temperature: 0, sky: ""),',
+      `  data: Data(name: Meteo, from: "${from}", every: 600s),`,
+      '  children: [',
+      '    H1("La météo"),',
+      '    If(loading, is: 1, children: [ P("Chargement…") ]),',
+      '    If(broken, is: 1, children: [ P("La météo n\'est pas arrivée."), Button(name: Retry, text: "Réessayer") ]),',
+      '    P("{temperature} degrés, {sky}"),',
+      '    Button(name: Again, text: "Relire"),',
+      '  ],',
+      '  rules: [ On(Meteo.done, effect: [loading.set(0), broken.set(0)]), On(Meteo.failed, effect: [loading.set(0), broken.set(1)]),',
+      '    On(Retry.tap, effect: [loading.set(1), broken.set(0), Meteo.refresh]), On(Again.tap, effect: Meteo.refresh) ],',
+      ')',
+    ].join("\n");
+    writeFileSync(join(folder, "meteo.holo"), meteo("https://meteo.test/meteo.json?city=Kinshasa"));
+    writeFileSync(join(folder, "redirige.holo"), meteo("https://meteo.test/redirige"));
+    writeFileSync(join(folder, "139-les-donnees-d-un-autre-site.holo"), readFileSync(join(repo, "exemples", "lecons", "139-les-donnees-d-un-autre-site.holo")));
+    mkdirSync(join(folder, "holo-data"));
+    writeFileSync(join(folder, "holo-data", "sites.txt"), `# Les autres sites de l'essai\nmeteo.test X-Api-Key: ${KEY}\n`);
+    // holo serve, avec ou sans l'interrupteur ; on attend qu'il ait dit ce qu'il permet.
+    const serve = async (switched) => {
+      const port = 24000 + Math.floor(Math.random() * 2000);
+      const env = { ...process.env };
+      delete env.HOLO_TEST_ONLY_INSECURE_SITE;
+      if (switched) env.HOLO_TEST_ONLY_INSECURE_SITE = `meteo.test:${otherPort}`;
+      const server = spawn(binary, ["serve", folder, String(port)], { cwd: engine, env, stdio: ["ignore", "pipe", "pipe"] });
+      let output = "";
+      server.stdout.on("data", (d) => { output += d; });
+      server.stderr.on("data", (d) => { output += d; });
+      for (let i = 0; i < 100 && !output.includes("Autres sites"); i++) await pause(100);
+      return { base: `http://localhost:${port}`, output: () => output, stop: () => server.kill() };
+    };
+    const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;
+    const asked = (start) => seen.filter((r) => r.url.startsWith(start)).length;
+    const browsed = [];
+    b.on("Network.requestWillBeSent", ({ request }) => browsed.push(request.url));
+    await b.send("Network.enable");
+    let off, on;
+    try {
+      // 1. Éteint par défaut : sans la variable, holo serve ne dit rien de l'interrupteur, la page
+      //    dit l'échec, et le faux site ne reçoit rien.
+      off = await serve(false);
+      const quietOff = !off.output().includes("ESSAIS SEULEMENT");
+      const q0 = page(b, off.base);
+      await q0.open("/meteo.holo", 300);
+      const failedOff = await q0.until(`window.__holoStarted && ${has("La météo n'est pas arrivée.")}`, 40000);
+      const nothingAsked = seen.length === 0;
+      off.stop();
+      // 2. Allumé : holo serve l'annonce, dit les sites permis (sans la clé) et la leçon qui lit un
+      //    site non permis.
+      on = await serve(true);
+      const said = on.output();
+      const announced = said.includes(`ESSAIS SEULEMENT : HOLO_TEST_ONLY_INSECURE_SITE=meteo.test:${otherPort}`)
+        && said.includes("Autres sites    : 1 permis (holo-data/sites.txt) : meteo.test (une clé, en en-tête)")
+        && said.includes("/139-les-donnees-d-un-autre-site.holo lit fr.wikipedia.org, qui n'est pas dans holo-data/sites.txt");
+      const q = page(b, on.base);
+      browsed.length = 0;
+      await q.open("/meteo.holo", 300);
+      const arrived = await q.until(`window.__holoStarted && ${has("31 degrés, Ensoleillé")} && !${has("Chargement")}`, 40000);
+      // Relire trois fois, recharger trois fois : rien de plus vers l'autre site.
+      for (let i = 0; i < 3; i++) {
+        await pause(1100);
+        await q.click('[data-name="Again"]');
+      }
+      await pause(800);
+      const noFailure = await q.value(`!${has("La météo n'est pas arrivée.")} && ${has("31 degrés, Ensoleillé")}`);
+      for (let i = 0; i < 3; i++) await q.open("/meteo.holo", 300);
+      await q.until(`window.__holoStarted && ${has("31 degrés, Ensoleillé")}`, 40000);
+      const reads = browsed.filter((url) => url.endsWith("?remote-data")).length;
+      const once = asked("/meteo.json") === 1;
+      // Ce que le faux site a reçu : notre User-Agent, la clé, et rien du visiteur.
+      const first = seen.find((r) => r.url.startsWith("/meteo.json"));
+      const h = first?.headers ?? {};
+      const honest = first?.url === "/meteo.json?city=Kinshasa" && String(h["user-agent"]).startsWith("HoloCode/") && h["x-api-key"] === KEY && h.accept === "application/json"
+        && !("cookie" in h) && !("referer" in h) && !("x-forwarded-for" in h) && !("origin" in h);
+      // Le navigateur n'a parlé qu'à holo serve ; la page et ses données n'ont ni la clé, ni le reste de la réponse.
+      const elsewhere = browsed.filter((url) => !url.startsWith(on.base) && !/^(data|blob|about):/.test(url));
+      const html = await q.value(`fetch(location.pathname, { headers: { accept: "text/html" } }).then((r) => r.text())`);
+      const json = await q.value(`fetch(location.pathname + "?remote-data", { headers: { accept: "application/json" } }).then((r) => r.text())`);
+      const secret = [html, json, on.output()].some((text) => text.includes(KEY)) || json.includes("compte-42") || html.includes("compte-42");
+      const exact = json === JSON.stringify({ temperature: 31, sky: "Ensoleillé" });
+      // 3. Sans JavaScript : la page arrive avec ses données, et « Relire » part au serveur, qui
+      //    répond depuis ce qu'il garde.
+      let withoutScript = false;
+      try {
+        await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+        await q.open("/meteo.holo", 300);
+        const served = await q.value(has("31 degrés, Ensoleillé"));
+        await q.click('[data-name="Again"]');
+        withoutScript = served && (await q.until(`document.readyState === "complete" && ${has("31 degrés, Ensoleillé")}`, 5000));
+      } finally {
+        await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      }
+      const stillOnce = asked("/meteo.json") === 1;
+      // 4. Une redirection n'est jamais suivie ; la leçon 139, dont le site n'est pas permis, dit l'échec.
+      await q.open("/redirige.holo", 300);
+      const redirected = (await q.until(`window.__holoStarted && ${has("La météo n'est pas arrivée.")}`, 40000)) && asked("/redirige") === 1 && asked("/meteo.json") === 1;
+      await q.open("/139-les-donnees-d-un-autre-site.holo", 300);
+      const lesson = (await q.until(`window.__holoStarted && ${has("Le résumé n'est pas arrivé.")}`, 40000)) && b.errors.length === 0;
+      const journal = on.output();
+      const told = journal.includes("Autre site      : /meteo.holo : meteo.test a répondu") && journal.includes("meteo.test répond par une redirection (302), qui n'est jamais suivie")
+        && journal.includes("« fr.wikipedia.org » n'est pas dans holo-data/sites.txt");
+      const ok = quietOff && failedOff && nothingAsked && announced && arrived && noFailure && reads >= 4 && once && honest && elsewhere.length === 0 && !secret && exact && withoutScript && stillOnce && redirected && lesson && told;
+      return [ok, `éteint par défaut : rien d'annoncé ${quietOff}, échec ${failedOff}, rien demandé ${nothingAsked} ; allumé et annoncé : ${announced} ; arrivées : ${arrived}, relues sans échec : ${noFailure} ; ${reads} lectures par holo serve (?remote-data : ${json}), ${asked("/meteo.json")} demande(s) à l'autre site ; en-têtes honnêtes, clé en en-tête, rien du visiteur : ${honest} ; le navigateur ailleurs : ${elsewhere.length ? elsewhere.join(", ") : "jamais"} ; clé ou reste de la réponse dans la page, ses données ou le journal : ${secret} ; sans JavaScript : ${withoutScript} (toujours ${asked("/meteo.json")} demande) ; redirection non suivie : ${redirected} ; leçon 139 sans site permis : ${lesson}${b.errors.length ? ` (${b.errors.join(" | ")})` : ""} ; le journal le dit : ${told}`];
+    } finally {
+      b.on("Network.requestWillBeSent", null);
+      await b.send("Network.disable");
+      off?.stop();
+      on?.stop();
+      other.close();
+      await pause(300);
+      try { rmSync(folder, { recursive: true, force: true }); } catch { /* tant pis */ }
+    }
   }],
   ["les touches du clavier, et les lettres qu'on coupe", async (p) => {
     await p.open("/exemples/lecons/77-toutes-les-touches.holo");
