@@ -33,6 +33,63 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — La passation : le PC s'éteint, la session du nuage reprend tout
+
+- Fait (la session du nuage) :
+  - Vers 16 h 35 UTC, le PC de Yocthan n'avait plus de charge. Sa session a tout envoyé sur GitHub, a rendu chacune de ses tâches sur son issue (`etat:a-prendre`, avec l'état exact) et a écrit la passation dans #255, comme le prévoit `AGENTS.md` (« Si le PC s'arrête »). La session du nuage a tout repris.
+  - Les fusions, dans l'ordre que demandait la session du PC : la #264 (les données d'un autre site, 4e20d04), la #266 (une page dans la page, e464d7f), puis la #265 (les sept nouveautés essayées et validées par Yocthan, 105bda7). Les issues 248 et 249 sont fermées.
+  - Les tâches reprises, chacune sur une branche sans `wip/` :
+    - #237 (les filtres), sur `langage/filtres`, partie de `wip/langage/filtres` ;
+    - #232 (travailler un texte), sur `langage/textes`, partie de `wip/langage/textes` ;
+    - #235 (le défilement), sur `langage/defilement`, partie de `wip/langage/defilement` : un agent finit la règle des 480 px et du papier ;
+    - #240 (découper une forme), sur `langage/formes-decoupees` : l'agent du PC s'était arrêté avant d'écrire, un agent du nuage la fait.
+- Les accords de Yocthan, le 2026-10-10, à la session du nuage : « tu as toutes mes autorisations », et « valide toutes les essais au cas où ils sont déjà là parce que j'ai tout testé déjà ». C'était la réponse aux deux questions posées : fusionner les PR vertes et relues sans attendre, et employer `ring` (déjà compilé avec `ureq`, la #264) dans `holo serve` seulement, pour chiffrer (251) et vérifier une signature (252).
+- Erreurs en route :
+  - Le système de permissions de la session du nuage a refusé la première fusion de la #264 : la demande venait de la session du PC, pas de Yocthan. Rien n'a été contourné. Yocthan a donné son accord lui-même, et la fusion est passée. Une session ne tient jamais l'accord de Yocthan d'une autre session, seulement de lui.
+  - Après la #264, la fusion de `main` dans la #266 a perdu une accolade. Les deux essais Chrome, ajoutés au même endroit, finissaient par les mêmes deux lignes (la fin d'un bloc `finally`, puis celle de l'essai), et l'outil de fusion de la session du nuage, écrit pour l'ancien style de conflit, n'en remettait qu'une. `node --check` l'a vu avant l'envoi. Le fichier a été rendu, puis vérifié ligne à ligne : celui de `main`, plus l'essai de la 249. L'outil fusionne maintenant en style diff3, comme le dit `AGENTS.md`, et a été éprouvé sur ce cas exact.
+  - Le Chrome sans écran de Linux n'a pas de souris : un style au survol (`@media (hover:hover)`) ne s'y voit jamais, et `Emulation.setEmulatedMedia` n'y change rien. L'essai des filtres lit maintenant la règle dans la feuille de style quand il n'y a pas de souris.
+- Reste :
+  - les PR des filtres, des textes, du défilement et des formes découpées ;
+  - #238 (les heures), #246 (le mot de passe), #247 (la zone de dessin) ;
+  - les fonctions ouvertes : 250 (en cours), 251 et 252 ;
+  - la suite des leçons et le grand tableau du web (v37), quand les douze dettes seront dans `main`.
+
+---
+
+## 2026-10-10 — Des filtres d'image dans les styles : gris, flou, luminosité
+
+- Fait (issue #237, un agent de la session du PC ; `ADR-108`, ACCEPTÉ d'avance par Yocthan : « tu le valides déjà, tu le fais déjà ») :
+  - `grayscale`, `saturate`, `brightness`, `contrast`, `hue`, `blur` dans un style : un réglage par effet, borné, jamais en `%`. Le moteur les compose en un seul `filter`, toujours dans le même ordre ; un état en change un sans effacer les autres (`hover: { grayscale: 0; }` garde le flou).
+  - Seulement sur une image, une forme ou un dessin. Jamais sur un texte, un bouton, un composant ni une vidéo.
+  - Au focus du clavier, le bloc filtré se montre sans filtre (`:focus-visible { filter: none }`) : son cadre de focus reste net.
+  - `backdrop-blur` sur une fenêtre : la page, derrière elle, devient floue (son `::backdrop`).
+  - La leçon 131, le guide (« 6 undequinquagies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons, un essai dans Chrome.
+- Repris du travail sauvé par l'agent arrêté (`wip/langage/filtres-pc`), puis relu contre les règles. Trois changements :
+  - Le premier jet filtrait tout bloc. Il ne mesurait le contraste d'un texte filtré que si le même style donnait ses deux couleurs : un texte dont les couleurs venaient de la page passait donc assombri sans rien dire. Désormais, un filtre ne se pose que sur un bloc sans texte.
+  - Vu dans Chrome (première capture) : un flou brouille le cadre de focus et les commandes d'une vidéo ; `brightness(0.2)` les efface presque ; `clip-path` coupe le cadre tout entier. D'où la vidéo refusée, et le focus sans filtre.
+  - Le verre dépoli (`backdrop-blur` sur un bloc à demi transparent) posait un texte sur un fond inconnu. Il est retiré, et laissé en dette.
+
+![Le cadre de focus (en bleu) sous un filtre : net, brouillé par blur(3px), presque effacé par brightness(0.2), gris, coupé par clip-path ; dessous, les commandes d'une vidéo floutée, puis assombrie](images/2026-10-10-filtres-cadre-de-focus.png)
+
+![La leçon 131 : le lac en gris, assombri, plus vif, flou ; le titre posé sur la photo assombrie](images/2026-10-10-filtres-lecon-131.png)
+
+![La fenêtre ouverte : derrière elle, la page est floue et assombrie](images/2026-10-10-filtres-fenetre-floue.png)
+
+- Erreur : l'exemple du guide du premier jet commençait par un `H2`. Seuls les tests nouveaux avaient tourné ; le test qui relit le guide l'a vu au premier `cargo test` complet. Corrigé (5cba62d).
+- Exécuté, après la fusion de `main` (style diff3 ; les ajouts des deux côtés gardés, rangés par numéro) :
+  - `cargo test --release --locked` et `cargo test` : 259 tests passent.
+  - Dans Chrome, « des filtres d'image … (leçon 131) » passe : `grayscale(1)`, puis `grayscale(0)` sous la souris ; `brightness(0.6) contrast(1.2)`, `saturate(1.8) hue-rotate(30deg)`, `blur(3px)` ; au focus du clavier, `none` ; derrière la fenêtre ouverte, `blur(6px)` ; sans JavaScript, les mêmes filtres.
+  - L'essai sait échouer. Sans la ligne `:focus-visible{filter:none}` du moteur, il rate (« au focus du clavier : focus-visible, grayscale(1) »). Avec l'ancien moteur, la leçon est refusée (« réglage inconnu « grayscale » »).
+  - La suite entière : 86 essais passent, 4 ratent, tous faute d'axe-core sur ce PC (rien n'y est installé ; GitHub l'installe) : « parcours : axe-core… », et les essais des leçons 130, 133 et 135, venus de `main`, qui s'arrêtent à leur audit axe-core.
+- Fini par la session du nuage (le PC s'est éteint ; passation dans #255) :
+  - La preuve complète dans le conteneur du nuage (Linux, Chromium 1194), sur 76d6d8e : `cargo test --release --locked` et `cargo test`, **265** passent ; les deux WebAssembly, `holo` et les liaisons se construisent ; la suite Chrome : 87 essais passent sur 91, 132 leçons s'ouvrent, axe-core 4.10.3 ne trouve aucun défaut. Trois ratés sont ceux du conteneur (« pincer à deux doigts », « la vue points se lit au lecteur d'écran », « parcours 8 et 9 ») ; le quatrième était l'essai des filtres : « sous la souris : resté gris ».
+  - Erreur : ce Chrome sans écran n'a pas de souris (`matchMedia("(hover: hover)")` est faux), donc la règle du survol, posée sous `@media (hover:hover)` (`ADR-036`), ne s'y applique jamais ; et `Emulation.setEmulatedMedia` ne sait pas lui en donner une (essayé). L'essai fait maintenant le vrai survol quand il y a une souris, comme sur le PC ; sinon, il lit la règle dans la feuille de style. Il passe, deux fois de suite, et il sait échouer : la règle du survol retirée du moteur, il rate (« pas de souris dans ce Chrome, et pas de règle du survol ») ; le code remis, il repasse.
+- Défauts trouvés, pas corrigés ici :
+  - une forme qu'on touche en triangle ou en losange (`Shape(name:, form: triangle)`) n'a pas de cadre de focus visible : `clip-path` le coupe (vu dans Chrome). Noté pour la 240 (les formes découpées) ;
+  - une fenêtre ouverte se pose en haut à gauche de l'écran, pas au centre (leçon 63 comme leçon 131) : la marge des blocs de la page (`margin: 0 0 16px 0`) remplace le `margin: auto` du navigateur.
+
+---
+
 ## 2026-10-10 — Une page dans la page : `Embed(from:, label:, image:)`
 
 - Fait (issue #249, la session du nuage ; `ADR-117`, ACCEPTÉ) : l'une des huit fonctions ouvertes sous conditions, la page d'un autre site dans la page.
