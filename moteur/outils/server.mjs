@@ -16,6 +16,9 @@
 // en mémoire, une fois par adresse, les fait arbitrer par le moteur (holo share, le même moteur
 // que la page et que holo serve) et les envoie en direct aux pages ouvertes (text/event-stream).
 // Il les oublie quand il s'arrête ; holo serve, lui, les garde dans sa base.
+//
+// Les données d'un autre site (ADR-116), `Data(from: "https://…")`, ne sont lues que par
+// holo serve : ce serveur répond 501 à `?remote-data`.
 
 import { createServer } from "node:http";
 import { appendFile, mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
@@ -566,6 +569,10 @@ createServer(async (req, res) => {
     if (url === "/stack/listen") return listenToStack(req, res);
     if (url === "/stack/show" && req.method === "POST") return await showInStack(req, res);
     if (url === "/account" || url.startsWith("/account/")) return accountsElsewhere(res, 501);
+    // Les données d'un autre site (ADR-116) n'existent que dans holo serve : lui seul les lit, avec
+    // les sites permis et les clés de holo-data/sites.txt. Ce serveur d'essai le dit ; la page
+    // reçoit « failed ».
+    if (new URL(req.url, "http://x").search === "?remote-data") return respond(res, 501, "les données d'un autre site demandent holo serve (ADR-116)");
     // Une page qui écoute ses valeurs partagées en direct (ADR-079). Une page réservée aux
     // membres (ADR-081) n'est ni écoutée ni touchée ici : les comptes sont dans holo serve.
     if (req.method === "GET" && /text\/event-stream/.test(req.headers.accept ?? "")) {

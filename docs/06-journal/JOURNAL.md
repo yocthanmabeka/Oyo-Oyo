@@ -6,6 +6,80 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Une page dans la page : `Embed(from:, label:, image:)`
+
+- Fait (issue #249, la session du nuage ; `ADR-117`, ACCEPTÉ) : l'une des huit fonctions ouvertes sous conditions, la page d'un autre site dans la page.
+  - `Embed(from: "https://…", label: "…", image: "…")`, d'un site listé dans `Page(embeds: [ … ])`, comparé exactement, en HTTPS. Le nom que les sites donnent eux-mêmes (« Intégrer », « Embed ») ; les mots repris : `from:`, `label:`, `image:` (la comparaison est dans l'ADR).
+  - Une façade : une image du site de l'auteur, le titre, « Charger depuis www.openstreetmap.org », sur un vrai bouton. Rien ne part vers l'autre site avant le toucher : ni cadre, ni connexion préparée, ni image chargée chez lui ; l'adresse n'est que dans `data-embed`.
+  - Au toucher (doigt, souris, Entrée, Espace), la page légère pose la page intégrée, sans attendre le moteur : `sandbox="allow-scripts allow-same-origin"` (`allow-scripts` seul pour une adresse de la même origine que la page), `allow="fullscreen"`, `referrerpolicy="strict-origin"`, son titre ; le clavier y entre.
+  - Sans JavaScript, un lien dans `noscript`, avec le titre, qui s'ouvre dans un nouvel onglet.
+  - `holo serve` envoie `Content-Security-Policy: frame-src` : les sites listés, `'none'` sinon. Il n'envoyait aucune politique de sécurité du contenu.
+  - La taille suit l'écran : 16/9, un style la change.
+  - La leçon 140 : une carte d'OpenStreetMap et la première vidéo de YouTube, avec deux images de façade de moins de 600 octets. Le guide (chapitre « 6 duodesexagies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons, le README du moteur.
+- Exécuté :
+  - `check-locked.sh` : `cargo test --release --locked` et `cargo test`, **267** tests passent, 0 échec. Nouveaux : les cinq essais de `embed.rs` et `server::embed_tests::a_page_says_which_sites_it_may_embed`.
+  - `holo check` sur la leçon 140 : `ok`.
+  - Dans Chrome, « une page dans la page … (leçon 140, serve) » passe. « L'autre site » est une fausse page, rendue par l'interception des demandes (Fetch), qui dit au parent ce qu'elle voit.
+    - Avant le toucher : 0 demande vers l'autre site (par l'interception et par le réseau), aucun cadre, aucune adresse de l'autre site dans un `src` ou un `href`.
+    - Au clavier, Tab jusqu'à la façade, Entrée : le cadre enfermé, son titre, le clavier dedans (la touche « k » y arrive). Au doigt, la vidéo.
+    - La fausse page : la page de l'auteur lui est fermée ; pendant la touche, ni fenêtre, ni navigation de la page de l'auteur ; seul `fullscreen` ; la position refusée ; elle reçoit `http://localhost:…/`, pas l'adresse de la page.
+    - `frame-src` refuse un cadre non listé ; une adresse de la même origine, sur la leçon servie en HTTPS, n'a que `allow-scripts`.
+    - Sans JavaScript : deux liens nommés, aucun bouton, aucun cadre, aucune demande. axe-core : zéro défaut, avant et après le toucher.
+  - L'essai sait échouer. Chaque mutation a été faite, puis retirée, et l'essai repasse :
+    - le cadre posé d'emblée, comme le web : 2 demandes vers l'autre site avant le toucher ;
+    - sans `frame.focus()` : le clavier n'entre pas ;
+    - sans `sandbox` : pendant une touche, la page intégrée emmène la page de l'auteur vers `https://pirate.example.org/dessus` ;
+    - sans l'en-tête de `holo serve` : pas de `frame-src`, le cadre non listé n'est pas refusé ;
+    - sans la façade : les boutons restent cachés, le clavier ne les atteint pas.
+  - Dans le moteur, `http://` accepté, puis un sous-domaine accepté : `only_https_to_a_listed_site_compared_exactly` rate.
+  - La suite Chrome entière (`CI=1`, axe-core 4.10.3), par `check-locked.sh` (sur 94096fc, puis de nouveau sur fa1606e, après le clavier redonné) : **88 essais sur 91** chaque fois, dont le nouveau ; 132 leçons s'ouvrent sans erreur. Les 3 ratés sont ceux du conteneur : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium).
+- Erreurs en route :
+  - Le nom lu par le lecteur d'écran collait les deux lignes de la façade ; une virgule cachée laissait une espace avant elle (Chrome compte l'élément caché comme un bloc). Le bouton et le lien ont maintenant un nom exact (`aria-label`), qui reprend le texte montré, dans l'ordre.
+  - La fenêtre ouverte sans geste était déjà bloquée par Chrome, enfermée ou non : l'essai ne tranchait pas. La fausse page la tente maintenant pendant une touche, un vrai geste.
+  - La garde de la même origine ne s'éprouvait pas sur `http://localhost` : la page légère refuse d'abord une adresse qui n'est pas en HTTPS. La leçon est servie à une adresse en HTTPS par l'interception, qui prend chaque fichier à `holo serve`.
+  - Le choix de `referrerpolicy` : `no-referrer` aurait fait rater le lecteur de YouTube (« erreur 153 » sans `Referer`, et `Referrer-Policy: same-origin`, l'en-tête de `holo serve`, suffit à la déclencher) ; vu par une recherche, les pages n'étant pas joignables d'ici.
+  - La limite de séance a arrêté l'agent au début, pendant sa lecture ; le conteneur a redémarré, et `main` (les PR 256 à 263) a été fusionnée avant de commencer.
+  - Sur GitHub, le Chrome des machines perdait le clavier : juste après Entrée, le cadre avait le focus, mais la touche « k » n'arrivait pas dans la page intégrée (« la touche k reçue : false », le seul raté de la suite, commit c406cbc), alors que tout passait dans le Chromium du conteneur. La page de l'autre site arrive dans un autre processus du navigateur : quand elle a fini d'arriver, si le clavier est toujours sur le cadre, la page légère le lui redonne (`frame.contentWindow.focus()`). L'essai attend aussi que la fausse page dise qu'elle a le focus, et remet l'onglet au premier plan (un essai d'avant en ouvre un autre). Le conteneur ne reproduit pas ce raté : la preuve que l'essai le voit est le raté de GitHub lui-même. La CI est verte sur fa1606e (les trois travaux), et l'ADR le dit.
+- Reste :
+  - essayer sur les vrais sites, sur un téléphone ;
+  - refermer une page intégrée, et revenir à sa façade ;
+  - `frame-src` aussi avec le serveur d'essai de Node ;
+  - la miniature cherchée par le serveur de l'auteur ;
+  - la suite des leçons (la 140 revient à la 124 et mène à la 1) et le grand tableau du web (`iframe` : « En partie »), refaits à la fin.
+
+---
+
+## 2026-10-10 — Les données d'un autre site, lues par le serveur de l'auteur : `Data(from: "https://…")`
+
+- Fait (issue #248, prise par un agent de la session du nuage ; `ADR-116`, ACCEPTÉ : Yocthan a dit « Oui » le 2026-10-09 à l'ouverture sous ces conditions) :
+  - `Data(from: "https://…")` : le même bloc, une adresse HTTPS. C'est `holo serve` qui lit l'autre site ; le moteur de la page lui demande `?remote-data`, à sa propre adresse. Le navigateur du visiteur ne parle jamais à l'autre site, et ne reçoit pas son adresse.
+  - Les sites permis et leurs clés dans `holo-data/sites.txt` : une ligne par site, la clé sur sa ligne, en paramètre (`?appid=…`) ou en en-tête (`X-Api-Key: …`), comme la documentation du site la montre. La page ne nomme jamais une clé. Comparé, dans l'ADR, avec une liste dans la page (`Allowed(sources:)`), une clé nommée par la page, une variable d'environnement.
+  - Les sept règles, tenues par le moteur, chacune avec son essai : HTTPS et un nom exact (jamais une adresse IP) ; rien vers ce PC ni le réseau privé, en IPv4 et en IPv6, une IPv4 portée par une IPv6 comprise, et la connexion à l'adresse vérifiée ; aucune redirection ; 4 s, 8 s, 64 Ko coupés, un objet JSON, 32 sites, 64 adresses, 8 par site ; une demande au plus par adresse et par `every` (une minute au moins), même avec beaucoup de visiteurs ; les clés jamais hors du serveur ; un `User-Agent` honnête, rien du visiteur.
+  - Ce qui arrive est réduit à ce que la page déclare (un numéro de compte ou l'adresse IP du serveur, dans la réponse, n'arrivent pas chez le visiteur). Sans JavaScript, la page arrive avec ses données ou dit l'échec ; `refresh` relit ce qui est gardé.
+  - La bibliothèque : `ureq` 3.4.2 (`=3.4.2`, avec `rustls`), seulement pour le PC ; aucun proxy, aucune redirection, aucune connexion gardée.
+  - L'interrupteur des essais, `HOLO_TEST_ONLY_INSECURE_SITE` : un nom en `.test` lu sur ce PC, en HTTP clair, pour le faux « autre site » de l'essai Chrome ; éteint par défaut, lu seulement dans l'environnement, annoncé au démarrage.
+  - La leçon 139 (le résumé de Kinshasa sur Wikipédia ; liens vers la 124 et la 1) ; le guide (chapitre « 6 septemquinquagies », une ligne au tableau des limites, et « ce qui n'existe pas encore » dit ce qui reste) ; `NOMS.md`, `DECISIONS.md`, le sommaire des leçons, le README du moteur.
+- Exécuté, dans `moteur/` :
+  - `cargo test --release` : les essais nouveaux passent du premier coup, puis huit mutations ont été essayées et retirées, une à la fois, et chacune fait rater au moins un essai : le proxy de l'environnement, un résolveur qui ne vérifie plus, dix redirections, la lecture non coupée, plus rien de gardé, la clé dans la page acceptée, la clé recopiée acceptée, un sous-domaine deviné ;
+  - l'essai Chrome nouveau passe seul (sept lectures par holo serve, une seule demande à l'autre site) ; il rate quand on retire la route `?remote-data` (« relues sans échec : false ») ou la demande du serveur (« arrivées : false, 0 demande ») ;
+  - `holo check` sur la leçon 139 : ok ;
+  - dix-sept essais Rust nouveaux : quatorze dans `remote.rs`, un dans `state.rs`, un dans `lib.rs`, un dans `server.rs` ;
+  - la preuve complète, `check-locked.sh`, après la fusion de `main` (PR 258 à 263) : `cargo test --release --locked` → 272 essais passent ; `cargo test` → 272 ; dans Chrome, 87 essais sur 90 ;
+  - la preuve complète, de nouveau, après la seconde fusion de `main` (PR 262 ; commit 4363055) :
+    - `cargo test --release --locked` → 278 essais passent ; `cargo test` → 278 ;
+    - les deux WebAssembly, `holo` et les liaisons se construisent ;
+    - la suite Chrome entière : 88 essais sur 91 passent ; 132 leçons s'ouvrent sans erreur, la 139 comprise ; l'audit axe-core des parcours : zéro défaut ;
+    - les trois ratés sont ceux de ce conteneur : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium).
+- Erreurs en route :
+  - La limite de séance a coupé le travail deux fois, et le conteneur a redémarré : les fichiers étaient intacts ; les constructions ont été relancées.
+  - Un envoi de sauvegarde sur `wip/…` a été refusé par la garde des permissions : pas de contournement ; les commits locaux ont suffi.
+  - Dans mes essais : une variable qui cachait la fonction du même nom ; une réponse d'essai à quatre niveaux, que le lecteur JSON de `Data` refuse (trois au plus). Corrigés.
+  - L'essai de l'ADR-030 refusait toute adresse `https://` : il suit maintenant la règle de l'ADR-116 (HTTP clair refusé).
+  - La fusion de `main` (PR 258 à 263, en style diff3) : six conflits, tous des ajouts, gardés des deux côtés et rangés par numéro. Les nombres négatifs (ADR-102) avaient ajouté `Json::Negative` : la réduction le garde, et son essai le vérifie.
+- Reste : choisir et nommer une valeur rangée plus bas dans la réponse (la plupart des services de météo) ; la dernière valeur, avec son âge, pendant une panne ; une clé par variable d'environnement ; un proxy choisi par l'auteur ; les réponses gardées dans la base. Le grand tableau du web : « les données d'un autre serveur » peut passer à « oui ».
+
+---
+
 ## 2026-10-10 — Se souvenir le temps d'une visite : `Page(visit: [prenom])`
 
 - Fait (issue #242, la session du nuage ; `ADR-113`, ACCEPTÉ) : le dernier « non » du grand tableau du web, `sessionStorage`.

@@ -482,7 +482,11 @@
     const late = setTimeout(() => stop.abort(), 10000);
     try {
       const discreet = fromElsewhere(for_) ? { credentials: "omit", referrerPolicy: "no-referrer" } : {};
-      const response = await fetch(folderOf(for_) + file, { cache: "no-store", headers: { accept: "application/json" }, signal: stop.signal, ...discreet });
+      // Les données d'un autre site (ADR-116) : la page les demande à son propre serveur, à sa
+      // propre adresse (`?remote-data`) ; c'est lui qui les lit. Le navigateur ne parle jamais à
+      // l'autre site, et ne reçoit pas son adresse.
+      const address = file.startsWith("?") ? for_ + file : folderOf(for_) + file;
+      const response = await fetch(address, { cache: "no-store", headers: { accept: "application/json" }, signal: stop.signal, ...discreet });
       // Des données de 64 Ko au plus (DATA_BYTES dans le moteur) : au-delà, elles sont refusées.
       const buffer = response.ok ? await readCapped(response, 65536) : null;
       if (buffer && for_ === path) { // on a pu changer de fichier entre-temps
