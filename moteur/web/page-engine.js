@@ -8,6 +8,7 @@
     flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, page_title, from_query, address_query, address_names, chart_html, shapes_html, module_info, module_finished, module_input, module_received, delays, reads_time, set_now, set_second, reads_seconds, stopwatch_stopped, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
     shared_names, with_shared, touches_shared, capability_export, capability_received,
     suggestions_html,
+    visit_names, to_visit, from_visit,
   } from "/pkg-light/holo_engine.js";
   let host = null;
   const prepareHost = async () => {
@@ -277,6 +278,9 @@
       try { kept = localStorage.getItem(`holo:${addressOf(path)}`) ?? ""; } catch { /* stockage refusé : on part du départ */ }
       states.set(path, resume(source, kept));
     }
+    // Ce que la page retient le temps de la visite (visit: [prenom], ADR-113), par-dessus : le
+    // visiteur a pu le changer sur une autre page du site depuis.
+    takeVisit();
     // Les valeurs que la page écrit dans son adresse (ADR-091) : address: [tab, page].
     addressNames = address_names(source).split(",").filter(Boolean);
     setClocks();
@@ -706,6 +710,7 @@
     showValues();
     placePixels();
     keep();
+    rememberVisit();
     setDelays();
     followAddress(step);
   }
@@ -749,6 +754,61 @@
       if (kept) localStorage.setItem(`holo:${addressOf(path)}`, kept);
     } catch { /* stockage refusé ou plein : la page marche sans */ }
   }
+
+  // La mémoire de visite (ADR-113) : visit: [prenom] retient ces valeurs le temps de la visite,
+  // d'une page à l'autre du site, dans cet onglet seulement (sessionStorage : le navigateur
+  // l'efface quand l'onglet se ferme, et ne la donne à aucun autre). Chacune est rangée sous son
+  // nom, holo-visit:prenom, en JSON : deux pages qui retiennent le même nom parlent de la même
+  // valeur. Le moteur écrit ce JSON et le relit avec méfiance : une valeur d'une autre sorte, hors
+  // des bornes de cette page ou abîmée est ignorée, sans erreur, et laissée telle quelle pour les
+  // pages qui la comprennent. Rien ne part au serveur ; aucun cookie. Un fichier d'un autre
+  // serveur, ouvert par un passage, n'y touche pas : ce n'est pas le même site.
+  const visitKey = (name) => `holo-visit:${name}`;
+  // Chaque valeur retenue, en JSON, telle que la page l'a prise : seule une valeur qui a changé
+  // depuis est écrite. Une page n'écrase donc jamais, sans qu'on y touche, ce qu'une autre a écrit.
+  let visitTaken = new Map();
+  const visitLines = (written) => new Map(to_visit(source, written).split("\n").filter(Boolean).map((line) => [line.slice(0, line.indexOf("\t")), line.slice(line.indexOf("\t") + 1)]));
+  // L'état de la page, avec ce que la mémoire de visite rend pour elle.
+  function recallVisit(written = states.get(path) ?? "") {
+    if (fromElsewhere(path)) return written;
+    const stored = [];
+    for (const name of visit_names(source).split(",").filter(Boolean)) {
+      try {
+        const json = sessionStorage.getItem(visitKey(name));
+        if (json !== null) stored.push(`${name}\t${json}`);
+      } catch { /* stockage refusé : la page garde ses valeurs */ }
+    }
+    return (stored.length && from_visit(source, written, stored.join("\n"))) || written;
+  }
+  // La page prend ce que la mémoire de visite lui rend : c'est d'où elle part.
+  function takeVisit() {
+    states.set(path, recallVisit());
+    visitTaken = visitLines(states.get(path) ?? "");
+  }
+  // Ce qui a changé depuis est écrit ; une valeur trop grosse pour être retenue (le moteur l'écrit
+  // vide) ou que le navigateur refuse est retirée, plutôt que de laisser celle d'avant.
+  function rememberVisit() {
+    if (fromElsewhere(path)) return;
+    for (const [name, json] of visitLines(states.get(path) ?? "")) {
+      if (visitTaken.get(name) === json) continue;
+      visitTaken.set(name, json);
+      try {
+        if (json) sessionStorage.setItem(visitKey(name), json);
+        else sessionStorage.removeItem(visitKey(name));
+      } catch {
+        try { sessionStorage.removeItem(visitKey(name)); } catch { /* stockage refusé */ }
+      }
+    }
+  }
+  // Revenue par « Précédent » telle qu'on l'avait quittée (le cache du navigateur), la page
+  // reprend ce que les autres pages ont changé entre-temps.
+  addEventListener("pageshow", (event) => {
+    if (!event.persisted || !source) return;
+    const recalled = recallVisit();
+    if (recalled === (states.get(path) ?? "")) return;
+    visitTaken = visitLines(recalled);
+    changeState(recalled);
+  });
 
   // Un résultat de l'arbitre peut porter, sous le nom « ! », des capacités demandées par une
   // règle de temps ou une règle qui guette (un son à faire entendre). On les applique, et on
@@ -1924,6 +1984,9 @@
     // part d'elles, puis les reçoit en direct.
     const sharedNow = !location.hash.slice(1) && root.querySelector(".holo-Page")?.dataset.shared;
     if (sharedNow && sharedNames.length) states.set(path, with_shared(source, states.get(path) ?? "", sharedNow).split(";").filter((chunk) => !chunk.startsWith("!=")).join(";"));
+    // La mémoire de visite (ADR-113) en dernier : ce que le visiteur a donné dans cet onglet, sur
+    // cette page ou une autre du site, l'emporte sur ce que le serveur a mis dans la page.
+    takeVisit();
     // Une page qui montrera des points ou des mondes fait venir le dessin tout de suite, sans
     // l'attendre : il sera prêt quand le visiteur zoomera.
     if (needs_drawing(source)) loadDrawing().catch(() => {});
@@ -1943,6 +2006,13 @@
     // demandé par l'adresse (#Atelier), lui, se dessine.
     const alreadyThere = !siteStart && root.querySelector(".holo-Page") !== null;
     displaySite(siteStart.startsWith("@") ? "" : siteStart, { inHistory: false, resume: alreadyThere });
+    // Revenu par « Précédent », le navigateur a pu remettre dans les champs ce qu'on y avait écrit
+    // avant d'aller changer ces valeurs sur une autre page : la mémoire de visite, plus récente,
+    // passe par-dessus. Ce que le visiteur a écrit avant l'arrivée du moteur, et qu'elle ne
+    // retient pas encore, y est écrit.
+    const recalled = recallVisit();
+    if (recalled !== (states.get(path) ?? "")) changeState(recalled);
+    else rememberVisit();
     await prepareHost();
     window.__holoStarted = true; // le moteur a pris la page en main (pour les essais)
     // Une adresse en #@… désigne le fichier d'un autre serveur : on propose le passage.

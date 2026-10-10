@@ -614,6 +614,13 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
     // Les suggestions des champs (ADR-100) : chaque datalist une seule fois, après le pied de page.
     // Il ne se voit pas ; les champs s'y relient par `list`, ceux des lignes d'une liste aussi.
     footer.push_str(&datalists(program, page)?);
+    // Les valeurs que la page retient le temps de la visite (ADR-113). Comme `keep`, elles ne la
+    // rendent pas vivante : la page légère regarde si l'onglet en retient déjà pour elle, et
+    // seulement alors fait venir le moteur, qui les reprend.
+    let visit = crate::visit::names(program)?;
+    if page.name == "Page" && !visit.is_empty() {
+        share.push_str(&format!(" data-visit-names=\"{}\"", escape(&visit.join(" "))));
+    }
     Ok(format!(
         "<style>{}{BASE}{}</style><div class=\"{classes}\" data-title=\"{title}\"{title_follows}{live}{share}>{header}<main>{body}</main>{footer}{worlds}</div>",
         fonts(&program.root, base)?,

@@ -44,6 +44,8 @@ pub mod shared;
 pub mod styles;
 pub mod universe;
 pub mod view;
+// La mémoire de visite (ADR-113) : visit: [prenom], d'une page à l'autre du site, dans l'onglet.
+pub mod visit;
 
 #[cfg(all(target_arch = "wasm32", feature = "drawing"))]
 mod renderer;
@@ -93,6 +95,8 @@ pub fn check_page(source: &str) -> Result<Program, Error> {
     // Les chronomètres et la valeur de leur temps (ADR-089).
     stopwatch::check(&program)?;
     capabilities::check(&program)?;
+    // Les valeurs que la page retient le temps de la visite (ADR-113).
+    visit::names(&program)?;
     // Ce que l'affichage refuserait (une adresse en `javascript:`, une image hors du dossier)
     // est refusé dès la vérification : on fabrique la page à blanc (revue Codex, B-11).
     if program.root.name == "Page" {
@@ -817,6 +821,29 @@ pub fn resume(source: &str, kept: &str) -> String {
     // Seules les listes que la page dit garder sont reprises (ADR-044).
     let lists: lists::Lists = lists::reread(&program, kept).into_iter().map(|(name, elements)| if kept_values.contains(&name) { (name, elements) } else { (name.clone(), lists::initial(&program).into_iter().find(|(n, _)| *n == name).map(|(_, e)| e).unwrap_or_default()) }).collect();
     write_all(&program, &state::resume(&program, kept), &texts, &lists)
+}
+
+/// Les valeurs que la page retient le temps de la visite (ADR-113) : `prenom,personnes`. Vide
+/// si elle n'en retient aucune.
+pub fn visit_names(source: &str) -> String {
+    check_page(source).ok().and_then(|program| visit::names(&program).ok()).unwrap_or_default().join(",")
+}
+
+/// Ce que la page écrit dans sa mémoire de visite, tiré de cet état (ADR-113) : une ligne par
+/// valeur, son nom, une tabulation, sa valeur en JSON (`prenom\t"Ada"`).
+pub fn to_visit(source: &str, state: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    visit::to_store(&program, &state::reread(&program, state), &state::reread_texts(&program, state), &lists::reread(&program, state))
+}
+
+/// L'état, avec ce que la mémoire de visite rend (ADR-113), relu avec méfiance : chaque valeur de
+/// sa sorte et dans ses bornes, sinon ignorée. Les règles qui guettent ne répondent pas : comme
+/// une valeur gardée (`keep`), la page part de là.
+pub fn from_visit(source: &str, state: &str, stored: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    state::requested_capabilities();
+    let (numbers, texts, lists) = visit::recall(&program, &state::reread(&program, state), &state::reread_texts(&program, state), &lists::reread(&program, state), stored);
+    write_all(&program, &numbers, &texts, &lists)
 }
 
 /// Les conditions d'une page (`If`), avec leur réponse pour cet état : `count|is=0:1;total|over=299:0`.

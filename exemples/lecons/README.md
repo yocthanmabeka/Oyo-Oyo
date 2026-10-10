@@ -132,6 +132,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 122 | [Un groupe de champs](122-un-groupe-de-champs.holo) | `Fields(label: "Adresse de livraison", children: [ … ])` : des champs qui vont ensemble, et le nom du groupe que le lecteur d'écran annonce ; des cases sur une même question |
 | 123 | [Des suggestions dans un champ](123-des-suggestions-dans-un-champ.holo) | `Input(suggestions: ["Pomme", "Poire"])`, `suggestions: villes` : le champ propose, on peut écrire autre chose ; les suggestions suivent la liste pendant la visite |
 | 124 | [Une citation courte, le titre d'une œuvre](124-une-citation-courte.holo) | `<<bonjour>>` : les guillemets de la langue de la page ; `_Les Misérables_` ; `Quote(by:, work:)` |
+| 136 | [Se souvenir le temps d'une visite](136-se-souvenir-le-temps-d-une-visite.holo) | `visit: [prenom, personnes, atelier]` : un formulaire en deux pages (la seconde : `136-inscription/etape-2.holo`) ; les valeurs suivent le visiteur dans le même onglet, effacées à sa fermeture ; aucun cookie |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 

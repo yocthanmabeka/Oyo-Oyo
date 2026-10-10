@@ -1969,6 +1969,32 @@ Page(
 
 La leçon est `124-une-citation-courte.holo`.
 
+## 6 quaterquinquagies. Se souvenir le temps d'une visite : `visit`
+
+Un formulaire en plusieurs pages : ce qu'on écrit à l'étape 1 se retrouve à l'étape 2, et quand on revient en arrière (`ADR-113`).
+
+```holo
+Page(
+  title: "Step 1",
+  state: State(firstName: "", people: 1),
+  visit: [firstName, people],
+  children: [
+    Input(value: firstName, label: "Your first name", max: 40),
+    Input(value: people, label: "How many people?", min: 1, max: 6),
+    A("Step 2", to: "step-2.holo"),
+  ],
+)
+```
+
+- **`visit: [firstName, people]`**, sur la page, à côté de `keep:` : ces valeurs de `State` sont retenues le temps de la visite. Une autre page du même site qui retient les mêmes noms (`step-2.holo`, avec `visit: [firstName, people]`) les retrouve, dans le même onglet.
+- **Le temps d'une visite** : tant que l'onglet est ouvert, rechargement et « Précédent » compris. Un autre onglet part de zéro ; fermer l'onglet efface tout. C'est le `sessionStorage` du navigateur : rien ne part au serveur, aucun cookie.
+- **`keep` ou `visit`** : `keep` garde d'une visite à l'autre, sous l'adresse d'une page (un panier, un meilleur score) ; `visit` retient le temps de la visite, sous le nom de la valeur, pour tout le site (les étapes d'un formulaire). Une valeur est l'une ou l'autre.
+- **Chaque page vérifie ce qu'elle reprend**, comme un import : un nombre dans les bornes de son champ, un texte que son champ accepterait, une option de son `Choice`. Si deux pages donnent deux sortes au même nom (un texte ici, un nombre là), chacune ignore ce qui n'est pas de la sienne. Une valeur qui ne va pas est ignorée, sans erreur : la page garde la sienne.
+- La page arrive du serveur avec ses valeurs de départ, puis reprend celles de la visite. **Sans JavaScript, rien n'est retenu** : chaque page part de ses valeurs de départ.
+- Refusés, avec la raison : une valeur aussi dans `keep`, dans `address:` ou partagée (`shared`) ; une valeur qui vient du nom du fichier (`{id}`) ; l'heure ; une liste calculée ; un nom inconnu ; `visit:` dans un monde.
+
+La leçon est `136-se-souvenir-le-temps-d-une-visite.holo`, avec sa seconde page, `136-inscription/etape-2.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo

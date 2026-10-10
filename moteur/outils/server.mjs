@@ -645,6 +645,10 @@ createServer(async (req, res) => {
     res.writeHead(200, {
       "content-type": type,
       "cache-control": "no-cache",
+      // Une même adresse .holo rend la page (text/html) ou le fichier lui-même (text/plain, pour le
+      // moteur) : le cache du navigateur doit les distinguer. Sans cela, « Précédent », quand le
+      // navigateur n'a pas gardé la page, montrait le texte du fichier lu par le moteur (ADR-113).
+      ...(url.endsWith(".holo") || model ? { vary: "Accept" } : {}),
       // Un fichier .holo et ses images sont publics : un site rangé ailleurs peut y mener.
       "access-control-allow-origin": "*",
       ...(acceptsBrotli ? { "content-encoding": "br" } : {}),

@@ -674,6 +674,9 @@ mod tests {
             include_str!("../../exemples/lecons/123-des-suggestions-dans-un-champ.holo"),
             // Une citation courte, le titre d'une œuvre (ADR-101).
             include_str!("../../exemples/lecons/124-une-citation-courte.holo"),
+            // Se souvenir le temps d'une visite, un formulaire en deux pages (ADR-113).
+            include_str!("../../exemples/lecons/136-se-souvenir-le-temps-d-une-visite.holo"),
+            include_str!("../../exemples/lecons/136-inscription/etape-2.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();
