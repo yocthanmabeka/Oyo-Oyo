@@ -985,17 +985,27 @@ fn css(program: &Program, base: &str) -> String {
         let page = matches!(&rule.target, Target::Type(t) if t == "Page");
         let declaration = |setting: &crate::holo::Setting| match setting.name.as_str() {
             "max-width" if page => format!("--holo-width:{};", css_value(setting, base)),
+            // Les filtres (ADR-108) sont composés plus bas, en un seul `filter` ; le flou de
+            // derrière va sur le `::backdrop` de la fenêtre.
+            name if crate::filters::is_filter(name) || name == crate::filters::BACKDROP => String::new(),
             name => format!("{name}:{};", css_value(setting, base)),
         };
+        let filters = |state: Option<&[crate::holo::Setting]>| crate::filters::declaration(&rule.settings, state, &|s| css_value(s, base));
         for setting in &rule.settings {
             output.push_str(&declaration(setting));
         }
+        output.push_str(&filters(None));
         // Un style qui change au survol ou à l'appui passe d'un aspect à l'autre en douceur,
         // à moins que l'auteur n'ait dit sa propre durée (`transition:`).
         if rule.states.iter().any(|(state, ..)| state == "hover" || state == "active") && !rule.settings.iter().any(|r| r.name == "transition") {
-            output.push_str("transition:background .15s,color .15s,border-color .15s,opacity .15s,box-shadow .15s,scale .15s,rotate .15s;");
+            output.push_str("transition:background .15s,color .15s,border-color .15s,opacity .15s,box-shadow .15s,scale .15s,rotate .15s,filter .15s;");
         }
         output.push('}');
+        // Derrière une fenêtre (ADR-108), le flou vaut pour toute la page : son `::backdrop`.
+        if let Some(behind) = rule.settings.iter().find(|s| s.name == crate::filters::BACKDROP) {
+            let backdrop = selector.split(',').map(|s| format!("{s}::backdrop")).collect::<Vec<_>>().join(",");
+            output.push_str(&format!("{backdrop}{{{}}}", crate::filters::backdrop_declaration(&css_value(behind, base))));
+        }
         // Les états (ADR-036). Le survol n'existe qu'avec une souris : sur un écran tactile, il
         // resterait collé après un toucher. Le focus est celui du clavier. Le thème sombre suit
         // le choix du visiteur ; « phone » vaut pour un écran plus étroit que la page (ADR-041) ;
@@ -1004,7 +1014,8 @@ fn css(program: &Program, base: &str) -> String {
         // page marque elle-même ces cases (`holo-narrow`) : en CSS, une case ne peut pas se
         // mesurer elle-même, seulement ce qu'elle contient, et l'auteur s'y tromperait.
         for (state, settings, _) in &rule.states {
-            let body: String = settings.iter().map(&declaration).collect();
+            // Un état qui change un filtre reçoit la liste entière, recomposée (ADR-108).
+            let body: String = settings.iter().map(&declaration).collect::<String>() + &filters(Some(settings.as_slice()));
             let rule_state = match state.as_str() {
                 "hover" => format!("@media (hover:hover){{{}:hover{{{body}}}}}", selector.split(',').map(str::to_string).collect::<Vec<_>>().join(":hover,")),
                 "focus" => format!("{}:focus-visible{{{body}}}", selector.split(',').collect::<Vec<_>>().join(":focus-visible,")),
@@ -1017,6 +1028,11 @@ fn css(program: &Program, base: &str) -> String {
                 _ => format!("{}:active{{{body}}}", selector.split(',').collect::<Vec<_>>().join(":active,")),
             };
             output.push_str(&rule_state);
+        }
+        // Au clavier (ADR-108), un bloc filtré qui a le focus se montre sans filtre : son cadre
+        // de focus reste net. Écrit après les états, il passe avant le survol et l'appui.
+        if crate::filters::filtered(rule) {
+            output.push_str(&format!("{}:focus-visible{{filter:none}}", selector.split(',').collect::<Vec<_>>().join(":focus-visible,")));
         }
     }
     output
@@ -1044,7 +1060,7 @@ fn css_value(setting: &crate::holo::Setting, base: &str) -> String {
     }
     // Une durée de passage : elle vaut pour tout ce qui change d'allure.
     if setting.name == "transition" && value != "none" {
-        return ["background", "color", "border-color", "opacity", "box-shadow", "scale", "rotate", "letter-spacing"].iter().map(|p| format!("{p} {value}")).collect::<Vec<_>>().join(",");
+        return ["background", "color", "border-color", "opacity", "box-shadow", "scale", "rotate", "letter-spacing", "filter"].iter().map(|p| format!("{p} {value}")).collect::<Vec<_>>().join(",");
     }
     // Une taille écrite en pixels suit le réglage « texte plus grand » du visiteur, comme le texte
     // (ADR-061) : 16px = 1rem. Les traits, les ombres et l'écart entre les lettres restent en pixels.
@@ -2946,6 +2962,30 @@ H1 { colour: red; }").split(" : ").next(), Some("ligne 2, colonne 6"));
             let error = crate::check_page(source).err().or_else(|| crate::flat_view(source, "").err()).unwrap_or_else(|| panic!("accepté : {source}"));
             assert!(error.message.contains(message), "{source}\n→ {error}");
         }
+    }
+
+    #[test]
+    fn the_filters_reach_the_browser() {
+        // ADR-108 : un seul `filter`, dans l'ordre ; un état qui en change un garde les autres ;
+        // au focus du clavier, sans filtre ; le flou de derrière, avec son préfixe, sur le
+        // `::backdrop` de la fenêtre seulement.
+        let source = "Page(children: [ Image.photo(source: \"a.png\", alt: \"\"), Shape.cible(name: Cible, form: circle), Dialog(name: D, children: [ P(\"y\") ]) ])\n\
+            .photo { blur: 3px; grayscale: 1; hue: 30deg; hover: { grayscale: 0; } active: { opacity: 0.8; } }\n\
+            .cible { saturate: 0.5; transition: 0.3s; }\n\
+            Dialog { backdrop-blur: 6px; background: navy; color: white; }\n\
+            Image { brightness: 0.6; contrast: 1.2; saturate: 1.8; }";
+        let html = crate::flat_view(source, "/ex/").unwrap();
+        for expected in [
+            ".holo-s-photo{filter:grayscale(1) hue-rotate(30deg) blur(3px);transition:background .15s,color .15s,border-color .15s,opacity .15s,box-shadow .15s,scale .15s,rotate .15s,filter .15s;}",
+            "@media (hover:hover){.holo-s-photo:hover{filter:grayscale(0) hue-rotate(30deg) blur(3px);}}",
+            ".holo-s-photo:active{opacity:0.8;}.holo-s-photo:focus-visible{filter:none}",
+            ".holo-Image{filter:saturate(1.8) brightness(0.6) contrast(1.2);}.holo-Image:focus-visible{filter:none}",
+            ".holo-s-cible{transition:background 0.3s,color 0.3s,border-color 0.3s,opacity 0.3s,box-shadow 0.3s,scale 0.3s,rotate 0.3s,letter-spacing 0.3s,filter 0.3s;filter:saturate(0.5);}.holo-s-cible:focus-visible{filter:none}",
+            ".holo-Dialog{background:navy;color:white;}.holo-Dialog::backdrop{-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);}",
+        ] {
+            assert!(html.contains(expected), "manque : {expected}\n{html}");
+        }
+        assert!(!html.contains("grayscale:") && !html.contains(".holo-Dialog:focus-visible"), "{html}");
     }
 
     #[test]

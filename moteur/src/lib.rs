@@ -48,6 +48,8 @@ pub mod rules;
 pub mod repeat;
 // Réordonner les lignes d'une liste (ADR-105) : Repeat(over: tasks, reorder: true).
 pub mod reorder;
+// Les filtres d'image dans les styles (ADR-108) : grayscale, blur, brightness… et backdrop-blur.
+pub mod filters;
 pub mod shared;
 pub mod styles;
 pub mod universe;
