@@ -829,12 +829,12 @@ const tests = [
       await p.click('[data-name="Recommencer"]');
       const again = await p.until(`${stored("prenom")} === '""' && ${stored("personnes")} === "1" && ${stored("atelier")} === '""' && ${shows("Tu n'as pas encore écrit ton prénom")}`, 5000);
       // Ce qu'une autre page aurait écrit : un prénom juste, un nombre abîmé, un atelier qui n'est
-      // pas une option de celle-ci. Le juste est repris ; les autres sont ignorés seuls, sans
-      // erreur, et restent tels quels.
-      await p.value(`sessionStorage.setItem("holo-visit:prenom", '"Zoé"'); sessionStorage.setItem("holo-visit:personnes", "[abîmé"); sessionStorage.setItem("holo-visit:atelier", '"Pirate"')`);
+      // pas une option de celle-ci, suivi d'une ligne qui voudrait glisser six personnes. Le juste
+      // est repris ; les autres sont ignorés seuls, sans erreur, et restent tels quels.
+      await p.value(`sessionStorage.setItem("holo-visit:prenom", '"Zoé"'); sessionStorage.setItem("holo-visit:personnes", "[abîmé"); sessionStorage.setItem("holo-visit:atelier", '"Pirate"\\npersonnes\\t6')`);
       await p.open(second);
       const damaged = await p.until(`window.__holoStarted === true && ${shows("Bonjour Zoé, vous serez 1.")} && ${shows("Aucun atelier choisi.")}`, 40000);
-      const untouched = await p.value(`${stored("personnes")} === "[abîmé" && ${stored("atelier")} === '"Pirate"'`);
+      const untouched = await p.value(`${stored("personnes")} === "[abîmé" && ${stored("atelier")} === '"Pirate"\\npersonnes\\t6'`);
       const quiet = b.errors.length === 0 && !(await p.value(`document.getElementById("error")?.textContent ?? ""`));
       // Une page du même site où « prenom » est un nombre : le texte retenu y est ignoré, sans
       // erreur, et reste pour la leçon.

@@ -775,7 +775,9 @@
     for (const name of visit_names(source).split(",").filter(Boolean)) {
       try {
         const json = sessionStorage.getItem(visitKey(name));
-        if (json !== null) stored.push(`${name}\t${json}`);
+        // Le moteur écrit chaque valeur sur une seule ligne : une valeur qui en a plusieurs n'est
+        // pas la sienne, et ne glisse pas une ligne de plus pour une autre valeur.
+        if (json !== null && !/[\t\n\r]/.test(json)) stored.push(`${name}\t${json}`);
       } catch { /* stockage refusé : la page garde ses valeurs */ }
     }
     return (stored.length && from_visit(source, written, stored.join("\n"))) || written;
