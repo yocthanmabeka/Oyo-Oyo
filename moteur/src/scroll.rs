@@ -1,11 +1,11 @@
-//! Où en est le visiteur dans la page (ADR-106).
+//! Où en est le visiteur dans la page, et un bloc qui reste à l'écran (ADR-106).
 //!
 //! ```holo
 //! Page(
 //!   children: [
-//!     Progress(value: scroll, max: 100, label: "Reading", sticky: top),
-//!     H1("A long article", name: Top),
-//!     If(scroll, over: 10, children: [ A("↑ Back to top", to: "#Top", sticky: bottom) ]),
+//!     Progress(value: scroll, max: 100, label: "Lecture", sticky: top),
+//!     H1("Un long article", name: Top),
+//!     If(scroll, over: 10, children: [ A("↑ Retour en haut", to: "#Top", sticky: bottom) ]),
 //!   ],
 //! )
 //! ```
@@ -14,8 +14,9 @@
 //!   page qui tient dans l'écran. La page la lit comme ses autres valeurs (`{scroll}`,
 //!   `If(scroll, over: 10, …)`, `Progress(value: scroll)`, `When(scroll, over: 90, …)`), sans
 //!   jamais la changer : c'est le navigateur qui la donne au moteur quand le visiteur défile, au
-//!   plus dix fois par seconde, jamais à chaque pixel (`page-engine.js`). Sans JavaScript, elle
-//!   vaut 0 : la page arrive en haut, et ne dépend pas d'elle pour se lire.
+//!   plus dix fois par seconde, jamais à chaque pixel (`page-engine.js`), et seulement à une page
+//!   qui la lit. Sans JavaScript, elle vaut 0 : la page arrive en haut, et ne dépend pas d'elle
+//!   pour se lire.
 //! - `sticky: top | bottom` : un bloc posé directement dans la page (ou `Header`, `Footer`)
 //!   reste à l'écran, en haut ou en bas, pendant qu'on défile ; c'est le `position: sticky` du
 //!   CSS, en pur CSS, donc aussi sans JavaScript. Une exception étroite au refus de `position`
@@ -32,8 +33,25 @@ pub const NAME: &str = "scroll";
 /// Les deux bords où un bloc reste à l'écran.
 pub const EDGES: &[&str] = &["top", "bottom"];
 
+/// La part de l'écran qu'un bloc qui reste peut prendre, au plus : le quart.
+pub const SHARE: &str = "25vh";
+
 /// Les blocs qui ne restent pas à l'écran : ils ne se voient pas eux-mêmes, ou ont déjà leur place.
-const NOT_STICKY: &[&str] = &["If", "Repeat", "Dialog", "Sound", "Main", "Item", "Point"];
+const NOT_STICKY: &[&str] = &["If", "Repeat", "Dialog", "Sound", "Main", "Item", "Point", "Scenes", "Scene", "Module", "Data", "Filter", "Days", "Font", "Abbreviation", "Term"];
+
+/// Le style d'un bloc qui reste à l'écran, écrit seulement quand la page en a un. En `:where()`,
+/// pour qu'un style de l'auteur (son fond, sa marge) l'emporte toujours ; la part de l'écran et la
+/// marge laissée au focus, elles, ne se changent pas. Sur un écran bas (un téléphone couché, le
+/// clavier qui réduit la page), sous le clavier de l'écran (`holo-keyboard`, posé par la page) et à
+/// l'impression, le bloc rend sa place. En bas, il laisse la place du bouton rond du moteur.
+const CSS: &str = ":where([data-sticky]){position:sticky;z-index:1;background:var(--holo-sticky-background,Canvas)}\
+:where([data-sticky=top]){top:0}:where([data-sticky=bottom]){bottom:0;padding-right:72px}\
+.holo-Page [data-sticky]{max-height:25vh;overflow-y:auto}\
+html:has([data-sticky=top]){scroll-padding-top:var(--holo-sticky-top,25vh)}\
+html:has([data-sticky=bottom]){scroll-padding-bottom:var(--holo-sticky-bottom,25vh)}\
+@media (max-height:480px){.holo-Page [data-sticky]{position:static;max-height:none}html:has([data-sticky]){scroll-padding:0}}\
+.holo-keyboard [data-sticky]{position:static}\
+@media print{.holo-Page [data-sticky]{position:static;max-height:none}}";
 
 /// La page lit-elle `scroll` : dans un texte (`{scroll}`), une condition, une comparaison, une
 /// barre (`Progress(value: scroll)`), une demande (`best.set(scroll)`) ?
@@ -58,9 +76,16 @@ pub fn reads(program: &Program) -> bool {
 
 /// Pose `scroll` dans les valeurs de la page, à 0, si elle la lit, comme si elle l'avait déclarée
 /// dans `State`. Refusé, avec la raison : la déclarer (dans `State` ou dans `Shared`), la changer
-/// (une demande, un champ, un module, un glissement, un chronomètre, un fichier importé), la
-/// garder (`keep`) ou la mettre dans l'adresse (`address:`).
+/// (une demande, un champ, un module, l'appareil, un glissement, un chronomètre, un fichier
+/// importé), la garder (`keep`) ou la mettre dans l'adresse (`address:`).
 pub fn inject(program: &mut Program) -> Result<(), Error> {
+    for holder in ["state", "shared"] {
+        if let Some(Value::Block(block)) = program.root.argument(holder).map(|a| &a.value) {
+            if let Some(declared) = block.argument(NAME) {
+                return Err(Error { message: "« scroll » est la place du visiteur dans la page, donnée par le navigateur : ne la déclare ni dans State ni dans Shared, choisis un autre nom pour ta valeur (ADR-106)".into(), pos: declared.pos });
+            }
+        }
+    }
     for (setting, why) in [("keep", "elle ne se garde pas d'une visite à l'autre"), ("address", "l'adresse ne la porte pas")] {
         if let Some(Argument { value: Value::List(names), pos, .. }) = program.root.argument(setting) {
             if names.iter().any(|n| matches!(n, Value::Name(n) if n == NAME)) {
@@ -72,7 +97,7 @@ pub fn inject(program: &mut Program) -> Result<(), Error> {
         let named = |key: &str| matches!(block.argument(key).map(|a| &a.value), Some(Value::Name(n)) if n == NAME);
         let changed = match block.name.split_once('.') {
             Some((target, _)) if crate::state::is_requested(block) => target == NAME,
-            _ if ["Input", "Checkbox", "Choice", "Slider", "Stopwatch"].contains(&block.name.as_str()) => named("value"),
+            _ if ["Input", "Checkbox", "Choice", "Slider", "Stopwatch", "Device"].contains(&block.name.as_str()) => named("value"),
             _ if block.name == "Module" => match block.argument("output").map(|a| &a.value) {
                 Some(Value::Name(output)) => output == NAME,
                 Some(Value::List(outputs)) => outputs.iter().any(|o| matches!(o, Value::Name(n) if n == NAME)),
@@ -90,16 +115,16 @@ pub fn inject(program: &mut Program) -> Result<(), Error> {
     if !read_by(program) {
         return Ok(());
     }
-    if program.root.name != "Page" {
-        return Err(Error { message: "« scroll » est la place du visiteur dans une page : elle se lit dans Page(…)".into(), pos: program.root.pos });
+    match program.root.name.as_str() {
+        "Page" => {}
+        // Un monde ne défile pas ; un morceau (`Component`) se vérifie avec la page qui le pose.
+        "World" | "Point" => return Err(Error { message: "« scroll » est la place du visiteur dans une page : elle se lit dans Page(…)".into(), pos: program.root.pos }),
+        _ => return Ok(()),
     }
     let pos = program.root.pos;
     let given = |pos| Argument { name: Some(NAME.to_string()), value: Value::Integer(0), pos };
     match program.root.arguments.iter_mut().find(|a| a.name.as_deref() == Some("state")) {
         Some(Argument { value: Value::Block(state), .. }) if state.name == "State" => {
-            if state.arguments.iter().any(|a| a.name.as_deref() == Some(NAME)) {
-                return Err(Error { message: "« scroll » est la place du visiteur dans la page, donnée par le navigateur : ne la déclare ni dans State ni dans Shared, choisis un autre nom pour ta valeur (ADR-106)".into(), pos: state.pos });
-            }
             let at = state.pos;
             state.arguments.push(given(at));
         }
@@ -109,14 +134,17 @@ pub fn inject(program: &mut Program) -> Result<(), Error> {
     Ok(())
 }
 
-/// Les valeurs, avec la nouvelle place du visiteur (de 0 à 100). Une page qui ne lit pas `scroll`
-/// ne change pas.
-pub fn placed(state: &State, percent: u64) -> State {
-    let mut state = state.clone();
-    if let Some((_, place)) = state.iter_mut().find(|(name, _)| name == NAME) {
-        *place = percent.min(100);
+/// Des données reçues (`Data`) ne changent pas la place du visiteur : elle reste celle d'avant.
+/// Seul le navigateur la donne.
+pub fn kept(program: &Program, before: &State, mut after: State) -> State {
+    if !reads(program) {
+        return after;
     }
-    state
+    let place = before.iter().find(|(name, _)| name == NAME).map_or(0, |(_, value)| *value);
+    if let Some((_, slot)) = after.iter_mut().find(|(name, _)| name == NAME) {
+        *slot = place;
+    }
+    after
 }
 
 /// Le bord où un bloc reste à l'écran : `sticky: top` ou `sticky: bottom`.
@@ -180,10 +208,11 @@ pub fn with_sticky(html: &str, edge: &str) -> String {
     format!("{} data-sticky=\"{edge}\"{}", &html[..name_end], &html[name_end..])
 }
 
-/// Le fond d'un bloc qui reste à l'écran, quand l'auteur n'en donne pas : celui de la page (une
-/// couleur, ou une variable), aussi dans le thème sombre ; sinon celui du navigateur. Sans fond,
-/// le texte qui passe dessous se lirait à travers.
-pub fn sticky_background(program: &Program) -> String {
+/// Le style des blocs qui restent à l'écran, quand la page en a : leur place, leur part de
+/// l'écran, la marge laissée au focus ; et leur fond, quand l'auteur n'en donne pas : celui de la
+/// page (une couleur, ou une variable), aussi dans le thème sombre ; sinon celui du navigateur.
+/// Sans fond, le texte qui passe dessous se lirait à travers. Vide pour une page sans `sticky`.
+pub fn css(program: &Program) -> String {
     let mut sticky = false;
     let _ = for_each_block(&program.root, &mut |block| {
         sticky |= block.argument("sticky").is_some();
@@ -202,7 +231,7 @@ pub fn sticky_background(program: &Program) -> String {
             None
         }
     };
-    let mut css = String::new();
+    let mut css = String::from(CSS);
     for rule in program.styles.iter().filter(|rule| matches!(&rule.target, Target::Type(t) if t == "Page")) {
         if let Some(value) = color(&rule.settings) {
             css.push_str(&format!(".holo-Page{{--holo-sticky-background:{value}}}"));
@@ -260,8 +289,11 @@ Page { background: #101020; color: white; dark: { background: --night; } --night
         assert_eq!(crate::scrolled("Page(state: State(n: 1), children: [ P(\"{n}\") ])", "n=1", 40), "n=1");
         // Des données reçues ne la changent pas : seul le navigateur la donne.
         let data = "Page(data: Data(from: \"d.json\"), state: State(n: 0), children: [ P(\"{scroll} {n}\") ])";
-        let received = crate::receive(data, &crate::initial_state(data), "{\"scroll\": 77, \"n\": 2}");
-        assert!(received.contains("scroll=0") && received.contains("n=2"), "{received}");
+        let received = crate::receive(data, &crate::scrolled(data, &crate::initial_state(data), 30), "{\"scroll\": 77, \"n\": 2}");
+        assert!(received.contains("scroll=30") && received.contains("n=2"), "{received}");
+        // Une page sans scroll ni sticky n'a rien de plus : ni valeur, ni style, ni moteur tout de suite.
+        let plain = crate::flat_view("Page(children: [ P(\"x\") ])", "").unwrap();
+        assert!(!plain.contains("scroll") && !plain.contains("data-sticky") && !plain.contains(" data-live"), "{plain}");
     }
 
     #[test]
@@ -279,6 +311,7 @@ Page { background: #101020; color: white; dark: { background: --night; } --night
             "html:has([data-sticky=bottom]){scroll-padding-bottom:var(--holo-sticky-bottom,25vh)}",
             "@media (max-height:480px){",
             ".holo-keyboard [data-sticky]{position:static}",
+            "@media print{",
         ] {
             assert!(html.contains(rule), "{rule}\n{html}");
         }
@@ -289,20 +322,28 @@ Page { background: #101020; color: white; dark: { background: --night; } --night
         let html = crate::flat_view(landmarks, "").unwrap();
         assert!(html.contains(r#"<header data-sticky="top" class="holo-Header">"#) && html.contains(r#"<footer data-sticky="bottom" class="holo-Footer">"#), "{html}");
         assert!(!html.contains("--holo-sticky-background"), "{html}");
+        // Un bloc qui reste n'est pas une page vivante : le CSS suffit, le moteur attend un geste.
+        assert!(!html.contains(" data-live"), "{html}");
         crate::check_page("Page(children: [ Main(children: [ If(n, is: 0, children: [ P(\"x\", sticky: top) ], else: [ P(\"y\") ]) ]) ], state: State(n: 0))").unwrap();
-        // Une page sans sticky n'a rien de plus.
-        assert!(!crate::flat_view("Page(children: [ P(\"x\") ])", "").unwrap().contains("data-sticky=\""));
+        // Un bloc qui bouge et qui reste : marqué sur son enveloppe de mouvement, qui tient sa place.
+        let moving = crate::flat_view("Page(children: [ H1(\"x\", sticky: top, enter: Enter(y: 4px)) ])", "").unwrap();
+        assert!(moving.contains(" data-sticky=\"top\""), "{moving}");
+        // Un style de l'auteur ne dit pas « position » : le réglage est sur le bloc.
+        let error = crate::check_page("Page(children: [ P.bar(\"x\") ])\n.bar { position: sticky; }").unwrap_err();
+        assert!(error.message.contains("écris « sticky: top »"), "{error}");
     }
 
     #[test]
     fn what_is_refused() {
         for (source, message) in [
             ("Page(state: State(scroll: 0), children: [ P(\"{scroll}\") ])", "ne la déclare ni dans State ni dans Shared"),
+            ("Page(state: State(scroll: 0), children: [ P(\"x\") ])", "ne la déclare ni dans State ni dans Shared"),
             ("Page(shared: Shared(scroll: 0), children: [ P(\"{scroll}\") ])", "ne la déclare ni dans State ni dans Shared"),
             ("Page(children: [ Button(name: B, text: \"x\"), P(\"{scroll}\") ], rules: [ On(B.tap, effect: scroll.set(0)) ])", "on la lit, on ne la change pas"),
             ("Page(children: [ Slider(value: scroll, label: \"x\") ])", "on la lit, on ne la change pas"),
             ("Page(keep: [scroll], children: [ P(\"{scroll}\") ])", "elle ne se garde pas"),
             ("Page(address: [scroll], children: [ P(\"{scroll}\") ])", "l'adresse ne la porte pas"),
+            ("Point(name: W, seed: 1, inside: World(children: [ P(\"{scroll}\") ]))", "se lit dans Page"),
             ("Page(children: [ P(\"x\", sticky: middle) ])", "attend top ou bottom"),
             ("Page(children: [ P(\"x\", sticky: \"top\") ])", "attend top ou bottom"),
             ("Page(children: [ Row(children: [ P(\"x\", sticky: top) ]) ])", "posé directement dans la page"),
@@ -310,6 +351,7 @@ Page { background: #101020; color: white; dark: { background: --night; } --night
             ("Page(state: State(n: 0), children: [ If(n, is: 0, sticky: top, children: [ P(\"x\") ]) ])", "un If ne reste pas à l'écran"),
             ("Page(children: [ P(\"a\", sticky: top), P(\"b\", sticky: top) ])", "un seul bloc qui reste en haut"),
             ("Page(children: [ Point(name: P1, seed: 1, inside: World(children: [ P(\"x\", sticky: top) ])) ])", "posé directement dans la page"),
+            ("Page(children: [ P(\"x\") ], rules: [ On(P.tap, sticky: top, effect: x.add(1)) ])", "n'a pas de paramètre « sticky »"),
         ] {
             let error = crate::check_page(source).err().unwrap_or_else(|| panic!("accepté : {source}"));
             assert!(error.message.contains(message), "{source}\n→ {error}");
