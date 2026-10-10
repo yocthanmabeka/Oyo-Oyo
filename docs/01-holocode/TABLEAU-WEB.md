@@ -1,7 +1,7 @@
 # HoloCode, et HTML, CSS, JavaScript : le grand tableau
 
 - Relevé de Claude, tenu à jour à chaque changement du langage (dernier : 2026-10-10). La même chose, à filtrer, sur la page en ligne tenue à jour pour Yocthan.
-- D’abord **tous les mots de HoloCode** (505 mots : 492 décidés, 13 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (135) et ce que HoloCode en a.
+- D’abord **tous les mots de HoloCode** (505 mots : 505 décidés, 0 à l’essai), puis **chaque élément de HTML, CSS et JavaScript** (135) et ce que HoloCode en a.
 - **Existe ?** : le jugement de Claude, élément par élément (oui, en partie, non) ; ce n’est pas une mesure. Le tableau ne donne pas de pourcentage : aucune méthode reproductible ne mesure la part d’un élément du web qu’on obtient en HoloCode (consigne de Yocthan du 2026-10-07). Les comptes se refont en comptant les lignes.
 - Les refus sont expliqués dans [`proposals/Claude/pourquoi-ces-refus-2026-10/`](../../proposals/Claude/pourquoi-ces-refus-2026-10/README.md).
 
@@ -9,7 +9,7 @@
 
 | | Mesure | Détail |
 |---|---|---|
-| **HoloCode** | 505 mots | 492 décidés, 13 à l’essai |
+| **HoloCode** | 505 mots | 505 décidés, 0 à l’essai |
 | HTML | 62 éléments | 57 oui, 2 en partie, 0 non, 3 refusés |
 | CSS | 35 éléments | 32 oui, 1 en partie, 0 non, 2 refusés |
 | JavaScript | 38 éléments | 32 oui, 4 en partie, 0 non, 1 refusés, 1 sans objet |
@@ -239,7 +239,7 @@
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `circle, square, triangle, diamond` | Les formes d'une Shape | `border-radius, clip-path` | Décidé (ADR-032) |
-| `hexagon, star, heart, wave` | Quatre formes de plus, pour Shape(form:) et pour form: dans un style | `clip-path: polygon(…)` | À l’essai (ADR-111) |
+| `hexagon, star, heart, wave` | Quatre formes de plus, pour Shape(form:) et pour form: dans un style | `clip-path: polygon(…)` | Décidé (ADR-111) |
 | `start, center, end, between` | Les alignements de Row et Column | `flex-start, center, flex-end, space-between` | Décidé (ADR-024) |
 | `topLeft, top, topRight, left, center, right, bottomLeft, bottom, bottomRight` | Les places dans un Stack | `top, right, bottom, left` | Décidé (ADR-036, ADR-037) |
 | `linear, smooth, out, in, back, spring, bounce` | Le caractère d'un mouvement | `cubic-bezier(…), linear(…)` | Décidé (ADR-034) |
@@ -367,7 +367,7 @@
 | `cursor, justify` | La forme du curseur, ou un curseur dessiné ; le texte justifié, les mots coupés | `cursor, text-align: justify, hyphens` | Décidé (ADR-069) |
 | `grayscale, saturate, brightness, contrast, hue, blur` | Des filtres d'image, un réglage par effet, composés par le moteur ; seulement sur une image, une forme ou un dessin ; sans filtre au focus du clavier | `filter` | Décidé (ADR-108) |
 | `backdrop-blur` | La page floue derrière une fenêtre ouverte | `backdrop-filter` | Décidé (ADR-108) |
-| `form (dans un style)` | Découpe une image ou un dessin en une forme nommée ; le cadre de focus gardé | `clip-path` | À l’essai (ADR-111) |
+| `form (dans un style)` | Découpe une image ou un dessin en une forme nommée ; le cadre de focus gardé | `clip-path` | Décidé (ADR-111) |
 
 ## Blocs : la page
 
@@ -483,7 +483,7 @@
 | `12.50 (une valeur à virgule)` | Un nombre à virgule exact, ses chiffres fixés à la déclaration ; montré dans la langue de la page | `Number, toFixed, Intl.NumberFormat` | Décidé (ADR-066) |
 | `today, Days(name:, from:, to:), {d:date}, {d:weekday}, min (dans Input)` | Les dates : le jour même, compter les jours, les montrer dans la langue de la page, borner un champ | `new Date(), toLocaleDateString, min` | Décidé (ADR-067) |
 | `Split(name:, from:, by:), by: lines` | Découpe un texte en liste, qui suit le texte : les blancs autour retirés, les morceaux vides oubliés, les virgules de toutes les écritures | `split(",")` | Décidé (ADR-103) |
-| `now, Minutes(name:, from:, to:), meeting.add(15min)` | L'heure présente ; les minutes entre deux moments, même la nuit du changement d'heure ; décaler une heure | `Date.now(), getTimezoneOffset(), setInterval` | À l’essai (ADR-109) |
+| `now, Minutes(name:, from:, to:), meeting.add(15min)` | L'heure présente ; les minutes entre deux moments, même la nuit du changement d'heure ; décaler une heure | `Date.now(), getTimezoneOffset(), setInterval` | Décidé (ADR-109) |
 
 ## Blocs : les règles
 
@@ -496,7 +496,7 @@
 | Mot HoloCode | Ce qu’il fait | Sur le web | État |
 |---|---|---|---|
 | `modules, input, output, time, memory` | Les modules de la page ; ce qu'un module reçoit, rend (un nom, ou une liste de noms), et ses limites | — | Décidé (ADR-045, ADR-077) |
-| `from, sha256, license (dans Module)` | Un module venu d'ailleurs : sa copie à côté de la page, son empreinte vérifiée avant chaque lancement, sa licence dite aux visiteurs | `script src integrity (SRI), npm` | À l’essai (ADR-118) |
+| `from, sha256, license (dans Module)` | Un module venu d'ailleurs : sa copie à côté de la page, son empreinte vérifiée avant chaque lancement, sa licence dite aux visiteurs | `script src integrity (SRI), npm` | Décidé (ADR-118) |
 | `components, params, emits` | Les composants de la page ; leurs paramètres (avec valeurs par défaut) ; les signaux qu'ils émettent | `props, emit` | Décidé (ADR-050, ADR-056) |
 | `children (dans un composant)` | L'emplacement où va le contenu donné à l'appel | `slot, children` | Décidé (ADR-058) |
 | `shared` | Les valeurs partagées de la page : seul un toucher les change, arbitré par le serveur | `WebSocket, EventSource` | Décidé (ADR-079) |
@@ -529,7 +529,7 @@
 | `signedIn, {account}` | Deux valeurs que le serveur donne : le visiteur est-il connecté, et le nom de son compte ; la page les lit, ne les change jamais | `request.user, current_user, useSession()` | Décidé (ADR-081) |
 | `{code:upper}, {code:lower}, {message:length}, {bio:max40}` | Un texte en majuscules ou en minuscules dans la langue de la page ; compté comme une personne compte les lettres ; coupé à la fin d'un mot | `toUpperCase(), .length, Intl.Segmenter, slice()` | Décidé (ADR-103) |
 | `scroll` | Où en est le visiteur dans la page, de 0 à 100 : une barre de lecture, un retour en haut | `scrollY / (scrollHeight - innerHeight)` | Décidé (ADR-106) |
-| `{left:duration}, {train:time}` | Une durée et une heure écrites dans la langue de la page, et lisibles par les machines | `Intl.DurationFormat, Intl.DateTimeFormat, time datetime` | À l’essai (ADR-109) |
+| `{left:duration}, {train:time}` | Une durée et une heure écrites dans la langue de la page, et lisibles par les machines | `Intl.DurationFormat, Intl.DateTimeFormat, time datetime` | Décidé (ADR-109) |
 
 # Partie 2 — HoloCode face à HTML, CSS et JavaScript
 
