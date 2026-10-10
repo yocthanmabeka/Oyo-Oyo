@@ -72,7 +72,11 @@ async function startServer() {
 // holo serve (ADR-074), sur un dossier d'essai à part : sa base ne salit pas le dépôt.
 async function startHoloServe(files) {
   const folder = mkdtempSync(join(tmpdir(), "holo-serve-"));
-  for (const file of files) writeFileSync(join(folder, file), readFileSync(join(repo, "exemples", "lecons", file)));
+  for (const file of files) {
+    // Une page rangée dans un dossier (la suite d'une leçon) : son dossier d'abord.
+    mkdirSync(join(folder, file, ".."), { recursive: true });
+    writeFileSync(join(folder, file), readFileSync(join(repo, "exemples", "lecons", file)));
+  }
   const port = 20000 + Math.floor(Math.random() * 2000);
   const binary = ["holo", "holo.exe"].map((name) => join(engine, "target", "release", name)).find(existsSync);
   const server = spawn(binary, ["serve", folder, String(port)], { cwd: engine, stdio: ["ignore", "pipe", "pipe"] });
@@ -666,6 +670,183 @@ const tests = [
       && quotes === "«\u202FValjean devient bon parce qu'un évêque l'a appelé “mon frère”.\u202F» | “mon frère”"
       && added === "none" && titles === "Les Misérables | Les Châtiments";
     return [ok, `lu : « ${said} » ; citations : ${quotes} ; guillemets du navigateur : ${added} ; œuvres : ${titles}`];
+  }],
+  ["le champ mot de passe : la page ne le lit jamais ; il part seulement vers holo serve, qui n'en garde que l'empreinte ; le collage, « Montrer » au clavier et au lecteur d'écran, autocomplete ; celui du compte vérifié ; hors HTTPS, fermé ; sans JavaScript (leçon 137, serve)", async (p, b) => {
+    // ADR-114. Le mot de passe tapé est cherché partout où il ne doit pas être : l'état de la page
+    // (le panneau ?values), le stockage du navigateur, l'adresse, le texte et le HTML de la page, les
+    // demandes envoyées, la base de holo serve (et son journal d'écriture), son journal à l'écran.
+    const lesson = "137-un-mot-de-passe.holo";
+    const members = "137-mot-de-passe/annuler.holo";
+    const secret = "une phrase-de-passe introuvable 🔑";
+    const account = "une phrase assez longue pour Ada";
+    const served = await startHoloServe([lesson, members]);
+    const q = page(b, served.base);
+    const faults = [];
+    const check = (name, ok, seen) => { if (!ok) faults.push(`${name} : ${seen}`); };
+    const sent = [];
+    const field = `document.getElementById("holo-password-Protect")`;
+    const reveal = `document.querySelector('[aria-controls="holo-password-Protect"]')`;
+    // Le bouton « Montrer », tel que le lecteur d'écran le reçoit : son nom, et s'il est enfoncé.
+    const revealSaid = async () => {
+      const { nodes } = (await b.send("Accessibility.getFullAXTree")).result;
+      const node = nodes.find((n) => !n.ignored && n.role?.value === "button" && n.name?.value === "Montrer le mot de passe");
+      return node ? `${node.name.value}, ${node.properties?.find((x) => x.name === "pressed")?.value?.value ?? "?"}` : "(absent)";
+    };
+    // Partout où le mot de passe ne doit pas être, dans la page et le navigateur.
+    const leaks = (what) => q.value(`(() => {
+      const found = [];
+      const has = (text) => String(text ?? "").includes(${JSON.stringify(what)});
+      if (has(document.getElementById("holo-values")?.textContent)) found.push("l'état (?values)");
+      try { for (const store of [localStorage, sessionStorage]) for (let i = 0; i < store.length; i++) if (has(store.key(i)) || has(store.getItem(store.key(i)))) found.push("le stockage"); } catch { /* refusé */ }
+      if (has(decodeURIComponent(location.href))) found.push("l'adresse");
+      if (has(document.getElementById("page").innerText)) found.push("le texte de la page");
+      if (has(document.documentElement.outerHTML)) found.push("le HTML");
+      return found.join(", ") || "nulle part";
+    })()`);
+    const base = served.folder;
+    const written = (what) => {
+      const found = [];
+      const visit = (dir) => { for (const entry of readdirSync(dir, { withFileTypes: true })) { const path = join(dir, entry.name); if (entry.isDirectory()) visit(path); else if (readFileSync(path).includes(Buffer.from(what))) found.push(path.slice(base.length + 1)); } };
+      visit(join(base, "holo-data"));
+      return found.join(", ") || "nulle part";
+    };
+    const holo = ["holo", "holo.exe"].map((name) => join(engine, "target", "release", name)).find(existsSync);
+    const messages = () => spawnSync(holo, ["messages", base], { encoding: "utf8" }).stdout.trim().split("\n").filter(Boolean);
+    let violations = [];
+    try {
+      await b.send("Network.enable");
+      b.on("Network.requestWillBeSent", ({ request }) => sent.push({ url: request.url, method: request.method, body: request.postData ?? "" }));
+      await b.send("Browser.grantPermissions", { permissions: ["clipboardReadWrite", "clipboardSanitizedWrite"] });
+      await b.send("Page.bringToFront");
+      // 1. Le champ, tel que le moteur le pose (avec le panneau des valeurs, ?values).
+      await q.open(`/${lesson}?values`);
+      if (!(await q.until("window.__holoStarted"))) return [false, "le moteur n'est pas arrivé"];
+      const attributes = await q.value(`[${field}.type, ${field}.autocomplete, ${field}.getAttribute("aria-required"), ${field}.hasAttribute("maxlength"), ${field}.hasAttribute("name"), ${field}.hasAttribute("data-bind"), ${field}.disabled].join(" ")`);
+      check("le champ", attributes === "password new-password true false false false false", attributes);
+      check("le bouton « Montrer », montré par la page légère", await q.value(`!${reveal}.hidden && ${reveal}.offsetHeight > 0`), "caché");
+      check("le lecteur d'écran, au départ", (await revealSaid()) === "Montrer le mot de passe, false", await revealSaid());
+      // 2. Le collage : le presse-papiers du navigateur, puis Ctrl+V dans le champ. Rien ne l'empêche.
+      await q.type('[data-bind="title"]', "Mon carnet");
+      await q.value(`(() => { window.__pasteRefused = null; addEventListener("paste", (e) => { window.__pasteRefused = e.defaultPrevented; }); ${field}.focus(); return true; })()`);
+      await b.send("Runtime.evaluate", { expression: `navigator.clipboard.writeText(${JSON.stringify(secret)})`, awaitPromise: true, userGesture: true });
+      await b.send("Input.dispatchKeyEvent", { type: "keyDown", key: "v", code: "KeyV", windowsVirtualKeyCode: 86, modifiers: 2, commands: ["paste"] });
+      await b.send("Input.dispatchKeyEvent", { type: "keyUp", key: "v", code: "KeyV", windowsVirtualKeyCode: 86, modifiers: 2 });
+      await pause(200);
+      const pasted = await q.value(`[${field}.value === ${JSON.stringify(secret)}, window.__pasteRefused].join(" ")`);
+      check("coller", pasted === "true false", pasted);
+      // 3. « Montrer », au clavier : Tab depuis le champ, puis Espace ; le lecteur d'écran dit l'état.
+      await q.key("Tab", "Tab", 9);
+      const onButton = await q.value(`document.activeElement === ${reveal}`);
+      await q.key(" ", "Space", 32, " ");
+      const shown = [await q.value(`${field}.type`), await revealSaid()].join(" ; ");
+      await q.key(" ", "Space", 32, " ");
+      const hidden = [await q.value(`${field}.type`), await revealSaid()].join(" ; ");
+      check("« Montrer » au clavier", onButton && shown === "text ; Montrer le mot de passe, true" && hidden === "password ; Montrer le mot de passe, false", `focus ${onButton}, montré : ${shown}, caché : ${hidden}`);
+      // Au doigt ou à la souris, puis on le laisse montré : il doit être caché de nouveau à l'envoi.
+      await q.click(`[aria-controls="holo-password-Protect"]`);
+      const clicked = await q.value(`${field}.type`);
+      // 4. La page ne le lit jamais : ni l'état, ni le stockage, ni l'adresse, ni le texte, ni le HTML.
+      const panel = await q.value(`document.getElementById("holo-values")?.textContent.includes('title = "Mon carnet"')`);
+      const beforeSending = await leaks(secret);
+      const sentBefore = sent.filter((r) => r.body.includes(secret)).length;
+      check("la page ne le lit jamais", panel && beforeSending === "nulle part" && sentBefore === 0, `panneau des valeurs ${panel}, trouvé : ${beforeSending}, demandes qui le portent : ${sentBefore}`);
+      // 5. Trop court : le moteur le dit sous le champ, le clavier y revient, rien ne part.
+      await q.value(`(() => { window.__kept = ${field}.value; ${field}.value = "court"; return true; })()`);
+      await q.click('[data-name="Send"]');
+      await q.until(`document.querySelector("#holo-error-Protect-holo-password")`, 5000);
+      const short = await q.value(`[document.querySelector("#holo-error-Protect-holo-password")?.textContent, ${field}.getAttribute("aria-invalid"), ${field}.getAttribute("aria-describedby"), document.activeElement === ${field}].join(" | ")`);
+      await pause(200);
+      const announced = await q.value(`document.getElementById("announcement").textContent`);
+      check("trop court", short === "Au moins 12 caractères. | true | holo-password-Protect-hint holo-error-Protect-holo-password | true" && announced === "Au moins 12 caractères." && !sent.some((r) => r.body.includes("court")), `${short} ; annoncé : ${announced}`);
+      // 6. L'envoi : il part une fois, vers holo serve, à côté des valeurs ; caché de nouveau, puis effacé.
+      await q.value(`(() => { ${field}.value = window.__kept; delete window.__kept; ${field}.dispatchEvent(new Event("input", { bubbles: true })); return true; })()`);
+      await q.click('[data-name="Send"]');
+      const arrived = await q.until(`document.getElementById("page").innerText.includes("Le carnet « Mon carnet » est protégé.")`, 10000);
+      const carried = sent.filter((r) => r.body.includes(JSON.stringify(secret).slice(1, -1)) || r.body.includes(secret));
+      const shape = carried.map((r) => { try { const body = JSON.parse(r.body); return `${r.method} ${r.url === `${served.base}/${lesson}` ? "la page" : r.url} ${Object.keys(body).join(",")} ${JSON.stringify(body.values)}`; } catch { return `${r.method} ${r.url} (pas du JSON)`; } });
+      const after = await q.value(`[${field}.type, ${reveal}.getAttribute("aria-pressed"), ${field}.value === ""].join(" ")`);
+      check("l'envoi", arrived && clicked === "text" && shape.join(" ; ") === `POST la page form,values,password {"title":"Mon carnet"}` && after === "password false true", `arrivé ${arrived}, montré avant ${clicked} ; ${shape.join(" ; ") || "aucune demande"} ; après : ${after}`);
+      check("après l'envoi, la page ne l'a toujours pas", (await leaks(secret)) === "nulle part", await leaks(secret));
+      violations = (await (async () => {
+        const axe = readFileSync(join(engine, "node_modules", "axe-core", "axe.min.js"), "utf8");
+        await q.value(`${axe}\n;window.axe.version`);
+        return q.value('window.axe.run(document, { resultTypes: ["violations"] }).then((r) => r.violations.map((v) => v.id))');
+      })());
+      // 7. holo serve n'en garde que l'empreinte Argon2id : ni la base, ni son journal d'écriture, ni
+      // son journal à l'écran.
+      const kept = messages();
+      const print = kept.find((line) => line.includes("\"form\":\"Protect\"")) ?? "";
+      check("holo serve garde l'empreinte", /"submission":\{"form":"Protect","values":\{"title":"Mon carnet"\},"password":"\$argon2id\$v=19\$m=19456,t=2,p=1\$[^"]+"\}/.test(print), print || "(aucun message)");
+      check("rien en clair chez holo serve", written(secret) === "nulle part" && written("introuvable") === "nulle part" && !served.log().includes("introuvable") && !kept.join("\n").includes("introuvable"), `base : ${written("introuvable")} ; journal : ${served.log().includes("introuvable")}`);
+      // 8. Le mot de passe du compte, sur la page réservée : le faux est dit sous le champ, le bon envoie.
+      await q.open(`/account/signup?next=/${members}`, 300);
+      await q.type("#name", "Ada");
+      await q.type("#password", account);
+      await q.type("#again", account);
+      await q.click('main form button[type="submit"]');
+      await q.until(`location.pathname === "/${members}" && window.__holoStarted`, 20000);
+      const current = `document.getElementById("holo-password-Cancel")`;
+      const currentAttributes = await q.value(`${current}?.autocomplete`);
+      await q.type("#holo-password-Cancel", "pas le bon mot de passe");
+      await q.click('[data-name="Confirm"]');
+      await q.until(`document.querySelector("#holo-error-Cancel-holo-password")`, 10000);
+      const wrong = await q.value(`[document.querySelector("#holo-error-Cancel-holo-password")?.textContent, ${current}.value === "", document.activeElement === ${current}, document.getElementById("page").innerText.includes("Ta réservation est annulée.")].join(" | ")`);
+      await q.type("#holo-password-Cancel", account);
+      await q.click('[data-name="Confirm"]');
+      const cancelled = await q.until(`document.getElementById("page").innerText.includes("Ta réservation est annulée.")`, 10000);
+      const cancel = messages().find((line) => line.includes("\"form\":\"Cancel\"")) ?? "";
+      check("le mot de passe du compte", currentAttributes === "current-password" && wrong === "Ce n'est pas le mot de passe de ton compte. | true | true | false" && cancelled && cancel.includes(`"submission":{"form":"Cancel","values":{}}`), `${currentAttributes} ; faux : ${wrong} ; juste : ${cancelled} ; rangé : ${cancel}`);
+      check("rien du compte en clair", written(account) === "nulle part" && written("pas le bon") === "nulle part" && !served.log().includes("pas le bon"), written("pas le bon"));
+      // 9. Hors HTTPS : la page ouverte par l'adresse de ce PC sur le réseau local, comme un téléphone
+      // du même Wi-Fi. Le navigateur dit qu'elle n'est pas sûre : le champ se ferme, la note dit pourquoi.
+      const { networkInterfaces } = await import("node:os");
+      const lan = Object.values(networkInterfaces()).flat().find((a) => a?.family === "IPv4" && !a.internal)?.address;
+      let insecure = "pas d'adresse sur le réseau local : non essayé";
+      if (lan) {
+        const away = page(b, served.base.replace("localhost", lan));
+        await away.open(`/${lesson}`);
+        await away.until("window.__holoStarted", 20000);
+        insecure = await away.value(`[window.isSecureContext, ${field}.disabled, ${field}.getAttribute("aria-describedby"), document.getElementById("holo-password-Protect-note").hidden, document.getElementById("holo-password-Protect-note").textContent, ${reveal}.hidden].join(" | ")`);
+        check("hors HTTPS, fermé", insecure === "false | true | holo-password-Protect-note | false | Ce champ ne s'ouvre qu'en HTTPS : un mot de passe ne part jamais en clair. | true", insecure);
+        // Un envoi forgé quand même : refusé par holo serve, rien n'est rangé.
+        const before = messages().length;
+        const forged = await fetch(`${served.base.replace("localhost", lan)}/${lesson}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ form: "Protect", values: { title: "x" }, password: secret }) });
+        const refusal = `${forged.status} ${await forged.text()}`;
+        // Le journal de holo serve arrive par un tuyau, un peu après la réponse : il dit la raison, rien d'autre.
+        for (let i = 0; i < 20 && !served.log().includes("Mot de passe refusé"); i++) await pause(100);
+        const told = served.log().split("\n").find((line) => line.startsWith("Mot de passe refusé")) ?? "(rien)";
+        check("un envoi forgé hors HTTPS", refusal === "422 holo-password|Ce mot de passe ne part pas : la page n'est pas en HTTPS." && messages().length === before && told.includes("la demande n'est pas en HTTPS") && !told.includes("introuvable"), `${refusal} ; messages : ${messages().length - before} ; journal : ${told}`);
+        // Sans JavaScript non plus : holo serve fabrique la page avec le champ fermé.
+        const plain = await (await fetch(`${served.base.replace("localhost", lan)}/${lesson}`, { headers: { accept: "text/html" } })).text();
+        check("hors HTTPS, sans JavaScript", plain.includes(`<input disabled aria-describedby="holo-password-Protect-note"`) && !plain.includes(`name="holo-password-Protect"`), plain.match(/<input[^>]*data-secret[^>]*>/)?.[0] ?? "(pas de champ)");
+      }
+      // 10. Sans JavaScript, sur ce PC : le champ part avec le formulaire des gestes ; holo serve n'en
+      // garde que l'empreinte, et la page revient sans lui.
+      let withoutScript = "";
+      try {
+        await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+        await q.open(`/${lesson}`, 300);
+        const attached = await q.value(`[${field}.getAttribute("form"), ${field}.name, ${reveal}.hidden].join(" ")`);
+        await q.value(`(() => { document.querySelector('[data-bind="title"]').value = "Sans script"; ${field}.value = ${JSON.stringify(secret)}; return true; })()`);
+        const count = messages().length;
+        await q.click('[data-name="Send"]');
+        await q.until(`document.readyState === "complete" && document.getElementById("page").innerText.includes("Le carnet « Sans script » est protégé.")`, 10000);
+        const last = messages().at(-1) ?? "";
+        withoutScript = `${attached} ; ${messages().length - count} message, ${/"password":"\$argon2id\$/.test(last) ? "son empreinte" : last} ; ${await leaks(secret)}`;
+        check("sans JavaScript", withoutScript === "holo-gestures holo-password-Protect true ; 1 message, son empreinte ; nulle part" && written(secret) === "nulle part", withoutScript);
+      } finally {
+        await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      }
+      check("axe-core", !violations.length, violations.join(", "));
+      if (b.errors.length) faults.push(`erreurs : ${b.errors.join(" | ")}`);
+      return [faults.length === 0, faults.length ? faults.join("\n      ") : `le champ : ${attributes} ; « Montrer » au clavier : ${shown}, puis ${hidden} ; collé : ${pasted} ; trop court : ${short} ; envoyé une fois : ${shape.join(" ; ")}, puis ${after} ; la page ne l'a lu nulle part ; holo serve : l'empreinte seule, rien en clair (base, WAL, journal) ; le compte : faux « ${wrong} », juste ${cancelled} ; hors HTTPS : ${insecure} ; sans JavaScript : ${withoutScript} ; axe-core : zéro défaut`];
+    } finally {
+      b.on("Network.requestWillBeSent", null);
+      await b.send("Network.disable");
+      await b.send("Browser.resetPermissions");
+      await b.send("Network.clearBrowserCookies");
+      served.stop();
+    }
   }],
   ["une grille : une case sur deux colonnes et deux lignes, des zones dans l'ordre de lecture ; rien ne déborde sur un téléphone (leçon 127)", async (p, b) => {
     const faults = [];
