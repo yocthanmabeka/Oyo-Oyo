@@ -71,8 +71,6 @@ transition:left .12s linear,top .12s linear,transform .12s linear}\
 :where(.holo-forme-circle){border-radius:50%}\
 :where(.holo-Board .holo-Shape){width:calc(var(--holo-n,48)*100cqw/640);height:calc(var(--holo-n,48)*100cqw/640)}\
 :where(.holo-Board .holo-Point){width:10cqw;height:10cqw}\
-:where(.holo-forme-triangle){clip-path:polygon(50% 0,100% 100%,0 100%)}\
-:where(.holo-forme-diamond){clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}\
 :where(.holo-Hr){border:0;border-top:1px solid currentColor;opacity:0.4;height:0}\
 :where(dl.holo-List dt){font-weight:bold}:where(dl.holo-List dd){margin:0 0 8px 0}\
 :where(.holo-Quote){border-left:3px solid currentColor;padding:0 0 0 12px;font-style:italic}\
@@ -634,8 +632,9 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
         share.push_str(&format!(" data-visit-names=\"{}\"", escape(&visit.join(" "))));
     }
     Ok(format!(
-        "<style>{}{BASE}{}</style><div class=\"{classes}\" data-title=\"{title}\"{title_follows}{live}{share}>{header}<main>{body}</main>{footer}{worlds}</div>",
+        "<style>{}{BASE}{}{}</style><div class=\"{classes}\" data-title=\"{title}\"{title_follows}{live}{share}>{header}<main>{body}</main>{footer}{worlds}</div>",
         fonts(&program.root, base)?,
+        crate::forms::shapes_css(program),
         css(program, base)
     ))
 }
@@ -977,6 +976,8 @@ fn css(program: &Program, base: &str) -> String {
         // tout se range (640px sans rien écrire), par exemple sur un ordinateur.
         let page = matches!(&rule.target, Target::Type(t) if t == "Page");
         let declaration = |setting: &crate::holo::Setting| match setting.name.as_str() {
+            // Une forme (ADR-111) : la découpe et les coins, ensemble.
+            "form" => crate::forms::declaration(&setting.value),
             "max-width" if page => format!("--holo-width:{};", css_value(setting, base)),
             name => format!("{name}:{};", css_value(setting, base)),
         };
@@ -1010,6 +1011,11 @@ fn css(program: &Program, base: &str) -> String {
                 _ => format!("{}:active{{{body}}}", selector.split(',').collect::<Vec<_>>().join(":active,")),
             };
             output.push_str(&rule_state);
+        }
+        // Au clavier (ADR-111), un bloc découpé en polygone qui a le focus se montre entier : la
+        // découpe couperait son cadre de focus. Écrit après les états, et plus précis qu'eux.
+        if crate::forms::cuts(rule) {
+            output.push_str(&format!("{}{{clip-path:none}}", selector.split(',').map(|s| format!("{s}:focus-visible")).collect::<Vec<_>>().join(",")));
         }
     }
     output
@@ -1731,14 +1737,17 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
             };
             output.push_str(&format!("<span class=\"{classes}\"{name} role=\"timer\" aria-label=\"{}\" data-stopwatch=\"{}\">{shown}</span>", escape(&label), escape(value)));
         }
-        // Une forme simple, d'une seule couleur : un rond, un carré, un triangle, un losange.
+        // Une forme simple, d'une seule couleur : un rond, un carré, un triangle, un losange ; depuis
+        // ADR-111, aussi un hexagone, une étoile, un cœur, une vague (`forms::FORMS`). Une forme en
+        // polygone se dessine dans le bloc (`forms::shapes_css`), qui n'est jamais découpé lui-même :
+        // son cadre de focus se voit.
         "Shape" => {
             let (mut shape, mut pace) = (None, String::new());
             for argument in &block.arguments {
                 match (argument.name.as_deref(), &argument.value) {
                     (Some("name" | "x" | "y" | "drag"), _) => {}
-                    (Some("form"), Value::Name(word)) if ["circle", "square", "triangle", "diamond"].contains(&word.as_str()) => shape = Some(word.as_str()),
-                    (Some("form"), _) => return Err(Error { message: "« Shape(form: …) » attend l'un de ces mots : circle, square, triangle, diamond".into(), pos: argument.pos }),
+                    (Some("form"), Value::Name(word)) if crate::forms::FORMS.contains(&word.as_str()) => shape = Some(word.as_str()),
+                    (Some("form"), _) => return Err(Error { message: format!("« Shape(form: …) » attend l'un de ces mots : {}", crate::forms::FORMS.join(", ")), pos: argument.pos }),
                     (Some("color"), Value::Text(color)) if is_color(color) => pace.push_str(&format!("--holo-color:{color};")),
                     (Some("color"), _) => return Err(Error { message: "« Shape(color: …) » attend une couleur entre guillemets, comme \"#E9B44C\"".into(), pos: argument.pos }),
                     (Some("size"), Value::Number { value, unit: Some(unit), .. }) if unit == "px" && (8.0..=400.0).contains(value) => pace.push_str(&format!("--holo-size:{value}px;--holo-n:{value};")),
@@ -2497,7 +2506,7 @@ mod tests {
         page("Page(state: State(n: 0, sx: 5), children: [ Board(children: [ Shape(name: S, form: square, x: sx, y: 50, drag: true) ]) ], rules: [ On(S.tap, effect: n.add(1)) ])").unwrap();
         for (source, message) in [
             ("Page(children: [ Shape(color: \"red\") ])", "attend « form »"),
-            ("Page(children: [ Shape(form: hexagon) ])", "circle, square, triangle, diamond"),
+            ("Page(children: [ Shape(form: pentagon) ])", "circle, square, triangle, diamond"),
             ("Page(children: [ Shape(form: circle, color: \"url(x)\") ])", "attend une couleur"),
             ("Page(children: [ Shape(form: circle, size: 5000px) ])", "entre 8px et 400px"),
             ("Page(children: [ Shape(form: circle, border: 2) ])", "n'a pas de paramètre « border »"),
@@ -2505,6 +2514,36 @@ mod tests {
             let error = page(source).unwrap_err();
             assert!(error.message.contains(message), "{source}\n→ {error}");
         }
+    }
+
+    #[test]
+    fn a_shape_is_drawn_inside_its_button_and_a_style_cuts_an_image() {
+        // ADR-111 : huit formes pour Shape ; une forme en polygone se dessine dans le bouton, qui
+        // n'est jamais découpé lui-même (son cadre de focus se voit) ; seulement les formes de la page.
+        let html = page("Page(children: [ Shape(name: Etoile, form: star, color: \"#E9B44C\"), Shape(form: wave), Shape(form: circle) ])").unwrap();
+        assert!(html.contains("<button type=\"button\" class=\"holo-Shape holo-forme-star\" data-name=\"Etoile\" aria-label=\"Etoile\" style=\"--holo-color:#E9B44C;\"></button>"), "{html}");
+        assert!(html.contains(":where(.holo-forme-star){background:transparent}:where(.holo-forme-star)::before{content:\"\";display:block;width:100%;height:100%;background:var(--holo-color,currentColor);clip-path:polygon(50% 0,61.8% 38.2%,"), "{html}");
+        assert!(html.contains(":where(.holo-forme-wave)::before") && !html.contains("holo-forme-heart") && !html.contains("holo-forme-triangle"), "{html}");
+        assert!(!html.contains("{clip-path:polygon"), "un bloc découpé lui-même : {html}");
+        let error = page("Page(children: [ Shape(form: polygon) ])").unwrap_err();
+        assert!(error.message.contains("circle, square, triangle, diamond, hexagon, star, heart, wave"), "{error}");
+        // Dans un style : la découpe et les coins ; au focus du clavier, le bloc entier, après les
+        // états ; le rond garde son cadre, qui suit sa courbe : pas de règle de focus.
+        let source = "Page(children: [ Image.ruche(source: \"a.png\", alt: \"\"), Image.rond(source: \"a.png\", alt: \"\"), Drawing(label: \"Un dessin\", width: 100, height: 50, children: [ Rect(x: 0, y: 0, width: 100, height: 50) ]) ])\n\
+            .ruche { form: hexagon; opacity: 0.9; phone: { form: square; } }\n\
+            .rond { form: circle; border: 2px solid white; }\n\
+            Drawing { form: wave; }";
+        let html = crate::flat_view(source, "/ex/").unwrap();
+        for expected in [
+            ".holo-s-ruche{clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);border-radius:0;opacity:0.9;}@media (max-width:640px){.holo-s-ruche{clip-path:none;border-radius:0;}}.holo-s-ruche:focus-visible{clip-path:none}",
+            ".holo-s-rond{clip-path:none;border-radius:50%;border:2px solid white;}",
+            ".holo-Drawing{clip-path:polygon(0 0,100% 0,100% 90%,",
+            "0 90%);border-radius:0;}.holo-Drawing:focus-visible{clip-path:none}",
+        ] {
+            assert!(html.contains(expected), "manque : {expected}\n{html}");
+        }
+        // « form » n'arrive jamais tel quel au navigateur, qui ne le connaît pas.
+        assert!(!html.contains(".holo-s-rond:focus-visible") && !html.contains("{form:") && !html.contains(";form:"), "{html}");
     }
 
     #[test]

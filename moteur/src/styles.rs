@@ -84,6 +84,8 @@ const SETTINGS: &[(&str, Shape)] = &[
     ("white-space", Shape::Word(&["normal", "nowrap", "pre-line", "pre-wrap"])),
     ("line-clamp", Shape::Count(1, 20)),
     ("cursor", Shape::Cursor),
+    // Découper une image ou un dessin en une forme nommée, avec les mots de `Shape(form:)` (ADR-111).
+    ("form", Shape::Word(crate::forms::FORMS)),
 ];
 
 const OVERFLOW: &[&str] = &["visible", "hidden", "auto", "scroll"];
@@ -259,6 +261,9 @@ pub fn check_styles(program: &Program) -> Result<(), Error> {
         }
         check_contrast(rule, &variables)?;
         check_parity(rule, program)?;
+        // Les formes (ADR-111) : sur une image ou un dessin, ni sous la souris ni au focus, et rien
+        // que la découpe couperait en silence.
+        crate::forms::check(rule, program)?;
         // Les états (hover, focus, active, dark, phone) : chacun une fois, avec des réglages connus.
         for (k, (state, settings, pos)) in rule.states.iter().enumerate() {
             if rule.states[..k].iter().any(|(other, ..)| other == state) {
@@ -401,6 +406,11 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
     if name == "background-color" {
         return refusal("« background-color » s'écrit « background » : une seule écriture par réglage".into());
     }
+    // Découper : une forme nommée, jamais un tracé écrit à la main (ADR-111). `clip` est l'ancien
+    // réglage du CSS, déjà abandonné par le web.
+    if name == "clip-path" || name == "clip" {
+        return refusal(format!("« {name} » s'écrit « form: hexagon » : une forme nommée, parmi {} ; pas de tracé écrit à la main (ADR-111)", crate::forms::FORMS.join(", ")));
+    }
     let Some((_, shape)) = SETTINGS.iter().find(|(known, _)| *known == name) else {
         let known_ones: Vec<&str> = SETTINGS.iter().map(|(n, _)| *n).collect();
         return refusal(format!("réglage inconnu « {name} » ; réglages possibles : {}", known_ones.join(", ")));
@@ -416,6 +426,11 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
     let value = value.as_str();
     // `height: screen` : tout l'écran, au moins (ADR-061).
     if name == "height" && value == "screen" {
+        return Ok(());
+    }
+    // Pas de bord, comme en CSS : `border: none`. Un style qui découpe un bloc en polygone retire
+    // ainsi celui qu'un autre style lui donne, que la découpe couperait (ADR-111).
+    if name == "border" && value == "none" {
         return Ok(());
     }
     let words: Vec<&str> = value.split_whitespace().collect();
@@ -453,6 +468,7 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
         return Ok(());
     }
     let expected = match shape {
+        Shape::Word(possible) if name == "form" => format!("une forme nommée : {} ; pas de tracé écrit à la main (ADR-111)", possible.join(", ")),
         Shape::Color => "une couleur, comme « gray » ou « #E9B44C »".to_string(),
         Shape::Size if name == "height" => "une taille, comme « 16px » ou « 50% », ou « screen » : tout l'écran".to_string(),
         Shape::Size => "une taille, comme « 16px » ou « 50% »".to_string(),
@@ -686,6 +702,8 @@ mod tests {
             include_str!("../../exemples/lecons/128-reordonner-une-liste.holo"),
             // Faire vibrer le téléphone, d'un toucher ou d'une règle de jeu (ADR-110).
             include_str!("../../exemples/lecons/133-faire-vibrer-le-telephone.holo"),
+            // Découper une image ou une forme : un rond, un hexagone, une vague (ADR-111).
+            include_str!("../../exemples/lecons/134-decouper-une-forme.holo"),
             // Mélanger des sons : un fondu, un volume qui suit une valeur (ADR-112).
             include_str!("../../exemples/lecons/135-melanger-des-sons.holo"),
             // Se souvenir le temps d'une visite, un formulaire en deux pages (ADR-113).
