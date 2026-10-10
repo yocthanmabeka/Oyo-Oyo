@@ -2113,6 +2113,40 @@ Page(
 
 La leçon est `128-reordonner-une-liste.holo`.
 
+## 6 septemquadragies. Où en est le visiteur, un bloc qui reste à l'écran : `scroll`, `sticky:`
+
+Une barre de lecture qui se remplit, un bouton « Retour en haut » qui n'apparaît qu'après avoir descendu, un en-tête qui reste en haut pendant qu'on défile (`ADR-106`).
+
+```holo
+Page(
+  title: "Shooting stars",
+  children: [
+    H1("Shooting stars", name: Top),
+    Row(sticky: top, gap: 12px, children: [
+      Progress(value: scroll, max: 100, label: "Reading"),
+      Text("{scroll} %"),
+    ]),
+    P("A shooting star is a grain of dust that burns in the air, a hundred kilometres above us."),
+    H2("When to see them", name: Season),
+    P("The Perseids come in August, the Geminids in December."),
+    If(scroll, over: 10, children: [
+      Row(sticky: bottom, children: [ A("↑ Back to top", to: "#Top") ]),
+    ]),
+  ],
+)
+```
+
+- **`scroll`** : où en est le visiteur dans la page, de 0 (tout en haut) à 100 (tout en bas), en pour cent entiers ; 0 pour une page qui tient dans l'écran. On la lit comme une autre valeur : `{scroll}`, `If(scroll, over: 10, …)`, `Progress(value: scroll, max: 100, …)`, `When(scroll, over: 89, effect: …)`. On ne la change jamais : c'est le navigateur qui la donne quand on défile, au plus dix fois par seconde, et seulement à une page qui la lit. Des données reçues ne la changent pas.
+- **`sticky: top`** ou **`sticky: bottom`**, sur un bloc posé directement dans la page (au besoin sous un `If`, ou dans `Main`), ou sur `Header` et `Footer` : il reste en haut ou en bas de l'écran pendant qu'on défile, et garde sa place dans la page et dans l'ordre de lecture. C'est du CSS : il marche aussi sans JavaScript. Un bloc par bord : pour en garder plusieurs, on les range ensemble, `Row(sticky: top, children: [ … ])`. Pour un composant, `sticky` s'écrit sur son bloc racine.
+- **Il ne cache jamais ce qui a le focus** : la page laisse au focus la place du bloc (`scroll-padding`), mesurée. Tab, Maj + Tab et un lien vers un endroit de la page (`A(to: "#Season")`) s'arrêtent sous la barre, au-dessus du bloc du bas.
+- **Sur un téléphone** : un bloc qui reste prend au plus le cinquième de la hauteur de l'écran ; ce qui dépasse défile dans le bloc. Sur un écran de 480px de haut ou moins (un téléphone couché, une page grossie à 200 %), pendant qu'on écrit avec le clavier de l'écran, et sur papier, il reprend sa place dans la page. Le bouton rond du moteur monte au-dessus d'un bloc resté en bas.
+- **Son fond** : sans style, celui de la page, pour que le texte qui passe dessous ne se lise pas à travers ; un style le change, `.bar { background: #1a1a2e; }`.
+- **Sans JavaScript**, `scroll` vaut 0 : la barre est vide, le bouton ne vient pas ; le bloc reste quand même à l'écran, et la page se lit entière.
+- **Un essai écrit** fait défiler la page : `scroll 50`, puis `expect scroll = 50`.
+- Refusés, avec la raison : déclarer `scroll`, la changer, la garder (`keep`), la retenir le temps d'une visite (`visit`), la mettre dans l'adresse ; un autre bord (`sticky: middle`) ; un bloc rangé dans un autre (`Row`, `Header`, un monde) ; `sticky` sur `If`, `Repeat`, `Dialog`, `Main`, `Point`, ou un son sans lecteur ; deux blocs au même bord ; `position: sticky` ou `position: fixed` dans un style, avec le bon mot.
+
+La leçon est `129-une-barre-de-lecture.holo`.
+
 ## 6 duodequinquagies. Partager la page : `Device(kind: share)`
 
 Le bouton « Partager » du téléphone, dans la page (`ADR-107`) : le visiteur envoie la page à un ami, par un message ou un e-mail.
@@ -2926,6 +2960,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Scenes` | `children`, `height`, `repeat`, `name` | Dans `children` |
 | `Scene` | `for`, `children`, `name` | Dans `Scenes` |
 | `Enter`, `Loop` | `opacity`, `x`, `y`, `scale`, `rotate`, `flip`, `tilt`, `blur`, `hue`, `round`, `at`, `for`, `ease`, `letters`, `each` ; `back` pour `Loop` | Dans `enter:` et `loop:`, sur tout bloc qui se voit |
+| `sticky:` (un réglage) | `top` ou `bottom` | Sur un bloc posé directement dans la page, ou `Header` et `Footer` ; un par bord (`ADR-106`) |
 | `Hr` | aucun | Dans `children` |
 | `Quote` | le texte entre guillemets, `by` | Dans `children` |
 | `Code` | le texte entre guillemets | Dans `children` |
@@ -3019,6 +3054,8 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Le toucher | le signal `tap` | fait |
 | Le son | `Sound(name:, source:, volume:, loop:)`, les capacités `play` et `stop` | fait |
 | Apparaître en descendant | `Enter(…, inView: true)` | fait |
+| Où en est le visiteur dans la page : une barre de lecture, un « Retour en haut » | `scroll`, de 0 à 100 | fait (`ADR-106`) |
+| Un bloc qui reste à l'écran pendant qu'on défile, en haut ou en bas | `sticky: top`, `sticky: bottom` | fait (`ADR-106`) |
 | Des tailles qui suivent le visiteur, tout l'écran | les pixels écrits en `rem`, `height: screen` | fait |
 | La vue points au lecteur d'écran | rien à écrire | fait |
 | Une forme simple | `Shape(form:, color:, size:)` | fait |
@@ -3079,3 +3116,4 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
 - Les garde-fous de zoom pour un `Point` seul : ils sont encore fixés dans le moteur.
+- Pour la place du visiteur et les blocs qui restent (`ADR-106`) : sans JavaScript, `scroll` vaut 0 ; pas de place dans un bloc qui défile lui-même ; le cinquième de l'écran et le seuil de 480px ne se règlent pas ; `sticky:` ne se donne pas à l'appel d'un composant.

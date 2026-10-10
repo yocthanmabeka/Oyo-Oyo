@@ -117,6 +117,12 @@ fn check_settings(block: &Block, parent: &str) -> Result<(), Error> {
     let Some((_, allowed)) = BLOCK_SETTINGS.iter().find(|(name, _)| *name == block.name) else { return Ok(()) };
     for argument in &block.arguments {
         let Some(name) = argument.name.as_deref() else { continue };
+        // Un bloc qui reste à l'écran (ADR-106) : sticky: top ou bottom, sur un bloc qui se voit (un
+        // son, quand il a un lecteur) ; sa place (directement dans la page) et son bord sont
+        // vérifiés dans scroll.rs.
+        if name == "sticky" && (!NO_MOVEMENT.contains(&block.name.as_str()) || block.name == "Sound") {
+            continue;
+        }
         let movement = (name == "enter" || name == "loop") && !NO_MOVEMENT.contains(&block.name.as_str());
         let on_board = matches!(name, "x" | "y" | "drag") && parent == "Board";
         let in_stack = name == "align" && parent == "Stack";
