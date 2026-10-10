@@ -217,24 +217,30 @@ fn english(program: &Program) -> bool {
 /// le mot de passe lui-même) : vide, trop court pour un nouveau, trop long. Les messages ne disent
 /// jamais ce qui a été tapé. `secure` : la page est-elle en HTTPS, ou sur ce PC ?
 pub fn errors(program: &Program, form_name: &str, length: usize, secure: bool) -> Vec<(String, String)> {
-    let Some((_, kind)) = of_named_form(program, form_name) else { return Vec::new() };
-    let code = if !secure {
-        "insecure"
+    refusal(program, form_name, length, secure).map(|code| (FIELD.to_string(), message(program, form_name, code))).into_iter().collect()
+}
+
+/// Le code du refus d'un mot de passe, d'après sa longueur ; `None` : il peut partir, ou le
+/// formulaire n'en a pas.
+pub fn refusal(program: &Program, form_name: &str, length: usize, secure: bool) -> Option<&'static str> {
+    let (_, kind) = of_named_form(program, form_name)?;
+    if !secure {
+        Some("insecure")
     } else if length == 0 {
-        "empty"
+        Some("empty")
     } else if kind == Kind::New && length < MIN {
-        "short"
+        Some("short")
     } else if length > MAX {
-        "long"
+        Some("long")
     } else {
-        return Vec::new();
-    };
-    vec![(FIELD.to_string(), message(program, form_name, code))]
+        None
+    }
 }
 
 /// Le message d'un refus, dans la langue de la page, d'après son code : `empty`, `short`, `long`,
 /// `insecure`, `wrong` (ce n'est pas le mot de passe du compte), `wait-3` (le frein : attendre
-/// trois minutes), `member` (le visiteur n'est plus connecté). Le serveur garde le code d'un
+/// trois minutes), `member` (le visiteur n'est plus connecté), `busy` (le frein par adresse),
+/// `unavailable` (le serveur ne peut pas calculer l'empreinte). Le serveur garde le code d'un
 /// envoi refusé sans JavaScript, jamais le mot de passe, pour l'écrire sous le champ.
 pub fn message(program: &Program, form_name: &str, code: &str) -> String {
     let kind = of_named_form(program, form_name).map_or(Kind::Current, |(_, kind)| kind);
@@ -252,13 +258,15 @@ pub fn message(program: &Program, form_name: &str, code: &str) -> String {
         ("insecure", _) => say("Ce mot de passe ne part pas : la page n'est pas en HTTPS.".into(), "This password is not sent: the page is not served over HTTPS.".into()),
         ("wrong", _) => say("Ce n'est pas le mot de passe de ton compte.".into(), "This is not the password of your account.".into()),
         ("member", _) => say("Connecte-toi d'abord : ce mot de passe est celui de ton compte.".into(), "Sign in first: this is the password of your account.".into()),
+        ("busy", _) => say("Trop de demandes depuis cette adresse : attends une minute.".into(), "Too many requests from this address: wait a minute.".into()),
+        ("unavailable", _) => say("Le serveur ne peut pas recevoir ce mot de passe pour l'instant : réessaie plus tard.".into(), "The server cannot take this password right now: try again later.".into()),
         _ => say("Ce mot de passe ne va pas.".into(), "This password does not work.".into()),
     }
 }
 
 /// Les codes de refus que le serveur peut garder (`Login:wrong`) : rien d'autre ne s'écrit.
 pub fn is_code(code: &str) -> bool {
-    matches!(code, "empty" | "short" | "long" | "insecure" | "wrong" | "member") || code.strip_prefix("wait-").is_some_and(|m| !m.is_empty() && m.len() <= 3 && m.bytes().all(|b| b.is_ascii_digit()))
+    matches!(code, "empty" | "short" | "long" | "insecure" | "wrong" | "member" | "busy" | "unavailable") || code.strip_prefix("wait-").is_some_and(|m| !m.is_empty() && m.len() <= 3 && m.bytes().all(|b| b.is_ascii_digit()))
 }
 
 /// Le champ, tel que la page le montre. Sans `name` ni `data-bind` : aucun formulaire ordinaire ne
@@ -505,7 +513,7 @@ mod password_tests {
         assert_eq!(message(&current, "Login", "wrong"), "Ce n'est pas le mot de passe de ton compte.");
         assert_eq!(message(&current, "Login", "wait-2"), "Trop d'essais : attends 2 minutes avant de réessayer.");
         assert_eq!(message(&english, "Login", "wait-1"), "Too many tries: wait 1 minute before trying again.");
-        for code in ["empty", "short", "long", "insecure", "wrong", "member", "wait-60"] {
+        for code in ["empty", "short", "long", "insecure", "wrong", "member", "busy", "unavailable", "wait-60"] {
             assert!(is_code(code), "{code}");
         }
         for code in ["", "wait-", "wait-x", "wait-1234", "secret", "wrong,"] {

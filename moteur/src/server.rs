@@ -253,6 +253,9 @@ impl Site {
             let visit = visit_key(member.as_ref(), ask.cookie).and_then(|key| self.stored(&key, path));
             return match self.page(&file, path, &holo, &values, visit, member.as_ref(), query_of(ask.url)) {
                 Ok(html) => {
+                    // Un mot de passe ne s'écrit qu'en HTTPS, ou sur ce PC (ADR-114) : ailleurs, son champ
+                    // arrive fermé, et dit pourquoi ; le navigateur ne l'envoie pas.
+                    let html = if secure(self, ask) { html } else { crate::password::closed(&html) };
                     let mut reply = Reply { status: 200, headers: vec![("Content-Type".into(), "text/html; charset=utf-8".into())], body: html.into_bytes() };
                     reply.headers.extend(headers);
                     reply.headers.push(frame_policy(&file, &values, member.as_ref()));
@@ -277,6 +280,10 @@ impl Site {
         // Les données d'un autre site que ce geste va lire (ADR-116) : demandées avant le verrou
         // des gestes, pour qu'un site lent ne retienne pas les gestes des autres visiteurs.
         self.prefetch(ask, path, raw);
+        // Les mots de passe que ce toucher envoie (ADR-114) : vérifiés, ou réduits à leur empreinte,
+        // avant le verrou des gestes (Argon2id prend un instant, exprès : les autres visiteurs
+        // n'attendent pas). Ils ne vont pas plus loin : ni l'état, ni l'adresse, ni la base.
+        let passwords = self.gesture_passwords(ask, path, raw);
         let Ok(_gesture)=self.gestures.lock() else{return Reply::text(500,"arbitre indisponible")};
         let Some((file, holo, values)) = self.locate(path, raw) else { return Reply::text(404, "page introuvable") };
         if !holo.ends_with(".holo") {
@@ -322,7 +329,8 @@ impl Site {
         // Le geste part de la page que montre le navigateur, avec les valeurs de son adresse
         // (ADR-091), même si le visiteur est revenu en arrière depuis.
         visit.state = with_query(&source, &visit.state, query_of(ask.url));
-        let fields = crate::gestures::read_form(&String::from_utf8_lossy(ask.body));
+        // Les champs, sans les mots de passe (ADR-114) : ceux-ci ne passent jamais par l'arbitre.
+        let fields: Vec<(String, String)> = crate::gestures::read_form(&String::from_utf8_lossy(ask.body)).into_iter().filter(|(name, _)| !name.starts_with(crate::password::FIELD)).collect();
         let tap = fields.iter().find(|(name, signal)| name == crate::gestures::SIGNAL && crate::gestures::is_tap(signal)).map(|(_, signal)| signal.as_str()).unwrap_or("");
         // Une page qui partage des valeurs (ADR-079) : les champs, puis le toucher, arbitré avec les
         // valeurs que le serveur garde, chacun son tour ; un bouton caché ne se touche pas.
@@ -359,13 +367,26 @@ impl Site {
         // Un toucher qui envoie un formulaire (`On(Send.tap, effect: Contact.send)`) : le serveur
         // vérifie, range le message, puis `Contact.sent` ; ou garde les messages d'erreur.
         // Un toucher renvoyé par le moteur (`?mirror`, ADR-081) : le moteur a déjà fait l'envoi.
+        let program = crate::check_page(&source).ok();
         for form in crate::effects(&source, signal).iter().filter(|_| !mirror).filter_map(|effect| effect.strip_suffix(".send")) {
-            visit.tried.retain(|tried| tried != form);
+            // Un essai raté garde le nom du formulaire, et pour un mot de passe le code du refus,
+            // `Login:wrong` : jamais le mot de passe (ADR-114).
+            visit.tried.retain(|tried| tried.split(':').next() != Some(form));
+            // Un formulaire qui a un mot de passe ne part qu'avec ce qu'en dit le calcul fait avant le
+            // verrou ; sans lui, il ne part pas.
+            let password = match program.as_ref().and_then(|program| crate::password::of_named_form(program, form)) {
+                None => None,
+                Some(_) => Some(passwords.iter().find(|(known, _)| known == form).map_or_else(|| Err("unavailable".to_string()), |(_, outcome)| outcome.clone())),
+            };
+            if let Some(Err(code)) = &password {
+                visit.tried.push(format!("{form}:{code}"));
+                continue;
+            }
             if !crate::form_errors(&source, &visit.state, form).is_empty() {
                 visit.tried.push(form.to_string());
                 continue;
             }
-            let submission = crate::submission(&source, &visit.state, form);
+            let submission = with_password_print(&crate::submission(&source, &visit.state, form), password.and_then(Result::ok).flatten().as_deref());
             let outcome = if self.keep_message(path, &holo, form, &submission, "[]", member.as_ref().map(|m|m.id)).is_ok() { "sent" } else { "failed" };
             visit.state = without_sounds(&crate::arbitrate(&source, &visit.state, &format!("{form}.{outcome}")));
         }
@@ -735,6 +756,25 @@ impl Site {
         }
         let Some(crate::lists::Json::Object(top)) = crate::lists::Json::read(&json) else { return Reply::text(400, "message illisible") };
         let Some(crate::lists::Json::Text(form)) = top.iter().find(|(key, _)| key == "form").map(|(_, value)| value) else { return Reply::text(400, "message mal formé") };
+        // Le mot de passe (ADR-114), vérifié ou réduit à son empreinte avant tout le reste (les
+        // fichiers attendent) ; ce qui est rangé ne le contient plus jamais en clair.
+        let mut json = json.clone();
+        if let Some(program) = crate::check_page(&source).ok().filter(|program| crate::password::of_named_form(program, form).is_some()) {
+            let typed = top.iter().find_map(|(key, value)| match value {
+                crate::lists::Json::Text(typed) if key == crate::password::KEY => Some(typed.as_str()),
+                _ => None,
+            });
+            match self.password_outcome(ask, &program, path, form, typed.unwrap_or(""), member) {
+                Err(code) => return password_refused(&program, form, &code),
+                Ok(print) => {
+                    let mut kept: Vec<(String, crate::lists::Json)> = top.iter().filter(|(key, _)| key != crate::password::KEY).cloned().collect();
+                    if let Some(print) = print {
+                        kept.push((crate::password::KEY.to_string(), crate::lists::Json::Text(print)));
+                    }
+                    json = crate::lists::Json::Object(kept).written();
+                }
+            }
+        }
         // Les fichiers : ce que la page permet, demandé au moteur, jamais à ce que dit le navigateur.
         let allowed = crate::files_for_server(&source).unwrap_or_default();
         let folder = self.folder.join(DATA_FOLDER).join("files").join(page_name(path));
@@ -783,6 +823,89 @@ impl Site {
             .map_err(|_| Reply::text(500, "message impossible à ranger"))?;
         println!("Message reçu : {path} ({form})");
         Ok(())
+    }
+
+    /// Ce que devient le mot de passe d'un formulaire envoyé (ADR-114). Un nouveau : son empreinte
+    /// Argon2id, la seule chose gardée (celle des comptes, `ADR-081`). Celui du compte : vérifié,
+    /// avec le frein des comptes, puis oublié (`None`). `Err` : le code du refus, que
+    /// `password::message` dit au visiteur. Le mot de passe n'est écrit nulle part : ni dans la
+    /// base, ni dans le journal, ni dans une réponse.
+    fn password_outcome(&self, ask: &Ask, program: &crate::holo::Program, path: &str, form: &str, typed: &str, member: Option<&crate::accounts::Member>) -> Result<Option<String>, String> {
+        let Some((_, kind)) = crate::password::of_named_form(program, form) else { return Ok(None) };
+        if !secure(self, ask) {
+            println!("Mot de passe refusé : {path} ({form}), la demande n'est pas en HTTPS ; derrière un proxy HTTPS, fixer HOLO_ORIGIN (ADR-114)");
+            return Err("insecure".into());
+        }
+        if let Some(code) = crate::password::refusal(program, form, typed.chars().count(), true) {
+            return Err(code.into());
+        }
+        // Le frein par adresse des comptes (ADR-083) : chaque envoi calcule une empreinte, lente exprès.
+        let allowed = self.base.lock().map(|base| crate::accounts::ip_allowed(&base, &client_address(self, ask), now())).unwrap_or(false);
+        if !allowed {
+            return Err("busy".into());
+        }
+        match kind {
+            crate::password::Kind::New => crate::accounts::password_print(typed).map(Some).map_err(|_| "unavailable".to_string()),
+            crate::password::Kind::Current => match member {
+                Some(member) => crate::accounts::confirm(self, member, typed, now()).map(|()| None),
+                None => Err("member".into()),
+            },
+        }
+    }
+
+    /// Les mots de passe d'un toucher sans JavaScript (ADR-114) : pour chaque formulaire que ce
+    /// toucher envoie et qui en a un, ce qu'il en est (`password_outcome`). Calculé avant le verrou
+    /// des gestes, seulement pour un geste que `gesture` recevra (de ce site, d'un visiteur qui a le
+    /// droit de toucher cette page). Un champ absent (fermé, hors HTTPS) compte comme vide.
+    fn gesture_passwords(&self, ask: &Ask, path: &str, raw: &str) -> Vec<(String, Result<Option<String>, String>)> {
+        let from_here = ask.origin.is_empty() || ask.origin.split("://").nth(1) == Some(ask.host);
+        if !from_here || !ask.content_type.starts_with("application/x-www-form-urlencoded") || ask.body.len() as u64 > BODY_MAX {
+            return Vec::new();
+        }
+        let fields = crate::gestures::read_form(&String::from_utf8_lossy(ask.body));
+        let Some((file, holo, values)) = self.locate(path, raw) else { return Vec::new() };
+        let member = crate::accounts::member_of(self, ask.cookie);
+        if !holo.ends_with(".holo") || (member.is_none() && members_only(&file, &values)) || ask.url.split_once('?').is_some_and(|(_, query)| query.split('&').any(|part| part == "mirror")) {
+            return Vec::new();
+        }
+        let Ok(source) = source_for(&file, &values, member.as_ref()) else { return Vec::new() };
+        let Ok(program) = crate::check_page(&source) else { return Vec::new() };
+        let tap = fields.iter().find(|(name, signal)| name == crate::gestures::SIGNAL && crate::gestures::is_tap(signal)).map(|(_, signal)| signal.as_str()).unwrap_or("");
+        let mut outcomes = Vec::new();
+        for form in crate::effects(&source, tap).iter().filter_map(|effect| effect.strip_suffix(".send")) {
+            if crate::password::of_named_form(&program, form).is_none() || outcomes.iter().any(|(known, _)| known == form) {
+                continue;
+            }
+            let typed = fields.iter().find(|(name, _)| *name == format!("{}-{form}", crate::password::FIELD)).map_or("", |(_, typed)| typed.as_str());
+            outcomes.push((form.to_string(), self.password_outcome(ask, &program, path, form, typed, member.as_ref())));
+        }
+        outcomes
+    }
+}
+
+/// Un envoi refusé pour son mot de passe (ADR-114) : le message, sous le champ, dans la langue de la
+/// page (`holo-password|…`), jamais ce qui a été tapé. `429` pour un frein, `401` sans compte.
+fn password_refused(program: &crate::holo::Program, form: &str, code: &str) -> Reply {
+    let status = match code {
+        "busy" => 429,
+        _ if code.starts_with("wait-") => 429,
+        "member" => 401,
+        "unavailable" => 500,
+        _ => 422,
+    };
+    let mut reply = Reply::text(status, &format!("{}|{}", crate::password::FIELD, crate::password::message(program, form, code)));
+    if code == "busy" {
+        reply.headers.push(("Retry-After".into(), "60".into()));
+    }
+    reply
+}
+
+/// L'envoi d'un formulaire avec l'empreinte de son nouveau mot de passe (ADR-114), à côté des
+/// valeurs : `{"form":"Protect","values":{…},"password":"$argon2id$…"}`.
+fn with_password_print(submission: &str, print: Option<&str>) -> String {
+    match (print, submission.strip_suffix('}')) {
+        (Some(print), Some(open)) => format!("{open},{}:{}}}", crate::json_text(crate::password::KEY), crate::json_text(print)),
+        _ => submission.to_string(),
     }
 }
 
@@ -1929,6 +2052,25 @@ mod tests {
 /// tous les visiteurs arriveraient de 127.0.0.1 et partageraient un seul frein ; c'est alors la
 /// dernière adresse de `X-Forwarded-For`, celle qu'a écrite ce proxy. Une adresse écrite par un
 /// visiteur qui parle directement au serveur n'est jamais crue ; une adresse illisible non plus.
+/// Une demande sûre pour un mot de passe (ADR-114) : en HTTPS, ou sur ce PC. Elle vient de ce PC (le
+/// pair TCP, jamais un en-tête écrit par le visiteur), et son adresse est `localhost` (le navigateur
+/// de l'auteur), ou celle que l'auteur a déclarée derrière son proxy HTTPS (`HOLO_ORIGIN`, comme les
+/// clés d'accès, ADR-082). Un téléphone qui parle au serveur en `http://`, par le Wi-Fi, ne l'est
+/// pas : son mot de passe passerait en clair sur le réseau.
+pub(crate) fn secure(site: &Site, ask: &Ask) -> bool {
+    if !ask.peer.parse::<std::net::IpAddr>().is_ok_and(|peer| peer.is_loopback()) {
+        return false;
+    }
+    if site.passkeys_origin.as_deref().and_then(|origin| origin.strip_prefix("https://")) == Some(ask.host) {
+        return true;
+    }
+    let host = match ask.host.rsplit_once(':') {
+        Some((host, port)) if !port.is_empty() && port.bytes().all(|b| b.is_ascii_digit()) => host,
+        _ => ask.host,
+    };
+    matches!(host, "localhost" | "127.0.0.1" | "[::1]")
+}
+
 pub(crate) fn client_address(site: &Site, ask: &Ask) -> String {
     forwarded_client(ask.peer, ask.forwarded, site.passkeys_origin.is_some())
 }
@@ -2042,5 +2184,222 @@ mod embed_tests {
         assert_eq!(policy(&site.answer(&ask("/page.holo", "text/html"))), ["frame-src 'none'"]);
         assert!(policy(&site.answer(&ask("/zoo.holo", "text/plain"))).is_empty());
         let _ = std::fs::remove_dir_all(folder);
+    }
+}
+
+#[cfg(test)]
+mod password_tests {
+    //! Le champ mot de passe dans `holo serve` (ADR-114) : avec et sans JavaScript, il part
+    //! seulement vers ce serveur, en HTTPS ou sur ce PC ; seule l'empreinte d'un nouveau mot de passe
+    //! est gardée ; celui du compte est vérifié avec le frein des comptes ; rien n'est écrit en clair.
+    use super::*;
+
+    const NOTEBOOK: &str = "Page(title: \"Carnet\", state: State(title: \"\", sent: 0), children: [ Form(name: Protect, children: [ Input(value: title, label: \"Le nom du carnet\"), Input(type: password, new: true, label: \"Un mot de passe pour ce carnet\"), Button(name: Send, text: \"Protéger\") ]), If(sent, is: 1, children: [ P(\"Le carnet est protégé.\") ]) ], rules: [ On(Send.tap, effect: Protect.send), On(Protect.sent, effect: sent.set(1)) ])";
+    const CONFIRM: &str = "Page(title: \"Annuler\", access: members, state: State(booked: 1), children: [ P(\"Réservé : {booked}\"), Form(name: Cancel, children: [ Input(type: password, label: \"Ton mot de passe\"), Button(name: Confirm, text: \"Annuler ma réservation\") ]) ], rules: [ On(Confirm.tap, effect: Cancel.send), On(Cancel.sent, effect: booked.set(0)) ])";
+    /// Le mot de passe que les essais tapent : on le cherche partout où il ne doit pas être.
+    const TYPED: &str = "une phrase-de-passe introuvable";
+    const ACCOUNT: &str = "une+phrase+assez+longue";
+
+    fn site() -> (Site, PathBuf) {
+        let folder = std::env::temp_dir().join(format!("holo-password-{}", new_visitor()));
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(folder.join("carnet.holo"), NOTEBOOK).unwrap();
+        std::fs::write(folder.join("annuler.holo"), CONFIRM).unwrap();
+        let web = Path::new(env!("CARGO_MANIFEST_DIR")).join("web");
+        (Site::open(&folder, &web).unwrap(), folder)
+    }
+
+    /// Une demande de ce PC, à `localhost` : sûre, comme une page en HTTPS.
+    fn ask<'a>(method: &'a str, url: &'a str, cookie: &'a str, content_type: &'a str, body: &'a [u8]) -> Ask<'a> {
+        Ask { method, url, accept: "text/html", cookie, content_type, origin: "", host: "localhost:8080", referer: "", peer: "127.0.0.1", forwarded: "", body }
+    }
+
+    fn json_body(form: &str, values: &str, password: Option<&str>) -> String {
+        match password {
+            Some(password) => format!("{{\"form\":\"{form}\",\"values\":{{{values}}},\"password\":{}}}", crate::json_text(password)),
+            None => format!("{{\"form\":\"{form}\",\"values\":{{{values}}}}}"),
+        }
+    }
+
+    fn text(reply: Reply) -> String {
+        String::from_utf8(reply.body).unwrap()
+    }
+
+    fn header<'a>(reply: &'a Reply, name: &str) -> &'a str {
+        reply.headers.iter().find(|(known, _)| known == name).map_or("", |(_, value)| value.as_str())
+    }
+
+    fn cookie(reply: &Reply, name: &str) -> String {
+        reply.headers.iter().filter(|(known, _)| known == "Set-Cookie").map(|(_, value)| value.split(';').next().unwrap().to_string()).find(|c| c.starts_with(&format!("{name}="))).unwrap_or_default()
+    }
+
+    fn sign_up(site: &Site, name: &str) -> String {
+        let body = format!("name={name}&password={ACCOUNT}&again={ACCOUNT}");
+        let reply = site.answer(&ask("POST", "/account/signup", "", "application/x-www-form-urlencoded", body.as_bytes()));
+        assert_eq!(reply.status, 303);
+        cookie(&reply, "holo_session")
+    }
+
+    fn submissions(site: &Site) -> Vec<String> {
+        let base = site.base.lock().unwrap();
+        let mut query = base.prepare("SELECT submission FROM messages ORDER BY id").unwrap();
+        query.query_map([], |row| row.get::<_, String>(0)).unwrap().map(Result::unwrap).collect()
+    }
+
+    /// Tout ce que le serveur a écrit sur le disque : la base, son journal d'écriture (WAL), ses
+    /// sauvegardes. Le mot de passe tapé ne doit y être nulle part.
+    fn written_anywhere(folder: &Path, needle: &str) -> Vec<String> {
+        let mut found = Vec::new();
+        let mut stack = vec![folder.join(DATA_FOLDER)];
+        while let Some(dir) = stack.pop() {
+            for entry in std::fs::read_dir(&dir).into_iter().flatten().flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    stack.push(path);
+                } else if std::fs::read(&path).is_ok_and(|bytes| bytes.windows(needle.len()).any(|w| w == needle.as_bytes())) {
+                    found.push(path.display().to_string());
+                }
+            }
+        }
+        found
+    }
+
+    #[test]
+    fn a_new_password_is_kept_only_as_its_print_with_and_without_javascript() {
+        let (site, folder) = site();
+        // Avec JavaScript : le moteur de la page envoie le mot de passe à côté des valeurs.
+        let body = json_body("Protect", "\"title\":\"Mon carnet\"", Some(TYPED));
+        let reply = site.answer(&ask("POST", "/carnet.holo", "", "application/json", body.as_bytes()));
+        assert_eq!(reply.status, 204, "{}", String::from_utf8_lossy(&reply.body));
+        let kept = submissions(&site);
+        assert_eq!(kept.len(), 1);
+        assert!(kept[0].starts_with("{\"form\":\"Protect\",\"values\":{\"title\":\"Mon carnet\"},\"password\":\"$argon2id$v=19$m=19456,t=2,p=1$"), "{}", kept[0]);
+        // L'empreinte se vérifie avec le mot de passe ; elle ne le contient pas.
+        let print = kept[0].split("\"password\":\"").nth(1).unwrap().trim_end_matches("\"}");
+        assert!(crate::accounts::password_matches(TYPED, print) && !crate::accounts::password_matches("une autre phrase", print));
+        assert!(messages(&folder).unwrap()[0].contains("\"password\":\"$argon2id$"));
+        // Sans JavaScript : le champ est rattaché au formulaire des gestes, sous le nom de son formulaire.
+        let page = text(site.answer(&ask("GET", "/carnet.holo", "", "", b"")));
+        assert!(page.contains("<input form=\"holo-gestures\" name=\"holo-password-Protect\" type=\"password\" id=\"holo-password-Protect\"") && page.contains("autocomplete=\"new-password\""), "{page}");
+        let typed = TYPED.replace(' ', "+");
+        let body = format!("title=Second+carnet&holo-password-Protect={typed}&signal=Send.tap");
+        let touched = site.answer(&ask("POST", "/carnet.holo", "", "application/x-www-form-urlencoded", body.as_bytes()));
+        assert_eq!((touched.status, header(&touched, "Location")), (303, "/carnet.holo"));
+        let visitor = cookie(&touched, COOKIE);
+        let again = text(site.answer(&ask("GET", "/carnet.holo", &visitor, "", b"")));
+        assert!(again.contains("Le carnet est protégé.") && !again.contains("introuvable") && !again.contains("value=\"une"), "{again}");
+        let kept = submissions(&site);
+        assert!(kept.len() == 2 && kept[1].contains("\"title\":\"Second carnet\"},\"password\":\"$argon2id$"), "{kept:?}");
+        // Un mot de passe trop court, sans JavaScript : rien n'est envoyé, le message est sous le champ,
+        // et le serveur n'a gardé que le code du refus.
+        let short = site.answer(&ask("POST", "/carnet.holo", &visitor, "application/x-www-form-urlencoded", b"title=x&holo-password-Protect=court&signal=Send.tap"));
+        assert_eq!(short.status, 303);
+        let refused = text(site.answer(&ask("GET", "/carnet.holo", &visitor, "", b"")));
+        assert!(refused.contains("aria-invalid=\"true\" aria-describedby=\"holo-password-Protect-hint holo-error-Protect-holo-password\"") && refused.contains("<p class=\"holo-error\" id=\"holo-error-Protect-holo-password\">Au moins 12 caractères.</p>"), "{refused}");
+        let tried: String = site.base.lock().unwrap().query_row("SELECT tried FROM visits WHERE page = '/carnet.holo'", [], |row| row.get(0)).unwrap();
+        assert_eq!(tried, "Protect:short");
+        assert_eq!(submissions(&site).len(), 2);
+        // Nulle part en clair : ni la base, ni son journal d'écriture, ni une sauvegarde.
+        backup(&folder).unwrap();
+        assert!(written_anywhere(&folder, "introuvable").is_empty() && written_anywhere(&folder, "court").is_empty(), "{:?}", written_anywhere(&folder, "introuvable"));
+        let _ = std::fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn the_password_of_the_account_is_checked_with_the_brake_of_the_accounts() {
+        let (site, folder) = site();
+        let session = sign_up(&site, "Ada");
+        // La page réservée : le champ demande le mot de passe du compte.
+        let page = text(site.answer(&ask("GET", "/annuler.holo", &session, "", b"")));
+        assert!(page.contains("autocomplete=\"current-password\"") && page.contains("name=\"holo-password-Cancel\""), "{page}");
+        // Un mauvais mot de passe : refusé, avec le message sous le champ ; jamais ce qui a été tapé.
+        let wrong = site.answer(&ask("POST", "/annuler.holo", &session, "application/json", json_body("Cancel", "", Some(TYPED)).as_bytes()));
+        assert_eq!(wrong.status, 422);
+        assert_eq!(text(wrong), "holo-password|Ce n'est pas le mot de passe de ton compte.");
+        assert!(submissions(&site).is_empty());
+        // Le bon : accepté ; le message rangé ne garde rien du mot de passe.
+        let right = site.answer(&ask("POST", "/annuler.holo", &session, "application/json", json_body("Cancel", "", Some("une phrase assez longue")).as_bytes()));
+        assert_eq!(right.status, 204);
+        assert_eq!(submissions(&site), vec!["{\"form\":\"Cancel\",\"values\":{}}".to_string()]);
+        // Sans JavaScript, de même : le mauvais est dit sous le champ, le bon envoie et change la page.
+        let body = format!("holo-password-Cancel={}&signal=Confirm.tap", TYPED.replace(' ', "+"));
+        assert_eq!(site.answer(&ask("POST", "/annuler.holo", &session, "application/x-www-form-urlencoded", body.as_bytes())).status, 303);
+        let said = text(site.answer(&ask("GET", "/annuler.holo", &session, "", b"")));
+        assert!(said.contains(">Ce n'est pas le mot de passe de ton compte.</p>") && said.contains("Réservé : <span data-state=\"booked\">1</span>"), "{said}");
+        assert_eq!(site.answer(&ask("POST", "/annuler.holo", &session, "application/x-www-form-urlencoded", b"holo-password-Cancel=une+phrase+assez+longue&signal=Confirm.tap")).status, 303);
+        let done = text(site.answer(&ask("GET", "/annuler.holo", &session, "", b"")));
+        assert!(done.contains("Réservé : <span data-state=\"booked\">0</span>") && !done.contains("class=\"holo-error\""), "{done}");
+        assert_eq!(submissions(&site).len(), 2);
+        // Le frein des comptes : cinq essais ratés, puis une attente ; pendant l'attente, même le bon
+        // mot de passe est refusé.
+        for _ in 0..5 {
+            let wrong = site.answer(&ask("POST", "/annuler.holo", &session, "application/json", json_body("Cancel", "", Some(TYPED)).as_bytes()));
+            assert_eq!(wrong.status, 422);
+        }
+        let braked = site.answer(&ask("POST", "/annuler.holo", &session, "application/json", json_body("Cancel", "", Some("une phrase assez longue")).as_bytes()));
+        assert_eq!((braked.status, text(braked)), (429, "holo-password|Trop d'essais : attends 1 minute avant de réessayer.".to_string()));
+        // Sans compte, la page réservée ne reçoit rien (ADR-081).
+        assert_eq!(site.answer(&ask("POST", "/annuler.holo", "", "application/json", json_body("Cancel", "", Some(TYPED)).as_bytes())).status, 401);
+        assert!(written_anywhere(&folder, "introuvable").is_empty() && written_anywhere(&folder, "une phrase assez longue").is_empty());
+        let _ = std::fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn a_password_never_travels_in_clear() {
+        let (mut site, folder) = site();
+        // Un téléphone sur le Wi-Fi, en http:// : la page arrive avec le champ fermé, qui dit pourquoi.
+        let phone = |method: &'static str, content_type: &'static str, body: &'static [u8]| Ask { method, url: "/carnet.holo", accept: "text/html", cookie: "", content_type, origin: "", host: "192.168.1.10:8080", referer: "", peer: "192.168.1.20", forwarded: "", body };
+        let page = text(site.answer(&phone("GET", "", b"")));
+        assert!(page.contains("<input disabled aria-describedby=\"holo-password-Protect-note\" type=\"password\" id=\"holo-password-Protect\"") && !page.contains("name=\"holo-password-Protect\""), "{page}");
+        assert!(page.contains("<p class=\"holo-password-note\" id=\"holo-password-Protect-note\">Ce champ ne s'ouvre qu'en HTTPS"), "{page}");
+        // Un envoi forgé quand même : refusé, rien n'est rangé, et le journal ne dit que la raison.
+        let body = json_body("Protect", "\"title\":\"x\"", Some(TYPED));
+        let refused = site.answer(&Ask { body: body.as_bytes(), ..phone("POST", "application/json", b"") });
+        assert_eq!((refused.status, text(refused)), (422, "holo-password|Ce mot de passe ne part pas : la page n'est pas en HTTPS.".to_string()));
+        let touched = site.answer(&phone("POST", "application/x-www-form-urlencoded", b"title=x&holo-password-Protect=une+phrase+assez+longue&signal=Send.tap"));
+        assert_eq!(touched.status, 303);
+        assert!(submissions(&site).is_empty());
+        // Même sur ce PC, une adresse qui n'est pas localhost (un proxy en http) ne suffit pas.
+        let proxied = Ask { host: "carnet.example.org", ..ask("GET", "/carnet.holo", "", "", b"") };
+        assert!(!secure(&site, &proxied) && text(site.answer(&proxied)).contains("<input disabled"));
+        // Derrière le proxy HTTPS de l'auteur (HOLO_ORIGIN), son adresse est sûre ; pas une autre.
+        site.passkeys_origin = Some("https://carnet.example.org".into());
+        assert!(secure(&site, &proxied));
+        assert!(!secure(&site, &Ask { host: "pirate.example.org", ..proxied }));
+        assert!(!secure(&site, &Ask { peer: "192.168.1.20", ..proxied }));
+        for host in ["localhost", "localhost:8080", "127.0.0.1:8080", "[::1]:8080"] {
+            assert!(secure(&site, &Ask { host, ..proxied }), "{host}");
+        }
+        assert!(!secure(&site, &Ask { host: "localhost.example.org", ..proxied }));
+        let _ = std::fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn forged_submissions_are_refused_without_echoing_the_password() {
+        let (site, folder) = site();
+        let post = |path: &'static str, body: String| site.answer(&ask("POST", path, "", "application/json", body.leak().as_bytes()));
+        for (body, said) in [
+            // Sans mot de passe, ou deux, ou pas un texte.
+            (json_body("Protect", "\"title\":\"x\"", None), "holo-password|Choisis un mot de passe."),
+            (format!("{{\"form\":\"Protect\",\"values\":{{\"title\":\"x\"}},\"password\":\"{TYPED}\",\"password\":\"{TYPED}\"}}"), "holo-password|un seul mot de passe, en texte"),
+            ("{\"form\":\"Protect\",\"values\":{\"title\":\"x\"},\"password\":12}".to_string(), "holo-password|un seul mot de passe, en texte"),
+            // Parmi les valeurs : un champ inconnu ; et le vrai manque.
+            (format!("{{\"form\":\"Protect\",\"values\":{{\"title\":\"x\",\"password\":\"{TYPED}\"}}}}"), "password|champ inconnu"),
+            // Trop long : refusé avant toute empreinte ; rien n'est coupé.
+            (json_body("Protect", "\"title\":\"x\"", Some(&"a".repeat(129))), "holo-password|Au plus 128 caractères."),
+        ] {
+            let reply = post("/carnet.holo", body);
+            let answer = text(reply);
+            assert!(answer.contains(said) && !answer.contains("introuvable") && !answer.contains("aaaa"), "{said} : {answer}");
+        }
+        // 64 caractères, sans aucune règle de composition : accepté.
+        assert_eq!(post("/carnet.holo", json_body("Protect", "\"title\":\"x\"", Some(&"a".repeat(64)))).status, 204);
+        // Un formulaire sans mot de passe n'en reçoit pas.
+        std::fs::write(folder.join("contact.holo"), "Page(title: \"Contact\", state: State(note: \"\"), children: [ Form(name: Contact, children: [ Input(value: note, label: \"Note\"), Button(name: Send, text: \"Envoyer\") ]) ], rules: [ On(Send.tap, effect: Contact.send) ])").unwrap();
+        let answer = text(post("/contact.holo", json_body("Contact", "\"note\":\"x\"", Some(TYPED))));
+        assert!(answer.contains("holo-password|champ inconnu") && !answer.contains("introuvable"), "{answer}");
+        assert_eq!(submissions(&site).len(), 1);
+        assert!(written_anywhere(&folder, "introuvable").is_empty());
+        let _ = std::fs::remove_dir_all(&folder);
     }
 }

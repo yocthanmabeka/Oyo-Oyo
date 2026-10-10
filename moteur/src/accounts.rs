@@ -34,9 +34,10 @@ use crate::server::{Ask, Reply, Site};
 
 /// Le nom du cookie qui porte le numéro de session.
 pub const SESSION_COOKIE: &str = "holo_session";
-/// Un mot de passe : 12 caractères au moins (une phrase est un bon mot de passe), 128 au plus.
-pub const PASSWORD_MIN: usize = 12;
-const PASSWORD_MAX: usize = 128;
+/// Un mot de passe : 12 caractères au moins (une phrase est un bon mot de passe), 128 au plus. Une
+/// seule règle pour tout le moteur : le champ mot de passe des pages a la même (ADR-114).
+pub const PASSWORD_MIN: usize = crate::password::MIN;
+const PASSWORD_MAX: usize = crate::password::MAX;
 /// Une session est oubliée après 14 jours sans visite, et 30 jours après la connexion au plus.
 pub const SESSION_IDLE: u64 = 14 * 24 * 3600;
 pub const SESSION_MAX: u64 = 30 * 24 * 3600;
@@ -936,7 +937,7 @@ fn erase_in(base: &mut Connection, member: &Member, at: u64, extra_files: &[Stri
     tx.execute("DELETE FROM recoveries WHERE account=?1",params![member.id]).map_err(|e|e.to_string())?;
     tx.execute("DELETE FROM visits WHERE visitor=?1",params![member.visit_key()]).map_err(|e|e.to_string())?;
     tx.execute("DELETE FROM messages WHERE account=?1",params![member.id]).map_err(|e|e.to_string())?;
-    tx.execute("DELETE FROM attempts WHERE key=?1 OR key=?2 OR key=?3 OR key=?4",params![name_key(&member.name),format!("code:{}",member.id),format!("delete:{}",member.id),format!("passkey:{}",member.id)]).map_err(|e|e.to_string())?;
+    tx.execute("DELETE FROM attempts WHERE key=?1 OR key=?2 OR key=?3 OR key=?4 OR key=?5",params![name_key(&member.name),format!("code:{}",member.id),format!("delete:{}",member.id),format!("passkey:{}",member.id),format!("password:{}",member.id)]).map_err(|e|e.to_string())?;
     tx.execute("DELETE FROM accounts WHERE id=?1",params![member.id]).map_err(|e|e.to_string())?;
     tx.commit().map_err(|e|e.to_string())?;
     Ok(())
@@ -1477,6 +1478,31 @@ mod tests {
 }
 
 /// Une opération sensible confirme le mot de passe et le second facteur, pas le seul cookie.
+/// Le mot de passe du compte, redonné dans un formulaire d'une page réservée (ADR-114) : vérifié
+/// contre son empreinte Argon2id, avec le frein des comptes (cinq essais ratés, puis une attente qui
+/// double à chaque échec, une heure au plus). L'empreinte se calcule hors du verrou de la base, comme
+/// pour se connecter. Le mot de passe n'est gardé nulle part. `Err` : le code du refus, que
+/// `password::message` dit au visiteur : `wrong`, `wait-3` (minutes), `member` (plus de compte),
+/// `unavailable`.
+pub(crate) fn confirm(site: &Site, member: &Member, password: &str, now: u64) -> Result<(), String> {
+    let throttle = format!("password:{}", member.id);
+    let print = {
+        let base = site.base.lock().map_err(|_| "unavailable".to_string())?;
+        if let Some(seconds) = waiting(&base, &throttle, now) {
+            return Err(format!("wait-{}", seconds.div_ceil(60)));
+        }
+        account_where(&base, "id", &member.id).ok_or_else(|| "member".to_string())?.password
+    };
+    let matches = !password.is_empty() && password_matches(password, &print);
+    let base = site.base.lock().map_err(|_| "unavailable".to_string())?;
+    if !matches {
+        failed(&base, &throttle, now);
+        return Err("wrong".into());
+    }
+    succeeded(&base, &throttle);
+    Ok(())
+}
+
 pub(crate) fn reauthenticate(base:&Connection,member:&Member,password:&str,code:&str,now:u64)->bool{
  let throttle=format!("passkey:{}",member.id);
  if waiting(base,&throttle,now).is_some(){return false;}
