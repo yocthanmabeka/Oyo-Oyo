@@ -389,6 +389,10 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
     if name == "white-space" && setting.value == "pre" {
         return refusal("« white-space: pre » ne passe jamais à la ligne : sur un téléphone, le texte sort de l'écran ; écris « pre-wrap » : les espaces et les retours à la ligne sont gardés, et la ligne passe quand il le faut".into());
     }
+    // La place d'une case de grille se dit sur le bloc, jamais dans un style (ADR-104).
+    if matches!(name, "grid-column" | "grid-row" | "grid-area" | "grid-template-areas" | "grid-column-start" | "grid-column-end" | "grid-row-start" | "grid-row-end") {
+        return refusal(format!("« {name} » place une case de grille : la place se dit sur le bloc, columnSpan: 2, rowSpan: 2, ou une zone, Grid(areas: [\"top top\", \"menu main\"]) puis area: menu (ADR-104)"));
+    }
     if LAYOUT.contains(&name) {
         return refusal(format!(
             "« {name} » règle la disposition, pas l'apparence : un style ne dit que l'apparence, la disposition vient des blocs (ADR-017)"
@@ -674,10 +678,14 @@ mod tests {
             include_str!("../../exemples/lecons/123-des-suggestions-dans-un-champ.holo"),
             // Une citation courte, le titre d'une œuvre (ADR-101).
             include_str!("../../exemples/lecons/124-une-citation-courte.holo"),
+            // Une grille qui place ses cases : plusieurs colonnes ou lignes, des zones (ADR-104).
+            include_str!("../../exemples/lecons/127-une-grille-et-ses-zones.holo"),
             // Partager la page : la feuille du téléphone, sinon l'adresse copiée (ADR-107).
             include_str!("../../exemples/lecons/130-partager-la-page.holo"),
             // Réordonner les lignes d'une liste (ADR-105).
             include_str!("../../exemples/lecons/128-reordonner-une-liste.holo"),
+            // Faire vibrer le téléphone, d'un toucher ou d'une règle de jeu (ADR-110).
+            include_str!("../../exemples/lecons/133-faire-vibrer-le-telephone.holo"),
             // Se souvenir le temps d'une visite, un formulaire en deux pages (ADR-113).
             include_str!("../../exemples/lecons/136-se-souvenir-le-temps-d-une-visite.holo"),
             include_str!("../../exemples/lecons/136-inscription/etape-2.holo"),
@@ -694,6 +702,10 @@ mod tests {
             assert!(source.contains(&format!("{setting}:")), "le réglage « {setting} » manque dans l'exemple");
         }
         for word in ["name:", "title:", "seed:", "brightness:", "fragments:", "children:", "inside:", "rules:", "effect:", "budget:", "weight:", "source:", "text:", "color:", "palette:", ".tap", ".enter", ".leave", "state:", "prices:", "{count}", "{total}", ".add(", ".sub(", ".set(", "gap:", "align:", "columns:", "alt:", "is:", "over:", "by:", ".random(", "x:", "y:", "keep:", "value:", "label:", "max:", "Key.left", "meets:", "drag:", "data:", "from:", ".play", "form:", "enter:", "loop:", "letters:", "each:", "repeat:", "ease:", "rotate:", "flip:", "tilt:", "blur:", "hue:", "round:", "scale:", "opacity:", "hover:", "focus:", "active:", "topRight", ".hover", ".hoverEnd", "else:", "{year}", "{month}", "{day}", "weekday", "{hour}", "{minute}", "{second}", ":stopwatch}", "items:", "key:", "{item.", "item.add(", "dark:", "phone:", "display: none", "linear-gradient(", "url(", "fonts:", "family:", ": --", "~~", "==", "^2^", "~2~", "to: \"#", "caption:", "phone:", "type: date", "type: time", "type: color", "summary:", "open: true", ".open", ".close", ".send", ".sent", ".failed", "icon:", ".mul(", ".div(", ":00}", ":number}", ":cents}", ":name}", "over:", ".push(", ".remove(item)", ".clear()", ".set(\"\")", "module \"", "modules:", ".run", ".done", "time:", "memory:", ".refresh", "computer:", "narrow:", "detach:", "justify"] {
+            assert!(source.contains(word), "« {word} » manque dans l'exemple");
+        }
+        // Une grille qui place ses cases (ADR-104).
+        for word in ["columnSpan:", "rowSpan:", "areas:", "area:"] {
             assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
     }

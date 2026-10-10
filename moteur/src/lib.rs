@@ -28,6 +28,8 @@ pub mod files;
 pub mod fonts;
 pub mod format;
 pub mod gestures;
+// Une grille qui place ses cases : plusieurs colonnes ou lignes, des zones nommées (ADR-104).
+pub mod grid;
 pub mod seed;
 pub mod holo;
 pub mod history;

@@ -96,6 +96,8 @@ pub fn condition(block: &Block) -> Result<(&str, Vec<(&str, Term<'_>)>), Error> 
     for argument in &block.arguments[1..] {
         match (argument.name.as_deref(), &argument.value) {
             (Some("children" | "rules" | "name" | "else"), _) if !rule => {}
+            // Sa place dans une grille (ADR-104) : un `If` peut remplir une zone, vérifiée dans grid.rs.
+            (Some(word), _) if !rule && crate::grid::CELL_PARAMS.contains(&word) => {}
             (Some("effect"), _) if rule => {}
             // Un texte se compare à un texte (ADR-063) : If(size, is: "M"), If(buyer, not: "")
             // (rempli). Plus grand, plus petit : seulement des nombres.
@@ -1668,6 +1670,8 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                     // Obligatoire (ADR-068) : vérifié plus bas, avec les autres champs. (Avant ADR-099, il
                     // était refusé ici comme « mal écrit ».)
                     (Some("required"), _) => {}
+                    // Sa place dans une grille (ADR-104) : vérifiée avec la grille, dans grid.rs.
+                    (Some(word), _) if crate::grid::CELL_PARAMS.contains(&word) => {}
                     (Some("value"), Value::Name(value)) if is_text(value) => {}
                     (Some("value"), Value::Name(value)) => {
                         return Err(Error { message: format!("« Choice(value: {value}) » : un choix présente un texte ; déclare-le ainsi : state: State({value}: \"\")"), pos: argument.pos })
@@ -1768,6 +1772,8 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                     (Some("type"), _) => return Err(Error { message: "« Input(type: …) » attend email, date, time, color ou file ; un nombre ou un texte se devinent tout seuls".into(), pos: argument.pos }),
                     // `grow:` range le bloc dans Row ou Column (ADR-052) ; sa place est vérifiée ailleurs.
                     (Some("grow"), _) => {}
+                    // Sa place dans une grille (ADR-104) : vérifiée avec la grille, dans grid.rs.
+                    (Some(word), _) if crate::grid::CELL_PARAMS.contains(&word) => {}
                     // Des suggestions (ADR-100) : vérifiées dans flat.rs, avec le datalist qu'elles donnent.
                     (Some("suggestions"), _) if block.name == "Input" => {}
                     (Some(word), _) if allowed.contains(&word) => return Err(Error { message: format!("« {}({word}: …) » est mal écrit : {example}", block.name), pos: argument.pos }),
@@ -1824,6 +1830,8 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                     (Some("value"), _) => return Err(Error { message: format!("« {}(value: …) » présente un nombre de la page : déclare-le, state: State(volume: 50) ; {example}", block.name), pos: argument.pos }),
                     (Some("min"), Value::Integer(_)) if block.name == "Slider" => {}
                     (Some("max"), Value::Integer(max)) if (1..=VALUE_MAX).contains(max) => {}
+                    // Sa place dans une grille (ADR-104) : vérifiée avec la grille, dans grid.rs.
+                    (Some(word), _) if crate::grid::CELL_PARAMS.contains(&word) => {}
                     (Some(word @ ("min" | "max")), _) => return Err(Error { message: format!("« {}({word}: …) » attend un nombre entier, de 1 à {VALUE_MAX} pour max", block.name), pos: argument.pos }),
                     (Some(word), _) => return Err(Error { message: format!("« {}({word}: …) » est mal écrit : {example}", block.name), pos: argument.pos }),
                     (None, _) => return Err(Error { message: format!("chaque paramètre de « {} » est nommé : {example}", block.name), pos: argument.pos }),
