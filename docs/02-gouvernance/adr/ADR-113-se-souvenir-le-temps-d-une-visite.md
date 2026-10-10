@@ -95,6 +95,7 @@ Page(
 
 ## Dettes
 
+- Un nombre qui peut descendre sous zéro (`negative:`, `ADR-102`, entré dans `main` pendant cette PR) n'est pas retenu : la vérification des nombres négatifs refuse `visit: [temperature]`, avec sa raison, et la mémoire de visite relit ses nombres sans signe. Le retenir demandera de relire le signe et les bornes signées.
 - La page arrive avec ses valeurs de départ, puis prend celles de la visite : on peut voir « 1 » un instant avant « 3 », comme avec `keep`.
 - Le navigateur peut rendre la mémoire de visite d'un onglet fermé qu'on rouvre (Ctrl+Maj+T, ou la reprise de la session du navigateur), et la copie dans un onglet qu'on duplique. C'est lui qui le fait, avec l'onglet.
 - Le moteur ne voit qu'une page à la fois : deux pages qui donnent deux sortes au même nom ne sont pas refusées, chacune ignore la valeur de l'autre. `holo check` sur un dossier pourrait le dire.

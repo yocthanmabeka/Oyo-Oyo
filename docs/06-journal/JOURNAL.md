@@ -23,10 +23,12 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 - Erreurs en route :
   - « Précédent », sans le cache des pages, montrait le texte du fichier lu par le moteur : `holo serve` et le serveur d'essai disent maintenant `Vary: Accept` pour une adresse `.holo`.
   - Une valeur rangée à la main avec un retour à la ligne aurait glissé une ligne de plus, pour une autre valeur : elle est ignorée, car le moteur écrit chaque valeur sur une seule ligne.
-  - La limite de séance a arrêté l'agent deux fois, et le conteneur a redémarré ; `main` fusionnée deux fois (la #256, puis la #261), avec les lignes des fichiers partagés rangées par numéro.
+  - La limite de séance a arrêté l'agent deux fois, et le conteneur a redémarré ; `main` fusionnée trois fois (la #256, la #261, puis la #258 et la #260), avec les lignes des fichiers partagés rangées par numéro.
+  - Les nombres négatifs (#260) sont entrés dans `main` pendant cette PR, et la visite relit ses nombres sans signe. Vérifié : la vérification des nombres négatifs refuse déjà `visit:` sur une valeur négative, avec sa raison. Un essai le garde.
 - Reste :
   - la valeur de départ se voit un instant avant celle de la visite, comme avec `keep` ;
   - deux pages qui donnent deux sortes au même nom ne sont pas refusées (`holo check` sur un dossier pourrait le dire) ;
+  - retenir un nombre négatif (`negative:`) ;
   - rien pour oublier toute la visite d'un coup ;
   - un essai sur un vrai téléphone.
 

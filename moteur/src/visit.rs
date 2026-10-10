@@ -380,6 +380,10 @@ mod tests {
         assert!(shared.contains("est partagée, le serveur la garde pour tous"), "{shared}");
         let template = crate::address::joined("Page(visit: [id], children: [ P(\"{id}\") ])", &[("id".to_string(), "ada".to_string())]);
         assert!(crate::check_page(&template).unwrap_err().message.contains("par le nom du fichier"));
+        // Un nombre qui peut descendre sous zéro (ADR-102) : la vérification des nombres négatifs le
+        // refuse ici, car la visite relit ses nombres sans signe.
+        let negative = crate::check_page("Page(state: State(temperature: -2), negative: [temperature], visit: [temperature], children: [ P(\"{temperature}\") ])").unwrap_err().message;
+        assert!(negative.contains("peut descendre sous zéro"), "{negative}");
         // Ce que le serveur dit du membre connecté.
         let member = crate::check_page("Page(visit: [signedIn], children: [ P(\"{signedIn}\") ])").unwrap_err().message;
         assert!(member.contains("donné par le serveur"), "{member}");
