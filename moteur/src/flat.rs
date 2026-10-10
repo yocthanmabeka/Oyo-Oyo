@@ -47,6 +47,13 @@ grid-template-columns:repeat(auto-fill,minmax(min(100%,max(7.5rem,calc((100% - (
 :where(.holo-Choice input){accent-color:currentColor;width:18px;height:18px;margin:0}\
 :where(label.holo-Choice){flex-direction:column;align-items:flex-start;gap:4px}:where(.holo-Choice select){font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 10px}\
 :where(.holo-Video){display:block;width:100%;max-width:640px;border-radius:12px;background:black}\
+:where(.holo-Embed){display:block;position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:12px;background:#1d1d29}\
+:where(.holo-embed-load,.holo-embed-link){position:absolute;inset:0;width:100%;height:100%;box-sizing:border-box;display:flex;align-items:flex-end;margin:0;padding:12px;\
+border:0;background:none;color:#fff;font:inherit;text-align:left;text-decoration:none;cursor:pointer}:where(.holo-embed-load[hidden]){display:none}\
+:where(.holo-embed-image){position:absolute;inset:0;width:100%;height:100%;object-fit:cover}\
+:where(.holo-embed-text){position:relative;display:flex;flex-direction:column;gap:2px;max-width:100%;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.78)}\
+:where(.holo-embed-label){font-weight:bold}:where(.holo-embed-site){font-size:.85em}\
+:where(.holo-embed-load:focus-visible){outline:3px solid #fff;outline-offset:-3px;box-shadow:inset 0 0 0 6px #000}:where(.holo-embed-frame){display:block;width:100%;height:100%;border:0}\
 :where(.holo-table-wrap){overflow-x:auto;max-width:100%}:where(.holo-Table){border-collapse:collapse;min-width:100%}\
 :where(.holo-Table caption){text-align:left;font-weight:bold;padding:0 0 8px 0}:where(.holo-Table th,.holo-Table td){text-align:left;padding:8px 12px;border-bottom:1px solid color-mix(in srgb,currentColor 25%,transparent)}\
 :where(.holo-Table th){font-weight:bold}\
@@ -1227,6 +1234,12 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
     }
     match block.name.as_str() {
         "Transfer" | "Device" | "Notification" | "Offline" => output.push_str(&crate::capabilities::html(block)),
+        // Une page dans la page (ADR-117) : derrière sa façade, rien ne part vers l'autre site avant le
+        // toucher du visiteur. Les mots de la façade suivent la langue de la page.
+        "Embed" => {
+            let french = LANGUAGE.with(|l| l.borrow().is_empty() || l.borrow().starts_with("fr"));
+            output.push_str(&crate::embed::html(block, &classes, &name, base, french)?);
+        }
         // Des scènes qui s'enchaînent, l'une après l'autre, au même endroit (ADR-034).
         "Scenes" => {
             let mut height = 480.0;

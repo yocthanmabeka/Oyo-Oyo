@@ -22,6 +22,8 @@ pub mod components;
 pub mod computed;
 pub mod dates;
 pub mod drawing;
+// Une page dans la page (ADR-117) : la page d'un autre site, derrière une façade, enfermée.
+pub mod embed;
 pub mod state;
 pub mod stopwatch;
 pub mod files;
@@ -116,12 +118,20 @@ pub fn check_page(source: &str) -> Result<Program, Error> {
     capabilities::check(&program)?;
     // Les valeurs que la page retient le temps de la visite (ADR-113).
     visit::names(&program)?;
+    // Les pages intégrées (ADR-117) : un site de la liste, en HTTPS, un titre, une image à côté.
+    embed::check(&program)?;
     // Ce que l'affichage refuserait (une adresse en `javascript:`, une image hors du dossier)
     // est refusé dès la vérification : on fabrique la page à blanc (revue Codex, B-11).
     if program.root.name == "Page" {
         flat::page_html(&program, "")?;
     }
     Ok(program)
+}
+
+/// Ce que `holo serve` dit au navigateur des cadres d'une page (ADR-117), dans
+/// `Content-Security-Policy` : seulement les sites qu'elle liste (`embeds:`), aucun sinon.
+pub fn frame_policy(source: &str) -> String {
+    embed::frame_policy(&holo::read(source).map(|program| embed::sites(&program)).unwrap_or_default())
 }
 
 /// La page a-t-elle besoin du dessin ? Oui si elle montre des points (`Point`, un monde), si ses

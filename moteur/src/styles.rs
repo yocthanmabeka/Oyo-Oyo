@@ -700,6 +700,8 @@ mod tests {
             include_str!("../../exemples/lecons/136-inscription/etape-2.holo"),
             // Les données d'un autre site, lues par le serveur de l'auteur (ADR-116).
             include_str!("../../exemples/lecons/139-les-donnees-d-un-autre-site.holo"),
+            // Une page dans la page : une carte et une vidéo d'autres sites, derrière leur façade (ADR-117).
+            include_str!("../../exemples/lecons/140-une-page-dans-la-page.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();
@@ -721,6 +723,10 @@ mod tests {
         }
         // Où en est le visiteur, un bloc qui reste à l'écran (ADR-106).
         for word in ["{scroll}", "value: scroll", "If(scroll", "sticky: top", "sticky: bottom"] {
+            assert!(source.contains(word), "« {word} » manque dans l'exemple");
+        }
+        // Une page dans la page : les sites permis, l'image de la façade (ADR-117).
+        for word in ["embeds:", "Embed(", "image: \"140-carte.svg\""] {
             assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
     }
