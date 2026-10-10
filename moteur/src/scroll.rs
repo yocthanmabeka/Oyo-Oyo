@@ -328,6 +328,8 @@ Page { background: #101020; color: white; dark: { background: --night; } --night
         ] {
             assert!(html.contains(rule), "{rule}\n{html}");
         }
+        // Les deux bornes écrites dans le style sont celles que le moteur annonce.
+        assert!(html.contains(&format!("max-height:{}svh", super::SHARE)) && html.contains(&format!("(min-height:{}px)", super::LOWEST + 1)), "{html}");
         // Le fond de la page, aussi dans le thème sombre, quand le bloc n'a pas le sien ; et la
         // règle du média se referme après lui.
         assert!(html.contains(".holo-Page{--holo-sticky-background:#101020}@media (prefers-color-scheme:dark){.holo-Page{--holo-sticky-background:var(--night)}}}"), "{html}");
