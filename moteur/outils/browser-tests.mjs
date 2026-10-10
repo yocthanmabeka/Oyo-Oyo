@@ -1189,6 +1189,11 @@ const tests = [
       const typed = await q.until(`(window.__fake ?? []).some((m) => m.key === "k" && m.from === "https://www.openstreetmap.org")`, 5000);
       await q.until(`(window.__fake ?? []).some((m) => m.position && m.from === "https://www.openstreetmap.org")`, 5000);
       const mapSaid = await said("https://www.openstreetmap.org");
+      // Pendant la touche, la page intégrée a voulu emmener la page de l'auteur ailleurs : elle reste.
+      await pause(500);
+      const afterKey = await q.value("location.href");
+      const stayedAfterKey = afterKey === `${served.base}/${lesson}`;
+      if (!stayedAfterKey) return [false, `pendant la touche, la page intégrée a emmené la page de l'auteur vers ${afterKey} ; la fausse carte voit : ${JSON.stringify(mapSaid)} ; cadre : ${mapAttributes}`];
       // 5. Au doigt : toucher la façade de la vidéo.
       let fingerFrame = false;
       try {
@@ -1268,7 +1273,7 @@ const tests = [
         && links === `${map} | _blank | noopener noreferrer || ${video} | _blank | noopener noreferrer`
         && linkNames === "Carte : le zoo de San Diego, ouvrir sur www.openstreetmap.org, dans un nouvel onglet | Vidéo : Me at the zoo, la première vidéo publiée sur YouTube (2005), ouvrir sur www.youtube-nocookie.com, dans un nouvel onglet"
         && withoutScript === "none,none / 0" && afterLinks === 0 && !faults.length;
-      return [ok, `frame-src : ${policy} ; avant le toucher, demandes vers l'autre site : ${before[0]} (Fetch), ${before[1]} (réseau), page sans cadre ni adresse de l'autre site : ${untouched}, images de la façade chez holo serve : ${images}, façades montrées : ${shown} ; lecteur d'écran : ${buttons.join(" | ")} ; téléphone : ${phoneSize} ; au clavier, la façade « ${focusedFacade} », puis Entrée : cadre ${mapFrame} (${mapAttributes}), le clavier dedans : ${inside}, la touche k reçue : ${typed} ; la fausse carte voit : ${JSON.stringify(mapSaid)} ; au doigt, la vidéo : ${fingerFrame} (${JSON.stringify(videoSaid)}) ; arrivé à l'autre site : ${reached.join(" ; ") || "rien"} ; la page de l'auteur reste : ${stayed} ; un cadre non listé : ${refused || "pas refusé"} ; une adresse de la même origine : sandbox « ${sameOrigin} » ; sans JavaScript : ${links} (${linkNames}) ; boutons et cadres : ${withoutScript}, demandes : ${afterLinks} ; axe-core : ${faults.join(", ") || "aucun défaut, avant et après le toucher"}`];
+      return [ok, `frame-src : ${policy} ; avant le toucher, demandes vers l'autre site : ${before[0]} (Fetch), ${before[1]} (réseau), page sans cadre ni adresse de l'autre site : ${untouched}, images de la façade chez holo serve : ${images}, façades montrées : ${shown} ; lecteur d'écran : ${buttons.join(" | ")} ; téléphone : ${phoneSize} ; au clavier, la façade « ${focusedFacade} », puis Entrée : cadre ${mapFrame} (${mapAttributes}), le clavier dedans : ${inside}, la touche k reçue : ${typed}, la page de l'auteur reste : ${stayedAfterKey} ; la fausse carte voit : ${JSON.stringify(mapSaid)} ; au doigt, la vidéo : ${fingerFrame} (${JSON.stringify(videoSaid)}) ; arrivé à l'autre site : ${reached.join(" ; ") || "rien"} ; la page de l'auteur reste : ${stayed} ; un cadre non listé : ${refused || "pas refusé"} ; une adresse de la même origine : sandbox « ${sameOrigin} » ; sans JavaScript : ${links} (${linkNames}) ; boutons et cadres : ${withoutScript}, demandes : ${afterLinks} ; axe-core : ${faults.join(", ") || "aucun défaut, avant et après le toucher"}`];
     } finally {
       await b.send("Fetch.disable");
       b.on("Fetch.requestPaused", null);
