@@ -1236,6 +1236,40 @@ const tests = [
     const ok = start && fifty && tip && price;
     return [ok, `départ « 12,50 » : ${start} ; ×4 = 50,00 et livraison offerte : ${fifty} ; +10 % = 55,00 : ${tip} ; prix 9,99 : ${price}`];
   }],
+  ["des nombres négatifs : sous zéro, le signe moins de la langue, un champ dont le clavier l'a (leçon 125)", async (p, b) => {
+    await p.open("/exemples/lecons/125-des-nombres-negatifs.holo");
+    const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;
+    // La page fabriquée d'avance, sans le moteur, montre déjà le départ sous zéro.
+    const start = (await p.value(has("Au sommet : -2 °C"))) && (await p.value(has("Il gèle.")));
+    // Au toucher, le moteur arrive et calcule sous zéro : −2 − 5 = −7 ; puis +5 +5 = 3.
+    await p.click('[data-name="Colder"]');
+    const colder = await p.until(has("Au sommet : -7 °C"));
+    await p.click('[data-name="Warmer"]');
+    await p.click('[data-name="Warmer"]');
+    const warmer = await p.until(`${has("Au sommet : 3 °C")} && ${has("Il ne gèle pas.")}`);
+    // Le champ : un nombre, sans inputmode (le clavier du téléphone garde le signe moins), de −50 à 50.
+    const field = await p.value(`(() => { const i = document.querySelector('input[data-bind="temperature"]'); return [i.type, i.inputMode || "(aucun)", i.min, i.max, i.value].join(" "); })()`);
+    // On écrit −40, comme au clavier : le grand froid. Plus bas que le min, la page garde −50.
+    const write = async (text) => {
+      await p.value(`(() => { const i = document.querySelector('input[data-bind="temperature"]'); i.focus(); i.value = ""; i.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+      await p.type('input[data-bind="temperature"]', text);
+    };
+    await write("-40");
+    const typed = await p.until(`${has("Au sommet : -40 °C")} && ${has("Grand froid")}`);
+    await write("-90");
+    const floor = await p.until(has("Au sommet : -50 °C"));
+    // Le lecteur d'écran : un champ de nombre (spinbutton), nommé par son étiquette.
+    const { nodes } = (await b.send("Accessibility.getFullAXTree")).result;
+    const spin = nodes.some((n) => !n.ignored && n.role?.value === "spinbutton" && n.name?.value === "Écrire la température");
+    // Une page suédoise : le signe moins de sa langue, « − » (U+2212), au départ comme après un toucher.
+    await p.open("/exemples/.essais-navigateur/nombres-negatifs-suedois.holo");
+    const swedishStart = await p.value(has("Temperatur: −2 °C"));
+    await p.click('[data-name="Kallare"]');
+    const swedish = await p.until(has("Temperatur: −7 °C"));
+    const seen = await p.value(`document.querySelector("main p, .holo-Page p").innerText`);
+    const ok = start && colder && warmer && field === "number (aucun) -50 50 3" && typed && floor && spin && swedishStart && swedish;
+    return [ok, `départ « -2 °C », il gèle : ${start} ; −5 = −7 : ${colder} ; +10 = 3, il ne gèle plus : ${warmer} ; champ (type, inputmode, min, max, valeur) : ${field} ; −40 écrit : ${typed} ; −90 gardé à −50 : ${floor} ; lecteur d'écran, spinbutton : ${spin} ; en suédois : départ ${swedishStart}, après un toucher « ${seen} »`];
+  }],
   ["des dates : aujourd'hui, une semaine, des nuits (Days)", async (p) => {
     await p.open("/exemples/lecons/87-des-dates.holo");
     const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;

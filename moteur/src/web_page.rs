@@ -201,7 +201,9 @@ pub fn submission(source: &str, state: &str, form_name: &str) -> String {
 /// Une valeur écrite avec son format, dans la langue de la page.
 #[wasm_bindgen]
 pub fn format_value(name: &str, value: f64, format: &str, language: &str) -> String {
-    crate::format_value(name, value.max(0.0) as u64, format, language)
+    // Un nombre négatif (ADR-102) garde son signe : la page lit « -5 » dans l'état, le moteur
+    // l'écrit avec le signe moins de la langue. Un nombre positif ne change pas.
+    crate::format_value(name, crate::negative::stored(value as i64), format, language)
 }
 
 /// Ce qui ne va pas dans un formulaire avant de l'envoyer (ADR-068) : `name|message`, une ligne
