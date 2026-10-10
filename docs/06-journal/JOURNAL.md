@@ -6,6 +6,36 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Les calculs sur les heures : un compte à rebours qui suit l'horloge
+
+- Fait (issue #238, un agent de la session du nuage, qui l'a reprise quand le PC s'est éteint ; `ADR-109`, ACCEPTÉ d'avance par Yocthan : « tu le valides déjà, tu le fais déjà ») :
+  - Une heure est un texte « HH:MM », un moment « AAAA-MM-JJTHH:MM », sans fuseau caché ; `now` est le moment présent, donné par l'appareil, comme `today`.
+  - `Minutes(name: left, from: now, to: train)`, à côté de `Days` : entre deux moments, les vraies minutes ; vers une heure seule, jusqu'à la prochaine fois que l'horloge la montre (de 22:00 à 06:00 : 8 h). Sous zéro avec `negative: [late]`.
+  - `{left:duration}` et `{train:time}`, écrits comme `Intl.DurationFormat` et `Intl.DateTimeFormat`, dans huit langues, « 0 min » à zéro, et pour les machines (`<time datetime="PT2H15M">`).
+  - `meeting.add(15min)`, `meeting.sub(2h)` : les unités `min` et `h` du langage servent enfin. `arrival.set(now)`. `If(now, under: train)`, `When(now, is: "07:00")`, `When(left, is: 0)`.
+  - La page cherche les changements d'heure du fuseau du visiteur d'après l'appareil et les donne au moteur, qui n'embarque aucune base des fuseaux ; elle redonne l'heure dès que l'onglet revient au premier plan. Le compte n'est jamais décompté, et jamais annoncé au lecteur d'écran.
+  - En chemin : un champ heure acceptait « 25:99 » ; il ne l'accepte plus.
+  - La leçon 132, le guide (« 6 quinquagies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons, un essai dans Chrome.
+- Comparé avant de choisir (dans l'ADR) : un texte plutôt qu'une sorte nouvelle de valeur (comme les dates) ; `now` plutôt qu'un bloc `Clock` ; `Minutes` plutôt que `Duration` ou `Hours` ; les changements d'heure donnés par la page plutôt que compter à l'horloge (une nuit de 7 h dirait 6 h) ou embarquer la base des fuseaux ; `add(15min)` plutôt que `add(15)` ; le style « short » du CLDR plutôt que « 2 h 15 », qui n'existe qu'en français.
+- Erreurs en route :
+  - L'essai Chrome attendait « 23 h 59 » entre samedi 18 h 46 et le train de dimanche 18 h 45. Le moteur disait « 1 j et 59 min » : la nuit du retour à l'heure d'hiver dure 25 heures. Le moteur avait raison ; c'est l'attente de l'essai qui comptait à l'horloge. Corrigée, avec la raison écrite à côté.
+  - La première version prenait toujours la première fois d'une heure répétée : à 2 h 30 (la seconde fois), « la prochaine fois que l'horloge montre 2 h 45 » tombait le lendemain. Elle cherche maintenant la seconde fois avant le lendemain (essai du moteur).
+  - Une règle qui guettait un nombre de jours ou de minutes (`When(left, is: 0)`) était refusée, et n'aurait jamais sonné : les règles qui guettent ne voyaient pas ces nombres. Elles les voient maintenant.
+- Exécuté (conteneur du nuage, Linux, Chromium 1194) :
+  - `cargo test --release hours` : les sept essais du module passent (lire et écrire, les huit langues comparées à `Intl`, le fuseau de Paris, les comptes de la page, la page fabriquée, le formulaire sans JavaScript, vingt-cinq refus).
+  - `holo check` sur la leçon 132 et sur l'exemple de l'ADR : `ok`, `ok`.
+  - L'essai Chrome nouveau, seul : `OK` (« Il est 16:30. », le train dans « 2 h et 15 min », le concert dans « 68 j et 5 h », comme les compte `Date` : 98 220 minutes ; `datetime` : `18:45 PT2H15M P68DT5H 2026-12-31T20:30` ; aucune région vivante ; l'onglet revient à 18 h 44, 18 h 45, 18 h 46 ; rien d'annoncé ; la nuit, 8 h ; pointé à 18:46 ; au clavier, 14:15 ; à la souris, 13:15 ; sans JavaScript avec `holo serve`, « 8 h et 30 min » puis « 8 h » et 14:15 ; à 360 de large, rien ne déborde ; axe-core 4.10.3, zéro défaut).
+  - Il sait échouer, deux fois, chaque mutation retirée ensuite (le fichier rendu est identique à celui d'avant, vérifié par `cmp`) : sans `giveZone` (les changements d'heure du visiteur), il rate (« le concert … : false », `P68DT4H`, « demain, dans 1 j et 59 min : false ») ; sans l'écouteur `visibilitychange`, il rate (« l'onglet revient à 18:44, 18:45, 18:46 : false, false, false »).
+  - `main` fusionnée deux fois (style diff3 ; les PR 268, 269 puis 270 sont arrivées pendant le travail, avec du code du moteur) ; les conflits de `blocks.rs`, `computed.rs`, `styles.rs` et `page-engine.js` réglés à la main en gardant les deux côtés, rangés par numéro. Après chaque fusion : `node --check`, le fichier des essais égal à celui de `main` plus les 89 lignes du nouvel essai, un nombre pair de barrières dans le guide (178) et ses chapitres dans l'ordre.
+  - La preuve complète (`check-locked.sh`) sur 0715cb8, `main` (14fe307) fusionnée : `cargo test --release --locked`, **316** passent ; `cargo test`, **316** ; les deux WebAssembly, `holo` et les liaisons se construisent ; la suite Chrome : **94 essais sur 97**, dont le nouveau, 138 leçons s'ouvrent sans erreur, l'audit axe-core des parcours ne trouve aucun défaut. Les trois ratés sont ceux du conteneur : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium).
+- Reste :
+  - un moment avec son fuseau (« …Z », « +01:00 »), un champ pour un moment, les bornes d'un champ heure, une heure dans les éléments d'une liste, les secondes dans un compte, les variantes régionales des langues ;
+  - la lecture au TalkBack de « 2 h et 15 min », sur le téléphone de Yocthan ;
+  - la ligne `Date` du grand tableau du web, à passer à « oui » à la prochaine publication ;
+  - la suite des leçons (124 → … → 136 → 1), quand les douze dettes seront dans `main`.
+
+---
+
 ## 2026-10-10 — Des modules venus d'ailleurs, avec leur empreinte
 
 - Fait (issue #250 ; `ADR-118`, ACCEPTÉ : Yocthan a dit « Oui » le 2026-10-09 à l'ouverture sous ces conditions ; un agent de la session du nuage, branche `langage/modules-venus-d-ailleurs`) :
