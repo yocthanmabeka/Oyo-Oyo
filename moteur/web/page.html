@@ -242,6 +242,9 @@
       frame.className = "holo-embed-frame";
       // Tout est réglé avant que le cadre entre dans la page : sa première demande part enfermée.
       frame.src = address.href;
+      // La page de l'autre site arrive dans un autre processus du navigateur, qui peut perdre le
+      // clavier en route : arrivée, elle le reçoit, si le visiteur ne l'a pas mis ailleurs.
+      frame.addEventListener("load", () => { if (document.activeElement === frame) frame.contentWindow?.focus(); }, { once: true });
       facade.replaceWith(frame);
       frame.focus();
     };

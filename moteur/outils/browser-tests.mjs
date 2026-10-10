@@ -1121,7 +1121,8 @@ const tests = [
       const tell = (what) => parent.postMessage({ fake: true, ...what }, "*");
       let page; try { page = parent.document.title; } catch { page = "fermée"; }
       const features = document.featurePolicy ? document.featurePolicy.allowedFeatures().filter((f) => ["fullscreen", "camera", "microphone", "geolocation", "autoplay", "payment"].includes(f)).sort().join(",") : "?";
-      tell({ ready: true, referrer: document.referrer, page, features });
+      tell({ ready: true, referrer: document.referrer, page, features, focus: document.hasFocus() });
+      addEventListener("focus", () => tell({ focus: true }));
       navigator.geolocation.getCurrentPosition(() => tell({ position: "donnée" }), (e) => tell({ position: "refusée (" + e.code + ")" }));
       // Une touche est un vrai geste du visiteur : sans l'enfermement, la page intégrée pourrait alors
       // ouvrir une fenêtre, et emmener la page de l'auteur ailleurs.
@@ -1176,7 +1177,9 @@ const tests = [
       } finally {
         await b.send("Emulation.clearDeviceMetricsOverride");
       }
-      // 4. Au clavier : Tab jusqu'à la façade de la carte, puis Entrée.
+      // 4. Au clavier : Tab jusqu'à la façade de la carte, puis Entrée. (L'onglet au premier plan :
+      // un essai d'avant en a ouvert un autre.)
+      await b.send("Page.bringToFront");
       for (let i = 0; i < 20 && !(await q.value(`document.activeElement?.matches(".holo-embed-load")`)); i++) await q.key("Tab", "Tab", 9);
       const focusedFacade = await q.value(`document.activeElement?.matches(".holo-embed-load") ? document.activeElement.dataset.label : "(le clavier n'atteint pas la façade)"`);
       if (focusedFacade === "Carte : le zoo de San Diego") await q.key("Enter", "Enter", 13, "\r");
@@ -1184,7 +1187,8 @@ const tests = [
       const mapAttributes = await q.value(`(() => { const f = document.querySelector('iframe[src^="https://www.openstreetmap.org/"]'); return f && [f.getAttribute("sandbox"), f.getAttribute("allow"), f.getAttribute("referrerpolicy"), f.title, f.src].join(" | "); })()`);
       const inside = await q.value(`document.activeElement?.tagName === "IFRAME" && document.activeElement.src.startsWith("https://www.openstreetmap.org/")`);
       const mapReady = await q.until(`(window.__fake ?? []).some((m) => m.ready && m.from === "https://www.openstreetmap.org")`, 10000);
-      // Le clavier est dans la page intégrée : la touche « k » y arrive.
+      // Le clavier est dans la page intégrée : elle a le focus, et la touche « k » y arrive.
+      const mapFocused = await q.until(`(window.__fake ?? []).some((m) => m.focus && m.from === "https://www.openstreetmap.org")`, 10000);
       await q.key("k", "KeyK", 75, "k");
       const typed = await q.until(`(window.__fake ?? []).some((m) => m.key === "k" && m.from === "https://www.openstreetmap.org")`, 5000);
       await q.until(`(window.__fake ?? []).some((m) => m.position && m.from === "https://www.openstreetmap.org")`, 5000);
@@ -1263,7 +1267,7 @@ const tests = [
         && before[0] === 0 && before[1] === 0 && untouched && images === "true,true" && shown === "true,true"
         && buttons.join(" | ") === "Carte : le zoo de San Diego, charger depuis www.openstreetmap.org | Vidéo : Me at the zoo, la première vidéo publiée sur YouTube (2005), charger depuis www.youtube-nocookie.com"
         && /^328x185 328x246 \/ 360$/.test(phoneSize)
-        && focusedFacade === "Carte : le zoo de San Diego" && mapFrame && inside && mapReady && typed
+        && focusedFacade === "Carte : le zoo de San Diego" && mapFrame && inside && mapReady && mapFocused && typed
         && mapAttributes === `allow-scripts allow-same-origin | fullscreen | strict-origin | Carte : le zoo de San Diego | ${map}`
         && mapSaid.referrer === origin && mapSaid.page === "fermée" && mapSaid.popup === "null" && mapSaid.features === "fullscreen" && mapSaid.position === "refusée (1)"
         && sameOrigin === "allow-scripts (page https://zoo.example.org)"
@@ -1273,7 +1277,7 @@ const tests = [
         && links === `${map} | _blank | noopener noreferrer || ${video} | _blank | noopener noreferrer`
         && linkNames === "Carte : le zoo de San Diego, ouvrir sur www.openstreetmap.org, dans un nouvel onglet | Vidéo : Me at the zoo, la première vidéo publiée sur YouTube (2005), ouvrir sur www.youtube-nocookie.com, dans un nouvel onglet"
         && withoutScript === "none,none / 0" && afterLinks === 0 && !faults.length;
-      return [ok, `frame-src : ${policy} ; avant le toucher, demandes vers l'autre site : ${before[0]} (Fetch), ${before[1]} (réseau), page sans cadre ni adresse de l'autre site : ${untouched}, images de la façade chez holo serve : ${images}, façades montrées : ${shown} ; lecteur d'écran : ${buttons.join(" | ")} ; téléphone : ${phoneSize} ; au clavier, la façade « ${focusedFacade} », puis Entrée : cadre ${mapFrame} (${mapAttributes}), le clavier dedans : ${inside}, la touche k reçue : ${typed}, la page de l'auteur reste : ${stayedAfterKey} ; la fausse carte voit : ${JSON.stringify(mapSaid)} ; au doigt, la vidéo : ${fingerFrame} (${JSON.stringify(videoSaid)}) ; arrivé à l'autre site : ${reached.join(" ; ") || "rien"} ; la page de l'auteur reste : ${stayed} ; un cadre non listé : ${refused || "pas refusé"} ; une adresse de la même origine : sandbox « ${sameOrigin} » ; sans JavaScript : ${links} (${linkNames}) ; boutons et cadres : ${withoutScript}, demandes : ${afterLinks} ; axe-core : ${faults.join(", ") || "aucun défaut, avant et après le toucher"}`];
+      return [ok, `frame-src : ${policy} ; avant le toucher, demandes vers l'autre site : ${before[0]} (Fetch), ${before[1]} (réseau), page sans cadre ni adresse de l'autre site : ${untouched}, images de la façade chez holo serve : ${images}, façades montrées : ${shown} ; lecteur d'écran : ${buttons.join(" | ")} ; téléphone : ${phoneSize} ; au clavier, la façade « ${focusedFacade} », puis Entrée : cadre ${mapFrame} (${mapAttributes}), le clavier dedans : ${inside}, le focus reçu par la page intégrée : ${mapFocused}, la touche k reçue : ${typed}, la page de l'auteur reste : ${stayedAfterKey} ; la fausse carte voit : ${JSON.stringify(mapSaid)} ; au doigt, la vidéo : ${fingerFrame} (${JSON.stringify(videoSaid)}) ; arrivé à l'autre site : ${reached.join(" ; ") || "rien"} ; la page de l'auteur reste : ${stayed} ; un cadre non listé : ${refused || "pas refusé"} ; une adresse de la même origine : sandbox « ${sameOrigin} » ; sans JavaScript : ${links} (${linkNames}) ; boutons et cadres : ${withoutScript}, demandes : ${afterLinks} ; axe-core : ${faults.join(", ") || "aucun défaut, avant et après le toucher"}`];
     } finally {
       await b.send("Fetch.disable");
       b.on("Fetch.requestPaused", null);
