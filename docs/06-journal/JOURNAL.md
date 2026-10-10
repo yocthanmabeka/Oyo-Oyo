@@ -6,6 +6,31 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Les données d'un autre site, lues par le serveur de l'auteur : `Data(from: "https://…")`
+
+- Fait (issue #248, prise par un agent de la session du nuage ; `ADR-116`, ACCEPTÉ : Yocthan a dit « Oui » le 2026-10-09 à l'ouverture sous ces conditions) :
+  - `Data(from: "https://…")` : le même bloc, une adresse HTTPS. C'est `holo serve` qui lit l'autre site ; le moteur de la page lui demande `?remote-data`, à sa propre adresse. Le navigateur du visiteur ne parle jamais à l'autre site, et ne reçoit pas son adresse.
+  - Les sites permis et leurs clés dans `holo-data/sites.txt` : une ligne par site, la clé sur sa ligne, en paramètre (`?appid=…`) ou en en-tête (`X-Api-Key: …`), comme la documentation du site la montre. La page ne nomme jamais une clé. Comparé, dans l'ADR, avec une liste dans la page (`Allowed(sources:)`), une clé nommée par la page, une variable d'environnement.
+  - Les sept règles, tenues par le moteur, chacune avec son essai : HTTPS et un nom exact (jamais une adresse IP) ; rien vers ce PC ni le réseau privé, en IPv4 et en IPv6, une IPv4 portée par une IPv6 comprise, et la connexion à l'adresse vérifiée ; aucune redirection ; 4 s, 8 s, 64 Ko coupés, un objet JSON, 32 sites, 64 adresses, 8 par site ; une demande au plus par adresse et par `every` (une minute au moins), même avec beaucoup de visiteurs ; les clés jamais hors du serveur ; un `User-Agent` honnête, rien du visiteur.
+  - Ce qui arrive est réduit à ce que la page déclare (un numéro de compte ou l'adresse IP du serveur, dans la réponse, n'arrivent pas chez le visiteur). Sans JavaScript, la page arrive avec ses données ou dit l'échec ; `refresh` relit ce qui est gardé.
+  - La bibliothèque : `ureq` 3.4.2 (`=3.4.2`, avec `rustls`), seulement pour le PC ; aucun proxy, aucune redirection, aucune connexion gardée.
+  - L'interrupteur des essais, `HOLO_TEST_ONLY_INSECURE_SITE` : un nom en `.test` lu sur ce PC, en HTTP clair, pour le faux « autre site » de l'essai Chrome ; éteint par défaut, lu seulement dans l'environnement, annoncé au démarrage.
+  - La leçon 139 (le résumé de Kinshasa sur Wikipédia ; liens vers la 124 et la 1) ; le guide (chapitre « 6 septemquinquagies », une ligne au tableau des limites, et « ce qui n'existe pas encore » dit ce qui reste) ; `NOMS.md`, `DECISIONS.md`, le sommaire des leçons, le README du moteur.
+- Exécuté, dans `moteur/` :
+  - `cargo test --release` : les essais nouveaux passent du premier coup, puis huit mutations ont été essayées et retirées, une à la fois, et chacune fait rater au moins un essai : le proxy de l'environnement, un résolveur qui ne vérifie plus, dix redirections, la lecture non coupée, plus rien de gardé, la clé dans la page acceptée, la clé recopiée acceptée, un sous-domaine deviné ;
+  - l'essai Chrome nouveau passe seul (sept lectures par holo serve, une seule demande à l'autre site) ; il rate quand on retire la route `?remote-data` (« relues sans échec : false ») ou la demande du serveur (« arrivées : false, 0 demande ») ;
+  - `holo check` sur la leçon 139 : ok ;
+  - la preuve complète, `check-locked.sh`, après la fusion de `main` : RÉSULTATS.
+- Erreurs en route :
+  - La limite de séance a coupé le travail deux fois, et le conteneur a redémarré : les fichiers étaient intacts ; les constructions ont été relancées.
+  - Un envoi de sauvegarde sur `wip/…` a été refusé par la garde des permissions : pas de contournement ; les commits locaux ont suffi.
+  - Dans mes essais : une variable qui cachait la fonction du même nom ; une réponse d'essai à quatre niveaux, que le lecteur JSON de `Data` refuse (trois au plus). Corrigés.
+  - L'essai de l'ADR-030 refusait toute adresse `https://` : il suit maintenant la règle de l'ADR-116 (HTTP clair refusé).
+  - La fusion de `main` (PR 258 à 263, en style diff3) : six conflits, tous des ajouts, gardés des deux côtés et rangés par numéro. Les nombres négatifs (ADR-102) avaient ajouté `Json::Negative` : la réduction le garde, et son essai le vérifie.
+- Reste : choisir et nommer une valeur rangée plus bas dans la réponse (la plupart des services de météo) ; la dernière valeur, avec son âge, pendant une panne ; une clé par variable d'environnement ; un proxy choisi par l'auteur ; les réponses gardées dans la base. Le grand tableau du web : « les données d'un autre serveur » peut passer à « oui ».
+
+---
+
 ## 2026-10-10 — Les fusions de la matinée, et l'outil de fusion réparé (le style diff3)
 
 - Fait (la session du PC) :

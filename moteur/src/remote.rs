@@ -609,6 +609,11 @@ pub struct Remote {
     pub fake: Option<FakeSite>,
 }
 
+/// Sous quel nom une adresse est gardée : `https://`, son nom de site en minuscules, son chemin.
+fn kept_as(address: &RemoteAddress) -> String {
+    format!("https://{}{}", address.host, address.target)
+}
+
 /// Le temps qu'une réponse est gardée pour une page : son `every`, une minute au moins ; dix
 /// minutes sans `every` (en millisecondes).
 fn keep_for(every: u64) -> u64 {
@@ -727,9 +732,10 @@ impl Remote {
     /// Ce qui est gardé pour une adresse, sans jamais demander ni attendre : sous le verrou des
     /// gestes, un site lent retiendrait tous les visiteurs. `None` : rien de frais.
     pub fn kept(&self, written: &str, every: u64) -> Option<Result<String, ()>> {
+        let key = remote_address(written).ok().map(|address| kept_as(&address))?;
         let now = (self.clock)();
         let cache = self.cache.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        match cache.get(written).map(|entry| &entry.kept) {
+        match cache.get(&key).map(|entry| &entry.kept) {
             Some(Kept::Arrived { json, at }) if now < at + keep_for(every) => Some(Ok(json.clone())),
             Some(Kept::Failed { at }) if now < at + EVERY_MIN => Some(Err(())),
             _ => None,
@@ -759,11 +765,13 @@ impl Remote {
             }
         }
         let keep = keep_for(every);
+        // Une même adresse, écrite en majuscules ou non, n'est gardée (et demandée) qu'une fois.
+        let key = kept_as(&address);
         let deadline = Instant::now() + TOTAL_TIMEOUT + Duration::from_secs(2);
         let mut cache = self.cache.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         loop {
             let now = (self.clock)();
-            match cache.get(written).map(|entry| &entry.kept) {
+            match cache.get(&key).map(|entry| &entry.kept) {
                 Some(Kept::Arrived { json, at }) if now < at + keep => return Ok(json.clone()),
                 Some(Kept::Failed { at }) if now < at + EVERY_MIN => return Err(Refusal::Recent(host)),
                 Some(Kept::Asking) => {
@@ -776,14 +784,14 @@ impl Remote {
                 _ => break,
             }
         }
-        if !cache.contains_key(written) && !room(&mut cache, &host, (self.clock)()) {
+        if !cache.contains_key(&key) && !room(&mut cache, &host, (self.clock)()) {
             drop(cache);
             return Err(self.refused(page, written, Refusal::TooMany(host)));
         }
-        cache.insert(written.to_string(), Entry { host: host.clone(), kept: Kept::Asking });
+        cache.insert(key.clone(), Entry { host: host.clone(), kept: Kept::Asking });
         drop(cache);
         // Si la demande s'interrompait (une panique), l'adresse ne resterait pas « en cours ».
-        let mut pending = Pending { remote: self, written, done: false };
+        let mut pending = Pending { remote: self, key: &key, done: false };
         let outcome = self.ask(page, &address, &permit, keep);
         pending.finish(outcome.as_ref().ok().cloned());
         outcome
@@ -833,7 +841,7 @@ impl Remote {
 /// qui l'attendaient sont réveillés ; si elle s'interrompt, elle compte comme un échec.
 struct Pending<'a> {
     remote: &'a Remote,
-    written: &'a str,
+    key: &'a str,
     done: bool,
 }
 
@@ -841,7 +849,7 @@ impl Pending<'_> {
     fn finish(&mut self, json: Option<String>) {
         let at = (self.remote.clock)();
         let mut cache = self.remote.cache.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        if let Some(entry) = cache.get_mut(self.written) {
+        if let Some(entry) = cache.get_mut(self.key) {
             entry.kept = match json {
                 Some(json) => Kept::Arrived { json, at },
                 None => Kept::Failed { at },
@@ -1076,6 +1084,10 @@ mod remote_tests {
         assert_eq!(bench.remote.read("/p.holo", "https://API.exemple.org/m", 0).unwrap(), r#"{"temperature": 21}"#);
         assert_eq!(bench.asked().len(), 1);
         assert_eq!(bench.asked()[0].address, "https://api.exemple.org/m");
+        // La même adresse, écrite autrement : déjà gardée, aucune demande de plus.
+        assert!(bench.remote.read("/autre.holo", "https://api.exemple.org/m", 0).is_ok());
+        assert_eq!(bench.remote.kept("https://Api.Exemple.org/m", 0), Some(Ok(r#"{"temperature": 21}"#.to_string())));
+        assert_eq!(bench.asked().len(), 1);
     }
 
     #[test]

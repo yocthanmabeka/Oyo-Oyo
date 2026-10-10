@@ -184,7 +184,7 @@ L'interrupteur des essais, `HOLO_TEST_ONLY_INSECURE_SITE=meteo.test:43210` :
 
 - Tests du moteur (`cargo test --release --locked`) :
   - `state::remote_address_tests::another_site_is_https_and_a_name_never_an_ip` ;
-  - `remote::remote_tests` : les 13 essais cités plus haut, une règle au moins chacun ;
+  - `remote::remote_tests` : 14 essais, dont ceux cités plus haut (une règle au moins chacun) et le démarrage silencieux quand aucune page ne lit d'autre site ;
   - `tests::the_data_of_another_site_is_reduced_to_what_the_page_declares` ;
   - `server::tests::another_site_is_read_by_this_server_with_and_without_javascript`.
 - Les essais savent échouer. Chaque mutation a été essayée puis retirée, et un essai au moins a raté :
