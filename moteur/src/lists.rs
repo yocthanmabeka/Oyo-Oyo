@@ -196,6 +196,10 @@ pub enum Kind {
 
 /// La sorte d'une liste déclarée.
 pub fn kind(program: &Program, name: &str) -> Option<Kind> {
+    // Un texte découpé (ADR-103) est une liste de textes.
+    if crate::computed::split_source(program, name).is_some() {
+        return Some(Kind::Texts);
+    }
     // Une liste calculée a les éléments de la liste dont elle part.
     if crate::computed::is_computed(program, name) {
         return crate::computed::source_of(program, name).and_then(|source| kind(program, &source));
@@ -609,6 +613,10 @@ pub fn check_request(request: &Block, program: &Program, rule: &Block, in_line: 
             ("add" | "sub", [Argument { name: None, value: Value::Integer(_), .. }]) => Ok(()),
             _ => Err(error(format!("« item.{field}.{operation} » : on demande set (un nombre, un texte, ou une valeur de la page), add ou sub (un nombre entier)"))),
         };
+    }
+    // Un texte découpé (ADR-103) suit son texte : c'est le texte qu'on change.
+    if let Some(from) = crate::computed::split_source(program, value) {
+        return Err(error(format!("« {value} » est découpée dans le texte « {from} » : elle suit ce texte, on ne la change pas par une demande ; change plutôt « {from} »")));
     }
     if crate::computed::is_computed(program, value) {
         return Err(error(format!("« {value} » est une liste calculée : elle se refait d'après sa source, on ne la change pas par une demande ; change plutôt « {} »", crate::computed::source_of(program, value).unwrap_or_default())));

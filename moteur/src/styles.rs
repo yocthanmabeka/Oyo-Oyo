@@ -688,6 +688,8 @@ mod tests {
             include_str!("../../exemples/lecons/133-faire-vibrer-le-telephone.holo"),
             // Mélanger des sons : un fondu, un volume qui suit une valeur (ADR-112).
             include_str!("../../exemples/lecons/135-melanger-des-sons.holo"),
+            // Travailler un texte : majuscules, longueur, couper, découper (ADR-103).
+            include_str!("../../exemples/lecons/126-travailler-un-texte.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();
@@ -705,6 +707,10 @@ mod tests {
         }
         // Une grille qui place ses cases (ADR-104).
         for word in ["columnSpan:", "rowSpan:", "areas:", "area:"] {
+            assert!(source.contains(word), "« {word} » manque dans l'exemple");
+        }
+        // Travailler un texte (ADR-103).
+        for word in [":upper}", ":lower}", ":length}", ":max40}", "Split(", "by: \",\"", "by: \" \""] {
             assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
     }
