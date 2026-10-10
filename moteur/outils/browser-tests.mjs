@@ -666,6 +666,97 @@ const tests = [
       && added === "none" && titles === "Les Misérables | Les Châtiments";
     return [ok, `lu : « ${said} » ; citations : ${quotes} ; guillemets du navigateur : ${added} ; œuvres : ${titles}`];
   }],
+  ["réordonner une liste : la poignée à la souris et au doigt, Monter et Descendre au clavier, annoncés ; sans JavaScript, holo serve (leçon 128, serve)", async (p, b) => {
+    const lesson = "/exemples/lecons/128-reordonner-une-liste.holo";
+    // L'ordre gardé par un essai précédent (keep) est oublié : la leçon part de son départ.
+    await p.open(lesson);
+    await p.value(`localStorage.removeItem("holo:${lesson}")`);
+    await p.open(lesson);
+    if (!(await p.until("window.__holoStarted"))) return [false, "le moteur n'est pas arrivé"];
+    const order = () => p.value(`[...document.querySelectorAll('[data-list="tableaux"] > .holo-line')].map((l) => l.querySelector(".holo-line-content").textContent).join(" | ")`);
+    const said = () => p.value(`document.getElementById("announcement").textContent`);
+    // Le centre de la poignée de chaque ligne, et celui de la ligne, une fois la liste à l'écran.
+    const places = () => p.value(`(() => {
+      document.querySelector('[data-list="tableaux"]').closest(".holo-Column").scrollIntoView({ block: "center" });
+      const centre = (e) => { const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+      return [...document.querySelectorAll('[data-list="tableaux"] > .holo-line')].map((l) => ({ grip: centre(l.querySelector(".holo-grip")), line: centre(l.querySelector(".holo-movable")) }));
+    })()`);
+    const start = await order();
+    // 1. La souris tient la poignée de « La porte bleue » (rang 2) et la pose sur la première ligne.
+    let spots = await places();
+    const [[gx, gy], [, ty]] = [spots[2].grip, spots[0].line];
+    await b.send("Input.dispatchMouseEvent", { type: "mousePressed", x: gx, y: gy, button: "left", buttons: 1, clickCount: 1 });
+    for (let step = 1; step <= 10; step++) await b.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: gx, y: gy + ((ty - gy) * step) / 10, button: "left", buttons: 1 });
+    await b.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: gx, y: ty, button: "left", buttons: 0, clickCount: 1 });
+    const byMouse = await p.until(`document.getElementById("page").innerText.includes("En tête : La porte bleue.")`, 5000);
+    const afterMouse = await order();
+    const heardMouse = (await p.until(`document.getElementById("announcement").textContent.startsWith("« La porte bleue »")`, 3000)) && (await said());
+    // L'ordre est dans les valeurs de la page, et keep le garde : l'arbitre l'a changé.
+    const kept = await p.value(`localStorage.getItem("holo:${lesson}") ?? ""`);
+    // 2. Le clavier : « Descendre » de la ligne de tête, avec Entrée ; le clavier suit la ligne.
+    await p.value(`document.querySelector('[data-list="tableaux"] > .holo-line[data-rank="0"] [data-move="down"]').focus()`);
+    await p.key("Enter", "Enter", 13, "\r");
+    await p.until(`document.getElementById("page").innerText.includes("En tête : Le lever du soleil.")`, 5000);
+    const afterKey = await order();
+    const focus = await p.value(`(() => { const e = document.activeElement; return \`\${e?.dataset.move ?? e?.tagName} de \${e?.closest(".holo-movable")?.dataset.label ?? "?"} (rang \${e?.closest(".holo-line")?.dataset.rank ?? "?"})\`; })()`);
+    const heardKey = (await p.until(`document.getElementById("announcement").textContent.includes("position 2 sur 4")`, 3000)) && (await said());
+    // « Monter » sur la ligne de tête, avec Espace : rien ne bouge, et c'est dit.
+    await p.value(`document.querySelector('[data-list="tableaux"] > .holo-line[data-rank="0"] [data-move="up"]').focus()`);
+    await p.key(" ", "Space", 32, " ");
+    const heardTop = (await p.until(`document.getElementById("announcement").textContent.includes("déjà en haut")`, 3000)) && (await said());
+    const unchanged = (await order()) === afterKey;
+    // 3. Le lecteur d'écran : « Monter » et « Descendre » nommés avec la ligne ; la poignée, cachée.
+    const { nodes } = (await b.send("Accessibility.getFullAXTree")).result;
+    const named = nodes.filter((n) => !n.ignored && n.role?.value === "button" && /^(Monter|Descendre) « /.test(n.name?.value ?? "")).length;
+    const gripHeard = nodes.some((n) => !n.ignored && n.name?.value === "⠿");
+    // 4. Le doigt, sur un téléphone : la poignée du « Jour de marché » (rang 3), posée sur la deuxième ligne.
+    let byFinger = false;
+    let afterFinger = "";
+    if (!phone) {
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 400, height: 800, deviceScaleFactor: 2, mobile: true });
+      await b.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+    }
+    try {
+      await pause(400);
+      spots = await places();
+      const [[fx, fy], [, sy]] = [spots[3].grip, spots[1].line];
+      await b.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: fx, y: fy, id: 1 }] });
+      for (let step = 1; step <= 10; step++) await b.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: fx, y: fy + ((sy - fy) * step) / 10, id: 1 }] });
+      await b.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      byFinger = await p.until(`[...document.querySelectorAll('[data-list="tableaux"] > .holo-line')][1]?.querySelector(".holo-line-content").textContent === "Le jour de marché"`, 5000);
+      afterFinger = await order();
+    } finally {
+      if (!phone) {
+        await b.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+        await b.send("Emulation.clearDeviceMetricsOverride");
+      }
+    }
+    const keptFinger = await p.value(`localStorage.getItem("holo:${lesson}") ?? ""`);
+    // 5. Sans JavaScript, avec holo serve : pas de poignée ; « Descendre » de la première ligne part au serveur.
+    const served = await startHoloServe(["128-reordonner-une-liste.holo"]);
+    const q = page(b, served.base);
+    let withoutScript = "";
+    let gripHidden = false;
+    try {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+      await q.open("/128-reordonner-une-liste.holo", 300);
+      gripHidden = await q.value(`getComputedStyle(document.querySelector(".holo-grip")).display === "none"`);
+      await q.click('[data-list="tableaux"] > .holo-line[data-rank="0"] [data-move="down"]');
+      await q.until(`document.readyState === "complete" && document.getElementById("page").innerText.includes("En tête : La rivière.")`, 5000);
+      withoutScript = await q.value(`[...document.querySelectorAll('[data-list="tableaux"] > .holo-line')].map((l) => l.querySelector(".holo-line-content").textContent).join(" | ")`);
+    } finally {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      served.stop();
+    }
+    const ok = start === "Le lever du soleil | La rivière | La porte bleue | Le jour de marché"
+      && byMouse && afterMouse === "La porte bleue | Le lever du soleil | La rivière | Le jour de marché" && heardMouse === "« La porte bleue » : position 1 sur 4."
+      && kept.includes("tableaux=[La%20porte%20bleue,Le%20lever%20du%20soleil,La%20rivi%C3%A8re,Le%20jour%20de%20march%C3%A9]")
+      && afterKey === "Le lever du soleil | La porte bleue | La rivière | Le jour de marché" && focus === "down de La porte bleue (rang 1)" && heardKey === "« La porte bleue » : position 2 sur 4."
+      && heardTop === "« Le lever du soleil » est déjà en haut." && unchanged && named === 8 && !gripHeard
+      && byFinger && afterFinger === "Le lever du soleil | Le jour de marché | La porte bleue | La rivière" && keptFinger.includes("tableaux=[Le%20lever%20du%20soleil,Le%20jour%20de%20march%C3%A9,")
+      && gripHidden && withoutScript === "La rivière | Le lever du soleil | La porte bleue | Le jour de marché";
+    return [ok, `départ : ${start} ; souris : ${afterMouse} (« ${heardMouse} ») ; clavier : ${afterKey}, le focus sur ${focus} (« ${heardKey} ») ; Monter en tête : « ${heardTop} », rien ne bouge : ${unchanged} ; lecteur d'écran : ${named} boutons nommés, poignée entendue : ${gripHeard} ; doigt : ${afterFinger} ; gardé : ${keptFinger.includes("Le%20jour%20de%20march%C3%A9,La%20porte")} ; sans JavaScript, poignée cachée : ${gripHidden}, après Descendre : ${withoutScript}`];
+  }],
   ["se souvenir le temps d'une visite : d'une page à l'autre du site, pas dans un autre onglet (leçon 136)", async (p, b) => {
     const first = "/exemples/lecons/136-se-souvenir-le-temps-d-une-visite.holo";
     const second = "/exemples/lecons/136-inscription/etape-2.holo";

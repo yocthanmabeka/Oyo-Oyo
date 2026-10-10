@@ -6,6 +6,70 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Réordonner une liste : `Repeat(over:, reorder: true)`
+
+- Fait (issue #234, prise par un agent de la session du PC ; `ADR-105`, ACCEPTÉ : « tu le valides déjà, tu le fais déjà ») :
+  - `Repeat(over: tasks, reorder: true)` : le moteur pose sur chaque ligne une poignée ⠿ (souris et doigt) et deux boutons, « Monter » et « Descendre » (doigt, souris, clavier, lecteur d'écran ; sans JavaScript, reçus par `holo serve`). La page envoie `move:tasks@2:0` à l'arbitre, qui déplace l'élément. Pendant le glissement, les autres lignes s'écartent autour de celle qu'on tient, qui ne quitte jamais sa place dans la page (le doigt et le clavier la gardent) ; on pose, un seul geste. Chaque déplacement est annoncé (`aria-live`) : « « La porte bleue » : position 1 sur 4. » Le clavier reste sur le bouton touché ; près des bords de l'écran, la page défile.
+  - Le mot `reorder:` (celui de Flutter), plutôt que `drag:` (le plateau), `draggable:` (le glisser-déposer de HTML) ou `sortable:` (qu'on confondrait avec `sortBy`). Deux boutons en plus de la poignée : WCAG 2.2 (2.5.7) demande un moyen sans glisser, et TalkBack n'a pas de flèches.
+  - Refusés, avec la raison : une liste calculée, une liste partagée (pas encore), `Repeat(items:)`, autre chose que `true` ou `false`.
+  - Un membre connecté : le déplacement est renvoyé au serveur comme ses touchers ; sans cela, le « Retirer » suivant aurait retiré une autre ligne de la liste que garde son compte. C'est la seule ligne de `page-engine.js` réécrite (le filtre des gestes renvoyés) ; le reste est ajouté.
+  - La leçon 128 (précédente : 124, suivante : 1, selon la convention avec la session du nuage, qui refera la suite) ; le guide (chapitre « 6 sexquadragies », une ligne au § 10 bis), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+- Exécuté, dans `moteur/` : `cargo test --release --locked` → 239 tests passent (quatre nouveaux, dans `src/reorder.rs`) ; `cargo test` → 239 ; dans Chrome, l'essai de la leçon 128 passe seul (souris, clavier, Espace en tête, lecteur d'écran, doigt sur un écran de 400 px, puis `holo serve` sans JavaScript) et rate avec le `page-engine.js` de `main` (rien ne bouge) ; la suite Chrome entière (`node outils/browser-tests.mjs`) : 82 essais sur 83 passent, 125 leçons s'ouvrent sans erreur, en 477 s ; le seul raté est l'audit axe-core des parcours, parce qu'axe-core n'est pas sur ce PC et que l'agent n'installe rien (les machines de GitHub l'installent avant la suite).
+- Erreurs en route : deux assertions de mes tests comptaient « holo-movable », qui est aussi dans le style de la page ; elles comptent maintenant `class="holo-movable"`. Une commande trop longue a été refusée par la garde du dossier de l'agent : découpée en commandes simples.
+- Reste : réordonner une liste partagée ; faire passer une ligne d'une liste à une autre ; « tout en haut » d'un seul geste ; un style pour la poignée et les boutons ; un pas `move` dans `holo test`. Le grand tableau du web : « glisser-déposer » peut passer à « oui ».
+
+---
+
+## 2026-10-09 — Les huit limites s'ouvrent sous conditions ; un paiement international
+
+- Les avis sont rangés :
+  - Gemini (`proposals/Gemini/contraintes-2026-10-09/`, PR 245) ;
+  - la conversation Claude de Yocthan (`proposals/Claude/contraintes-2026-10-09/`, PR 244).
+
+  Les deux disent la même chose : aucune des huit ne doit rester fermée, chacune s'ouvre sous conditions, et c'est le moteur qui tient les règles de sécurité. La session Claude du PC s'y range : son « limité exprès » était trop fort.
+- Yocthan : « Oui ». Huit tâches entrent dans la file, les issues 246 à 253 (`ADR-114` à `ADR-121`, leçons 137 à 144) :
+  - le champ mot de passe, que la page ne lit jamais ;
+  - une zone de dessin pour le visiteur ;
+  - les données d'un autre serveur, lues par le serveur de l'auteur ;
+  - une page dans la page, de sites listés, chargée au toucher ;
+  - des modules venus d'ailleurs, avec leur empreinte ;
+  - le « push » avec les clés de l'auteur ;
+  - le paiement ;
+  - des effets 3D prêts à l'emploi, avec la phase 3D.
+- **Le paiement est international** (Yocthan : « ce sera utilisé peut-être par un Chinois à des millions de kilomètres de moi […] il va coder ses propres méthodes de gestion d'argent »). C'est une prise universelle :
+  - la page déclare le montant ;
+  - le serveur de l'auteur passe la main au moyen qu'il a branché ;
+  - une confirmation signée revient au serveur ;
+  - jamais aucun numéro de carte sur la page ni sur le serveur.
+
+  Le mobile money n'est qu'un branchement parmi d'autres.
+
+---
+
+## 2026-10-09 — Les « en partie » du tableau : douze vrais manques à construire, huit limites soumises aux autres IA
+
+- Yocthan : « pourquoi il y a toujours 21 en partie ? Réponds-moi vraiment, sérieusement. Et si c'est utile, oui ou non ? ».
+- Réponse de Claude, ligne par ligne :
+  - 2 sont la 3D, la phase suivante ;
+  - 11 sont de vrais petits manques, plus le seul « non » (`sessionStorage`) : 12 en tout ;
+  - 8 sont limités exprès : iframe, champ mot de passe, `fetch` vers d'autres serveurs, 3D libre, paquets extérieurs, dessin libre, notifications « push », paiement.
+- **Les 12 vrais manques** : Yocthan, « tu le valides déjà, tu le fais déjà ». Ils sont dans la file, les issues 231 à 242 (`ADR-102` à `ADR-113`, leçons 125 à 136, décidées d'avance). Trois agents de la session du PC en prennent 8 ; la session du nuage, les 4 autres.
+- **Les 8 limites**, Yocthan n'est pas d'accord sur plusieurs :
+  - les réseaux sociaux marchent avec des iframes ;
+  - un champ mot de passe est dans tous les formulaires ;
+  - `fetch` est essentiel en JavaScript ;
+  - tôt ou tard il faudra importer des modules ;
+  - un site de dessin où l'on ne dessine pas n'a pas de sens ;
+  - il n'aime pas les services extérieurs pour le « push » ;
+  - un paiement est possible avec un bon serveur.
+
+  Le prompt `docs/05-discussions/prompts/2026-10-09-contraintes-des-huit-limites.md` demande aux autres IA de trouver, ou d'inventer, des contraintes pour chacune, avec leurs sources, et de confirmer ou de contredire. Claude fait la même recherche de son côté. Le tableau ne change pas avant leurs réponses.
+- **Corrigé par Claude en répondant** :
+  - il avait confondu le code de dessin écrit par l'auteur (refusé) et un visiteur qui dessine librement (utile : un bloc à faire) ;
+  - « pas de code extérieur » était trop fort : un module extérieur enfermé est déjà permis.
+
+---
+
 ## 2026-10-09 — Le web est fini, et validé par Yocthan
 
 - Yocthan, après avoir tout essayé : « j'ai tout essayé et c'est bon déjà ». À sa demande (« fini le travail correctement »), tout ce qui était prêt est fusionné, et tout ce qui restait « à valider » passe en `ACCEPTÉ` : `ADR-090`, `091`, `092` et `097` à `101`. Seule HoloIR (`ADR-006`) reste une proposition, puisque rien n'en est construit.
