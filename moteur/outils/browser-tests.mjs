@@ -1946,15 +1946,17 @@ const tests = [
     }
     return [faults.length === 0, faults.length ? faults.join("\n      ") : "sans JavaScript, deux touchers gardés ; avec, les mêmes valeurs ; la copie prête, avec celles d'un premier visiteur ; sous le service worker, la page passe par lui, le direct et le geste partagé à côté"];
   }],
-  ["des filtres d'image : gris, puis les couleurs sous la souris ; assombri, vif, flou ; la page floue derrière une fenêtre (leçon 131)", async (p, b) => {
-    // ADR-108 : un réglage par effet, composés par le moteur en un seul `filter` ; `backdrop-blur`
-    // sur une fenêtre floute toute la page derrière elle (son `::backdrop`).
-    await p.open("/exemples/lecons/131-des-filtres-d-image.holo");
-    const filter = (selector) => p.value(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); return e ? getComputedStyle(e).filter : "absent"; })()`);
-    const gray = await filter(".holo-s-gris");
-    const dim = await filter(".holo-s-sombre");
-    const vivid = await filter(".holo-s-vive");
-    const blurred = await filter(".holo-s-floue");
+  ["des filtres d'image : gris, puis les couleurs sous la souris ; assombri, vif, flou ; sans filtre au focus du clavier ; la page floue derrière une fenêtre ; sans JavaScript aussi (leçon 131)", async (p, b) => {
+    // ADR-108 : un réglage par effet, composés par le moteur en un seul `filter`, sur une image,
+    // une forme ou un dessin ; au focus du clavier, le bloc se montre sans filtre ; `backdrop-blur`
+    // sur une fenêtre floute la page derrière elle (son `::backdrop`).
+    const lesson = "/exemples/lecons/131-des-filtres-d-image.holo";
+    const filter = (q, selector) => q.value(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); return e ? getComputedStyle(e).filter : "absent"; })()`);
+    await p.open(lesson);
+    const gray = await filter(p, ".holo-s-gris");
+    const dim = await filter(p, ".holo-s-sombre");
+    const vivid = await filter(p, ".holo-s-vive");
+    const blurred = await filter(p, ".holo-s-floue");
     // Le passage d'une allure à l'autre couvre aussi le filtre.
     const eased = await p.value(`document.querySelector(".holo-s-gris") ? getComputedStyle(document.querySelector(".holo-s-gris")).transitionProperty : "absent"`);
     // La souris se pose sur l'image grise : elle reprend ses couleurs, en douceur.
@@ -1963,6 +1965,19 @@ const tests = [
     if (box) {
       await b.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: box[0], y: box[1] });
       colored = await p.until(`getComputedStyle(document.querySelector(".holo-s-gris")).filter === "grayscale(0)"`, 5000);
+      await b.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
+      await p.until(`getComputedStyle(document.querySelector(".holo-s-gris")).filter === "grayscale(1)"`, 5000);
+    }
+    // Au clavier : l'image grise, rendue atteignable comme une forme qu'on touche, reçoit le focus
+    // par Tab ; elle se montre alors sans filtre, son cadre de focus net. La souris est partie.
+    let focused = "pas atteinte";
+    if (box) {
+      await p.value(`(() => { const e = document.querySelector(".holo-s-gris"); e.tabIndex = 0; document.activeElement?.blur(); return true; })()`);
+      for (let i = 0; i < 40 && !(await p.value(`document.activeElement === document.querySelector(".holo-s-gris")`)); i++) await p.key("Tab", "Tab", 9);
+      if (await p.value(`document.activeElement === document.querySelector(".holo-s-gris")`)) {
+        await p.until(`getComputedStyle(document.querySelector(".holo-s-gris")).filter === "none"`, 3000);
+        focused = await p.value(`(() => { const e = document.querySelector(".holo-s-gris"); return (e.matches(":focus-visible") ? "focus-visible, " : "focus sans cadre, ") + getComputedStyle(e).filter; })()`);
+      }
     }
     // La fenêtre s'ouvre : derrière elle, la page est floue.
     let opened = false;
@@ -1972,9 +1987,19 @@ const tests = [
       opened = await p.until(`!!document.querySelector("dialog[open]")`, 10000);
       behind = await p.value(`(() => { const d = document.querySelector("dialog.holo-Dialog"); return d ? getComputedStyle(d, "::backdrop").backdropFilter : "absent"; })()`);
     }
+    // Sans JavaScript : la page fabriquée par le serveur porte les mêmes filtres.
+    let withoutScript = "absent";
+    try {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+      await p.open(lesson, 300);
+      withoutScript = `${await filter(p, ".holo-s-gris")} | ${await filter(p, ".holo-s-sombre")} | ${await filter(p, ".holo-s-floue")}`;
+    } finally {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+    }
     const ok = gray === "grayscale(1)" && colored && dim === "brightness(0.6) contrast(1.2)" && vivid === "saturate(1.8) hue-rotate(30deg)" && blurred === "blur(3px)"
-      && eased.includes("filter") && opened && behind === "blur(6px)";
-    return [ok, `gris : ${gray}, sous la souris : ${colored ? "grayscale(0)" : "resté gris"} ; assombri : ${dim} ; vif : ${vivid} ; flou : ${blurred} ; transition : ${eased} ; fenêtre ${opened ? "ouverte" : "fermée"}, derrière : ${behind}`];
+      && eased.includes("filter") && focused === "focus-visible, none" && opened && behind === "blur(6px)"
+      && withoutScript === "grayscale(1) | brightness(0.6) contrast(1.2) | blur(3px)";
+    return [ok, `gris : ${gray}, sous la souris : ${colored ? "grayscale(0)" : "resté gris"} ; assombri : ${dim} ; vif : ${vivid} ; flou : ${blurred} ; transition : ${eased} ; au focus du clavier : ${focused} ; fenêtre ${opened ? "ouverte" : "fermée"}, derrière : ${behind} ; sans JavaScript : ${withoutScript}`];
   }],
 ];
 

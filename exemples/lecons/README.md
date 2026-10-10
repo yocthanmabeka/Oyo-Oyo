@@ -133,7 +133,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 123 | [Des suggestions dans un champ](123-des-suggestions-dans-un-champ.holo) | `Input(suggestions: ["Pomme", "Poire"])`, `suggestions: villes` : le champ propose, on peut écrire autre chose ; les suggestions suivent la liste pendant la visite |
 | 124 | [Une citation courte, le titre d'une œuvre](124-une-citation-courte.holo) | `<<bonjour>>` : les guillemets de la langue de la page ; `_Les Misérables_` ; `Quote(by:, work:)` |
 | 128 | [Réordonner une liste](128-reordonner-une-liste.holo) | `Repeat(over: tableaux, reorder: true, …)` : la poignée ⠿ à la souris et au doigt ; « Monter » et « Descendre » au doigt, au clavier et au lecteur d'écran, qui annonce la nouvelle place ; sans JavaScript aussi |
-| 131 | [Des filtres d'image](131-des-filtres-d-image.holo) | `grayscale`, `saturate`, `brightness`, `contrast`, `hue`, `blur` dans un style, un réglage par effet ; `hover: { grayscale: 0; }` garde le reste ; `backdrop-blur` : la page floue derrière une fenêtre ; le contraste vérifié, filtre compris |
+| 131 | [Des filtres d'image](131-des-filtres-d-image.holo) | `grayscale`, `saturate`, `brightness`, `contrast`, `hue`, `blur` dans le style d'une image, d'une forme ou d'un dessin, un réglage par effet ; `hover: { grayscale: 0; }` garde le reste ; `backdrop-blur` : la page floue derrière une fenêtre ; jamais sur un texte |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 

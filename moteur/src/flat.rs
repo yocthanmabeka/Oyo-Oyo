@@ -947,9 +947,9 @@ fn css(program: &Program, base: &str) -> String {
         let page = matches!(&rule.target, Target::Type(t) if t == "Page");
         let declaration = |setting: &crate::holo::Setting| match setting.name.as_str() {
             "max-width" if page => format!("--holo-width:{};", css_value(setting, base)),
-            // Les filtres (ADR-108) sont composés plus bas, en un seul `filter`.
-            name if crate::filters::is_filter(name) => String::new(),
-            "backdrop-blur" => crate::filters::backdrop_declaration(&css_value(setting, base)),
+            // Les filtres (ADR-108) sont composés plus bas, en un seul `filter` ; le flou de
+            // derrière va sur le `::backdrop` de la fenêtre.
+            name if crate::filters::is_filter(name) || name == crate::filters::BACKDROP => String::new(),
             name => format!("{name}:{};", css_value(setting, base)),
         };
         let filters = |state: Option<&[crate::holo::Setting]>| crate::filters::declaration(&rule.settings, state, &|s| css_value(s, base));
@@ -964,8 +964,9 @@ fn css(program: &Program, base: &str) -> String {
         }
         output.push('}');
         // Derrière une fenêtre (ADR-108), le flou vaut pour toute la page : son `::backdrop`.
-        if let Some(behind) = rule.settings.iter().find(|s| s.name == "backdrop-blur") {
-            output.push_str(&format!("{selector}::backdrop{{{}}}", crate::filters::backdrop_declaration(&css_value(behind, base))));
+        if let Some(behind) = rule.settings.iter().find(|s| s.name == crate::filters::BACKDROP) {
+            let backdrop = selector.split(',').map(|s| format!("{s}::backdrop")).collect::<Vec<_>>().join(",");
+            output.push_str(&format!("{backdrop}{{{}}}", crate::filters::backdrop_declaration(&css_value(behind, base))));
         }
         // Les états (ADR-036). Le survol n'existe qu'avec une souris : sur un écran tactile, il
         // resterait collé après un toucher. Le focus est celui du clavier. Le thème sombre suit
@@ -989,6 +990,11 @@ fn css(program: &Program, base: &str) -> String {
                 _ => format!("{}:active{{{body}}}", selector.split(',').collect::<Vec<_>>().join(":active,")),
             };
             output.push_str(&rule_state);
+        }
+        // Au clavier (ADR-108), un bloc filtré qui a le focus se montre sans filtre : son cadre
+        // de focus reste net. Écrit après les états, il passe avant le survol et l'appui.
+        if crate::filters::filtered(rule) {
+            output.push_str(&format!("{}:focus-visible{{filter:none}}", selector.split(',').collect::<Vec<_>>().join(":focus-visible,")));
         }
     }
     output
@@ -1016,7 +1022,7 @@ fn css_value(setting: &crate::holo::Setting, base: &str) -> String {
     }
     // Une durée de passage : elle vaut pour tout ce qui change d'allure.
     if setting.name == "transition" && value != "none" {
-        return ["background", "color", "border-color", "opacity", "box-shadow", "scale", "rotate", "letter-spacing", "filter", "backdrop-filter"].iter().map(|p| format!("{p} {value}")).collect::<Vec<_>>().join(",");
+        return ["background", "color", "border-color", "opacity", "box-shadow", "scale", "rotate", "letter-spacing", "filter"].iter().map(|p| format!("{p} {value}")).collect::<Vec<_>>().join(",");
     }
     // Une taille écrite en pixels suit le réglage « texte plus grand » du visiteur, comme le texte
     // (ADR-061) : 16px = 1rem. Les traits, les ombres et l'écart entre les lettres restent en pixels.
@@ -2861,24 +2867,25 @@ H1 { colour: red; }").split(" : ").next(), Some("ligne 2, colonne 6"));
     #[test]
     fn the_filters_reach_the_browser() {
         // ADR-108 : un seul `filter`, dans l'ordre ; un état qui en change un garde les autres ;
-        // le flou de derrière avec son préfixe, et sur le `::backdrop` d'une fenêtre.
-        let source = "Page(children: [ Image.photo(source: \"a.png\", alt: \"\"), Column.verre(children: [ P(\"x\") ]), Dialog(name: D, children: [ P(\"y\") ]) ])\n\
-            .photo { blur: 3px; grayscale: 1; hue: 30deg; hover: { grayscale: 0; } active: { color: red; } }\n\
-            .verre { backdrop-blur: 8px; background: #10102080; transition: 0.3s; }\n\
-            Dialog { backdrop-blur: 6px; }\n\
+        // au focus du clavier, sans filtre ; le flou de derrière, avec son préfixe, sur le
+        // `::backdrop` de la fenêtre seulement.
+        let source = "Page(children: [ Image.photo(source: \"a.png\", alt: \"\"), Shape.cible(name: Cible, form: circle), Dialog(name: D, children: [ P(\"y\") ]) ])\n\
+            .photo { blur: 3px; grayscale: 1; hue: 30deg; hover: { grayscale: 0; } active: { opacity: 0.8; } }\n\
+            .cible { saturate: 0.5; transition: 0.3s; }\n\
+            Dialog { backdrop-blur: 6px; background: navy; color: white; }\n\
             Image { brightness: 0.6; contrast: 1.2; saturate: 1.8; }";
         let html = crate::flat_view(source, "/ex/").unwrap();
         for expected in [
             ".holo-s-photo{filter:grayscale(1) hue-rotate(30deg) blur(3px);transition:background .15s,color .15s,border-color .15s,opacity .15s,box-shadow .15s,scale .15s,rotate .15s,filter .15s;}",
             "@media (hover:hover){.holo-s-photo:hover{filter:grayscale(0) hue-rotate(30deg) blur(3px);}}",
-            ".holo-s-photo:active{color:red;}",
-            ".holo-Image{filter:saturate(1.8) brightness(0.6) contrast(1.2);}",
-            ".holo-s-verre{-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);background:#10102080;transition:background 0.3s,color 0.3s,border-color 0.3s,opacity 0.3s,box-shadow 0.3s,scale 0.3s,rotate 0.3s,letter-spacing 0.3s,filter 0.3s,backdrop-filter 0.3s;}",
-            ".holo-Dialog{-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);}.holo-Dialog::backdrop{-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);}",
+            ".holo-s-photo:active{opacity:0.8;}.holo-s-photo:focus-visible{filter:none}",
+            ".holo-Image{filter:saturate(1.8) brightness(0.6) contrast(1.2);}.holo-Image:focus-visible{filter:none}",
+            ".holo-s-cible{transition:background 0.3s,color 0.3s,border-color 0.3s,opacity 0.3s,box-shadow 0.3s,scale 0.3s,rotate 0.3s,letter-spacing 0.3s,filter 0.3s;filter:saturate(0.5);}.holo-s-cible:focus-visible{filter:none}",
+            ".holo-Dialog{background:navy;color:white;}.holo-Dialog::backdrop{-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);}",
         ] {
             assert!(html.contains(expected), "manque : {expected}\n{html}");
         }
-        assert!(!html.contains("grayscale:"), "{html}");
+        assert!(!html.contains("grayscale:") && !html.contains(".holo-Dialog:focus-visible"), "{html}");
     }
 
     #[test]

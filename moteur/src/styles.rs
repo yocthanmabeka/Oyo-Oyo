@@ -94,7 +94,7 @@ const SETTINGS: &[(&str, Shape)] = &[
     ("contrast", Shape::Number(0.2, 3.0)),
     ("hue", Shape::Angle),
     ("blur", Shape::Pixels(0.0, 100.0)),
-    // Ce qui est derrière le bloc devient flou ; toute la page derrière une fenêtre (ADR-108).
+    // Sur une fenêtre, la page derrière elle devient floue (ADR-108).
     ("backdrop-blur", Shape::Pixels(0.0, 100.0)),
 ];
 
@@ -220,9 +220,6 @@ fn check_contrast(rule: &crate::holo::StyleRule, variables: &[(String, String)])
         let mut local_rules: Vec<(String, String)> = settings.iter().filter(|r| r.name.starts_with("--")).map(|r| (r.name.clone(), r.value.clone())).collect();
         local_rules.extend(variables.iter().cloned());
         let (Some(t), Some(f)) = (rgb(&text, &local_rules), rgb(&background, &local_rules)) else { continue };
-        // Les filtres du style (ADR-108) changent les deux couleurs comme le fait le navigateur.
-        let [t, f] = crate::filters::seen(&settings, [t, f]);
-        let filtered = crate::filters::applied(&settings);
         let size = value(&settings, "font-size").and_then(|v| v.strip_suffix("px").and_then(|n| n.trim().parse::<f64>().ok())).unwrap_or(16.0);
         let bold = value(&settings, "font-weight").is_some_and(|v| v == "bold");
         let big = size >= 24.0 || (bold && size >= 19.0);
@@ -233,7 +230,7 @@ fn check_contrast(rule: &crate::holo::StyleRule, variables: &[(String, String)])
             let written = |x: f64| format!("{:.1}", (x * 10.0).floor() / 10.0).replace('.', ",");
             return Err(Error {
                 message: format!(
-                    "« {} »{or_} : le texte « {text} » sur le fond « {background} »{filtered} a un contraste de {} pour 1 ; il faut {} pour 1 au moins pour qu'il soit lu par tous (WCAG) : fonce le fond ou éclaircis le texte, ou l'inverse",
+                    "« {} »{or_} : le texte « {text} » sur le fond « {background} » a un contraste de {} pour 1 ; il faut {} pour 1 au moins pour qu'il soit lu par tous (WCAG) : fonce le fond ou éclaircis le texte, ou l'inverse",
                     rule.target,
                     written(seen),
                     if big { "3" } else { "4,5" }
@@ -274,9 +271,9 @@ pub fn check_styles(program: &Program) -> Result<(), Error> {
         }
         check_contrast(rule, &variables)?;
         check_parity(rule, program)?;
-        // Les filtres (ADR-108) : un flou jamais sur un texte, un flou de derrière jamais sur un fond opaque.
-        crate::filters::check_blur(rule, program)?;
-        crate::filters::check_backdrop(rule)?;
+        // Les filtres (ADR-108) : sur une image, une forme ou un dessin, jamais sur un texte ; le
+        // flou de derrière, sur une fenêtre.
+        crate::filters::check(rule, program)?;
         // Les états (hover, focus, active, dark, phone) : chacun une fois, avec des réglages connus.
         for (k, (state, settings, pos)) in rule.states.iter().enumerate() {
             if rule.states[..k].iter().any(|(other, ..)| other == state) {
@@ -420,7 +417,7 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
         return refusal("« filter » s'écrit réglage par réglage : « grayscale: 1 », « saturate: 1.5 », « brightness: 0.8 », « contrast: 1.2 », « hue: 30deg », « blur: 4px » ; le moteur les compose, et un état en change un sans effacer les autres (ADR-108)".into());
     }
     if name == "backdrop-filter" {
-        return refusal("« backdrop-filter » s'écrit « backdrop-blur: 8px » : ce qui est derrière le bloc devient flou (ADR-108)".into());
+        return refusal("« backdrop-filter » s'écrit « backdrop-blur: 8px », sur une fenêtre : la page, derrière elle, devient floue (ADR-108)".into());
     }
     let Some((_, shape)) = SETTINGS.iter().find(|(known, _)| *known == name) else {
         let known_ones: Vec<&str> = SETTINGS.iter().map(|(n, _)| *n).collect();
@@ -481,7 +478,7 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
         Shape::Number(min, max) if name == "brightness" => format!("un nombre de {min} à {max} : 1 ne change rien, moins assombrit, plus éclaircit, comme « 0.6 »"),
         Shape::Number(min, max) if name == "contrast" => format!("un nombre de {min} à {max} : 1 ne change rien, moins aplatit, plus accentue, comme « 1.2 »"),
         Shape::Angle if name == "hue" => "un angle de -360deg à 360deg : les couleurs tournent sur le cercle des teintes, comme « 30deg »".to_string(),
-        Shape::Pixels(min, max) if name == "backdrop-blur" => format!("un flou en pixels, de {min} à {max}px, comme « 8px » : ce qui est derrière le bloc devient flou"),
+        Shape::Pixels(min, max) if name == "backdrop-blur" => format!("un flou en pixels, de {min} à {max}px, comme « 8px » : la page, derrière la fenêtre, devient floue"),
         Shape::Pixels(min, max) => format!("un flou en pixels, de {min} à {max}px, comme « 4px »"),
         Shape::Color => "une couleur, comme « gray » ou « #E9B44C »".to_string(),
         Shape::Size if name == "height" => "une taille, comme « 16px » ou « 50% », ou « screen » : tout l'écran".to_string(),
@@ -847,15 +844,10 @@ mod tests {
         assert!(refused("Image { blur: 101px; }").contains("de 0 à 100px"));
         assert!(refused("Image { blur: -1px; }").contains("un flou en pixels"));
         assert!(refused("Image { blur: 10%; }").contains("un flou en pixels"));
-        assert!(refused("Dialog { backdrop-blur: 200px; }").contains("ce qui est derrière le bloc devient flou"));
-        // Le contraste est mesuré filtre compris (ADR-055) : assombri, le texte ne se lit plus ;
-        // en gris, il se lit encore (le gris garde la luminosité).
-        let text = |styles: &str| check(&format!("Page(children: [ Text.tag(\"x\") ])\n.tag {{ color: white; background: #2d6a4f; {styles} }}"));
-        assert!(text("brightness: 0.8;").is_ok());
-        let error = text("brightness: 0.4;").unwrap_err();
-        assert!(error.message.contains("une fois « brightness: 0.4 » appliqué a un contraste de 2,6 pour 1"), "{error}");
-        assert!(text("grayscale: 1;").is_ok());
-        assert!(text("hover: { contrast: 0.3; }").unwrap_err().message.contains("dans l'état « hover »"));
+        assert!(refused("Dialog { backdrop-blur: 200px; }").contains("la page, derrière la fenêtre, devient floue"));
+        // Un texte n'est jamais filtré : ni assombri, ni flou (le contraste resterait faux, ADR-055).
+        assert!(refused("P { brightness: 0.4; }").contains("un filtre se pose sur une image, une forme ou un dessin"));
+        assert!(refused("P { hover: { blur: 2px; } }").contains("sur « P »"));
     }
 
     #[test]

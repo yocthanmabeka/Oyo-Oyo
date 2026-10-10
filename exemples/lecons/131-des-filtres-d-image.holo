@@ -1,24 +1,24 @@
 // Leçon 131 — Des filtres d'image
 //
 // Ce qu'on apprend :
-//   Dans un style, six réglages changent l'image d'un bloc, sans toucher à ce qu'il contient :
+//   Dans un style, six réglages changent l'image d'une photo, d'une forme ou d'un dessin :
 //     grayscale: 1;       tout gris (0 : les couleurs)
 //     saturate: 1.8;      des couleurs plus vives (0 : gris ; 1 : rien ne change ; jusqu'à 3)
 //     brightness: 0.6;    plus sombre (1 : rien ne change ; plus : plus clair ; de 0.2 à 3)
 //     contrast: 1.2;      plus contrasté (1 : rien ne change ; de 0.2 à 3)
 //     hue: 30deg;         les couleurs tournent sur le cercle des teintes, comme dans Enter
-//     blur: 3px;          flou, de 0 à 100px : seulement sur une image, une forme, une vidéo
-//                         ou un dessin ; un texte flou ne se lit pas
-//   backdrop-blur: 6px;   ce qui est derrière le bloc devient flou ; sur une fenêtre (Dialog),
-//                         toute la page derrière elle.
+//     blur: 3px;          flou, de 0 à 100px
 //   Chaque réglage est à part : hover: { grayscale: 0; } rend les couleurs et garde le reste.
-//   Le moteur vérifie toujours le contraste d'un texte sur son fond, filtre compris.
+//   backdrop-blur: 6px;   sur une fenêtre (Dialog) : la page, derrière elle, devient floue.
+//   Un filtre ne touche jamais un texte, qui se lirait mal, ni une vidéo (ses commandes, ses
+//   sous-titres) : les couleurs d'un texte se changent par color et background.
+//   Au clavier, une forme filtrée qu'on touche se montre sans filtre quand elle a le focus :
+//   son cadre de focus reste net.
 //
 // À essayer :
 //   Passe la souris sur la première image (au doigt : garde-le dessus) : elle reprend ses
 //   couleurs. Touche « Ouvrir la fenêtre » : la page, derrière, devient floue.
-//   Écris brightness: 0.4 dans .etiquette : le moteur refuse, le texte ne se lirait plus
-//   (2,6 pour 1, il faut 4,5).
+//   Écris blur: 3px; dans le style de H1 : le moteur refuse, un texte flou ne se lit pas.
 //
 // (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
 
@@ -33,11 +33,11 @@ Page(
       Image.vive(source: "paysage.svg", alt: "Le lac au matin, aux couleurs plus vives"),
       Image.floue(source: "paysage.svg", alt: "Le lac au matin, flou"),
     ]),
+    P("Assombrie, une photo laisse lire le titre posé sur elle :"),
     Stack(children: [
       Image.fond(source: "paysage.svg", alt: ""),
       H2.bandeau("Le lac, au matin"),
     ]),
-    Text.etiquette("Ouvert tous les jours, de 9 h à 18 h"),
     Button(name: Ouvrir, text: "Ouvrir la fenêtre"),
     Dialog(name: Fenetre, children: [
       H2("Une fenêtre"),
@@ -67,5 +67,4 @@ Image { width: 140px; border-radius: 8px; }
 .floue { blur: 3px; }
 .fond { width: 100%; brightness: 0.5; }
 .bandeau { font-size: 24px; text-shadow: 0 2px 8px #000000AA; }
-.etiquette { color: white; background: #2d6a4f; brightness: 0.8; padding: 4px 12px; border-radius: 999px; }
 Dialog { backdrop-blur: 6px; background: #1a1a2e; color: white; }

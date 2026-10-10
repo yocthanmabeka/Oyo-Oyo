@@ -1,12 +1,13 @@
 //! Les filtres d'image dans les styles (ADR-108) : `grayscale`, `saturate`, `brightness`,
 //! `contrast`, `hue` et `blur`, un réglage par effet, que le moteur compose en un seul `filter`
 //! CSS, toujours dans le même ordre ; dans un état, un réglage change sans effacer les autres,
-//! là où la liste `filter` du CSS s'efface entière. Et `backdrop-blur` : ce qui est derrière le
-//! bloc devient flou, toute la page derrière une fenêtre.
+//! là où la liste `filter` du CSS s'efface entière. Et `backdrop-blur` sur une fenêtre : la page,
+//! derrière elle, devient floue.
 //!
-//! Le contraste d'un texte sur son fond reste mesuré, filtre compris (ADR-055) : les mêmes
-//! matrices que le navigateur, appliquées aux deux couleurs. Et le flou ne se pose jamais sur un
-//! texte, qui ne se lirait plus.
+//! Un filtre ne touche jamais un texte : il se pose sur une image, une forme ou un dessin, qui
+//! n'en portent pas ; ni sur une vidéo, dont les commandes et les sous-titres seraient filtrés
+//! avec elle. Au clavier, un bloc filtré qui a le focus se montre sans filtre, pour que son cadre
+//! de focus reste net : vu dans Chrome, un flou le brouille et une luminosité basse l'efface presque.
 
 use crate::holo::{Error, Program, Setting, StyleRule, Target};
 
@@ -21,15 +22,20 @@ pub const FILTERS: &[(&str, &str)] = &[
     ("blur", "blur"),
 ];
 
-/// Le flou de ce qui est derrière le bloc.
+/// Le flou de la page derrière une fenêtre.
 pub const BACKDROP: &str = "backdrop-blur";
 
-/// Les blocs sur lesquels un flou se pose : ils ne portent pas de texte.
-const BLURRABLE: &[&str] = &["Image", "Shape", "Video", "Drawing"];
+/// Les blocs sur lesquels un filtre se pose : ils ne portent ni texte ni commande.
+pub const PICTURES: &[&str] = &["Image", "Shape", "Drawing"];
 
 /// Un réglage de filtre ?
 pub fn is_filter(name: &str) -> bool {
     FILTERS.iter().any(|(known, _)| *known == name)
+}
+
+/// Le style filtre-t-il son bloc, dans ses réglages ou dans l'un de ses états ?
+pub fn filtered(rule: &StyleRule) -> bool {
+    rule.settings.iter().chain(rule.states.iter().flat_map(|(_, settings, _)| settings.iter())).any(|s| is_filter(&s.name))
 }
 
 /// La déclaration `filter:…;` d'un style, ou de l'un de ses états (`state`), dont les réglages
@@ -59,127 +65,45 @@ pub fn backdrop_declaration(value: &str) -> String {
     format!("-webkit-backdrop-filter:blur({value});backdrop-filter:blur({value});")
 }
 
-/// Les filtres d'un style ou d'un état qui changent les couleurs, écrits pour un message :
-/// « , une fois « brightness: 0.4 » appliqué » ; vide s'il n'y en a pas.
-pub fn applied(settings: &[Setting]) -> String {
-    let written: Vec<String> = FILTERS.iter().filter(|(name, _)| *name != "blur").filter_map(|(name, _)| settings.iter().find(|s| s.name == *name)).map(|s| format!("« {}: {} »", s.name, s.value)).collect();
-    if written.is_empty() {
-        String::new()
-    } else {
-        format!(", une fois {} appliqué", written.join(" et "))
+/// Les filtres se posent sur une image, une forme ou un dessin, jamais au focus ; le flou de
+/// derrière, sur une fenêtre, dans son style lui-même.
+pub fn check(rule: &StyleRule, program: &Program) -> Result<(), Error> {
+    for (state, settings, _) in &rule.states {
+        if let Some(setting) = settings.iter().find(|s| is_filter(&s.name) || s.name == BACKDROP) {
+            if setting.name == BACKDROP {
+                return Err(Error {
+                    message: format!("« backdrop-blur » dans l'état « {state} » de « {} » : il s'écrit dans le style de la fenêtre lui-même, « Dialog {{ backdrop-blur: 6px; }} » (ADR-108)", rule.target),
+                    pos: setting.pos,
+                });
+            }
+            if state == "focus" {
+                return Err(Error {
+                    message: format!(
+                        "« {} » dans l'état « focus » de « {} » : au clavier, le moteur montre déjà le bloc sans filtre quand il a le focus, pour que son cadre de focus se voie net (ADR-108)",
+                        setting.name, rule.target
+                    ),
+                    pos: setting.pos,
+                });
+            }
+        }
     }
-}
-
-/// Les couleurs d'un texte et de son fond (rouge, vert, bleu, de 0 à 255), telles que le
-/// navigateur les montre une fois les filtres du style appliqués : les matrices des fonctions
-/// de `filter`, dans l'espace sRGB, chacune bornée à sa sortie. Le flou ne change pas une couleur.
-pub fn seen(settings: &[Setting], colors: [[f64; 3]; 2]) -> [[f64; 3]; 2] {
-    let number = |name: &str| settings.iter().find(|s| s.name == name).and_then(|s| s.value.trim_end_matches("deg").parse::<f64>().ok());
-    let clamp = |c: [f64; 3]| c.map(|v| v.clamp(0.0, 1.0));
-    colors.map(|color| {
-        let mut c = color.map(|v| v / 255.0);
-        if let Some(amount) = number("grayscale") {
-            c = clamp(multiply(grayscale(amount), c));
-        }
-        if let Some(s) = number("saturate") {
-            c = clamp(multiply(saturate(s), c));
-        }
-        if let Some(b) = number("brightness") {
-            c = clamp(c.map(|v| v * b));
-        }
-        if let Some(k) = number("contrast") {
-            c = clamp(c.map(|v| (v - 0.5) * k + 0.5));
-        }
-        if let Some(angle) = number("hue") {
-            c = clamp(multiply(hue_rotate(angle), c));
-        }
-        c.map(|v| v * 255.0)
-    })
-}
-
-fn multiply(m: [[f64; 3]; 3], c: [f64; 3]) -> [f64; 3] {
-    m.map(|row| row[0] * c[0] + row[1] * c[1] + row[2] * c[2])
-}
-
-/// La matrice de `grayscale(a)` du standard Filter Effects.
-fn grayscale(a: f64) -> [[f64; 3]; 3] {
-    let r = 1.0 - a;
-    [
-        [0.2126 + 0.7874 * r, 0.7152 - 0.7152 * r, 0.0722 - 0.0722 * r],
-        [0.2126 - 0.2126 * r, 0.7152 + 0.2848 * r, 0.0722 - 0.0722 * r],
-        [0.2126 - 0.2126 * r, 0.7152 - 0.7152 * r, 0.0722 + 0.9278 * r],
-    ]
-}
-
-/// La matrice de `saturate(s)`.
-fn saturate(s: f64) -> [[f64; 3]; 3] {
-    [
-        [0.213 + 0.787 * s, 0.715 - 0.715 * s, 0.072 - 0.072 * s],
-        [0.213 - 0.213 * s, 0.715 + 0.285 * s, 0.072 - 0.072 * s],
-        [0.213 - 0.213 * s, 0.715 - 0.715 * s, 0.072 + 0.928 * s],
-    ]
-}
-
-/// La matrice de `hue-rotate(angle)`, l'angle en degrés.
-fn hue_rotate(angle: f64) -> [[f64; 3]; 3] {
-    let (sin, cos) = angle.to_radians().sin_cos();
-    [
-        [0.213 + cos * 0.787 - sin * 0.213, 0.715 - cos * 0.715 - sin * 0.715, 0.072 - cos * 0.072 + sin * 0.928],
-        [0.213 - cos * 0.213 + sin * 0.143, 0.715 + cos * 0.285 + sin * 0.140, 0.072 - cos * 0.072 - sin * 0.283],
-        [0.213 - cos * 0.213 - sin * 0.787, 0.715 - cos * 0.715 + sin * 0.715, 0.072 + cos * 0.928 + sin * 0.072],
-    ]
-}
-
-/// Le flou se pose sur une image, une forme, une vidéo ou un dessin : jamais sur un bloc qui
-/// porte un texte, qui ne se lirait plus, ni sur un composant.
-pub fn check_blur(rule: &StyleRule, program: &Program) -> Result<(), Error> {
-    let Some(blur) = rule.settings.iter().chain(rule.states.iter().flat_map(|(_, settings, _)| settings.iter())).find(|s| s.name == "blur") else { return Ok(()) };
-    let offender: Option<String> = match &rule.target {
-        Target::Type(t) if BLURRABLE.contains(&t.as_str()) => None,
-        Target::Type(t) => Some(t.clone()),
-        Target::Name(n) => {
-            let mut found = None;
-            let _ = crate::rules::for_each_block(&program.root, &mut |block| {
-                if found.is_none() && block.styles.iter().any(|s| s == n) && !BLURRABLE.contains(&block.name.as_str()) {
-                    found = Some(block.name.clone());
-                }
-                Ok(())
-            });
-            found
-        }
-    };
-    match offender {
-        None => Ok(()),
-        Some(what) => Err(Error {
+    let filter = rule.settings.iter().chain(rule.states.iter().flat_map(|(_, settings, _)| settings.iter())).find(|s| is_filter(&s.name));
+    if let (Some(filter), Some(what)) = (filter, filter.and_then(|_| outside(rule, program, PICTURES))) {
+        let touched = if what == "Video" { "ses commandes et ses sous-titres, qui se verraient mal" } else { "les textes et les boutons qu'il porte, qui se liraient mal" };
+        return Err(Error {
             message: format!(
-                "« blur » dans « {} » : un texte flou ne se lit pas ; le flou se pose sur une image, une forme, une vidéo ou un dessin (« Image.photo {{ blur: 4px; }} »), pas sur « {what} » ; pour estomper un bloc, « opacity » ; pour ce qui est derrière une fenêtre, « backdrop-blur » (ADR-108)",
-                rule.target
+                "« {} » dans « {} » : un filtre se pose sur une image, une forme ou un dessin (« Image.photo {{ grayscale: 1; }} ») ; sur « {what} », il toucherait aussi {touched} ; pour les couleurs d'un texte, « color » et « background » (ADR-108)",
+                filter.name, rule.target
             ),
-            pos: blur.pos,
-        }),
+            pos: filter.pos,
+        });
     }
-}
-
-/// Un flou de derrière ne se voit qu'à travers un fond à demi transparent : avec un fond opaque
-/// dans le même style, il est refusé. Une fenêtre (`Dialog`) fait exception : son flou vaut pour
-/// toute la page derrière elle.
-pub fn check_backdrop(rule: &StyleRule) -> Result<(), Error> {
-    if matches!(&rule.target, Target::Type(t) if t == "Dialog") {
-        return Ok(());
-    }
-    let mut mixes: Vec<Vec<&Setting>> = vec![rule.settings.iter().collect()];
-    for (_, settings, _) in &rule.states {
-        let mut mix: Vec<&Setting> = rule.settings.iter().filter(|r| !settings.iter().any(|s| s.name == r.name)).collect();
-        mix.extend(settings.iter());
-        mixes.push(mix);
-    }
-    for mix in mixes {
-        let (Some(behind), Some(background)) = (mix.iter().find(|s| s.name == BACKDROP), mix.iter().find(|s| s.name == "background")) else { continue };
-        if opaque(&background.value) {
+    if let Some(behind) = rule.settings.iter().find(|s| s.name == BACKDROP) {
+        if let Some(what) = outside(rule, program, &["Dialog"]) {
             return Err(Error {
                 message: format!(
-                    "« backdrop-blur » dans « {} » : avec le fond opaque « {} », rien ne se verrait derrière ; écris un fond à demi transparent, comme « #10102080 », ou pose le flou de derrière sur une fenêtre, « Dialog {{ backdrop-blur: 6px; }} » (ADR-108)",
-                    rule.target, background.value
+                    "« backdrop-blur » dans « {} » : il floute la page derrière une fenêtre ouverte, et se pose sur une fenêtre, « Dialog {{ backdrop-blur: 6px; }} », pas sur « {what} » ; pour un fond qui laisse voir derrière lui, « background: #10102080 » (ADR-108)",
+                    rule.target
                 ),
                 pos: behind.pos,
             });
@@ -188,15 +112,21 @@ pub fn check_backdrop(rule: &StyleRule) -> Result<(), Error> {
     Ok(())
 }
 
-/// Une couleur pleine : nommée (hors `transparent`), `#abc`, `#aabbcc`, ou `#aabbccff`.
-fn opaque(value: &str) -> bool {
-    let value = value.trim();
-    if value == "transparent" || !crate::styles::is_color(value) {
-        return false;
-    }
-    match value.strip_prefix('#') {
-        Some(hex) if hex.len() == 8 => hex[6..].eq_ignore_ascii_case("ff"),
-        _ => true,
+/// Le premier type de bloc visé par le style qui n'est pas permis (`allowed`) : le type du style
+/// lui-même, ou celui d'un bloc qui porte son nom ; un composant n'est jamais permis.
+fn outside(rule: &StyleRule, program: &Program, allowed: &[&str]) -> Option<String> {
+    match &rule.target {
+        Target::Type(t) => (!allowed.contains(&t.as_str())).then(|| t.clone()),
+        Target::Name(n) => {
+            let mut found = None;
+            let _ = crate::rules::for_each_block(&program.root, &mut |block| {
+                if found.is_none() && block.styles.iter().any(|s| s == n) && !allowed.contains(&block.name.as_str()) {
+                    found = Some(block.name.clone());
+                }
+                Ok(())
+            });
+            found
+        }
     }
 }
 
@@ -220,43 +150,24 @@ mod tests {
         assert_eq!(declaration(&[setting("color", "red")], None, &plain), "");
         assert_eq!(declaration(&[setting("saturate", "1.8"), setting("brightness", "0.6"), setting("contrast", "1.2")], None, &plain), "filter:saturate(1.8) brightness(0.6) contrast(1.2);");
         assert_eq!(backdrop_declaration("6px"), "-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);");
-        assert_eq!(applied(&base), ", une fois « grayscale: 1 » et « hue: 30deg » appliqué");
-        assert_eq!(applied(&[setting("blur", "3px")]), "");
     }
 
     #[test]
-    fn the_colors_once_filtered() {
-        let white = [255.0, 255.0, 255.0];
-        let green = [45.0, 106.0, 79.0];
-        // Rien d'écrit : rien ne change.
-        assert_eq!(seen(&[], [white, green]), [white, green]);
-        // La luminosité assombrit les deux couleurs du même facteur.
-        let [w, g] = seen(&[setting("brightness", "0.4")], [white, green]);
-        assert_eq!(w.map(f64::round), [102.0, 102.0, 102.0]);
-        assert_eq!(g.map(f64::round), [18.0, 42.0, 32.0]);
-        // Tout gris : une seule valeur par couleur, et le blanc reste blanc.
-        let [w, g] = seen(&[setting("grayscale", "1")], [white, green]);
-        assert_eq!(w.map(f64::round), [255.0, 255.0, 255.0]);
-        assert!((g[0] - g[1]).abs() < 0.5 && (g[1] - g[2]).abs() < 0.5, "{g:?}");
-        // Le contraste écarte du gris moyen ; la teinte tourne les couleurs sans toucher au blanc.
-        let [w, _] = seen(&[setting("contrast", "1.5"), setting("hue", "90deg"), setting("saturate", "2")], [white, green]);
-        assert_eq!(w.map(f64::round), [255.0, 255.0, 255.0]);
-        let [_, g] = seen(&[setting("hue", "180deg")], [white, green]);
-        assert!(g[0] > g[1], "les couleurs ont tourné : {g:?}");
-    }
-
-    #[test]
-    fn a_blur_only_on_an_image_a_shape_a_video_a_drawing() {
+    fn a_filter_only_on_an_image_a_shape_a_drawing() {
         let check = |source: &str| crate::styles::check_styles(&crate::holo::read(source).unwrap());
-        assert!(check("Page(children: [ Image.photo(source: \"a.png\", alt: \"\"), Shape.rond(form: circle) ])\n.photo { blur: 4px; }\n.rond { opacity: 0.9; hover: { blur: 2px; } }\nImage { blur: 1px; }\nVideo { blur: 0; }\nDrawing { blur: 8px; }").is_ok());
+        assert!(check("Page(children: [ Image.photo(source: \"a.png\", alt: \"\"), Shape.rond(form: circle), Shape.cible(name: Cible, form: square) ])\n.photo { blur: 4px; }\n.rond { opacity: 0.9; hover: { blur: 2px; } }\n.cible { grayscale: 1; active: { grayscale: 0; } }\nImage { brightness: 0.8; }\nDrawing { blur: 8px; hue: 90deg; }").is_ok());
         let refused = |source: &str| check(source).unwrap_err().message;
-        assert!(refused("Page(children: [ P(\"x\") ])\nP { blur: 4px; }").contains("pas sur « P »"));
-        assert!(refused("Page(children: [ Column.flou(children: [ P(\"x\") ]) ])\n.flou { blur: 4px; }").contains("pas sur « Column »"));
-        assert!(refused("Page(children: [ Button.flou(name: B, text: \"x\") ])\n.flou { opacity: 0.9; hover: { blur: 4px; } }").contains("un texte flou ne se lit pas"));
-        // Le flou de derrière, lui, se pose partout : à travers un fond à demi transparent.
-        assert!(check("Page(children: [ Column.verre(children: [ P(\"x\") ]), Dialog(name: D, children: [ P(\"y\") ]) ])\n.verre { backdrop-blur: 8px; background: #10102080; }\nDialog { backdrop-blur: 6px; background: navy; color: white; }").is_ok());
-        assert!(refused("Page(children: [ Column.verre(children: [ P(\"x\") ]) ])\n.verre { backdrop-blur: 8px; background: #101020; }").contains("rien ne se verrait derrière"));
-        assert!(refused("Page(children: [ Column.verre(children: [ P(\"x\") ]) ])\n.verre { backdrop-blur: 8px; hover: { background: navy; } }").contains("fond opaque « navy »"));
-        assert!(!opaque("transparent") && !opaque("#10102080") && opaque("#101020ff") && opaque("gold") && !opaque("url(\"a.png\")"));
+        // Un texte, un bloc qui en contient, un composant, une vidéo : jamais.
+        assert!(refused("Page(children: [ P(\"x\") ])\nP { blur: 4px; }").contains("sur « P », il toucherait aussi les textes et les boutons qu'il porte"));
+        assert!(refused("Page(children: [ Text.tag(\"x\") ])\n.tag { color: white; background: #2d6a4f; brightness: 0.8; }").contains("pour les couleurs d'un texte, « color » et « background »"));
+        assert!(refused("Page(children: [ Column.carte(children: [ Image(source: \"a.png\", alt: \"\") ]) ])\n.carte { grayscale: 1; }").contains("sur « Column »"));
+        assert!(refused("Page(children: [ Image.photo(source: \"a.png\", alt: \"\"), Button.photo(name: B, text: \"x\") ])\n.photo { opacity: 0.9; hover: { saturate: 2; } }").contains("« saturate » dans « .photo »"));
+        assert!(refused("Page(children: [ Video(source: \"f.mp4\", label: \"x\") ])\nVideo { grayscale: 1; }").contains("ses commandes et ses sous-titres"));
+        // Au focus, le moteur montre le bloc sans filtre : un filtre écrit là est refusé.
+        assert!(refused("Page(children: [ Shape.cible(name: Cible, form: circle) ])\n.cible { focus: { brightness: 1.4; } }").contains("au clavier, le moteur montre déjà le bloc sans filtre"));
+        // Le flou de derrière : sur une fenêtre, dans son style lui-même.
+        assert!(check("Page(children: [ Dialog(name: D, children: [ P(\"y\") ]), Dialog.verre(name: E, children: [ P(\"z\") ]) ])\nDialog { backdrop-blur: 6px; background: navy; color: white; }\n.verre { backdrop-blur: 12px; }").is_ok());
+        assert!(refused("Page(children: [ Column.verre(children: [ P(\"x\") ]) ])\n.verre { backdrop-blur: 8px; background: #10102080; }").contains("se pose sur une fenêtre, « Dialog { backdrop-blur: 6px; } », pas sur « Column »"));
+        assert!(refused("Page(children: [ Dialog(name: D, children: [ P(\"y\") ]) ])\nDialog { phone: { backdrop-blur: 2px; } }").contains("dans l'état « phone »"));
     }
 }
