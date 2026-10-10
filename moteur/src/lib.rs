@@ -48,6 +48,8 @@ pub mod rules;
 pub mod repeat;
 // Réordonner les lignes d'une liste (ADR-105) : Repeat(over: tasks, reorder: true).
 pub mod reorder;
+// Où en est le visiteur dans la page, `scroll`, et un bloc qui reste à l'écran, `sticky:` (ADR-106).
+pub mod scroll;
 // Les filtres d'image dans les styles (ADR-108) : grayscale, blur, brightness… et backdrop-blur.
 pub mod filters;
 pub mod shared;
@@ -89,6 +91,8 @@ pub fn check(source: &str) -> Result<PointDecl, Error> {
     let program = holo::read(source)?;
     blocks::check_blocks(&program)?;
     styles::check_styles(&program)?;
+    // Un bloc qui reste à l'écran se pose dans une page, jamais dans un monde seul (ADR-106).
+    scroll::check(&program)?;
     universe::point_from(&program)
 }
 
@@ -103,6 +107,9 @@ pub fn check_page(source: &str) -> Result<Program, Error> {
     computed::check(&program)?;
     // Les listes qu'on réordonne (ADR-105) : seulement une liste à soi, déclarée dans State.
     reorder::check(&program)?;
+    // Un bloc qui reste à l'écran (ADR-106) : top ou bottom, posé directement dans la page ;
+    // avant les valeurs, qui refuseraient « sticky » sur un `If` sans dire pourquoi.
+    scroll::check(&program)?;
     state::check_state(&program)?;
     rules::check_rules(&program)?;
     view::settings(&program)?;
@@ -247,7 +254,7 @@ pub fn vocabulary() -> String {
             "bottomRight", "linear", "smooth", "out", "in", "back", "spring", "bounce", "forever", "grid", "row", "column", "diagonal", "date", "time", "color", "none", "uppercase",
             "lowercase", "capitalize", "underline", "line-through", "bold", "italic", "normal", "solid", "dashed", "dotted", "members", "everyone",
         ]),
-        list(&["count", "total", "year", "month", "day", "weekday", "hour", "minute", "account", "signedIn"]),
+        list(&["count", "total", "year", "month", "day", "weekday", "hour", "minute", "account", "signedIn", "scroll"]),
         list(format::FORMATS),
     )
 }
@@ -729,6 +736,26 @@ pub fn stopwatch_stopped(source: &str, state: &str, name: &str, milliseconds: u6
         numbers = state::received_number(&program, &numbers, &texts, value, milliseconds);
     }
     arbitrate(source, &write_all(&program, &numbers, &texts, &lists), &format!("{name}.stopped"))
+}
+
+/// La page lit-elle `scroll`, la place du visiteur dans la page (ADR-106) ? Le navigateur la lui
+/// donne alors quand il défile, au plus dix fois par seconde.
+pub fn reads_scroll(source: &str) -> bool {
+    check_page(source).is_ok_and(|program| scroll::reads(&program))
+}
+
+/// Le visiteur a défilé (ADR-106) : `value`, de 0 (en haut de la page) à 100 (tout en bas), va
+/// dans `scroll`, et les règles qui la guettent répondent (`When(scroll, over: 89, …)`). Rien
+/// d'autre ne change. L'état tel quel pour une page qui ne lit pas `scroll`.
+pub fn scrolled(source: &str, state: &str, value: u64) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    if !scroll::reads(&program) {
+        return state.to_string();
+    }
+    state::requested_capabilities();
+    let (numbers, texts, lists) = (state::reread(&program, state), state::reread_texts(&program, state), lists::reread(&program, state));
+    let numbers = state::received_number(&program, &numbers, &texts, scroll::NAME, value.min(100));
+    write_all(&program, &numbers, &texts, &lists)
 }
 
 /// Le titre de la page pour cet état, quand il lit des valeurs (ADR-090) : « Mon panier (3) ».

@@ -762,6 +762,10 @@ pub fn take_values(program: &Program, state: &State, texts: &Texts, json: &str) 
     let (before, texts_before) = (state.clone(), texts.clone());
     let (mut state, mut texts) = (state.clone(), texts.clone());
     for (key, datum) in read_data(json) {
+        // La place du visiteur dans la page ne vient que du navigateur (ADR-106), jamais de données.
+        if key == crate::scroll::NAME {
+            continue;
+        }
         let places = places(program, &key);
         // Une valeur qui peut être négative (ADR-102) reçoit un nombre avec ou sans signe, de sa
         // sorte (un nombre à virgule ne va pas dans un nombre entier), dans ses bornes.
@@ -1869,6 +1873,8 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                     (Some("required"), _) => {}
                     // Sa place dans une grille (ADR-104) : vérifiée avec la grille, dans grid.rs.
                     (Some(word), _) if crate::grid::CELL_PARAMS.contains(&word) => {}
+                    // Un bloc qui reste à l'écran (ADR-106) : vérifié dans scroll.rs.
+                    (Some("sticky"), _) => {}
                     (Some("value"), Value::Name(value)) if is_text(value) => {}
                     (Some("value"), Value::Name(value)) => {
                         return Err(Error { message: format!("« Choice(value: {value}) » : un choix présente un texte ; déclare-le ainsi : state: State({value}: \"\")"), pos: argument.pos })
@@ -1985,6 +1991,8 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                     (Some("grow"), _) => {}
                     // Sa place dans une grille (ADR-104) : vérifiée avec la grille, dans grid.rs.
                     (Some(word), _) if crate::grid::CELL_PARAMS.contains(&word) => {}
+                    // Un bloc qui reste à l'écran (ADR-106) : vérifié dans scroll.rs.
+                    (Some("sticky"), _) => {}
                     // Des suggestions (ADR-100) : vérifiées dans flat.rs, avec le datalist qu'elles donnent.
                     (Some("suggestions"), _) if block.name == "Input" => {}
                     (Some(word), _) if allowed.contains(&word) => return Err(Error { message: format!("« {}({word}: …) » est mal écrit : {example}", block.name), pos: argument.pos }),
@@ -2043,6 +2051,8 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                     (Some("max"), Value::Integer(max)) if (1..=VALUE_MAX).contains(max) => {}
                     // Sa place dans une grille (ADR-104) : vérifiée avec la grille, dans grid.rs.
                     (Some(word), _) if crate::grid::CELL_PARAMS.contains(&word) => {}
+                    // Un bloc qui reste à l'écran (ADR-106) : vérifié dans scroll.rs.
+                    (Some("sticky"), _) => {}
                     (Some(word @ ("min" | "max")), _) => return Err(Error { message: format!("« {}({word}: …) » attend un nombre entier, de 1 à {VALUE_MAX} pour max", block.name), pos: argument.pos }),
                     (Some(word), _) => return Err(Error { message: format!("« {}({word}: …) » est mal écrit : {example}", block.name), pos: argument.pos }),
                     (None, _) => return Err(Error { message: format!("chaque paramètre de « {} » est nommé : {example}", block.name), pos: argument.pos }),

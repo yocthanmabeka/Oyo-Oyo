@@ -119,6 +119,18 @@ pub fn stopwatch_stopped(source: &str, state: &str, name: &str, milliseconds: f6
     crate::stopwatch_stopped(source, state, name, milliseconds.max(0.0) as u64)
 }
 
+/// La page lit-elle `scroll`, la place du visiteur dans la page ? (ADR-106)
+#[wasm_bindgen]
+pub fn reads_scroll(source: &str) -> bool {
+    crate::reads_scroll(source)
+}
+
+/// Le visiteur a défilé : sa place, de 0 à 100, et le nouvel état (ADR-106).
+#[wasm_bindgen]
+pub fn scrolled(source: &str, state: &str, value: u32) -> String {
+    crate::scrolled(source, state, u64::from(value))
+}
+
 /// Le titre de la page pour cet état (ADR-090).
 #[wasm_bindgen]
 pub fn page_title(source: &str, state: &str) -> String {

@@ -428,6 +428,8 @@ fn place_copy(component: &Component, call: &Block, unnamed: &mut Vec<String>) ->
                 }
                 given_values.push((p, v));
             }
+            // Un bloc qui reste à l'écran (ADR-106) : le réglage va sur le bloc racine du composant.
+            ("sticky", _) => return Err(Error { message: format!("« {name}(sticky: …) » : écris « sticky » dans le composant, sur son bloc racine, Component(name: {name}, children: [ Header(sticky: top, children: [ … ]) ]) ; puis pose « {name} » directement dans la page"), pos: argument.pos }),
             (other, _) => {
                 let mut known_ones = component.params.clone();
                 known_ones.extend(component.emitted.iter().map(|e| wiring(e)));
