@@ -2032,6 +2032,42 @@ Page(
 
 La leçon est `130-partager-la-page.holo`.
 
+## 6 unquinquagies. Faire vibrer le téléphone : `Device(kind: vibration)`
+
+Une courte vibration dit « c'est fait » sans qu'on regarde l'écran : un bouton qui répond, une prise dans un jeu (`ADR-110`). Elle accompagne toujours un signe à l'écran.
+
+```holo
+Page(
+  title: "Catch the diamond",
+  state: State(jumps: 0, caught: 0, x: 10, y: 50, cx: 80, cy: 50),
+  children: [
+    Device(name: Tick, kind: vibration, for: 30ms, label: "A short buzz when you jump"),
+    Device(name: Buzz, kind: vibration, for: [100ms, 80ms, 100ms], label: "Two buzzes when you catch the diamond"),
+    Button(name: Jump, text: "Jump"),
+    P("Jumps: {jumps}. Caught: {caught}."),
+    Board(height: 220px, children: [
+      Shape(name: Target, form: diamond, color: "#FF4D6D", size: 48px, x: cx, y: cy),
+      Shape(name: Me, form: square, color: "#E9B44C", size: 48px, x: x, y: y),
+    ]),
+  ],
+  rules: [
+    On(Jump.tap, effect: [jumps.add(1), y.sub(20), Tick.play]),
+    On(Key.left, effect: x.sub(5)), On(Key.right, effect: x.add(5)),
+    When(Me, meets: Target, effect: [caught.add(1), cx.random(100), cy.random(100), Buzz.play]),
+  ],
+)
+```
+
+- **`Device(kind: vibration)`** : `Buzz.play` fait vibrer le téléphone, `Buzz.stop` arrête. Une vibration se joue comme un son (`Ding.play`), et partout où un son se joue : un toucher, une touche, une règle qui guette (`When`, une rencontre), une règle de temps (`Every`, `After`). Il n'y a pas de permission à demander.
+- **`for:`** dit combien de temps : une durée (`for: 30ms`), ou une liste qui alterne vibration et silence (`for: [100ms, 80ms, 100ms]` : vibre, se tait, vibre). 200 ms si rien n'est écrit. Dix durées au plus, une seconde en tout au plus : c'est un signal, pas une alarme.
+- **Jamais avant que le visiteur ait touché la page** : une page ne secoue pas un téléphone posé sur la table. Une vibration demandée avant est oubliée, sans rien dire.
+- **Jamais s'il demande moins de mouvement** (« Supprimer les animations » sur Android, « Réduire les animations » sur l'iPhone). La page cachée l'arrête aussi.
+- **Sur un iPhone ou un ordinateur**, rien ne vibre et rien ne casse : la page continue. La zone d'état du bloc dit « Ce navigateur ne fait pas vibrer. ».
+- **Elle n'est jamais le seul signe** : elle ne dit rien en retour (`On(Buzz.done, …)` est refusé). Ce qui compte se montre à l'écran, dans la règle qui la joue (`caught.add(1)`).
+- Refusés, avec la raison : `for:` sans unité, nul, trop long, ou sur une autre sorte d'appareil ; `Buzz.request` ; `play` sur une autre sorte ; `value:`.
+
+La leçon est `133-faire-vibrer-le-telephone.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo
@@ -2662,6 +2698,8 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Chercher, filtrer, trier ; une page d'une liste | `computed: [ Filter(…, offset:, limit:, total:) ]` | fait (`ADR-062`, `ADR-084`) |
 | Un fichier de ses valeurs, exporté puis importé | `Transfer(file:, values:)`, `export`, `import` | fait (`ADR-093`) |
 | L'appareil : la position, le presse-papiers, la caméra, le microphone | `Device(kind:)`, `request`, `write`, `stop` | fait (`ADR-094`) |
+| Partager la page : la feuille du téléphone, ou l'adresse copiée | `Device(kind: share)`, `request` | fait (`ADR-107`) |
+| Faire vibrer le téléphone, d'un toucher ou d'une règle de jeu | `Device(kind: vibration, for:)`, `play`, `stop` | fait (`ADR-110`) |
 | Une notification, un rappel | `Notification(title:, body:, after:)`, `show`, `stop` | fait (`ADR-095`) |
 | Une page lisible hors-ligne | `Offline(files:)`, `save`, `remove` | fait (`ADR-096`) |
 | Des termes et leurs définitions : une fiche technique, un glossaire | `List(children: [ Term("Poids", "2 kg") ])` | fait (`ADR-097`) |

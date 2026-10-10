@@ -678,6 +678,8 @@ mod tests {
             include_str!("../../exemples/lecons/130-partager-la-page.holo"),
             // Réordonner les lignes d'une liste (ADR-105).
             include_str!("../../exemples/lecons/128-reordonner-une-liste.holo"),
+            // Faire vibrer le téléphone, d'un toucher ou d'une règle de jeu (ADR-110).
+            include_str!("../../exemples/lecons/133-faire-vibrer-le-telephone.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();

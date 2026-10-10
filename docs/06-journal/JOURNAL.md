@@ -6,6 +6,25 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Faire vibrer le téléphone : `Device(kind: vibration)`
+
+- Fait (issue #239, la session du nuage ; `ADR-110`, ACCEPTÉ) :
+  - `Device(name: Buzz, kind: vibration, for: 200ms)` : `Buzz.play` fait vibrer, `Buzz.stop` arrête. Une vibration se joue comme un son : d'un toucher, d'une touche ou d'une règle de jeu (`When`, une rencontre, `Every`, `After`), sans permission.
+  - `for:` prend une durée, ou une liste qui alterne vibration et silence ; 200 ms si rien n'est écrit ; dix durées et une seconde en tout au plus.
+  - Jamais avant que le visiteur ait touché la page, ni sous le mouvement réduit. Là où le navigateur ne vibre pas (iPhone, ordinateur), rien ne casse, et la zone d'état le dit.
+  - Elle ne dit rien en retour (`On(Buzz.done, …)` est refusé) : le signe se montre à l'écran, dans la règle qui la joue.
+  - La leçon 133 ; le guide (chapitre « 6 unquinquagies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+  - Empilée sur la #236 (le partage, PR 256), fusionnée avant elle ; `main` fusionnée ensuite.
+- Exécuté :
+  - `cargo test --release --locked` et `cargo test` : 242 tests passent, dont les deux nouveaux (`a_vibration_plays_like_a_sound_and_says_nothing_back`, `a_vibration_is_short`) ; `holo check` accepte la leçon 133.
+  - Dans Chrome, « faire vibrer le téléphone … (leçon 133) » passe : rien avant le toucher, puis `[200]` au toucher et `[100,80,100]` à la rencontre ; sous le mouvement réduit émulé, rien ne vibre et la zone d'état le dit ; sans `navigator.vibrate`, aucune erreur ; axe-core : zéro défaut.
+  - L'essai sait échouer : sans l'appel `navigator.vibrate(spec.pattern)` de `capabilities.js`, il rate (aucune vibration après le toucher) ; l'appel remis, il passe.
+  - La suite entière (`CI=1`, axe-core 4.10.3) : 82 essais sur 85 passent ; les 3 ratés sont ceux du conteneur (« pincer à deux doigts », « la vue points se lit au lecteur d'écran », la vidéo H.264 des parcours 8 et 9).
+- Erreurs en route : la limite de séance a arrêté l'agent deux fois, et le conteneur a redémarré. La fusion de `main` faite par la session du PC dans la branche de la #236 avait coupé un exemple du guide ; réparé (58c2b2d) avant de fusionner la #236 ici.
+- Reste : essayer sur un vrai téléphone Android ; l'iPhone ne vibre pas (Safari n'a pas `navigator.vibrate`).
+
+---
+
 ## 2026-10-09 — Réordonner une liste : `Repeat(over:, reorder: true)`
 
 - Fait (issue #234, prise par un agent de la session du PC ; `ADR-105`, ACCEPTÉ : « tu le valides déjà, tu le fais déjà ») :
