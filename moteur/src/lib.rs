@@ -67,6 +67,10 @@ pub mod server;
 pub mod accounts;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod passkeys;
+// Les données d'un autre site, lues par holo serve, jamais par le navigateur du visiteur
+// (ADR-116) : les sites permis, les clés, le client HTTPS, ce qui est gardé. Sur le PC seulement.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod remote;
 
 use holo::{Error, Program, Value};
 use universe::PointDecl;
@@ -753,7 +757,50 @@ pub fn input(source: &str, state: &str, name: &str, written: &str) -> String {
 pub fn data(source: &str) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
     let name = state::data_name(&program).unwrap_or_default();
-    state::data_source(&program).ok().flatten().map(|(file, rhythm)| format!("{file}|{rhythm}|{name}")).unwrap_or_default()
+    state::data_source(&program)
+        .ok()
+        .flatten()
+        .map(|(file, rhythm)| {
+            // Un autre site (ADR-116) : le moteur de la page demande les données à son propre
+            // serveur, à sa propre adresse (`?remote-data`) ; il ne parle jamais à l'autre site.
+            let file = if state::is_remote(&file) { format!("?{}", state::REMOTE_DATA_QUERY) } else { file };
+            format!("{file}|{rhythm}|{name}")
+        })
+        .unwrap_or_default()
+}
+
+/// L'adresse de l'autre site dont la page montre les données, et leur rythme (ADR-116) : pour le
+/// serveur de l'auteur, seul à la lire. `None` pour les données d'un fichier, ou sans données.
+pub fn remote_source(source: &str) -> Option<(String, u64)> {
+    let program = check_page(source).ok()?;
+    state::data_source(&program).ok().flatten().filter(|(from, _)| state::is_remote(from))
+}
+
+/// Les données d'un autre site, réduites à ce que la page déclare (ADR-116) : ses valeurs, ses
+/// textes, ses listes et, dans une liste à champs, ses champs. Le reste de la réponse (un numéro
+/// de compte, l'adresse IP du serveur, ce que la page ne montre pas) reste sur le serveur : il ne
+/// part ni dans la page ni vers le navigateur. `None` si ce n'est pas un objet JSON que la page
+/// sait lire (comme `Data` d'un fichier : 64 Ko, trois niveaux).
+pub fn data_for_page(source: &str, json: &str) -> Option<String> {
+    let program = check_page(source).ok()?;
+    if !lists::is_json_object(json) {
+        return None;
+    }
+    let Some(lists::Json::Object(keys)) = lists::Json::read(json) else { return None };
+    let numbers = state::initial(&program).unwrap_or_default();
+    let texts = state::initial_texts(&program);
+    let declared = lists::initial(&program);
+    let mut kept = Vec::new();
+    for (key, value) in keys {
+        let scalar = matches!(value, lists::Json::Text(_) | lists::Json::Number(_) | lists::Json::Decimal(_) | lists::Json::Negative(_));
+        let named =numbers.iter().any(|(name, _)| *name == key) || texts.iter().any(|(name, _)| *name == key);
+        if named && scalar {
+            kept.push((key, value));
+        } else if let (true, lists::Json::Table(elements), Some(kind)) = (declared.iter().any(|(name, _)| *name == key), value, lists::kind(&program, &key)) {
+            kept.push((key.clone(), lists::Json::Table(elements.into_iter().take(lists::ELEMENTS_MAX).filter_map(|element| lists::for_list(element, &kind)).collect())));
+        }
+    }
+    Some(lists::Json::Object(kept).written())
 }
 
 /// Les données viennent d'arriver du serveur : l'arbitre les range et rend le nouvel état.
@@ -1009,6 +1056,31 @@ mod tests {
         assert!(plain.contains(r#"data-if="loading|is=1">"#) && !plain.contains("data-received") && plain.contains("Au départ"));
         let without = source.replace("data: Data(name: Shop, from: \"shop.json\"),", "").replace("rules: [ On(Shop.done, effect: loading.set(0)) ],", "");
         assert_eq!(flat_view_with_data(&without, "", json).unwrap(), flat_view(&without, "").unwrap());
+    }
+
+    #[test]
+    fn the_data_of_another_site_is_reduced_to_what_the_page_declares() {
+        // ADR-116 : le moteur de la page ne reçoit jamais l'adresse de l'autre site, et ne reçoit que
+        // ce que la page déclare ; il en fait le même état qu'avec la réponse entière.
+        let source = r#"Page(
+  state: State(temperature: 0.0, low: 0, sky: "", days: [ Item(name: "", max: 0) ], tags: ["x"]),
+  negative: [low],
+  data: Data(name: Meteo, from: "https://api.exemple.org/v1/now?city=Kinshasa", every: 600s),
+  children: [ P("{temperature} {sky}"), Repeat(over: days, children: [ Text("{item.name} {item.max}") ]) ],
+)"#;
+        assert_eq!(data(source), "?remote-data|600000|Meteo");
+        assert_eq!(remote_source(source), Some(("https://api.exemple.org/v1/now?city=Kinshasa".to_string(), 600_000)));
+        let json = r#"{"temperature": 24.5, "low": -4, "sky": "soleil", "account": "compte-42", "days": [{"name": "lundi", "max": 31, "secret": "x", "nothing": null}, "texte"], "tags": ["a", {"b": 1}], "clientIp": "203.0.113.5", "sky2": 3}"#;
+        let reduced = data_for_page(source, json).unwrap();
+        assert_eq!(reduced, r#"{"temperature":24.5,"low":-4,"sky":"soleil","days":[{"name":"lundi","max":31}],"tags":["a"]}"#);
+        let start = initial_state(source);
+        assert_eq!(receive(source, &start, json), receive(source, &start, &reduced));
+        assert!(receive(source, &start, &reduced).contains("low=-4"), "{}", receive(source, &start, &reduced));
+        assert_eq!(data_for_page(source, "[1, 2]"), None);
+        assert_eq!(data_for_page(source, "pas du json"), None);
+        // Un fichier à côté de la page : rien ne change.
+        let local = source.replace("https://api.exemple.org/v1/now?city=Kinshasa", "meteo.json");
+        assert_eq!((data(&local).as_str(), remote_source(&local)), ("meteo.json|600000|Meteo", None));
     }
 
     #[test]
