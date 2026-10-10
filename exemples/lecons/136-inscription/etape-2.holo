@@ -1,0 +1,34 @@
+// L'étape 2 de la leçon 136. Elle retient les mêmes valeurs que l'étape 1 (visit), et les
+// retrouve telles qu'on les a écrites là-bas, dans le même onglet. On peut encore changer
+// d'atelier ici : l'étape 1 suit. « Recommencer » remet tout à zéro, sur les deux pages.
+
+Page(
+  title: "Leçon 136 : étape 2",
+  state: State(prenom: "", personnes: 1, atelier: ""),
+  visit: [prenom, personnes, atelier],
+  children: [
+    H1("Une inscription en deux pages"),
+    P("Étape 2 sur 2 : vérifier."),
+    If(prenom, is: "", children: [
+      P("Tu n'as pas encore écrit ton prénom : reviens à l'étape 1."),
+    ], else: [
+      P("Bonjour {prenom}, vous serez {personnes}."),
+    ]),
+    If(atelier, is: "", children: [
+      P("Aucun atelier choisi."),
+    ], else: [
+      P("L'atelier : {atelier}."),
+    ]),
+    Choice(value: atelier, label: "Changer d'atelier", options: ["Aquarelle", "Poterie", "Gravure"]),
+    Button(name: Recommencer, text: "Recommencer"),
+
+    Hr(),
+    A("← Étape 1", to: "../136-se-souvenir-le-temps-d-une-visite.holo"),
+  ],
+  rules: [
+    On(Recommencer.tap, effect: [prenom.set(""), personnes.set(1), atelier.set("")]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

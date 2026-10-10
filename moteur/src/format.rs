@@ -30,6 +30,34 @@ pub fn decimal_places(name: &str) -> u32 {
     DECIMALS.with(|d| d.borrow().iter().find(|(known, _)| known == name).map_or(0, |(_, p)| *p))
 }
 
+thread_local! {
+    /// Les valeurs de la page en cours de fabrication qui peuvent descendre sous zéro (ADR-102).
+    static NEGATIVE: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+pub fn set_negative(names: Vec<String>) {
+    NEGATIVE.with(|n| *n.borrow_mut() = names);
+}
+
+/// Cette valeur de la page en cours peut-elle descendre sous zéro (`negative: [ … ]`) ?
+pub fn can_be_negative(name: &str) -> bool {
+    NEGATIVE.with(|n| n.borrow().iter().any(|known| known == name))
+}
+
+/// Le signe moins de la langue, celui du CLDR que suit `Intl.NumberFormat` : « − » (U+2212) en
+/// suédois, finnois, norvégien, estonien, lituanien, slovène, croate, basque, féroïen, romanche,
+/// same du Nord et suisse allemand ; « - » ailleurs, en français comme en anglais. En arabe, en
+/// hébreu, en ourdou et en persan, une marque de gauche à droite (U+200E) le garde devant le
+/// nombre au milieu d'une phrase écrite de droite à gauche.
+pub fn minus(language: &str) -> &'static str {
+    match language.split('-').next().unwrap_or("").to_ascii_lowercase().as_str() {
+        "sv" | "fi" | "nb" | "nn" | "no" | "et" | "lt" | "sl" | "hr" | "eu" | "fo" | "rm" | "se" | "gsw" => "\u{2212}",
+        "fa" => "\u{200E}\u{2212}",
+        "ar" | "he" | "ur" => "\u{200E}-",
+        _ => "-",
+    }
+}
+
 /// Les formats connus, pour les messages.
 pub const FORMATS: &[&str] = &["00", "number", "cents", "name", "stopwatch"];
 
@@ -68,6 +96,12 @@ fn grouper(value: u64, thousands: &str) -> String {
 
 /// Écrit `valeur` (la valeur `nom`) selon `format`, dans la langue de la page.
 pub fn format_value(name: &str, value: u64, format: &str, language: &str) -> String {
+    // Un nombre négatif (ADR-102), gardé en complément à deux : le signe moins de la langue, puis le
+    // nombre écrit comme sans son signe (« -1 234,50 », « -05 »). Jamais « -0 » : un nombre entier
+    // n'a pas de zéro négatif. Un jour, un mois, un temps de chronomètre ne sont jamais négatifs.
+    if (value as i64) < 0 && !matches!(format, "name" | "stopwatch") {
+        return format!("{}{}", minus(language), format_value(name, (value as i64).unsigned_abs().min(i64::MAX as u64), format, language));
+    }
     let (thousands, decimals) = separators(language);
     let english = language.starts_with("en");
     match format {

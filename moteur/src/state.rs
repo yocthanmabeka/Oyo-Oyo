@@ -110,6 +110,13 @@ pub fn condition(block: &Block) -> Result<(&str, Vec<(&str, Term<'_>)>), Error> 
                 let term = Term::Decimal { units: (number * scale(places) as f64).round() as u64, places };
                 comparisons.push((COMPARISONS[COMPARISONS.iter().position(|c| *c == word).unwrap_or(0)], term))
             }
+            // Un nombre négatif (ADR-102) : If(temperature, under: -10). Gardé avec son signe,
+            // comme un nombre à virgule ; la page vérifie que la valeur peut descendre sous zéro.
+            (Some(word), Value::Number { value: number, unit: None, places }) if COMPARISONS.contains(&word) && *number < 0.0 && u32::from(*places) <= PLACES_MAX => {
+                let places = u32::from(*places);
+                let units = (number * scale(places) as f64).round() as i64;
+                comparisons.push((COMPARISONS[COMPARISONS.iter().position(|c| *c == word).unwrap_or(0)], Term::Decimal { units: crate::negative::stored(units), places }))
+            }
             (Some(word), Value::Integer(number)) if COMPARISONS.contains(&word) => comparisons.push((COMPARISONS[COMPARISONS.iter().position(|c| *c == word).unwrap_or(0)], Term::Number(*number))),
             // Comparer à une autre valeur : If(score, over: best).
             (Some(word), Value::Name(other)) if COMPARISONS.contains(&word) && is_value_name(other) => {
@@ -175,18 +182,19 @@ pub fn holds(program: &Program, value: &str, comparisons: &[(&str, Term<'_>)], n
         });
     }
     // Un nombre : comparé exactement, les deux à la même échelle, même un entier à un nombre à
-    // virgule (ADR-066).
+    // virgule (ADR-066), et avec leur signe (ADR-102) : une valeur de l'état et un nombre écrit à
+    // virgule ou négatif se lisent signés ; un nombre entier écrit est toujours positif.
     let Some(number) = numbers.iter().find(|(known, _)| known == value).map(|(_, v)| *v) else { return false };
     let own = places(program, value);
     comparisons.iter().all(|(word, term)| {
         let (other, other_places) = match term {
-            Term::Number(n) => (*n, 0),
-            Term::Decimal { units, places } => (*units, *places),
-            Term::Value(name) => (numbers.iter().find(|(known, _)| known == name).map_or(0, |(_, v)| *v), places(program, name)),
+            Term::Number(n) => (i128::from(*n), 0),
+            Term::Decimal { units, places } => (i128::from(crate::negative::signed(*units)), *places),
+            Term::Value(name) => (i128::from(crate::negative::signed(numbers.iter().find(|(known, _)| known == name).map_or(0, |(_, v)| *v))), places(program, name)),
             Term::Text(_) => return false,
         };
         let common = own.max(other_places);
-        let (a, b) = (u128::from(number) * u128::from(scale(common - own)), u128::from(other) * u128::from(scale(common - other_places)));
+        let (a, b) = (i128::from(crate::negative::signed(number)) * i128::from(scale(common - own)), other * i128::from(scale(common - other_places)));
         match *word {
             "is" => a == b,
             "not" => a != b,
@@ -270,6 +278,10 @@ pub(crate) fn ceiling(program: &Program, name: &str) -> u64 {
                 ceiling = ceiling.min(100);
             }
         }
+        // Une valeur qui règle le volume d'un son (ADR-112) : de 0 (muet) à 100 (le plus fort).
+        if block.name == "Sound" && matches!(block.argument("volume").map(|a| &a.value), Some(Value::Name(value)) if value == name) {
+            ceiling = ceiling.min(100);
+        }
         Ok(())
     });
     ceiling
@@ -337,27 +349,14 @@ pub fn parse_decimal(text: &str, places: u32) -> Option<u64> {
 
 /// 1250 à 2 chiffres → « 12.50 », avec un point : la forme d'un champ de nombre.
 pub fn format_decimal(units: u64, places: u32) -> String {
+    // Un nombre négatif (ADR-102) : le signe, puis ses chiffres. « -12.50 », comme l'attend un champ.
+    if crate::negative::signed(units) < 0 {
+        return format!("-{}", format_decimal(crate::negative::signed(units).unsigned_abs().min(i64::MAX as u64), places));
+    }
     if places == 0 {
         return units.to_string();
     }
     format!("{}.{:0width$}", units / scale(places), units % scale(places), width = places as usize)
-}
-
-/// Une valeur d'une échelle à une autre : arrondie au plus proche quand on perd des chiffres.
-fn rescale(units: u64, from: u32, to: u32) -> u64 {
-    if from <= to {
-        units.saturating_mul(scale(to - from))
-    } else {
-        round_div(u128::from(units), u128::from(scale(from - to)))
-    }
-}
-
-/// a ÷ b, arrondi au plus proche, la moitié vers le haut.
-fn round_div(a: u128, b: u128) -> u64 {
-    if b == 0 {
-        return 0;
-    }
-    u64::try_from((a + b / 2) / b).unwrap_or(u64::MAX)
 }
 
 /// Le plus petit nombre qu'une glissière laisse choisir (ADR-042) ; 0 sinon.
@@ -391,6 +390,13 @@ pub fn input(program: &Program, state: &State, texts: &Texts, name: &str, writte
         found_one
     };
     let written = written.trim();
+    // Un nombre qui peut être négatif (ADR-102) : « -12 », « −3 », dans les bornes du champ.
+    if crate::negative::allowed(program, name) {
+        if let (true, Some(number), Some((_, place))) = (presented, crate::negative::typed(program, name, written), state.iter_mut().find(|(known, _)| known == name)) {
+            *place = number;
+        }
+        return suites(program, before, texts, state, texts);
+    }
     // Un nombre à virgule (ADR-066) : « 12,5 » ou « 12.5 », à l'échelle de la valeur.
     let places = places(program, name);
     let number = if written.is_empty() { Some(0) } else if places > 0 { parse_decimal(written, places) } else { written.parse::<u64>().ok() };
@@ -409,6 +415,13 @@ pub fn resume(program: &Program, kept: &str) -> State {
     let kept_values = kept_values(program).unwrap_or_default();
     for chunk in kept.split(';') {
         if let Some((name, value)) = chunk.split_once('=') {
+            // Une valeur qui peut être négative revient avec son signe (ADR-102).
+            if crate::negative::allowed(program, name) {
+                if let (true, Some((_, place)), Some(value)) = (kept_values.iter().any(|g| g == name), state.iter_mut().find(|(known, _)| known == name), crate::negative::reread(program, name, value)) {
+                    *place = value;
+                }
+                continue;
+            }
             if let (true, Some((_, place)), Ok(value)) = (kept_values.iter().any(|g| g == name), state.iter_mut().find(|(known, _)| known == name), value.parse::<u64>()) {
                 *place = value.min(VALUE_MAX);
             }
@@ -423,15 +436,108 @@ pub const DATA_MAX: u64 = 3_600_000;
 /// La taille d'un fichier de données, au plus.
 pub const DATA_BYTES: usize = 65_536;
 
-/// D'où viennent les données de la page : `data: Data(from: "stock.json", every: 30s)`.
-/// Rend le fichier, et le rythme en millisecondes (0 : une seule fois, à l'ouverture).
+/// Une adresse d'un autre site (ADR-116), au plus.
+pub const REMOTE_ADDRESS_MAX: usize = 2048;
+/// Un autre site se relit au plus une fois par minute (ADR-116) : `every: 60s` au moins.
+pub const REMOTE_EVERY_MIN: u64 = 60_000;
+/// Ce que le moteur de la page ajoute à sa propre adresse pour demander à son serveur les
+/// données d'un autre site (ADR-116) : `/meteo.holo?remote-data`. Jamais l'adresse de l'autre site.
+pub const REMOTE_DATA_QUERY: &str = "remote-data";
+
+/// Une adresse d'un autre site (ADR-116), telle que la page l'écrit : `https://`, le nom du site,
+/// puis, s'il y en a, le chemin et les paramètres. Le serveur de l'auteur la lit ; le navigateur
+/// du visiteur, jamais.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RemoteAddress {
+    /// Le nom du site, en minuscules : `api.open-meteo.com`.
+    pub host: String,
+    /// Le chemin et les paramètres, à partir de `/` : `/v1/forecast?latitude=-4.3`.
+    pub target: String,
+}
+
+/// Les données viennent-elles d'un autre site (`https://…`) plutôt que d'un fichier à côté ?
+pub fn is_remote(from: &str) -> bool {
+    from.starts_with("https://")
+}
+
+/// Lit l'adresse d'un autre site, strictement (ADR-116) : HTTPS seulement, un nom de site et
+/// jamais une adresse IP, ni port, ni nom et mot de passe, ni `#`, ni valeur `{…}`. Rend la
+/// raison d'un refus, en français.
+pub fn remote_address(written: &str) -> Result<RemoteAddress, String> {
+    if written.len() > REMOTE_ADDRESS_MAX {
+        return Err(format!("l'adresse d'un autre site a {REMOTE_ADDRESS_MAX} caractères au plus"));
+    }
+    let Some(rest) = written.strip_prefix("https://") else {
+        return Err("un autre site se lit en HTTPS seulement : « https:// », puis le nom du site".into());
+    };
+    let cut = rest.find(['/', '?']).unwrap_or(rest.len());
+    let (authority, target) = rest.split_at(cut);
+    if authority.starts_with('[') {
+        return Err("une adresse IP écrite à la place d'un nom est refusée : écris le nom du site, comme api.exemple.org".into());
+    }
+    if authority.contains('@') {
+        return Err("ni nom ni mot de passe dans l'adresse : une clé se range sur le serveur, dans holo-data/sites.txt, jamais dans la page".into());
+    }
+    if authority.contains(':') {
+        return Err("l'adresse d'un autre site s'écrit sans port : HTTPS, sur son port habituel".into());
+    }
+    if authority.is_empty() {
+        return Err("le nom du site suit « https:// », comme https://api.exemple.org/meteo".into());
+    }
+    let host = authority.to_ascii_lowercase();
+    check_site_name(&host)?;
+    // Ce qui suit le nom : les caractères d'une adresse (RFC 3986), rien d'autre. Un caractère
+    // spécial s'écrit en %XX ; un « # » ne servirait à rien au serveur ; « {…} » ne lit aucune valeur.
+    for c in target.chars() {
+        match c {
+            '{' | '}' => return Err("« {…} » ne lit aucune valeur dans l'adresse d'un autre site : elle s'écrit telle quelle".into()),
+            '#' => return Err("l'adresse d'un autre site s'écrit sans « # » : le serveur ne s'en sert pas".into()),
+            c if c.is_ascii_alphanumeric() || "-._~!$&'()*+,;=:@/?%[]".contains(c) => {}
+            ' ' => return Err("l'adresse d'un autre site s'écrit sans espace : une espace s'écrit %20".into()),
+            c => return Err(format!("l'adresse d'un autre site s'écrit sans « {c} » ni accent : un caractère spécial s'écrit en %XX")),
+        }
+    }
+    let bytes = target.as_bytes();
+    if bytes.iter().enumerate().any(|(i, b)| *b == b'%' && !(bytes.get(i + 1).is_some_and(u8::is_ascii_hexdigit) && bytes.get(i + 2).is_some_and(u8::is_ascii_hexdigit))) {
+        return Err("un « % » dans l'adresse est suivi de deux chiffres hexadécimaux, comme %20".into());
+    }
+    let target = if target.starts_with('/') { target.to_string() } else { format!("/{target}") };
+    Ok(RemoteAddress { host, target })
+}
+
+/// Un nom de site, comme `api.exemple.org` (ADR-116) : des lettres minuscules, des chiffres et des
+/// tirets, en morceaux séparés par des points. Jamais une adresse IP (`127.0.0.1`, `0x7f.1`,
+/// `2130706433`), jamais ce PC (`localhost`). Le dernier morceau commence par une lettre.
+pub fn check_site_name(host: &str) -> Result<(), String> {
+    let refusal = || format!("« {host} » n'est pas un nom de site : des lettres, des chiffres et des tirets, en morceaux séparés par des points, comme api.exemple.org");
+    if host == "localhost" || host.ends_with(".localhost") {
+        return Err("« localhost » est ce PC : une page ne fait pas lire ce PC à son serveur".into());
+    }
+    if host.is_empty() || host.len() > 253 {
+        return Err(refusal());
+    }
+    let parts: Vec<&str> = host.split('.').collect();
+    // Une adresse IP s'écrit en chiffres (en décimal, en octal ou en hexadécimal, `0x7f`) : son
+    // dernier morceau commence par un chiffre ; celui d'un nom de site, par une lettre.
+    if parts.last().is_some_and(|last| last.starts_with(|c: char| c.is_ascii_digit())) {
+        return Err("une adresse IP écrite à la place d'un nom est refusée : écris le nom du site, comme api.exemple.org".into());
+    }
+    if parts.len() < 2 || parts.iter().any(|part| part.is_empty() || part.len() > 63 || part.starts_with('-') || part.ends_with('-') || !part.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')) {
+        return Err(refusal());
+    }
+    Ok(())
+}
+
+/// D'où viennent les données de la page : `data: Data(from: "stock.json", every: 30s)`, ou un
+/// autre site, `Data(from: "https://…", every: 600s)`, lu par le serveur de l'auteur (ADR-116).
+/// Rend le fichier (ou l'adresse), et le rythme en millisecondes (0 : une seule fois, à l'ouverture).
 pub fn data_source(program: &Program) -> Result<Option<(String, u64)>, Error> {
     let Some(argument) = program.root.argument("data") else { return Ok(None) };
     let block = match &argument.value {
         Value::Block(block) if block.name == "Data" && program.root.name == "Page" => block,
         _ => return Err(Error { message: "« data » attend un bloc « Data(...) », sur la page : data: Data(from: \"stock.json\")".into(), pos: argument.pos }),
     };
-    let (mut file, mut rhythm) = (None, 0);
+    let (mut file, mut rhythm, mut rhythm_pos) = (None, 0, block.pos);
     for argument in &block.arguments {
         match (argument.name.as_deref(), &argument.value) {
             // Un fichier rangé à côté de la page : ni adresse complète, ni remontée de dossier.
@@ -439,13 +545,23 @@ pub fn data_source(program: &Program) -> Result<Option<(String, u64)>, Error> {
             (Some("from"), Value::Text(name)) if name.ends_with(".json") && !name.starts_with('/') && !name.contains("..") && name.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '/')) => {
                 file = Some(name.clone());
             }
-            (Some("from"), _) => return Err(Error { message: "« Data(from: …) » attend un fichier .json rangé à côté de la page, comme \"stock.json\"".into(), pos: argument.pos }),
+            // Un autre site (ADR-116) : c'est le serveur de l'auteur qui le lit, jamais le
+            // navigateur du visiteur ; l'adresse est vérifiée ici, partout où la page est lue.
+            (Some("from"), Value::Text(address)) if is_remote(address) => match remote_address(address) {
+                Ok(_) => file = Some(address.clone()),
+                Err(reason) => return Err(Error { message: format!("« Data(from: …) » : {reason}"), pos: argument.pos }),
+            },
+            (Some("from"), Value::Text(address)) if address.contains("://") || address.starts_with("//") => {
+                return Err(Error { message: "« Data(from: …) » : un autre site se lit en HTTPS seulement, comme \"https://api.exemple.org/meteo\" ; sinon, un fichier .json rangé à côté de la page".into(), pos: argument.pos })
+            }
+            (Some("from"), _) => return Err(Error { message: "« Data(from: …) » attend un fichier .json rangé à côté de la page, comme \"stock.json\", ou l'adresse HTTPS d'un autre site".into(), pos: argument.pos }),
             (Some("every"), Value::Number { value, unit: Some(unit), .. }) if unit == "s" || unit == "ms" => {
                 let ms = if unit == "s" { value * 1000.0 } else { *value };
                 if !(DATA_MIN as f64..=DATA_MAX as f64).contains(&ms) {
                     return Err(Error { message: "« Data(every: …) » va de 1s à 3600s".into(), pos: argument.pos });
                 }
                 rhythm = ms.round() as u64;
+                rhythm_pos = argument.pos;
             }
             (Some("every"), _) => return Err(Error { message: "« Data(every: …) » attend une durée, de 1s à 3600s".into(), pos: argument.pos }),
             // Un nom, pour que les règles sachent si les données sont arrivées (ADR-064).
@@ -456,6 +572,10 @@ pub fn data_source(program: &Program) -> Result<Option<(String, u64)>, Error> {
         }
     }
     match file {
+        // Un autre site se relit au plus une fois par minute (ADR-116), quel que soit le nombre de visiteurs.
+        Some(file) if is_remote(&file) && rhythm > 0 && rhythm < REMOTE_EVERY_MIN => {
+            Err(Error { message: "« Data(every: …) » : un autre site se relit au plus une fois par minute ; écris every: 60s ou plus".into(), pos: rhythm_pos })
+        }
         Some(file) => Ok(Some((file, rhythm))),
         None => Err(Error { message: "« Data » attend « from » : Data(from: \"stock.json\")".into(), pos: block.pos }),
     }
@@ -482,6 +602,9 @@ pub enum Datum {
     /// Un nombre à virgule, tel qu'écrit : « 12.5 » (ADR-066).
     Decimal(String),
     Text(String),
+    /// Un nombre négatif, tel qu'écrit : « -3 », « -2.5 » (ADR-102). Il ne va que dans une valeur
+    /// qui peut descendre sous zéro.
+    Negative(String),
 }
 
 /// Lit un fichier de données : un objet JSON à plat, `{"stock": 4, "message": "Ouvert"}`.
@@ -588,6 +711,19 @@ pub fn read_data(json: &str) -> Vec<(String, Datum)> {
                         data.push((key, Datum::Number(number)));
                     }
                 }
+                // Un nombre négatif (ADR-102), entier ou à virgule, repris tel qu'écrit ; avec un
+                // exposant, non.
+                '-' if t.get(i + 1).is_some_and(char::is_ascii_digit) => {
+                    i += 1;
+                    while t.get(i).is_some_and(|c| c.is_ascii_digit() || *c == '.') {
+                        i += 1;
+                    }
+                    if t.get(i).is_some_and(|c| matches!(c, 'e' | 'E')) {
+                        skip(&t, &mut i)?;
+                    } else {
+                        data.push((key, Datum::Negative(t[start..i].iter().collect())));
+                    }
+                }
                 _ => {
                     let word: String = t[i..].iter().take(5).collect();
                     if word.starts_with("true") {
@@ -631,7 +767,21 @@ pub fn take_values(program: &Program, state: &State, texts: &Texts, json: &str) 
             continue;
         }
         let places = places(program, &key);
+        // Une valeur qui peut être négative (ADR-102) reçoit un nombre avec ou sans signe, de sa
+        // sorte (un nombre à virgule ne va pas dans un nombre entier), dans ses bornes.
+        if crate::negative::allowed(program, &key) {
+            let units = match &datum {
+                Datum::Number(number) => i64::try_from(*number).ok().and_then(|n| n.checked_mul(scale(places) as i64)),
+                Datum::Decimal(written) | Datum::Negative(written) => crate::negative::parse(written, places),
+                Datum::Text(_) => None,
+            };
+            if let (Some(units), Some((_, place))) = (units, state.iter_mut().find(|(known, _)| *known == key)) {
+                *place = crate::negative::clamp(i128::from(units), crate::negative::bounds(program, &key));
+            }
+            continue;
+        }
         match datum {
+            Datum::Negative(_) => {}
             Datum::Number(number) => {
                 let ceiling = ceiling(program, &key);
                 if let Some((_, place)) = state.iter_mut().find(|(known, _)| *known == key && known != DRAWS && !CLOCK.contains(&known.as_str()) && !crate::account::GIVEN.contains(&known.as_str())) {
@@ -1161,6 +1311,16 @@ pub fn form_errors(program: &Program, numbers: &State, texts: &Texts, form_name:
                 let n = integer("max").unwrap_or(0);
                 Some(say(format!("Au plus {n} caractères."), format!("At most {n} characters.")))
             }
+            // Un nombre qui peut être négatif (ADR-102) : ses bornes, avec leur signe.
+            ("Input", None, Some(n)) if crate::negative::allowed(program, value) => {
+                let (low, high) = crate::negative::typed_bounds(program, value);
+                let n = crate::negative::signed(n);
+                (n < low || n > high).then(|| {
+                    let places = places(program, value);
+                    let (low, high) = (format_decimal(crate::negative::stored(low), places), format_decimal(crate::negative::stored(high), places));
+                    say(format!("Un nombre de {low} à {high}."), format!("A number from {low} to {high}."))
+                })
+            }
             // Un nombre hors de ses bornes : la page l'en empêche ; un envoi forgé, non.
             ("Input" | "Slider" | "Checkbox", None, Some(n)) if n < floor(program, value) || n > ceiling(program, value) => {
                 let places = places(program, value);
@@ -1208,6 +1368,21 @@ pub fn check_submission(program: &Program, json: &str) -> Vec<(String, String)> 
                 Some(_) => errors.push((value.to_string(), "un texte attendu".into())),
             }
         } else if let Some((_, place)) = numbers.iter_mut().find(|(n, _)| n == value) {
+            // Un nombre qui peut être négatif (ADR-102) : avec ou sans signe, de sa sorte ; ses
+            // bornes sont vérifiées avec les autres (`form_errors`).
+            if crate::negative::allowed(program, value) {
+                let units = match sent {
+                    Some(Json::Number(n)) => i64::try_from(*n).ok().and_then(|n| n.checked_mul(scale(places) as i64)),
+                    Some(Json::Decimal(d) | Json::Negative(d)) => crate::negative::parse(d, places),
+                    None => Some(0),
+                    Some(_) => None,
+                };
+                match units {
+                    Some(units) => *place = crate::negative::stored(units),
+                    None => errors.push((value.to_string(), "un nombre attendu".into())),
+                }
+                continue;
+            }
             match sent {
                 Some(Json::Number(n)) => *place = n.saturating_mul(scale(places)),
                 Some(Json::Decimal(d)) if places > 0 => *place = parse_decimal(d, places).unwrap_or(u64::MAX),
@@ -1312,8 +1487,9 @@ pub fn computed(program: &Program, state: &State) -> State {
         number += quantity;
         total += quantity * u128::from(*amount);
     }
-    // Un total ne déborde jamais : au pire, il s'arrête au plus grand nombre que l'on sait écrire.
-    let clamp = |v: u128| u64::try_from(v).unwrap_or(u64::MAX);
+    // Un total ne déborde jamais : au pire, il s'arrête au plus grand nombre que l'on sait écrire
+    // (2⁶³ − 1 : au-delà, l'état le lirait négatif, ADR-102).
+    let clamp = |v: u128| u64::try_from(v).unwrap_or(u64::MAX).min(i64::MAX as u64);
     vec![("count".to_string(), clamp(number)), ("total".to_string(), clamp(total))]
 }
 
@@ -1477,14 +1653,28 @@ fn initial_without_prices(program: &Program) -> Result<State, Error> {
         let mut ceiling = VALUE_MAX;
         let (name, start_value) = match (&argument.name, &argument.value) {
             (Some(name), Value::Integer(start_value)) => (name, Some(*start_value)),
+            // Un départ sous zéro (ADR-102) : seulement pour une valeur que la page nomme dans
+            // `negative: [ … ]`. Elle est gardée avec son signe (voir `negative.rs`).
+            (Some(name), Value::Number { value, unit: None, places }) if *value < 0.0 => {
+                if !crate::negative::allowed(program, name) {
+                    return Err(Error { message: format!("« {name} » commence sous zéro : pour une valeur qui peut être négative, écris negative: [{name}] sur la page (ADR-102)"), pos: argument.pos });
+                }
+                let places = u32::from(*places);
+                if places > PLACES_MAX {
+                    return Err(Error { message: format!("« {name} » : un nombre à virgule a de 1 à {PLACES_MAX} chiffres après la virgule, comme {name}: -12.50"), pos: argument.pos });
+                }
+                let Some(units) = crate::negative::literal(&argument.value, places) else {
+                    return Err(Error { message: format!("« {name} » : une valeur va de -{VALUE_MAX} à {VALUE_MAX}"), pos: argument.pos });
+                };
+                // Gardé en complément à deux : le plafond ne le regarde pas.
+                ceiling = u64::MAX;
+                (name, Some(crate::negative::stored(units)))
+            }
             // Un nombre à virgule (ADR-066) : price: 12.50 garde deux chiffres après la virgule.
             (Some(name), Value::Number { value, unit: None, places }) => {
                 let places = u32::from(*places);
                 if places == 0 || places > PLACES_MAX {
                     return Err(Error { message: format!("« {name} » : un nombre à virgule a de 1 à {PLACES_MAX} chiffres après la virgule, comme {name}: 12.50"), pos: argument.pos });
-                }
-                if *value < 0.0 {
-                    return Err(Error { message: format!("« {name} » : une valeur va de 0 à {VALUE_MAX} ; les nombres négatifs ne sont pas encore là"), pos: argument.pos });
                 }
                 ceiling = VALUE_MAX.saturating_mul(scale(places));
                 (name, Some((value * scale(places) as f64).round() as u64))
@@ -1588,6 +1778,11 @@ pub fn request<'a>(program: &Program, block: &'a Block, state: &State) -> Result
                 }
                 Ok(Request { value, verb, quantity: units, factor_places: u32::from(*factor_places), since: None })
             }
+            // Un nombre négatif (ADR-102) : `temperature.set(-5)`, `speed.mul(-1)`, seulement pour
+            // une valeur qui peut descendre sous zéro ; `add(-5)` s'écrit `sub(5)`.
+            (Value::Number { value: number, unit: None, places: written }, _) if *number < 0.0 => crate::negative::request(program, value, verb, *number, u32::from(*written), places)
+                .map(|(quantity, factor_places)| Request { value, verb, quantity, factor_places, since: None })
+                .map_err(error),
             (Value::Integer(quantity), _) if *quantity <= VALUE_MAX => Ok(Request { value, verb, quantity: quantity * scale(places), factor_places: 0, since: None }),
             (Value::Number { unit: None, places: written, .. }, _) if u32::from(*written) > places => {
                 let sort = if places == 0 { "est un nombre entier".to_string() } else { format!("a {places} chiffre(s) après la virgule") };
@@ -1626,6 +1821,8 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
     let state = initial(program)?;
     price(program)?;
     kept_values(program)?;
+    // Les valeurs qui peuvent descendre sous zéro, et là où elles servent (ADR-102).
+    crate::negative::check(program)?;
     // Les valeurs que la page écrit dans son adresse (ADR-091).
     crate::history::names(program)?;
     data_source(program)?;
@@ -1722,6 +1919,20 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                     // Un fichier (ADR-059) : sa taille et ses sortes sont vérifiées dans fichiers.rs.
                     (Some("max" | "accept"), _) if crate::files::is_file(block) => {}
                     (Some("accept"), _) => return Err(Error { message: "« accept: » ne sert qu'à un champ de fichier, Input(type: file, …)".into(), pos: argument.pos }),
+                    // Les bornes d'un champ qui présente un nombre négatif (ADR-102) : Input(value:
+                    // temperature, min: -50, max: 50), avec leur signe.
+                    (Some(word @ ("min" | "max")), bound) if block.name == "Input" && block.argument("type").is_none() && matches!(block.argument("value").map(|a| &a.value), Some(Value::Name(v)) if crate::negative::allowed(program, v)) => {
+                        let Some(Value::Name(v)) = block.argument("value").map(|a| &a.value) else { continue };
+                        crate::negative::check_bound(program, block, word, bound, v).map_err(|message| Error { message, pos: argument.pos })?;
+                    }
+                    // Une borne sous zéro, pour une valeur qui ne peut pas y descendre (ADR-102).
+                    (Some(word @ ("min" | "max")), Value::Number { value: bound, .. }) if block.name == "Input" && *bound < 0.0 => {
+                        let v = match block.argument("value").map(|a| &a.value) {
+                            Some(Value::Name(v)) => v.as_str(),
+                            _ => "la valeur",
+                        };
+                        return Err(Error { message: format!("« Input({word}: {bound}) » : « {v} » ne descend pas sous zéro ; pour une valeur qui peut être négative, écris negative: [{v}] sur la page (ADR-102)"), pos: argument.pos });
+                    }
                     // Le plus petit nombre d'un champ de nombre : Input(value: quantity, min: 1).
                     (Some("min"), bound) if block.name == "Input" && block.argument("type").is_none() && matches!(block.argument("value").map(|a| &a.value), Some(Value::Name(v)) if state.iter().any(|(known, _)| known == v)) => {
                         let Some(Value::Name(v)) = block.argument("value").map(|a| &a.value) else { continue };
@@ -1860,6 +2071,29 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                 return Err(Error { message: "« Slider » : min doit être plus petit que max".into(), pos: block.pos });
             }
         }
+        // Un son dont le volume suit une valeur de la page (ADR-112) : un nombre entier déclaré,
+        // de 0 (muet) à 100 (le plus fort), comme une glissière.
+        if let (true, Some(Argument { value: Value::Name(value), pos, .. })) = (block.name == "Sound", block.argument("volume")) {
+            let fault = if is_text(value) {
+                Some(format!("« {value} » est un texte"))
+            } else if crate::lists::is_list(program, value) {
+                Some(format!("« {value} » est une liste"))
+            } else if places(program, value) > 0 {
+                Some(format!("« {value} » a des chiffres après la virgule"))
+            } else {
+                match state.iter().find(|(known, _)| known == value).map(|(_, start)| *start) {
+                    None => Some(format!("aucune valeur ne s'appelle « {value} »")),
+                    Some(start) if start > 100 => Some(format!("« {value} » part de {start}")),
+                    Some(_) => None,
+                }
+            };
+            if let Some(fault) = fault {
+                return Err(Error {
+                    message: format!("« Sound(volume: {value}) » : {fault} ; un volume qui suit une valeur la lit de 0 (muet) à 100 (le plus fort), comme une glissière : state: State({value}: 50), puis Slider(value: {value}, label: \"…\")"),
+                    pos: *pos,
+                });
+            }
+        }
         // Une règle qui guette regarde une valeur : un nombre déclaré ou calculé, ou un texte
         // (ADR-063).
         if block.name == "When" && block.argument("meets").is_none() {
@@ -1912,6 +2146,10 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                     Value::Text(text) if matches!(word, "over" | "under") && !(crate::dates::is_date(program, value) && crate::dates::days(text).is_some()) => {
                         return error(format!("« {word} » compare des nombres, ou une date à une date « AAAA-MM-JJ » : {}({value}, under: today)", block.name))
                     }
+                    // Un nombre négatif (ADR-102) ne se compare qu'à une valeur qui peut l'être.
+                    Value::Number { value: number, .. } if *number < 0.0 && !crate::negative::allowed(program, value) => {
+                        return error(format!("« {}({value}, {word}: {number}) » : « {value} » ne descend pas sous zéro, la comparer à un nombre négatif n'a pas de sens ; pour une valeur qui peut être négative, écris negative: [{value}] sur la page (ADR-102)", block.name))
+                    }
                     _ => {}
                 }
             }
@@ -1943,6 +2181,10 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                 }
                 if is_text(name) {
                     return Err(Error { message: format!("« {{{name}:{format}}} » : « {name} » est un texte ; un format s'applique à un nombre"), pos });
+                }
+                // Un nombre qui peut être négatif (ADR-102) n'est pas un temps de chronomètre.
+                if format == "stopwatch" && crate::negative::allowed(program, name) {
+                    return Err(Error { message: format!("« {{{name}:stopwatch}} » : « {name} » peut descendre sous zéro, et un temps de chronomètre ne descend pas sous zéro"), pos });
                 }
                 // Un nombre à virgule se montre avec ses chiffres, dans la langue de la page (ADR-066).
                 if places(program, name) > 0 && format != "number" {
@@ -2137,10 +2379,14 @@ fn watch(program: &Program, before_change: State, texts_before: &Texts, state: &
 }
 
 /// Fait ce qu'une demande demande : `cart.add(1)`. Une valeur ne descend pas sous 0 et ne
-/// dépasse pas son plafond.
+/// dépasse pas son plafond. Une valeur que la page nomme dans `negative: [ … ]` descend jusqu'à
+/// un milliard sous zéro (ADR-102). Le calcul se fait avec le signe, sur de grands entiers : un
+/// nombre négatif se calcule comme sans son signe (−7 ÷ 2 = −3, comme 7 ÷ 2 = 3 ; la moitié
+/// s'arrondit en s'éloignant de zéro). Pour des nombres positifs, rien ne change.
 fn apply(program: &Program, state: &mut State, texts: &Texts, effect: &Block, seed: u64, draws: &mut u64) {
     let Ok(d) = request(program, effect, state) else { return };
     let places = places(program, d.value);
+    let signed = |units: u64| i128::from(crate::negative::signed(units));
     // Une autre valeur, lue maintenant : à notre échelle pour add, sub, set ; à la sienne pour un
     // facteur (ADR-066).
     let (quantity, factor_places) = match d.since {
@@ -2148,32 +2394,39 @@ fn apply(program: &Program, state: &mut State, texts: &Texts, effect: &Block, se
             // Une valeur de la page, ou un nombre de jours calculé d'après les dates (ADR-067).
             let units = state.iter().find(|(known, _)| known == other).map(|(_, v)| *v).or_else(|| crate::computed::days_values(program, texts).into_iter().find(|(known, _)| known == other).map(|(_, v)| v)).unwrap_or(0);
             let other_places = self::places(program, other);
-            if matches!(d.verb, "mul" | "div") { (units, other_places) } else { (rescale(units, other_places, places), 0) }
+            if matches!(d.verb, "mul" | "div") {
+                (signed(units), other_places)
+            } else if other_places <= places {
+                (signed(units) * i128::from(scale(places - other_places)), 0)
+            } else {
+                (crate::negative::round_div(signed(units), i128::from(scale(other_places - places))), 0)
+            }
         }
-        None => (d.quantity, d.factor_places),
+        None => (signed(d.quantity), d.factor_places),
     };
-    let ceiling = ceiling(program, d.value);
+    let bounds = if crate::negative::allowed(program, d.value) { crate::negative::bounds(program, d.value) } else { (0, ceiling(program, d.value).min(i64::MAX as u64) as i64) };
     if let Some((_, value)) = state.iter_mut().find(|(name, _)| name == d.value) {
-        *value = match d.verb {
-            "add" => value.saturating_add(quantity),
-            "sub" => value.saturating_sub(quantity),
-            // Multiplier, diviser (ADR-043) : entre nombres entiers, la division arrondit vers le
-            // bas ; avec un nombre à virgule (ADR-066), le résultat est arrondi au plus proche, à
+        let current = signed(*value);
+        let result = match d.verb {
+            "add" => current + quantity,
+            "sub" => current - quantity,
+            // Multiplier, diviser (ADR-043) : entre nombres entiers, la division garde la partie
+            // entière ; avec un nombre à virgule (ADR-066), le résultat est arrondi au plus proche, à
             // l'échelle de la valeur. Une division par une valeur qui vaut 0 ne change rien.
-            "mul" if factor_places == 0 => value.saturating_mul(quantity),
-            "mul" => round_div(u128::from(*value) * u128::from(quantity), u128::from(scale(factor_places))),
-            "div" if quantity == 0 => *value,
-            "div" if places == 0 && factor_places == 0 => *value / quantity,
-            "div" => round_div(u128::from(*value) * u128::from(scale(factor_places)), u128::from(quantity)),
+            "mul" if factor_places == 0 => current * quantity,
+            "mul" => crate::negative::round_div(current * quantity, i128::from(scale(factor_places))),
+            "div" if quantity == 0 => current,
+            "div" if places == 0 && factor_places == 0 => current / quantity,
+            "div" => crate::negative::round_div(current * i128::from(scale(factor_places)), quantity),
             // Le hasard n'en est pas un : c'est le énième tirage d'une suite fixée par la graine
             // du fichier. Rejouer les mêmes gestes redonne les mêmes nombres.
             "random" => {
                 *draws = draws.wrapping_add(1);
-                crate::seed::mix_bits(seed ^ crate::seed::mix_bits(*draws)) % (quantity + 1)
+                i128::from(crate::seed::mix_bits(seed ^ crate::seed::mix_bits(*draws))) % (quantity.max(0) + 1)
             }
             _ => quantity,
-        }
-        .min(ceiling);
+        };
+        *value = crate::negative::clamp(result, bounds);
     }
 }
 
@@ -2327,7 +2580,9 @@ pub fn keypresses(program: &Program) -> Vec<String> {
 
 /// `cart=2;likes=0` : l'état, pour le garder d'un geste à l'autre du côté de la page.
 pub fn write(state: &State) -> String {
-    state.iter().map(|(name, value)| format!("{name}={value}")).collect::<Vec<_>>().join(";")
+    // Un nombre négatif (ADR-102) s'écrit avec son signe : `temperature=-5`. Aucune autre valeur
+    // n'atteint 2⁶³ : elles s'écrivent comme avant.
+    state.iter().map(|(name, value)| if crate::negative::signed(*value) < 0 { format!("{name}={}", crate::negative::signed(*value)) } else { format!("{name}={value}") }).collect::<Vec<_>>().join(";")
 }
 
 /// Relit un état écrit par `ecrire`. Seules les valeurs que la page déclare sont reprises, et
@@ -2344,6 +2599,13 @@ pub fn reread(program: &Program, written: &str) -> State {
             // L'heure n'est jamais reprise de l'état écrit : c'est celle donnée au moteur. Ce que
             // le serveur dit du visiteur connecté non plus (ADR-081).
             if CLOCK.contains(&name) || crate::account::GIVEN.contains(&name) {
+                continue;
+            }
+            // Une valeur qui peut être négative se relit avec son signe (ADR-102).
+            if crate::negative::allowed(program, name) {
+                if let (Some((_, place)), Some(value)) = (state.iter_mut().find(|(known, _)| known == name), crate::negative::reread(program, name, value)) {
+                    *place = value;
+                }
                 continue;
             }
             if let (Some((_, place)), Ok(value)) = (state.iter_mut().find(|(known, _)| known == name), value.parse::<u64>()) {
@@ -2679,7 +2941,8 @@ mod tests {
         assert_eq!(crate::receive(&without, &crate::initial_state(&without), r#"{"stock": 4}"#), crate::initial_state(&without));
         assert_eq!(crate::data(&without), "");
         for (source, message) in [
-            ("Page(data: Data(from: \"https://ailleurs.example/x.json\"))", "rangé à côté"),
+            // Un autre site se lit par le serveur de l'auteur, en HTTPS seulement (ADR-116).
+            ("Page(data: Data(from: \"http://ailleurs.example/x.json\"))", "HTTPS seulement"),
             ("Page(data: Data(from: \"../secret.json\"))", "rangé à côté"),
             ("Page(data: Data(from: \"stock.txt\"))", "rangé à côté"),
             ("Page(data: Data(every: 30s))", "attend « from »"),
@@ -3249,7 +3512,8 @@ mod tests {
             ("Page(children: [ Button(name: Less_sunrise, text: \"-\") ])", "écris « name: LessSunrise »"),
             ("Page(children: [ Stack(children: [ P(\"a\"), P(\"b\", align: top_right) ]) ])", "écris « topRight »"),
             ("Page(state: State(cart: 1.5px))", "un nombre entier, un texte ou une liste"),
-            ("Page(state: State(cart: -1.5))", "les nombres négatifs ne sont pas encore là"),
+            // Un départ sous zéro demande `negative: [cart]` (ADR-102 ; avant, il était toujours refusé).
+            ("Page(state: State(cart: -1.5))", "écris negative: [cart]"),
             ("Page(state: State(cart: 1.1234567))", "de 1 à 6 chiffres après la virgule"),
             ("Page(state: State(cart: 0, cart: 1))", "déclarée deux fois"),
             ("Page(state: State(cart: 5000000000))", "de 0 à 1000000000"),
@@ -3268,5 +3532,63 @@ mod tests {
             let error = page(source).unwrap_err();
             assert!(error.message.contains(message), "{source}\n→ {error}");
         }
+    }
+}
+
+#[cfg(test)]
+mod remote_address_tests {
+    use super::*;
+
+    #[test]
+    fn another_site_is_https_and_a_name_never_an_ip() {
+        // ADR-116, règle 1, dans le moteur (holo check, la page, le serveur) : HTTPS seulement, un
+        // nom de site, jamais une adresse IP écrite à sa place ; ni port, ni nom et mot de passe.
+        let fine = remote_address("https://fr.wikipedia.org/api/rest_v1/page/summary/Kinshasa").unwrap();
+        assert_eq!((fine.host.as_str(), fine.target.as_str()), ("fr.wikipedia.org", "/api/rest_v1/page/summary/Kinshasa"));
+        assert_eq!(remote_address("https://API.Exemple.org?q=1").unwrap(), RemoteAddress { host: "api.exemple.org".into(), target: "/?q=1".into() });
+        assert!(remote_address("https://api.exemple.org/v1/forecast?latitude=-4.32&longitude=15.31&current=temperature_2m,wind_speed_10m&filter[x]=a%20b").is_ok());
+        for (written, said) in [
+            ("http://api.exemple.org/m", "HTTPS seulement"),
+            ("https://93.184.216.34/m", "adresse IP"),
+            ("https://127.0.0.1/m", "adresse IP"),
+            ("https://127.1/m", "adresse IP"),
+            ("https://2130706433/m", "adresse IP"),
+            ("https://0x7f.0.0.1/m", "adresse IP"),
+            ("https://[::1]/m", "adresse IP"),
+            ("https://[2606:4700::1111]/m", "adresse IP"),
+            ("https://localhost/m", "localhost"),
+            ("https://api.localhost/m", "localhost"),
+            ("https://moi:mdp@api.exemple.org/m", "ni nom ni mot de passe"),
+            ("https://api.exemple.org:8443/m", "sans port"),
+            ("https://api.exemple.org/m#haut", "sans « # »"),
+            ("https://api.exemple.org/profil/{id}", "ne lit aucune valeur"),
+            ("https://api.exemple.org/m n", "sans espace"),
+            ("https://api.exemple.org/météo", "ni accent"),
+            ("https://api.exemple.org/m%2", "« % »"),
+            ("https://", "suit « https:// »"),
+            ("https://exemple/m", "n'est pas un nom de site"),
+            ("https://api.exemple.org./m", "n'est pas un nom de site"),
+            ("https://api_x.exemple.org/m", "n'est pas un nom de site"),
+            ("https://-api.exemple.org/m", "n'est pas un nom de site"),
+        ] {
+            let refusal = remote_address(written).unwrap_err();
+            assert!(refusal.contains(said), "{written} → {refusal}");
+        }
+        assert!(remote_address(&format!("https://api.exemple.org/{}", "a".repeat(REMOTE_ADDRESS_MAX))).unwrap_err().contains("2048"));
+        // Dans une page : refusé avec sa raison et sa ligne ; un autre site se relit au plus une fois par minute.
+        let page = |data: &str| format!("Page(\n  state: State(t: \"\"),\n  data: {data},\n  children: [ P(\"{{t}}\") ],\n)");
+        assert!(crate::check_page(&page(r#"Data(from: "https://fr.wikipedia.org/api/rest_v1/page/summary/Kinshasa", every: 60s)"#)).is_ok());
+        assert!(crate::check_page(&page(r#"Data(from: "https://fr.wikipedia.org/x")"#)).is_ok());
+        for (data, said) in [
+            (r#"Data(from: "http://fr.wikipedia.org/x")"#, "HTTPS seulement"),
+            (r#"Data(from: "ftp://fr.wikipedia.org/x")"#, "HTTPS seulement"),
+            (r#"Data(from: "https://10.0.0.1/x")"#, "adresse IP"),
+            (r#"Data(from: "https://fr.wikipedia.org/x", every: 30s)"#, "au plus une fois par minute"),
+        ] {
+            let error = crate::check_page(&page(data)).unwrap_err();
+            assert!(error.message.contains(said) && error.pos.line == 3, "{data} → {error}");
+        }
+        // Un fichier à côté reste un fichier, avec son rythme d'une seconde au moins.
+        assert!(crate::check_page(&page(r#"Data(from: "stock.json", every: 1s)"#)).is_ok());
     }
 }

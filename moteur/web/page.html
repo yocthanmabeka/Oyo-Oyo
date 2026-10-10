@@ -391,6 +391,18 @@
     // déjà venu, son navigateur a sans doute gardé le moteur. Elles sont rangées sous l'adresse de
     // la page : un modèle (/profil/{id}.holo) en garde pour chaque adresse qu'il sert (ADR-090).
     try { if (localStorage.getItem(`holo:${location.pathname}`)) load(); } catch { /* stockage refusé */ }
+    // La mémoire de visite (ADR-113) : des valeurs que le visiteur a données sur une autre page du
+    // site, dans cet onglet, et que celle-ci retient aussi (visit: [prenom]). Le moteur les
+    // reprend : il arrive tout de suite s'il y en a une, sinon au premier geste, comme d'habitude.
+    // Aussi quand « Précédent » rend la page telle qu'on l'avait quittée, sans moteur.
+    const remembered = () => {
+      try {
+        const names = root.querySelector("[data-visit-names]")?.dataset.visitNames.split(" ") ?? [];
+        return names.some((name) => name && sessionStorage.getItem(`holo-visit:${name}`) !== null);
+      } catch { return false; /* stockage refusé : la page reste celle du serveur */ }
+    };
+    if (remembered()) load();
+    addEventListener("pageshow", (event) => { if (event.persisted && remembered()) load(); });
   })();
 </script>
 </body></html>

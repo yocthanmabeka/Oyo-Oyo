@@ -29,6 +29,90 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Les données d'un autre site, lues par le serveur de l'auteur : `Data(from: "https://…")`
+
+- Fait (issue #248, prise par un agent de la session du nuage ; `ADR-116`, ACCEPTÉ : Yocthan a dit « Oui » le 2026-10-09 à l'ouverture sous ces conditions) :
+  - `Data(from: "https://…")` : le même bloc, une adresse HTTPS. C'est `holo serve` qui lit l'autre site ; le moteur de la page lui demande `?remote-data`, à sa propre adresse. Le navigateur du visiteur ne parle jamais à l'autre site, et ne reçoit pas son adresse.
+  - Les sites permis et leurs clés dans `holo-data/sites.txt` : une ligne par site, la clé sur sa ligne, en paramètre (`?appid=…`) ou en en-tête (`X-Api-Key: …`), comme la documentation du site la montre. La page ne nomme jamais une clé. Comparé, dans l'ADR, avec une liste dans la page (`Allowed(sources:)`), une clé nommée par la page, une variable d'environnement.
+  - Les sept règles, tenues par le moteur, chacune avec son essai : HTTPS et un nom exact (jamais une adresse IP) ; rien vers ce PC ni le réseau privé, en IPv4 et en IPv6, une IPv4 portée par une IPv6 comprise, et la connexion à l'adresse vérifiée ; aucune redirection ; 4 s, 8 s, 64 Ko coupés, un objet JSON, 32 sites, 64 adresses, 8 par site ; une demande au plus par adresse et par `every` (une minute au moins), même avec beaucoup de visiteurs ; les clés jamais hors du serveur ; un `User-Agent` honnête, rien du visiteur.
+  - Ce qui arrive est réduit à ce que la page déclare (un numéro de compte ou l'adresse IP du serveur, dans la réponse, n'arrivent pas chez le visiteur). Sans JavaScript, la page arrive avec ses données ou dit l'échec ; `refresh` relit ce qui est gardé.
+  - La bibliothèque : `ureq` 3.4.2 (`=3.4.2`, avec `rustls`), seulement pour le PC ; aucun proxy, aucune redirection, aucune connexion gardée.
+  - L'interrupteur des essais, `HOLO_TEST_ONLY_INSECURE_SITE` : un nom en `.test` lu sur ce PC, en HTTP clair, pour le faux « autre site » de l'essai Chrome ; éteint par défaut, lu seulement dans l'environnement, annoncé au démarrage.
+  - La leçon 139 (le résumé de Kinshasa sur Wikipédia ; liens vers la 124 et la 1) ; le guide (chapitre « 6 septemquinquagies », une ligne au tableau des limites, et « ce qui n'existe pas encore » dit ce qui reste) ; `NOMS.md`, `DECISIONS.md`, le sommaire des leçons, le README du moteur.
+- Exécuté, dans `moteur/` :
+  - `cargo test --release` : les essais nouveaux passent du premier coup, puis huit mutations ont été essayées et retirées, une à la fois, et chacune fait rater au moins un essai : le proxy de l'environnement, un résolveur qui ne vérifie plus, dix redirections, la lecture non coupée, plus rien de gardé, la clé dans la page acceptée, la clé recopiée acceptée, un sous-domaine deviné ;
+  - l'essai Chrome nouveau passe seul (sept lectures par holo serve, une seule demande à l'autre site) ; il rate quand on retire la route `?remote-data` (« relues sans échec : false ») ou la demande du serveur (« arrivées : false, 0 demande ») ;
+  - `holo check` sur la leçon 139 : ok ;
+  - dix-sept essais Rust nouveaux : quatorze dans `remote.rs`, un dans `state.rs`, un dans `lib.rs`, un dans `server.rs` ;
+  - la preuve complète, `check-locked.sh`, après la fusion de `main` (PR 258 à 263) : `cargo test --release --locked` → 272 essais passent ; `cargo test` → 272 ; dans Chrome, 87 essais sur 90 ;
+  - la preuve complète, de nouveau, après la seconde fusion de `main` (PR 262 ; commit 4363055) :
+    - `cargo test --release --locked` → 278 essais passent ; `cargo test` → 278 ;
+    - les deux WebAssembly, `holo` et les liaisons se construisent ;
+    - la suite Chrome entière : 88 essais sur 91 passent ; 132 leçons s'ouvrent sans erreur, la 139 comprise ; l'audit axe-core des parcours : zéro défaut ;
+    - les trois ratés sont ceux de ce conteneur : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium).
+- Erreurs en route :
+  - La limite de séance a coupé le travail deux fois, et le conteneur a redémarré : les fichiers étaient intacts ; les constructions ont été relancées.
+  - Un envoi de sauvegarde sur `wip/…` a été refusé par la garde des permissions : pas de contournement ; les commits locaux ont suffi.
+  - Dans mes essais : une variable qui cachait la fonction du même nom ; une réponse d'essai à quatre niveaux, que le lecteur JSON de `Data` refuse (trois au plus). Corrigés.
+  - L'essai de l'ADR-030 refusait toute adresse `https://` : il suit maintenant la règle de l'ADR-116 (HTTP clair refusé).
+  - La fusion de `main` (PR 258 à 263, en style diff3) : six conflits, tous des ajouts, gardés des deux côtés et rangés par numéro. Les nombres négatifs (ADR-102) avaient ajouté `Json::Negative` : la réduction le garde, et son essai le vérifie.
+- Reste : choisir et nommer une valeur rangée plus bas dans la réponse (la plupart des services de météo) ; la dernière valeur, avec son âge, pendant une panne ; une clé par variable d'environnement ; un proxy choisi par l'auteur ; les réponses gardées dans la base. Le grand tableau du web : « les données d'un autre serveur » peut passer à « oui ».
+
+---
+
+## 2026-10-10 — Se souvenir le temps d'une visite : `Page(visit: [prenom])`
+
+- Fait (issue #242, la session du nuage ; `ADR-113`, ACCEPTÉ) : le dernier « non » du grand tableau du web, `sessionStorage`.
+  - `Page(visit: [prenom, personnes])`, à côté de `keep:` : ces valeurs de `State` sont retenues le temps de la visite, d'une page à l'autre du site, dans le même onglet, et effacées quand l'onglet se ferme.
+  - Chaque valeur est rangée sous son nom (`holo-visit:prenom`), en JSON. La page qui la reprend la vérifie comme un import : sa sorte, ses bornes, sans arrondir ni couper. Sinon elle est ignorée, sans erreur. Une page n'écrit que ce qui change chez elle.
+  - Refusés, avec la raison : une valeur aussi dans `keep`, `shared` ou `address:` ; le nom du fichier, l'heure, le compte ; une liste calculée ; un nom inconnu ou répété ; dans un monde.
+  - Rien ne part au serveur, aucun cookie ; sans JavaScript, rien n'est retenu. La page légère ne fait venir le moteur que si l'onglet retient déjà une de ses valeurs.
+  - Le mot `visit:` plutôt que `session:`, auquel le web donne trois durées (la comparaison est dans l'ADR).
+  - La leçon 136, un formulaire en deux pages (`136-inscription/etape-2.holo`) ; le guide (chapitre « 6 quaterquinquagies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+- Exécuté :
+  - `cargo test --release --locked` et `cargo test` : 246 tests passent avant la dernière fusion de `main`, 253 après (avec le partage et la vibration) ; nouveaux : les cinq essais de `visit.rs` et `a_page_and_its_source_say_they_vary_with_accept`.
+  - Dans Chrome, « se souvenir le temps d'une visite … (leçon 136) » passe. La page 2 a les valeurs de la page 1, dans le même onglet. « Précédent » rend la page 1 à jour. Un nouvel onglet ne les a pas. Les valeurs abîmées ou étrangères sont ignorées, une valeur sur deux lignes comprise. Aucun cookie.
+  - L'essai sait échouer : sans la lecture de `sessionStorage` dans `recallVisit` (`page-engine.js`), il rate (« la page 2 les a, dans le même onglet : false ») ; la lecture remise, il passe.
+  - La suite entière (`CI=1`, axe-core 4.10.3), après la fusion de la #256 : 82 essais sur 85 passent ; les 3 ratés sont ceux du conteneur (« pincer à deux doigts », « la vue points se lit au lecteur d'écran », la vidéo H.264 des parcours 8 et 9).
+- Erreurs en route :
+  - « Précédent », sans le cache des pages, montrait le texte du fichier lu par le moteur : `holo serve` et le serveur d'essai disent maintenant `Vary: Accept` pour une adresse `.holo`.
+  - Une valeur rangée à la main avec un retour à la ligne aurait glissé une ligne de plus, pour une autre valeur : elle est ignorée, car le moteur écrit chaque valeur sur une seule ligne.
+  - La limite de séance a arrêté l'agent deux fois, et le conteneur a redémarré ; `main` fusionnée trois fois (la #256, la #261, puis la #258 et la #260), avec les lignes des fichiers partagés rangées par numéro.
+  - Les nombres négatifs (#260) sont entrés dans `main` pendant cette PR, et la visite relit ses nombres sans signe. Vérifié : la vérification des nombres négatifs refuse déjà `visit:` sur une valeur négative, avec sa raison. Un essai le garde.
+- Reste :
+  - la valeur de départ se voit un instant avant celle de la visite, comme avec `keep` ;
+  - deux pages qui donnent deux sortes au même nom ne sont pas refusées (`holo check` sur un dossier pourrait le dire) ;
+  - retenir un nombre négatif (`negative:`) ;
+  - rien pour oublier toute la visite d'un coup ;
+  - un essai sur un vrai téléphone.
+
+---
+
+## 2026-10-10 — Les fusions de la matinée, et l'outil de fusion réparé (le style diff3)
+
+- Fait (la session du PC) :
+  - Fusionnées dans `main`, chaque fois par `outils/fusionner.sh` après les trois tests verts : la 256 (le partage, #236, la session du nuage), la 257 (réordonner, #234), la 258 (la grille, #233), la 261 (la vibration, #239, la session du nuage), la 260 (les nombres négatifs, #231) et la 259 (mélanger des sons, #241, la session du nuage). Six des douze dernières dettes sont dans `main`.
+  - J'ai relu en entier la PR 259 de la session du nuage avant sa fusion : le fondu est borné de 100 ms à 5 s, le volume suivi va de 0 à 100 et il est vérifié avec les autres valeurs, et aucun son ne part avant un geste du visiteur.
+  - Quand une PR de la session du nuage est en conflit, elle y fusionne `main` elle-même, comme elle l'a demandé dans l'issue 255 : je ne touche plus aux branches de ses PR.
+  - Trois agents relancés après la limite de séance, chacun à partir de ce qui était sauvé sur GitHub : 237 (les filtres), puis 240 (les formes découpées) ; 235 (le défilement et `sticky`) ; 232 (les textes), puis 238 (les heures). Les 246 et 247 suivront.
+  - Les dossiers des agents arrêtés sont effacés. Avant, j'ai vérifié que le dernier commit de chacun était sur une branche de GitHub. Un dossier, verrouillé par un processus, partira au redémarrage du PC.
+- Erreur : mon outil de fusion a cassé trois fois des fichiers partagés, en fusionnant `main` dans une branche de PR :
+  - le guide de la 256 (un chapitre au milieu d'un exemple ; la session du nuage l'a réparé, 58c2b2d) ;
+  - un essai de `browser-tests.mjs` sans sa ligne de fermeture `}],` (62cbece) ;
+  - le guide de la 258 (le chapitre de la grille coupé, réparé en 674f11d). Le test du moteur qui relit les exemples du guide l'a vu (« ligne 18, colonne 1 : caractère inattendu « # » ») ; rien de cassé n'est entré dans `main`.
+- La cause : deux branches ajoutent chacune un bloc au même endroit, et ces blocs finissent par les mêmes lignes (`  }],`, une barrière de code, une fin de tableau). Avec le style de conflit par défaut, git sort ces lignes du conflit et ne les garde qu'une fois. Garder « les deux côtés » laisse alors un bloc sans sa fin. Ma première réparation, remettre ces lignes entre les deux blocs, marchait pour le guide mais pas pour les essais.
+- La réparation : fusionner en style diff3 (`git -c merge.conflictstyle=diff3 merge origin/main`). Git ne rogne plus les lignes communes : chaque côté du conflit est complet, et garder les deux est juste. L'outil refuse aussi un conflit où l'ancêtre commun avait du texte, car c'est une modification des deux côtés : elle se règle à la main.
+  - Essayé sur le cas exact qui avait cassé (la grille, d43ab50, avec `main`) : tous les fichiers sont résolus ; le guide fait 2 741 lignes, soit les 2 697 de `main` et les 44 de la branche ; `browser-tests.mjs` fait 2 155 lignes, soit 2 105 et 50 ; `node --check` passe ; 154 barrières de code, en paires ; le chapitre de la grille est entier.
+  - Puis employé pour la 260.
+  - La règle est écrite dans `AGENTS.md` pour toutes les IA (« Fusionner `main` dans sa branche sans rien perdre »), et donnée aux agents.
+- Erreur d'ordre : je voulais faire passer la 259 avant la 260, pour que la session du nuage n'ait pas à refaire sa mise à jour. J'ai arrêté la boucle qui attendait la 260, mais pas le script de fusion qu'elle avait déjà lancé. Ce script a fusionné la 260 vers 11 h 20 UTC, dès ses tests verts. La 259 est retombée en conflit, et la session du nuage y a refait la fusion de `main` (b4cc27d). Rien de cassé : `main` est restée verte. Depuis, quand j'arrête une boucle, j'arrête aussi les scripts qu'elle a lancés, et je vérifie qu'il n'en reste aucun.
+- Reste :
+  - dettes : 232, 235, 237, 238 et 240 (les agents du PC), 242 (la session du nuage) ;
+  - fonctions ouvertes : 246 et 247 (le PC), 248 à 252 (la session du nuage), 253 avec la 3D ;
+  - à la fin, la session du nuage refait la suite des leçons et le grand tableau.
+
+---
+
 ## 2026-10-10 — Faire vibrer le téléphone : `Device(kind: vibration)`
 
 - Fait (issue #239, la session du nuage ; `ADR-110`, ACCEPTÉ) :
@@ -45,6 +129,49 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
   - La suite entière (`CI=1`, axe-core 4.10.3) : 82 essais sur 85 passent ; les 3 ratés sont ceux du conteneur (« pincer à deux doigts », « la vue points se lit au lecteur d'écran », la vidéo H.264 des parcours 8 et 9).
 - Erreurs en route : la limite de séance a arrêté l'agent deux fois, et le conteneur a redémarré. La fusion de `main` faite par la session du PC dans la branche de la #236 avait coupé un exemple du guide ; réparé (58c2b2d) avant de fusionner la #236 ici.
 - Reste : essayer sur un vrai téléphone Android ; l'iPhone ne vibre pas (Safari n'a pas `navigator.vibrate`).
+
+---
+
+## 2026-10-10 — Mélanger des sons : un fondu, un volume qui suit une valeur
+
+- Fait (issue #241, la session du nuage ; `ADR-112`, ACCEPTÉ d'avance par Yocthan : « tu le valides déjà, tu le fais déjà ») :
+  - Vérifié d'abord dans Chrome, avec le moteur de `main` (leçon 79) : deux sons différents jouent déjà ensemble, aucun n'est mis en pause ; un même son relancé repart du début. Plusieurs sons à la fois ne demandent donc aucun mot nouveau.
+  - `Sound(fade: 2s)` : le son monte du silence jusqu'à son volume quand il commence ; `stop` le fait descendre jusqu'au silence en jouant encore, puis le met en pause au début. De 100ms à 5s.
+  - `Sound(volume: pluie)` : le volume suit une valeur de la page, de 0 à 100, et glisse jusqu'à elle en un dixième de seconde ; la valeur ne dépasse jamais 100. Une glissière par son fait une table de mixage.
+  - Le mélangeur de la page (Web Audio, deux gains par son) : il naît au premier son mélangé et s'endort quand aucun ne joue ; un son d'un autre serveur n'y passe pas. Sur iPhone, `audio.volume` ne se règle pas, un gain si (pas essayé ici).
+  - Jamais un son avant un geste du visiteur, même si le navigateur le permet : le moteur oublie la demande.
+  - Un lecteur (`Sound(label:)`) ne change pas : `fade:` et un volume suivi y sont refusés.
+  - La leçon 135, avec deux ambiances fabriquées par un petit programme (du bruit filtré qui boucle sans couture : une pluie, un vent, 44 Ko chacune) ; une page d'essai, `son-avant-un-geste.holo` ; le guide (chapitre « 6 terquinquagies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+- Exécuté :
+  - `cargo test --release --locked` → 241 tests passent après la fusion de `main` (237 avant ; deux nouveaux : `a_sound_fades_in_and_out`, `a_sound_follows_a_value_of_the_page`) ; `cargo test` (debug) → 241 ;
+  - `holo check` sur la leçon 135 et la page d'essai → `ok` ;
+  - dans Chrome, les deux essais nouveaux passent : la pluie mesurée 0,05 → 0,17 → 0,29 → 0,41, puis 0,60 ; avec le vent, les deux jouent ; la glissière à 20 au clavier, le volume suit ; arrêtée, la pluie descend 0,14 → 0,09 → 0,05 en jouant, puis se met en pause au début, et le vent continue ; tout arrêté, le mélangeur s'endort ; axe-core sans défaut. Avant un geste, la règle a demandé les sons trois fois : aucun entendu, pas de mélangeur ; après un toucher, les deux ;
+  - ils savent échouer, avant et après la fusion de `main` : sans le fondu (0,60 dès le départ), sans le volume suivi (la pluie à 1,00), sans le fondu de sortie (en pause tout de suite), sans la règle stricte (les deux sons entendus avant tout geste) : RATÉ chaque fois ;
+  - sous la vraie politique de Chrome (`document-user-activation-required`), le premier toucher rejoué après l'arrivée du moteur : la pluie monte (0,02 → 0,14 → 0,26 → 0,38) ; sans geste, rien ;
+  - la suite entière, après la fusion de `main` (PR 257) : 82 essais `OK` sur 85 (avant : 81 sur 84) ; les 3 ratés propres au conteneur : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 ».
+- Erreurs en route :
+  - mon premier mélangeur se réveillait sur un `stop` d'un son qui n'avait jamais joué (« Tout arrêter », touché en premier), et restait éveillé pour rien : un `stop` ne crée plus rien ;
+  - la limite de séance a coupé le travail, puis le conteneur a redémarré, pendant la relance de « pincer à deux doigts » ; rien n'était envoyé, la reprise est partie des commits ;
+  - la PR 257 a apporté un `follow` (une constante d'un bloc intérieur) : ma fonction s'appelle désormais `followVolume`, pour ne pas être masquée à la lecture.
+- Reste : un écho et les autres effets ; `fadeIn:` et `fadeOut:` séparés ; le volume écrit seul passe encore par `audio.volume` (sans effet sur iPhone) ; essayer à l'oreille sur le téléphone de Yocthan, et sur un iPhone ; la leçon 135 revient à la 124 et mène à la 1, en attendant que la suite 124 → … → 136 → 1 soit refaite.
+
+---
+
+
+---
+
+## 2026-10-10 — Des nombres négatifs : `negative: [temperature]`
+
+- Fait (issue #231, prise par un agent de la session du PC ; l'agent précédent s'est arrêté à la limite de séance, un second a repris sur `wip/langage/nombres-negatifs` ; `ADR-102`, ACCEPTÉ : « tu le valides déjà, tu le fais déjà ») :
+  - `negative: [temperature, balance]`, sur la page, comme `keep:` : ces valeurs descendent jusqu'à −1 000 000 000 ; les autres s'arrêtent à 0, comme avant (un panier ne compte jamais −1 article, le défaut classique du compteur JavaScript). `State(temperature: -2)`, `sub` sous zéro, `set(-10)`, `mul(-1)` ; `add(-5)` est refusé avec le bon mot, `sub(5)`. Un nombre négatif se calcule comme sans son signe : −7 ÷ 2 = −3, la moitié s'arrondit en s'éloignant de zéro (−14,025 → −14,03) ; exact, aussi à virgule (`balance: -12.50`, `ADR-066`).
+  - `If(temperature, under: -20)`, `When(balance, under: -100, …)` ; le signe moins de la langue de la page, celui du CLDR : « -2 » en français et en anglais, « −2 » (U+2212) en suédois, une marque de direction en arabe ; jamais « -0 » ; `number`, `cents`, `00` et le titre de l'onglet suivent.
+  - Un champ `Input(value: temperature, min: -50, max: 50)` : `type="number"` sans `inputmode`, pour que le clavier du téléphone ait le signe moins (ceux de `numeric` et `decimal` n'en ont pas sur l'iPhone) ; « -12 » et « −12 » compris. L'état écrit, `keep`, des données reçues, un formulaire et `holo serve` sans JavaScript gardent le signe.
+  - Refusés, avec la raison : un départ sous zéro sans `negative:` ; une valeur négative dans une glissière, une barre, une case, un plateau, un dessin, `limit:`, un module, `Transfer`, l'adresse, un chronomètre ; une valeur partagée ou une quantité qui a un prix dans `negative:`.
+  - Le mot `negative` plutôt que `signed` (se lit « signé » en français) ou `belowZero` ; un réglage de la page plutôt qu'un plancher par valeur (`Number(0, min: -500)`) ou un signe devant le départ (`+0`, obscur, et `-0` est un défaut de JavaScript).
+  - La leçon 125 (précédente : 124, suivante : 1, selon la convention avec la session du nuage) ; le guide (chapitre « 6 terquadragies », une ligne au § 10 bis, le § 11), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons ; l'essai Chrome joue la leçon 125 et une page suédoise (`exemples/.essais-navigateur/nombres-negatifs-suedois.holo`).
+- Exécuté, dans `moteur/` : `cargo test --release --locked` → 245 tests passent (six nouveaux, dans `src/negative.rs`) ; `cargo test` → 245 ; `node outils/browser-tests.mjs` (la suite entière) : 83 essais sur 84 passent, 126 leçons s'ouvrent sans erreur, en 654 s ; le seul raté est l'audit axe-core des parcours, parce qu'axe-core n'est pas sur ce PC et que l'agent n'installe rien (les machines de GitHub l'installent avant la suite). L'essai de la leçon 125 : « départ « -2 °C », il gèle ; −5 = −7 ; +10 = 3 ; champ number, sans inputmode, −50 à 50 ; −40 écrit ; −90 gardé à −50 ; spinbutton ; en suédois « Temperatur: −7 °C » ».
+- Erreurs en route : la reprise a fusionné `main` (PR 243 à 245, 254, 257) dans la branche : quatre conflits dans les fichiers partagés (le guide, `NOMS.md`, `DECISIONS.md`, le sommaire des leçons), résolus en gardant les deux côtés, rangés par numéro (« 6 terquadragies » avant « 6 sexquadragies », `ADR-102` avant `ADR-105`, la leçon 125 avant la 128) ; `browser-tests.mjs`, `lib.rs`, `flat.rs` et `server.rs` se sont fusionnés seuls (`node --check` vert).
+- Reste : une glissière, une valeur partagée, l'adresse et un fichier exporté avec un nombre négatif ; `Days` qui rend 0 quand le départ vient après l'arrivée (`ADR-067`) pourrait compter à rebours ; la lecture TalkBack de « -7 °C » à essayer sur le téléphone de Yocthan. Le grand tableau du web : « variables » peut passer de « en partie » à « oui ».
 
 ---
 

@@ -493,7 +493,7 @@ Page(
 | Demande | Sens |
 |---|---|
 | `cart.add(1)` | Ajouter 1. |
-| `cart.sub(1)` | Retirer 1. La valeur ne descend jamais sous 0. |
+| `cart.sub(1)` | Retirer 1. La valeur ne descend jamais sous 0, sauf si la page la nomme dans `negative:` (voir « Des nombres négatifs »). |
 | `cart.set(0)` | Fixer à 0. |
 
 Les limites :
@@ -1969,6 +1969,40 @@ Page(
 
 La leçon est `124-une-citation-courte.holo`.
 
+## 6 terquadragies. Des nombres négatifs
+
+Une température, un solde, une position, l'écart entre deux scores (`ADR-102`).
+
+```holo
+Page(
+  title: "Weather",
+  state: State(temperature: -2, balance: -12.50),
+  negative: [temperature, balance],
+  children: [
+    P("Up there: {temperature} °C. Account: {balance} €"),
+    Button(name: Colder, text: "Colder"),
+    Button(name: Warmer, text: "Warmer"),
+    Input(value: temperature, label: "Temperature", min: -50, max: 50),
+    If(temperature, under: 0, children: [ "It freezes." ], else: [ "No frost." ]),
+    If(temperature, under: -20, children: [ "Big frost: stay inside." ]),
+  ],
+  rules: [
+    On(Colder.tap, effect: temperature.sub(5)),
+    On(Warmer.tap, effect: temperature.add(5)),
+  ],
+)
+```
+
+- **`negative: [temperature, balance]`**, sur la page : ces valeurs peuvent descendre sous zéro, jusqu'à −1 000 000 000. Les autres s'arrêtent à 0, comme avant : un panier ne compte jamais −1 article. Une valeur peut partir de sous zéro, `State(temperature: -2)`, seulement si elle est nommée là.
+- **`sub` passe sous zéro**, `set(-10)` fixe un nombre négatif, `mul(-1)` change le signe. Pour retirer, on écrit `sub(5)`, jamais `add(-5)`. Une autre valeur peut être négative : `x.add(speed)` retire quand `speed` vaut −3.
+- **Un nombre négatif se calcule comme sans son signe** : −7 ÷ 2 = −3, comme 7 ÷ 2 = 3 ; un arrondi met la moitié du côté opposé à zéro, −14,025 → −14,03. C'est exact, même à virgule (`balance: -12.50`).
+- **Les comparaisons** prennent un nombre négatif : `If(temperature, under: -20)`, `When(balance, under: -100, effect: …)`.
+- **`{temperature}` met le signe moins de la langue de la page** : « -2 » en français et en anglais, « −2 » en suédois. Les formats suivent : `{balance:number}` « -1 234 », `{balance:cents}` « -12,50 », `{temperature:00}` « -05 ».
+- **Un champ** présente un nombre négatif avec un clavier qui a le signe moins, au doigt comme au clavier ; ses bornes peuvent être négatives, `min: -50`. Des données reçues (`{"temperature": -3}`), une valeur gardée (`keep`) et un formulaire gardent le signe.
+- Pas encore : une glissière, une barre, une case, une place sur un plateau, un dessin, `limit:`, un module, un fichier exporté, l'adresse et une valeur partagée prennent un nombre qui ne descend pas sous zéro ; le moteur le dit.
+
+La leçon est `125-des-nombres-negatifs.holo`.
+
 ## 6 quinquadragies. Une grille qui place ses cases : plusieurs colonnes, des zones
 
 Une case plus grande que les autres, et une page dessinée avec des mots (`ADR-104`).
@@ -2141,6 +2175,112 @@ Page(
 
 La leçon est `133-faire-vibrer-le-telephone.holo`.
 
+## 6 terquinquagies. Mélanger des sons
+
+Plusieurs sons à la fois, chacun avec son volume, un fondu à l'entrée et à la sortie (`ADR-112`).
+
+```holo
+Page(
+  title: "Rain and wind",
+  state: State(rain: 60, wind: 30),
+  children: [
+    Sound(name: Rain, source: "rain.wav", loop: true, fade: 2s, volume: rain),
+    Sound(name: Wind, source: "wind.wav", loop: true, fade: 3s, volume: wind),
+    Slider(value: rain, label: "Rain volume", min: 0, max: 100),
+    Slider(value: wind, label: "Wind volume", min: 0, max: 100),
+    Row(gap: 12px, children: [
+      Button(name: Start, text: "Rain and wind"),
+      Button(name: Quiet, text: "Silence"),
+    ]),
+  ],
+  rules: [
+    On(Start.tap, effect: [Rain.play, Wind.play]),
+    On(Quiet.tap, effect: [Rain.stop, Wind.stop]),
+  ],
+)
+```
+
+- **Plusieurs sons à la fois** : rien de nouveau. Chaque `Sound` est une piste ; `[Rain.play, Wind.play]` les fait entendre ensemble.
+- **`fade: 2s`** : `play` fait monter le son du silence jusqu'à son volume en 2 secondes ; `stop` le fait descendre jusqu'au silence en 2 secondes, puis le met en pause et le ramène au début. De `100ms` à `5s`.
+- **`volume: rain`** : le volume suit une valeur de la page, un nombre entier de 0 (muet) à 100 (le plus fort), comme une glissière. Quand elle change, le volume glisse jusqu'à elle, sans claquer ; elle ne dépasse jamais 100. Une glissière par son fait une table de mixage, au doigt, à la souris et au clavier. Un volume écrit reste de 0 à 1 : `volume: 0.4`.
+- **Jamais un son avant un geste** : avant le premier toucher, clic ou touche du visiteur sur la page, le moteur ne joue aucun son, même si une règle de temps le demande, même si le navigateur le permettrait.
+- Un lecteur (`Sound(label:)`) reste dans la main du visiteur : `fade:` et un volume suivi y sont refusés. Refusés aussi, avec la raison : un fondu hors de 100ms à 5s ; un volume qui suit un texte, une liste, un nombre à virgule, une valeur inconnue ou qui part au-dessus de 100.
+
+Cette écriture est décidée (`ADR-112`). La leçon est `135-melanger-des-sons.holo`.
+
+## 6 quaterquinquagies. Se souvenir le temps d'une visite : `visit`
+
+Un formulaire en plusieurs pages : ce qu'on écrit à l'étape 1 se retrouve à l'étape 2, et quand on revient en arrière (`ADR-113`).
+
+```holo
+Page(
+  title: "Step 1",
+  state: State(firstName: "", people: 1),
+  visit: [firstName, people],
+  children: [
+    Input(value: firstName, label: "Your first name", max: 40),
+    Input(value: people, label: "How many people?", min: 1, max: 6),
+    A("Step 2", to: "step-2.holo"),
+  ],
+)
+```
+
+- **`visit: [firstName, people]`**, sur la page, à côté de `keep:` : ces valeurs de `State` sont retenues le temps de la visite. Une autre page du même site qui retient les mêmes noms (`step-2.holo`, avec `visit: [firstName, people]`) les retrouve, dans le même onglet.
+- **Le temps d'une visite** : tant que l'onglet est ouvert, rechargement et « Précédent » compris. Un autre onglet part de zéro ; fermer l'onglet efface tout. C'est le `sessionStorage` du navigateur : rien ne part au serveur, aucun cookie.
+- **`keep` ou `visit`** : `keep` garde d'une visite à l'autre, sous l'adresse d'une page (un panier, un meilleur score) ; `visit` retient le temps de la visite, sous le nom de la valeur, pour tout le site (les étapes d'un formulaire). Une valeur est l'une ou l'autre.
+- **Chaque page vérifie ce qu'elle reprend**, comme un import : un nombre dans les bornes de son champ, un texte que son champ accepterait, une option de son `Choice`. Si deux pages donnent deux sortes au même nom (un texte ici, un nombre là), chacune ignore ce qui n'est pas de la sienne. Une valeur qui ne va pas est ignorée, sans erreur : la page garde la sienne.
+- La page arrive du serveur avec ses valeurs de départ, puis reprend celles de la visite. **Sans JavaScript, rien n'est retenu** : chaque page part de ses valeurs de départ.
+- Refusés, avec la raison : une valeur aussi dans `keep`, dans `address:` ou partagée (`shared`) ; une valeur qui vient du nom du fichier (`{id}`) ; l'heure ; une liste calculée ; un nom inconnu ; `visit:` dans un monde.
+
+La leçon est `136-se-souvenir-le-temps-d-une-visite.holo`, avec sa seconde page, `136-inscription/etape-2.holo`.
+
+## 6 septemquinquagies. Les données d'un autre site : `Data(from: "https://…")`
+
+Une page montre les données d'un autre site : la météo, un cours, le résumé d'un article. C'est son serveur, `holo serve`, qui va les chercher, jamais le navigateur du visiteur (`ADR-116`).
+
+```holo
+Page(
+  title: "Kinshasa",
+  state: State(loading: 1, broken: 0, title: "", extract: ""),
+  data: Data(name: Wiki, from: "https://fr.wikipedia.org/api/rest_v1/page/summary/Kinshasa", every: 3600s),
+  children: [
+    If(loading, is: 1, children: [ P("Loading…") ]),
+    If(broken, is: 1, children: [ P("The summary did not arrive."), Button(name: Retry, text: "Try again") ]),
+    H1("{title}"),
+    P("{extract}"),
+  ],
+  rules: [
+    On(Wiki.done, effect: [loading.set(0), broken.set(0)]),
+    On(Wiki.failed, effect: [loading.set(0), broken.set(1)]),
+    On(Retry.tap, effect: [loading.set(1), broken.set(0), Wiki.refresh]),
+  ],
+)
+```
+
+Le fichier `holo-data/sites.txt`, à la racine du dossier servi :
+
+```text
+fr.wikipedia.org
+api.exemple.org ?appid=ta-clé
+autre.exemple.org X-Api-Key: ta-clé
+```
+
+- **Le même `Data`**, avec une adresse `https://`. `name`, `every`, `done`, `failed` et `refresh` gardent leur sens (§ 6 septies).
+- **Le navigateur ne parle jamais à l'autre site.** Le moteur de la page demande les données à son propre serveur, à sa propre adresse (`?remote-data`). L'autre site voit le serveur de l'auteur : ni l'adresse IP du visiteur, ni ses cookies, ni rien de lui.
+- **Les sites permis** : un par ligne dans `holo-data/sites.txt`, le nom exact (jamais ses sous-domaines). Ce dossier n'est jamais servi, ni versionné. Le fichier se relit quand il change.
+- **Une clé** se range sur la ligne de son site, comme sa documentation la montre : `?appid=ta-clé` (un paramètre de l'adresse) ou `X-Api-Key: ta-clé` (un en-tête, plus sûr quand le site l'accepte).
+  - Jamais dans la page : elle ne va qu'à son site.
+  - Elle n'apparaît ni dans la page, ni dans un message, ni au journal.
+- **Gardé un moment** : le serveur lit chaque adresse au plus une fois par `every` (60 s au moins ; dix minutes sans `every`), quel que soit le nombre de visiteurs ; un échec est gardé une minute. `Wiki.refresh` relit ce qui est gardé : un visiteur ne force jamais une demande.
+- **Vérifié, puis réduit** : 4 s pour se connecter, 8 s en tout, 64 Ko, un objet JSON comme celui d'un fichier. Seules les valeurs du premier niveau, aux noms que la page déclare, sont reprises ; le reste de la réponse ne quitte pas le serveur.
+- **Une panne** donne `Wiki.failed`. La raison est écrite au journal de holo serve : un site non permis, une clé manquante, une redirection (jamais suivie), trop lent, trop gros…
+- **Sans JavaScript**, la page arrive avec ses données, ou dit l'échec ; « Try again » relit ce qui est gardé.
+- Refusés, avec la raison : `http://` ; une adresse IP ou `localhost` ; un port ; `nom:mot-de-passe@` ; `#` ; `{…}` ; `every:` de moins de 60 s. Le serveur refuse aussi un nom qui mène à ce PC ou au réseau privé.
+- Au démarrage, holo serve dit les sites permis (jamais leur clé), et chaque page qui lit un site non permis.
+- Avec le serveur d'essai (`node outils/server.mjs`), les données d'un autre site n'arrivent pas : seul holo serve les lit.
+
+La leçon est `139-les-donnees-d-un-autre-site.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo
@@ -2233,7 +2373,7 @@ Page(
 - **Les comparaisons sont exactes**, même entre un entier et un nombre à virgule : `If(sum, over: 49.99)`.
 - **Un champ** présente une valeur à virgule avec le clavier décimal ; « 12,5 » et « 12.5 » sont compris.
 - **Des données reçues** : `{"price": 12.5}` va dans une valeur à virgule.
-- Pas encore : une glissière, une barre, une case, une place sur un plateau, les prix (`Prices`) et `limit:` prennent un nombre entier ; une fiche de liste aussi (un prix de fiche s'écrit en centimes, `{item.price:cents}`) ; pas de nombre négatif.
+- Pas encore : une glissière, une barre, une case, une place sur un plateau, les prix (`Prices`) et `limit:` prennent un nombre entier ; une fiche de liste aussi (un prix de fiche s'écrit en centimes, `{item.price:cents}`). Un nombre à virgule peut être négatif : voir « Des nombres négatifs ».
 
 Cette écriture est proposée (`ADR-066`) et attend la validation de Yocthan. La leçon est `86-nombres-a-virgule.holo`.
 
@@ -2619,6 +2759,7 @@ Toutes les limites, telles que le moteur les applique (chacune refusée avec un 
 | Les composants | 16 paramètres ; 8 composants l'un dans l'autre ; 2 000 copies |
 | Le temps | `Every` et `After` : de 100 ms à 3 600 s ; `Data(every:)` : de 1 s à 3 600 s |
 | Les données reçues (`Data`) | 64 Ko : au-delà, elles sont refusées, et la lecture s'arrête dès qu'elles dépassent ; 10 secondes pour arriver ; une lecture à la fois, une seconde au moins entre deux (`ADR-064`) |
+| Les données d'un autre site (`ADR-116`) | HTTPS ; 4 s pour se connecter, 8 s en tout ; 64 Ko ; une demande au plus par adresse et par `every` (60 s au moins, dix minutes sans `every`), un échec gardé une minute ; 32 sites permis, 64 adresses gardées, 8 par site |
 | Les modules | 8 par page ; un fichier de 4 Mo, refusé dès qu'il dépasse ; un temps de 10 ms à 5 s ; une mémoire de 64 Ko à 16 Mo |
 | Un fichier envoyé par un formulaire | 10 Mo au plus (`max:` de 1 KB à 10 MB) |
 | La vue points | 200 000 points à l'écran |
@@ -2781,6 +2922,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Des termes et leurs définitions : une fiche technique, un glossaire | `List(children: [ Term("Poids", "2 kg") ])` | fait (`ADR-097`) |
 | Multiplier, diviser | les demandes `mul`, `div` | fait |
 | Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait |
+| Une valeur qui descend sous zéro : une température, un solde | `negative: [temperature]`, et le signe moins de la langue de la page | fait (`ADR-102`) |
 | Une liste qui change pendant la visite | `State(tasks: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` | fait |
 | Une liste d'articles à champs, aussi reçue du serveur | `State(articles: [ Item(…) ])`, `{item.title}`, `push(Item(…))`, `Data` | fait |
 | Une valeur partagée par tous les visiteurs, vue en direct | `shared: Shared(seats: 20)`, `seats.sub(1)` par un toucher | fait |
@@ -2800,12 +2942,13 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 ## 11. Ce qui n'existe pas encore
 
 - Un dessin n'a pas encore de texte ni de dégradé ; une liste de formes en garde deux cents au plus.
-- Les données venues d'un autre serveur.
+- Pour les données d'un autre site (`ADR-116`) : choisir et nommer une valeur rangée plus bas dans la réponse (`current.temperature_2m`) ; la dernière valeur, avec son âge, pendant une panne ; une clé donnée par une variable d'environnement ; un proxy choisi par l'auteur.
 - Pour les valeurs partagées (`ADR-080`) : un champ qui change un nombre ou une liste partagés (seul un texte partagé se prépare, puis se confirme) ; une condition sur l'élément d'une ligne partagée, que le serveur ne vérifie pas encore ; une valeur « une fois par compte ».
 - Pour les comptes (`ADR-081` à `ADR-083`) : changer son mot de passe ; un compte créé par une clé d'accès seule ; de nouveaux codes de secours sans retirer le code à 6 chiffres ; la clé d'accès essayée sur un vrai téléphone, en HTTPS.
 - Pour les capacités du navigateur (`ADR-093` à `ADR-096`) : la caméra ne prend pas de photo, le microphone ne donne pas de son ; pas de rappel après la fermeture de la page (il faudrait un serveur de « push ») ; pas d'import en CSV ni par glisser-déposer ; pas de copie hors-ligne d'une page qui a un compte, un formulaire ou des valeurs partagées, ni d'envoi mis en attente.
 - Pour les listes de définitions (`ADR-097`) : pas de liste de termes qui change pendant la visite (`Repeat(over:)`), ni de définition faite de plusieurs paragraphes.
-- Pour les valeurs : pas de nombre négatif ; une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
+- Pour les nombres négatifs (`ADR-102`) : une glissière, une valeur partagée, l'adresse et un fichier exporté ne prennent pas encore de nombre négatif.
+- Pour les valeurs : une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
 - Les garde-fous de zoom pour un `Point` seul : ils sont encore fixés dans le moteur.

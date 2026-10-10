@@ -8,6 +8,7 @@
     flat_view, effects, initial_state, arbitrate, submission, form_errors, format_value, format_date, list_html, page_title, from_query, address_query, address_names, chart_html, shapes_html, module_info, module_finished, module_input, module_received, delays, reads_time, set_now, set_second, reads_seconds, stopwatch_stopped, advance_clock, conditions, clocks, touched_ones, keypresses, imports, data, receive, input, drag, to_keep, resume, neighbour_worlds, view_settings, needs_drawing,
     shared_names, with_shared, touches_shared, capability_export, capability_received,
     suggestions_html,
+    visit_names, to_visit, from_visit,
     reads_scroll, scrolled,
   } from "/pkg-light/holo_engine.js";
   let host = null;
@@ -278,6 +279,9 @@
       try { kept = localStorage.getItem(`holo:${addressOf(path)}`) ?? ""; } catch { /* stockage refusé : on part du départ */ }
       states.set(path, resume(source, kept));
     }
+    // Ce que la page retient le temps de la visite (visit: [prenom], ADR-113), par-dessus : le
+    // visiteur a pu le changer sur une autre page du site depuis.
+    takeVisit();
     // Les valeurs que la page écrit dans son adresse (ADR-091) : address: [tab, page].
     addressNames = address_names(source).split(",").filter(Boolean);
     setClocks();
@@ -482,7 +486,11 @@
     const late = setTimeout(() => stop.abort(), 10000);
     try {
       const discreet = fromElsewhere(for_) ? { credentials: "omit", referrerPolicy: "no-referrer" } : {};
-      const response = await fetch(folderOf(for_) + file, { cache: "no-store", headers: { accept: "application/json" }, signal: stop.signal, ...discreet });
+      // Les données d'un autre site (ADR-116) : la page les demande à son propre serveur, à sa
+      // propre adresse (`?remote-data`) ; c'est lui qui les lit. Le navigateur ne parle jamais à
+      // l'autre site, et ne reçoit pas son adresse.
+      const address = file.startsWith("?") ? for_ + file : folderOf(for_) + file;
+      const response = await fetch(address, { cache: "no-store", headers: { accept: "application/json" }, signal: stop.signal, ...discreet });
       // Des données de 64 Ko au plus (DATA_BYTES dans le moteur) : au-delà, elles sont refusées.
       const buffer = response.ok ? await readCapped(response, 65536) : null;
       if (buffer && for_ === path) { // on a pu changer de fichier entre-temps
@@ -747,6 +755,7 @@
     showValues();
     placePixels();
     keep();
+    rememberVisit();
     setDelays();
     followAddress(step);
   }
@@ -790,6 +799,63 @@
       if (kept) localStorage.setItem(`holo:${addressOf(path)}`, kept);
     } catch { /* stockage refusé ou plein : la page marche sans */ }
   }
+
+  // La mémoire de visite (ADR-113) : visit: [prenom] retient ces valeurs le temps de la visite,
+  // d'une page à l'autre du site, dans cet onglet seulement (sessionStorage : le navigateur
+  // l'efface quand l'onglet se ferme, et ne la donne à aucun autre). Chacune est rangée sous son
+  // nom, holo-visit:prenom, en JSON : deux pages qui retiennent le même nom parlent de la même
+  // valeur. Le moteur écrit ce JSON et le relit avec méfiance : une valeur d'une autre sorte, hors
+  // des bornes de cette page ou abîmée est ignorée, sans erreur, et laissée telle quelle pour les
+  // pages qui la comprennent. Rien ne part au serveur ; aucun cookie. Un fichier d'un autre
+  // serveur, ouvert par un passage, n'y touche pas : ce n'est pas le même site.
+  const visitKey = (name) => `holo-visit:${name}`;
+  // Chaque valeur retenue, en JSON, telle que la page l'a prise : seule une valeur qui a changé
+  // depuis est écrite. Une page n'écrase donc jamais, sans qu'on y touche, ce qu'une autre a écrit.
+  let visitTaken = new Map();
+  const visitLines = (written) => new Map(to_visit(source, written).split("\n").filter(Boolean).map((line) => [line.slice(0, line.indexOf("\t")), line.slice(line.indexOf("\t") + 1)]));
+  // L'état de la page, avec ce que la mémoire de visite rend pour elle.
+  function recallVisit(written = states.get(path) ?? "") {
+    if (fromElsewhere(path)) return written;
+    const stored = [];
+    for (const name of visit_names(source).split(",").filter(Boolean)) {
+      try {
+        const json = sessionStorage.getItem(visitKey(name));
+        // Le moteur écrit chaque valeur sur une seule ligne : une valeur qui en a plusieurs n'est
+        // pas la sienne, et ne glisse pas une ligne de plus pour une autre valeur.
+        if (json !== null && !/[\t\n\r]/.test(json)) stored.push(`${name}\t${json}`);
+      } catch { /* stockage refusé : la page garde ses valeurs */ }
+    }
+    return (stored.length && from_visit(source, written, stored.join("\n"))) || written;
+  }
+  // La page prend ce que la mémoire de visite lui rend : c'est d'où elle part.
+  function takeVisit() {
+    states.set(path, recallVisit());
+    visitTaken = visitLines(states.get(path) ?? "");
+  }
+  // Ce qui a changé depuis est écrit ; une valeur trop grosse pour être retenue (le moteur l'écrit
+  // vide) ou que le navigateur refuse est retirée, plutôt que de laisser celle d'avant.
+  function rememberVisit() {
+    if (fromElsewhere(path)) return;
+    for (const [name, json] of visitLines(states.get(path) ?? "")) {
+      if (visitTaken.get(name) === json) continue;
+      visitTaken.set(name, json);
+      try {
+        if (json) sessionStorage.setItem(visitKey(name), json);
+        else sessionStorage.removeItem(visitKey(name));
+      } catch {
+        try { sessionStorage.removeItem(visitKey(name)); } catch { /* stockage refusé */ }
+      }
+    }
+  }
+  // Revenue par « Précédent » telle qu'on l'avait quittée (le cache du navigateur), la page
+  // reprend ce que les autres pages ont changé entre-temps.
+  addEventListener("pageshow", (event) => {
+    if (!event.persisted || !source) return;
+    const recalled = recallVisit();
+    if (recalled === (states.get(path) ?? "")) return;
+    visitTaken = visitLines(recalled);
+    changeState(recalled);
+  });
 
   // Un résultat de l'arbitre peut porter, sous le nom « ! », des capacités demandées par une
   // règle de temps ou une règle qui guette (un son à faire entendre). On les applique, et on
@@ -878,6 +944,10 @@
     // Une barre de progression suit sa valeur : Progress(value: lives) (ADR-042).
     for (const bar of or_.querySelectorAll("[data-progress]")) {
       if (values.has(bar.dataset.progress)) bar.value = Number(values.get(bar.dataset.progress));
+    }
+    // Un son suit la valeur qui règle son volume, de 0 à 100 : volume: pluie (ADR-112).
+    for (const sound of or_.querySelectorAll("audio[data-volume-of]")) {
+      if (values.has(sound.dataset.volumeOf)) followVolume(sound, Number(values.get(sound.dataset.volumeOf)));
     }
     // Sur un plateau, un bloc suit les valeurs qui disent sa place : Point(x: starX, y: starY).
     for (const axis of ["x", "y"]) {
@@ -1889,6 +1959,98 @@
     for (const effect of effects(source, `${name}.done`).split(",").filter(Boolean)) apply(effect, `${name}.done`);
   }
 
+  // Le mélange des sons (ADR-112). Plusieurs sons jouent déjà ensemble : chacun est son propre
+  // <audio>. Un son qui a un fondu (fade: 2s) ou un volume qui suit une valeur (volume: pluie)
+  // passe en plus par le mélangeur de la page (Web Audio) : son volume, puis son fondu, deux
+  // gains que le moteur fait glisser au lieu de les changer d'un coup (un son qui saute claque).
+  // Sur iPhone, le volume d'un <audio> ne se règle pas par la page ; un gain, si. Le mélangeur
+  // s'endort quand aucun de ses sons ne joue. Un son venu d'un autre serveur n'y passe pas : le
+  // navigateur le rendrait muet ; il joue à son volume, sans fondu.
+  let mixer = null;
+  const tracks = new WeakMap(); // un son → ses deux gains, ou null s'il ne passe pas par le mélangeur
+  const mixedSounds = new Set();
+  const GLIDE = 0.1; // le temps, en secondes, que met un volume à rejoindre sa valeur
+  const mixable = (sound) => "fade" in sound.dataset || "volumeOf" in sound.dataset;
+  const levelOf = (sound) => Math.min(1, Math.max(0, Number(sound.dataset.level ?? 1)));
+  function track(sound) {
+    if (tracks.has(sound)) return tracks.get(sound);
+    let found = null;
+    try {
+      if (window.AudioContext && new URL(sound.src, location.href).origin === location.origin) {
+        mixer ??= new AudioContext();
+        const [volume, fade] = [mixer.createGain(), mixer.createGain()];
+        volume.gain.value = levelOf(sound);
+        mixer.createMediaElementSource(sound).connect(volume).connect(fade).connect(mixer.destination);
+        found = { volume, fade, end: 0 };
+        mixedSounds.add(sound);
+        sound.addEventListener("pause", rest);
+        sound.addEventListener("ended", rest);
+      }
+    } catch { found = null; }
+    tracks.set(sound, found);
+    return found;
+  }
+  // Aucun son du mélangeur ne joue : il s'endort, et ne tient plus l'appareil éveillé. Un son
+  // retiré de la page (on est passé à un autre site) est détaché du mélangeur.
+  function rest() {
+    for (const sound of mixedSounds) {
+      if (sound.isConnected) continue;
+      tracks.get(sound)?.fade.disconnect();
+      mixedSounds.delete(sound);
+    }
+    if (mixer?.state === "running" && [...mixedSounds].every((sound) => sound.paused)) mixer.suspend().catch(() => {});
+  }
+  // Un gain glisse de là où il en est jusqu'à `value`, en `seconds` secondes.
+  function glide(gain, value, seconds) {
+    const now = mixer.currentTime;
+    gain.cancelScheduledValues(now);
+    gain.setValueAtTime(gain.value, now);
+    gain.linearRampToValueAtTime(value, now + seconds);
+  }
+  // Jouer un son mélangé : il repart du début et monte depuis le silence. L'arrêter : il descend
+  // jusqu'au silence, puis se met en pause et revient au début (stop, ADR-061).
+  function mix(sound, capability) {
+    // Arrêter un son qui n'a pas encore joué ne réveille pas le mélangeur.
+    const t = capability === "play" ? track(sound) : tracks.get(sound);
+    const seconds = Number(sound.dataset.fade ?? 0) / 1000;
+    const rewind = () => { sound.pause(); sound.currentTime = 0; };
+    if (!t) {
+      // Sans mélangeur (un son venu d'un autre serveur) : son volume, sans fondu.
+      if (t === null) sound.volume = levelOf(sound);
+      rewind();
+      if (capability === "play") sound.play().catch(() => {});
+      return;
+    }
+    clearTimeout(t.end);
+    if (capability === "play") {
+      mixer.resume().catch(() => {});
+      const now = mixer.currentTime;
+      t.fade.gain.cancelScheduledValues(now);
+      t.fade.gain.setValueAtTime(seconds ? 0 : 1, now);
+      if (seconds) t.fade.gain.linearRampToValueAtTime(1, now + seconds);
+      rewind();
+      sound.play().catch(rest);
+    } else if (seconds && !sound.paused) {
+      glide(t.fade.gain, 0, seconds);
+      t.end = setTimeout(rewind, seconds * 1000);
+    } else rewind();
+  }
+  // Le volume d'un son suit sa valeur, de 0 à 100 (volume: pluie) : il glisse jusqu'à elle.
+  function followVolume(sound, value) {
+    const level = Math.min(100, Math.max(0, value)) / 100;
+    if (Number(sound.dataset.level) === level) return;
+    sound.dataset.level = String(level);
+    const t = tracks.get(sound);
+    if (t) glide(t.volume.gain, level, GLIDE);
+    else if (t === null) sound.volume = level;
+  }
+  // Pour les essais : ce qu'on entend d'un son mélangé (son volume × son fondu), et le mélangeur.
+  window.__holoMixer = (name) => {
+    const sound = root.querySelector(`audio[data-name="${CSS.escape(name)}"]`);
+    const t = sound && tracks.get(sound);
+    return { heard: t ? t.volume.gain.value * t.fade.gain.value : null, state: mixer?.state ?? "absent" };
+  };
+
   function apply(effect, signal = "") {
     const [name, capability] = effect.split(".");
     if (root.querySelector(`[data-browser-capability][data-name="${CSS.escape(name)}"]`)) { host?.run(name, capability); return; }
@@ -1902,7 +2064,12 @@
       // Faire entendre un son, ou l'arrêter (ADR-061). Un navigateur ne joue un son qu'après un
       // premier geste du visiteur : avant, il refuse, et la page continue sans lui.
       const sound = root.querySelector(`audio[data-name="${CSS.escape(name)}"]`);
-      if (sound) {
+      // Le moteur est plus strict que le navigateur (ADR-112) : avant le premier geste du visiteur
+      // sur la page, aucun son ne part, même là où le navigateur le permettrait (un site souvent
+      // écouté, un réglage). La demande est oubliée, pas gardée pour plus tard.
+      if (capability === "play" && navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
+      if (sound && mixable(sound)) mix(sound, capability);
+      else if (sound) {
         if (sound.dataset.volume) sound.volume = Number(sound.dataset.volume);
         sound.pause();
         sound.currentTime = 0;
@@ -1966,6 +2133,9 @@
     // part d'elles, puis les reçoit en direct.
     const sharedNow = !location.hash.slice(1) && root.querySelector(".holo-Page")?.dataset.shared;
     if (sharedNow && sharedNames.length) states.set(path, with_shared(source, states.get(path) ?? "", sharedNow).split(";").filter((chunk) => !chunk.startsWith("!=")).join(";"));
+    // La mémoire de visite (ADR-113) en dernier : ce que le visiteur a donné dans cet onglet, sur
+    // cette page ou une autre du site, l'emporte sur ce que le serveur a mis dans la page.
+    takeVisit();
     // Une page qui montrera des points ou des mondes fait venir le dessin tout de suite, sans
     // l'attendre : il sera prêt quand le visiteur zoomera.
     if (needs_drawing(source)) loadDrawing().catch(() => {});
@@ -1985,6 +2155,13 @@
     // demandé par l'adresse (#Atelier), lui, se dessine.
     const alreadyThere = !siteStart && root.querySelector(".holo-Page") !== null;
     displaySite(siteStart.startsWith("@") ? "" : siteStart, { inHistory: false, resume: alreadyThere });
+    // Revenu par « Précédent », le navigateur a pu remettre dans les champs ce qu'on y avait écrit
+    // avant d'aller changer ces valeurs sur une autre page : la mémoire de visite, plus récente,
+    // passe par-dessus. Ce que le visiteur a écrit avant l'arrivée du moteur, et qu'elle ne
+    // retient pas encore, y est écrit.
+    const recalled = recallVisit();
+    if (recalled !== (states.get(path) ?? "")) changeState(recalled);
+    else rememberVisit();
     await prepareHost();
     window.__holoStarted = true; // le moteur a pris la page en main (pour les essais)
     // Une adresse en #@… désigne le fichier d'un autre serveur : on propose le passage.

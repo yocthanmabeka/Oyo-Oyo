@@ -16,6 +16,7 @@ import { passkeyTests } from "../../proposals/GPT5.6/fin-passkeys-2026-10-08/bro
 import { sharingTests } from "../../proposals/GPT5.6/fin-partage-2026-10-08/browser-tests.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { createHmac } from "node:crypto";
+import { createServer } from "node:http";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -1147,6 +1148,310 @@ const tests = [
       && violations.length === 0;
     return [ok, `avant tout toucher : ${phone.untouched} vibration ; puis ${phone.buzz.map((m) => `[${m}]`).join(", ")} (le toucher, puis la rencontre), ${phone.tries} demandées, ${phone.caught} prise ; mouvement réduit : « ${reduced.said} », ${reduced.buzz - phone.buzz.length} vibration de plus, ${reduced.tries} demandées ; sans vibreur : navigator.vibrate ${iphone.vibrate}, « ${iphone.said} », ${iphone.tries} demandée, ${iphone.caught} prise, ${iphone.errors.length} erreur ; axe-core : ${violations.length ? violations.join(" ; ") : "zéro défaut"}`];
   }],
+  ["mélanger des sons : deux à la fois, le fondu qui monte puis descend, le volume qui suit sa glissière (leçon 135)", async (p, b) => {
+    await p.open("/exemples/lecons/135-melanger-des-sons.holo");
+    const audio = (name) => `document.querySelector('audio[data-name="${name}"]')`;
+    // Ce qu'on entend d'un son : son volume × son fondu, lus dans les gains du mélangeur (Web Audio).
+    const heard = (name) => p.value(`window.__holoMixer?.(${JSON.stringify(name)}).heard ?? -1`);
+    const shows = (text) => p.value(`document.getElementById("page").innerText.includes(${JSON.stringify(text)})`);
+    // Le lecteur d'écran : chaque glissière a son nom. Et l'audit axe-core de la leçon.
+    const { nodes } = (await b.send("Accessibility.getFullAXTree")).result;
+    const sliders = nodes.filter((n) => !n.ignored && n.role?.value === "slider").map((n) => n.name?.value).join(", ");
+    await p.value(readFileSync(join(engine, "node_modules", "axe-core", "axe.min.js"), "utf8") + "\n;0");
+    const faults = await p.value(`axe.run(document, { resultTypes: ["violations"] }).then((r) => r.violations.map((v) => v.id).join(", "))`);
+    // Un premier toucher fait venir le moteur : « Tout arrêter » n'a rien à arrêter, et ne
+    // réveille pas le mélangeur.
+    await p.click('[data-name="Silence"]');
+    const arrived = await p.until(`${audio("Pluie")}.dataset.level === "0.6"`);
+    const asleep = await p.value(`window.__holoMixer("Pluie").state`);
+    // La pluie monte en 2 secondes jusqu'à son volume, 60 sur 100 : écoutée à plusieurs moments.
+    await p.click('[data-name="LancerPluie"]');
+    await p.until(`!${audio("Pluie")}.paused`, 5000);
+    const rising = [];
+    for (let i = 0; i < 4; i++) {
+      rising.push(await heard("Pluie"));
+      await pause(400);
+    }
+    const climbing = rising.filter((v) => v < 0.595);
+    const rose = climbing.length >= 3 && climbing[0] < 0.3 && climbing.every((v, i) => i === 0 || v > climbing[i - 1]);
+    const full = await p.until(`Math.abs(window.__holoMixer("Pluie").heard - 0.6) < 0.005`, 4000);
+    // Le vent part à son tour : les deux jouent ensemble, et la pluie ne baisse pas.
+    await p.click('[data-name="LancerVent"]');
+    const together = await p.until(`!${audio("Pluie")}.paused && !${audio("Vent")}.paused && window.__holoMixer("Vent").heard > 0`, 5000);
+    const rainKept = await heard("Pluie");
+    const said = (await shows("La pluie joue.")) && (await shows("Le vent souffle."));
+    // La glissière de la pluie, au clavier : Page suivante quatre fois, de 60 à 20. Le volume glisse
+    // jusque-là, et la page montre la valeur.
+    await p.value(`document.querySelector('input[data-bind="pluie"]').focus()`);
+    for (let i = 0; i < 4; i++) await p.key("PageDown", "PageDown", 34);
+    const followed = await p.until(`Math.abs(window.__holoMixer("Pluie").heard - 0.2) < 0.005`, 3000);
+    const twenty = await shows("20 sur 100");
+    // Arrêter la pluie : elle descend pendant 2 secondes en jouant encore, puis se met en pause et
+    // revient au début. Le vent continue.
+    await p.click('[data-name="ArreterPluie"]');
+    const falling = [];
+    for (let i = 0; i < 3; i++) {
+      await pause(450);
+      falling.push([await heard("Pluie"), await p.value(`${audio("Pluie")}.paused`)]);
+    }
+    const fading = falling.filter(([, paused]) => !paused).map(([v]) => v);
+    const fell = fading.length >= 2 && fading.every((v, i) => v < 0.2 && v > 0 && (i === 0 || v < fading[i - 1]));
+    const stopped = await p.until(`${audio("Pluie")}.paused && ${audio("Pluie")}.currentTime === 0`, 3000);
+    const windOn = await p.value(`!${audio("Vent")}.paused`);
+    // Tout arrêter : le vent s'éteint en 3 secondes, puis le mélangeur s'endort.
+    await p.click('[data-name="Silence"]');
+    const sleeping = await p.until(`${audio("Vent")}.paused && window.__holoMixer("Vent").state === "suspended"`, 6000);
+    const round = (v) => Number(v).toFixed(2).replace(".", ",");
+    const ok = sliders === "Volume de la pluie, Volume du vent" && faults === "" && arrived && asleep === "absent" && rose && full && together
+      && Math.abs(rainKept - 0.6) < 0.005 && said && followed && twenty && fell && stopped && windOn && sleeping;
+    return [ok, `glissières : ${sliders} ; axe-core : ${faults || "aucun défaut"} ; mélangeur avant le premier son : ${asleep} ; la pluie monte : ${rising.map(round).join(" → ")}, puis 0,60 : ${full} ; avec le vent, les deux jouent : ${together} (pluie à ${round(rainKept)}) ; écrit à l'écran : ${said} ; glissière à 20 au clavier : ${followed} (${twenty}) ; arrêtée, elle descend en jouant : ${falling.map(([v, paused]) => `${round(v)}${paused ? " (en pause)" : ""}`).join(" → ")}, puis en pause au début : ${stopped} ; le vent continue : ${windOn} ; tout arrêté, le mélangeur s'endort : ${sleeping}`];
+  }],
+  ["un son ne part jamais avant un geste du visiteur, même là où le navigateur le permettrait (ADR-112)", async (p) => {
+    // Ce Chrome joue un son sans geste (--autoplay-policy=no-user-gesture-required) : seul le moteur
+    // peut l'empêcher. La règle de temps de la page demande deux sons toutes les 400 ms.
+    await p.open("/exemples/.essais-navigateur/son-avant-un-geste.holo", 600);
+    const sounds = `[...document.querySelectorAll("audio")].map((a) => a.dataset.name + (a.played.length ? " entendu" : " muet")).join(", ")`;
+    const asked = await p.until(`/demandé les sons ([3-9]|\\d\\d+) fois/.test(document.getElementById("page").innerText)`, 15000);
+    const before = await p.value(sounds);
+    const mixer = await p.value(`window.__holoMixer?.("Tac").state`);
+    // Un toucher : les sons partent au tour suivant de la règle.
+    await p.click('[data-name="Toucher"]');
+    const heard = await p.until(`[...document.querySelectorAll("audio")].every((a) => a.played.length > 0)`, 5000);
+    const after = await p.value(sounds);
+    const ok = asked && before === "Tic muet, Tac muet" && mixer === "absent" && heard;
+    return [ok, `demandés au moins 3 fois sans geste : ${asked} ; avant un geste : ${before}, mélangeur ${mixer} ; après un toucher : ${after}`];
+  }],
+  ["se souvenir le temps d'une visite : d'une page à l'autre du site, pas dans un autre onglet (leçon 136)", async (p, b) => {
+    const first = "/exemples/lecons/136-se-souvenir-le-temps-d-une-visite.holo";
+    const second = "/exemples/lecons/136-inscription/etape-2.holo";
+    const shows = (text) => `document.getElementById("page").innerText.includes(${JSON.stringify(text)})`;
+    const stored = (name) => `sessionStorage.getItem("holo-visit:${name}")`;
+    const field = (name) => `document.querySelector('[data-bind="${name}"]').value`;
+    const ticked = (option) => `document.querySelector('input[data-bind="atelier"][value="${option}"]').checked`;
+    // L'accessibilité des deux pages, remplies : axe-core, la copie locale, comme pour les parcours.
+    const axeSource = readFileSync(join(engine, "node_modules", "axe-core", "axe.min.js"), "utf8");
+    const audit = async (where) => {
+      await p.value(`${axeSource}\n;window.axe.version`);
+      return (await p.value('window.axe.run(document, { resultTypes: ["violations"] }).then((r) => r.violations.map((v) => v.id))')).map((id) => `${where} : ${id}`);
+    };
+    // Ce que l'onglet envoie pendant l'essai : la mémoire de visite ne part jamais au serveur.
+    const sent = [];
+    await b.send("Network.enable");
+    b.on("Network.requestWillBeSent", ({ request }) => sent.push(request));
+    try {
+      // Les essais d'avant ont ouvert d'autres pages du même site dans cet onglet : on part de rien.
+      await p.open(first, 300);
+      await p.value("sessionStorage.clear()");
+      await p.open(first);
+      // Page 1 : un prénom écrit (avant même l'arrivée du moteur), trois personnes, un atelier.
+      await p.type('[data-bind="prenom"]', "Zoé");
+      await p.until("window.__holoStarted === true", 40000);
+      await p.value(`(() => { const i = document.querySelector('[data-bind="personnes"]'); i.value = "3"; i.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+      await p.click('input[data-bind="atelier"][value="Poterie"]');
+      const written = await p.until(`${stored("prenom")} === '"Zoé"' && ${stored("personnes")} === "3" && ${stored("atelier")} === '"Poterie"'`, 5000);
+      const faults = await audit("page 1");
+      // Page 2, par le lien, dans le même onglet : la page du serveur arrive avec ses valeurs de
+      // départ ; le moteur vient de lui-même, sans geste, et reprend celles de la visite.
+      await p.click('a[href$="136-inscription/etape-2.holo"]');
+      const followed = await p.until(`location.pathname.endsWith("/136-inscription/etape-2.holo") && window.__holoStarted === true && ${shows("Bonjour Zoé, vous serez 3.")} && ${shows("L'atelier : Poterie.")}`, 40000);
+      faults.push(...(await audit("page 2")));
+      // L'atelier change à la page 2 ; « Précédent » : la page 1 a suivi. Deux fois : rendue par le
+      // cache du navigateur, telle qu'on l'avait quittée ; puis rechargée (un écouteur « unload »
+      // interdit au navigateur de la garder), le navigateur remettant dans ses champs ce qu'on y
+      // avait écrit avant : la mémoire de visite, plus récente, passe par-dessus.
+      const backTo = async (option, before) => {
+        await p.click(`input[data-bind="atelier"][value="${option}"]`);
+        await p.until(`${stored("atelier")} === '"${option}"'`, 5000);
+        await p.value("history.back()");
+        const ok = await p.until(`location.pathname.endsWith("136-se-souvenir-le-temps-d-une-visite.holo") && window.__holoStarted === true && ${field("prenom")} === "Zoé" && ${field("personnes")} === "3" && ${ticked(option)} && !${ticked(before)}`, 40000);
+        const how = (await p.value(`performance.getEntriesByType("navigation")[0]?.type`)) === "back_forward" ? "rechargée" : "rendue par le cache";
+        return [ok && (await p.value(`${stored("atelier")} === '"${option}"'`)), how];
+      };
+      const [cached, cachedHow] = await backTo("Gravure", "Poterie");
+      await p.value(`addEventListener("unload", () => {})`);
+      await p.click('a[href$="136-inscription/etape-2.holo"]');
+      await p.until(`location.pathname.endsWith("/136-inscription/etape-2.holo") && window.__holoStarted === true && ${shows("L'atelier : Gravure.")}`, 40000);
+      const [reloaded, reloadedHow] = await backTo("Aquarelle", "Gravure");
+      const back = cached && reloaded;
+      const how = `${cachedHow}, puis ${reloadedHow}`;
+      // Un autre onglet du même navigateur, à la même adresse : il ne les a pas, et la page n'y
+      // fait même pas venir le moteur.
+      const other = await b.tab();
+      const q = page(other, server.base);
+      let fresh = false;
+      let engine = "";
+      try {
+        await q.open(second);
+        fresh = await q.until(`${shows("Tu n'as pas encore écrit ton prénom")} && ${shows("Aucun atelier choisi.")} && sessionStorage.length === 0`, 10000);
+        engine = String(await q.value("window.__holoStarted === true"));
+      } finally {
+        await other.close();
+      }
+      // « Recommencer », à la page 2 : la règle remet les valeurs au départ, et la visite le retient.
+      await p.open(second);
+      await p.until(`window.__holoStarted === true && ${shows("Bonjour Zoé, vous serez 3.")}`, 40000);
+      await p.click('[data-name="Recommencer"]');
+      const again = await p.until(`${stored("prenom")} === '""' && ${stored("personnes")} === "1" && ${stored("atelier")} === '""' && ${shows("Tu n'as pas encore écrit ton prénom")}`, 5000);
+      // Ce qu'une autre page aurait écrit : un prénom juste, un nombre abîmé, un atelier qui n'est
+      // pas une option de celle-ci, suivi d'une ligne qui voudrait glisser six personnes. Le juste
+      // est repris ; les autres sont ignorés seuls, sans erreur, et restent tels quels.
+      await p.value(`sessionStorage.setItem("holo-visit:prenom", '"Zoé"'); sessionStorage.setItem("holo-visit:personnes", "[abîmé"); sessionStorage.setItem("holo-visit:atelier", '"Pirate"\\npersonnes\\t6')`);
+      await p.open(second);
+      const damaged = await p.until(`window.__holoStarted === true && ${shows("Bonjour Zoé, vous serez 1.")} && ${shows("Aucun atelier choisi.")}`, 40000);
+      const untouched = await p.value(`${stored("personnes")} === "[abîmé" && ${stored("atelier")} === '"Pirate"\\npersonnes\\t6'`);
+      const quiet = b.errors.length === 0 && !(await p.value(`document.getElementById("error")?.textContent ?? ""`));
+      // Une page du même site où « prenom » est un nombre : le texte retenu y est ignoré, sans
+      // erreur, et reste pour la leçon.
+      await p.open("/exemples/.essais-navigateur/visite-autre-sorte.holo");
+      const otherSort = await p.until(`window.__holoStarted === true && ${shows("Prénom : 0 ; personnes : 1.")}`, 40000) && b.errors.length === 0;
+      const kept = await p.value(`${stored("prenom")} === '"Zoé"'`);
+      const cookie = await p.value("document.cookie");
+      const leaks = sent.filter((r) => r.method !== "GET" || r.hasPostData || /Zo%C3%A9|Zoé|Poterie|Gravure|Aquarelle|Pirate/.test(r.url)).map((r) => `${r.method} ${r.url}`);
+      const ok = written && followed && back && fresh && engine === "false" && again && damaged && untouched && quiet && otherSort && kept && !cookie && !leaks.length && !faults.length;
+      return [ok, `retenues à la page 1 : ${written} ; la page 2 les a, dans le même onglet : ${followed} ; l'atelier changé à la page 2, la page 1 a suivi : ${back} (${how}) ; un nouvel onglet ne les a pas : ${fresh} (moteur venu : ${engine}) ; recommencer : ${again} ; valeurs abîmées ignorées : ${damaged}, laissées telles quelles : ${untouched}, sans erreur : ${quiet} ; une autre sorte ignorée : ${otherSort}, le prénom gardé pour la leçon : ${kept} ; cookie : ${cookie || "aucun"} ; envoyé au serveur : ${leaks.join(", ") || "rien"} ; axe-core : ${faults.join(", ") || "aucun défaut sur les deux pages"}`];
+    } finally {
+      b.on("Network.requestWillBeSent");
+      await b.send("Network.disable");
+    }
+  }],
+  ["les données d'un autre site, lues par holo serve et jamais par le navigateur, avec et sans JavaScript ; l'interrupteur des essais éteint par défaut (leçon 139, serve)", async (p, b) => {
+    // ADR-116. Un faux « autre site » sur ce PC : un petit serveur HTTP de Node, qui note chaque
+    // demande reçue. holo serve ne l'atteint que par l'interrupteur des essais, allumé ici
+    // seulement dans son environnement (HOLO_TEST_ONLY_INSECURE_SITE=meteo.test:<port>).
+    const binary = ["holo", "holo.exe"].map((name) => join(engine, "target", "release", name)).find(existsSync);
+    if (!binary) return [false, "holo n'est pas construit : cargo build --release --bin holo"];
+    const KEY = "cle-d-essai-7f3a9c41";
+    const seen = [];
+    const other = createServer((req, res) => {
+      seen.push({ url: req.url, headers: req.headers });
+      if (req.url.startsWith("/meteo.json")) {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ temperature: 31, sky: "Ensoleillé", account: "compte-42" }));
+      } else if (req.url.startsWith("/redirige")) {
+        res.writeHead(302, { location: "/meteo.json" });
+        res.end();
+      } else {
+        res.writeHead(404);
+        res.end();
+      }
+    });
+    await new Promise((ok) => other.listen(0, "127.0.0.1", ok));
+    const otherPort = other.address().port;
+    const folder = mkdtempSync(join(tmpdir(), "holo-serve-"));
+    const meteo = (from) => [
+      'Page(title: "Météo d\'essai", state: State(loading: 1, broken: 0, temperature: 0, sky: ""),',
+      `  data: Data(name: Meteo, from: "${from}", every: 600s),`,
+      '  children: [',
+      '    H1("La météo"),',
+      '    If(loading, is: 1, children: [ P("Chargement…") ]),',
+      '    If(broken, is: 1, children: [ P("La météo n\'est pas arrivée."), Button(name: Retry, text: "Réessayer") ]),',
+      '    P("{temperature} degrés, {sky}"),',
+      '    Button(name: Again, text: "Relire"),',
+      '  ],',
+      '  rules: [ On(Meteo.done, effect: [loading.set(0), broken.set(0)]), On(Meteo.failed, effect: [loading.set(0), broken.set(1)]),',
+      '    On(Retry.tap, effect: [loading.set(1), broken.set(0), Meteo.refresh]), On(Again.tap, effect: Meteo.refresh) ],',
+      ')',
+    ].join("\n");
+    writeFileSync(join(folder, "meteo.holo"), meteo("https://meteo.test/meteo.json?city=Kinshasa"));
+    writeFileSync(join(folder, "redirige.holo"), meteo("https://meteo.test/redirige"));
+    writeFileSync(join(folder, "139-les-donnees-d-un-autre-site.holo"), readFileSync(join(repo, "exemples", "lecons", "139-les-donnees-d-un-autre-site.holo")));
+    mkdirSync(join(folder, "holo-data"));
+    writeFileSync(join(folder, "holo-data", "sites.txt"), `# Les autres sites de l'essai\nmeteo.test X-Api-Key: ${KEY}\n`);
+    // holo serve, avec ou sans l'interrupteur ; on attend qu'il ait dit ce qu'il permet.
+    const serve = async (switched) => {
+      const port = 24000 + Math.floor(Math.random() * 2000);
+      const env = { ...process.env };
+      delete env.HOLO_TEST_ONLY_INSECURE_SITE;
+      if (switched) env.HOLO_TEST_ONLY_INSECURE_SITE = `meteo.test:${otherPort}`;
+      const server = spawn(binary, ["serve", folder, String(port)], { cwd: engine, env, stdio: ["ignore", "pipe", "pipe"] });
+      let output = "";
+      server.stdout.on("data", (d) => { output += d; });
+      server.stderr.on("data", (d) => { output += d; });
+      for (let i = 0; i < 100 && !output.includes("Autres sites"); i++) await pause(100);
+      return { base: `http://localhost:${port}`, output: () => output, stop: () => server.kill() };
+    };
+    const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;
+    const asked = (start) => seen.filter((r) => r.url.startsWith(start)).length;
+    const browsed = [];
+    b.on("Network.requestWillBeSent", ({ request }) => browsed.push(request.url));
+    await b.send("Network.enable");
+    let off, on;
+    try {
+      // 1. Éteint par défaut : sans la variable, holo serve ne dit rien de l'interrupteur, la page
+      //    dit l'échec, et le faux site ne reçoit rien.
+      off = await serve(false);
+      const quietOff = !off.output().includes("ESSAIS SEULEMENT");
+      const q0 = page(b, off.base);
+      await q0.open("/meteo.holo", 300);
+      const failedOff = await q0.until(`window.__holoStarted && ${has("La météo n'est pas arrivée.")}`, 40000);
+      const nothingAsked = seen.length === 0;
+      off.stop();
+      // 2. Allumé : holo serve l'annonce, dit les sites permis (sans la clé) et la leçon qui lit un
+      //    site non permis.
+      on = await serve(true);
+      const said = on.output();
+      const announced = said.includes(`ESSAIS SEULEMENT : HOLO_TEST_ONLY_INSECURE_SITE=meteo.test:${otherPort}`)
+        && said.includes("Autres sites    : 1 permis (holo-data/sites.txt) : meteo.test (une clé, en en-tête)")
+        && said.includes("/139-les-donnees-d-un-autre-site.holo lit fr.wikipedia.org, qui n'est pas dans holo-data/sites.txt");
+      const q = page(b, on.base);
+      browsed.length = 0;
+      await q.open("/meteo.holo", 300);
+      const arrived = await q.until(`window.__holoStarted && ${has("31 degrés, Ensoleillé")} && !${has("Chargement")}`, 40000);
+      // Relire trois fois, recharger trois fois : rien de plus vers l'autre site.
+      for (let i = 0; i < 3; i++) {
+        await pause(1100);
+        await q.click('[data-name="Again"]');
+      }
+      await pause(800);
+      const noFailure = await q.value(`!${has("La météo n'est pas arrivée.")} && ${has("31 degrés, Ensoleillé")}`);
+      for (let i = 0; i < 3; i++) await q.open("/meteo.holo", 300);
+      await q.until(`window.__holoStarted && ${has("31 degrés, Ensoleillé")}`, 40000);
+      const reads = browsed.filter((url) => url.endsWith("?remote-data")).length;
+      const once = asked("/meteo.json") === 1;
+      // Ce que le faux site a reçu : notre User-Agent, la clé, et rien du visiteur.
+      const first = seen.find((r) => r.url.startsWith("/meteo.json"));
+      const h = first?.headers ?? {};
+      const honest = first?.url === "/meteo.json?city=Kinshasa" && String(h["user-agent"]).startsWith("HoloCode/") && h["x-api-key"] === KEY && h.accept === "application/json"
+        && !("cookie" in h) && !("referer" in h) && !("x-forwarded-for" in h) && !("origin" in h);
+      // Le navigateur n'a parlé qu'à holo serve ; la page et ses données n'ont ni la clé, ni le reste de la réponse.
+      const elsewhere = browsed.filter((url) => !url.startsWith(on.base) && !/^(data|blob|about):/.test(url));
+      const html = await q.value(`fetch(location.pathname, { headers: { accept: "text/html" } }).then((r) => r.text())`);
+      const json = await q.value(`fetch(location.pathname + "?remote-data", { headers: { accept: "application/json" } }).then((r) => r.text())`);
+      const secret = [html, json, on.output()].some((text) => text.includes(KEY)) || json.includes("compte-42") || html.includes("compte-42");
+      const exact = json === JSON.stringify({ temperature: 31, sky: "Ensoleillé" });
+      // 3. Sans JavaScript : la page arrive avec ses données, et « Relire » part au serveur, qui
+      //    répond depuis ce qu'il garde.
+      let withoutScript = false;
+      try {
+        await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+        await q.open("/meteo.holo", 300);
+        const served = await q.value(has("31 degrés, Ensoleillé"));
+        await q.click('[data-name="Again"]');
+        withoutScript = served && (await q.until(`document.readyState === "complete" && ${has("31 degrés, Ensoleillé")}`, 5000));
+      } finally {
+        await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      }
+      const stillOnce = asked("/meteo.json") === 1;
+      // 4. Une redirection n'est jamais suivie ; la leçon 139, dont le site n'est pas permis, dit l'échec.
+      await q.open("/redirige.holo", 300);
+      const redirected = (await q.until(`window.__holoStarted && ${has("La météo n'est pas arrivée.")}`, 40000)) && asked("/redirige") === 1 && asked("/meteo.json") === 1;
+      await q.open("/139-les-donnees-d-un-autre-site.holo", 300);
+      const lesson = (await q.until(`window.__holoStarted && ${has("Le résumé n'est pas arrivé.")}`, 40000)) && b.errors.length === 0;
+      const journal = on.output();
+      const told = journal.includes("Autre site      : /meteo.holo : meteo.test a répondu") && journal.includes("meteo.test répond par une redirection (302), qui n'est jamais suivie")
+        && journal.includes("« fr.wikipedia.org » n'est pas dans holo-data/sites.txt");
+      const ok = quietOff && failedOff && nothingAsked && announced && arrived && noFailure && reads >= 4 && once && honest && elsewhere.length === 0 && !secret && exact && withoutScript && stillOnce && redirected && lesson && told;
+      return [ok, `éteint par défaut : rien d'annoncé ${quietOff}, échec ${failedOff}, rien demandé ${nothingAsked} ; allumé et annoncé : ${announced} ; arrivées : ${arrived}, relues sans échec : ${noFailure} ; ${reads} lectures par holo serve (?remote-data : ${json}), ${asked("/meteo.json")} demande(s) à l'autre site ; en-têtes honnêtes, clé en en-tête, rien du visiteur : ${honest} ; le navigateur ailleurs : ${elsewhere.length ? elsewhere.join(", ") : "jamais"} ; clé ou reste de la réponse dans la page, ses données ou le journal : ${secret} ; sans JavaScript : ${withoutScript} (toujours ${asked("/meteo.json")} demande) ; redirection non suivie : ${redirected} ; leçon 139 sans site permis : ${lesson}${b.errors.length ? ` (${b.errors.join(" | ")})` : ""} ; le journal le dit : ${told}`];
+    } finally {
+      b.on("Network.requestWillBeSent", null);
+      await b.send("Network.disable");
+      off?.stop();
+      on?.stop();
+      other.close();
+      await pause(300);
+      try { rmSync(folder, { recursive: true, force: true }); } catch { /* tant pis */ }
+    }
+  }],
   ["les touches du clavier, et les lettres qu'on coupe", async (p) => {
     await p.open("/exemples/lecons/77-toutes-les-touches.holo");
     if (!(await p.until(`document.getElementById("shortcuts")`))) return [false, "le moteur n'est pas arrivé"];
@@ -1366,6 +1671,40 @@ const tests = [
     const price = await p.until(has("Prix : 9,99 €"));
     const ok = start && fifty && tip && price;
     return [ok, `départ « 12,50 » : ${start} ; ×4 = 50,00 et livraison offerte : ${fifty} ; +10 % = 55,00 : ${tip} ; prix 9,99 : ${price}`];
+  }],
+  ["des nombres négatifs : sous zéro, le signe moins de la langue, un champ dont le clavier l'a (leçon 125)", async (p, b) => {
+    await p.open("/exemples/lecons/125-des-nombres-negatifs.holo");
+    const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;
+    // La page fabriquée d'avance, sans le moteur, montre déjà le départ sous zéro.
+    const start = (await p.value(has("Au sommet : -2 °C"))) && (await p.value(has("Il gèle.")));
+    // Au toucher, le moteur arrive et calcule sous zéro : −2 − 5 = −7 ; puis +5 +5 = 3.
+    await p.click('[data-name="Colder"]');
+    const colder = await p.until(has("Au sommet : -7 °C"));
+    await p.click('[data-name="Warmer"]');
+    await p.click('[data-name="Warmer"]');
+    const warmer = await p.until(`${has("Au sommet : 3 °C")} && ${has("Il ne gèle pas.")}`);
+    // Le champ : un nombre, sans inputmode (le clavier du téléphone garde le signe moins), de −50 à 50.
+    const field = await p.value(`(() => { const i = document.querySelector('input[data-bind="temperature"]'); return [i.type, i.inputMode || "(aucun)", i.min, i.max, i.value].join(" "); })()`);
+    // On écrit −40, comme au clavier : le grand froid. Plus bas que le min, la page garde −50.
+    const write = async (text) => {
+      await p.value(`(() => { const i = document.querySelector('input[data-bind="temperature"]'); i.focus(); i.value = ""; i.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+      await p.type('input[data-bind="temperature"]', text);
+    };
+    await write("-40");
+    const typed = await p.until(`${has("Au sommet : -40 °C")} && ${has("Grand froid")}`);
+    await write("-90");
+    const floor = await p.until(has("Au sommet : -50 °C"));
+    // Le lecteur d'écran : un champ de nombre (spinbutton), nommé par son étiquette.
+    const { nodes } = (await b.send("Accessibility.getFullAXTree")).result;
+    const spin = nodes.some((n) => !n.ignored && n.role?.value === "spinbutton" && n.name?.value === "Écrire la température");
+    // Une page suédoise : le signe moins de sa langue, « − » (U+2212), au départ comme après un toucher.
+    await p.open("/exemples/.essais-navigateur/nombres-negatifs-suedois.holo");
+    const swedishStart = await p.value(has("Temperatur: −2 °C"));
+    await p.click('[data-name="Kallare"]');
+    const swedish = await p.until(has("Temperatur: −7 °C"));
+    const seen = await p.value(`document.querySelector("main p, .holo-Page p").innerText`);
+    const ok = start && colder && warmer && field === "number (aucun) -50 50 3" && typed && floor && spin && swedishStart && swedish;
+    return [ok, `départ « -2 °C », il gèle : ${start} ; −5 = −7 : ${colder} ; +10 = 3, il ne gèle plus : ${warmer} ; champ (type, inputmode, min, max, valeur) : ${field} ; −40 écrit : ${typed} ; −90 gardé à −50 : ${floor} ; lecteur d'écran, spinbutton : ${spin} ; en suédois : départ ${swedishStart}, après un toucher « ${seen} »`];
   }],
   ["des dates : aujourd'hui, une semaine, des nuits (Days)", async (p) => {
     await p.open("/exemples/lecons/87-des-dates.holo");

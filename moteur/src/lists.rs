@@ -370,6 +370,19 @@ pub fn take_lists(program: &Program, lists: &Lists, json: &str) -> Lists {
     lists
 }
 
+/// Un élément reçu d'un autre site, réduit à ce que garde une liste de la page (ADR-116) : un
+/// texte pour une liste de textes ; pour une liste à champs, seulement ses champs, et seulement des
+/// textes et des nombres. Ce que `take_lists` laisserait de côté ne part pas vers le navigateur.
+pub(crate) fn for_list(element: Json, kind: &Kind) -> Option<Json> {
+    let scalar = |value: &Json| matches!(value, Json::Text(_) | Json::Number(_) | Json::Decimal(_) | Json::Negative(_));
+    match (element, kind) {
+        (Json::Text(text), Kind::Texts | Kind::Free) => Some(Json::Text(text)),
+        (Json::Object(fields), Kind::Records(expected)) => Some(Json::Object(fields.into_iter().filter(|(name, value)| expected.contains(name) && scalar(value)).collect())),
+        (Json::Object(fields), Kind::Free) => Some(Json::Object(fields.into_iter().filter(|(name, value)| is_field_name(name) && scalar(value)).collect())),
+        _ => None,
+    }
+}
+
 /// Ce texte est-il un objet JSON, `{ "stock": 4 }`, que la page sait lire ?
 pub fn is_json_object(json: &str) -> bool {
     json.len() <= crate::state::DATA_BYTES && matches!(Json::read(json), Some(Json::Object(_)))
@@ -383,6 +396,9 @@ pub(crate) enum Json {
     Number(u64),
     /// Un nombre à virgule, tel qu'écrit : « 12.50 » (ADR-066).
     Decimal(String),
+    /// Un nombre négatif, tel qu'écrit : « -3 », « -2.50 » (ADR-102). Seule une valeur qui peut
+    /// descendre sous zéro le prend ; partout ailleurs, il vaut ce que valait un nombre inconnu.
+    Negative(String),
     Table(Vec<Json>),
     Object(Vec<(String, Json)>),
     Other,
@@ -403,6 +419,19 @@ impl Json {
             Json::Number(n) => n.to_string(),
             Json::Decimal(d) => d.clone(),
             _ => String::new(),
+        }
+    }
+
+    /// La valeur réécrite en JSON (ADR-116) : les données d'un autre site, réduites à ce que la
+    /// page déclare, repartent ainsi vers la page. `true` et `false` y valent déjà 1 et 0.
+    pub(crate) fn written(&self) -> String {
+        match self {
+            Json::Text(t) => crate::json_text(t),
+            Json::Number(n) => n.to_string(),
+            Json::Decimal(d) | Json::Negative(d) => d.clone(),
+            Json::Table(elements) => format!("[{}]", elements.iter().map(Json::written).collect::<Vec<_>>().join(",")),
+            Json::Object(keys) => format!("{{{}}}", keys.iter().map(|(key, value)| format!("{}:{}", crate::json_text(key), value.written())).collect::<Vec<_>>().join(",")),
+            Json::Other => "null".into(),
         }
     }
 
@@ -466,7 +495,9 @@ impl Json {
                 }
                 let written: String = t[start..*i].iter().collect();
                 let decimal = written.split_once('.').is_some_and(|(a, b)| !a.is_empty() && !b.is_empty() && a.chars().chain(b.chars()).all(|c| c.is_ascii_digit()));
-                Some(if decimal { Json::Decimal(written) } else { written.parse::<u64>().map_or(Json::Other, Json::Number) })
+                // « -3 », « -2.50 » : un nombre négatif, entier ou à virgule (ADR-102).
+                let negative = written.strip_prefix('-').is_some_and(|rest| rest.split_once('.').map_or(!rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit()), |(a, b)| !a.is_empty() && !b.is_empty() && a.chars().chain(b.chars()).all(|c| c.is_ascii_digit())));
+                Some(if decimal { Json::Decimal(written) } else if negative { Json::Negative(written) } else { written.parse::<u64>().map_or(Json::Other, Json::Number) })
             }
             _ => {
                 for word in ["true", "false", "null"] {

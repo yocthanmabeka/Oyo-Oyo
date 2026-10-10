@@ -20,7 +20,7 @@ pub fn check_blocks(program: &Program) -> Result<(), Error> {
 /// absents de cette liste vérifient leurs réglages eux-mêmes (`State`, `Shared`, `Prices`, `Data`,
 /// `Zoom`, `Points`, `Relief`, `Portals`, `Enter`, `Loop`, `Use`).
 const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
-    ("Page", &["name", "title", "children", "pixels", "rules", "state", "shared", "prices", "keep", "data", "zoom", "points", "relief", "portals", "lang", "description", "image", "fonts", "icon", "modules", "components", "computed", "address", "access", "abbreviations"]),
+    ("Page", &["name", "title", "children", "pixels", "rules", "state", "shared", "prices", "keep", "data", "zoom", "points", "relief", "portals", "lang", "description", "image", "fonts", "icon", "modules", "components", "computed", "address", "access", "abbreviations", "negative", "visit"]),
     ("World", &["name", "children", "pixels", "rules"]),
     ("Component", &["name", "params", "emits", "children", "rules"]),
     ("Text", &["name"]),
@@ -34,7 +34,8 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     ("A", &["name", "to", "newTab", "download"]),
     ("Button", &["name", "text"]),
     ("Image", &["name", "source", "weight", "alt", "phone", "caption"]),
-    ("Sound", &["name", "source", "weight", "label", "volume", "loop"]),
+    // Le fondu d'un son, à l'entrée et à la sortie (ADR-112) : fade: 2s.
+    ("Sound", &["name", "source", "weight", "label", "volume", "loop", "fade"]),
     ("Filter", crate::computed::PARAMS),
     ("Days", crate::computed::DAYS_PARAMS),
     ("Shape", &["name", "form", "color", "size"]),
@@ -150,7 +151,7 @@ fn check_settings(block: &Block, parent: &str) -> Result<(), Error> {
             format!("« {name} » : un paramètre s'écrit en minuscules, écris « {good} »")
         } else if name == "styles" || name == "style" {
             "un style s'écrit comme en CSS, après le bloc racine : « P { color: gray; } » (ADR-017)".to_string()
-        } else if block.name == "World" && matches!(name, "state" | "shared" | "prices" | "keep" | "address" | "data" | "zoom" | "points" | "relief" | "portals" | "title") {
+        } else if block.name == "World" && matches!(name, "state" | "shared" | "prices" | "keep" | "address" | "data" | "zoom" | "points" | "relief" | "portals" | "title" | "visit") {
             format!("« {name}: » se règle sur la page, pas dans un monde : un monde partage les valeurs et la vue de sa page")
         } else {
             format!("« {} » n'a pas de paramètre « {name} » ; paramètres possibles : {}", block.name, allowed.join(", "))
