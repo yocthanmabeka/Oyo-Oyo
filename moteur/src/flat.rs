@@ -81,6 +81,11 @@ transition:left .12s linear,top .12s linear,transform .12s linear}\
 :where(.holo-Page code){font-family:ui-monospace,Consolas,monospace;background:rgba(127,127,127,0.18);padding:0 4px;border-radius:4px}:where(.holo-Code code){background:none;padding:0}\
 :where(.holo-Aside){display:block;box-sizing:border-box;border-left:3px solid currentColor;padding:0 0 0 16px;margin:0 0 16px 0}:where(.holo-Aside)>*{display:block;margin:0 0 12px 0}:where(.holo-Drawing){display:block;max-width:100%;height:auto}:where(.holo-Chart){display:block;margin:0 0 16px 0}:where(.holo-Chart figcaption){font-weight:bold;margin:0 0 8px 0}:where(.holo-Chart svg){display:block;max-width:100%;height:auto}\
 :where(.holo-hidden){position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}:where(.holo-Stopwatch){display:block;font-variant-numeric:tabular-nums}\
+:where(.holo-movable){display:flex;align-items:center;gap:8px;min-width:0}:where(.holo-line-content){flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:8px}:where(.holo-line-content)>*{margin:0}\
+:where(.holo-move){flex:none;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:2rem;min-height:2rem;padding:0 4px;font:inherit;line-height:1;color:inherit;background:transparent;border:1px solid color-mix(in srgb,currentColor 45%,transparent);border-radius:6px;cursor:pointer}\
+:where(.holo-grip){cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;border-style:dashed}:where(html:not(.holo-js) .holo-grip){display:none}\
+:where(.holo-Lines>.holo-line:first-child .holo-up,.holo-Lines>.holo-line:last-child .holo-down){opacity:.4}.holo-movable.holo-dragging{outline:2px dashed currentColor;outline-offset:2px}.holo-movable.holo-dragging .holo-grip{cursor:grabbing}\
+@media print{:where(.holo-move){display:none!important}}\
 @media print{:where(.holo-Dialog:not([open]),.holo-Video,audio){display:none!important}:where(.holo-Page){min-height:0}:where(.holo-Page a[href^=\"http\"])::after{content:\" (\" attr(href) \")\";font-size:.85em}}";
 
 /// Entoure, dans le HTML en cours de fabrication, la condition d'un bloc `If` : `site_html`
@@ -552,7 +557,9 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
         || body.contains("data-drag=")
         // Une page qui partage des valeurs écoute le serveur, pour les voir changer en direct (ADR-079).
         || !program.shared.is_empty()
-        || body.contains("data-browser-capability=");
+        || body.contains("data-browser-capability=")
+        // Une liste qu'on réordonne (ADR-105) : un glissement ne se rejoue pas, le moteur arrive tout de suite.
+        || !crate::reorder::reorderable(program).is_empty();
     let live = if live { " data-live" } else { "" };
     // Qui grossit la page quand on zoome (ADR-069) ? Par défaut, le navigateur, comme pour
     // n'importe quel site : la page reste à sa place. Le moteur, seulement si l'auteur l'a
@@ -1938,7 +1945,9 @@ fn lines(repeat: &Block, list: &str, base: &str) -> Result<String, Error> {
             // Ce qui s'écrit quand la liste est vide (lot 2 du web) : « Aucun résultat ».
             Some("empty") if matches!(argument.value, Value::Text(_)) => {}
             Some("empty") => return Err(Error { message: "« Repeat(empty: …) » attend un texte entre guillemets : empty: \"Aucun résultat\"".into(), pos: argument.pos }),
-            Some(other) => return Err(Error { message: format!("« Repeat(over: …) » n'a pas de paramètre « {other} » ; paramètres possibles : over, key, empty, children, rules"), pos: argument.pos }),
+            // Réordonner les lignes (ADR-105) : vérifié par `reorder::check`, avec la liste.
+            Some("reorder") => {}
+            Some(other) => return Err(Error { message: format!("« Repeat(over: …) » n'a pas de paramètre « {other} » ; paramètres possibles : over, key, empty, reorder, children, rules"), pos: argument.pos }),
             None => return Err(Error { message: "chaque paramètre de « Repeat » est nommé : Repeat(over: tasks, children: [ … ])".into(), pos: argument.pos }),
         }
     }
@@ -2062,6 +2071,8 @@ fn lines(repeat: &Block, list: &str, base: &str) -> Result<String, Error> {
             _ => None,
         };
         let key = escape(&crate::lists::line_key(elements, rank, field));
+        // Une ligne qu'on réordonne (ADR-105) : la poignée, le contenu, « Monter » et « Descendre ».
+        let line = if crate::reorder::reorders(repeat) { crate::reorder::controls(repeat, element, &line) } else { line };
         output.push_str(&format!("<div class=\"holo-line\" data-rank=\"{rank}\" data-key=\"{key}\">{line}</div>"));
     }
     // Une liste vide dit ce qu'on a écrit dans `empty:` (lot 2 du web) ; un lecteur d'écran
