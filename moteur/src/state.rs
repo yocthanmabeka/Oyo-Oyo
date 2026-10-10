@@ -110,6 +110,13 @@ pub fn condition(block: &Block) -> Result<(&str, Vec<(&str, Term<'_>)>), Error> 
                 let term = Term::Decimal { units: (number * scale(places) as f64).round() as u64, places };
                 comparisons.push((COMPARISONS[COMPARISONS.iter().position(|c| *c == word).unwrap_or(0)], term))
             }
+            // Un nombre négatif (ADR-102) : If(temperature, under: -10). Gardé avec son signe,
+            // comme un nombre à virgule ; la page vérifie que la valeur peut descendre sous zéro.
+            (Some(word), Value::Number { value: number, unit: None, places }) if COMPARISONS.contains(&word) && *number < 0.0 && u32::from(*places) <= PLACES_MAX => {
+                let places = u32::from(*places);
+                let units = (number * scale(places) as f64).round() as i64;
+                comparisons.push((COMPARISONS[COMPARISONS.iter().position(|c| *c == word).unwrap_or(0)], Term::Decimal { units: crate::negative::stored(units), places }))
+            }
             (Some(word), Value::Integer(number)) if COMPARISONS.contains(&word) => comparisons.push((COMPARISONS[COMPARISONS.iter().position(|c| *c == word).unwrap_or(0)], Term::Number(*number))),
             // Comparer à une autre valeur : If(score, over: best).
             (Some(word), Value::Name(other)) if COMPARISONS.contains(&word) && is_value_name(other) => {
@@ -175,18 +182,19 @@ pub fn holds(program: &Program, value: &str, comparisons: &[(&str, Term<'_>)], n
         });
     }
     // Un nombre : comparé exactement, les deux à la même échelle, même un entier à un nombre à
-    // virgule (ADR-066).
+    // virgule (ADR-066), et avec leur signe (ADR-102) : une valeur de l'état et un nombre écrit à
+    // virgule ou négatif se lisent signés ; un nombre entier écrit est toujours positif.
     let Some(number) = numbers.iter().find(|(known, _)| known == value).map(|(_, v)| *v) else { return false };
     let own = places(program, value);
     comparisons.iter().all(|(word, term)| {
         let (other, other_places) = match term {
-            Term::Number(n) => (*n, 0),
-            Term::Decimal { units, places } => (*units, *places),
-            Term::Value(name) => (numbers.iter().find(|(known, _)| known == name).map_or(0, |(_, v)| *v), places(program, name)),
+            Term::Number(n) => (i128::from(*n), 0),
+            Term::Decimal { units, places } => (i128::from(crate::negative::signed(*units)), *places),
+            Term::Value(name) => (i128::from(crate::negative::signed(numbers.iter().find(|(known, _)| known == name).map_or(0, |(_, v)| *v))), places(program, name)),
             Term::Text(_) => return false,
         };
         let common = own.max(other_places);
-        let (a, b) = (u128::from(number) * u128::from(scale(common - own)), u128::from(other) * u128::from(scale(common - other_places)));
+        let (a, b) = (i128::from(crate::negative::signed(number)) * i128::from(scale(common - own)), other * i128::from(scale(common - other_places)));
         match *word {
             "is" => a == b,
             "not" => a != b,
@@ -337,27 +345,14 @@ pub fn parse_decimal(text: &str, places: u32) -> Option<u64> {
 
 /// 1250 à 2 chiffres → « 12.50 », avec un point : la forme d'un champ de nombre.
 pub fn format_decimal(units: u64, places: u32) -> String {
+    // Un nombre négatif (ADR-102) : le signe, puis ses chiffres. « -12.50 », comme l'attend un champ.
+    if crate::negative::signed(units) < 0 {
+        return format!("-{}", format_decimal(crate::negative::signed(units).unsigned_abs().min(i64::MAX as u64), places));
+    }
     if places == 0 {
         return units.to_string();
     }
     format!("{}.{:0width$}", units / scale(places), units % scale(places), width = places as usize)
-}
-
-/// Une valeur d'une échelle à une autre : arrondie au plus proche quand on perd des chiffres.
-fn rescale(units: u64, from: u32, to: u32) -> u64 {
-    if from <= to {
-        units.saturating_mul(scale(to - from))
-    } else {
-        round_div(u128::from(units), u128::from(scale(from - to)))
-    }
-}
-
-/// a ÷ b, arrondi au plus proche, la moitié vers le haut.
-fn round_div(a: u128, b: u128) -> u64 {
-    if b == 0 {
-        return 0;
-    }
-    u64::try_from((a + b / 2) / b).unwrap_or(u64::MAX)
 }
 
 /// Le plus petit nombre qu'une glissière laisse choisir (ADR-042) ; 0 sinon.
@@ -391,6 +386,13 @@ pub fn input(program: &Program, state: &State, texts: &Texts, name: &str, writte
         found_one
     };
     let written = written.trim();
+    // Un nombre qui peut être négatif (ADR-102) : « -12 », « −3 », dans les bornes du champ.
+    if crate::negative::allowed(program, name) {
+        if let (true, Some(number), Some((_, place))) = (presented, crate::negative::typed(program, name, written), state.iter_mut().find(|(known, _)| known == name)) {
+            *place = number;
+        }
+        return suites(program, before, texts, state, texts);
+    }
     // Un nombre à virgule (ADR-066) : « 12,5 » ou « 12.5 », à l'échelle de la valeur.
     let places = places(program, name);
     let number = if written.is_empty() { Some(0) } else if places > 0 { parse_decimal(written, places) } else { written.parse::<u64>().ok() };
@@ -409,6 +411,13 @@ pub fn resume(program: &Program, kept: &str) -> State {
     let kept_values = kept_values(program).unwrap_or_default();
     for chunk in kept.split(';') {
         if let Some((name, value)) = chunk.split_once('=') {
+            // Une valeur qui peut être négative revient avec son signe (ADR-102).
+            if crate::negative::allowed(program, name) {
+                if let (true, Some((_, place)), Some(value)) = (kept_values.iter().any(|g| g == name), state.iter_mut().find(|(known, _)| known == name), crate::negative::reread(program, name, value)) {
+                    *place = value;
+                }
+                continue;
+            }
             if let (true, Some((_, place)), Ok(value)) = (kept_values.iter().any(|g| g == name), state.iter_mut().find(|(known, _)| known == name), value.parse::<u64>()) {
                 *place = value.min(VALUE_MAX);
             }
@@ -482,6 +491,9 @@ pub enum Datum {
     /// Un nombre à virgule, tel qu'écrit : « 12.5 » (ADR-066).
     Decimal(String),
     Text(String),
+    /// Un nombre négatif, tel qu'écrit : « -3 », « -2.5 » (ADR-102). Il ne va que dans une valeur
+    /// qui peut descendre sous zéro.
+    Negative(String),
 }
 
 /// Lit un fichier de données : un objet JSON à plat, `{"stock": 4, "message": "Ouvert"}`.
@@ -588,6 +600,19 @@ pub fn read_data(json: &str) -> Vec<(String, Datum)> {
                         data.push((key, Datum::Number(number)));
                     }
                 }
+                // Un nombre négatif (ADR-102), entier ou à virgule, repris tel qu'écrit ; avec un
+                // exposant, non.
+                '-' if t.get(i + 1).is_some_and(char::is_ascii_digit) => {
+                    i += 1;
+                    while t.get(i).is_some_and(|c| c.is_ascii_digit() || *c == '.') {
+                        i += 1;
+                    }
+                    if t.get(i).is_some_and(|c| matches!(c, 'e' | 'E')) {
+                        skip(&t, &mut i)?;
+                    } else {
+                        data.push((key, Datum::Negative(t[start..i].iter().collect())));
+                    }
+                }
                 _ => {
                     let word: String = t[i..].iter().take(5).collect();
                     if word.starts_with("true") {
@@ -627,7 +652,21 @@ pub fn take_values(program: &Program, state: &State, texts: &Texts, json: &str) 
     let (mut state, mut texts) = (state.clone(), texts.clone());
     for (key, datum) in read_data(json) {
         let places = places(program, &key);
+        // Une valeur qui peut être négative (ADR-102) reçoit un nombre avec ou sans signe, de sa
+        // sorte (un nombre à virgule ne va pas dans un nombre entier), dans ses bornes.
+        if crate::negative::allowed(program, &key) {
+            let units = match &datum {
+                Datum::Number(number) => i64::try_from(*number).ok().and_then(|n| n.checked_mul(scale(places) as i64)),
+                Datum::Decimal(written) | Datum::Negative(written) => crate::negative::parse(written, places),
+                Datum::Text(_) => None,
+            };
+            if let (Some(units), Some((_, place))) = (units, state.iter_mut().find(|(known, _)| *known == key)) {
+                *place = crate::negative::clamp(i128::from(units), crate::negative::bounds(program, &key));
+            }
+            continue;
+        }
         match datum {
+            Datum::Negative(_) => {}
             Datum::Number(number) => {
                 let ceiling = ceiling(program, &key);
                 if let Some((_, place)) = state.iter_mut().find(|(known, _)| *known == key && known != DRAWS && !CLOCK.contains(&known.as_str()) && !crate::account::GIVEN.contains(&known.as_str())) {
@@ -1157,6 +1196,16 @@ pub fn form_errors(program: &Program, numbers: &State, texts: &Texts, form_name:
                 let n = integer("max").unwrap_or(0);
                 Some(say(format!("Au plus {n} caractères."), format!("At most {n} characters.")))
             }
+            // Un nombre qui peut être négatif (ADR-102) : ses bornes, avec leur signe.
+            ("Input", None, Some(n)) if crate::negative::allowed(program, value) => {
+                let (low, high) = crate::negative::typed_bounds(program, value);
+                let n = crate::negative::signed(n);
+                (n < low || n > high).then(|| {
+                    let places = places(program, value);
+                    let (low, high) = (format_decimal(crate::negative::stored(low), places), format_decimal(crate::negative::stored(high), places));
+                    say(format!("Un nombre de {low} à {high}."), format!("A number from {low} to {high}."))
+                })
+            }
             // Un nombre hors de ses bornes : la page l'en empêche ; un envoi forgé, non.
             ("Input" | "Slider" | "Checkbox", None, Some(n)) if n < floor(program, value) || n > ceiling(program, value) => {
                 let places = places(program, value);
@@ -1204,6 +1253,21 @@ pub fn check_submission(program: &Program, json: &str) -> Vec<(String, String)> 
                 Some(_) => errors.push((value.to_string(), "un texte attendu".into())),
             }
         } else if let Some((_, place)) = numbers.iter_mut().find(|(n, _)| n == value) {
+            // Un nombre qui peut être négatif (ADR-102) : avec ou sans signe, de sa sorte ; ses
+            // bornes sont vérifiées avec les autres (`form_errors`).
+            if crate::negative::allowed(program, value) {
+                let units = match sent {
+                    Some(Json::Number(n)) => i64::try_from(*n).ok().and_then(|n| n.checked_mul(scale(places) as i64)),
+                    Some(Json::Decimal(d) | Json::Negative(d)) => crate::negative::parse(d, places),
+                    None => Some(0),
+                    Some(_) => None,
+                };
+                match units {
+                    Some(units) => *place = crate::negative::stored(units),
+                    None => errors.push((value.to_string(), "un nombre attendu".into())),
+                }
+                continue;
+            }
             match sent {
                 Some(Json::Number(n)) => *place = n.saturating_mul(scale(places)),
                 Some(Json::Decimal(d)) if places > 0 => *place = parse_decimal(d, places).unwrap_or(u64::MAX),
@@ -1308,8 +1372,9 @@ pub fn computed(program: &Program, state: &State) -> State {
         number += quantity;
         total += quantity * u128::from(*amount);
     }
-    // Un total ne déborde jamais : au pire, il s'arrête au plus grand nombre que l'on sait écrire.
-    let clamp = |v: u128| u64::try_from(v).unwrap_or(u64::MAX);
+    // Un total ne déborde jamais : au pire, il s'arrête au plus grand nombre que l'on sait écrire
+    // (2⁶³ − 1 : au-delà, l'état le lirait négatif, ADR-102).
+    let clamp = |v: u128| u64::try_from(v).unwrap_or(u64::MAX).min(i64::MAX as u64);
     vec![("count".to_string(), clamp(number)), ("total".to_string(), clamp(total))]
 }
 
@@ -1473,14 +1538,28 @@ fn initial_without_prices(program: &Program) -> Result<State, Error> {
         let mut ceiling = VALUE_MAX;
         let (name, start_value) = match (&argument.name, &argument.value) {
             (Some(name), Value::Integer(start_value)) => (name, Some(*start_value)),
+            // Un départ sous zéro (ADR-102) : seulement pour une valeur que la page nomme dans
+            // `negative: [ … ]`. Elle est gardée avec son signe (voir `negative.rs`).
+            (Some(name), Value::Number { value, unit: None, places }) if *value < 0.0 => {
+                if !crate::negative::allowed(program, name) {
+                    return Err(Error { message: format!("« {name} » commence sous zéro : pour une valeur qui peut être négative, écris negative: [{name}] sur la page (ADR-102)"), pos: argument.pos });
+                }
+                let places = u32::from(*places);
+                if places > PLACES_MAX {
+                    return Err(Error { message: format!("« {name} » : un nombre à virgule a de 1 à {PLACES_MAX} chiffres après la virgule, comme {name}: -12.50"), pos: argument.pos });
+                }
+                let Some(units) = crate::negative::literal(&argument.value, places) else {
+                    return Err(Error { message: format!("« {name} » : une valeur va de -{VALUE_MAX} à {VALUE_MAX}"), pos: argument.pos });
+                };
+                // Gardé en complément à deux : le plafond ne le regarde pas.
+                ceiling = u64::MAX;
+                (name, Some(crate::negative::stored(units)))
+            }
             // Un nombre à virgule (ADR-066) : price: 12.50 garde deux chiffres après la virgule.
             (Some(name), Value::Number { value, unit: None, places }) => {
                 let places = u32::from(*places);
                 if places == 0 || places > PLACES_MAX {
                     return Err(Error { message: format!("« {name} » : un nombre à virgule a de 1 à {PLACES_MAX} chiffres après la virgule, comme {name}: 12.50"), pos: argument.pos });
-                }
-                if *value < 0.0 {
-                    return Err(Error { message: format!("« {name} » : une valeur va de 0 à {VALUE_MAX} ; les nombres négatifs ne sont pas encore là"), pos: argument.pos });
                 }
                 ceiling = VALUE_MAX.saturating_mul(scale(places));
                 (name, Some((value * scale(places) as f64).round() as u64))
@@ -1584,6 +1663,11 @@ pub fn request<'a>(program: &Program, block: &'a Block, state: &State) -> Result
                 }
                 Ok(Request { value, verb, quantity: units, factor_places: u32::from(*factor_places), since: None })
             }
+            // Un nombre négatif (ADR-102) : `temperature.set(-5)`, `speed.mul(-1)`, seulement pour
+            // une valeur qui peut descendre sous zéro ; `add(-5)` s'écrit `sub(5)`.
+            (Value::Number { value: number, unit: None, places: written }, _) if *number < 0.0 => crate::negative::request(program, value, verb, *number, u32::from(*written), places)
+                .map(|(quantity, factor_places)| Request { value, verb, quantity, factor_places, since: None })
+                .map_err(error),
             (Value::Integer(quantity), _) if *quantity <= VALUE_MAX => Ok(Request { value, verb, quantity: quantity * scale(places), factor_places: 0, since: None }),
             (Value::Number { unit: None, places: written, .. }, _) if u32::from(*written) > places => {
                 let sort = if places == 0 { "est un nombre entier".to_string() } else { format!("a {places} chiffre(s) après la virgule") };
@@ -1622,6 +1706,8 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
     let state = initial(program)?;
     price(program)?;
     kept_values(program)?;
+    // Les valeurs qui peuvent descendre sous zéro, et là où elles servent (ADR-102).
+    crate::negative::check(program)?;
     // Les valeurs que la page écrit dans son adresse (ADR-091).
     crate::history::names(program)?;
     data_source(program)?;
@@ -1716,6 +1802,20 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                     // Un fichier (ADR-059) : sa taille et ses sortes sont vérifiées dans fichiers.rs.
                     (Some("max" | "accept"), _) if crate::files::is_file(block) => {}
                     (Some("accept"), _) => return Err(Error { message: "« accept: » ne sert qu'à un champ de fichier, Input(type: file, …)".into(), pos: argument.pos }),
+                    // Les bornes d'un champ qui présente un nombre négatif (ADR-102) : Input(value:
+                    // temperature, min: -50, max: 50), avec leur signe.
+                    (Some(word @ ("min" | "max")), bound) if block.name == "Input" && block.argument("type").is_none() && matches!(block.argument("value").map(|a| &a.value), Some(Value::Name(v)) if crate::negative::allowed(program, v)) => {
+                        let Some(Value::Name(v)) = block.argument("value").map(|a| &a.value) else { continue };
+                        crate::negative::check_bound(program, block, word, bound, v).map_err(|message| Error { message, pos: argument.pos })?;
+                    }
+                    // Une borne sous zéro, pour une valeur qui ne peut pas y descendre (ADR-102).
+                    (Some(word @ ("min" | "max")), Value::Number { value: bound, .. }) if block.name == "Input" && *bound < 0.0 => {
+                        let v = match block.argument("value").map(|a| &a.value) {
+                            Some(Value::Name(v)) => v.as_str(),
+                            _ => "la valeur",
+                        };
+                        return Err(Error { message: format!("« Input({word}: {bound}) » : « {v} » ne descend pas sous zéro ; pour une valeur qui peut être négative, écris negative: [{v}] sur la page (ADR-102)"), pos: argument.pos });
+                    }
                     // Le plus petit nombre d'un champ de nombre : Input(value: quantity, min: 1).
                     (Some("min"), bound) if block.name == "Input" && block.argument("type").is_none() && matches!(block.argument("value").map(|a| &a.value), Some(Value::Name(v)) if state.iter().any(|(known, _)| known == v)) => {
                         let Some(Value::Name(v)) = block.argument("value").map(|a| &a.value) else { continue };
@@ -1902,6 +2002,10 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                     Value::Text(text) if matches!(word, "over" | "under") && !(crate::dates::is_date(program, value) && crate::dates::days(text).is_some()) => {
                         return error(format!("« {word} » compare des nombres, ou une date à une date « AAAA-MM-JJ » : {}({value}, under: today)", block.name))
                     }
+                    // Un nombre négatif (ADR-102) ne se compare qu'à une valeur qui peut l'être.
+                    Value::Number { value: number, .. } if *number < 0.0 && !crate::negative::allowed(program, value) => {
+                        return error(format!("« {}({value}, {word}: {number}) » : « {value} » ne descend pas sous zéro, la comparer à un nombre négatif n'a pas de sens ; pour une valeur qui peut être négative, écris negative: [{value}] sur la page (ADR-102)", block.name))
+                    }
                     _ => {}
                 }
             }
@@ -1933,6 +2037,10 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                 }
                 if is_text(name) {
                     return Err(Error { message: format!("« {{{name}:{format}}} » : « {name} » est un texte ; un format s'applique à un nombre"), pos });
+                }
+                // Un nombre qui peut être négatif (ADR-102) n'est pas un temps de chronomètre.
+                if format == "stopwatch" && crate::negative::allowed(program, name) {
+                    return Err(Error { message: format!("« {{{name}:stopwatch}} » : « {name} » peut descendre sous zéro, et un temps de chronomètre ne descend pas sous zéro"), pos });
                 }
                 // Un nombre à virgule se montre avec ses chiffres, dans la langue de la page (ADR-066).
                 if places(program, name) > 0 && format != "number" {
@@ -2127,10 +2235,14 @@ fn watch(program: &Program, before_change: State, texts_before: &Texts, state: &
 }
 
 /// Fait ce qu'une demande demande : `cart.add(1)`. Une valeur ne descend pas sous 0 et ne
-/// dépasse pas son plafond.
+/// dépasse pas son plafond. Une valeur que la page nomme dans `negative: [ … ]` descend jusqu'à
+/// un milliard sous zéro (ADR-102). Le calcul se fait avec le signe, sur de grands entiers : un
+/// nombre négatif se calcule comme sans son signe (−7 ÷ 2 = −3, comme 7 ÷ 2 = 3 ; la moitié
+/// s'arrondit en s'éloignant de zéro). Pour des nombres positifs, rien ne change.
 fn apply(program: &Program, state: &mut State, texts: &Texts, effect: &Block, seed: u64, draws: &mut u64) {
     let Ok(d) = request(program, effect, state) else { return };
     let places = places(program, d.value);
+    let signed = |units: u64| i128::from(crate::negative::signed(units));
     // Une autre valeur, lue maintenant : à notre échelle pour add, sub, set ; à la sienne pour un
     // facteur (ADR-066).
     let (quantity, factor_places) = match d.since {
@@ -2138,32 +2250,39 @@ fn apply(program: &Program, state: &mut State, texts: &Texts, effect: &Block, se
             // Une valeur de la page, ou un nombre de jours calculé d'après les dates (ADR-067).
             let units = state.iter().find(|(known, _)| known == other).map(|(_, v)| *v).or_else(|| crate::computed::days_values(program, texts).into_iter().find(|(known, _)| known == other).map(|(_, v)| v)).unwrap_or(0);
             let other_places = self::places(program, other);
-            if matches!(d.verb, "mul" | "div") { (units, other_places) } else { (rescale(units, other_places, places), 0) }
+            if matches!(d.verb, "mul" | "div") {
+                (signed(units), other_places)
+            } else if other_places <= places {
+                (signed(units) * i128::from(scale(places - other_places)), 0)
+            } else {
+                (crate::negative::round_div(signed(units), i128::from(scale(other_places - places))), 0)
+            }
         }
-        None => (d.quantity, d.factor_places),
+        None => (signed(d.quantity), d.factor_places),
     };
-    let ceiling = ceiling(program, d.value);
+    let bounds = if crate::negative::allowed(program, d.value) { crate::negative::bounds(program, d.value) } else { (0, ceiling(program, d.value).min(i64::MAX as u64) as i64) };
     if let Some((_, value)) = state.iter_mut().find(|(name, _)| name == d.value) {
-        *value = match d.verb {
-            "add" => value.saturating_add(quantity),
-            "sub" => value.saturating_sub(quantity),
-            // Multiplier, diviser (ADR-043) : entre nombres entiers, la division arrondit vers le
-            // bas ; avec un nombre à virgule (ADR-066), le résultat est arrondi au plus proche, à
+        let current = signed(*value);
+        let result = match d.verb {
+            "add" => current + quantity,
+            "sub" => current - quantity,
+            // Multiplier, diviser (ADR-043) : entre nombres entiers, la division garde la partie
+            // entière ; avec un nombre à virgule (ADR-066), le résultat est arrondi au plus proche, à
             // l'échelle de la valeur. Une division par une valeur qui vaut 0 ne change rien.
-            "mul" if factor_places == 0 => value.saturating_mul(quantity),
-            "mul" => round_div(u128::from(*value) * u128::from(quantity), u128::from(scale(factor_places))),
-            "div" if quantity == 0 => *value,
-            "div" if places == 0 && factor_places == 0 => *value / quantity,
-            "div" => round_div(u128::from(*value) * u128::from(scale(factor_places)), u128::from(quantity)),
+            "mul" if factor_places == 0 => current * quantity,
+            "mul" => crate::negative::round_div(current * quantity, i128::from(scale(factor_places))),
+            "div" if quantity == 0 => current,
+            "div" if places == 0 && factor_places == 0 => current / quantity,
+            "div" => crate::negative::round_div(current * i128::from(scale(factor_places)), quantity),
             // Le hasard n'en est pas un : c'est le énième tirage d'une suite fixée par la graine
             // du fichier. Rejouer les mêmes gestes redonne les mêmes nombres.
             "random" => {
                 *draws = draws.wrapping_add(1);
-                crate::seed::mix_bits(seed ^ crate::seed::mix_bits(*draws)) % (quantity + 1)
+                i128::from(crate::seed::mix_bits(seed ^ crate::seed::mix_bits(*draws))) % (quantity.max(0) + 1)
             }
             _ => quantity,
-        }
-        .min(ceiling);
+        };
+        *value = crate::negative::clamp(result, bounds);
     }
 }
 
@@ -2317,7 +2436,9 @@ pub fn keypresses(program: &Program) -> Vec<String> {
 
 /// `cart=2;likes=0` : l'état, pour le garder d'un geste à l'autre du côté de la page.
 pub fn write(state: &State) -> String {
-    state.iter().map(|(name, value)| format!("{name}={value}")).collect::<Vec<_>>().join(";")
+    // Un nombre négatif (ADR-102) s'écrit avec son signe : `temperature=-5`. Aucune autre valeur
+    // n'atteint 2⁶³ : elles s'écrivent comme avant.
+    state.iter().map(|(name, value)| if crate::negative::signed(*value) < 0 { format!("{name}={}", crate::negative::signed(*value)) } else { format!("{name}={value}") }).collect::<Vec<_>>().join(";")
 }
 
 /// Relit un état écrit par `ecrire`. Seules les valeurs que la page déclare sont reprises, et
@@ -2334,6 +2455,13 @@ pub fn reread(program: &Program, written: &str) -> State {
             // L'heure n'est jamais reprise de l'état écrit : c'est celle donnée au moteur. Ce que
             // le serveur dit du visiteur connecté non plus (ADR-081).
             if CLOCK.contains(&name) || crate::account::GIVEN.contains(&name) {
+                continue;
+            }
+            // Une valeur qui peut être négative se relit avec son signe (ADR-102).
+            if crate::negative::allowed(program, name) {
+                if let (Some((_, place)), Some(value)) = (state.iter_mut().find(|(known, _)| known == name), crate::negative::reread(program, name, value)) {
+                    *place = value;
+                }
                 continue;
             }
             if let (Some((_, place)), Ok(value)) = (state.iter_mut().find(|(known, _)| known == name), value.parse::<u64>()) {
@@ -3239,7 +3367,8 @@ mod tests {
             ("Page(children: [ Button(name: Less_sunrise, text: \"-\") ])", "écris « name: LessSunrise »"),
             ("Page(children: [ Stack(children: [ P(\"a\"), P(\"b\", align: top_right) ]) ])", "écris « topRight »"),
             ("Page(state: State(cart: 1.5px))", "un nombre entier, un texte ou une liste"),
-            ("Page(state: State(cart: -1.5))", "les nombres négatifs ne sont pas encore là"),
+            // Un départ sous zéro demande `negative: [cart]` (ADR-102 ; avant, il était toujours refusé).
+            ("Page(state: State(cart: -1.5))", "écris negative: [cart]"),
             ("Page(state: State(cart: 1.1234567))", "de 1 à 6 chiffres après la virgule"),
             ("Page(state: State(cart: 0, cart: 1))", "déclarée deux fois"),
             ("Page(state: State(cart: 5000000000))", "de 0 à 1000000000"),
