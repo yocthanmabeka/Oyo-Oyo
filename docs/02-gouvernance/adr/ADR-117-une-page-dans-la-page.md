@@ -44,7 +44,7 @@ Page(
    - L'adresse de l'autre site n'est que dans un attribut `data-`. Aucun `src` ni `href` que le navigateur suivrait de lui-même.
 4. **Au toucher** (au doigt, à la souris, ou avec Entrée et Espace), la page légère (`web/page.html`) pose la page de l'autre site à la place de la façade.
    - Elle est enfermée : voir « Les droits du cadre ».
-   - Son titre est celui de la façade, et le clavier y entre.
+   - Son titre est celui de la façade, et le clavier y entre. La page de l'autre site arrive dans un autre processus du navigateur, qui peut perdre le clavier en route (le Chrome des machines de GitHub le perdait) : quand elle a fini d'arriver, si le clavier est toujours sur le cadre, la page légère le lui redonne.
    - Le moteur (560 Ko) n'a pas besoin d'être arrivé : le toucher répond tout de suite.
 5. **Sans JavaScript**, la façade est un lien vers la page de l'autre site, avec le titre, qui s'ouvre dans un nouvel onglet, comme `A(newTab:)`. Le lien est dans `noscript` : quand JavaScript marche, le navigateur ne le lit pas.
 6. **`holo serve`** dit au navigateur de n'accepter un cadre que de ces sites : `Content-Security-Policy: frame-src https://www.openstreetmap.org https://www.youtube-nocookie.com`, et `frame-src 'none'` pour une page qui n'en liste pas. C'est le navigateur qui tient alors la règle, même si une page se trompait.
