@@ -2347,12 +2347,19 @@ const tests = [
     const eased = await p.value(`document.querySelector(".holo-s-gris") ? getComputedStyle(document.querySelector(".holo-s-gris")).transitionProperty : "absent"`);
     // La souris se pose sur l'image grise : elle reprend ses couleurs, en douceur.
     const box = await p.value(`(() => { const e = document.querySelector(".holo-s-gris"); if (!e) return null; const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+    // Le survol n'existe qu'avec une souris (`@media (hover:hover)`, ADR-036). Chrome sans écran,
+    // sous Linux (ce conteneur, les machines de GitHub), dit n'en avoir aucune, et le protocole ne
+    // sait pas lui en donner une (`Emulation.setEmulatedMedia` n'y change rien) : sans souris, on
+    // lit la règle du survol dans la feuille de style de la page.
+    const mouse = await p.value(`matchMedia("(hover: hover)").matches`);
     let colored = false;
-    if (box) {
+    if (box && mouse) {
       await b.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: box[0], y: box[1] });
       colored = await p.until(`getComputedStyle(document.querySelector(".holo-s-gris")).filter === "grayscale(0)"`, 5000);
       await b.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
       await p.until(`getComputedStyle(document.querySelector(".holo-s-gris")).filter === "grayscale(1)"`, 5000);
+    } else if (box) {
+      colored = await p.value(`[...document.styleSheets].some((sheet) => [...sheet.cssRules].some((rule) => rule.media?.mediaText === "(hover: hover)" && [...rule.cssRules].some((inner) => inner.selectorText === ".holo-s-gris:hover" && inner.style.filter === "grayscale(0)")))`);
     }
     // Au clavier : l'image grise, rendue atteignable comme une forme qu'on touche, reçoit le focus
     // par Tab ; elle se montre alors sans filtre, son cadre de focus net. La souris est partie.
@@ -2385,7 +2392,7 @@ const tests = [
     const ok = gray === "grayscale(1)" && colored && dim === "brightness(0.6) contrast(1.2)" && vivid === "saturate(1.8) hue-rotate(30deg)" && blurred === "blur(3px)"
       && eased.includes("filter") && focused === "focus-visible, none" && opened && behind === "blur(6px)"
       && withoutScript === "grayscale(1) | brightness(0.6) contrast(1.2) | blur(3px)";
-    return [ok, `gris : ${gray}, sous la souris : ${colored ? "grayscale(0)" : "resté gris"} ; assombri : ${dim} ; vif : ${vivid} ; flou : ${blurred} ; transition : ${eased} ; au focus du clavier : ${focused} ; fenêtre ${opened ? "ouverte" : "fermée"}, derrière : ${behind} ; sans JavaScript : ${withoutScript}`];
+    return [ok, `gris : ${gray}, sous la souris : ${mouse ? (colored ? "grayscale(0)" : "resté gris") : (colored ? "pas de souris dans ce Chrome, la règle du survol lue : grayscale(0)" : "pas de souris dans ce Chrome, et pas de règle du survol")} ; assombri : ${dim} ; vif : ${vivid} ; flou : ${blurred} ; transition : ${eased} ; au focus du clavier : ${focused} ; fenêtre ${opened ? "ouverte" : "fermée"}, derrière : ${behind} ; sans JavaScript : ${withoutScript}`];
   }],
 ];
 
