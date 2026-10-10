@@ -6,6 +6,18 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Les cinq nouveautés de l'après-midi, essayées et validées par Yocthan
+
+- Fait (la session du nuage) :
+  - Fusionnées l'après-midi, avec l'accord de Yocthan : les données d'un autre site (PR 264, `ADR-116`, leçon 139), une page dans la page (PR 266, `ADR-117`, leçon 140), les filtres d'image (PR 267, `ADR-108`, leçon 131), travailler un texte (PR 268, `ADR-103`, leçon 126) et le défilement (PR 269, `ADR-106`, leçon 129). Les issues 248, 249, 237, 232 et 235 sont fermées.
+  - **Yocthan les a essayées** : « J'ai fait les essais, c'est déjà parfait ». C'est noté dans le statut des cinq décisions.
+  - L'essai des comptes « effacement confirmé… » ouvrait la base de `holo serve` sans attendre qu'elle se libère : il a raté une fois dans une suite complète (« database is locked »), dans la copie du défilement. Il attend maintenant jusqu'à 5 secondes (`PRAGMA busy_timeout = 5000`), aux quatre endroits où il ouvre la base.
+- Exécuté : lancé seul, cet essai rate avec ou sans le changement (« rien à toucher : [data-name=Ajouter] ») : il dépend des essais qui le précèdent. Dans les suites complètes du conteneur, il passe toujours, sauf cette fois-là. La preuve du changement est donc la suite entière, sur GitHub.
+- État compté, comme dans l'entrée de la session du PC : sur les 125 éléments de la partie web, **119 sont faits (95 %)**, avec les modules venus d'ailleurs (PR 270, `ADR-118`, leçon 141), fusionnés juste après ; 6 restent. Trois sont en cours, chacun avec un agent : 238 (les heures), 240 (découper une forme), 246 (le mot de passe). Trois attendent : 247 (la zone de dessin), 251 (prévenir un visiteur, page fermée) et 252 (le paiement).
+- Reste : ces sept, puis la suite des leçons et le grand tableau du web (v37).
+
+---
+
 ## 2026-10-10 — Des modules venus d'ailleurs, avec leur empreinte
 
 - Fait (issue #250 ; `ADR-118`, ACCEPTÉ : Yocthan a dit « Oui » le 2026-10-09 à l'ouverture sous ces conditions ; un agent de la session du nuage, branche `langage/modules-venus-d-ailleurs`) :

@@ -1,6 +1,6 @@
 # ADR-116 — Les données d'un autre site, lues par le serveur de l'auteur : `Data(from: "https://…")`
 
-- Statut : ACCEPTÉ (Yocthan a dit « Oui » le 2026-10-09 à l'ouverture sous ces conditions)
+- Statut : ACCEPTÉ (Yocthan a dit « Oui » le 2026-10-09 à l'ouverture sous ces conditions ; essayé et validé par Yocthan le 2026-10-10 : « J'ai fait les essais, c'est déjà parfait »)
 - Date : 2026-10-10
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'issue #248 (« les données d'un autre serveur, que le serveur de l'auteur va chercher »), l'une des huit fonctions ouvertes sous conditions (issues 246 à 253) ; les deux avis, avec leurs sources : `proposals/Claude/contraintes-2026-10-09/README.md` (fonction 3 : le jugement de Munich du 20 janvier 2022 sur Google Fonts, S11 à S13) et `proposals/Gemini/contraintes-2026-10-09/README.md` (fonction 3 : CORS, l'arrêt Fashion ID) ; `ADR-030` (les données d'un fichier, qui excluait un autre serveur), `ADR-051` (les listes reçues), `ADR-064` (arrivées ou échec), `ADR-074` (`holo serve`), `ADR-082` (une bibliothèque expliquée en clair).
