@@ -133,6 +133,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 123 | [Des suggestions dans un champ](123-des-suggestions-dans-un-champ.holo) | `Input(suggestions: ["Pomme", "Poire"])`, `suggestions: villes` : le champ propose, on peut écrire autre chose ; les suggestions suivent la liste pendant la visite |
 | 124 | [Une citation courte, le titre d'une œuvre](124-une-citation-courte.holo) | `<<bonjour>>` : les guillemets de la langue de la page ; `_Les Misérables_` ; `Quote(by:, work:)` |
 | 130 | [Partager la page](130-partager-la-page.holo) | `Device(kind: share)`, `Partage.request` : la feuille de partage du téléphone, avec le titre et l'adresse ; sur un ordinateur, l'adresse copiée ; `done`, `failed`, et la feuille fermée qui n'est pas une panne |
+| 128 | [Réordonner une liste](128-reordonner-une-liste.holo) | `Repeat(over: tableaux, reorder: true, …)` : la poignée ⠿ à la souris et au doigt ; « Monter » et « Descendre » au doigt, au clavier et au lecteur d'écran, qui annonce la nouvelle place ; sans JavaScript aussi |
 | 133 | [Faire vibrer le téléphone](133-faire-vibrer-le-telephone.holo) | `Device(kind: vibration, for: 200ms)`, `Petite.play` : un toucher, une rencontre, `for: [100ms, 80ms, 100ms]` ; rien avant le premier toucher, ni sous le mouvement réduit ; le signe toujours à l'écran |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.

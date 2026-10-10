@@ -930,7 +930,8 @@
   // écrits (une règle peut les vider, `text.set("")`) et les valeurs de l'adresse d'avant (ADR-091 :
   // le serveur part de celles que l'adresse dit). Rien pour un visiteur, ni pour un autre geste.
   function mirrorRequest(signal, before) {
-    if (!member || path !== pageFile || !/^[A-Z][A-Za-z0-9]{0,63}\.tap(@\d{1,6})?$/.test(signal)) return null;
+    // Une ligne déplacée suit aussi le compte (ADR-105) : move:tasks@2:0.
+    if (!member || path !== pageFile || !/^([A-Z][A-Za-z0-9]{0,63}\.tap(@\d{1,6})?|move:[a-z][A-Za-z0-9]{0,63}@\d{1,6}:\d{1,6})$/.test(signal)) return null;
     const fields = new URLSearchParams();
     for (const field of root.querySelectorAll("input[data-bind], textarea[data-bind], select[data-bind]")) {
       const bind = field.dataset.bind;
@@ -2074,6 +2075,136 @@
         slide = null;
       });
     }
+    // Réordonner les lignes d'une liste (Repeat(over: tasks, reorder: true), ADR-105). La page ne
+    // range rien elle-même : elle dit à l'arbitre « l'élément du rang 2 va au rang 0 »
+    // (move:tasks@2:0), comme un toucher, et montre la liste qu'il rend. La poignée ⠿ se glisse au
+    // doigt et à la souris ; « Monter » et « Descendre » se touchent au doigt, à la souris, au
+    // clavier et au lecteur d'écran (sans JavaScript, holo serve les reçoit, ADR-074). Chaque
+    // déplacement est annoncé au lecteur d'écran : « Pain » : position 1 sur 3.
+    const linesOf = (container) => [...container.children].filter((child) => child.classList.contains("holo-line"));
+    const boxOf = (line) => line.querySelector(".holo-movable") ?? line;
+    // La ligne prise ne quitte jamais sa place dans la page : ce sont les autres qui passent devant
+    // ou derrière elle. Le doigt qui la tient, et le clavier posé sur un de ses boutons, restent.
+    const placeAt = (container, line, rank) => {
+      const lines = linesOf(container);
+      const at = lines.indexOf(line);
+      if (at < 0 || rank === at || rank < 0 || rank >= lines.length) return;
+      if (rank < at) {
+        let after = line;
+        for (const other of lines.slice(rank, at)) { after.after(other); after = other; }
+      } else {
+        for (const other of lines.slice(at + 1, rank + 1)) line.before(other);
+      }
+    };
+    const tellPlace = (line, rank, count, edge = "") => {
+      const label = boxOf(line).dataset.label ?? "";
+      const french = (document.documentElement.lang || "fr").startsWith("fr");
+      if (edge) announce(french ? `« ${label} » est déjà ${edge === "up" ? "en haut" : "en bas"}.` : `“${label}” is already at the ${edge === "up" ? "top" : "bottom"}.`);
+      else announce(french ? `« ${label} » : position ${rank + 1} sur ${count}.` : `“${label}”: position ${rank + 1} of ${count}.`);
+    };
+    // Un déplacement fini : un seul geste pour l'arbitre, une seule annonce.
+    const moveLine = (container, line, from, to) => {
+      placeAt(container, line, to);
+      emit(`move:${container.dataset.list}@${from}:${to}`);
+      tellPlace(line, to, linesOf(container).length);
+    };
+    // « Monter » et « Descendre » : au doigt, à la souris, au clavier (Entrée, Espace). Ils sont au
+    // moteur, pas au bloc qui contient la liste : leur toucher n'est pas celui de ce bloc.
+    root.addEventListener("click", (event) => {
+      const button = event.target.closest?.(".holo-move");
+      if (!button) return;
+      event.stopPropagation();
+      const line = button.closest(".holo-line");
+      const container = line?.parentElement;
+      const direction = button.dataset.move;
+      if (!direction || !container?.dataset.list) return;
+      const count = linesOf(container).length;
+      const from = Number(line.dataset.rank);
+      const to = from + (direction === "up" ? -1 : 1);
+      if (to < 0 || to >= count) return tellPlace(line, from, count, direction);
+      moveLine(container, line, from, to);
+      // Le clavier reste sur le même bouton de la ligne déplacée, même si la page l'a refaite.
+      if (document.activeElement !== button) linesOf(container)[to]?.querySelector(`[data-move="${direction}"]`)?.focus({ preventScroll: true });
+    }, true);
+    // La poignée : le doigt ou la souris la tient, et la ligne suit, de place en place.
+    let carried = null;
+    let edgeScroll = 0;
+    // Le rang de la ligne sous le doigt : celle de cette hauteur (dans une grille, la plus proche
+    // sur la largeur) ; au-dessus de la première, la première ; sous la dernière, la dernière.
+    // Entre deux lignes, rien ne change.
+    const rankAt = (lines, x, y) => {
+      const boxes = lines.map((line) => boxOf(line).getBoundingClientRect());
+      let [found, distance] = [-1, Infinity];
+      boxes.forEach((box, rank) => {
+        const away = Math.abs(x - (box.left + box.right) / 2);
+        if (y >= box.top && y < box.bottom && away < distance) [found, distance] = [rank, away];
+      });
+      if (found >= 0 || !boxes.length) return found;
+      if (y < Math.min(...boxes.map((box) => box.top))) return 0;
+      if (y >= Math.max(...boxes.map((box) => box.bottom))) return boxes.length - 1;
+      return -1;
+    };
+    const follow = () => {
+      if (!carried?.line.isConnected) return;
+      const rank = rankAt(linesOf(carried.container), carried.x, carried.y);
+      if (rank >= 0) placeAt(carried.container, carried.line, rank);
+    };
+    // Près du haut ou du bas de l'écran, la page défile : une longue liste se range aussi au doigt,
+    // qui ne fait pas défiler la page pendant qu'il tient la poignée.
+    const scrollNearEdges = () => {
+      cancelAnimationFrame(edgeScroll);
+      if (!carried) return;
+      const edge = Math.min(64, innerHeight / 6);
+      const speed = carried.y < edge ? -(edge - carried.y) / 3 : carried.y > innerHeight - edge ? (carried.y - innerHeight + edge) / 3 : 0;
+      if (!speed) return;
+      const step = () => {
+        if (!carried) return;
+        const before = scrollY;
+        scrollBy(0, speed);
+        if (scrollY !== before) follow();
+        edgeScroll = requestAnimationFrame(step);
+      };
+      edgeScroll = requestAnimationFrame(step);
+    };
+    // Poser la ligne : un seul geste pour l'arbitre. Annulé (Échap, le navigateur reprend le
+    // doigt), elle revient à sa place, et rien ne change.
+    const putDown = (cancelled) => {
+      if (!carried) return;
+      const { line, container, from } = carried;
+      carried = null;
+      cancelAnimationFrame(edgeScroll);
+      boxOf(line).classList.remove("holo-dragging");
+      if (!line.isConnected) return; // la liste a changé pendant le glissement : rien n'est déplacé
+      if (cancelled) return placeAt(container, line, from);
+      const to = linesOf(container).indexOf(line);
+      if (to !== from) moveLine(container, line, from, to);
+    };
+    root.addEventListener("pointerdown", (event) => {
+      const grip = event.target.closest?.(".holo-grip");
+      if (!grip || carried || (event.pointerType === "mouse" && event.button !== 0)) return;
+      const line = grip.closest(".holo-line");
+      const container = line?.parentElement;
+      if (!container?.dataset.list) return;
+      event.preventDefault(); // ni sélection de texte, ni défilement : le doigt tient la ligne
+      grip.setPointerCapture?.(event.pointerId);
+      carried = { line, container, from: Number(line.dataset.rank), pointer: event.pointerId, x: event.clientX, y: event.clientY };
+      boxOf(line).classList.add("holo-dragging");
+    });
+    root.addEventListener("pointermove", (event) => {
+      if (!carried || event.pointerId !== carried.pointer) return;
+      [carried.x, carried.y] = [event.clientX, event.clientY];
+      follow();
+      scrollNearEdges();
+    });
+    root.addEventListener("pointerup", (event) => { if (carried && event.pointerId === carried.pointer) putDown(false); });
+    root.addEventListener("pointercancel", (event) => { if (carried && event.pointerId === carried.pointer) putDown(true); });
+    // Échap pendant un glissement : la ligne revient à sa place, et Échap ne fait rien d'autre.
+    addEventListener("keydown", (event) => {
+      if (!carried || event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      putDown(true);
+    }, true);
     // Le clavier : une touche que le fichier écoute devient un signal, comme un toucher. Les
     // autres touches gardent leur rôle (défiler, écrire), et rien n'est pris à un champ où l'on écrit.
     // Les lettres : celles écrites sur la touche ; les chiffres : la rangée du haut ou le pavé
