@@ -2556,6 +2556,9 @@ fn body(program: &Program, state: &State, name: &str) -> Option<Body> {
             match shape.as_str() {
                 "square" => (size, size / 2.0, false),
                 "circle" => (size, size / 2.0, true),
+                // La vague (ADR-111) ne retire que le dixième du bas de son carré : elle se touche
+                // comme un carré. L'hexagone, l'étoile et le cœur, eux, sont comme le triangle.
+                "wave" => (size, size / 2.0, false),
                 // Un triangle et un losange ne remplissent pas leur carré : un rond un peu plus petit.
                 _ => (size, size * 0.4, true),
             }

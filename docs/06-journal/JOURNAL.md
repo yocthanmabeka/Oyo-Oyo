@@ -6,6 +6,49 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Découper une forme : `form:` dans les styles, huit formes nommées
+
+- Fait (issue #240, reprise par un agent de la session du nuage : l'agent du PC s'était arrêté avant d'écrire quoi que ce soit, puis le PC s'est éteint ; `ADR-111`, ACCEPTÉ : « tu le valides déjà, tu le fais déjà ») :
+  - `form:` dans un style découpe une image ou un dessin : c'est le mot de `Shape(form:)`, avec ses valeurs. Comparé, dans l'ADR, avec `clip-path` tel quel, `clip-path: hexagon`, `shape:`, `cut:`, un paramètre d'`Image` et un bloc `Cut`.
+  - Huit formes d'un seul mot : `circle`, `square`, `triangle`, `diamond`, et quatre nouvelles, `hexagon`, `star`, `heart`, `wave`. Ce sont des découpes fixes du moteur (`moteur/src/forms.rs`), en pourcentages de la boîte : elles suivent le bloc. Le rond arrondit les coins (`border-radius: 50%`) : son bord, son ombre et son cadre de focus suivent sa courbe.
+  - Le cadre de focus. En faisant les filtres, la session du PC avait vu qu'une `Shape(name:, form: triangle)` n'en avait aucun : `clip-path` le coupe. Désormais, une `Shape` en polygone se dessine dans son bouton (`::before`), qui n'est jamais découpé lui-même : son cadre se voit autour d'elle, et tout son carré se touche. Une image ou un dessin découpés se montrent entiers au focus du clavier (`:focus-visible { clip-path: none }`, écrit après les états).
+  - Refusés, avec la raison : `clip-path`, `clip`, `form: polygon(…)` ; `form` sur un texte, un conteneur, une vidéo, dans le style d'une `Shape`, au survol, à l'appui, au focus ; `border-radius` avec `form` ; une ombre ou un bord sur un polygone, même donnés par un autre style (le moteur suit la cascade et dit quoi retirer) ; un fond, une ombre ou un bord sur une `Shape` en polygone. `border: none` est maintenant accepté, comme en CSS.
+  - Sur un plateau, une rencontre (`When(A, meets: B)`) prend la vague pour un carré (`state.rs`) ; l'hexagone, l'étoile et le cœur, comme le triangle, pour un rond un peu plus petit.
+  - La leçon 134 : une bannière qui ondule sous un titre ; une photo en rond, en hexagone, en étoile, en cœur ; les huit formes de `Shape` ; une étoile à toucher. Liens vers la 124 et la 1.
+  - Le guide (chapitre « 6 duoquinquagies », et une ligne au chapitre des formes), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons ; l'éditeur propose les quatre mots nouveaux.
+- Exécuté, dans `moteur/` :
+  - `cargo test --release --locked` : les cinq essais nouveaux passent (quatre dans `forms.rs`, un dans `flat.rs`). Celui des rencontres rate sans la ligne de la vague dans `state.rs` (« left: [Some(1), Some(0), … » : la vague ne touche pas le coin). L'essai qui prenait l'hexagone pour une forme inconnue prend maintenant le pentagone. 282 essais avant la première fusion de `main`, 303 après, 314 après la deuxième (avec l'essai des rencontres), 321 après la troisième.
+  - L'essai Chrome nouveau passe seul :
+    - les découpes reçues (6, 10, 40 et 35 sommets) et la `Shape` jamais découpée ;
+    - le cadre de focus, vu sur des captures : 316 pixels changent autour de l'étoile, 508 autour de l'image en hexagone ;
+    - Entrée et Espace, la souris (le milieu, puis un coin du carré), le doigt ; le lecteur d'écran ; axe-core ; un téléphone de 360 px ; `holo serve` sans JavaScript.
+  - Il sait échouer, essayé deux fois (avant et après la fusion de `main`), le code remis ensuite :
+    - la `Shape` découpée elle-même, comme avant : « le cadre de focus de l'étoile : focus-visible, découpe polygon(50% , 0 pixels du cadre autour », et le coin du carré ne répond plus ;
+    - sans la règle du focus : « le cadre de focus de l'image découpée : focus-visible, découpe polygon(25% , 0 pixels du cadre autour », et sans JavaScript l'image reste découpée au focus.
+  - `holo check` sur la leçon 134 et sur l'exemple de l'ADR : ok.
+  - Trois preuves complètes, `check-locked.sh`, une après chaque fusion de `main` :
+    - sur c10f258 (les PR 265 à 269 fusionnées) : `cargo test --release --locked` → 303 essais passent ; `cargo test` (debug) → 303 ; la suite Chrome entière (`CI=1`, axe-core 4.10.3) : 93 essais sur 96, 137 leçons ouvertes sans erreur ;
+    - sur 30c0bea (la PR 270 fusionnée, et l'essai des rencontres) : 314 et 314 ; 94 essais sur 97, 138 leçons ;
+    - sur 2a0b244 (les PR 271 et 272 fusionnées ; depuis, seulement ce journal) : `cargo test --release --locked` → 321 essais passent ; `cargo test` (debug) → 321 ; la suite Chrome entière : 95 essais sur 98, 139 leçons ouvertes sans erreur ;
+    - chaque fois : les deux WebAssembly, `holo` et les liaisons se construisent ; l'essai nouveau passe ; l'audit axe-core des parcours ne trouve aucun défaut ; les trois ratés sont ceux de ce conteneur, « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium).
+- Erreurs en route :
+  - Dans l'essai Chrome, Entrée envoyée sans son caractère (`"\r"`) ne touche pas un bouton : corrigé.
+  - Le premier « accepté » de mon essai Rust était un vrai refus : l'ombre donnée par `Image` à l'image découpée en hexagone. La vérification avait raison ; c'est l'essai qui a été corrigé.
+  - `border: none` était refusé par le moteur. Il est accepté, pour que le style qui découpe puisse retirer le bord donné par un autre style.
+  - La fusion de `main` (PR 265 à 269) a laissé deux conflits que le script ne prévoit pas :
+    - dans `flat.rs` : la règle du focus des filtres et celle des formes, écrites au même endroit ;
+    - dans `styles.rs` : cinq ajouts des deux côtés.
+    Tous sont gardés des deux côtés, celui de `main` d'abord. Le message de la fusion gardait les lignes « # Conflicts » après les deux lignes de fin : corrigé avant l'envoi.
+  - La limite d'usage du compte a arrêté l'agent vers 19 h 15 ; la preuve lancée juste avant a fini seule, complète, à 19 h 26. Reprise à 21 h 37 : `main` avait reçu les PR 271 et 272, fusionnées sans conflit imprévu ; la preuve a été refaite.
+  - Un lancement de `remerge.sh` sans argument, depuis le dossier de travail, hors de tout dépôt git : il s'est arrêté sans rien toucher (vérifié).
+- Reste : d'autres formes (pentagone, octogone, flèche, bulle) ; une forme qu'on oriente ; la vague en haut d'un bloc ; une ombre et un bord qui suivent un polygone ; découper un conteneur sans couper son texte ; passer d'une forme à l'autre en douceur. La ligne `clip-path` du grand tableau du web peut passer à « oui ».
+
+![La leçon 134 : la bannière qui ondule sous son titre, la photo en rond, en hexagone, en étoile, en cœur, les huit formes de Shape, l'étoile à toucher](images/2026-10-10-formes-lecon-134.png)
+
+![L'étoile qu'on touche, au focus du clavier : son cadre se voit autour d'elle](images/2026-10-10-formes-cadre-de-focus.png)
+
+---
+
 ## 2026-10-10 — Les calculs sur les heures : un compte à rebours qui suit l'horloge
 
 - Fait (issue #238, un agent de la session du nuage, qui l'a reprise quand le PC s'est éteint ; `ADR-109`, ACCEPTÉ d'avance par Yocthan : « tu le valides déjà, tu le fais déjà ») :
