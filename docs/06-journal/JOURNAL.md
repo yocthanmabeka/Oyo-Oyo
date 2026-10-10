@@ -80,6 +80,23 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Les sept nouveautés du jour, essayées et validées par Yocthan
+
+- Fait (la session du PC) :
+  - La PR 262 (la mémoire de visite, #242, la session du nuage) est fusionnée, après l'avoir relue en entier : chaque valeur relue est vérifiée comme un import, 64 Ko au plus, aucun cookie. Sept des douze dernières dettes sont dans `main` : 231, 233, 234, 236, 239, 241, 242.
+  - Le serveur local de Yocthan (le 8080, dossier `_voir/SPRINT-big-bang`) est passé au `main` du jour (d85f0fe), le moteur reconstruit (`holo.exe`, `web/pkg`, `web/pkg-light`).
+  - Les sept leçons nouvelles s'ouvrent chacune avec son titre, sans erreur (une requête à chacune) : 125 (les nombres négatifs), 127 (la grille), 128 (réordonner une liste), 130 (le partage), 133 (la vibration), 135 (mélanger des sons), 136 (la mémoire de visite). La leçon 127 est montrée dans la pile.
+- **Yocthan les a essayées et les valide** : « je viens de faire tous les essais et je valide ». C'est noté dans le statut des sept décisions (`ADR-102`, `ADR-104`, `ADR-105`, `ADR-107`, `ADR-110`, `ADR-112`, `ADR-113`).
+- État compté, à la demande de Yocthan (« s'il reste combien de pourcents pour la partie web ») : sur les 135 éléments du web du grand tableau, 6 sont refusés exprès et 1 est sans objet, et 3 attendent la 3D. Il reste 125 éléments pour la partie web : 113 sont faits (90 %), 12 restent (10 %). Ce sont 5 dettes (232, 235, 237, 238, 240, chez les agents du PC) et 7 fonctions ouvertes (246 à 252). C'est un compte d'éléments, pas une mesure du travail : le paiement pèse plus que les nombres négatifs.
+- Erreur en route : arrêter la tâche du serveur n'a pas arrêté le programme lui-même (`node outils/server.mjs`), qui écoutait encore le port 8080. Je l'ai vérifié par sa ligne de commande, puis arrêté à la main. C'est le même piège que le script de fusion du matin : l'arrêt d'une tâche en arrière-plan n'arrête pas toujours ce qu'elle a lancé.
+- Reste :
+  - les dettes 232, 235, 237, 238 et 240 ;
+  - les fonctions ouvertes 246 à 252 ;
+  - la suite des leçons et le grand tableau (v37), par la session du nuage, quand les douze dettes seront finies ;
+  - les mesures du téléphone.
+
+---
+
 ## 2026-10-10 — Se souvenir le temps d'une visite : `Page(visit: [prenom])`
 
 - Fait (issue #242, la session du nuage ; `ADR-113`, ACCEPTÉ) : le dernier « non » du grand tableau du web, `sessionStorage`.
