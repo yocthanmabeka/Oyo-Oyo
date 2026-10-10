@@ -9,6 +9,7 @@
     shared_names, with_shared, touches_shared, capability_export, capability_received,
     suggestions_html,
     visit_names, to_visit, from_visit,
+    module_check,
   } from "/pkg-light/holo_engine.js";
   let host = null;
   const prepareHost = async () => {
@@ -1846,6 +1847,9 @@
   // alloc(taille), qui dit où écrire ce qu'il reçoit (un texte JSON), et run(adresse, taille), qui
   // rend l'adresse et la taille de sa réponse, en un seul nombre de 64 bits. La réponse est lue
   // dans sa mémoire, 64 Ko au plus, puis relue par le moteur avec méfiance.
+  // Avant le fil à part, le moteur lit le fichier (ADR-118, `module_check`) : seulement sa
+  // mémoire, ni fonction de la page, ni mémoire à lui, ni objets gérés par le navigateur, ni
+  // table sans plafond. Un module venu d'ailleurs n'obtient rien de plus que les autres.
   const SANDBOX_CODE = `onmessage = async ({ data: { bytes, entry, json, simple, pages } }) => {
     try {
       const memory = new WebAssembly.Memory({ initial: pages, maximum: pages });
@@ -1872,16 +1876,30 @@
   const runningModules = new Set();
   async function execute(name) {
     if (runningModules.has(name)) return;
-    const [file, entry, time, pages, simple] = module_info(source, states.get(path) ?? "", name).split("|");
+    const [file, entry, time, pages, simple, integrity] = module_info(source, states.get(path) ?? "", name).split("|");
     if (!file) return;
     runningModules.add(name);
     const for_ = path;
     let result = { ok: false, reason: "module introuvable" };
     try {
-      const response = await fetch(folderOf(path) + file);
+      // Un module venu d'ailleurs (ADR-118) : le navigateur vérifie lui-même son empreinte en le
+      // lisant (l'intégrité de fetch, SRI du W3C), à chaque lancement, et ne donne jamais un
+      // fichier qui diffère. Il le fait aussi sur une adresse du réseau local (http://192.168.…),
+      // où crypto.subtle n'existe pas. La copie vient toujours du site de l'auteur.
+      const address = folderOf(path) + file;
+      const response = await fetch(address, integrity ? { integrity } : {}).catch(async () => {
+        // Refusé : si le fichier est bien là, c'est qu'il a changé.
+        if (integrity && (await fetch(address, { method: "HEAD" }).then((r) => r.ok, () => false))) {
+          result = { ok: false, reason: "l'empreinte ne correspond pas : ce fichier n'est pas celui que l'auteur a vérifié ; il n'est pas lancé", why: "changed" };
+        }
+        return null;
+      });
       // Un module de 4 Mo au plus : au-delà, il n'est pas téléchargé plus loin.
-      const bytes = response.ok ? await readCapped(response, 4e6) : null;
-      if (bytes) {
+      const bytes = response?.ok ? await readCapped(response, 4e6) : null;
+      // La boîte lit le fichier avant de le lancer : rien d'autre que sa mémoire (ADR-118).
+      const refusal = bytes ? module_check(new Uint8Array(bytes), Number(pages)) : "";
+      if (refusal) result = { ok: false, reason: refusal, why: "box" };
+      else if (bytes) {
         const box = new Worker(URL.createObjectURL(new Blob([SANDBOX_CODE], { type: "text/javascript" })));
         result = await new Promise((end) => {
           let stop = 0;
@@ -1912,6 +1930,9 @@
     }
     (window.__holoModules ??= []).push({ name, ...result }); // ce qui s'est passé, pour le vérifier
     if (for_ !== path) return;
+    // Un module refusé par le moteur : il le dit aux visiteurs, en bas de la page, à côté de sa
+    // licence (ADR-118), dans la langue de la page ; le lecteur d'écran l'annonce (role="status").
+    if (result.why) document.querySelector(`.holo-modules [data-module="${CSS.escape(name)}"] [data-why="${result.why}"]`)?.removeAttribute("hidden");
     if (!result.ok) return emit(`${name}.failed`);
     if (result.json === undefined) after = store(module_finished(source, states.get(path) ?? "", name, result.output));
     if (after) changeState(after);

@@ -1425,6 +1425,167 @@ const tests = [
       served.stop();
     }
   }],
+  ["un module venu d'ailleurs : son empreinte vérifiée par le navigateur avant chaque lancement, même sur une adresse du réseau local ; holo serve le télécharge une fois, jamais le navigateur ; ce qui demande plus que sa mémoire est refusé ; sa licence dite aux visiteurs (leçon 141, serve)", async (p, b) => {
+    // ADR-118. Un faux « autre site » sur ce PC, qui note chaque demande reçue : holo serve ne
+    // l'atteint que par l'interrupteur des essais (HOLO_TEST_ONLY_INSECURE_SITE=modules.test:<port>).
+    // La page est ouverte par l'adresse de ce PC sur le réseau local, comme un téléphone du même
+    // Wi-Fi : un contexte non sûr, où crypto.subtle n'existe pas.
+    const binary = ["holo", "holo.exe"].map((name) => join(engine, "target", "release", name)).find(existsSync);
+    if (!binary) return [false, "holo n'est pas construit : cargo build --release --bin holo"];
+    const lesson = "141-un-module-venu-d-ailleurs.holo";
+    const lessons = join(repo, "exemples", "lecons");
+    const primes = readFileSync(join(lessons, "141-premiers.wasm"));
+    const sum = readFileSync(join(lessons, "69-compter.wasm"));
+    const { createHash } = await import("node:crypto");
+    const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
+    // Un module qui demande aussi une fonction à la page, « env.fetch » : le réseau, s'il l'avait.
+    const leb = (n) => { const out = []; do { let byte = n & 0x7f; n >>>= 7; if (n) byte |= 0x80; out.push(byte); } while (n); return out; };
+    const named = (text) => [...leb(text.length), ...Buffer.from(text)];
+    const items = (entries) => [...leb(entries.length), ...entries.flat()];
+    const section = (id, content) => [id, ...leb(content.length), ...content];
+    const pirate = Buffer.from([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0,
+      ...section(1, items([[0x60, 1, 0x7f, 1, 0x7f]])),
+      ...section(2, items([[...named("env"), ...named("memory"), 0x02, 0x00, 0x01], [...named("env"), ...named("fetch"), 0x00, 0x00]])),
+      ...section(3, items([[0x00]])),
+      ...section(7, items([[...named("run"), 0x00, 0x01]])),
+      ...section(10, items([[0x04, 0x00, 0x20, 0x00, 0x0b]]))]);
+    const seen = [];
+    const other = createServer((req, res) => {
+      seen.push({ url: req.url, agent: String(req.headers["user-agent"]), cookie: "cookie" in req.headers, referer: "referer" in req.headers });
+      const body = { "/premiers-1.0.wasm": primes, "/premiers-1.1.wasm": sum }[req.url];
+      res.writeHead(body ? 200 : 404, { "content-type": "application/wasm" });
+      res.end(body ?? "");
+    });
+    await new Promise((ok) => other.listen(0, "127.0.0.1", ok));
+    const otherPort = other.address().port;
+    const folder = mkdtempSync(join(tmpdir(), "holo-serve-"));
+    writeFileSync(join(folder, lesson), readFileSync(join(lessons, lesson)));
+    writeFileSync(join(folder, "141-premiers.wasm"), primes);
+    const pageWith = (source, extra) => [
+      `module "${source}"`,
+      `Page(title: "Essai", state: State(n: 100, total: 0, done: 0, failed: 0),`,
+      `  modules: [ Module(name: Calcul, source: "${source}", input: n, output: total${extra}) ],`,
+      '  children: [ H1("Essai"), Button(name: Go, text: "Lancer"), P("Résultat : {total}"), If(done, is: 1, children: [ P("Arrivé.") ]), If(failed, is: 1, children: [ P("Pas lancé.") ]) ],',
+      "  rules: [ On(Go.tap, effect: Calcul.run), On(Calcul.done, effect: done.set(1)), On(Calcul.failed, effect: failed.set(1)) ],",
+      ")",
+    ].join("\n");
+    const pinned = (bytes) => `, sha256: "${sha(bytes)}", license: "MIT"`;
+    // Sa copie manque : holo serve ira la chercher.
+    writeFileSync(join(folder, "ailleurs.holo"), pageWith("premiers.wasm", `, from: "https://modules.test/premiers-1.0.wasm"${pinned(primes)}`));
+    // L'autre site a changé son fichier en silence (une autre version, sous l'adresse écrite).
+    writeFileSync(join(folder, "en-silence.holo"), pageWith("silence.wasm", `, from: "https://modules.test/premiers-1.1.wasm"${pinned(primes)}`));
+    // La copie à côté de la page a été remplacée : la somme de la leçon 69, au lieu des nombres premiers.
+    writeFileSync(join(folder, "change.holo"), pageWith("change.wasm", pinned(primes)));
+    writeFileSync(join(folder, "change.wasm"), sum);
+    // Un module qui demande le réseau, avec sa bonne empreinte.
+    writeFileSync(join(folder, "pirate.holo"), pageWith("pirate.wasm", pinned(pirate)));
+    writeFileSync(join(folder, "pirate.wasm"), pirate);
+    const port = 26000 + Math.floor(Math.random() * 2000);
+    const env = { ...process.env, HOLO_TEST_ONLY_INSECURE_SITE: `modules.test:${otherPort}` };
+    const server = spawn(binary, ["serve", folder, String(port)], { cwd: engine, env, stdio: ["ignore", "pipe", "pipe"] });
+    let journal = "";
+    server.stdout.on("data", (d) => { journal += d; });
+    server.stderr.on("data", (d) => { journal += d; });
+    for (let i = 0; i < 100 && !journal.includes(`localhost:${port}`); i++) await pause(100);
+    // L'adresse de ce PC sur le réseau local (holo serve écoute sur 0.0.0.0), sinon 127.0.0.1.
+    const { networkInterfaces } = await import("node:os");
+    const lan = Object.values(networkInterfaces()).flat().find((a) => a?.family === "IPv4" && !a.internal)?.address;
+    const base = `http://${lan ?? "127.0.0.1"}:${port}`;
+    const q = page(b, base);
+    const sent = [];
+    const caught = [];
+    const shows = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;
+    const last = () => q.value("JSON.stringify((window.__holoModules ?? []).at(-1) ?? null)").then(JSON.parse);
+    const notice = () => q.value(`[...document.querySelectorAll(".holo-modules p")].map((p) => p.innerText).join(" | ")`);
+    const axeSource = readFileSync(join(engine, "node_modules", "axe-core", "axe.min.js"), "utf8");
+    try {
+      await b.send("Network.enable");
+      b.on("Network.requestWillBeSent", ({ request }) => sent.push(request.url));
+      // Si le navigateur allait chez l'autre site, il serait arrêté et compté ici.
+      b.on("Fetch.requestPaused", ({ requestId, request }) => {
+        caught.push(request.url);
+        b.send("Fetch.failRequest", { requestId, errorReason: "BlockedByClient" });
+      });
+      await b.send("Fetch.enable", { patterns: ["*://modules.test/*", `*://127.0.0.1:${otherPort}/*`].map((urlPattern) => ({ urlPattern })) });
+      // 1. La leçon, sur l'adresse du réseau local : un contexte non sûr, sans crypto.subtle.
+      await q.open(`/${lesson}`);
+      const context = await q.value("`${isSecureContext} ${typeof crypto.subtle}`");
+      const told = await notice();
+      const landmark = (await b.send("Accessibility.getFullAXTree")).result?.nodes?.some((n) => n.role?.value === "complementary" && n.name?.value === "Modules de cette page");
+      await q.click('[data-name="Compter"]');
+      const counted = await q.until(shows("Il y en a 168."), 10000);
+      const lessonRun = await last();
+      // Au clavier aussi : le bouton, puis Entrée.
+      await q.value(`document.querySelector('[data-name="Compter"]').focus()`);
+      await q.key("Enter", "Enter", 13, "\r");
+      const byKey = await q.until(`(window.__holoModules ?? []).length === 2 && window.__holoModules[1].ok`, 10000);
+      await q.value(axeSource + "\n;0");
+      const faults = await q.value('window.axe.run(document, { resultTypes: ["violations"] }).then((r) => r.violations.map((v) => v.id))');
+      // Sur un téléphone de 360 px : rien ne déborde, la mention se lit.
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 360, height: 740, deviceScaleFactor: 2, mobile: true });
+      await q.open(`/${lesson}`, 600);
+      const phoneFits = await q.value("document.documentElement.scrollWidth <= innerWidth && document.querySelector('.holo-modules').getBoundingClientRect().width <= innerWidth");
+      await b.send("Emulation.clearDeviceMetricsOverride");
+      // 2. Sa copie manque : holo serve la télécharge une fois, la range, la sert ; rien vers l'autre site depuis le navigateur.
+      const before = existsSync(join(folder, "premiers.wasm"));
+      await q.open("/ailleurs.holo");
+      await q.click('[data-name="Go"]');
+      const arrived = await q.until(`${shows("Résultat : 25")} && ${shows("Arrivé.")}`, 20000);
+      const kept = existsSync(join(folder, "premiers.wasm")) && sha(readFileSync(join(folder, "premiers.wasm"))) === sha(primes);
+      await q.click('[data-name="Go"]');
+      await q.open("/ailleurs.holo");
+      await q.click('[data-name="Go"]');
+      const again = await q.until(shows("Arrivé."), 10000);
+      const downloads = seen.filter((r) => r.url === "/premiers-1.0.wasm").length;
+      // 3. L'autre site a changé son fichier : holo serve ne le range pas ; la page reçoit « failed ».
+      await q.open("/en-silence.holo");
+      await q.click('[data-name="Go"]');
+      const silent = await q.until(shows("Pas lancé."), 20000);
+      const silentKept = existsSync(join(folder, "silence.wasm"));
+      // 4. La copie a changé : le navigateur refuse le fichier ; le module ne tourne pas, et le bas de la page dit pourquoi.
+      await q.open("/change.holo");
+      await q.click('[data-name="Go"]');
+      const refusedChange = await q.until(shows("Pas lancé."), 10000);
+      const changeRun = await last();
+      const changeTold = await q.value(`(() => { const s = document.querySelector('.holo-modules [data-why="changed"]'); return s && !s.hidden && s.checkVisibility() ? s.closest("p").innerText : ""; })()`);
+      const neverRan = !(await q.value(shows("5050")));
+      // 5. Le module qui demande le réseau : refusé avant de tourner.
+      await q.open("/pirate.holo");
+      await q.click('[data-name="Go"]');
+      const refusedPirate = await q.until(shows("Pas lancé."), 10000);
+      const pirateRun = await last();
+      const pirateTold = await q.value(`(() => { const s = document.querySelector('.holo-modules [data-why="box"]'); return s && !s.hidden ? s.closest("p").innerText : ""; })()`);
+      // 6. Sans JavaScript : la licence et le site se lisent quand même.
+      let withoutScript = "";
+      try {
+        await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+        await q.open(`/${lesson}`, 300);
+        withoutScript = await notice();
+      } finally {
+        await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      }
+      const elsewhere = sent.filter((url) => !url.startsWith(base) && !/^(data|blob|about|chrome-extension):/.test(url));
+      const fromHoloServe = seen.every((r) => r.agent.startsWith("HoloCode/") && !r.cookie && !r.referer);
+      const logged = journal.includes(`Module          : /premiers.wasm : téléchargé une fois depuis https://modules.test/premiers-1.0.wasm, empreinte vérifiée, 205 octets, licence : MIT`)
+        && journal.includes("Module          : /silence.wasm : l'empreinte du fichier téléchargé ne correspond pas à celle que la page écrit");
+      const french = "Module «\u202F141-premiers.wasm\u202F», venu de raw.githubusercontent.com — licence\u00A0: Tous droits réservés";
+      const ok = (lan ? context === "false undefined" : true) && told === french && landmark && counted && lessonRun?.ok === true && byKey && !faults.length && phoneFits
+        && !before && arrived && kept && again && downloads === 1
+        && silent && !silentKept && seen.filter((r) => r.url === "/premiers-1.1.wasm").length === 1
+        && refusedChange && changeRun?.why === "changed" && changeRun?.reason.startsWith("l'empreinte ne correspond pas") && changeTold.endsWith("refusé\u00A0: ce fichier n'est pas celui que l'auteur a vérifié (son empreinte diffère)") && neverRan
+        && refusedPirate && pirateRun?.why === "box" && pirateRun?.reason.includes("« env.fetch » (une fonction)") && pirateTold.endsWith("refusé\u00A0: il demande plus que ce que la boîte lui donne")
+        && withoutScript === french && elsewhere.length === 0 && caught.length === 0 && fromHoloServe && logged;
+      return [ok, `page ouverte sur ${base} : isSecureContext, crypto.subtle : ${context}${lan ? "" : " (pas d'adresse du réseau local : 127.0.0.1)"} ; en bas de la page : « ${told} », repère pour le lecteur d'écran : ${landmark} ; le module compte : ${counted} (${JSON.stringify(lessonRun)}), au clavier : ${byKey} ; téléphone de 360 px sans débord : ${phoneFits} ; axe-core : ${faults.join(", ") || "aucun défaut"} ; copie absente au départ : ${!before}, téléchargée par holo serve et lancée : ${arrived}, rangée avec la bonne empreinte : ${kept}, encore après deux lancements et un rechargement : ${again}, demandes à l'autre site pour elle : ${downloads} ; changée en silence chez l'autre site : refusée ${silent}, rangée ${silentKept} ; copie changée : refusée ${refusedChange} (${changeRun?.reason}), dit au visiteur : « ${changeTold} », jamais lancée : ${neverRan} ; le module qui demande le réseau : refusé ${refusedPirate} (${pirateRun?.reason}), dit : « ${pirateTold} » ; sans JavaScript : « ${withoutScript} » ; le navigateur ailleurs : ${elsewhere.join(", ") || "jamais"} (arrêtées : ${caught.length}) ; l'autre site n'a vu que holo serve : ${fromHoloServe} (${seen.map((r) => r.url).join(", ")}) ; le journal le dit : ${logged}${b.errors.length ? ` (${b.errors.join(" | ")})` : ""}`];
+    } finally {
+      await b.send("Fetch.disable");
+      b.on("Fetch.requestPaused", null);
+      b.on("Network.requestWillBeSent", null);
+      await b.send("Network.disable");
+      server.kill();
+      other.close();
+      try { rmSync(folder, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); } catch { /* le dossier temporaire restera */ }
+    }
+  }],
   ["les touches du clavier, et les lettres qu'on coupe", async (p) => {
     await p.open("/exemples/lecons/77-toutes-les-touches.holo");
     if (!(await p.until(`document.getElementById("shortcuts")`))) return [false, "le moteur n'est pas arrivé"];
