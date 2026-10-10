@@ -491,6 +491,11 @@ impl Site {
     /// visiteur (sa page part de ses données), ou pour `Meteo.refresh`. Demandées ici, avant le
     /// verrou des gestes ; depuis ce qui est gardé si c'est frais (au plus une demande par minute).
     fn prefetch(&self, ask: &Ask, path: &str, raw: &str) {
+        // Seulement pour un geste que `gesture` recevra : de ce site, un formulaire des gestes, pas trop lourd.
+        let from_here = ask.origin.is_empty() || ask.origin.split("://").nth(1) == Some(ask.host);
+        if !from_here || !ask.content_type.starts_with("application/x-www-form-urlencoded") || ask.body.len() as u64 > BODY_MAX {
+            return;
+        }
         let Some((file, holo, values)) = self.locate(path, raw) else { return };
         let member = crate::accounts::member_of(self, ask.cookie);
         if !holo.ends_with(".holo") || (member.is_none() && members_only(&file, &values)) {

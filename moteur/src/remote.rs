@@ -661,7 +661,8 @@ impl Remote {
     /// que le serveur tourne, la demande suivante le voit, et le journal dit ce qui ne va pas.
     /// Rend vrai si le fichier vient d'être relu après un changement.
     fn refresh(&self, sites: &mut Sites) -> bool {
-        let stamp = std::fs::metadata(&self.file).ok().and_then(|meta| Some((meta.modified().ok()?, meta.len())));
+        // Un fichier ordinaire seulement : ni un dossier, ni un tube qui bloquerait la lecture.
+        let stamp = std::fs::metadata(&self.file).ok().filter(std::fs::Metadata::is_file).and_then(|meta| Some((meta.modified().ok()?, meta.len())));
         if sites.read && stamp == sites.stamp {
             return false;
         }
@@ -696,7 +697,8 @@ impl Remote {
 
     /// Ce que holo serve dit au démarrage : l'interrupteur des essais s'il est allumé, les sites
     /// permis (jamais leur clé), ce qui ne va pas dans `holo-data/sites.txt`, et les pages qui lisent
-    /// un site qui n'y est pas, ou dont la clé manque.
+    /// un site qui n'y est pas, ou dont la clé manque. Rien, si aucune page ne lit d'autre site et
+    /// que le fichier n'existe pas.
     pub fn announce(&self, folder: &Path) -> Vec<String> {
         let mut lines = Vec::new();
         if let Some(fake) = &self.fake {
@@ -707,8 +709,12 @@ impl Remote {
         }
         let mut sites = self.sites.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         self.refresh(&mut sites);
+        let pages = pages_reading_other_sites(folder);
+        if sites.stamp.is_none() && pages.is_empty() {
+            return lines;
+        }
         lines.extend(summary(&sites, sites.stamp.is_some()));
-        for (page, host) in pages_reading_other_sites(folder) {
+        for (page, host) in pages {
             match sites.permits.iter().find(|permit| permit.host == host) {
                 None => lines.push(format!("                  {page} lit {host}, qui n'est pas dans holo-data/{SITES_FILE} : la page recevra « failed » ; pour le permettre, ajoute la ligne « {host} »")),
                 Some(permit) if permit.key == Key::Missing => lines.push(format!("                  {page} lit {host}, dont la clé manque dans holo-data/{SITES_FILE} : la page recevra « failed »")),
@@ -1408,6 +1414,18 @@ mod remote_tests {
         let bench = new_bench("", |_| json("{}"));
         assert_eq!(bench.remote.read("/p.holo", "https://meteo.test/donnees.json", 0), Err(Refusal::NotDeclared("meteo.test".into())));
         assert!(bench.asked().is_empty());
+    }
+
+    #[test]
+    fn the_server_is_quiet_at_startup_when_no_page_reads_another_site() {
+        let folder = folder();
+        std::fs::write(folder.join("local.holo"), "Page(title: \"x\", state: State(t: \"\"), data: Data(from: \"stock.json\"), children: [ P(\"{t}\") ])").unwrap();
+        let remote = Remote::with_parts(&folder, Box::new(Fake { asked: Arc::default(), answer: Arc::new(|_| Err(Failure::Unreachable)) }), None, Box::new(|| 0), Box::new(|_: &str| {}));
+        assert!(remote.announce(&folder).is_empty());
+        // Un dossier à la place du fichier ne bloque rien, et ne permet rien.
+        std::fs::create_dir_all(folder.join(crate::server::DATA_FOLDER).join(SITES_FILE)).unwrap();
+        assert_eq!(remote.read("/p.holo", "https://api.exemple.org/m", 0), Err(Refusal::NotDeclared("api.exemple.org".into())));
+        let _ = std::fs::remove_dir_all(folder);
     }
 
     #[test]
