@@ -796,7 +796,7 @@ const tests = [
       const cancelled = await q.until(`document.getElementById("page").innerText.includes("Ta réservation est annulée.")`, 10000);
       const cancel = messages().find((line) => line.includes("\"form\":\"Cancel\"")) ?? "";
       check("le mot de passe du compte", currentAttributes === "current-password" && wrong === "Ce n'est pas le mot de passe de ton compte. | true | true | false" && cancelled && cancel.includes(`"submission":{"form":"Cancel","values":{}}`), `${currentAttributes} ; faux : ${wrong} ; juste : ${cancelled} ; rangé : ${cancel}`);
-      check("rien du compte en clair", written(account) === "nulle part" && written("pas le bon") === "nulle part" && !served.log().includes("pas le bon"), written("pas le bon"));
+      check("rien du compte en clair", written(account) === "nulle part" && written("pas le bon") === "nulle part" && !served.log().includes("pas le bon"), `le bon : ${written(account)} ; le faux : ${written("pas le bon")}`);
       // 9. Hors HTTPS : la page ouverte par l'adresse de ce PC sur le réseau local, comme un téléphone
       // du même Wi-Fi. Le navigateur dit qu'elle n'est pas sûre : le champ se ferme, la note dit pourquoi.
       const { networkInterfaces } = await import("node:os");
@@ -819,6 +819,14 @@ const tests = [
         // Sans JavaScript non plus : holo serve fabrique la page avec le champ fermé.
         const plain = await (await fetch(`${served.base.replace("localhost", lan)}/${lesson}`, { headers: { accept: "text/html" } })).text();
         check("hors HTTPS, sans JavaScript", plain.includes(`<input disabled aria-describedby="holo-password-Protect-note"`) && !plain.includes(`name="holo-password-Protect"`), plain.match(/<input[^>]*data-secret[^>]*>/)?.[0] ?? "(pas de champ)");
+        // Le serveur d'essai, lui, ne sait rien des mots de passe : par le réseau local, seule la page
+        // légère ferme le champ, parce que le navigateur dit que la page n'est pas sûre.
+        const node = page(b, server.base.replace("localhost", lan));
+        await node.open(`/exemples/lecons/${lesson}`);
+        await node.until("window.__holoStarted", 20000);
+        const byBrowser = await node.value(`[window.isSecureContext, ${field}.disabled, document.getElementById("holo-password-Protect-note").hidden, ${reveal}.hidden].join(" ")`);
+        check("hors HTTPS, la page légère ferme le champ", byBrowser === "false true false true", byBrowser);
+        insecure += ` ; serveur d'essai : ${byBrowser}`;
       }
       // 10. Sans JavaScript, sur ce PC : le champ part avec le formulaire des gestes ; holo serve n'en
       // garde que l'empreinte, et la page revient sans lui.
