@@ -61,7 +61,8 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     ("Address", &["name", "children"]),
     ("Row", &["name", "children", "gap", "align"]),
     ("Column", &["name", "children", "gap", "align"]),
-    ("Grid", &["name", "children", "gap", "columns"]),
+    // Des zones nommées, dessinées avec des mots (ADR-104) : areas: ["top top", "menu main"].
+    ("Grid", &["name", "children", "gap", "columns", "areas"]),
     ("Stack", &["name", "children"]),
     ("Board", &["name", "children", "height"]),
     ("Point", &["name", "seed", "brightness", "fragments", "color", "palette", "budget", "inside", "above"]),
@@ -92,7 +93,8 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     // Les données de la page (ADR-030) ; leur nom, que les règles écoutent (ADR-064).
     ("Data", &["name", "from", "every"]),
     ("Transfer", &["name", "label", "file", "values"]),
-    ("Device", &["name", "label", "kind", "value"]),
+    // La durée d'une vibration (ADR-110) : for: 200ms, ou for: [100ms, 50ms, 100ms].
+    ("Device", &["name", "label", "kind", "value", "for"]),
     ("Notification", &["name", "label", "title", "body", "after"]),
     ("Offline", &["name", "label", "files"]),
 ];
@@ -114,7 +116,9 @@ fn check_settings(block: &Block, parent: &str) -> Result<(), Error> {
         let on_board = matches!(name, "x" | "y" | "drag") && parent == "Board";
         let in_stack = name == "align" && parent == "Stack";
         let in_row = name == "grow" && (parent == "Row" || parent == "Column");
-        if allowed.contains(&name) || movement || on_board || in_stack || in_row {
+        // Une case de grille sur plusieurs colonnes ou lignes, ou dans une zone (ADR-104).
+        let in_grid = crate::grid::CELL_PARAMS.contains(&name) && parent == "Grid";
+        if allowed.contains(&name) || movement || on_board || in_stack || in_row || in_grid {
             // Un nom de bloc commence par une majuscule, comme un bloc : ce qu'on touche a une
             // majuscule, ce qui change (une valeur) n'en a pas. `Filter(name: found)` nomme une
             // liste, donc une valeur : en minuscules (lot 2 du web).
@@ -131,6 +135,8 @@ fn check_settings(block: &Block, parent: &str) -> Result<(), Error> {
         }
         let message = if name == "grow" {
             format!("« grow: » fait grandir un bloc rangé dans Row ou Column : mets « {} » dans Row(children: [ … ])", block.name)
+        } else if crate::grid::CELL_PARAMS.contains(&name) {
+            format!("« {name}: » place une case dans une grille : mets « {} » dans Grid(children: [ … ])", block.name)
         } else if matches!(name, "x" | "y" | "drag") {
             format!("« {name}: » place un bloc sur un plateau : mets « {} » dans Board(children: [ … ])", block.name)
         } else if name == "align" && block.name != "Row" && block.name != "Column" {

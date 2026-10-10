@@ -1,0 +1,55 @@
+// Leçon 133 — Faire vibrer le téléphone
+//
+// Ce qu'on apprend :
+//   Device(name: Petite, kind: vibration, for: 200ms, label: "…") : une vibration du téléphone.
+//   Petite.play la fait sentir, comme Ding.play fait entendre un son : sur un toucher, une touche,
+//   ou dans un jeu, par une règle qui guette (When), une rencontre ou une règle de temps (Every).
+//   for: dit combien de temps : une durée, ou une liste qui alterne vibration et silence,
+//   for: [100ms, 80ms, 100ms]. Une seconde en tout au plus : c'est un signal, pas une alarme.
+//   Rien ne vibre avant que le visiteur ait touché la page, ni s'il a demandé moins de mouvement
+//   (« Supprimer les animations », dans les réglages du téléphone). Sur un iPhone ou un ordinateur,
+//   rien ne vibre, et rien ne casse.
+//   Une vibration n'est jamais le seul signe : la page montre aussi, à l'écran, ce qui s'est passé.
+//
+// À essayer :
+//   Sur ton téléphone, touche « Vibrer » ; puis amène le carré sur le losange avec les flèches : il
+//   vibre deux fois, et les prises augmentent. Active « Supprimer les animations » : le téléphone
+//   ne vibre plus, et l'écran dit toujours tout.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 133 : faire vibrer le téléphone",
+  state: State(essais: 0, prises: 0, x: 10, y: 50, cx: 80, cy: 50),
+  children: [
+    H1("Une vibration"),
+    Device(name: Petite, kind: vibration, for: 200ms, label: "Une vibration quand tu touches « Vibrer »"),
+    Device(name: Double, kind: vibration, for: [100ms, 80ms, 100ms], label: "Deux vibrations quand le carré attrape le losange"),
+    Button(name: Vibrer, text: "Vibrer"),
+    P("Vibrations demandées : {essais}."),
+    P("Prises : {prises}. Amène le carré jaune sur le losange rouge avec les flèches."),
+    Board(height: 220px, children: [
+      Shape(name: Losange, form: diamond, color: "#FF4D6D", size: 48px, x: cx, y: cy),
+      Shape(name: Carre, form: square, color: "#E9B44C", size: 48px, x: x, y: y),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 124 : une citation courte, le titre d'une œuvre", to: "124-une-citation-courte.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+  rules: [
+    On(Vibrer.tap, effect: [essais.add(1), Petite.play]),
+    On(Key.left, effect: x.sub(5)),
+    On(Key.right, effect: x.add(5)),
+    On(Key.up, effect: y.sub(5)),
+    On(Key.down, effect: y.add(5)),
+    When(Carre, meets: Losange, effect: [prises.add(1), cx.random(100), cy.random(100), Double.play]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; max-width: 720px; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+Button { background: #E9B44C; color: #101020; font-weight: bold; padding: 12px 20px; border-radius: 999px; }
+A { color: #8fd3ff; }
+Board { background: #1a1a2e; border: 1px solid #E9B44C; border-radius: 16px; }

@@ -6,6 +6,25 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Faire vibrer le téléphone : `Device(kind: vibration)`
+
+- Fait (issue #239, la session du nuage ; `ADR-110`, ACCEPTÉ) :
+  - `Device(name: Buzz, kind: vibration, for: 200ms)` : `Buzz.play` fait vibrer, `Buzz.stop` arrête. Une vibration se joue comme un son : d'un toucher, d'une touche ou d'une règle de jeu (`When`, une rencontre, `Every`, `After`), sans permission.
+  - `for:` prend une durée, ou une liste qui alterne vibration et silence ; 200 ms si rien n'est écrit ; dix durées et une seconde en tout au plus.
+  - Jamais avant que le visiteur ait touché la page, ni sous le mouvement réduit. Là où le navigateur ne vibre pas (iPhone, ordinateur), rien ne casse, et la zone d'état le dit.
+  - Elle ne dit rien en retour (`On(Buzz.done, …)` est refusé) : le signe se montre à l'écran, dans la règle qui la joue.
+  - La leçon 133 ; le guide (chapitre « 6 unquinquagies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+  - Empilée sur la #236 (le partage, PR 256), fusionnée avant elle ; `main` fusionnée ensuite.
+- Exécuté :
+  - `cargo test --release --locked` et `cargo test` : 242 tests passent, dont les deux nouveaux (`a_vibration_plays_like_a_sound_and_says_nothing_back`, `a_vibration_is_short`) ; `holo check` accepte la leçon 133.
+  - Dans Chrome, « faire vibrer le téléphone … (leçon 133) » passe : rien avant le toucher, puis `[200]` au toucher et `[100,80,100]` à la rencontre ; sous le mouvement réduit émulé, rien ne vibre et la zone d'état le dit ; sans `navigator.vibrate`, aucune erreur ; axe-core : zéro défaut.
+  - L'essai sait échouer : sans l'appel `navigator.vibrate(spec.pattern)` de `capabilities.js`, il rate (aucune vibration après le toucher) ; l'appel remis, il passe.
+  - La suite entière (`CI=1`, axe-core 4.10.3) : 82 essais sur 85 passent ; les 3 ratés sont ceux du conteneur (« pincer à deux doigts », « la vue points se lit au lecteur d'écran », la vidéo H.264 des parcours 8 et 9).
+- Erreurs en route : la limite de séance a arrêté l'agent deux fois, et le conteneur a redémarré. La fusion de `main` faite par la session du PC dans la branche de la #236 avait coupé un exemple du guide ; réparé (58c2b2d) avant de fusionner la #236 ici.
+- Reste : essayer sur un vrai téléphone Android ; l'iPhone ne vibre pas (Safari n'a pas `navigator.vibrate`).
+
+---
+
 ## 2026-10-10 — Mélanger des sons : un fondu, un volume qui suit une valeur
 
 - Fait (issue #241, la session du nuage ; `ADR-112`, ACCEPTÉ d'avance par Yocthan : « tu le valides déjà, tu le fais déjà ») :
@@ -42,6 +61,27 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 - Exécuté, dans `moteur/` : `cargo test --release --locked` → 239 tests passent (quatre nouveaux, dans `src/reorder.rs`) ; `cargo test` → 239 ; dans Chrome, l'essai de la leçon 128 passe seul (souris, clavier, Espace en tête, lecteur d'écran, doigt sur un écran de 400 px, puis `holo serve` sans JavaScript) et rate avec le `page-engine.js` de `main` (rien ne bouge) ; la suite Chrome entière (`node outils/browser-tests.mjs`) : 82 essais sur 83 passent, 125 leçons s'ouvrent sans erreur, en 477 s ; le seul raté est l'audit axe-core des parcours, parce qu'axe-core n'est pas sur ce PC et que l'agent n'installe rien (les machines de GitHub l'installent avant la suite).
 - Erreurs en route : deux assertions de mes tests comptaient « holo-movable », qui est aussi dans le style de la page ; elles comptent maintenant `class="holo-movable"`. Une commande trop longue a été refusée par la garde du dossier de l'agent : découpée en commandes simples.
 - Reste : réordonner une liste partagée ; faire passer une ligne d'une liste à une autre ; « tout en haut » d'un seul geste ; un style pour la poignée et les boutons ; un pas `move` dans `holo test`. Le grand tableau du web : « glisser-déposer » peut passer à « oui ».
+
+---
+
+## 2026-10-09 — Une grille qui place ses cases : plusieurs colonnes, des zones nommées
+
+- Fait (issue #233, prise par un agent de la session du PC ; `ADR-104`, ACCEPTÉ : « tu le valides déjà, tu le fais déjà ») :
+  - `columnSpan: 2` et `rowSpan: 2` sur un bloc de `Grid`. Une grille trop étroite donne toute la ligne à la case, au lieu d'ajouter une colonne : sans ce repli, à 280px (un Galaxy Z Fold fermé), la colonne ajoutée rétrécit toutes les cases à 120px.
+  - `Grid(areas: ["haut haut", "menu texte"])` et `area: menu` : les zones dessinées avec des mots. Les blocs s'écrivent dans l'ordre des zones, celui de la lecture ; sous 480px de grille, ou quand une zone aurait moins de 120px, elles s'empilent dans cet ordre.
+  - La grille se mesure elle-même (`container-type`, une `@container` par seuil employé dans le fichier) : du CSS fabriqué par le moteur, qui marche sans JavaScript. Vingt-sept refus, dont `grid-area` dans un style.
+  - La leçon 127 ; le guide (« 6 quinquadragies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+- Exécuté :
+  - `cargo test --release --locked` : 240 tests passent, dont les cinq nouveaux de `grid.rs` ; `cargo test` : 240 passent.
+  - `node outils/browser-tests.mjs` : 82 essais sur 83 passent (500 s). Le seul raté est l'audit axe-core des parcours : la bibliothèque (axe-core 4.10.3) n'est pas installée sur ce PC, et l'agent n'installe rien ; GitHub l'installe avant ses essais.
+  - L'essai de la leçon 127 rate quand on retire le repli (à 280px, les cases tombent à 120px, et les zones ne s'empilent plus à 360px) ; l'ancien moteur refuse la leçon (« « Column » n'a pas de paramètre « columnSpan » »).
+- ![La leçon 127 sur un ordinateur : la grande case sur deux colonnes et deux lignes, le menu à gauche du texte](images/2026-10-09-grille-ordinateur.png)
+- ![La même leçon sur un téléphone de 360px : la grande case prend la ligne, les zones s'empilent dans l'ordre](images/2026-10-09-grille-telephone.png)
+- Erreurs en route :
+  - ma première construction en arrière-plan écrivait son journal dans un dossier qui n'existe pas (un `..` de trop peu) : elle n'a pas tourné ; et un nom de fichier de journal partagé avec un autre agent mêlait leurs lignes. Chaque agent écrit maintenant dans son propre dossier ;
+  - la première leçon employait `border-left`, que HoloCode n'a pas : refusée par `holo check` ;
+  - une zone inconnue était annoncée comme « une zone sans bloc » : la vérification regarde maintenant d'abord si la zone existe.
+- Reste : une case d'une liste qui change (`Repeat(over:)`) ne prend pas plusieurs colonnes ; un composant se range dans un `Column(columnSpan: 2, …)` ; le seuil de 480px ne se règle pas ; la ligne `grid` du grand tableau passe à « oui » à la prochaine publication.
 
 ---
 

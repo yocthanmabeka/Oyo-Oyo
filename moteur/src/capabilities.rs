@@ -37,6 +37,43 @@ fn asked_of<'a>(program: &'a Program, name: &str) -> Vec<&'a str> {
     });
     asked
 }
+/// Ce que les règles du fichier écoutent d'un bloc : `On(Buzz.done, …)` → `done`.
+fn heard_of<'a>(program: &'a Program, name: &str) -> Vec<&'a str> {
+    let mut heard = Vec::new();
+    let _ = rules::for_each_block(&program.root, &mut |rule| {
+        if rule.name == "On" {
+            if let Some(Value::Name(signal)) = rule.arguments.iter().find(|a| a.name.is_none()).map(|a| &a.value) {
+                if let Some((source, word)) = signal.split_once('.') {
+                    if source == name { heard.push(word); }
+                }
+            }
+        }
+        Ok(())
+    });
+    heard
+}
+/// Ce nom est-il celui d'une vibration (ADR-110) ? Elle se joue alors comme un son, là où un son se joue.
+pub fn vibrates(program: &Program, name: &str) -> bool {
+    rules::named_block(program, name).is_some_and(|b| b.name == "Device" && word(b, "kind") == Some("vibration"))
+}
+/// Le motif d'une vibration, en millisecondes (ADR-110) : `for: 200ms` donne [200] ; une liste
+/// alterne vibration et silence. 200 ms si rien n'est écrit. Rien si le motif sort des bornes :
+/// chaque durée avec son unité, dix durées au plus, une seconde en tout au plus.
+pub fn pattern(block: &Block) -> Option<Vec<u64>> {
+    let ms = |v: &Value| match v {
+        Value::Number { value, unit: Some(u), .. } if u == "ms" => Some(value.round()),
+        Value::Number { value, unit: Some(u), .. } if u == "s" => Some((value * 1000.0).round()),
+        _ => None,
+    }
+    .filter(|m| (1.0..=1000.0).contains(m))
+    .map(|m| m as u64);
+    let durations = match block.argument("for").map(|a| &a.value) {
+        None => vec![200],
+        Some(Value::List(vs)) => vs.iter().map(ms).collect::<Option<Vec<u64>>>()?,
+        Some(v) => vec![ms(v)?],
+    };
+    (!durations.is_empty() && durations.len() <= 10 && durations.iter().sum::<u64>() <= 1000).then_some(durations)
+}
 pub fn check(program: &Program) -> Result<(), Error> {
     rules::for_each_block(&program.root, &mut |block| {
         if !BLOCKS.contains(&block.name.as_str()) { return Ok(()); }
@@ -51,11 +88,26 @@ pub fn check(program: &Program) -> Result<(), Error> {
             direct = children.iter().any(|v| matches!(v, Value::Block(b) if std::ptr::eq(b, block)));
         }
         if !direct { return Err(error("Transfer, Device, Notification et Offline se rangent directement dans les enfants de Page")); }
-        // Un partage s'ouvre par request (ADR-107) ; stop, permis partout, oublie un partage en cours.
-        if block.name == "Device" && word(block, "kind") == Some("share") {
-            let name = rules::name_of(block).unwrap_or("");
-            if let Some(action) = asked_of(program, name).into_iter().find(|a| !matches!(*a, "request" | "stop")) {
-                return Err(error(&format!("« {name}.{action} » : un partage s'ouvre par {name}.request, sur le toucher d'un bouton")));
+        // Ce qu'on demande à chaque sorte d'appareil : un partage s'ouvre (request, ADR-107), une
+        // vibration se joue (play, ADR-110) ; stop, permis partout, arrête ou oublie ce qui est en cours.
+        if block.name == "Device" {
+            let (name, kind) = (rules::name_of(block).unwrap_or(""), word(block, "kind").unwrap_or(""));
+            if kind != "vibration" && block.argument("for").is_some() {
+                return Err(error("« for: » dit la durée d'une vibration : Device(kind: vibration, for: 200ms)"));
+            }
+            for action in asked_of(program, name) {
+                let refused = match kind {
+                    "share" => (!matches!(action, "request" | "stop")).then(|| format!("« {name}.{action} » : un partage s'ouvre par {name}.request, sur le toucher d'un bouton")),
+                    "vibration" => (!matches!(action, "play" | "stop")).then(|| format!("« {name}.{action} » : une vibration se joue par {name}.play, comme un son, et s'arrête par {name}.stop")),
+                    _ => (action == "play").then(|| format!("« {name}.play » : seule une vibration se joue ; cet appareil se demande par {name}.request")),
+                };
+                if let Some(message) = refused { return Err(error(&message)); }
+            }
+            // Une vibration ne dit rien en retour (ADR-110) : ce qui compte se montre à l'écran.
+            if kind == "vibration" {
+                if let Some(signal) = heard_of(program, name).into_iter().next() {
+                    return Err(error(&format!("« {name}.{signal} » : une vibration ne dit rien en retour ; montre à l'écran ce qui s'est passé, dans la règle qui la joue")));
+                }
             }
         }
         match block.name.as_str() {
@@ -79,7 +131,13 @@ pub fn check(program: &Program) -> Result<(), Error> {
                 Some("camera" | "microphone") if block.argument("value").is_none() => {}
                 // Partager la page (ADR-107) : son titre et son adresse ; rien n'est rendu à la page.
                 Some("share") if block.argument("value").is_none() => {}
-                _ => return Err(error("« Device(kind: …) » attend position, clipboard, camera, microphone ou share ; caméra et microphone donnent un aperçu local, le partage envoie le titre et l'adresse de la page : sans value")),
+                // Faire vibrer le téléphone (ADR-110) : une durée, ou un motif, bornés.
+                Some("vibration") if block.argument("value").is_none() => {
+                    if pattern(block).is_none() {
+                        return Err(error("« for: » attend une durée, for: 200ms, ou une liste qui alterne vibration et silence, for: [100ms, 50ms, 100ms] : dix durées au plus, une seconde en tout au plus"));
+                    }
+                }
+                _ => return Err(error("« Device(kind: …) » attend position, clipboard, camera, microphone, share ou vibration ; caméra et microphone donnent un aperçu local, le partage envoie le titre et l'adresse de la page, une vibration se sent : sans value")),
             },
             "Notification" => {
                 if !text(block, "title").is_some_and(|s| !s.trim().is_empty() && s.chars().count() <= 100)
@@ -120,10 +178,16 @@ pub fn html(block: &Block) -> String {
         };
         parts.push(format!("{}:{val}", crate::json_text(key)));
     }
+    // Le motif d'une vibration, en millisecondes (ADR-110).
+    if word(block, "kind") == Some("vibration") {
+        let durations = pattern(block).unwrap_or_default();
+        parts.push(format!("\"pattern\":[{}]", durations.iter().map(u64::to_string).collect::<Vec<_>>().join(",")));
+    }
     parts.push(format!("\"type\":{}", crate::json_text(&block.name)));
-    // Sans JavaScript, le partage dit comment partager quand même (ADR-107).
+    // Sans JavaScript, le partage dit comment partager quand même (ADR-107) ; rien ne vibre (ADR-110).
     let without_script = match word(block, "kind") {
         Some("share") => "Sans JavaScript, ce bouton ne partage pas : copie l'adresse de la page dans la barre du navigateur, ou prends « Partager » dans son menu.",
+        Some("vibration") => "Sans JavaScript, le téléphone ne vibre pas ; le reste de la page reste lisible.",
         _ => "Cette capacité demande JavaScript ; le reste de la page reste lisible.",
     };
     format!("<section class=\"holo-{}\" data-name=\"{}\" data-browser-capability=\"{}\"><p>{}</p><p role=\"status\" aria-live=\"polite\" data-capability-status>Prêt.</p><span data-capability-preview></span><noscript>{without_script}</noscript></section>",
@@ -239,6 +303,50 @@ mod tests {
         ] {
             let error = crate::check_page(&bad).unwrap_err();
             assert!(error.message.contains(why), "{bad} : {error}");
+        }
+    }
+    #[test]
+    fn a_vibration_plays_like_a_sound_and_says_nothing_back() {
+        // Faire vibrer (ADR-110) : d'un bouton, d'une touche, d'une règle de temps, d'une rencontre,
+        // comme un son, sans permission ; elle ne dit rien en retour.
+        let good = r#"Page(state: State(n: 0, x: 10, y: 50), children: [H1("Vibrer"), Device(name: Buzz, kind: vibration, for: [100ms, 80ms, 100ms], label: "Deux vibrations"), Button(name: Go, text: "Vibrer"), Board(height: 200px, children: [Shape(name: Me, form: square, size: 40px, x: x, y: y), Shape(name: Goal, form: diamond, size: 40px, x: 80, y: 50)])], rules: [On(Go.tap, effect: [n.add(1), Buzz.play]), On(Key.space, effect: Buzz.play), On(Key.right, effect: x.add(5)), Every(2s, effect: Buzz.play), When(Me, meets: Goal, effect: [n.add(1), Buzz.play]), When(n, is: 1, effect: Buzz.play), When(n, is: 3, effect: Buzz.stop)])"#;
+        crate::check_page(good).unwrap();
+        let html = crate::flat_view(good, "").unwrap();
+        assert!(html.contains("&quot;pattern&quot;:[100,80,100]") && html.contains("<noscript>Sans JavaScript, le téléphone ne vibre pas"), "{html}");
+        // Une règle qui guette joue la vibration comme un son : l'arbitre la rend sous « ! ».
+        let after = crate::arbitrate(good, &crate::initial_state(good), "Go.tap");
+        assert!(after.split(';').any(|chunk| chunk == "!=Buzz.play"), "{after}");
+        for (bad, why) in [
+            (good.replace("On(Go.tap, effect: [n.add(1), Buzz.play])", "On(Go.tap, effect: Buzz.request)"), "une vibration se joue par Buzz.play"),
+            (good.replace("Every(2s, effect: Buzz.play)", "On(Buzz.done, effect: n.add(1))"), "ne dit rien en retour"),
+            (good.replace("Every(2s, effect: Buzz.play)", "On(Buzz.failed, effect: n.add(1))"), "ne dit rien en retour"),
+            (good.replace("kind: vibration, for: [100ms, 80ms, 100ms]", "kind: vibration, value: n"), "sans value"),
+        ] {
+            let error = crate::check_page(&bad).unwrap_err();
+            assert!(error.message.contains(why), "{bad} : {error}");
+        }
+        // Seule une vibration se joue : un autre appareil se demande.
+        let position = r#"Page(state: State(at: ""), children: [H1("Où"), Device(name: Where, kind: position, value: at, label: "Ma position"), Button(name: Go, text: "Où suis-je ?")], rules: [On(Go.tap, effect: Where.play)])"#;
+        assert!(crate::check_page(position).unwrap_err().message.contains("seule une vibration se joue"));
+        // Une règle de temps ne demande toujours pas une permission.
+        assert!(crate::check_page(&position.replace("On(Go.tap, effect: Where.play)", "Every(1s, effect: Where.request)")).unwrap_err().message.contains("un geste du visiteur"));
+    }
+    #[test]
+    fn a_vibration_is_short() {
+        let page = |device: &str| format!(r#"Page(children: [H1("Vibrer"), {device}, Button(name: Go, text: "Vibrer")], rules: [On(Go.tap, effect: Buzz.play)])"#);
+        // 200 ms si rien n'est écrit ; une durée en secondes devient des millisecondes.
+        assert!(crate::flat_view(&page(r#"Device(name: Buzz, kind: vibration, label: "Vibrer")"#), "").unwrap().contains("&quot;pattern&quot;:[200]"));
+        assert!(crate::flat_view(&page(r#"Device(name: Buzz, kind: vibration, for: 0.5s, label: "Vibrer")"#), "").unwrap().contains("&quot;pattern&quot;:[500]"));
+        for (device, why) in [
+            (r#"Device(name: Buzz, kind: vibration, for: 200, label: "Vibrer")"#, "attend une durée"),
+            (r#"Device(name: Buzz, kind: vibration, for: 0ms, label: "Vibrer")"#, "attend une durée"),
+            (r#"Device(name: Buzz, kind: vibration, for: 2s, label: "Vibrer")"#, "une seconde en tout au plus"),
+            (r#"Device(name: Buzz, kind: vibration, for: [600ms, 100ms, 600ms], label: "Vibrer")"#, "une seconde en tout au plus"),
+            (r#"Device(name: Buzz, kind: vibration, for: [10ms, 10ms, 10ms, 10ms, 10ms, 10ms, 10ms, 10ms, 10ms, 10ms, 10ms], label: "Vibrer")"#, "dix durées au plus"),
+            (r#"Device(name: Buzz, kind: camera, for: 200ms, label: "Vibrer")"#, "la durée d'une vibration"),
+        ] {
+            let error = crate::check_page(&page(device)).unwrap_err();
+            assert!(error.message.contains(why), "{device} : {error}");
         }
     }
 }
