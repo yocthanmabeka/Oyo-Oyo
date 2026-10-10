@@ -42,6 +42,8 @@ pub mod tools;
 pub mod flat;
 pub mod rules;
 pub mod repeat;
+// Réordonner les lignes d'une liste (ADR-105) : Repeat(over: tasks, reorder: true).
+pub mod reorder;
 pub mod shared;
 pub mod styles;
 pub mod universe;
@@ -83,6 +85,8 @@ pub fn check_page(source: &str) -> Result<Program, Error> {
     shared::check(&program)?;
     // Les listes calculées (lot 2 du web) : d'abord, car les lignes et les règles les nomment.
     computed::check(&program)?;
+    // Les listes qu'on réordonne (ADR-105) : seulement une liste à soi, déclarée dans State.
+    reorder::check(&program)?;
     state::check_state(&program)?;
     rules::check_rules(&program)?;
     view::settings(&program)?;
@@ -183,7 +187,7 @@ pub fn vocabulary() -> String {
     let mut cycle: Vec<&str> = MOVEMENT.to_vec();
     cycle.push("back");
     let others: [(&str, &[&str]); 10] = [
-        ("Repeat", &["items", "over", "key", "empty", "children", "rules"]),
+        ("Repeat", &["items", "over", "key", "empty", "reorder", "children", "rules"]),
         ("Item", &["key"]),
         ("Data", &["name", "from", "every"]),
         ("Enter", MOVEMENT),
@@ -296,7 +300,8 @@ pub fn visitor_gesture(source: &str, state: &str, fields: &[(String, String)]) -
             written = after;
         }
     }
-    if let Some((_, signal)) = fields.iter().find(|(name, signal)| name == gestures::SIGNAL && gestures::is_tap(signal)) {
+    // Un toucher, ou une ligne déplacée par « Monter » ou « Descendre » (ADR-105).
+    if let Some((_, signal)) = fields.iter().find(|(name, signal)| name == gestures::SIGNAL && (gestures::is_tap(signal) || reorder::is_move(signal))) {
         let after = arbitrate(source, &written, signal);
         if !after.is_empty() {
             written = after;
@@ -492,6 +497,11 @@ pub fn arbitrate(source: &str, state: &str, signal: &str) -> String {
 }
 fn arbitrate_program(program:&Program,state:&str,signal:&str)->String{
     state::requested_capabilities();
+    // Une ligne déplacée (ADR-105), `move:tasks@2:0` : seule la liste change ; aucune règle ne répond.
+    if reorder::is_move(signal) {
+        let lists = reorder::moved(program, &lists::reread(program, state), signal);
+        return write_all(program, &state::reread(program, state), &state::reread_texts(program, state), &lists);
+    }
     // Un geste d'une ligne (`Done.tap@2`) : les nombres changent comme pour `Done.tap` ; les
     // listes et les textes savent de quelle ligne il vient (ADR-044).
     let base = lists::signal_and_line(signal).0;

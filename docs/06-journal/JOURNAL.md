@@ -6,6 +6,20 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-09 — Réordonner une liste : `Repeat(over:, reorder: true)`
+
+- Fait (issue #234, prise par un agent de la session du PC ; `ADR-105`, ACCEPTÉ : « tu le valides déjà, tu le fais déjà ») :
+  - `Repeat(over: tasks, reorder: true)` : le moteur pose sur chaque ligne une poignée ⠿ (souris et doigt) et deux boutons, « Monter » et « Descendre » (doigt, souris, clavier, lecteur d'écran ; sans JavaScript, reçus par `holo serve`). La page envoie `move:tasks@2:0` à l'arbitre, qui déplace l'élément. Pendant le glissement, les autres lignes s'écartent autour de celle qu'on tient, qui ne quitte jamais sa place dans la page (le doigt et le clavier la gardent) ; on pose, un seul geste. Chaque déplacement est annoncé (`aria-live`) : « « La porte bleue » : position 1 sur 4. » Le clavier reste sur le bouton touché ; près des bords de l'écran, la page défile.
+  - Le mot `reorder:` (celui de Flutter), plutôt que `drag:` (le plateau), `draggable:` (le glisser-déposer de HTML) ou `sortable:` (qu'on confondrait avec `sortBy`). Deux boutons en plus de la poignée : WCAG 2.2 (2.5.7) demande un moyen sans glisser, et TalkBack n'a pas de flèches.
+  - Refusés, avec la raison : une liste calculée, une liste partagée (pas encore), `Repeat(items:)`, autre chose que `true` ou `false`.
+  - Un membre connecté : le déplacement est renvoyé au serveur comme ses touchers ; sans cela, le « Retirer » suivant aurait retiré une autre ligne de la liste que garde son compte. C'est la seule ligne de `page-engine.js` réécrite (le filtre des gestes renvoyés) ; le reste est ajouté.
+  - La leçon 128 (précédente : 124, suivante : 1, selon la convention avec la session du nuage, qui refera la suite) ; le guide (chapitre « 6 sexquadragies », une ligne au § 10 bis), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+- Exécuté, dans `moteur/` : `cargo test --release --locked` → 239 tests passent (quatre nouveaux, dans `src/reorder.rs`) ; `cargo test` → 239 ; dans Chrome, l'essai de la leçon 128 passe seul (souris, clavier, Espace en tête, lecteur d'écran, doigt sur un écran de 400 px, puis `holo serve` sans JavaScript) et rate avec le `page-engine.js` de `main` (rien ne bouge) ; la suite Chrome entière (`node outils/browser-tests.mjs`) : 82 essais sur 83 passent, 125 leçons s'ouvrent sans erreur, en 477 s ; le seul raté est l'audit axe-core des parcours, parce qu'axe-core n'est pas sur ce PC et que l'agent n'installe rien (les machines de GitHub l'installent avant la suite).
+- Erreurs en route : deux assertions de mes tests comptaient « holo-movable », qui est aussi dans le style de la page ; elles comptent maintenant `class="holo-movable"`. Une commande trop longue a été refusée par la garde du dossier de l'agent : découpée en commandes simples.
+- Reste : réordonner une liste partagée ; faire passer une ligne d'une liste à une autre ; « tout en haut » d'un seul geste ; un style pour la poignée et les boutons ; un pas `move` dans `holo test`. Le grand tableau du web : « glisser-déposer » peut passer à « oui ».
+
+---
+
 ## 2026-10-09 — Une grille qui place ses cases : plusieurs colonnes, des zones nommées
 
 - Fait (issue #233, prise par un agent de la session du PC ; `ADR-104`, ACCEPTÉ : « tu le valides déjà, tu le fais déjà ») :

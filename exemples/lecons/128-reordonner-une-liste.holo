@@ -1,0 +1,46 @@
+// Leçon 128 — Réordonner une liste
+//
+// Ce qu'on apprend :
+//   Repeat(over: tableaux, reorder: true, …) : le visiteur range lui-même les lignes de la liste.
+//   Le moteur pose sur chaque ligne :
+//     ⠿        une poignée, qu'on fait glisser à la souris ou au doigt ;
+//     ↑ et ↓   « Monter » et « Descendre », qu'on touche au doigt, à la souris ou au clavier
+//              (Tab, puis Entrée), et que le lecteur d'écran nomme avec la ligne.
+//   Après chaque déplacement, le lecteur d'écran dit la nouvelle place : « La porte bleue » :
+//   position 1 sur 4.
+//   Aucune règle à écrire : c'est l'arbitre qui change l'ordre de la liste, dans les valeurs de
+//   la page. « En tête » le montre, et keep: [tableaux] garde cet ordre d'une visite à l'autre.
+//   Sans JavaScript, avec holo serve, « Monter » et « Descendre » marchent aussi.
+//
+// À essayer :
+//   Fais glisser « La porte bleue » tout en haut, puis recharge la page : l'ordre est resté.
+//   Avec la touche Tab, va sur ↓ d'une ligne et touche Entrée : elle descend, et le clavier la
+//   suit.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 128 : réordonner une liste",
+  state: State(tableaux: ["Le lever du soleil", "La rivière", "La porte bleue", "Le jour de marché"]),
+  keep: [tableaux],
+  computed: [ Filter(name: premier, from: tableaux, limit: 1) ],
+  children: [
+    H1("Réordonner une liste"),
+    P("Range les tableaux, du plus aimé au moins aimé."),
+    Column(gap: 8px, children: [
+      Repeat(over: tableaux, reorder: true, children: [ Text.tableau("{item}") ]),
+    ]),
+    Repeat(over: premier, children: [ P("En tête : {item}.") ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 124 : une citation courte, le titre d'une œuvre", to: "124-une-citation-courte.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.tableau { background: #1a1a2e; border: 1px solid #2a2a4e; border-radius: 8px; padding: 8px 12px; }

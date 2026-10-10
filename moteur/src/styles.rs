@@ -680,6 +680,8 @@ mod tests {
             include_str!("../../exemples/lecons/124-une-citation-courte.holo"),
             // Une grille qui place ses cases : plusieurs colonnes ou lignes, des zones (ADR-104).
             include_str!("../../exemples/lecons/127-une-grille-et-ses-zones.holo"),
+            // Réordonner les lignes d'une liste (ADR-105).
+            include_str!("../../exemples/lecons/128-reordonner-une-liste.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();
