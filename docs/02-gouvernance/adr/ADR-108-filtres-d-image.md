@@ -25,6 +25,7 @@
 Page(
   title: "The lake",
   children: [
+    H1("The lake"),
     Image.gray(source: "lake.jpg", alt: "The lake at dawn"),
     Stack(children: [ Image.dimmed(source: "lake.jpg", alt: ""), H2("The lake, at dawn") ]),
     Button(name: Open, text: "Open"),

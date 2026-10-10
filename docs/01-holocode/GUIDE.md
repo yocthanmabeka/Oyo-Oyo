@@ -2008,6 +2008,7 @@ Une photo en gris qui reprend ses couleurs au survol, une image assombrie sous u
 Page(
   title: "The lake",
   children: [
+    H1("The lake"),
     Image.gray(source: "lake.jpg", alt: "The lake at dawn"),
     Stack(children: [
       Image.dimmed(source: "lake.jpg", alt: ""),
