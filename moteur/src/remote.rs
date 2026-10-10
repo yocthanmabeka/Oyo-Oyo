@@ -986,7 +986,7 @@ mod remote_tests {
         folder
     }
 
-    fn bench(sites: &str, answer: impl Fn(&Outgoing) -> Result<Incoming, Failure> + Send + Sync + 'static) -> Bench {
+    fn new_bench(sites: &str, answer: impl Fn(&Outgoing) -> Result<Incoming, Failure> + Send + Sync + 'static) -> Bench {
         let folder = folder();
         std::fs::write(folder.join(crate::server::DATA_FOLDER).join(SITES_FILE), sites).unwrap();
         let (asked, clock, journal) = (Arc::new(Mutex::new(Vec::new())), Arc::new(Mutex::new(1_000_000u64)), Arc::new(Mutex::new(Vec::new())));
@@ -1013,7 +1013,7 @@ mod remote_tests {
     fn only_a_declared_site_is_read_compared_exactly() {
         // Règle 1, côté serveur : seul un nom écrit dans holo-data/sites.txt, exactement ; ni un
         // sous-domaine, ni le domaine au-dessus, ni un nom qui le contient.
-        let bench = bench("api.exemple.org\n", |_| json(r#"{"temperature": 21}"#));
+        let bench = new_bench("api.exemple.org\n", |_| json(r#"{"temperature": 21}"#));
         for written in ["https://exemple.org/m", "https://autre.api.exemple.org/m", "https://api.exemple.org.piege.test/m", "https://xapi.exemple.org/m", "https://api-exemple.org/m"] {
             assert_eq!(bench.remote.read("/p.holo", written, 0), Err(Refusal::NotDeclared(remote_address(written).unwrap().host)), "{written}");
         }
@@ -1167,7 +1167,7 @@ mod remote_tests {
     fn redirects_are_never_followed() {
         // Règle 3 : 301, 302, 303, 307, 308 : refusés, une seule demande, la cible jamais demandée.
         for status in [301, 302, 303, 307, 308] {
-            let bench = bench("api.exemple.org\n", move |_| Ok(Incoming { status, body: Vec::new() }));
+            let bench = new_bench("api.exemple.org\n", move |_| Ok(Incoming { status, body: Vec::new() }));
             assert_eq!(bench.remote.read("/p.holo", "https://api.exemple.org/vieux", 0), Err(Refusal::Redirect("api.exemple.org".into(), status)));
             assert_eq!(bench.asked().len(), 1);
         }
@@ -1194,7 +1194,7 @@ mod remote_tests {
             (b"{\"a\": {\"b\": {\"c\": {\"d\": 1}}}}".to_vec(), Refusal::NotJson("api.exemple.org".into())),
             (vec![b'{', 0xff, b'}'], Refusal::NotJson("api.exemple.org".into())),
         ] {
-            let bench = bench("api.exemple.org\n", move |_| Ok(Incoming { status: 200, body: body.clone() }));
+            let bench = new_bench("api.exemple.org\n", move |_| Ok(Incoming { status: 200, body: body.clone() }));
             assert_eq!(bench.remote.read("/p.holo", "https://api.exemple.org/m", 0), Err(refusal));
         }
         // Le vrai client, par l'interrupteur des essais (les mêmes réglages, sans TLS) : un serveur
@@ -1220,7 +1220,7 @@ mod remote_tests {
     fn each_address_is_asked_at_most_once_per_interval_whatever_the_visitors() {
         // Règle 5 : cent visiteurs dans la minute, une seule demande ; la suivante quand le temps
         // de la page est passé.
-        let bench = bench("api.exemple.org\n", |_| json(r#"{"temperature": 21}"#));
+        let bench = new_bench("api.exemple.org\n", |_| json(r#"{"temperature": 21}"#));
         let address = "https://api.exemple.org/meteo";
         for _ in 0..100 {
             assert_eq!(bench.remote.read("/p.holo", address, 600_000).unwrap(), r#"{"temperature": 21}"#);
@@ -1242,7 +1242,7 @@ mod remote_tests {
         bench.remote.read("/p.holo", other, 0).unwrap();
         assert_eq!(bench.asked().len(), 3);
         // Un échec est gardé une minute : aucune nouvelle demande avant, même si l'on insiste.
-        let failing = bench("api.exemple.org\n", |_| Err(Failure::Timeout));
+        let failing = new_bench("api.exemple.org\n", |_| Err(Failure::Timeout));
         assert_eq!(failing.remote.read("/p.holo", address, 600_000), Err(Refusal::Timeout("api.exemple.org".into())));
         for _ in 0..50 {
             assert_eq!(failing.remote.read("/p.holo", address, 600_000), Err(Refusal::Recent("api.exemple.org".into())));
@@ -1252,11 +1252,14 @@ mod remote_tests {
         assert!(failing.remote.read("/p.holo", address, 600_000).is_err());
         assert_eq!(failing.asked().len(), 2);
         // Huit visiteurs en même temps, un site lent : une seule demande, la même réponse pour tous.
-        let slow = bench("api.exemple.org\n", |_| {
+        let slow = new_bench("api.exemple.org\n", |_| {
             std::thread::sleep(ms(300));
             json(r#"{"temperature": 22}"#)
         });
-        let answers: Vec<_> = std::thread::scope(|scope| (0..8).map(|_| scope.spawn(|| slow.remote.read("/p.holo", address, 0))).collect::<Vec<_>>().into_iter().map(|handle| handle.join().unwrap()).collect());
+        let answers: Vec<Result<String, Refusal>> = std::thread::scope(|scope| {
+            let handles: Vec<_> = (0..8).map(|_| scope.spawn(|| slow.remote.read("/p.holo", address, 0))).collect();
+            handles.into_iter().map(|handle| handle.join().unwrap()).collect()
+        });
         assert!(answers.iter().all(|answer| answer.as_deref() == Ok(r#"{"temperature": 22}"#)), "{answers:?}");
         assert_eq!(slow.asked().len(), 1);
     }
@@ -1266,7 +1269,7 @@ mod remote_tests {
         // Règle 4 : 8 adresses par site, 64 en tout. Une place se libère d'une adresse demandée il y
         // a une minute au moins : un site reçoit au plus 8 demandes par minute de ce serveur.
         let sites: String = (0..9).map(|n| format!("site{n}.exemple.org\n")).collect();
-        let bench = bench(&sites, |_| json("{}"));
+        let bench = new_bench(&sites, |_| json("{}"));
         for n in 0..8 {
             bench.remote.read("/p.holo", &format!("https://site0.exemple.org/{n}"), 0).unwrap();
         }
@@ -1291,7 +1294,7 @@ mod remote_tests {
     fn a_key_goes_only_to_its_site_and_never_into_a_page_a_message_or_the_journal() {
         // Règle 6.
         let sites = format!("api.exemple.org ?appid={KEY}\nweather.exemple.net X-Api-Key: {HEADER_KEY}\nfr.wikipedia.org\nvide.exemple.org ?appid=\n");
-        let bench = bench(&sites, |request| match request.host.as_str() {
+        let bench = new_bench(&sites, |request| match request.host.as_str() {
             "api.exemple.org" if request.address.contains("echo") => json(&format!("{{\"message\": \"clé {KEY} inconnue\"}}")),
             "api.exemple.org" => json(r#"{"temperature": 21}"#),
             "weather.exemple.net" => Ok(Incoming { status: 401, body: Vec::new() }),
@@ -1326,7 +1329,7 @@ mod remote_tests {
     #[test]
     fn the_request_says_who_asks_and_carries_nothing_of_the_visitor() {
         // Règle 7 : exactement ces en-têtes ; ni cookie, ni Referer, ni adresse du visiteur.
-        let bench = bench("api.exemple.org\n", |_| json("{}"));
+        let bench = new_bench("api.exemple.org\n", |_| json("{}"));
         bench.remote.read("/p.holo", "https://api.exemple.org/meteo", 0).unwrap();
         assert_eq!(bench.asked()[0].headers, [("User-Agent".to_string(), USER_AGENT.to_string()), ("Accept".to_string(), "application/json".to_string())]);
         assert!(USER_AGENT.starts_with("HoloCode/") && USER_AGENT.is_ascii());
@@ -1360,14 +1363,14 @@ mod remote_tests {
             assert!(fake_site(Some(bad)).is_err(), "{bad}");
         }
         // Sans l'interrupteur, un nom en .test suit le chemin de tous : il doit être déclaré.
-        let bench = bench("", |_| json("{}"));
+        let bench = new_bench("", |_| json("{}"));
         assert_eq!(bench.remote.read("/p.holo", "https://meteo.test/donnees.json", 0), Err(Refusal::NotDeclared("meteo.test".into())));
         assert!(bench.asked().is_empty());
     }
 
     #[test]
     fn the_server_says_at_startup_what_is_permitted_and_what_is_missing() {
-        let bench = bench(&format!("fr.wikipedia.org\nvide.exemple.org X-Api-Key:\napi.exemple.org ?appid={KEY}\n"), |_| json("{}"));
+        let bench = new_bench(&format!("fr.wikipedia.org\nvide.exemple.org X-Api-Key:\napi.exemple.org ?appid={KEY}\n"), |_| json("{}"));
         let page = |from: &str| format!("Page(title: \"x\", state: State(t: \"\"), data: Data(from: \"{from}\"), children: [ P(\"{{t}}\") ])");
         std::fs::write(bench.folder.join("wiki.holo"), page("https://fr.wikipedia.org/api/rest_v1/page/summary/Kinshasa")).unwrap();
         std::fs::create_dir_all(bench.folder.join("blog")).unwrap();
