@@ -2312,6 +2312,54 @@ Page(
 
 La leçon est `136-se-souvenir-le-temps-d-une-visite.holo`, avec sa seconde page, `136-inscription/etape-2.holo`.
 
+## 6 quinquinquagies. Le champ mot de passe : `Input(type: password)`
+
+Demander un mot de passe sans jamais le lire : pour qu'un visiteur en choisisse un, ou pour confirmer une action avec le mot de passe de son compte (`ADR-114`).
+
+```holo
+Page(
+  title: "Protect a notebook",
+  state: State(title: "", sent: 0),
+  children: [
+    Form(name: Protect, children: [
+      Input(value: title, label: "Notebook name", required: true),
+      Input(type: password, new: true, label: "A password for this notebook"),
+      Button(name: Send, text: "Protect"),
+    ]),
+    If(sent, is: 1, children: [ P("The notebook is protected.") ]),
+  ],
+  rules: [ On(Send.tap, effect: Protect.send), On(Protect.sent, effect: sent.set(1)) ],
+)
+```
+
+- **`Input(type: password, label: "…")`**, dans un `Form`, un seul par formulaire. Sans `value:` : **la page ne le lit jamais**, ni une règle, ni un texte `{…}`, ni l'état, ni `keep`, `visit`, l'adresse ou les valeurs partagées. Il part seulement avec son formulaire, vers ton serveur, à côté des valeurs.
+- **`new: true`** : un mot de passe que le visiteur choisit. `holo serve` n'en garde que l'empreinte (Argon2id, comme les comptes) : tu ne peux pas le lire ; `holo messages` te montre l'empreinte, dans une écriture que savent vérifier les bibliothèques Argon2.
+- **Sans `new`**, c'est le mot de passe du compte du visiteur, sur une page réservée aux membres : `holo serve` le vérifie, avec le frein des comptes (cinq essais ratés, puis une attente), puis l'oublie. Pour confirmer une action :
+
+```holo
+Page(
+  title: "My booking",
+  access: members,
+  state: State(booked: 1),
+  children: [
+    Form(name: Cancel, children: [
+      Input(type: password, label: "Your password, to confirm"),
+      Button(name: Confirm, text: "Cancel my booking"),
+    ]),
+  ],
+  rules: [ On(Confirm.tap, effect: Cancel.send), On(Cancel.sent, effect: booked.set(0)) ],
+)
+```
+
+- **En HTTPS, ou sur ce PC** : ailleurs (un téléphone qui ouvre `http://<adresse du PC>:8080`), le champ se ferme et dit pourquoi, car le mot de passe passerait en clair sur le Wi-Fi. Pour un téléphone, sers le site en HTTPS par un proxy, avec `HOLO_ORIGIN`, comme pour les clés d'accès.
+- **Le moteur pose le reste**, sans réglage : coller est toujours permis ; un bouton « Montrer », au doigt, à la souris et au clavier, dont le lecteur d'écran dit le nom et l'état (enfoncé ou non) ; `autocomplete`, pour que le gestionnaire de mots de passe sache quoi proposer ; aucune règle de composition : 12 caractères au moins pour un nouveau, 128 au plus, et rien n'est coupé en silence.
+- **Sans JavaScript**, il marche aussi, sans le bouton « Montrer » : il part avec le formulaire des gestes, et `holo serve` le prend à part avant tout le reste.
+- **Créer un compte et se connecter restent les pages du moteur** (`/account/signup`, `/account/signin`) : ce champ ne crée ni compte ni session.
+- Refusés, avec la raison : `value:` ; hors d'un formulaire, ou deux dans un formulaire ; le mot de passe du compte sur une page qui n'est pas réservée ; `min:`, `max:`, `required:`, `suggestions:` ; un champ ordinaire qui demande un mot de passe (`Input(value: motDePasse, label: "Mot de passe")`).
+- Le serveur d'essai (`node outils/server.mjs`) ne reçoit pas de mot de passe : il demande `holo serve`.
+
+La leçon est `137-un-mot-de-passe.holo`, avec sa suite, `137-mot-de-passe/annuler.holo`.
+
 ## 6 septemquinquagies. Les données d'un autre site : `Data(from: "https://…")`
 
 Une page montre les données d'un autre site : la météo, un cours, le résumé d'un article. C'est son serveur, `holo serve`, qui va les chercher, jamais le navigateur du visiteur (`ADR-116`).

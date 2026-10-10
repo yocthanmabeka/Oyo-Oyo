@@ -65,6 +65,8 @@ Un module venu d'ailleurs (`Module(from: "https://….wasm", sha256: "…", lice
 
 Chaque page servie dit au navigateur de quels sites elle peut intégrer une page (`Embed`, ADR-117) : `Content-Security-Policy: frame-src https://www.openstreetmap.org …`, seulement les sites de `Page(embeds: […])`, et `frame-src 'none'` pour une page qui n'en liste pas. Le serveur d'essai de Node n'envoie pas cet en-tête.
 
+Le champ mot de passe (`Input(type: password)`, ADR-114) ne s'ouvre qu'en HTTPS ou sur ce PC : `holo serve` le ferme pour une demande qui vient d'ailleurs en `http://` (un téléphone sur le Wi-Fi), et refuse un envoi forgé ; derrière un proxy HTTPS, fixer `HOLO_ORIGIN` comme pour les clés d'accès. D'un nouveau mot de passe, il ne garde que l'empreinte Argon2id ; celui d'un compte, il le vérifie avec le frein des comptes. Il n'écrit jamais un mot de passe, ni dans la base, ni dans le journal. Le serveur d'essai de Node refuse un mot de passe (`501`).
+
 ## Tester sur le téléphone
 
 1. Lance le serveur sur le PC ; il affiche une adresse `http://192.168.x.x:8080` (ou `10.x.x.x`).
@@ -189,6 +191,7 @@ Repris de la proposition de Gemini, à vérifier sur le téléphone :
 | `src/server.rs`, `src/gestures.rs` | `holo serve` : le serveur en Rust, sa base SQLite, les gestes et les formulaires sans JavaScript (ADR-074, ADR-075) |
 | `src/remote.rs` | Les données d'un autre site, pour `holo serve` (ADR-116) : les sites permis et leurs clés, le refus du réseau privé, le client HTTPS (`ureq` avec `rustls`), ce qui est gardé |
 | `src/bin/holo.rs` | Le moteur en ligne de commande, pour le PC ou un serveur : `cargo build --release --bin holo`, puis `holo check fichier.holo` (vérifier) et `holo html fichier.holo` (écrire le HTML de la page, avec les données de `Data(from:)` si le fichier est rangé à côté, `ADR-064`) |
+| `src/password.rs` | Le champ mot de passe (ADR-114) : sans valeur, la page ne le lit jamais ; ses refus, ses longueurs, ses messages, le champ et son bouton « Montrer » ; `holo serve` (`server.rs`) n'en garde que l'empreinte, ou vérifie celui du compte (`accounts::confirm`) |
 | `src/embed.rs` | Une page dans la page (ADR-117) : la liste des sites permis, la lecture stricte de l'adresse, la façade ; la page légère (`web/page.html`) pose la page intégrée, enfermée, au toucher |
 | `src/copies.rs` | Les modules venus d'ailleurs (ADR-118), sur le PC : `holo check` vérifie la copie (empreinte, poids, ce qu'elle demande à la boîte) ; `holo serve` télécharge une fois celle qui manque (`remote::download`), la vérifie et la range à côté de la page. La boîte elle-même (`modules::check_wasm`) lit chaque fichier avant qu'il tourne, aussi dans la page |
 | `outils/build.ps1` | Construction complète |
