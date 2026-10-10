@@ -17,7 +17,7 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
   - La leçon 134 : une bannière qui ondule sous un titre ; une photo en rond, en hexagone, en étoile, en cœur ; les huit formes de `Shape` ; une étoile à toucher. Liens vers la 124 et la 1.
   - Le guide (chapitre « 6 duoquinquagies », et une ligne au chapitre des formes), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons ; l'éditeur propose les quatre mots nouveaux.
 - Exécuté, dans `moteur/` :
-  - `cargo test --release --locked` : les cinq essais nouveaux passent (quatre dans `forms.rs`, un dans `flat.rs`). Celui des rencontres rate sans la ligne de la vague dans `state.rs` (« left: [Some(1), Some(0), … » : la vague ne touche pas le coin). L'essai qui prenait l'hexagone pour une forme inconnue prend maintenant le pentagone. 282 essais avant la fusion de `main`, 303 après.
+  - `cargo test --release --locked` : les cinq essais nouveaux passent (quatre dans `forms.rs`, un dans `flat.rs`). Celui des rencontres rate sans la ligne de la vague dans `state.rs` (« left: [Some(1), Some(0), … » : la vague ne touche pas le coin). L'essai qui prenait l'hexagone pour une forme inconnue prend maintenant le pentagone. 282 essais avant la première fusion de `main`, 303 après, 314 après la deuxième (avec l'essai des rencontres), 321 après la troisième.
   - L'essai Chrome nouveau passe seul :
     - les découpes reçues (6, 10, 40 et 35 sommets) et la `Shape` jamais découpée ;
     - le cadre de focus, vu sur des captures : 316 pixels changent autour de l'étoile, 508 autour de l'image en hexagone ;
@@ -26,11 +26,11 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
     - la `Shape` découpée elle-même, comme avant : « le cadre de focus de l'étoile : focus-visible, découpe polygon(50% , 0 pixels du cadre autour », et le coin du carré ne répond plus ;
     - sans la règle du focus : « le cadre de focus de l'image découpée : focus-visible, découpe polygon(25% , 0 pixels du cadre autour », et sans JavaScript l'image reste découpée au focus.
   - `holo check` sur la leçon 134 et sur l'exemple de l'ADR : ok.
-  - La preuve complète, `check-locked.sh`, après la fusion de `main` (PR 265 à 269), sur c10f258 (depuis, seulement l'ADR, le guide et ce journal) :
-    - `cargo test --release --locked` → 303 essais passent ; `cargo test` (debug) → 303 ;
-    - les deux WebAssembly, `holo` et les liaisons se construisent ;
-    - la suite Chrome entière (`CI=1`, axe-core 4.10.3) : 93 essais sur 96 passent, dont le nouveau ; 137 leçons s'ouvrent sans erreur, la 134 comprise ; l'audit axe-core des parcours : zéro défaut ;
-    - les trois ratés sont ceux de ce conteneur : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium).
+  - Trois preuves complètes, `check-locked.sh`, une après chaque fusion de `main` :
+    - sur c10f258 (les PR 265 à 269 fusionnées) : `cargo test --release --locked` → 303 essais passent ; `cargo test` (debug) → 303 ; la suite Chrome entière (`CI=1`, axe-core 4.10.3) : 93 essais sur 96, 137 leçons ouvertes sans erreur ;
+    - sur 30c0bea (la PR 270 fusionnée, et l'essai des rencontres) : 314 et 314 ; 94 essais sur 97, 138 leçons ;
+    - sur 2a0b244 (les PR 271 et 272 fusionnées ; depuis, seulement ce journal) : `cargo test --release --locked` → 321 essais passent ; `cargo test` (debug) → 321 ; la suite Chrome entière : 95 essais sur 98, 139 leçons ouvertes sans erreur ;
+    - chaque fois : les deux WebAssembly, `holo` et les liaisons se construisent ; l'essai nouveau passe ; l'audit axe-core des parcours ne trouve aucun défaut ; les trois ratés sont ceux de ce conteneur, « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium).
 - Erreurs en route :
   - Dans l'essai Chrome, Entrée envoyée sans son caractère (`"\r"`) ne touche pas un bouton : corrigé.
   - Le premier « accepté » de mon essai Rust était un vrai refus : l'ombre donnée par `Image` à l'image découpée en hexagone. La vérification avait raison ; c'est l'essai qui a été corrigé.
@@ -39,6 +39,8 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
     - dans `flat.rs` : la règle du focus des filtres et celle des formes, écrites au même endroit ;
     - dans `styles.rs` : cinq ajouts des deux côtés.
     Tous sont gardés des deux côtés, celui de `main` d'abord. Le message de la fusion gardait les lignes « # Conflicts » après les deux lignes de fin : corrigé avant l'envoi.
+  - La limite d'usage du compte a arrêté l'agent vers 19 h 15 ; la preuve lancée juste avant a fini seule, complète, à 19 h 26. Reprise à 21 h 37 : `main` avait reçu les PR 271 et 272, fusionnées sans conflit imprévu ; la preuve a été refaite.
+  - Un lancement de `remerge.sh` sans argument, depuis le dossier de travail, hors de tout dépôt git : il s'est arrêté sans rien toucher (vérifié).
 - Reste : d'autres formes (pentagone, octogone, flèche, bulle) ; une forme qu'on oriente ; la vague en haut d'un bloc ; une ombre et un bord qui suivent un polygone ; découper un conteneur sans couper son texte ; passer d'une forme à l'autre en douceur. La ligne `clip-path` du grand tableau du web peut passer à « oui ».
 
 ![La leçon 134 : la bannière qui ondule sous son titre, la photo en rond, en hexagone, en étoile, en cœur, les huit formes de Shape, l'étoile à toucher](images/2026-10-10-formes-lecon-134.png)
