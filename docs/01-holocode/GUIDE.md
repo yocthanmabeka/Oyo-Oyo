@@ -493,7 +493,7 @@ Page(
 | Demande | Sens |
 |---|---|
 | `cart.add(1)` | Ajouter 1. |
-| `cart.sub(1)` | Retirer 1. La valeur ne descend jamais sous 0. |
+| `cart.sub(1)` | Retirer 1. La valeur ne descend jamais sous 0, sauf si la page la nomme dans `negative:` (voir « Des nombres négatifs »). |
 | `cart.set(0)` | Fixer à 0. |
 
 Les limites :
@@ -1969,6 +1969,79 @@ Page(
 
 La leçon est `124-une-citation-courte.holo`.
 
+## 6 terquadragies. Des nombres négatifs
+
+Une température, un solde, une position, l'écart entre deux scores (`ADR-102`).
+
+```holo
+Page(
+  title: "Weather",
+  state: State(temperature: -2, balance: -12.50),
+  negative: [temperature, balance],
+  children: [
+    P("Up there: {temperature} °C. Account: {balance} €"),
+    Button(name: Colder, text: "Colder"),
+    Button(name: Warmer, text: "Warmer"),
+    Input(value: temperature, label: "Temperature", min: -50, max: 50),
+    If(temperature, under: 0, children: [ "It freezes." ], else: [ "No frost." ]),
+    If(temperature, under: -20, children: [ "Big frost: stay inside." ]),
+  ],
+  rules: [
+    On(Colder.tap, effect: temperature.sub(5)),
+    On(Warmer.tap, effect: temperature.add(5)),
+  ],
+)
+```
+
+- **`negative: [temperature, balance]`**, sur la page : ces valeurs peuvent descendre sous zéro, jusqu'à −1 000 000 000. Les autres s'arrêtent à 0, comme avant : un panier ne compte jamais −1 article. Une valeur peut partir de sous zéro, `State(temperature: -2)`, seulement si elle est nommée là.
+- **`sub` passe sous zéro**, `set(-10)` fixe un nombre négatif, `mul(-1)` change le signe. Pour retirer, on écrit `sub(5)`, jamais `add(-5)`. Une autre valeur peut être négative : `x.add(speed)` retire quand `speed` vaut −3.
+- **Un nombre négatif se calcule comme sans son signe** : −7 ÷ 2 = −3, comme 7 ÷ 2 = 3 ; un arrondi met la moitié du côté opposé à zéro, −14,025 → −14,03. C'est exact, même à virgule (`balance: -12.50`).
+- **Les comparaisons** prennent un nombre négatif : `If(temperature, under: -20)`, `When(balance, under: -100, effect: …)`.
+- **`{temperature}` met le signe moins de la langue de la page** : « -2 » en français et en anglais, « −2 » en suédois. Les formats suivent : `{balance:number}` « -1 234 », `{balance:cents}` « -12,50 », `{temperature:00}` « -05 ».
+- **Un champ** présente un nombre négatif avec un clavier qui a le signe moins, au doigt comme au clavier ; ses bornes peuvent être négatives, `min: -50`. Des données reçues (`{"temperature": -3}`), une valeur gardée (`keep`) et un formulaire gardent le signe.
+- Pas encore : une glissière, une barre, une case, une place sur un plateau, un dessin, `limit:`, un module, un fichier exporté, l'adresse et une valeur partagée prennent un nombre qui ne descend pas sous zéro ; le moteur le dit.
+
+La leçon est `125-des-nombres-negatifs.holo`.
+
+## 6 quinquadragies. Une grille qui place ses cases : plusieurs colonnes, des zones
+
+Une case plus grande que les autres, et une page dessinée avec des mots (`ADR-104`).
+
+```holo
+Page(
+  title: "The painters' garden",
+  children: [
+    H1("The painters' garden"),
+    Grid(columns: 3, gap: 12px, children: [
+      Column(columnSpan: 2, rowSpan: 2, children: [ H2("The painting of the month"), P("Two columns, two rows.") ]),
+      P("The blue door"),
+      P("Market day"),
+      P("The river"),
+    ]),
+    Grid(areas: [
+      "top  top  top",
+      "menu main main",
+    ], children: [
+      Text("Open from Tuesday to Sunday", area: top),
+      Nav(area: menu, children: [ A("Home", to: "home.holo") ]),
+      Column(area: main, children: [ P("The garden is visited on foot.") ]),
+    ]),
+  ],
+)
+```
+
+- **`columnSpan: 2`** sur un bloc rangé dans `Grid` : sa case prend deux colonnes, au plus celles de la grille (`columns:`, 2 sans rien écrire). **`rowSpan: 2`** : deux lignes, de 2 à 12.
+- **Rien ne déborde.** Une grille perd des colonnes sur un écran étroit (partie 4 bis) ; quand elle n'en a plus assez pour la case, la case prend toute la ligne, et une seule ligne. En CSS, la grille ajouterait une colonne, et la page glisserait de côté sur un téléphone.
+- **`Grid(areas: ["top top top", "menu main main"])`** dessine la grille avec des mots : une ligne de texte par rangée, les noms des zones séparés par des espaces, autant de cases à chaque ligne (12 au plus, et 12 lignes). Une zone prend les cases qui portent son nom, et forme un rectangle ; un point (`.`) laisse une case vide. Les colonnes ont la même largeur : pour un menu plus étroit, on écrit son nom moins de fois (`menu main main`).
+- **`area: menu`** : chaque bloc d'une grille à zones dit sa zone, et chaque zone reçoit un bloc, un seul (pour en ranger plusieurs, un `Column`). Un nom de zone s'écrit comme une valeur : `menu`, `sideMenu`.
+- **Les blocs s'écrivent dans l'ordre des zones**, de gauche à droite puis de haut en bas : l'œil, la touche Tab et le lecteur d'écran suivent ainsi le même chemin. Sinon, le moteur refuse et donne l'ordre. (Le CSS laisse une zone passer devant une autre à l'écran sans changer l'ordre de lecture : un défaut qu'on ne reprend pas.)
+- **Sur un téléphone, les zones passent l'une sous l'autre**, dans cet ordre. Elles restent côte à côte tant que la grille a au moins 480px de large et que chaque zone y garde 120px. C'est la largeur de la grille qui compte, pas celle de l'écran : posée dans une case étroite, une grille à zones s'empile aussi. `phone:` et `narrow:` changent l'allure des cases, comme ailleurs.
+- Un `If` peut remplir une zone : quand il est faux, sa case ne laisse pas de trou. Un bloc qui bouge (`enter:`) garde sa case. Sans JavaScript, tout marche : la grille se mesure elle-même, en CSS fabriqué par le moteur.
+- La place se dit sur le bloc, jamais dans un style : `grid-column`, `grid-row`, `grid-area` et `grid-template-areas` sont refusés dans un style, avec le bon mot.
+- Refusés, avec la raison : `columnSpan:` plus grand que la grille, ou `1` ; `rowSpan:` au-delà de 12 ; ces réglages hors d'une grille, sur une fenêtre (`Dialog`) ou sur un son sans lecteur ; `columns:` avec `areas:` ; des lignes de longueurs différentes, une zone qui n'est pas un rectangle, une ligne de cases vides, une seule zone ; un bloc sans zone, une zone inconnue, deux blocs dans une zone, une zone sans bloc, des blocs dans le désordre ; `columnSpan:` dans une grille à zones.
+
+La leçon est `127-une-grille-et-ses-zones.holo`.
+
 ## 6 sexquadragies. Réordonner une liste : `reorder: true`
 
 Le visiteur range lui-même les lignes d'une liste : ses tâches par ordre d'importance, ses tableaux préférés, les étapes d'un voyage (`ADR-105`).
@@ -2031,6 +2104,75 @@ Page(
 - Refusés : `Share.write` (un partage s'ouvre, il ne s'écrit pas) ; `value:` (le partage ne rend rien à la page).
 
 La leçon est `130-partager-la-page.holo`.
+
+## 6 unquinquagies. Faire vibrer le téléphone : `Device(kind: vibration)`
+
+Une courte vibration dit « c'est fait » sans qu'on regarde l'écran : un bouton qui répond, une prise dans un jeu (`ADR-110`). Elle accompagne toujours un signe à l'écran.
+
+```holo
+Page(
+  title: "Catch the diamond",
+  state: State(jumps: 0, caught: 0, x: 10, y: 50, cx: 80, cy: 50),
+  children: [
+    Device(name: Tick, kind: vibration, for: 30ms, label: "A short buzz when you jump"),
+    Device(name: Buzz, kind: vibration, for: [100ms, 80ms, 100ms], label: "Two buzzes when you catch the diamond"),
+    Button(name: Jump, text: "Jump"),
+    P("Jumps: {jumps}. Caught: {caught}."),
+    Board(height: 220px, children: [
+      Shape(name: Target, form: diamond, color: "#FF4D6D", size: 48px, x: cx, y: cy),
+      Shape(name: Me, form: square, color: "#E9B44C", size: 48px, x: x, y: y),
+    ]),
+  ],
+  rules: [
+    On(Jump.tap, effect: [jumps.add(1), y.sub(20), Tick.play]),
+    On(Key.left, effect: x.sub(5)), On(Key.right, effect: x.add(5)),
+    When(Me, meets: Target, effect: [caught.add(1), cx.random(100), cy.random(100), Buzz.play]),
+  ],
+)
+```
+
+- **`Device(kind: vibration)`** : `Buzz.play` fait vibrer le téléphone, `Buzz.stop` arrête. Une vibration se joue comme un son (`Ding.play`), et partout où un son se joue : un toucher, une touche, une règle qui guette (`When`, une rencontre), une règle de temps (`Every`, `After`). Il n'y a pas de permission à demander.
+- **`for:`** dit combien de temps : une durée (`for: 30ms`), ou une liste qui alterne vibration et silence (`for: [100ms, 80ms, 100ms]` : vibre, se tait, vibre). 200 ms si rien n'est écrit. Dix durées au plus, une seconde en tout au plus : c'est un signal, pas une alarme.
+- **Jamais avant que le visiteur ait touché la page** : une page ne secoue pas un téléphone posé sur la table. Une vibration demandée avant est oubliée, sans rien dire.
+- **Jamais s'il demande moins de mouvement** (« Supprimer les animations » sur Android, « Réduire les animations » sur l'iPhone). La page cachée l'arrête aussi.
+- **Sur un iPhone ou un ordinateur**, rien ne vibre et rien ne casse : la page continue. La zone d'état du bloc dit « Ce navigateur ne fait pas vibrer. ».
+- **Elle n'est jamais le seul signe** : elle ne dit rien en retour (`On(Buzz.done, …)` est refusé). Ce qui compte se montre à l'écran, dans la règle qui la joue (`caught.add(1)`).
+- Refusés, avec la raison : `for:` sans unité, nul, trop long, ou sur une autre sorte d'appareil ; `Buzz.request` ; `play` sur une autre sorte ; `value:`.
+
+La leçon est `133-faire-vibrer-le-telephone.holo`.
+
+## 6 terquinquagies. Mélanger des sons
+
+Plusieurs sons à la fois, chacun avec son volume, un fondu à l'entrée et à la sortie (`ADR-112`).
+
+```holo
+Page(
+  title: "Rain and wind",
+  state: State(rain: 60, wind: 30),
+  children: [
+    Sound(name: Rain, source: "rain.wav", loop: true, fade: 2s, volume: rain),
+    Sound(name: Wind, source: "wind.wav", loop: true, fade: 3s, volume: wind),
+    Slider(value: rain, label: "Rain volume", min: 0, max: 100),
+    Slider(value: wind, label: "Wind volume", min: 0, max: 100),
+    Row(gap: 12px, children: [
+      Button(name: Start, text: "Rain and wind"),
+      Button(name: Quiet, text: "Silence"),
+    ]),
+  ],
+  rules: [
+    On(Start.tap, effect: [Rain.play, Wind.play]),
+    On(Quiet.tap, effect: [Rain.stop, Wind.stop]),
+  ],
+)
+```
+
+- **Plusieurs sons à la fois** : rien de nouveau. Chaque `Sound` est une piste ; `[Rain.play, Wind.play]` les fait entendre ensemble.
+- **`fade: 2s`** : `play` fait monter le son du silence jusqu'à son volume en 2 secondes ; `stop` le fait descendre jusqu'au silence en 2 secondes, puis le met en pause et le ramène au début. De `100ms` à `5s`.
+- **`volume: rain`** : le volume suit une valeur de la page, un nombre entier de 0 (muet) à 100 (le plus fort), comme une glissière. Quand elle change, le volume glisse jusqu'à elle, sans claquer ; elle ne dépasse jamais 100. Une glissière par son fait une table de mixage, au doigt, à la souris et au clavier. Un volume écrit reste de 0 à 1 : `volume: 0.4`.
+- **Jamais un son avant un geste** : avant le premier toucher, clic ou touche du visiteur sur la page, le moteur ne joue aucun son, même si une règle de temps le demande, même si le navigateur le permettrait.
+- Un lecteur (`Sound(label:)`) reste dans la main du visiteur : `fade:` et un volume suivi y sont refusés. Refusés aussi, avec la raison : un fondu hors de 100ms à 5s ; un volume qui suit un texte, une liste, un nombre à virgule, une valeur inconnue ou qui part au-dessus de 100.
+
+Cette écriture est décidée (`ADR-112`). La leçon est `135-melanger-des-sons.holo`.
 
 ## 6 septemquinquagies. Les données d'un autre site : `Data(from: "https://…")`
 
@@ -2171,7 +2313,7 @@ Page(
 - **Les comparaisons sont exactes**, même entre un entier et un nombre à virgule : `If(sum, over: 49.99)`.
 - **Un champ** présente une valeur à virgule avec le clavier décimal ; « 12,5 » et « 12.5 » sont compris.
 - **Des données reçues** : `{"price": 12.5}` va dans une valeur à virgule.
-- Pas encore : une glissière, une barre, une case, une place sur un plateau, les prix (`Prices`) et `limit:` prennent un nombre entier ; une fiche de liste aussi (un prix de fiche s'écrit en centimes, `{item.price:cents}`) ; pas de nombre négatif.
+- Pas encore : une glissière, une barre, une case, une place sur un plateau, les prix (`Prices`) et `limit:` prennent un nombre entier ; une fiche de liste aussi (un prix de fiche s'écrit en centimes, `{item.price:cents}`). Un nombre à virgule peut être négatif : voir « Des nombres négatifs ».
 
 Cette écriture est proposée (`ADR-066`) et attend la validation de Yocthan. La leçon est `86-nombres-a-virgule.holo`.
 
@@ -2710,11 +2852,14 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Chercher, filtrer, trier ; une page d'une liste | `computed: [ Filter(…, offset:, limit:, total:) ]` | fait (`ADR-062`, `ADR-084`) |
 | Un fichier de ses valeurs, exporté puis importé | `Transfer(file:, values:)`, `export`, `import` | fait (`ADR-093`) |
 | L'appareil : la position, le presse-papiers, la caméra, le microphone | `Device(kind:)`, `request`, `write`, `stop` | fait (`ADR-094`) |
+| Partager la page : la feuille du téléphone, ou l'adresse copiée | `Device(kind: share)`, `request` | fait (`ADR-107`) |
+| Faire vibrer le téléphone, d'un toucher ou d'une règle de jeu | `Device(kind: vibration, for:)`, `play`, `stop` | fait (`ADR-110`) |
 | Une notification, un rappel | `Notification(title:, body:, after:)`, `show`, `stop` | fait (`ADR-095`) |
 | Une page lisible hors-ligne | `Offline(files:)`, `save`, `remove` | fait (`ADR-096`) |
 | Des termes et leurs définitions : une fiche technique, un glossaire | `List(children: [ Term("Poids", "2 kg") ])` | fait (`ADR-097`) |
 | Multiplier, diviser | les demandes `mul`, `div` | fait |
 | Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait |
+| Une valeur qui descend sous zéro : une température, un solde | `negative: [temperature]`, et le signe moins de la langue de la page | fait (`ADR-102`) |
 | Une liste qui change pendant la visite | `State(tasks: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` | fait |
 | Une liste d'articles à champs, aussi reçue du serveur | `State(articles: [ Item(…) ])`, `{item.title}`, `push(Item(…))`, `Data` | fait |
 | Une valeur partagée par tous les visiteurs, vue en direct | `shared: Shared(seats: 20)`, `seats.sub(1)` par un toucher | fait |
@@ -2739,7 +2884,8 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 - Pour les comptes (`ADR-081` à `ADR-083`) : changer son mot de passe ; un compte créé par une clé d'accès seule ; de nouveaux codes de secours sans retirer le code à 6 chiffres ; la clé d'accès essayée sur un vrai téléphone, en HTTPS.
 - Pour les capacités du navigateur (`ADR-093` à `ADR-096`) : la caméra ne prend pas de photo, le microphone ne donne pas de son ; pas de rappel après la fermeture de la page (il faudrait un serveur de « push ») ; pas d'import en CSV ni par glisser-déposer ; pas de copie hors-ligne d'une page qui a un compte, un formulaire ou des valeurs partagées, ni d'envoi mis en attente.
 - Pour les listes de définitions (`ADR-097`) : pas de liste de termes qui change pendant la visite (`Repeat(over:)`), ni de définition faite de plusieurs paragraphes.
-- Pour les valeurs : pas de nombre négatif ; une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
+- Pour les nombres négatifs (`ADR-102`) : une glissière, une valeur partagée, l'adresse et un fichier exporté ne prennent pas encore de nombre négatif.
+- Pour les valeurs : une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
 - Les garde-fous de zoom pour un `Point` seul : ils sont encore fixés dans le moteur.

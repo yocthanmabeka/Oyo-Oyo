@@ -28,6 +28,8 @@ pub mod files;
 pub mod fonts;
 pub mod format;
 pub mod gestures;
+// Une grille qui place ses cases : plusieurs colonnes ou lignes, des zones nommées (ADR-104).
+pub mod grid;
 pub mod seed;
 pub mod holo;
 pub mod history;
@@ -36,6 +38,8 @@ pub mod modules;
 pub mod mosaic;
 pub mod movement;
 pub mod navigation;
+// Des nombres négatifs (ADR-102) : `negative: [temperature]`.
+pub mod negative;
 pub mod tools;
 pub mod flat;
 pub mod rules;
@@ -710,6 +714,8 @@ pub fn page_title(source: &str, state: &str) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
     let Some(holo::Value::Text(model)) = program.root.argument("title").map(|a| &a.value) else { return String::new() };
     format::set_decimals(state::decimals(&program));
+    // Un nombre qui peut être négatif garde son signe dans le titre (ADR-102).
+    format::set_negative(negative::names(&program));
     let (numbers, texts, lists) = (state::reread(&program, state), state::reread_texts(&program, state), lists::reread(&program, state));
     // Ce qu'un texte peut montrer, comme au premier affichage : les nombres, le nombre d'éléments
     // d'une liste (« {tasks} tâches »), ceux des listes calculées, leurs totaux, les jours.
@@ -782,7 +788,7 @@ pub fn data_for_page(source: &str, json: &str) -> Option<String> {
     let declared = lists::initial(&program);
     let mut kept = Vec::new();
     for (key, value) in keys {
-        let scalar = matches!(value, lists::Json::Text(_) | lists::Json::Number(_) | lists::Json::Decimal(_));
+        let scalar = matches!(value, lists::Json::Text(_) | lists::Json::Number(_) | lists::Json::Decimal(_) | lists::Json::Negative(_));
         let named =numbers.iter().any(|(name, _)| *name == key) || texts.iter().any(|(name, _)| *name == key);
         if named && scalar {
             kept.push((key, value));
@@ -1030,17 +1036,19 @@ mod tests {
         // ADR-116 : le moteur de la page ne reçoit jamais l'adresse de l'autre site, et ne reçoit que
         // ce que la page déclare ; il en fait le même état qu'avec la réponse entière.
         let source = r#"Page(
-  state: State(temperature: 0.0, sky: "", days: [ Item(name: "", max: 0) ], tags: ["x"]),
+  state: State(temperature: 0.0, low: 0, sky: "", days: [ Item(name: "", max: 0) ], tags: ["x"]),
+  negative: [low],
   data: Data(name: Meteo, from: "https://api.exemple.org/v1/now?city=Kinshasa", every: 600s),
   children: [ P("{temperature} {sky}"), Repeat(over: days, children: [ Text("{item.name} {item.max}") ]) ],
 )"#;
         assert_eq!(data(source), "?remote-data|600000|Meteo");
         assert_eq!(remote_source(source), Some(("https://api.exemple.org/v1/now?city=Kinshasa".to_string(), 600_000)));
-        let json = r#"{"temperature": 24.5, "sky": "soleil", "account": "compte-42", "days": [{"name": "lundi", "max": 31, "secret": "x", "nothing": null}, "texte"], "tags": ["a", {"b": 1}], "clientIp": "203.0.113.5", "sky2": 3}"#;
+        let json = r#"{"temperature": 24.5, "low": -4, "sky": "soleil", "account": "compte-42", "days": [{"name": "lundi", "max": 31, "secret": "x", "nothing": null}, "texte"], "tags": ["a", {"b": 1}], "clientIp": "203.0.113.5", "sky2": 3}"#;
         let reduced = data_for_page(source, json).unwrap();
-        assert_eq!(reduced, r#"{"temperature":24.5,"sky":"soleil","days":[{"name":"lundi","max":31}],"tags":["a"]}"#);
+        assert_eq!(reduced, r#"{"temperature":24.5,"low":-4,"sky":"soleil","days":[{"name":"lundi","max":31}],"tags":["a"]}"#);
         let start = initial_state(source);
         assert_eq!(receive(source, &start, json), receive(source, &start, &reduced));
+        assert!(receive(source, &start, &reduced).contains("low=-4"), "{}", receive(source, &start, &reduced));
         assert_eq!(data_for_page(source, "[1, 2]"), None);
         assert_eq!(data_for_page(source, "pas du json"), None);
         // Un fichier à côté de la page : rien ne change.
