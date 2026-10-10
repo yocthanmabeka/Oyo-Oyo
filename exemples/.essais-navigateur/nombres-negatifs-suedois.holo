@@ -1,0 +1,14 @@
+// Essai dans le navigateur (ADR-102) : une page suédoise montre un nombre négatif avec le signe
+// moins de sa langue, « − » (U+2212), au départ (la page fabriquée d'avance) comme après un
+// toucher (la page tenue à jour par le moteur).
+Page(
+  title: "Temperatur",
+  lang: "sv",
+  state: State(temperatur: -2),
+  negative: [temperatur],
+  children: [
+    P("Temperatur: {temperatur} °C"),
+    Button(name: Kallare, text: "Kallare"),
+  ],
+  rules: [ On(Kallare.tap, effect: temperatur.sub(5)) ],
+)

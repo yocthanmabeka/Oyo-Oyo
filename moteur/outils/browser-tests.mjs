@@ -666,6 +666,126 @@ const tests = [
       && added === "none" && titles === "Les Misérables | Les Châtiments";
     return [ok, `lu : « ${said} » ; citations : ${quotes} ; guillemets du navigateur : ${added} ; œuvres : ${titles}`];
   }],
+  ["une grille : une case sur deux colonnes et deux lignes, des zones dans l'ordre de lecture ; rien ne déborde sur un téléphone (leçon 127)", async (p, b) => {
+    const faults = [];
+    const check = (name, ok, seen) => { if (!ok) faults.push(`${name} : ${seen}`); };
+    // Les boîtes (gauche, haut, largeur, hauteur) : la grille des tableaux, la grande case, les
+    // autres cases, puis la grille du jardin et ses quatre zones, dans l'ordre de la page.
+    const boxes = `(() => {
+      const box = (e) => { const r = e.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]; };
+      const [paintings, garden] = document.querySelectorAll("main .holo-Grid");
+      const big = document.querySelector(".holo-s-vedette")?.closest(".holo-cell");
+      if (!paintings || !garden || !big) return null;
+      return { grid: box(paintings), big: box(big), cards: [...paintings.children].filter((c) => c !== big).map(box), garden: box(garden), zones: [...garden.children].map(box), wide: document.documentElement.scrollWidth };
+    })()`;
+    const near = (a, b2) => Math.abs(a - b2) <= 2;
+    // Les zones l'une sous l'autre, dans l'ordre : chacune sur toute la largeur, plus bas que la précédente.
+    const stacked = (m) => m.zones.every((z, i) => near(z[0], m.garden[0]) && near(z[2], m.garden[2]) && (i === 0 || z[1] > m.zones[i - 1][1]));
+    try {
+      // Sur un ordinateur : trois colonnes ; la grande case en prend deux, sur deux lignes ; les zones comme on les a dessinées.
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
+      await p.open("/exemples/lecons/127-une-grille-et-ses-zones.holo", 600);
+      let m = await p.value(boxes);
+      if (!m) return [false, `la leçon ne montre pas ses deux grilles : ${(await p.text()).slice(0, 200)}`];
+      const [first, second, third, fourth] = m.cards;
+      check("ordinateur : la grande case sur deux colonnes", near(m.big[2], 2 * third[2] + 12) && near(m.big[0], third[0]) && near(m.big[0] + m.big[2], fourth[0] + fourth[2]), `grande ${JSON.stringify(m.big)}, en dessous ${JSON.stringify(third)} et ${JSON.stringify(fourth)}`);
+      check("ordinateur : la grande case sur deux lignes", near(m.big[1], first[1]) && near(m.big[1] + m.big[3], second[1] + second[3]), `grande ${JSON.stringify(m.big)}, à côté ${JSON.stringify(first)} et ${JSON.stringify(second)}`);
+      const [top, menu, text, foot] = m.zones;
+      const column = (m.garden[2] - 2 * 16) / 3;
+      check("ordinateur : le haut et le pied sur toute la largeur", near(top[2], m.garden[2]) && near(foot[2], m.garden[2]), `${top[2]} et ${foot[2]} pour ${m.garden[2]}`);
+      check("ordinateur : le menu à gauche du texte, sur une colonne de trois", near(menu[1], text[1]) && near(menu[2], column) && near(text[0], menu[0] + menu[2] + 16) && near(text[2], 2 * column + 16), `menu ${JSON.stringify(menu)}, texte ${JSON.stringify(text)}`);
+      check("ordinateur : l'ordre de lecture est celui de la page", top[1] < menu[1] && menu[0] < text[0] && Math.max(menu[1] + menu[3], text[1] + text[3]) <= foot[1], JSON.stringify(m.zones));
+      // Sur un téléphone (360 de large) : deux colonnes ; la grande case prend la ligne ; les zones s'empilent dans l'ordre.
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 360, height: 760, deviceScaleFactor: 2, mobile: true });
+      await p.open("/exemples/lecons/127-une-grille-et-ses-zones.holo", 600);
+      m = await p.value(boxes);
+      check("téléphone : rien ne déborde", m.wide <= 360, `${m.wide} px pour 360`);
+      check("téléphone : la grande case prend la ligne", near(m.big[2], m.grid[2]) && near(m.cards[0][2] * 2 + 12, m.grid[2]), `grande ${m.big[2]}, case ${m.cards[0][2]}, grille ${m.grid[2]}`);
+      check("téléphone : les zones l'une sous l'autre, dans l'ordre", stacked(m), JSON.stringify(m.zones));
+      // Un téléphone plié (280 de large, le Galaxy Z Fold fermé) : une seule colonne ; la grande case
+      // n'en a pas deux, elle prend toute la ligne au lieu de créer une colonne qui déborde.
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 280, height: 700, deviceScaleFactor: 2, mobile: true });
+      await p.open("/exemples/lecons/127-une-grille-et-ses-zones.holo", 600);
+      m = await p.value(boxes);
+      check("plié : rien ne déborde", m.wide <= 280, `${m.wide} px pour 280`);
+      check("plié : une colonne, et la grande case sur toute la ligne", near(m.big[2], m.grid[2]) && near(m.cards[0][2], m.grid[2]), `grande ${m.big[2]}, case ${m.cards[0][2]}, grille ${m.grid[2]}`);
+      check("plié : les zones l'une sous l'autre", stacked(m), JSON.stringify(m.zones));
+      if (b.errors.length) faults.push(`erreurs : ${b.errors.join(" | ")}`);
+    } finally {
+      await b.send("Emulation.clearDeviceMetricsOverride");
+    }
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : "ordinateur : deux colonnes et deux lignes, le menu à gauche du texte, dans l'ordre de lecture ; téléphone (360) et téléphone plié (280) : rien ne déborde, la grande case prend la ligne, les zones s'empilent dans l'ordre"];
+  }],
+  ["partager la page : la feuille du téléphone avec le titre et l'adresse, sinon l'adresse copiée (leçon 130)", async (p, b) => {
+    const lesson = "/exemples/lecons/130-partager-la-page.holo";
+    const status = `document.querySelector('[data-name="Partage"] [data-capability-status]')`;
+    // Ce que la page montre : la zone d'état, le compte des partages (done), le texte de la panne (failed).
+    const shown = () => p.value(`[${status}.textContent, document.getElementById("page").innerText.match(/Partagée (\\d+) fois/)?.[1] ?? "?", document.getElementById("page").innerText.includes("Le partage n'a pas marché")]`);
+    // Un script posé avant la page, comme le navigateur d'un téléphone ou d'un ordinateur : le
+    // partage du téléphone est remplacé pour l'essai, ou retiré (Chrome sous Windows en a un).
+    const before = async (source) => (await b.send("Page.addScriptToEvaluateOnNewDocument", { source })).result.identifier;
+    const forget = (identifier) => b.send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
+    // 1. Un ordinateur sans partage : l'adresse est copiée, et la page le dit, dans la zone que le
+    // lecteur d'écran lit.
+    let script = await before("delete Navigator.prototype.share; delete Navigator.prototype.canShare;");
+    await b.send("Browser.grantPermissions", { permissions: ["clipboardReadWrite", "clipboardSanitizedWrite"] });
+    let computer;
+    try {
+      await p.open(lesson);
+      if (!(await p.until("window.__holoStarted"))) return [false, "le moteur n'est pas arrivé"];
+      await p.click('[data-name="Envoyer"]');
+      await p.until(`${status}.textContent.includes("copiée")`, 5000);
+      const read = await b.send("Runtime.evaluate", { expression: `navigator.clipboard.readText().then((t) => [t, location.href, ${status}.getAttribute("aria-live")])`, awaitPromise: true, returnByValue: true, userGesture: true });
+      const [clipboard, address, live] = read.result?.result?.value ?? [];
+      computer = { said: await shown(), copied: clipboard === address, clipboard, live };
+    } finally {
+      await forget(script);
+      await b.send("Browser.resetPermissions");
+    }
+    // 2. Un téléphone : navigator.share, remplacé avant la page, doit recevoir le titre et l'adresse,
+    // pendant le toucher même (window.event : l'appel part dans le clic, avant toute attente).
+    script = await before(`window.__shares = []; window.__answer = "ok"; Navigator.prototype.canShare = () => true;
+      Navigator.prototype.share = function (data) {
+        window.__shares.push({ ...data, during: window.event?.type ?? "", active: navigator.userActivation.isActive });
+        return window.__answer === "ok" ? Promise.resolve() : Promise.reject(new DOMException("essai", window.__answer));
+      };`);
+    let phone, violations;
+    try {
+      await p.open(lesson);
+      if (!(await p.until("window.__holoStarted"))) return [false, "le moteur n'est pas arrivé (téléphone)"];
+      await p.click('[data-name="Envoyer"]');
+      await p.until(`${status}.textContent === "Page partagée."`, 5000);
+      const shared = await p.value(`(() => { const s = window.__shares[0] ?? {}; return { title: s.title, url: s.url, sameTitle: s.title === document.title, sameAddress: s.url === location.href, during: s.during, active: s.active, calls: window.__shares.length }; })()`);
+      const done = await shown();
+      // 3. Le visiteur ferme la feuille sans rien choisir : « Partage annulé. », ni done ni failed.
+      await p.value(`window.__answer = "AbortError"`);
+      await p.click('[data-name="Envoyer"]');
+      await p.until(`${status}.textContent === "Partage annulé."`, 5000);
+      const cancelled = await shown();
+      // 4. Une vraie panne : l'adresse est écrite à l'écran, et la page le sait (failed).
+      await p.value(`window.__answer = "NotAllowedError"`);
+      await p.click('[data-name="Envoyer"]');
+      await p.until(`${status}.textContent.includes("Partage impossible")`, 5000);
+      const failed = await shown();
+      phone = { shared, done, cancelled, failed, address: await p.value("location.href"), errors: [...b.errors] };
+      // L'audit d'accessibilité de la page après la panne : le texte de la panne, l'adresse écrite.
+      const { createRequire } = await import("node:module");
+      let axe;
+      try { axe = readFileSync(createRequire(join(engine, "x.js")).resolve("axe-core/axe.min.js"), "utf8"); }
+      catch { return [false, "axe-core absent : « npm install --no-save axe-core@4.10.3 », dans moteur/"]; }
+      await p.value(`${axe}\n;window.axe.version`);
+      violations = await p.value(`window.axe.run(document, { resultTypes: ["violations"] }).then((r) => r.violations.map((v) => v.id + " : " + v.nodes.map((n) => n.html.slice(0, 100)).join(" | ")))`);
+    } finally {
+      await forget(script);
+    }
+    const ok = computer.copied && computer.live === "polite" && computer.said[0] === "Adresse de la page copiée : colle-la où tu veux." && computer.said[1] === "1" && !computer.said[2]
+      && phone.shared.sameTitle && phone.shared.sameAddress && phone.shared.during === "click" && phone.shared.active === true && phone.shared.calls === 1
+      && phone.done[0] === "Page partagée." && phone.done[1] === "1" && !phone.done[2]
+      && phone.cancelled[0] === "Partage annulé." && phone.cancelled[1] === "1" && !phone.cancelled[2]
+      && phone.failed[0] === `Partage impossible ici. L'adresse de la page, à copier : ${phone.address}` && phone.failed[1] === "1" && phone.failed[2]
+      && phone.errors.length === 0 && violations.length === 0;
+    return [ok, `ordinateur : « ${computer.said[0]} », presse-papiers « ${computer.clipboard} », zone ${computer.live}, ${computer.said[1]} partage ; téléphone : share(${JSON.stringify({ title: phone.shared.title, url: phone.shared.url })}) pendant « ${phone.shared.during} » (geste actif : ${phone.shared.active}), « ${phone.done[0]} », ${phone.done[1]} partage ; feuille fermée : « ${phone.cancelled[0]} », ${phone.cancelled[1]} partage, panne montrée : ${phone.cancelled[2]} ; panne : « ${phone.failed[0]} », panne montrée : ${phone.failed[2]} ; erreurs : ${phone.errors.length} ; axe-core : ${violations.length ? violations.join(" ; ") : "zéro défaut"}`];
+  }],
   ["réordonner une liste : la poignée à la souris et au doigt, Monter et Descendre au clavier, annoncés ; sans JavaScript, holo serve (leçon 128, serve)", async (p, b) => {
     const lesson = "/exemples/lecons/128-reordonner-une-liste.holo";
     // L'ordre gardé par un essai précédent (keep) est oublié : la leçon part de son départ.
@@ -756,6 +876,145 @@ const tests = [
       && byFinger && afterFinger === "Le lever du soleil | Le jour de marché | La porte bleue | La rivière" && keptFinger.includes("tableaux=[Le%20lever%20du%20soleil,Le%20jour%20de%20march%C3%A9,")
       && gripHidden && withoutScript === "La rivière | Le lever du soleil | La porte bleue | Le jour de marché";
     return [ok, `départ : ${start} ; souris : ${afterMouse} (« ${heardMouse} ») ; clavier : ${afterKey}, le focus sur ${focus} (« ${heardKey} ») ; Monter en tête : « ${heardTop} », rien ne bouge : ${unchanged} ; lecteur d'écran : ${named} boutons nommés, poignée entendue : ${gripHeard} ; doigt : ${afterFinger} ; gardé : ${keptFinger.includes("Le%20jour%20de%20march%C3%A9,La%20porte")} ; sans JavaScript, poignée cachée : ${gripHidden}, après Descendre : ${withoutScript}`];
+  }],
+  ["faire vibrer le téléphone : un toucher, une rencontre, le mouvement réduit, un navigateur sans vibreur (leçon 133)", async (p, b) => {
+    const lesson = "/exemples/lecons/133-faire-vibrer-le-telephone.holo";
+    const status = (name) => `document.querySelector('[data-name="${name}"] [data-capability-status]').textContent`;
+    const count = (label) => p.value(`document.getElementById("page").innerText.match(/${label} : (\\d+)/)?.[1] ?? "?"`);
+    // Un script posé avant la page : navigator.vibrate est remplacé pour compter les vibrations et
+    // garder leur motif, ou retiré, comme sur un iPhone.
+    const before = async (source) => (await b.send("Page.addScriptToEvaluateOnNewDocument", { source })).result.identifier;
+    const forget = (identifier) => b.send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
+    const catchIt = async () => {
+      for (let i = 0; i < 24 && (await count("Prises")) === "0"; i++) await p.key("ArrowRight", "ArrowRight", 39);
+      return count("Prises");
+    };
+    let script = await before(`window.__buzz = []; Navigator.prototype.vibrate = function (pattern) { window.__buzz.push(Array.isArray(pattern) ? pattern.join(",") : String(pattern)); return true; };`);
+    let phone, reduced;
+    try {
+      await p.open(lesson);
+      if (!(await p.until("window.__holoStarted"))) return [false, "le moteur n'est pas arrivé"];
+      // 1. Un clic que la page reçoit sans que le visiteur ait rien touché : l'écran compte, rien ne vibre.
+      await p.value(`document.querySelector('[data-name="Vibrer"]').click()`);
+      await p.until(`document.getElementById("page").innerText.includes("Vibrations demandées : 1.")`, 5000);
+      const untouched = await p.value("window.__buzz.length");
+      // 2. Un vrai toucher : une vibration de 200 ms.
+      await p.click('[data-name="Vibrer"]');
+      await p.until("window.__buzz.length >= 1", 5000);
+      // 3. Le jeu : le carré va sur le losange, à la flèche droite ; la rencontre vibre deux fois.
+      const caught = await catchIt();
+      await p.until("window.__buzz.length >= 2", 5000);
+      phone = { untouched, buzz: await p.value("window.__buzz.slice()"), tries: await count("Vibrations demandées"), caught, errors: [...b.errors] };
+      // 4. Le mouvement réduit, émulé : rien ne vibre, la zone d'état le dit, et l'écran compte encore.
+      await b.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
+      try {
+        await p.click('[data-name="Vibrer"]');
+        await p.until(`${status("Petite")}.includes("moins de mouvement")`, 5000);
+        reduced = { buzz: await p.value("window.__buzz.length"), said: await p.value(status("Petite")), tries: await count("Vibrations demandées") };
+      } finally {
+        await b.send("Emulation.setEmulatedMedia", { features: [] });
+      }
+    } finally {
+      await forget(script);
+    }
+    // 5. Un navigateur sans vibreur (l'iPhone) : rien ne casse ; le toucher et la rencontre comptent à l'écran.
+    script = await before("delete Navigator.prototype.vibrate;");
+    let iphone, violations;
+    try {
+      await p.open(lesson);
+      if (!(await p.until("window.__holoStarted"))) return [false, "le moteur n'est pas arrivé (sans vibreur)"];
+      await p.click('[data-name="Vibrer"]');
+      await p.until(`${status("Petite")}.includes("ne fait pas vibrer")`, 5000);
+      const caught = await catchIt();
+      iphone = { vibrate: await p.value("typeof navigator.vibrate"), said: await p.value(status("Petite")), saidGame: await p.value(status("Double")), tries: await count("Vibrations demandées"), caught, errors: [...b.errors] };
+      // L'audit d'accessibilité de la page : les deux vibrations, leur zone d'état, le plateau.
+      const { createRequire } = await import("node:module");
+      let axe;
+      try { axe = readFileSync(createRequire(join(engine, "x.js")).resolve("axe-core/axe.min.js"), "utf8"); }
+      catch { return [false, "axe-core absent : « npm install --no-save axe-core@4.10.3 », dans moteur/"]; }
+      await p.value(`${axe}\n;window.axe.version`);
+      violations = await p.value(`window.axe.run(document, { resultTypes: ["violations"] }).then((r) => r.violations.map((v) => v.id + " : " + v.nodes.map((n) => n.html.slice(0, 100)).join(" | ")))`);
+    } finally {
+      await forget(script);
+    }
+    const ok = phone.untouched === 0 && phone.buzz[0] === "200" && phone.buzz[1] === "100,80,100" && phone.tries === "2" && phone.caught === "1" && phone.errors.length === 0
+      && reduced.buzz === phone.buzz.length && reduced.said === "Pas de vibration : tu as demandé moins de mouvement." && reduced.tries === "3"
+      && iphone.vibrate === "undefined" && iphone.said === "Ce navigateur ne fait pas vibrer." && iphone.saidGame === "Ce navigateur ne fait pas vibrer." && iphone.tries === "1" && iphone.caught === "1" && iphone.errors.length === 0
+      && violations.length === 0;
+    return [ok, `avant tout toucher : ${phone.untouched} vibration ; puis ${phone.buzz.map((m) => `[${m}]`).join(", ")} (le toucher, puis la rencontre), ${phone.tries} demandées, ${phone.caught} prise ; mouvement réduit : « ${reduced.said} », ${reduced.buzz - phone.buzz.length} vibration de plus, ${reduced.tries} demandées ; sans vibreur : navigator.vibrate ${iphone.vibrate}, « ${iphone.said} », ${iphone.tries} demandée, ${iphone.caught} prise, ${iphone.errors.length} erreur ; axe-core : ${violations.length ? violations.join(" ; ") : "zéro défaut"}`];
+  }],
+  ["mélanger des sons : deux à la fois, le fondu qui monte puis descend, le volume qui suit sa glissière (leçon 135)", async (p, b) => {
+    await p.open("/exemples/lecons/135-melanger-des-sons.holo");
+    const audio = (name) => `document.querySelector('audio[data-name="${name}"]')`;
+    // Ce qu'on entend d'un son : son volume × son fondu, lus dans les gains du mélangeur (Web Audio).
+    const heard = (name) => p.value(`window.__holoMixer?.(${JSON.stringify(name)}).heard ?? -1`);
+    const shows = (text) => p.value(`document.getElementById("page").innerText.includes(${JSON.stringify(text)})`);
+    // Le lecteur d'écran : chaque glissière a son nom. Et l'audit axe-core de la leçon.
+    const { nodes } = (await b.send("Accessibility.getFullAXTree")).result;
+    const sliders = nodes.filter((n) => !n.ignored && n.role?.value === "slider").map((n) => n.name?.value).join(", ");
+    await p.value(readFileSync(join(engine, "node_modules", "axe-core", "axe.min.js"), "utf8") + "\n;0");
+    const faults = await p.value(`axe.run(document, { resultTypes: ["violations"] }).then((r) => r.violations.map((v) => v.id).join(", "))`);
+    // Un premier toucher fait venir le moteur : « Tout arrêter » n'a rien à arrêter, et ne
+    // réveille pas le mélangeur.
+    await p.click('[data-name="Silence"]');
+    const arrived = await p.until(`${audio("Pluie")}.dataset.level === "0.6"`);
+    const asleep = await p.value(`window.__holoMixer("Pluie").state`);
+    // La pluie monte en 2 secondes jusqu'à son volume, 60 sur 100 : écoutée à plusieurs moments.
+    await p.click('[data-name="LancerPluie"]');
+    await p.until(`!${audio("Pluie")}.paused`, 5000);
+    const rising = [];
+    for (let i = 0; i < 4; i++) {
+      rising.push(await heard("Pluie"));
+      await pause(400);
+    }
+    const climbing = rising.filter((v) => v < 0.595);
+    const rose = climbing.length >= 3 && climbing[0] < 0.3 && climbing.every((v, i) => i === 0 || v > climbing[i - 1]);
+    const full = await p.until(`Math.abs(window.__holoMixer("Pluie").heard - 0.6) < 0.005`, 4000);
+    // Le vent part à son tour : les deux jouent ensemble, et la pluie ne baisse pas.
+    await p.click('[data-name="LancerVent"]');
+    const together = await p.until(`!${audio("Pluie")}.paused && !${audio("Vent")}.paused && window.__holoMixer("Vent").heard > 0`, 5000);
+    const rainKept = await heard("Pluie");
+    const said = (await shows("La pluie joue.")) && (await shows("Le vent souffle."));
+    // La glissière de la pluie, au clavier : Page suivante quatre fois, de 60 à 20. Le volume glisse
+    // jusque-là, et la page montre la valeur.
+    await p.value(`document.querySelector('input[data-bind="pluie"]').focus()`);
+    for (let i = 0; i < 4; i++) await p.key("PageDown", "PageDown", 34);
+    const followed = await p.until(`Math.abs(window.__holoMixer("Pluie").heard - 0.2) < 0.005`, 3000);
+    const twenty = await shows("20 sur 100");
+    // Arrêter la pluie : elle descend pendant 2 secondes en jouant encore, puis se met en pause et
+    // revient au début. Le vent continue.
+    await p.click('[data-name="ArreterPluie"]');
+    const falling = [];
+    for (let i = 0; i < 3; i++) {
+      await pause(450);
+      falling.push([await heard("Pluie"), await p.value(`${audio("Pluie")}.paused`)]);
+    }
+    const fading = falling.filter(([, paused]) => !paused).map(([v]) => v);
+    const fell = fading.length >= 2 && fading.every((v, i) => v < 0.2 && v > 0 && (i === 0 || v < fading[i - 1]));
+    const stopped = await p.until(`${audio("Pluie")}.paused && ${audio("Pluie")}.currentTime === 0`, 3000);
+    const windOn = await p.value(`!${audio("Vent")}.paused`);
+    // Tout arrêter : le vent s'éteint en 3 secondes, puis le mélangeur s'endort.
+    await p.click('[data-name="Silence"]');
+    const sleeping = await p.until(`${audio("Vent")}.paused && window.__holoMixer("Vent").state === "suspended"`, 6000);
+    const round = (v) => Number(v).toFixed(2).replace(".", ",");
+    const ok = sliders === "Volume de la pluie, Volume du vent" && faults === "" && arrived && asleep === "absent" && rose && full && together
+      && Math.abs(rainKept - 0.6) < 0.005 && said && followed && twenty && fell && stopped && windOn && sleeping;
+    return [ok, `glissières : ${sliders} ; axe-core : ${faults || "aucun défaut"} ; mélangeur avant le premier son : ${asleep} ; la pluie monte : ${rising.map(round).join(" → ")}, puis 0,60 : ${full} ; avec le vent, les deux jouent : ${together} (pluie à ${round(rainKept)}) ; écrit à l'écran : ${said} ; glissière à 20 au clavier : ${followed} (${twenty}) ; arrêtée, elle descend en jouant : ${falling.map(([v, paused]) => `${round(v)}${paused ? " (en pause)" : ""}`).join(" → ")}, puis en pause au début : ${stopped} ; le vent continue : ${windOn} ; tout arrêté, le mélangeur s'endort : ${sleeping}`];
+  }],
+  ["un son ne part jamais avant un geste du visiteur, même là où le navigateur le permettrait (ADR-112)", async (p) => {
+    // Ce Chrome joue un son sans geste (--autoplay-policy=no-user-gesture-required) : seul le moteur
+    // peut l'empêcher. La règle de temps de la page demande deux sons toutes les 400 ms.
+    await p.open("/exemples/.essais-navigateur/son-avant-un-geste.holo", 600);
+    const sounds = `[...document.querySelectorAll("audio")].map((a) => a.dataset.name + (a.played.length ? " entendu" : " muet")).join(", ")`;
+    const asked = await p.until(`/demandé les sons ([3-9]|\\d\\d+) fois/.test(document.getElementById("page").innerText)`, 15000);
+    const before = await p.value(sounds);
+    const mixer = await p.value(`window.__holoMixer?.("Tac").state`);
+    // Un toucher : les sons partent au tour suivant de la règle.
+    await p.click('[data-name="Toucher"]');
+    const heard = await p.until(`[...document.querySelectorAll("audio")].every((a) => a.played.length > 0)`, 5000);
+    const after = await p.value(sounds);
+    const ok = asked && before === "Tic muet, Tac muet" && mixer === "absent" && heard;
+    return [ok, `demandés au moins 3 fois sans geste : ${asked} ; avant un geste : ${before}, mélangeur ${mixer} ; après un toucher : ${after}`];
   }],
   ["les touches du clavier, et les lettres qu'on coupe", async (p) => {
     await p.open("/exemples/lecons/77-toutes-les-touches.holo");
@@ -976,6 +1235,40 @@ const tests = [
     const price = await p.until(has("Prix : 9,99 €"));
     const ok = start && fifty && tip && price;
     return [ok, `départ « 12,50 » : ${start} ; ×4 = 50,00 et livraison offerte : ${fifty} ; +10 % = 55,00 : ${tip} ; prix 9,99 : ${price}`];
+  }],
+  ["des nombres négatifs : sous zéro, le signe moins de la langue, un champ dont le clavier l'a (leçon 125)", async (p, b) => {
+    await p.open("/exemples/lecons/125-des-nombres-negatifs.holo");
+    const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;
+    // La page fabriquée d'avance, sans le moteur, montre déjà le départ sous zéro.
+    const start = (await p.value(has("Au sommet : -2 °C"))) && (await p.value(has("Il gèle.")));
+    // Au toucher, le moteur arrive et calcule sous zéro : −2 − 5 = −7 ; puis +5 +5 = 3.
+    await p.click('[data-name="Colder"]');
+    const colder = await p.until(has("Au sommet : -7 °C"));
+    await p.click('[data-name="Warmer"]');
+    await p.click('[data-name="Warmer"]');
+    const warmer = await p.until(`${has("Au sommet : 3 °C")} && ${has("Il ne gèle pas.")}`);
+    // Le champ : un nombre, sans inputmode (le clavier du téléphone garde le signe moins), de −50 à 50.
+    const field = await p.value(`(() => { const i = document.querySelector('input[data-bind="temperature"]'); return [i.type, i.inputMode || "(aucun)", i.min, i.max, i.value].join(" "); })()`);
+    // On écrit −40, comme au clavier : le grand froid. Plus bas que le min, la page garde −50.
+    const write = async (text) => {
+      await p.value(`(() => { const i = document.querySelector('input[data-bind="temperature"]'); i.focus(); i.value = ""; i.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+      await p.type('input[data-bind="temperature"]', text);
+    };
+    await write("-40");
+    const typed = await p.until(`${has("Au sommet : -40 °C")} && ${has("Grand froid")}`);
+    await write("-90");
+    const floor = await p.until(has("Au sommet : -50 °C"));
+    // Le lecteur d'écran : un champ de nombre (spinbutton), nommé par son étiquette.
+    const { nodes } = (await b.send("Accessibility.getFullAXTree")).result;
+    const spin = nodes.some((n) => !n.ignored && n.role?.value === "spinbutton" && n.name?.value === "Écrire la température");
+    // Une page suédoise : le signe moins de sa langue, « − » (U+2212), au départ comme après un toucher.
+    await p.open("/exemples/.essais-navigateur/nombres-negatifs-suedois.holo");
+    const swedishStart = await p.value(has("Temperatur: −2 °C"));
+    await p.click('[data-name="Kallare"]');
+    const swedish = await p.until(has("Temperatur: −7 °C"));
+    const seen = await p.value(`document.querySelector("main p, .holo-Page p").innerText`);
+    const ok = start && colder && warmer && field === "number (aucun) -50 50 3" && typed && floor && spin && swedishStart && swedish;
+    return [ok, `départ « -2 °C », il gèle : ${start} ; −5 = −7 : ${colder} ; +10 = 3, il ne gèle plus : ${warmer} ; champ (type, inputmode, min, max, valeur) : ${field} ; −40 écrit : ${typed} ; −90 gardé à −50 : ${floor} ; lecteur d'écran, spinbutton : ${spin} ; en suédois : départ ${swedishStart}, après un toucher « ${seen} »`];
   }],
   ["des dates : aujourd'hui, une semaine, des nuits (Days)", async (p) => {
     await p.open("/exemples/lecons/87-des-dates.holo");

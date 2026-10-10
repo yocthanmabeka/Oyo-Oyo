@@ -6,6 +6,93 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Les fusions de la matinée, et l'outil de fusion réparé (le style diff3)
+
+- Fait (la session du PC) :
+  - Fusionnées dans `main`, chaque fois par `outils/fusionner.sh` après les trois tests verts : la 256 (le partage, #236, la session du nuage), la 257 (réordonner, #234), la 258 (la grille, #233), la 261 (la vibration, #239, la session du nuage), la 260 (les nombres négatifs, #231) et la 259 (mélanger des sons, #241, la session du nuage). Six des douze dernières dettes sont dans `main`.
+  - J'ai relu en entier la PR 259 de la session du nuage avant sa fusion : le fondu est borné de 100 ms à 5 s, le volume suivi va de 0 à 100 et il est vérifié avec les autres valeurs, et aucun son ne part avant un geste du visiteur.
+  - Quand une PR de la session du nuage est en conflit, elle y fusionne `main` elle-même, comme elle l'a demandé dans l'issue 255 : je ne touche plus aux branches de ses PR.
+  - Trois agents relancés après la limite de séance, chacun à partir de ce qui était sauvé sur GitHub : 237 (les filtres), puis 240 (les formes découpées) ; 235 (le défilement et `sticky`) ; 232 (les textes), puis 238 (les heures). Les 246 et 247 suivront.
+  - Les dossiers des agents arrêtés sont effacés. Avant, j'ai vérifié que le dernier commit de chacun était sur une branche de GitHub. Un dossier, verrouillé par un processus, partira au redémarrage du PC.
+- Erreur : mon outil de fusion a cassé trois fois des fichiers partagés, en fusionnant `main` dans une branche de PR :
+  - le guide de la 256 (un chapitre au milieu d'un exemple ; la session du nuage l'a réparé, 58c2b2d) ;
+  - un essai de `browser-tests.mjs` sans sa ligne de fermeture `}],` (62cbece) ;
+  - le guide de la 258 (le chapitre de la grille coupé, réparé en 674f11d). Le test du moteur qui relit les exemples du guide l'a vu (« ligne 18, colonne 1 : caractère inattendu « # » ») ; rien de cassé n'est entré dans `main`.
+- La cause : deux branches ajoutent chacune un bloc au même endroit, et ces blocs finissent par les mêmes lignes (`  }],`, une barrière de code, une fin de tableau). Avec le style de conflit par défaut, git sort ces lignes du conflit et ne les garde qu'une fois. Garder « les deux côtés » laisse alors un bloc sans sa fin. Ma première réparation, remettre ces lignes entre les deux blocs, marchait pour le guide mais pas pour les essais.
+- La réparation : fusionner en style diff3 (`git -c merge.conflictstyle=diff3 merge origin/main`). Git ne rogne plus les lignes communes : chaque côté du conflit est complet, et garder les deux est juste. L'outil refuse aussi un conflit où l'ancêtre commun avait du texte, car c'est une modification des deux côtés : elle se règle à la main.
+  - Essayé sur le cas exact qui avait cassé (la grille, d43ab50, avec `main`) : tous les fichiers sont résolus ; le guide fait 2 741 lignes, soit les 2 697 de `main` et les 44 de la branche ; `browser-tests.mjs` fait 2 155 lignes, soit 2 105 et 50 ; `node --check` passe ; 154 barrières de code, en paires ; le chapitre de la grille est entier.
+  - Puis employé pour la 260.
+  - La règle est écrite dans `AGENTS.md` pour toutes les IA (« Fusionner `main` dans sa branche sans rien perdre »), et donnée aux agents.
+- Erreur d'ordre : je voulais faire passer la 259 avant la 260, pour que la session du nuage n'ait pas à refaire sa mise à jour. J'ai arrêté la boucle qui attendait la 260, mais pas le script de fusion qu'elle avait déjà lancé. Ce script a fusionné la 260 vers 11 h 20 UTC, dès ses tests verts. La 259 est retombée en conflit, et la session du nuage y a refait la fusion de `main` (b4cc27d). Rien de cassé : `main` est restée verte. Depuis, quand j'arrête une boucle, j'arrête aussi les scripts qu'elle a lancés, et je vérifie qu'il n'en reste aucun.
+- Reste :
+  - dettes : 232, 235, 237, 238 et 240 (les agents du PC), 242 (la session du nuage) ;
+  - fonctions ouvertes : 246 et 247 (le PC), 248 à 252 (la session du nuage), 253 avec la 3D ;
+  - à la fin, la session du nuage refait la suite des leçons et le grand tableau.
+
+---
+
+## 2026-10-10 — Faire vibrer le téléphone : `Device(kind: vibration)`
+
+- Fait (issue #239, la session du nuage ; `ADR-110`, ACCEPTÉ) :
+  - `Device(name: Buzz, kind: vibration, for: 200ms)` : `Buzz.play` fait vibrer, `Buzz.stop` arrête. Une vibration se joue comme un son : d'un toucher, d'une touche ou d'une règle de jeu (`When`, une rencontre, `Every`, `After`), sans permission.
+  - `for:` prend une durée, ou une liste qui alterne vibration et silence ; 200 ms si rien n'est écrit ; dix durées et une seconde en tout au plus.
+  - Jamais avant que le visiteur ait touché la page, ni sous le mouvement réduit. Là où le navigateur ne vibre pas (iPhone, ordinateur), rien ne casse, et la zone d'état le dit.
+  - Elle ne dit rien en retour (`On(Buzz.done, …)` est refusé) : le signe se montre à l'écran, dans la règle qui la joue.
+  - La leçon 133 ; le guide (chapitre « 6 unquinquagies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+  - Empilée sur la #236 (le partage, PR 256), fusionnée avant elle ; `main` fusionnée ensuite.
+- Exécuté :
+  - `cargo test --release --locked` et `cargo test` : 242 tests passent, dont les deux nouveaux (`a_vibration_plays_like_a_sound_and_says_nothing_back`, `a_vibration_is_short`) ; `holo check` accepte la leçon 133.
+  - Dans Chrome, « faire vibrer le téléphone … (leçon 133) » passe : rien avant le toucher, puis `[200]` au toucher et `[100,80,100]` à la rencontre ; sous le mouvement réduit émulé, rien ne vibre et la zone d'état le dit ; sans `navigator.vibrate`, aucune erreur ; axe-core : zéro défaut.
+  - L'essai sait échouer : sans l'appel `navigator.vibrate(spec.pattern)` de `capabilities.js`, il rate (aucune vibration après le toucher) ; l'appel remis, il passe.
+  - La suite entière (`CI=1`, axe-core 4.10.3) : 82 essais sur 85 passent ; les 3 ratés sont ceux du conteneur (« pincer à deux doigts », « la vue points se lit au lecteur d'écran », la vidéo H.264 des parcours 8 et 9).
+- Erreurs en route : la limite de séance a arrêté l'agent deux fois, et le conteneur a redémarré. La fusion de `main` faite par la session du PC dans la branche de la #236 avait coupé un exemple du guide ; réparé (58c2b2d) avant de fusionner la #236 ici.
+- Reste : essayer sur un vrai téléphone Android ; l'iPhone ne vibre pas (Safari n'a pas `navigator.vibrate`).
+
+---
+
+## 2026-10-10 — Mélanger des sons : un fondu, un volume qui suit une valeur
+
+- Fait (issue #241, la session du nuage ; `ADR-112`, ACCEPTÉ d'avance par Yocthan : « tu le valides déjà, tu le fais déjà ») :
+  - Vérifié d'abord dans Chrome, avec le moteur de `main` (leçon 79) : deux sons différents jouent déjà ensemble, aucun n'est mis en pause ; un même son relancé repart du début. Plusieurs sons à la fois ne demandent donc aucun mot nouveau.
+  - `Sound(fade: 2s)` : le son monte du silence jusqu'à son volume quand il commence ; `stop` le fait descendre jusqu'au silence en jouant encore, puis le met en pause au début. De 100ms à 5s.
+  - `Sound(volume: pluie)` : le volume suit une valeur de la page, de 0 à 100, et glisse jusqu'à elle en un dixième de seconde ; la valeur ne dépasse jamais 100. Une glissière par son fait une table de mixage.
+  - Le mélangeur de la page (Web Audio, deux gains par son) : il naît au premier son mélangé et s'endort quand aucun ne joue ; un son d'un autre serveur n'y passe pas. Sur iPhone, `audio.volume` ne se règle pas, un gain si (pas essayé ici).
+  - Jamais un son avant un geste du visiteur, même si le navigateur le permet : le moteur oublie la demande.
+  - Un lecteur (`Sound(label:)`) ne change pas : `fade:` et un volume suivi y sont refusés.
+  - La leçon 135, avec deux ambiances fabriquées par un petit programme (du bruit filtré qui boucle sans couture : une pluie, un vent, 44 Ko chacune) ; une page d'essai, `son-avant-un-geste.holo` ; le guide (chapitre « 6 terquinquagies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+- Exécuté :
+  - `cargo test --release --locked` → 241 tests passent après la fusion de `main` (237 avant ; deux nouveaux : `a_sound_fades_in_and_out`, `a_sound_follows_a_value_of_the_page`) ; `cargo test` (debug) → 241 ;
+  - `holo check` sur la leçon 135 et la page d'essai → `ok` ;
+  - dans Chrome, les deux essais nouveaux passent : la pluie mesurée 0,05 → 0,17 → 0,29 → 0,41, puis 0,60 ; avec le vent, les deux jouent ; la glissière à 20 au clavier, le volume suit ; arrêtée, la pluie descend 0,14 → 0,09 → 0,05 en jouant, puis se met en pause au début, et le vent continue ; tout arrêté, le mélangeur s'endort ; axe-core sans défaut. Avant un geste, la règle a demandé les sons trois fois : aucun entendu, pas de mélangeur ; après un toucher, les deux ;
+  - ils savent échouer, avant et après la fusion de `main` : sans le fondu (0,60 dès le départ), sans le volume suivi (la pluie à 1,00), sans le fondu de sortie (en pause tout de suite), sans la règle stricte (les deux sons entendus avant tout geste) : RATÉ chaque fois ;
+  - sous la vraie politique de Chrome (`document-user-activation-required`), le premier toucher rejoué après l'arrivée du moteur : la pluie monte (0,02 → 0,14 → 0,26 → 0,38) ; sans geste, rien ;
+  - la suite entière, après la fusion de `main` (PR 257) : 82 essais `OK` sur 85 (avant : 81 sur 84) ; les 3 ratés propres au conteneur : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 ».
+- Erreurs en route :
+  - mon premier mélangeur se réveillait sur un `stop` d'un son qui n'avait jamais joué (« Tout arrêter », touché en premier), et restait éveillé pour rien : un `stop` ne crée plus rien ;
+  - la limite de séance a coupé le travail, puis le conteneur a redémarré, pendant la relance de « pincer à deux doigts » ; rien n'était envoyé, la reprise est partie des commits ;
+  - la PR 257 a apporté un `follow` (une constante d'un bloc intérieur) : ma fonction s'appelle désormais `followVolume`, pour ne pas être masquée à la lecture.
+- Reste : un écho et les autres effets ; `fadeIn:` et `fadeOut:` séparés ; le volume écrit seul passe encore par `audio.volume` (sans effet sur iPhone) ; essayer à l'oreille sur le téléphone de Yocthan, et sur un iPhone ; la leçon 135 revient à la 124 et mène à la 1, en attendant que la suite 124 → … → 136 → 1 soit refaite.
+
+---
+
+
+---
+
+## 2026-10-10 — Des nombres négatifs : `negative: [temperature]`
+
+- Fait (issue #231, prise par un agent de la session du PC ; l'agent précédent s'est arrêté à la limite de séance, un second a repris sur `wip/langage/nombres-negatifs` ; `ADR-102`, ACCEPTÉ : « tu le valides déjà, tu le fais déjà ») :
+  - `negative: [temperature, balance]`, sur la page, comme `keep:` : ces valeurs descendent jusqu'à −1 000 000 000 ; les autres s'arrêtent à 0, comme avant (un panier ne compte jamais −1 article, le défaut classique du compteur JavaScript). `State(temperature: -2)`, `sub` sous zéro, `set(-10)`, `mul(-1)` ; `add(-5)` est refusé avec le bon mot, `sub(5)`. Un nombre négatif se calcule comme sans son signe : −7 ÷ 2 = −3, la moitié s'arrondit en s'éloignant de zéro (−14,025 → −14,03) ; exact, aussi à virgule (`balance: -12.50`, `ADR-066`).
+  - `If(temperature, under: -20)`, `When(balance, under: -100, …)` ; le signe moins de la langue de la page, celui du CLDR : « -2 » en français et en anglais, « −2 » (U+2212) en suédois, une marque de direction en arabe ; jamais « -0 » ; `number`, `cents`, `00` et le titre de l'onglet suivent.
+  - Un champ `Input(value: temperature, min: -50, max: 50)` : `type="number"` sans `inputmode`, pour que le clavier du téléphone ait le signe moins (ceux de `numeric` et `decimal` n'en ont pas sur l'iPhone) ; « -12 » et « −12 » compris. L'état écrit, `keep`, des données reçues, un formulaire et `holo serve` sans JavaScript gardent le signe.
+  - Refusés, avec la raison : un départ sous zéro sans `negative:` ; une valeur négative dans une glissière, une barre, une case, un plateau, un dessin, `limit:`, un module, `Transfer`, l'adresse, un chronomètre ; une valeur partagée ou une quantité qui a un prix dans `negative:`.
+  - Le mot `negative` plutôt que `signed` (se lit « signé » en français) ou `belowZero` ; un réglage de la page plutôt qu'un plancher par valeur (`Number(0, min: -500)`) ou un signe devant le départ (`+0`, obscur, et `-0` est un défaut de JavaScript).
+  - La leçon 125 (précédente : 124, suivante : 1, selon la convention avec la session du nuage) ; le guide (chapitre « 6 terquadragies », une ligne au § 10 bis, le § 11), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons ; l'essai Chrome joue la leçon 125 et une page suédoise (`exemples/.essais-navigateur/nombres-negatifs-suedois.holo`).
+- Exécuté, dans `moteur/` : `cargo test --release --locked` → 245 tests passent (six nouveaux, dans `src/negative.rs`) ; `cargo test` → 245 ; `node outils/browser-tests.mjs` (la suite entière) : 83 essais sur 84 passent, 126 leçons s'ouvrent sans erreur, en 654 s ; le seul raté est l'audit axe-core des parcours, parce qu'axe-core n'est pas sur ce PC et que l'agent n'installe rien (les machines de GitHub l'installent avant la suite). L'essai de la leçon 125 : « départ « -2 °C », il gèle ; −5 = −7 ; +10 = 3 ; champ number, sans inputmode, −50 à 50 ; −40 écrit ; −90 gardé à −50 ; spinbutton ; en suédois « Temperatur: −7 °C » ».
+- Erreurs en route : la reprise a fusionné `main` (PR 243 à 245, 254, 257) dans la branche : quatre conflits dans les fichiers partagés (le guide, `NOMS.md`, `DECISIONS.md`, le sommaire des leçons), résolus en gardant les deux côtés, rangés par numéro (« 6 terquadragies » avant « 6 sexquadragies », `ADR-102` avant `ADR-105`, la leçon 125 avant la 128) ; `browser-tests.mjs`, `lib.rs`, `flat.rs` et `server.rs` se sont fusionnés seuls (`node --check` vert).
+- Reste : une glissière, une valeur partagée, l'adresse et un fichier exporté avec un nombre négatif ; `Days` qui rend 0 quand le départ vient après l'arrivée (`ADR-067`) pourrait compter à rebours ; la lecture TalkBack de « -7 °C » à essayer sur le téléphone de Yocthan. Le grand tableau du web : « variables » peut passer de « en partie » à « oui ».
+
+---
+
 ## 2026-10-09 — Réordonner une liste : `Repeat(over:, reorder: true)`
 
 - Fait (issue #234, prise par un agent de la session du PC ; `ADR-105`, ACCEPTÉ : « tu le valides déjà, tu le fais déjà ») :
@@ -17,6 +104,27 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 - Exécuté, dans `moteur/` : `cargo test --release --locked` → 239 tests passent (quatre nouveaux, dans `src/reorder.rs`) ; `cargo test` → 239 ; dans Chrome, l'essai de la leçon 128 passe seul (souris, clavier, Espace en tête, lecteur d'écran, doigt sur un écran de 400 px, puis `holo serve` sans JavaScript) et rate avec le `page-engine.js` de `main` (rien ne bouge) ; la suite Chrome entière (`node outils/browser-tests.mjs`) : 82 essais sur 83 passent, 125 leçons s'ouvrent sans erreur, en 477 s ; le seul raté est l'audit axe-core des parcours, parce qu'axe-core n'est pas sur ce PC et que l'agent n'installe rien (les machines de GitHub l'installent avant la suite).
 - Erreurs en route : deux assertions de mes tests comptaient « holo-movable », qui est aussi dans le style de la page ; elles comptent maintenant `class="holo-movable"`. Une commande trop longue a été refusée par la garde du dossier de l'agent : découpée en commandes simples.
 - Reste : réordonner une liste partagée ; faire passer une ligne d'une liste à une autre ; « tout en haut » d'un seul geste ; un style pour la poignée et les boutons ; un pas `move` dans `holo test`. Le grand tableau du web : « glisser-déposer » peut passer à « oui ».
+
+---
+
+## 2026-10-09 — Une grille qui place ses cases : plusieurs colonnes, des zones nommées
+
+- Fait (issue #233, prise par un agent de la session du PC ; `ADR-104`, ACCEPTÉ : « tu le valides déjà, tu le fais déjà ») :
+  - `columnSpan: 2` et `rowSpan: 2` sur un bloc de `Grid`. Une grille trop étroite donne toute la ligne à la case, au lieu d'ajouter une colonne : sans ce repli, à 280px (un Galaxy Z Fold fermé), la colonne ajoutée rétrécit toutes les cases à 120px.
+  - `Grid(areas: ["haut haut", "menu texte"])` et `area: menu` : les zones dessinées avec des mots. Les blocs s'écrivent dans l'ordre des zones, celui de la lecture ; sous 480px de grille, ou quand une zone aurait moins de 120px, elles s'empilent dans cet ordre.
+  - La grille se mesure elle-même (`container-type`, une `@container` par seuil employé dans le fichier) : du CSS fabriqué par le moteur, qui marche sans JavaScript. Vingt-sept refus, dont `grid-area` dans un style.
+  - La leçon 127 ; le guide (« 6 quinquadragies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+- Exécuté :
+  - `cargo test --release --locked` : 240 tests passent, dont les cinq nouveaux de `grid.rs` ; `cargo test` : 240 passent.
+  - `node outils/browser-tests.mjs` : 82 essais sur 83 passent (500 s). Le seul raté est l'audit axe-core des parcours : la bibliothèque (axe-core 4.10.3) n'est pas installée sur ce PC, et l'agent n'installe rien ; GitHub l'installe avant ses essais.
+  - L'essai de la leçon 127 rate quand on retire le repli (à 280px, les cases tombent à 120px, et les zones ne s'empilent plus à 360px) ; l'ancien moteur refuse la leçon (« « Column » n'a pas de paramètre « columnSpan » »).
+- ![La leçon 127 sur un ordinateur : la grande case sur deux colonnes et deux lignes, le menu à gauche du texte](images/2026-10-09-grille-ordinateur.png)
+- ![La même leçon sur un téléphone de 360px : la grande case prend la ligne, les zones s'empilent dans l'ordre](images/2026-10-09-grille-telephone.png)
+- Erreurs en route :
+  - ma première construction en arrière-plan écrivait son journal dans un dossier qui n'existe pas (un `..` de trop peu) : elle n'a pas tourné ; et un nom de fichier de journal partagé avec un autre agent mêlait leurs lignes. Chaque agent écrit maintenant dans son propre dossier ;
+  - la première leçon employait `border-left`, que HoloCode n'a pas : refusée par `holo check` ;
+  - une zone inconnue était annoncée comme « une zone sans bloc » : la vérification regarde maintenant d'abord si la zone existe.
+- Reste : une case d'une liste qui change (`Repeat(over:)`) ne prend pas plusieurs colonnes ; un composant se range dans un `Column(columnSpan: 2, …)` ; le seuil de 480px ne se règle pas ; la ligne `grid` du grand tableau passe à « oui » à la prochaine publication.
 
 ---
 
@@ -43,6 +151,25 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
   - jamais aucun numéro de carte sur la page ni sur le serveur.
 
   Le mobile money n'est qu'un branchement parmi d'autres.
+
+---
+
+## 2026-10-09 — Partager la page : la feuille du téléphone, sinon l'adresse copiée
+
+- Fait (issue #236, prise dans la file par la session du nuage ; `ADR-107`, ACCEPTÉ d'avance par Yocthan) :
+  - `Device(kind: share)` et `Share.request`, sur le toucher d'un bouton : la feuille de partage du téléphone, avec le titre et l'adresse de la page. Le moteur appelle le navigateur dans le clic même, avant toute attente : un navigateur n'ouvre la feuille que pendant le geste du visiteur.
+  - Sans feuille de partage (un ordinateur), le même bouton copie l'adresse. La page dit ce qu'elle a fait, à l'écran et au lecteur d'écran, dans la zone d'état du bloc.
+  - `Share.done` : partagée, ou l'adresse copiée. `Share.failed` : rien n'a marché, et l'adresse est écrite à l'écran. La feuille fermée sans rien choisir (`AbortError`) n'est ni l'un ni l'autre : « Partage annulé. ».
+  - Sans JavaScript, une phrase dit comment partager quand même. Refusés : `Share.write`, `value:`, et le partage hors du toucher d'un bouton.
+  - La leçon 130 ; le guide (chapitre « 6 duodequinquagies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+- Exécuté (`check-locked.sh`) :
+  - `cargo test --release --locked` et `cargo test` : 236 tests passent, dont le nouveau, `a_page_is_shared_from_a_button_and_nothing_else` ;
+  - `holo check` sur la leçon 130 : ok ;
+  - l'essai nouveau dans Chrome passe. Ce Chromium de Linux n'a pas `navigator.share` : l'essai retire le partage avant la page (un ordinateur), puis le remplace avant la page (un téléphone). L'adresse est relue dans le presse-papiers ; le faux partage reçoit le titre et l'adresse pendant le clic (`window.event` : « click ») ; la feuille fermée dit « Partage annulé. » sans compter ; une panne écrit l'adresse ; axe-core : zéro défaut ;
+  - il sait échouer : sans la branche du partage dans `capabilities.js`, il rate (« Requested device not found » : l'ancien code prend la sorte inconnue pour un microphone) ; avec une attente glissée avant l'appel, il rate aussi (le partage n'arrive plus pendant le clic, même si le navigateur dit encore le geste actif) ;
+  - la suite entière : 79 essais sur 83. Les ratés : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium), et « comptes : effacement confirmé… » (« database is locked »), qui passe relancé seul.
+- Erreur en route, relevée dans l'essai de Codex (`proposals/GPT5.6/fin-comptes-2026-10-08/browser-tests.mjs`), sans la corriger : il ouvre la base de `holo serve` pendant que le serveur écrit encore le panier renvoyé par la page, sans délai d'attente ; sous la charge, la base est occupée. Un délai d'attente à l'ouverture de la base le réglerait.
+- Reste : un texte choisi par l'auteur (`text:`) ; un vrai téléphone (la feuille d'Android et de l'iPhone, avec TalkBack) ; le grand tableau, « presse-papiers, partage » à passer en « Oui » à la fusion ; la suite des leçons, 124 → 125 → … → 136 → 1, refaite quand les douze dettes seront dans `main`.
 
 ---
 
