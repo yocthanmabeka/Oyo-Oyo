@@ -52,6 +52,11 @@ qrcode = { version = "=0.14.1", default-features = false }
 p256 = { version = "=0.13.2", default-features = false, features = ["ecdsa", "std"] }
 sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
 
+# Les données d'un autre site, lues par le serveur de l'auteur (ADR-116) : un client HTTPS petit et
+# très employé, avec rustls (aucun OpenSSL à installer) et les certificats racines de Mozilla
+# (webpki-roots) ; sans compression, sans cookies, sans proxy. Seulement pour le PC.
+ureq = { version = "=3.4.2", default-features = false, features = ["rustls"] }
+
 [profile.release]
 opt-level = "s"
 lto = true

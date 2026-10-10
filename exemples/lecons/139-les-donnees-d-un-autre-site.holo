@@ -1,0 +1,69 @@
+// Leçon 139 — Les données d'un autre site, lues par ton serveur
+//
+// Ce qu'on apprend :
+//   Une page peut montrer les données d'un autre site :
+//     data: Data(name: Wiki, from: "https://fr.wikipedia.org/api/rest_v1/page/summary/Kinshasa", every: 3600s),
+//   C'est ton serveur, holo serve, qui va les chercher, puis les met dans la page. Le navigateur
+//   du visiteur ne parle jamais à l'autre site : l'autre site ne voit ni son adresse IP, ni rien
+//   de lui. Il ne voit que ton serveur.
+//   Ton serveur garde la réponse un moment : il lit l'autre site au plus une fois par « every »
+//   (une minute au moins ; dix minutes sans « every »), quel que soit le nombre de visiteurs.
+//   Il ne lit que les sites que tu permets, un par ligne, dans le fichier holo-data/sites.txt du
+//   dossier servi (ce dossier n'est jamais servi, ni envoyé sur GitHub) :
+//     fr.wikipedia.org
+//   Si un site demande une clé, elle va sur sa ligne, comme sa documentation la montre, et
+//   jamais dans la page :
+//     api.exemple.org ?appid=ta-clé          (un paramètre de l'adresse)
+//     api.exemple.org X-Api-Key: ta-clé      (un en-tête)
+//   Le reste est celui des données d'un fichier (leçon 84) : Wiki.done, Wiki.failed,
+//   Wiki.refresh. Seules les valeurs du premier niveau de la réponse, aux noms que la page
+//   déclare (ici title, description, extract), sont reprises ; le reste ne quitte pas ton serveur.
+//
+// À essayer :
+//   Depuis le dossier moteur, lance holo serve sur les leçons :
+//     target/release/holo serve ../exemples/lecons 8090
+//   Écris la ligne « fr.wikipedia.org » dans exemples/lecons/holo-data/sites.txt, puis ouvre
+//   http://localhost:8090/139-les-donnees-d-un-autre-site.holo : le résumé arrive. Sans cette
+//   ligne : « Le résumé n'est pas arrivé. », et holo serve dit pourquoi. Coupe JavaScript : la
+//   page arrive quand même avec le résumé.
+//   Avec le serveur d'essai (node outils/server.mjs), le résumé n'arrive pas : seul holo serve
+//   lit un autre site.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 139 : les données d'un autre site",
+  state: State(loading: 1, broken: 0, reads: 0, title: "", description: "", extract: ""),
+  data: Data(name: Wiki, from: "https://fr.wikipedia.org/api/rest_v1/page/summary/Kinshasa", every: 3600s),
+  children: [
+    H1("Kinshasa, d'après Wikipédia"),
+    If(loading, is: 1, children: [ P("Chargement…") ]),
+    If(broken, is: 1, children: [
+      P("Le résumé n'est pas arrivé."),
+      Button(name: Retry, text: "Réessayer"),
+    ]),
+    If(reads, over: 0, children: [
+      H2("{title}"),
+      P("{description}"),
+      P("{extract}"),
+      P("Résumé de Wikipédia, sous licence CC BY-SA 4.0, lu par le serveur de cette page."),
+      A("L'article entier sur Wikipédia", to: "https://fr.wikipedia.org/wiki/Kinshasa", newTab: true),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 124 : une citation courte, le titre d'une œuvre", to: "124-une-citation-courte.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+  rules: [
+    On(Wiki.done, effect: [loading.set(0), broken.set(0), reads.add(1)]),
+    On(Wiki.failed, effect: [loading.set(0), broken.set(1)]),
+    On(Retry.tap, effect: [loading.set(1), broken.set(0), Wiki.refresh]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+H2 { color: #E9B44C; font-size: 22px; }
+A { color: #8fd3ff; }

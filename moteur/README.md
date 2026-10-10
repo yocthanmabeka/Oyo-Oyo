@@ -57,6 +57,8 @@ cargo build --release --bin holo
 
 Le premier vrai serveur, en Rust : il sert le dossier donné, fabrique chaque page avec les valeurs du visiteur et les range dans `holo-data/site.sqlite` (jamais servi, jamais versionné). Les boutons et les formulaires `Form` marchent même JavaScript coupé : le serveur fait tourner le même arbitre, et range les messages reçus dans la même base (`holo messages ..\exemples\lecons` les affiche, ADR-075). La base est sauvegardée au démarrage et chaque jour dans `holo-data/backups/` (les quatorze plus récentes ; `holo backup ..\exemples\lecons` en ajoute une, ADR-076) : pour revenir à une sauvegarde, arrêter le serveur et la copier à la place de `holo-data/site.sqlite`. L'éditeur et la pile passent encore par `node outils/server.mjs`.
 
+Les données d'un autre site (`Data(from: "https://…")`, ADR-116) sont lues par `holo serve`, jamais par le navigateur du visiteur. Les sites permis s'écrivent un par ligne dans `holo-data/sites.txt`, avec leur clé s'ils en demandent une (`api.exemple.org ?appid=ta-clé` ou `api.exemple.org X-Api-Key: ta-clé`) ; au démarrage, le serveur dit les sites permis (jamais leur clé) et les pages qui lisent un site non permis. Pour les essais seulement, `HOLO_TEST_ONLY_INSECURE_SITE=meteo.test:43210` fait lire le site `meteo.test` en HTTP clair sur ce PC ; le serveur l'annonce, et il est éteint sans la variable.
+
 Paramètres d'adresse utiles : `?zoom=3.4` démarre à un zoom donné (pour les captures), `?world=nom` charge `mondes/nom.holo`.
 
 ## Tester sur le téléphone
@@ -181,5 +183,6 @@ Repris de la proposition de Gemini, à vérifier sur le téléphone :
 | `web/measures.js` | L'affichage des mesures et le bouton « Copier le rapport » |
 | `outils/server.mjs` | Serveur local avec compression Brotli ; envoie la page déjà fabriquée si `holo` est construit |
 | `src/server.rs`, `src/gestures.rs` | `holo serve` : le serveur en Rust, sa base SQLite, les gestes et les formulaires sans JavaScript (ADR-074, ADR-075) |
+| `src/remote.rs` | Les données d'un autre site, pour `holo serve` (ADR-116) : les sites permis et leurs clés, le refus du réseau privé, le client HTTPS (`ureq` avec `rustls`), ce qui est gardé |
 | `src/bin/holo.rs` | Le moteur en ligne de commande, pour le PC ou un serveur : `cargo build --release --bin holo`, puis `holo check fichier.holo` (vérifier) et `holo html fichier.holo` (écrire le HTML de la page, avec les données de `Data(from:)` si le fichier est rangé à côté, `ADR-064`) |
 | `outils/build.ps1` | Construction complète |
