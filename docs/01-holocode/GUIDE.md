@@ -1100,6 +1100,7 @@ Page(
 
 - Une forme qui a un nom se touche, comme un bouton : `On(Target.tap, …)`.
 - Elle se place sur un plateau comme un point : `x`, `y`, `drag`.
+- Depuis `ADR-111`, quatre formes de plus : `hexagon`, `star`, `heart`, `wave` ; et `form:` découpe une image dans un style (chapitre 6 duoquinquagies).
 
 **Comparer à une autre valeur, fixer d'après une autre valeur.** Là où l'on écrit un nombre, on peut écrire le nom d'une valeur :
 
@@ -2140,6 +2141,46 @@ Page(
 - Refusés, avec la raison : `for:` sans unité, nul, trop long, ou sur une autre sorte d'appareil ; `Buzz.request` ; `play` sur une autre sorte ; `value:`.
 
 La leçon est `133-faire-vibrer-le-telephone.holo`.
+
+## 6 duoquinquagies. Découper une forme : `form:`
+
+Une photo ronde, une galerie en hexagones, une bannière dont le bas ondule : un style découpe une image en une forme nommée (`ADR-111`).
+
+```holo
+Page(
+  title: "Our team",
+  state: State(stars: 0),
+  children: [
+    H1("Our team"),
+    Row(gap: 16px, children: [
+      Image.round(source: "ada.jpg", alt: "Ada, who paints"),
+      Image.hive(source: "lin.jpg", alt: "Lin, who frames"),
+    ]),
+    Stack(children: [
+      Image.banner(source: "lake.jpg", alt: ""),
+      H2("The lake, at dawn"),
+    ]),
+    Text("Stars: {stars}."),
+    Shape(name: Star, form: star, color: "#E9B44C", size: 64px),
+  ],
+  rules: [ On(Star.tap, effect: stars.add(1)) ],
+)
+
+Image { width: 120px; aspect-ratio: 1; }
+.round { form: circle; border: 3px solid white; }
+.hive { form: hexagon; }
+.banner { width: 100%; aspect-ratio: 3/1; form: wave; }
+```
+
+- **`form:`**, dans un style, découpe une image ou un dessin : `circle` (un rond ; un ovale sur un bloc plus large que haut, et `aspect-ratio: 1` en fait un rond), `hexagon`, `star`, `heart`, `triangle`, `diamond` (un losange), `wave` (le bas du bloc ondule, sur son dixième, en deux vagues), et `square` (rien n'est découpé : il défait une forme donnée par un style plus général). La forme suit la taille du bloc ; aucun tracé ne s'écrit à la main.
+- **`Shape(form:)`** prend les mêmes huit formes : `Shape(form: heart, color: "#FF4D6D")`.
+- **Une image ou un dessin, jamais un texte** : un bloc qui porte un texte, un bouton, une vidéo ou les pièces d'un plateau serait coupé avec eux. Pour un titre sur une bannière qui ondule, une `Stack` : l'image découpée dessous, le titre dessus.
+- **Le cadre de focus se voit toujours.** Une `Shape` qu'on touche le garde autour d'elle, et se touche sur tout son carré, au doigt comme à la souris. Une image découpée qui a le focus du clavier (une règle l'écoute au survol) se montre entière, avec son cadre.
+- **Le rond garde son bord et son ombre** (`border`, `box-shadow`) : ils suivent sa courbe. Les autres formes les couperaient : ils sont refusés, même venus d'un autre style ; `border: none;` et `box-shadow: none;` les retirent.
+- Une forme peut changer dans `phone:`, `computer:`, `narrow:`, `dark:` ou `print:` ; jamais au survol, à l'appui ou au focus (au bord de la forme, le bloc clignoterait).
+- Refusés, avec la raison : `clip-path` et `clip` (« s'écrit `form: hexagon` ») ; `form: polygon(…)` ; `form` sur un texte, un conteneur, une vidéo, ou dans le style d'une `Shape` (sa forme s'écrit sur elle) ; `border-radius` avec `form` dans le même style ; un fond, une ombre ou un bord sur une `Shape` en polygone (sa couleur : `Shape(color:)`).
+
+Cette écriture est décidée (`ADR-111`). La leçon est `134-decouper-une-forme.holo`.
 
 ## 6 terquinquagies. Mélanger des sons
 
