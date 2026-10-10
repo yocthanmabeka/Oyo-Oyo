@@ -1,0 +1,13 @@
+// Pour l'essai de la mémoire de visite (ADR-113) : la leçon 136 retient « prenom », un texte ;
+// cette page du même site le retient aussi, mais en fait un nombre. Le texte retenu là-bas est
+// ignoré ici, sans erreur, et laissé tel quel pour la leçon.
+
+Page(
+  title: "Une autre sorte",
+  state: State(prenom: 0, personnes: 1),
+  visit: [prenom, personnes],
+  children: [
+    H1("Une autre sorte"),
+    P("Prénom : {prenom} ; personnes : {personnes}."),
+  ],
+)
