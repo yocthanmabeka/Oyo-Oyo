@@ -100,7 +100,7 @@ Ce qui change pour les pages d'avant : une `Shape` en triangle ou en losange se 
 - D'autres formes (pentagone, octogone, flèche, chevron, bulle, croix) ; une forme qu'on oriente (le triangle pointe vers le haut : `rotate: 180deg` le retourne en attendant) ; la vague en haut d'un bloc.
 - Une ombre et un bord qui suivent un polygone : il faudrait un bloc autour, et `drop-shadow`, laissé en dette par `ADR-108`.
 - Découper un conteneur sans couper son texte : il faudrait que le texte suive la forme (`shape-inside`), ce que les navigateurs n'ont pas.
-- Une ombre ou un bord qu'un autre style donne dans un état (`Image { hover: { box-shadow: … } }`) à une image découpée : la vérification ne regarde que les réglages hors des états des autres styles.
+- La vérification croisée (une ombre ou un bord venus d'un autre style) ne regarde que les réglages hors des états : une ombre qu'un autre style donne au survol (`Image { hover: { box-shadow: … } }`), ou une forme écrite seulement dans un état d'écran (`phone: { form: hexagon; }`) face à l'ombre d'un autre style, ne sont pas vues. Dans un même style, les états comptent.
 - Une image qui ne se charge pas montre son texte de remplacement à sa place, découpé avec elle ; un lecteur d'écran, lui, le lit toujours.
 - Passer d'une forme à l'autre en douceur (`Loop(form:)`, proposé dans la piste 9 de l'exploration du web complet).
 - Le cœur et la vague sont des polygones de 40 et 35 points : à 400 px, on devine leurs facettes ; `shape()` du CSS tracera des courbes quand tous les navigateurs l'auront.

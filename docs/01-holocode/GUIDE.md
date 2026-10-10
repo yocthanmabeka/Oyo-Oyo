@@ -2289,7 +2289,7 @@ Image { width: 120px; aspect-ratio: 1; }
 - **Une image ou un dessin, jamais un texte** : un bloc qui porte un texte, un bouton, une vidéo ou les pièces d'un plateau serait coupé avec eux. Pour un titre sur une bannière qui ondule, une `Stack` : l'image découpée dessous, le titre dessus.
 - **Le cadre de focus se voit toujours.** Une `Shape` qu'on touche le garde autour d'elle, et se touche sur tout son carré, au doigt comme à la souris. Une image découpée qui a le focus du clavier (une règle l'écoute au survol) se montre entière, avec son cadre.
 - **Le rond garde son bord et son ombre** (`border`, `box-shadow`) : ils suivent sa courbe. Les autres formes les couperaient : ils sont refusés, même venus d'un autre style ; `border: none;` et `box-shadow: none;` les retirent.
-- Une forme peut changer dans `phone:`, `computer:`, `narrow:`, `dark:` ou `print:` ; jamais au survol, à l'appui ou au focus (au bord de la forme, le bloc clignoterait).
+- Une forme peut changer dans `phone:`, `computer:`, `narrow:`, `dark:` ou `print:` ; jamais au survol ni à l'appui (au bord de la forme, le bloc clignoterait), ni au focus (le moteur le montre déjà entier).
 - Refusés, avec la raison : `clip-path` et `clip` (« s'écrit `form: hexagon` ») ; `form: polygon(…)` ; `form` sur un texte, un conteneur, une vidéo, ou dans le style d'une `Shape` (sa forme s'écrit sur elle) ; `border-radius` avec `form` dans le même style ; un fond, une ombre ou un bord sur une `Shape` en polygone (sa couleur : `Shape(color:)`).
 
 Cette écriture est décidée (`ADR-111`). La leçon est `134-decouper-une-forme.holo`.
