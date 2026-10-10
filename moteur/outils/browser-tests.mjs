@@ -944,6 +944,140 @@ const tests = [
       && violations.length === 0;
     return [ok, `avant tout toucher : ${phone.untouched} vibration ; puis ${phone.buzz.map((m) => `[${m}]`).join(", ")} (le toucher, puis la rencontre), ${phone.tries} demandées, ${phone.caught} prise ; mouvement réduit : « ${reduced.said} », ${reduced.buzz - phone.buzz.length} vibration de plus, ${reduced.tries} demandées ; sans vibreur : navigator.vibrate ${iphone.vibrate}, « ${iphone.said} », ${iphone.tries} demandée, ${iphone.caught} prise, ${iphone.errors.length} erreur ; axe-core : ${violations.length ? violations.join(" ; ") : "zéro défaut"}`];
   }],
+  ["découper une forme : une image en rond, en hexagone, en étoile, en cœur, en vague ; huit formes de Shape ; le cadre de focus se voit autour d'une forme qu'on touche et d'une image découpée ; au doigt, à la souris, au clavier, au lecteur d'écran, et sans JavaScript (leçon 134)", async (p, b) => {
+    // ADR-111 : `form:` dans un style découpe une image ou un dessin ; une Shape en polygone se
+    // dessine dans son bouton, qui n'est jamais découpé lui-même ; au focus du clavier, une image
+    // découpée se montre entière. Sans cela, `clip-path` coupe le cadre de focus (vu dans Chrome).
+    const lesson = "/exemples/lecons/134-decouper-une-forme.holo";
+    const faults = [];
+    const check = (name, ok, seen) => { if (!ok) faults.push(`${name} : ${seen}`); };
+    // Les découpes que reçoit la page : le nombre de sommets de chaque polygone, ou « none ».
+    const cuts = () => p.value(`(() => {
+      const of = (e, pseudo) => { const c = getComputedStyle(e, pseudo).clipPath; return c.startsWith("polygon(") ? c.split(",").length : c; };
+      const images = ["rond", "ruche", "etoile", "coeur", "vague"].map((n) => { const e = document.querySelector(".holo-s-" + n); return e ? n + ":" + of(e) + (n === "rond" ? " " + getComputedStyle(e).borderRadius : "") : n + ":absente"; });
+      const shapes = [...document.querySelectorAll(".holo-Shape")].map((e) => ([...e.classList].find((c) => c.startsWith("holo-forme-")) ?? "?").slice(11) + ":" + of(e) + "/" + of(e, "::before"));
+      return images.join(" ") + " | " + shapes.join(" ");
+    })()`);
+    const expected = "rond:none 50% ruche:6 etoile:10 coeur:40 vague:35 | circle:none/none square:none/none triangle:none/3 diamond:none/4 hexagon:none/6 star:none/10 heart:none/40 wave:none/35 star:none/10";
+    // Le cadre de focus, vu à l'écran : une capture autour du bloc, avant puis pendant le focus du
+    // clavier, et les pixels qui changent dans la bande de 8 px qui l'entoure. Sans cadre, aucun.
+    const { inflateSync } = await import("node:zlib");
+    const pixels = (png) => {
+      const data = Buffer.from(png, "base64");
+      let [at, width, height, bytes] = [8, 0, 0, 4];
+      const packed = [];
+      while (at < data.length) {
+        const [length, kind] = [data.readUInt32BE(at), data.toString("latin1", at + 4, at + 8)];
+        if (kind === "IHDR") [width, height, bytes] = [data.readUInt32BE(at + 8), data.readUInt32BE(at + 12), data[at + 17] === 6 ? 4 : 3];
+        if (kind === "IDAT") packed.push(data.subarray(at + 8, at + 8 + length));
+        at += 12 + length;
+      }
+      const [raw, stride] = [inflateSync(Buffer.concat(packed)), width * bytes];
+      const out = Buffer.alloc(height * stride);
+      for (let y = 0; y < height; y++) {
+        const filter = raw[y * (stride + 1)];
+        for (let x = 0; x < stride; x++) {
+          const [left, up, corner] = [x >= bytes ? out[y * stride + x - bytes] : 0, y ? out[(y - 1) * stride + x] : 0, x >= bytes && y ? out[(y - 1) * stride + x - bytes] : 0];
+          const guess = left + up - corner;
+          const paeth = Math.abs(guess - left) <= Math.abs(guess - up) && Math.abs(guess - left) <= Math.abs(guess - corner) ? left : Math.abs(guess - up) <= Math.abs(guess - corner) ? up : corner;
+          out[y * stride + x] = (raw[y * (stride + 1) + 1 + x] + [0, left, up, (left + up) >> 1, paeth][filter]) & 255;
+        }
+      }
+      return { width, height, bytes, out };
+    };
+    const shot = async (selector) => {
+      const box = await p.value(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); const r = e.getBoundingClientRect(); return [r.left + scrollX - 8, r.top + scrollY - 8, r.width + 16, r.height + 16]; })()`);
+      return pixels((await b.send("Page.captureScreenshot", { format: "png", clip: { x: box[0], y: box[1], width: box[2], height: box[3], scale: 1 } })).result.data);
+    };
+    const band = (before, during) => {
+      let changed = 0;
+      for (let y = 0; y < before.height; y++) for (let x = 0; x < before.width; x++) {
+        if (x >= 8 && x < before.width - 8 && y >= 8 && y < before.height - 8) continue;
+        const [i, j] = [(y * before.width + x) * before.bytes, (y * during.width + x) * during.bytes];
+        if (Math.abs(before.out[i] - during.out[j]) + Math.abs(before.out[i + 1] - during.out[j + 1]) + Math.abs(before.out[i + 2] - during.out[j + 2]) > 60) changed++;
+      }
+      return changed;
+    };
+    // Tab jusqu'au bloc, depuis rien : le focus du clavier, et le cadre qu'on voit, ou non.
+    const frame = async (selector) => {
+      await p.value(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); e.scrollIntoView({ block: "center" }); document.activeElement?.blur(); return true; })()`);
+      await pause(200);
+      const before = await shot(selector);
+      const reached = `document.activeElement === document.querySelector(${JSON.stringify(selector)})`;
+      for (let i = 0; i < 40 && !(await p.value(reached)); i++) await p.key("Tab", "Tab", 9);
+      if (!(await p.value(reached))) return { visible: false, seen: "pas atteint au clavier" };
+      await pause(200);
+      const changed = band(before, await shot(selector));
+      const state = await p.value(`(() => { const e = document.activeElement; return (e.matches(":focus-visible") ? "focus-visible" : "focus sans focus-visible") + ", découpe " + getComputedStyle(e).clipPath.slice(0, 12); })()`);
+      return { visible: changed >= 40 && state.startsWith("focus-visible"), seen: `${state}, ${changed} pixels du cadre autour` };
+    };
+    const count = () => p.value(`document.getElementById("page").innerText.match(/touché l'étoile (\\d+) fois/)?.[1] ?? "?"`);
+    // La page arrive légère : le moteur vient au premier geste, et le rejoue.
+    await p.open(lesson);
+    const seen = await cuts();
+    check("les découpes", seen === expected, seen);
+    // Le lecteur d'écran : l'étoile est un bouton nommé ; les images gardent leur texte.
+    const { nodes } = (await b.send("Accessibility.getFullAXTree")).result;
+    const said = (role, name) => nodes.some((n) => !n.ignored && n.role?.value === role && n.name?.value === name);
+    check("lecteur d'écran", said("button", "Etoile") && said("image", "Le lac au matin, dans un hexagone") && said("image", "Le lac au matin, dans un cœur"), nodes.filter((n) => !n.ignored && ["button", "image"].includes(n.role?.value)).map((n) => `${n.role.value} « ${n.name?.value} »`).join(", "));
+    // Au clavier : le cadre de la forme qu'on touche se voit autour d'elle, et l'étoile se touche.
+    const star = await frame('[data-name="Etoile"]');
+    check("le cadre de focus de l'étoile", star.visible, star.seen);
+    await p.key("Enter", "Enter", 13, "\r");
+    await p.until(`document.getElementById("page").innerText.includes("touché l'étoile 1 fois")`, 40000);
+    // Le moteur arrivé redessine la page : le clavier revient sur l'étoile, puis Espace.
+    for (let i = 0; i < 40 && !(await p.value(`document.activeElement === document.querySelector('[data-name="Etoile"]')`)); i++) await p.key("Tab", "Tab", 9);
+    await p.key(" ", "Space", 32, " ");
+    await p.until(`document.getElementById("page").innerText.includes("touché l'étoile 2 fois")`, 5000);
+    const keyboard = await count();
+    // L'image découpée qu'une règle écoute au survol : au focus, entière, avec son cadre ; le survol
+    // vient aussi du clavier (ADR-039).
+    const hexagon = await frame(".holo-s-ruche");
+    check("le cadre de focus de l'image découpée", hexagon.visible, hexagon.seen);
+    const hovered = await p.until(`document.getElementById("page").innerText.includes("Six côtés")`, 5000);
+    // À la souris : au milieu de l'étoile, puis dans un coin de son carré, hors de la branche : tout le carré se touche.
+    await p.value(`document.activeElement?.blur()`);
+    await p.click('[data-name="Etoile"]');
+    await p.until(`document.getElementById("page").innerText.includes("touché l'étoile 3 fois")`, 5000);
+    const corner = await p.value(`(() => { const r = document.querySelector('[data-name="Etoile"]').getBoundingClientRect(); return [r.left + 4, r.top + 4]; })()`);
+    for (const type of ["mousePressed", "mouseReleased"]) await b.send("Input.dispatchMouseEvent", { type, x: corner[0], y: corner[1], button: "left", clickCount: 1 });
+    await p.until(`document.getElementById("page").innerText.includes("touché l'étoile 4 fois")`, 5000);
+    const mouse = await count();
+    // Au doigt : un toucher au milieu de l'étoile.
+    const middle = await p.value(`(() => { const r = document.querySelector('[data-name="Etoile"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+    await b.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: middle[0], y: middle[1], id: 1 }] });
+    await b.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await p.until(`document.getElementById("page").innerText.includes("touché l'étoile 5 fois")`, 5000);
+    const finger = await count();
+    check("au clavier (Entrée, Espace), à la souris (le milieu, un coin), au doigt", keyboard === "2" && mouse === "4" && finger === "5" && hovered, `clavier ${keyboard}, souris ${mouse}, doigt ${finger}, survol au clavier : ${hovered}`);
+    if (b.errors.length) faults.push(`erreurs : ${b.errors.join(" | ")}`);
+    // L'audit d'accessibilité de la leçon.
+    await p.value(readFileSync(join(engine, "node_modules", "axe-core", "axe.min.js"), "utf8") + "\n;0");
+    const violations = await p.value(`window.axe.run(document, { resultTypes: ["violations"] }).then((r) => r.violations.map((v) => v.id + " : " + v.nodes.map((n) => n.html.slice(0, 80)).join(" | ")))`);
+    check("axe-core", violations.length === 0, violations.join(" ; "));
+    // Sur un téléphone (360 de large) : rien ne déborde.
+    try {
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 360, height: 760, deviceScaleFactor: 2, mobile: true });
+      await p.open(lesson, 600);
+      const wide = await p.value("document.documentElement.scrollWidth");
+      check("téléphone : rien ne déborde", wide <= 360, `${wide} px pour 360`);
+    } finally {
+      await b.send("Emulation.clearDeviceMetricsOverride");
+    }
+    // Sans JavaScript : les mêmes découpes, et au clavier l'image découpée se montre entière.
+    let withoutScript = "", focusedWithout = "";
+    try {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+      await p.open(lesson, 300);
+      withoutScript = await cuts();
+      for (let i = 0; i < 40 && !(await p.value(`document.activeElement === document.querySelector(".holo-s-ruche")`)); i++) await p.key("Tab", "Tab", 9);
+      focusedWithout = await p.value(`(() => { const e = document.querySelector(".holo-s-ruche"); return document.activeElement === e ? getComputedStyle(e).clipPath : "pas atteinte"; })()`);
+    } finally {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+    }
+    check("sans JavaScript", withoutScript === expected && focusedWithout === "none", `${withoutScript} ; au focus : ${focusedWithout}`);
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : `${seen} ; lecteur d'écran : un bouton « Etoile », les images nommées ; au clavier : l'étoile (${star.seen}), l'image en hexagone (${hexagon.seen}) ; touchée au clavier ${keyboard}, à la souris ${mouse} (le coin compris), au doigt ${finger} ; axe-core : zéro défaut ; téléphone : rien ne déborde ; sans JavaScript : les mêmes découpes, au focus « ${focusedWithout} »`];
+  }],
   ["mélanger des sons : deux à la fois, le fondu qui monte puis descend, le volume qui suit sa glissière (leçon 135)", async (p, b) => {
     await p.open("/exemples/lecons/135-melanger-des-sons.holo");
     const audio = (name) => `document.querySelector('audio[data-name="${name}"]')`;
