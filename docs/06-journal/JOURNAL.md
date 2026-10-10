@@ -16,6 +16,7 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
   - La leçon 126, le guide (« 6 quaterquadragies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons, un essai dans Chrome.
 - Fini par la session du nuage :
   - `main` fusionnée (les PR 256 à 263) : NOMS, l'essai Chrome et `styles.rs` résolus en gardant les deux côtés, rangés par numéro ; le guide sans conflit.
+  - puis `main` de nouveau (les PR 264, 266 et 265), en style diff3 : dans `blocks.rs`, `Split` et `Embed` (la #266) gardés tous les deux, dans la ligne `BLOCKS` et à la fin des réglages des blocs ; les lignes de NOMS et de `styles.rs` rangées par numéro ; le fichier des essais vérifié ligne à ligne (celui de `main`, plus l'essai des textes) ; `cargo test --release --locked` : **291** passent.
   - cette entrée du journal, la preuve complète, la preuve que l'essai sait échouer, la PR.
 - Exécuté (conteneur du nuage, Linux, Chromium 1194) :
   - après la fusion de `main` : `cargo test --release --locked`, **268** passent, 0 échec.
