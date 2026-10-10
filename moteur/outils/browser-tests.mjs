@@ -1246,6 +1246,7 @@ const tests = [
       other.close();
       await pause(300);
       try { rmSync(folder, { recursive: true, force: true }); } catch { /* tant pis */ }
+    }
   }],
   ["une page dans la page : rien vers l'autre site avant le toucher ; au toucher, au clavier comme au doigt, la page intégrée enfermée, avec son titre, et le clavier y entre ; frame-src ; sans JavaScript, un lien (leçon 140, serve)", async (p, b) => {
     // ADR-117. Ce conteneur n'atteint ni OpenStreetMap ni YouTube : Chrome arrête chaque demande vers
