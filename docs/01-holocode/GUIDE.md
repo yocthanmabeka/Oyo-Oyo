@@ -1969,6 +1969,45 @@ Page(
 
 La leçon est `124-une-citation-courte.holo`.
 
+## 6 quinquadragies. Une grille qui place ses cases : plusieurs colonnes, des zones
+
+Une case plus grande que les autres, et une page dessinée avec des mots (`ADR-104`).
+
+```holo
+Page(
+  title: "The painters' garden",
+  children: [
+    H1("The painters' garden"),
+    Grid(columns: 3, gap: 12px, children: [
+      Column(columnSpan: 2, rowSpan: 2, children: [ H2("The painting of the month"), P("Two columns, two rows.") ]),
+      P("The blue door"),
+      P("Market day"),
+      P("The river"),
+    ]),
+    Grid(areas: [
+      "top  top  top",
+      "menu main main",
+    ], children: [
+      Text("Open from Tuesday to Sunday", area: top),
+      Nav(area: menu, children: [ A("Home", to: "home.holo") ]),
+      Column(area: main, children: [ P("The garden is visited on foot.") ]),
+    ]),
+  ],
+)
+```
+
+- **`columnSpan: 2`** sur un bloc rangé dans `Grid` : sa case prend deux colonnes, au plus celles de la grille (`columns:`, 2 sans rien écrire). **`rowSpan: 2`** : deux lignes, de 2 à 12.
+- **Rien ne déborde.** Une grille perd des colonnes sur un écran étroit (partie 4 bis) ; quand elle n'en a plus assez pour la case, la case prend toute la ligne, et une seule ligne. En CSS, la grille ajouterait une colonne, et la page glisserait de côté sur un téléphone.
+- **`Grid(areas: ["top top top", "menu main main"])`** dessine la grille avec des mots : une ligne de texte par rangée, les noms des zones séparés par des espaces, autant de cases à chaque ligne (12 au plus, et 12 lignes). Une zone prend les cases qui portent son nom, et forme un rectangle ; un point (`.`) laisse une case vide. Les colonnes ont la même largeur : pour un menu plus étroit, on écrit son nom moins de fois (`menu main main`).
+- **`area: menu`** : chaque bloc d'une grille à zones dit sa zone, et chaque zone reçoit un bloc, un seul (pour en ranger plusieurs, un `Column`). Un nom de zone s'écrit comme une valeur : `menu`, `sideMenu`.
+- **Les blocs s'écrivent dans l'ordre des zones**, de gauche à droite puis de haut en bas : l'œil, la touche Tab et le lecteur d'écran suivent ainsi le même chemin. Sinon, le moteur refuse et donne l'ordre. (Le CSS laisse une zone passer devant une autre à l'écran sans changer l'ordre de lecture : un défaut qu'on ne reprend pas.)
+- **Sur un téléphone, les zones passent l'une sous l'autre**, dans cet ordre. Elles restent côte à côte tant que la grille a au moins 480px de large et que chaque zone y garde 120px. C'est la largeur de la grille qui compte, pas celle de l'écran : posée dans une case étroite, une grille à zones s'empile aussi. `phone:` et `narrow:` changent l'allure des cases, comme ailleurs.
+- Un `If` peut remplir une zone : quand il est faux, sa case ne laisse pas de trou. Un bloc qui bouge (`enter:`) garde sa case. Sans JavaScript, tout marche : la grille se mesure elle-même, en CSS fabriqué par le moteur.
+- La place se dit sur le bloc, jamais dans un style : `grid-column`, `grid-row`, `grid-area` et `grid-template-areas` sont refusés dans un style, avec le bon mot.
+- Refusés, avec la raison : `columnSpan:` plus grand que la grille, ou `1` ; `rowSpan:` au-delà de 12 ; ces réglages hors d'une grille, sur une fenêtre (`Dialog`) ou sur un son sans lecteur ; `columns:` avec `areas:` ; des lignes de longueurs différentes, une zone qui n'est pas un rectangle, une ligne de cases vides, une seule zone ; un bloc sans zone, une zone inconnue, deux blocs dans une zone, une zone sans bloc, des blocs dans le désordre ; `columnSpan:` dans une grille à zones.
+
+La leçon est `127-une-grille-et-ses-zones.holo`.
+
 ## 6 sexquadragies. Réordonner une liste : `reorder: true`
 
 Le visiteur range lui-même les lignes d'une liste : ses tâches par ordre d'importance, ses tableaux préférés, les étapes d'un voyage (`ADR-105`).
