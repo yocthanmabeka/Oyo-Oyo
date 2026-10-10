@@ -42,6 +42,8 @@ pub mod movement;
 pub mod navigation;
 // Des nombres négatifs (ADR-102) : `negative: [temperature]`.
 pub mod negative;
+// Le champ mot de passe (ADR-114) : la page ne le lit jamais ; il part seulement avec son formulaire.
+pub mod password;
 pub mod tools;
 pub mod flat;
 pub mod rules;
@@ -105,6 +107,9 @@ pub fn check_page(source: &str) -> Result<Program, Error> {
     let program = holo::read(source)?;
     blocks::check_blocks(&program)?;
     styles::check_styles(&program)?;
+    // Les champs mot de passe (ADR-114) : avant tout ce qui lit les valeurs, car ils n'en ont pas
+    // (`value:` refusé, avec la raison, même pour une valeur partagée).
+    password::check(&program)?;
     // Les valeurs partagées (ADR-079) : rien ne les change sans passer par le serveur.
     shared::check(&program)?;
     // Les listes calculées (lot 2 du web) : d'abord, car les lignes et les règles les nomment.
@@ -317,8 +322,14 @@ pub fn visitor_page(source: &str, base: &str, state: &str, tried: &[String]) -> 
     let html = with_shared_mark(&program, flat::site_html_from(&program, &program.root, base, "", Some(&start))?, state);
     let written = state.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
     let mut page = gestures::without_script(&html.replacen(" data-title=\"", &format!(" data-visit=\"{written}\" data-title=\""), 1), &shared::keyed_lists(&program));
-    for form in tried {
-        let errors: Vec<(String, String)> = form_errors(source, state, form).lines().filter_map(|line| line.split_once('|')).map(|(bind, message)| (bind.to_string(), message.to_string())).collect();
+    for tried in tried {
+        // Un mot de passe refusé (ADR-114) : le serveur n'a gardé que le code du refus, `Login:wrong`,
+        // jamais le mot de passe ; son message s'écrit sous le champ, dans la langue de la page.
+        let (form, code) = tried.split_once(':').unwrap_or((tried.as_str(), ""));
+        let mut errors: Vec<(String, String)> = form_errors(source, state, form).lines().filter_map(|line| line.split_once('|')).map(|(bind, message)| (bind.to_string(), message.to_string())).collect();
+        if password::is_code(code) && password::of_named_form(&program, form).is_some() {
+            errors.push((password::FIELD.to_string(), password::message(&program, form, code)));
+        }
         page = gestures::with_errors(&page, form, &errors);
     }
     Ok(page)
@@ -579,6 +590,15 @@ pub fn form_errors(source: &str, state: &str, form_name: &str) -> String {
         .map(|(field, message)| format!("{field}|{message}"))
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// Ce qui ne va pas dans le mot de passe d'un formulaire (ADR-114), d'après sa seule longueur, en
+/// caractères (des points de code Unicode) : `holo-password|Au moins 12 caractères.`. Le moteur ne
+/// reçoit jamais le mot de passe lui-même. `secure` : la page est en HTTPS, ou sur ce PC. Vide :
+/// il peut partir, ou le formulaire n'a pas de mot de passe.
+pub fn password_errors(source: &str, form_name: &str, length: usize, secure: bool) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    password::errors(&program, form_name, length, secure).into_iter().map(|(field, message)| format!("{field}|{message}")).collect::<Vec<_>>().join("\n")
 }
 
 /// Pour le serveur : ce qu'un formulaire a envoyé est-il bon ? Une ligne par erreur ; vide s'il

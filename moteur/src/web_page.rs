@@ -231,6 +231,13 @@ pub fn form_errors(source: &str, state: &str, form_name: &str) -> String {
     crate::form_errors(source, state, form_name)
 }
 
+/// Ce qui ne va pas dans le mot de passe d'un formulaire (ADR-114), d'après sa seule longueur, en
+/// caractères : `holo-password|message`. Le mot de passe lui-même n'entre jamais dans le moteur.
+#[wasm_bindgen]
+pub fn password_errors(source: &str, form_name: &str, length: usize, secure: bool) -> String {
+    crate::password_errors(source, form_name, length, secure)
+}
+
 /// Une date « 2026-10-07 » dans la langue de la page : « 7 octobre 2026 », « mercredi » (ADR-067).
 #[wasm_bindgen]
 pub fn format_date(text: &str, format: &str, language: &str) -> String {

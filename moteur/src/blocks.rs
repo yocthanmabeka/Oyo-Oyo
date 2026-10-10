@@ -67,7 +67,8 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     ("Board", &["name", "children", "height"]),
     ("Point", &["name", "seed", "brightness", "fragments", "color", "palette", "budget", "inside", "above"]),
     // Des suggestions pendant qu'on écrit (ADR-100) : suggestions: ["Paris", "Lyon"], ou une liste de la page.
-    ("Input", &["name", "value", "label", "min", "max", "lines", "type", "accept", "required", "suggestions"]),
+    // Un mot de passe que le visiteur choisit (ADR-114) : Input(type: password, new: true, label: "…").
+    ("Input", &["name", "value", "label", "min", "max", "lines", "type", "accept", "required", "suggestions", "new"]),
     ("Slider", &["name", "value", "label", "min", "max"]),
     ("Progress", &["name", "value", "max", "label"]),
     ("Details", &["name", "summary", "children", "open"]),

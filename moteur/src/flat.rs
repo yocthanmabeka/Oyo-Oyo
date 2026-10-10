@@ -39,6 +39,11 @@ grid-template-columns:repeat(auto-fill,minmax(min(100%,max(7.5rem,calc((100% - (
 :where(.holo-Input){display:flex;flex-direction:column;gap:4px;align-items:flex-start}\
 :where(.holo-Input input){font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 10px;width:120px}\
 :where(.holo-Input input[type=text]){width:min(100%,280px);box-sizing:border-box}:where(.holo-Input input[type=file]){width:min(100%,360px);box-sizing:border-box}\
+:where(.holo-password){display:grid;grid-template-columns:minmax(0,max-content) auto;gap:4px 8px;align-items:end;justify-content:start}\
+:where(.holo-password>label){display:flex;flex-direction:column;gap:4px;align-items:flex-start;min-width:0}:where(.holo-password input){width:min(100%,280px);box-sizing:border-box}\
+:where(.holo-reveal){font:inherit;color:inherit;cursor:pointer;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 12px;min-height:24px}\
+:where(.holo-reveal[aria-pressed=true]){background:color-mix(in srgb,currentColor 18%,transparent)}:where(.holo-reveal[hidden]){display:none}\
+:where(.holo-password>p){grid-column:1/-1;margin:0;font-size:.9em}:where(.holo-password input:disabled){opacity:.6;cursor:not-allowed}\
 :where(.holo-Checkbox){display:flex;align-items:center;gap:8px;cursor:pointer}\
 :where(.holo-Checkbox input){width:18px;height:18px;margin:0;accent-color:currentColor}\
 :where(.holo-Input textarea){font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 10px;width:min(100%,480px);box-sizing:border-box;resize:vertical}\
@@ -141,6 +146,11 @@ pub fn site_html_from(program: &Program, page: &Block, base: &str, title: &str, 
 thread_local! {
     /// La langue de la page en cours : le texte caché d'un lien vers un nouvel onglet la suit (ADR-073).
     static LANGUAGE: std::cell::RefCell<String> = const { std::cell::RefCell::new(String::new()) };
+}
+
+thread_local! {
+    /// Le formulaire dont on fabrique les champs : un mot de passe porte son nom (ADR-114).
+    static FORM: std::cell::RefCell<String> = const { std::cell::RefCell::new(String::new()) };
 }
 
 fn set_language(program: &Program) {
@@ -1512,6 +1522,13 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
         }
         // Un champ où le visiteur écrit un nombre, et une case qu'il coche. Chacun présente une
         // valeur de la page ; l'étiquette est obligatoire (ADR-027). `etat.rs` les a vérifiés.
+        // Un mot de passe (ADR-114) : sans valeur, ni nom, ni longueur qui le couperait ; son bouton
+        // « Montrer » et sa note suivent la langue de la page.
+        "Input" if crate::password::is_password(block) => {
+            let french = LANGUAGE.with(|l| l.borrow().is_empty() || l.borrow().starts_with("fr"));
+            let form = FORM.with(|f| f.borrow().clone());
+            output.push_str(&crate::password::html(block, &classes, &form, french));
+        }
         "Input" | "Checkbox" => {
             let (Some(Value::Name(value)), Some(Value::Text(label))) = (block.argument("value").map(|a| &a.value), block.argument("label").map(|a| &a.value)) else {
                 return Err(Error { message: format!("« {} » attend « value » et « label »", block.name), pos: block.pos });
@@ -2038,7 +2055,10 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
                 }
             }
             output.push_str(&format!("<form class=\"{classes}\"{name} novalidate>"));
-            children(block, output, worlds, base)?;
+            FORM.with(|f| *f.borrow_mut() = name_of(block).unwrap_or_default().to_string());
+            let made = children(block, output, worlds, base);
+            FORM.with(|f| f.borrow_mut().clear());
+            made?;
             output.push_str("</form>");
         }
         "Point" => {

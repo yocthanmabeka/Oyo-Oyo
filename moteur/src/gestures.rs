@@ -79,6 +79,15 @@ pub fn without_script(html: &str, keyed: &[String]) -> String {
             }
             continue;
         }
+        // Un mot de passe (ADR-114) : rattaché sous le nom de son formulaire, `holo-password-Login`.
+        // Il n'a pas de valeur : le serveur le prend à part, ne s'en sert que pour l'envoi de ce
+        // formulaire, et ne le range nulle part. Hors HTTPS, `holo serve` le ferme (password::closed).
+        if let (true, Some(form)) = (tag.starts_with("<input") && tag.contains(" data-secret=\""), attribute(tag, "data-form")) {
+            if form.chars().all(|c| c.is_ascii_alphanumeric()) {
+                output.push_str(&tag.replacen("<input", &format!("<input form=\"{FORM}\" name=\"{}-{form}\"", crate::password::FIELD), 1));
+                continue;
+            }
+        }
         let field = tag.starts_with("<input") || tag.starts_with("<textarea") || tag.starts_with("<select");
         match (field, attribute(tag, "data-bind")) {
             (true, Some(bind)) if !tag.contains("type=\"file\"") && bind.chars().all(|c| c.is_ascii_alphanumeric()) => {
@@ -114,6 +123,22 @@ pub fn with_errors(html: &str, form: &str, errors: &[(String, String)]) -> Strin
         let id = format!("holo-error-{form}-{bind}");
         let note = format!("<p class=\"holo-error\" id=\"{id}\">{}</p>", message.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;"));
         let marks = format!(" aria-invalid=\"true\" aria-describedby=\"{id}\"");
+        // Un mot de passe (ADR-114) : le message vient après son explication et sa note ; le champ
+        // garde son explication (`data-hint`).
+        if bind == crate::password::FIELD {
+            let Some(at) = inside.find(" data-secret=\"") else { continue };
+            let hint = inside[at..].split('>').next().and_then(|tag| attribute(tag, "data-hint")).map(|hint| format!("{hint} ")).unwrap_or_default();
+            let described = inside[at..].split('>').next().and_then(|tag| attribute(tag, "aria-describedby")).map(|old| format!(" aria-describedby=\"{old}\""));
+            if let Some(described) = described {
+                let at_described = at + inside[at..].find(&described).unwrap_or(0);
+                inside.replace_range(at_described..at_described + described.len(), "");
+            }
+            inside.insert_str(at, &format!(" aria-invalid=\"true\" aria-describedby=\"{hint}{id}\""));
+            if let Some(after) = inside[at..].find(" class=\"holo-password-note\"").and_then(|n| inside[at + n..].find("</p>").map(|p| at + n + p + 4)) {
+                inside.insert_str(after, &note);
+            }
+            continue;
+        }
         // Un groupe de boutons ronds (`fieldset`), ou un champ dans son `label`.
         let (marker, closing) = match inside.find(&format!(" data-group=\"{bind}\"")) {
             Some(_) => (format!(" data-group=\"{bind}\""), "</fieldset>"),

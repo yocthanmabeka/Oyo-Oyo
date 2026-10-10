@@ -1392,6 +1392,17 @@ pub fn check_submission(program: &Program, json: &str) -> Vec<(String, String)> 
         }
     }
     errors.extend(form_errors(program, &numbers, &texts, form_name));
+    // Le mot de passe (ADR-114) : à côté des valeurs, jamais parmi elles ; un seul, en texte, et
+    // seulement si le formulaire en a un. Les messages ne disent jamais ce qui a été envoyé. Que
+    // l'envoi vienne d'une page en HTTPS, c'est le serveur qui le sait : ici, on le suppose.
+    let sent: Vec<&Json> = top.iter().filter(|(k, _)| k == crate::password::KEY).map(|(_, v)| v).collect();
+    match (crate::password::of_form(form).is_some(), sent.as_slice()) {
+        (false, []) => {}
+        (false, _) => errors.push((crate::password::FIELD.to_string(), "champ inconnu".into())),
+        (true, []) => errors.extend(crate::password::errors(program, form_name, 0, true)),
+        (true, [Json::Text(typed)]) => errors.extend(crate::password::errors(program, form_name, typed.chars().count(), true)),
+        (true, _) => errors.push((crate::password::FIELD.to_string(), "un seul mot de passe, en texte".into())),
+    }
     errors
 }
 
@@ -1895,7 +1906,8 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                 return Err(Error { message: "« Choice » : deux options ont le même texte".into(), pos: block.pos });
             }
         }
-        if block.name == "Input" || block.name == "Checkbox" {
+        // Un champ mot de passe n'a pas de valeur (ADR-114) : il est vérifié dans password.rs.
+        if (block.name == "Input" || block.name == "Checkbox") && !crate::password::is_password(block) {
             let allowed: &[&str] = if block.name == "Input" { &["name", "value", "label", "min", "max", "lines", "type", "accept", "required", "suggestions"] } else { &["name", "value", "label", "required"] };
             let example = if block.name == "Input" { "Input(value: quantity, label: \"How many?\")" } else { "Checkbox(value: gift, label: \"Gift wrap\")" };
             for argument in &block.arguments {
@@ -1986,7 +1998,7 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                             return Err(Error { message: format!("« Input(type: {t}) » écrit un texte : sa valeur se déclare ainsi, state: State(arrivee: \"\")"), pos: argument.pos });
                         }
                     }
-                    (Some("type"), _) => return Err(Error { message: "« Input(type: …) » attend email, date, time, color ou file ; un nombre ou un texte se devinent tout seuls".into(), pos: argument.pos }),
+                    (Some("type"), _) => return Err(Error { message: "« Input(type: …) » attend email, date, time, color ou file (ou password, pour un mot de passe) ; un nombre ou un texte se devinent tout seuls".into(), pos: argument.pos }),
                     // `grow:` range le bloc dans Row ou Column (ADR-052) ; sa place est vérifiée ailleurs.
                     (Some("grow"), _) => {}
                     // Sa place dans une grille (ADR-104) : vérifiée avec la grille, dans grid.rs.
@@ -3279,17 +3291,18 @@ mod tests {
 
     #[test]
     fn a_text_is_compared_to_a_text() {
-        // Une taille choisie, une réponse écrite, deux mots de passe (ADR-063).
+        // Une taille choisie, une réponse écrite, deux codes (ADR-063). Ce furent deux mots de
+        // passe : un mot de passe n'entre plus dans les valeurs de la page (ADR-114).
         let source = r#"Page(
-  state: State(size: "M", answer: "", password: "", again: "", score: 0, label: """a;b|c=d"e%"""),
+  state: State(size: "M", answer: "", code: "", again: "", score: 0, label: """a;b|c=d"e%"""),
   children: [
     Choice(value: size, label: "Size", options: [ "S", "M", "L" ]),
     If(size, is: "L", children: [ "Large." ], else: [ "Not large." ]),
     If(size, not: "M", children: [ "Not medium." ]),
     Input(value: answer, label: "Capital of France"),
-    Input(value: password, label: "Password"),
+    Input(value: code, label: "Code"),
     Input(value: again, label: "Again"),
-    If(again, not: password, children: [ "The two differ." ]),
+    If(again, not: code, children: [ "The two differ." ]),
     If(label, is: """a;b|c=d"e%""", children: [ "Odd label." ]),
     Button(name: Pick, text: "Paris"),
     Button(name: Clear, text: "Clear"),
@@ -3310,14 +3323,14 @@ mod tests {
         let large = crate::input(source, &start, "size", "L");
         assert_eq!(
             crate::conditions(source, &large),
-            r#"size|is="L":1;size|not="M":1;again|not=password:0;label|is="a%3Bb%7Cc%3Dd%22e%25":1"#
+            r#"size|is="L":1;size|not="M":1;again|not=code:0;label|is="a%3Bb%7Cc%3Dd%22e%25":1"#
         );
         // À la lettre près : « l » n'est pas « L ».
         assert!(crate::conditions(source, &crate::input(source, &start, "size", "l")).starts_with(r#"size|is="L":0;"#));
         // Deux valeurs de texte comparées entre elles.
-        let typed = crate::input(source, &start, "password", "secret");
-        assert!(crate::conditions(source, &typed).contains("again|not=password:1"));
-        assert!(crate::conditions(source, &crate::input(source, &typed, "again", "secret")).contains("again|not=password:0"));
+        let typed = crate::input(source, &start, "code", "secret");
+        assert!(crate::conditions(source, &typed).contains("again|not=code:1"));
+        assert!(crate::conditions(source, &crate::input(source, &typed, "again", "secret")).contains("again|not=code:0"));
         // Une règle qui guette un texte : au moment où il devient « Paris », pas tant qu'il le reste.
         let score = |state: &str| state.split(';').find_map(|chunk| chunk.strip_prefix("score=")).unwrap_or("?").to_string();
         let mut state = start.clone();
