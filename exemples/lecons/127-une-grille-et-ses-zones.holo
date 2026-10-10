@@ -1,0 +1,69 @@
+// Leçon 127 — Une grille : une case sur plusieurs colonnes, des zones nommées
+//
+// Ce qu'on apprend :
+//   columnSpan: 2 sur un bloc rangé dans Grid : sa case prend deux colonnes ; rowSpan: 2, deux
+//   lignes. Quand la grille n'a pas assez de colonnes (sur un téléphone), la case prend toute la
+//   ligne : rien ne déborde.
+//   Grid(areas: [ "haut haut", "menu texte" ]) dessine la grille avec des mots, une ligne de
+//   texte par rangée ; chaque bloc dit sa zone, area: menu. Les blocs s'écrivent dans l'ordre
+//   des zones, de gauche à droite puis de haut en bas : l'œil, le clavier et le lecteur d'écran
+//   suivent le même chemin. Sur un téléphone, les zones passent l'une sous l'autre, dans cet ordre.
+//
+// À essayer :
+//   Rétrécis la fenêtre : la grande case prend toute la ligne, puis les zones s'empilent.
+//   Écris "texte texte menu" au lieu de "menu texte texte" : le moteur demande de ranger les
+//   blocs dans l'ordre des zones. Un point laisse une case vide : "menu texte .".
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 127 : une grille, des cases larges, des zones",
+  children: [
+    H1("Le jardin des peintres"),
+
+    H2("Les tableaux"),
+    Grid(columns: 3, gap: 12px, children: [
+      Column.tableau.vedette(columnSpan: 2, rowSpan: 2, children: [
+        H3("Le grand lever"),
+        P("Le tableau du mois prend deux colonnes et deux lignes."),
+      ]),
+      Column.tableau(children: [ H3("La porte bleue"), P("90 euros") ]),
+      Column.tableau(children: [ H3("Le marché"), P("150 euros") ]),
+      Column.tableau(children: [ H3("La rivière"), P("120 euros") ]),
+      Column.tableau(children: [ H3("Les toits"), P("80 euros") ]),
+      Column.tableau(children: [ H3("Le phare"), P("110 euros") ]),
+    ]),
+
+    H2("La page du jardin"),
+    Grid(areas: [
+      "haut haut  haut",
+      "menu texte texte",
+      "pied pied  pied",
+    ], children: [
+      Text.bandeau("Ouvert du mardi au dimanche", area: haut),
+      Nav.menu(area: menu, children: [
+        Column(gap: 8px, children: [
+          A("La disposition", to: "06-disposition.holo"),
+          A("Téléphone et ordinateur", to: "89-telephone-et-ordinateur.holo"),
+        ]),
+      ]),
+      Column(area: texte, children: [
+        P("Le jardin se visite à pied, entre les chevalets. Chaque peintre montre une toile, et en parle à qui veut l'écouter."),
+      ]),
+      Text.bandeau("12 rue des Arts, Paris", area: pied),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 124 : une citation courte, le titre d'une œuvre", to: "124-une-citation-courte.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.tableau { border: 1px solid #2a2a4e; border-radius: 8px; padding: 12px; }
+.vedette { background: #1a1a3e; border: 2px solid #E9B44C; }
+.bandeau { background: #E9B44C; color: #101020; border-radius: 8px; padding: 8px 12px; }
+.menu { border: 1px solid #2a2a4e; border-radius: 8px; padding: 8px 12px; }

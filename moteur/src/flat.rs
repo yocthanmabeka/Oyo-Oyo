@@ -118,6 +118,9 @@ pub fn site_html_from(program: &Program, page: &Block, base: &str, title: &str, 
     let html = raw_site_html(program, page, base, title, start);
     let movements = crate::movement::finish();
     let html = html?;
+    // Les cases placées dans une grille (ADR-104) : leurs règles, seulement si la page en a.
+    let cells = crate::grid::css(program);
+    let html = if cells.is_empty() { html } else { html.replacen("</style>", &format!("{cells}</style>"), 1) };
     if movements.is_empty() && !html.contains("holo-Scene") {
         return Ok(html);
     }
@@ -1126,6 +1129,17 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
         Value::Block(block) => block,
         _ => return Err(Error { message: "« children » contient des blocs ou des phrases entre guillemets".into(), pos: parent.pos }),
     };
+    // Une case de grille sur plusieurs colonnes ou lignes, ou dans une zone (ADR-104) : le bloc est
+    // enveloppé dans sa case, qui dit sa place ; il garde la sienne dans l'ordre de lecture. La case
+    // passe avant le mouvement : c'est elle que la grille range.
+    if let Some(cell) = crate::grid::cell(block, parent)? {
+        let mut remainder = block.clone();
+        remainder.arguments.retain(|a| !a.name.as_deref().is_some_and(|n| crate::grid::CELL_PARAMS.contains(&n)));
+        output.push_str(&format!("<div class=\"{}\" style=\"{}\">", cell.class, cell.style));
+        render(&Value::Block(remainder), output, worlds, base, parent)?;
+        output.push_str("</div>");
+        return Ok(());
+    }
     // Un bloc qui bouge (enter:, loop:) : on le fabrique sans ses mouvements, puis on
     // l'enveloppe dans eux (ADR-034).
     if let Some((movements, remainder)) = crate::movement::of_block(block)? {
@@ -1156,6 +1170,18 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
     }
     let classes = classes(block);
     let name = name_of(block).map(|n| format!(" data-name=\"{}\"", escape(n))).unwrap_or_default();
+    // Une grille qui place ses cases (ADR-104) : elle se mesure elle-même, pour que ses cases
+    // sachent si elles ont la place ; ses zones sont vérifiées avec ses enfants.
+    if block.name == "Grid" {
+        if let Some((placed, columns)) = crate::grid::grid(block)? {
+            let mut plain = block.clone();
+            plain.arguments.retain(|a| a.name.as_deref() != Some("areas"));
+            output.push_str(&format!("<div class=\"{classes}{placed}\"{name} style=\"{}{columns}\">", layout(&plain)?));
+            children(block, output, worlds, base)?;
+            output.push_str("</div>");
+            return Ok(());
+        }
+    }
     match block.name.as_str() {
         "Transfer" | "Device" | "Notification" | "Offline" => output.push_str(&crate::capabilities::html(block)),
         // Des scènes qui s'enchaînent, l'une après l'autre, au même endroit (ADR-034).
