@@ -493,7 +493,7 @@ Page(
 | Demande | Sens |
 |---|---|
 | `cart.add(1)` | Ajouter 1. |
-| `cart.sub(1)` | Retirer 1. La valeur ne descend jamais sous 0. |
+| `cart.sub(1)` | Retirer 1. La valeur ne descend jamais sous 0, sauf si la page la nomme dans `negative:` (voir « Des nombres négatifs »). |
 | `cart.set(0)` | Fixer à 0. |
 
 Les limites :
@@ -1969,6 +1969,40 @@ Page(
 
 La leçon est `124-une-citation-courte.holo`.
 
+## 6 terquadragies. Des nombres négatifs
+
+Une température, un solde, une position, l'écart entre deux scores (`ADR-102`).
+
+```holo
+Page(
+  title: "Weather",
+  state: State(temperature: -2, balance: -12.50),
+  negative: [temperature, balance],
+  children: [
+    P("Up there: {temperature} °C. Account: {balance} €"),
+    Button(name: Colder, text: "Colder"),
+    Button(name: Warmer, text: "Warmer"),
+    Input(value: temperature, label: "Temperature", min: -50, max: 50),
+    If(temperature, under: 0, children: [ "It freezes." ], else: [ "No frost." ]),
+    If(temperature, under: -20, children: [ "Big frost: stay inside." ]),
+  ],
+  rules: [
+    On(Colder.tap, effect: temperature.sub(5)),
+    On(Warmer.tap, effect: temperature.add(5)),
+  ],
+)
+```
+
+- **`negative: [temperature, balance]`**, sur la page : ces valeurs peuvent descendre sous zéro, jusqu'à −1 000 000 000. Les autres s'arrêtent à 0, comme avant : un panier ne compte jamais −1 article. Une valeur peut partir de sous zéro, `State(temperature: -2)`, seulement si elle est nommée là.
+- **`sub` passe sous zéro**, `set(-10)` fixe un nombre négatif, `mul(-1)` change le signe. Pour retirer, on écrit `sub(5)`, jamais `add(-5)`. Une autre valeur peut être négative : `x.add(speed)` retire quand `speed` vaut −3.
+- **Un nombre négatif se calcule comme sans son signe** : −7 ÷ 2 = −3, comme 7 ÷ 2 = 3 ; un arrondi met la moitié du côté opposé à zéro, −14,025 → −14,03. C'est exact, même à virgule (`balance: -12.50`).
+- **Les comparaisons** prennent un nombre négatif : `If(temperature, under: -20)`, `When(balance, under: -100, effect: …)`.
+- **`{temperature}` met le signe moins de la langue de la page** : « -2 » en français et en anglais, « −2 » en suédois. Les formats suivent : `{balance:number}` « -1 234 », `{balance:cents}` « -12,50 », `{temperature:00}` « -05 ».
+- **Un champ** présente un nombre négatif avec un clavier qui a le signe moins, au doigt comme au clavier ; ses bornes peuvent être négatives, `min: -50`. Des données reçues (`{"temperature": -3}`), une valeur gardée (`keep`) et un formulaire gardent le signe.
+- Pas encore : une glissière, une barre, une case, une place sur un plateau, un dessin, `limit:`, un module, un fichier exporté, l'adresse et une valeur partagée prennent un nombre qui ne descend pas sous zéro ; le moteur le dit.
+
+La leçon est `125-des-nombres-negatifs.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo
@@ -2061,7 +2095,7 @@ Page(
 - **Les comparaisons sont exactes**, même entre un entier et un nombre à virgule : `If(sum, over: 49.99)`.
 - **Un champ** présente une valeur à virgule avec le clavier décimal ; « 12,5 » et « 12.5 » sont compris.
 - **Des données reçues** : `{"price": 12.5}` va dans une valeur à virgule.
-- Pas encore : une glissière, une barre, une case, une place sur un plateau, les prix (`Prices`) et `limit:` prennent un nombre entier ; une fiche de liste aussi (un prix de fiche s'écrit en centimes, `{item.price:cents}`) ; pas de nombre négatif.
+- Pas encore : une glissière, une barre, une case, une place sur un plateau, les prix (`Prices`) et `limit:` prennent un nombre entier ; une fiche de liste aussi (un prix de fiche s'écrit en centimes, `{item.price:cents}`). Un nombre à virgule peut être négatif : voir « Des nombres négatifs ».
 
 Cette écriture est proposée (`ADR-066`) et attend la validation de Yocthan. La leçon est `86-nombres-a-virgule.holo`.
 
@@ -2603,6 +2637,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Des termes et leurs définitions : une fiche technique, un glossaire | `List(children: [ Term("Poids", "2 kg") ])` | fait (`ADR-097`) |
 | Multiplier, diviser | les demandes `mul`, `div` | fait |
 | Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait |
+| Une valeur qui descend sous zéro : une température, un solde | `negative: [temperature]`, et le signe moins de la langue de la page | fait (`ADR-102`) |
 | Une liste qui change pendant la visite | `State(tasks: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` | fait |
 | Une liste d'articles à champs, aussi reçue du serveur | `State(articles: [ Item(…) ])`, `{item.title}`, `push(Item(…))`, `Data` | fait |
 | Une valeur partagée par tous les visiteurs, vue en direct | `shared: Shared(seats: 20)`, `seats.sub(1)` par un toucher | fait |
@@ -2627,7 +2662,8 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 - Pour les comptes (`ADR-081` à `ADR-083`) : changer son mot de passe ; un compte créé par une clé d'accès seule ; de nouveaux codes de secours sans retirer le code à 6 chiffres ; la clé d'accès essayée sur un vrai téléphone, en HTTPS.
 - Pour les capacités du navigateur (`ADR-093` à `ADR-096`) : la caméra ne prend pas de photo, le microphone ne donne pas de son ; pas de rappel après la fermeture de la page (il faudrait un serveur de « push ») ; pas d'import en CSV ni par glisser-déposer ; pas de copie hors-ligne d'une page qui a un compte, un formulaire ou des valeurs partagées, ni d'envoi mis en attente.
 - Pour les listes de définitions (`ADR-097`) : pas de liste de termes qui change pendant la visite (`Repeat(over:)`), ni de définition faite de plusieurs paragraphes.
-- Pour les valeurs : pas de nombre négatif ; une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
+- Pour les nombres négatifs (`ADR-102`) : une glissière, une valeur partagée, l'adresse et un fichier exporté ne prennent pas encore de nombre négatif.
+- Pour les valeurs : une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
 - Les garde-fous de zoom pour un `Point` seul : ils sont encore fixés dans le moteur.

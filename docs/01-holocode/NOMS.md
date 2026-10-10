@@ -63,6 +63,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Input(suggestions: ["Paris", "Lyon"])`, `suggestions: villes` | `input list="…"`, `datalist`, `option` | changé : un paramètre du champ au lieu d'un élément relié par un `id` ; écrites, ou une liste de la page suivie pendant la visite ; on peut toujours écrire autre chose (`ADR-100`) |
 | `<<bonjour>>` dans un texte | `q` | nouveau : une marque du texte enrichi ; le moteur écrit les guillemets de la langue de la page, « » en français avec une espace fine insécable, “ ” en anglais, ceux du second niveau dans une citation (`ADR-101`) |
 | `_Les Misérables_` dans un texte ; `Quote(work:)` | `cite` | nouveau : le titre d'une œuvre ; un trait bas au milieu d'un mot reste un trait bas (`ADR-101`) |
+| `negative: [temperature]`, `State(temperature: -2)`, `If(temperature, under: -20)` | tout nombre de JavaScript est signé ; `input type="number" min="-50"` ; `Intl.NumberFormat` pour le signe | nouveau : seule une valeur nommée descend sous zéro, le panier reste à 0 ; exact, calculé comme sans le signe ; le signe moins de la langue de la page, jamais « -0 » ; un champ dont le clavier a le signe moins (`ADR-102`) |
 | `Enter` | `@keyframes` + `animation` (de… vers…), ou `element.animate()` | changé : on écrit seulement d'où le bloc part |
 | `Loop` | `animation: … infinite alternate` | changé : on écrit seulement où il va |
 | `Scenes`, `Scene` | une suite de `animation-delay` calculés à la main, ou un chef d'orchestre en JavaScript | changé : les scènes s'enchaînent seules |
