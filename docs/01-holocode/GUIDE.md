@@ -2200,6 +2200,53 @@ Page(
 
 La leçon est `136-se-souvenir-le-temps-d-une-visite.holo`, avec sa seconde page, `136-inscription/etape-2.holo`.
 
+## 6 septemquinquagies. Les données d'un autre site : `Data(from: "https://…")`
+
+Une page montre les données d'un autre site : la météo, un cours, le résumé d'un article. C'est son serveur, `holo serve`, qui va les chercher, jamais le navigateur du visiteur (`ADR-116`).
+
+```holo
+Page(
+  title: "Kinshasa",
+  state: State(loading: 1, broken: 0, title: "", extract: ""),
+  data: Data(name: Wiki, from: "https://fr.wikipedia.org/api/rest_v1/page/summary/Kinshasa", every: 3600s),
+  children: [
+    If(loading, is: 1, children: [ P("Loading…") ]),
+    If(broken, is: 1, children: [ P("The summary did not arrive."), Button(name: Retry, text: "Try again") ]),
+    H1("{title}"),
+    P("{extract}"),
+  ],
+  rules: [
+    On(Wiki.done, effect: [loading.set(0), broken.set(0)]),
+    On(Wiki.failed, effect: [loading.set(0), broken.set(1)]),
+    On(Retry.tap, effect: [loading.set(1), broken.set(0), Wiki.refresh]),
+  ],
+)
+```
+
+Le fichier `holo-data/sites.txt`, à la racine du dossier servi :
+
+```text
+fr.wikipedia.org
+api.exemple.org ?appid=ta-clé
+autre.exemple.org X-Api-Key: ta-clé
+```
+
+- **Le même `Data`**, avec une adresse `https://`. `name`, `every`, `done`, `failed` et `refresh` gardent leur sens (§ 6 septies).
+- **Le navigateur ne parle jamais à l'autre site.** Le moteur de la page demande les données à son propre serveur, à sa propre adresse (`?remote-data`). L'autre site voit le serveur de l'auteur : ni l'adresse IP du visiteur, ni ses cookies, ni rien de lui.
+- **Les sites permis** : un par ligne dans `holo-data/sites.txt`, le nom exact (jamais ses sous-domaines). Ce dossier n'est jamais servi, ni versionné. Le fichier se relit quand il change.
+- **Une clé** se range sur la ligne de son site, comme sa documentation la montre : `?appid=ta-clé` (un paramètre de l'adresse) ou `X-Api-Key: ta-clé` (un en-tête, plus sûr quand le site l'accepte).
+  - Jamais dans la page : elle ne va qu'à son site.
+  - Elle n'apparaît ni dans la page, ni dans un message, ni au journal.
+- **Gardé un moment** : le serveur lit chaque adresse au plus une fois par `every` (60 s au moins ; dix minutes sans `every`), quel que soit le nombre de visiteurs ; un échec est gardé une minute. `Wiki.refresh` relit ce qui est gardé : un visiteur ne force jamais une demande.
+- **Vérifié, puis réduit** : 4 s pour se connecter, 8 s en tout, 64 Ko, un objet JSON comme celui d'un fichier. Seules les valeurs du premier niveau, aux noms que la page déclare, sont reprises ; le reste de la réponse ne quitte pas le serveur.
+- **Une panne** donne `Wiki.failed`. La raison est écrite au journal de holo serve : un site non permis, une clé manquante, une redirection (jamais suivie), trop lent, trop gros…
+- **Sans JavaScript**, la page arrive avec ses données, ou dit l'échec ; « Try again » relit ce qui est gardé.
+- Refusés, avec la raison : `http://` ; une adresse IP ou `localhost` ; un port ; `nom:mot-de-passe@` ; `#` ; `{…}` ; `every:` de moins de 60 s. Le serveur refuse aussi un nom qui mène à ce PC ou au réseau privé.
+- Au démarrage, holo serve dit les sites permis (jamais leur clé), et chaque page qui lit un site non permis.
+- Avec le serveur d'essai (`node outils/server.mjs`), les données d'un autre site n'arrivent pas : seul holo serve les lit.
+
+La leçon est `139-les-donnees-d-un-autre-site.holo`.
+
 ## 6 duodesexagies. Une page dans la page : `Embed`
 
 Une carte, une vidéo, une publication d'un autre site, posée dans la page. Rien ne part vers l'autre site avant que le visiteur la touche (`ADR-117`).
@@ -2718,8 +2765,8 @@ Toutes les limites, telles que le moteur les applique (chacune refusée avec un 
 | Les composants | 16 paramètres ; 8 composants l'un dans l'autre ; 2 000 copies |
 | Le temps | `Every` et `After` : de 100 ms à 3 600 s ; `Data(every:)` : de 1 s à 3 600 s |
 | Les données reçues (`Data`) | 64 Ko : au-delà, elles sont refusées, et la lecture s'arrête dès qu'elles dépassent ; 10 secondes pour arriver ; une lecture à la fois, une seconde au moins entre deux (`ADR-064`) |
+| Les données d'un autre site (`ADR-116`) | HTTPS ; 4 s pour se connecter, 8 s en tout ; 64 Ko ; une demande au plus par adresse et par `every` (60 s au moins, dix minutes sans `every`), un échec gardé une minute ; 32 sites permis, 64 adresses gardées, 8 par site |
 | Les modules | 8 par page ; un fichier de 4 Mo, refusé dès qu'il dépasse ; un temps de 10 ms à 5 s ; une mémoire de 64 Ko à 16 Mo |
-| Les pages intégrées (`ADR-117`) | 16 sites permis par page ; une adresse de 2 048 caractères ; un titre de 200 caractères |
 | Un fichier envoyé par un formulaire | 10 Mo au plus (`max:` de 1 KB à 10 MB) |
 | La vue points | 200 000 points à l'écran |
 
@@ -2806,7 +2853,6 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Une liste, une liste numérotée, un bouton | `List`, `List(ordered: true)`, `Button` | fait |
 | Un lien classique (on change de page) | `A("texte", to: "adresse")` | fait |
 | Passer dans un autre fichier sans changer de page | `Point(inside: "fichier.holo")` | fait |
-| La page d'un autre site, dans la page : une carte, une vidéo, derrière sa façade | `Embed(from:, label:, image:)`, `Page(embeds: [ … ])` | fait (`ADR-117`) |
 | Ressortir d'un monde | dézoomer, ou la capacité `leave` | fait |
 | L'apparence | les styles : `P { color: … }`, `.card { … }` | fait |
 | Un point, un monde | `Point`, `World`, `seed`, `brightness`, `color`, `palette` | fait |
@@ -2899,13 +2945,12 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 ## 11. Ce qui n'existe pas encore
 
 - Un dessin n'a pas encore de texte ni de dégradé ; une liste de formes en garde deux cents au plus.
-- Les données venues d'un autre serveur.
+- Pour les données d'un autre site (`ADR-116`) : choisir et nommer une valeur rangée plus bas dans la réponse (`current.temperature_2m`) ; la dernière valeur, avec son âge, pendant une panne ; une clé donnée par une variable d'environnement ; un proxy choisi par l'auteur.
 - Pour les valeurs partagées (`ADR-080`) : un champ qui change un nombre ou une liste partagés (seul un texte partagé se prépare, puis se confirme) ; une condition sur l'élément d'une ligne partagée, que le serveur ne vérifie pas encore ; une valeur « une fois par compte ».
 - Pour les comptes (`ADR-081` à `ADR-083`) : changer son mot de passe ; un compte créé par une clé d'accès seule ; de nouveaux codes de secours sans retirer le code à 6 chiffres ; la clé d'accès essayée sur un vrai téléphone, en HTTPS.
 - Pour les capacités du navigateur (`ADR-093` à `ADR-096`) : la caméra ne prend pas de photo, le microphone ne donne pas de son ; pas de rappel après la fermeture de la page (il faudrait un serveur de « push ») ; pas d'import en CSV ni par glisser-déposer ; pas de copie hors-ligne d'une page qui a un compte, un formulaire ou des valeurs partagées, ni d'envoi mis en attente.
 - Pour les listes de définitions (`ADR-097`) : pas de liste de termes qui change pendant la visite (`Repeat(over:)`), ni de définition faite de plusieurs paragraphes.
 - Pour les nombres négatifs (`ADR-102`) : une glissière, une valeur partagée, l'adresse et un fichier exporté ne prennent pas encore de nombre négatif.
-- Pour les pages intégrées (`ADR-117`) : refermer une page intégrée pour revenir à sa façade ; une miniature cherchée par le serveur de l'auteur ; `frame-src` aussi avec le serveur d'essai ; un essai sur les vrais sites, sur un téléphone.
 - Pour les valeurs : une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
