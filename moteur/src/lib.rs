@@ -55,6 +55,8 @@ pub mod scroll;
 // Les filtres d'image dans les styles (ADR-108) : grayscale, blur, brightness… et backdrop-blur.
 pub mod filters;
 pub mod shared;
+// La zone de dessin du visiteur (ADR-115) : ses traits, des données lissées, simplifiées, bornées.
+pub mod sketch;
 pub mod styles;
 // Travailler un texte (ADR-103) : {code:upper}, {message:length}, {bio:max40}, Split ; et la table
 // des lettres d'Unicode, pour les compter comme une personne.
@@ -132,6 +134,8 @@ pub fn check_page(source: &str) -> Result<Program, Error> {
     visit::names(&program)?;
     // Les pages intégrées (ADR-117) : un site de la liste, en HTTPS, un titre, une image à côté.
     embed::check(&program)?;
+    // Les zones de dessin (ADR-115) : leur feuille, leur valeur, ce qui changerait un dessin.
+    sketch::check(&program)?;
     // Ce que l'affichage refuserait (une adresse en `javascript:`, une image hors du dossier)
     // est refusé dès la vérification : on fabrique la page à blanc (revue Codex, B-11).
     if program.root.name == "Page" {
@@ -414,6 +418,8 @@ fn cut_shared(program: &Program, written: &str) -> String {
     written
         .split(';')
         .map(|chunk| match chunk.split_once("='") {
+            // Un dessin partagé (ADR-115) a ses propres bornes, déjà tenues : il n'est pas coupé.
+            Some((name, _)) if sketch::is_drawing(program, name) => chunk.to_string(),
             Some((name, code)) if program.shared.iter().any(|known| known == name) => {
                 let text = state::decode(code).unwrap_or_default();
                 format!("{name}='{}", state::encode(&text.chars().take(shared::SHARED_TEXT_MAX).collect::<String>()))
@@ -504,6 +510,9 @@ fn with_shared_mark(program: &Program, html: String, written: &str) -> String {
 /// L'état entier, tel qu'il voyage entre le moteur et la page : les nombres, ce que le moteur
 /// calcule, puis les textes. `cart=2;count=2;total=240;buyer='Ada`.
 fn write_all(program: &Program, numbers: &state::State, texts: &state::Texts, lists: &lists::Lists) -> String {
+    // Un dessin (ADR-115) est relu strictement avant d'être écrit : d'où qu'il vienne (une règle,
+    // des données, un état forgé), un dessin faux reprend son départ.
+    let texts = &sketch::sanitized(program, texts);
     // Les sons demandés par une règle de temps ou une règle qui guette suivent l'état, sous le
     // nom « ! » : ce n'est pas une valeur, la page le lit et le retire.
     let capabilities = state::requested_capabilities();
@@ -823,6 +832,62 @@ pub fn input(source: &str, state: &str, name: &str, written: &str) -> String {
     } else {
         write_all(&program, &state::input(&program, &numbers, &texts, name, written), &texts, &lists::reread(&program, state))
     }
+}
+
+/// Un trait arrivé de la zone de dessin `name` (ADR-115) : sa couleur, son épaisseur, ses points
+/// bruts en unités de la feuille (`"12.5 30 14 31.25 …"`). Le moteur le lisse, le simplifie, le
+/// borne, l'ajoute au dessin, puis les règles qui guettent ce texte ont leur mot à dire. Rend le
+/// nouvel état, ou ce que la page dit au visiteur quand le trait n'est pas gardé.
+pub fn sketch_stroke(source: &str, state: &str, name: &str, color: &str, thickness: u32, points: &str) -> Result<String, String> {
+    let program = check_page(source).map_err(|e| e.message)?;
+    let french = sketch::french(&program);
+    let Some(sheet) = sketch::sheet_of(&program, name) else { return Err(sketch::Refusal::Unknown.said(french)) };
+    if program.shared.contains(&sheet.value) {
+        return Err(sketch::Refusal::Shared.said(french));
+    }
+    state::requested_capabilities();
+    let (numbers, texts) = (state::reread(&program, state), state::reread_texts(&program, state));
+    let before = texts.iter().find(|(known, _)| *known == sheet.value).map(|(_, text)| text.as_str()).unwrap_or("");
+    let drawn = sketch::add_stroke(&sheet, before, color, thickness, points).map_err(|refusal| refusal.said(french))?;
+    let after = state::input_text(&program, &texts, name, &drawn);
+    Ok(write_all(&program, &state::after_texts(&program, numbers, &texts, &after), &after, &lists::reread(&program, state)))
+}
+
+/// Ce que montre la zone de dessin `name` pour cet état (ADR-115) : ses traits en SVG, puis, après un
+/// retour à la ligne, ce qui a été dessiné, dit avec des mots. La page les pose quand la valeur change.
+pub fn sketch_view(source: &str, state: &str, name: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    let Some(sheet) = sketch::sheet_of(&program, name) else { return String::new() };
+    let texts = state::reread_texts(&program, state);
+    let text = texts.iter().find(|(known, _)| *known == name).map(|(_, text)| text.as_str()).unwrap_or("");
+    let strokes = sketch::strokes(&sheet, text).unwrap_or_default();
+    format!("{}\n{}", sketch::strokes_svg(&strokes), sketch::described(&sheet, &strokes, sketch::french(&program)))
+}
+
+/// L'image enregistrée de la zone de dessin `name` (ADR-115), en SVG, fabriquée par le moteur
+/// d'après les traits relus : son titre est le nom de la zone, sa description celle du moteur. Le
+/// navigateur la dessine aussi en PNG. Vide si la zone ne propose pas d'enregistrer.
+pub fn sketch_svg(source: &str, state: &str, name: &str) -> String {
+    let Ok(program) = check_page(source) else { return String::new() };
+    let mut found = None;
+    let _ = rules::for_each_block(&program.root, &mut |block| {
+        if block.name == "Sketch" && found.is_none() {
+            if let Ok(sheet) = sketch::sheet(block) {
+                if sheet.value == name {
+                    let label = match block.argument("label").map(|a| &a.value) {
+                        Some(Value::Text(label)) => label.clone(),
+                        _ => String::new(),
+                    };
+                    found = Some((sheet, label));
+                }
+            }
+        }
+        Ok(())
+    });
+    let Some((sheet, label)) = found.filter(|(sheet, _)| sheet.png || sheet.svg) else { return String::new() };
+    let texts = state::reread_texts(&program, state);
+    let text = texts.iter().find(|(known, _)| *known == name).map(|(_, text)| text.as_str()).unwrap_or("");
+    sketch::image_svg(&sheet, &sketch::strokes(&sheet, text).unwrap_or_default(), &label, sketch::french(&program))
 }
 
 /// D'où viennent les données de la page, à quel rythme, et leur nom : `stock.json|30000|Stock`

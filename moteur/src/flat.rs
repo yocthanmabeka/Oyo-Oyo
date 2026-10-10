@@ -54,6 +54,18 @@ border:0;background:none;color:#fff;font:inherit;text-align:left;text-decoration
 :where(.holo-embed-text){position:relative;display:flex;flex-direction:column;gap:2px;max-width:100%;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.78)}\
 :where(.holo-embed-label){font-weight:bold}:where(.holo-embed-site){font-size:.85em}\
 :where(.holo-embed-load:focus-visible){outline:3px solid #fff;outline-offset:-3px;box-shadow:inset 0 0 0 6px #000}:where(.holo-embed-frame){display:block;width:100%;height:100%;border:0}\
+:where(.holo-Sketch){border:0;padding:0;margin:0 0 16px 0;min-width:0}:where(.holo-Sketch>legend){padding:0;margin:0 0 8px 0;font-weight:bold}\
+:where(.holo-sketch-sheet){display:block;max-width:100%;height:auto;box-sizing:border-box;background:#fff;border:1px solid #767676;border-radius:8px;\
+touch-action:none;cursor:crosshair;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}:where(.holo-sketch-sheet:focus-visible){outline:3px solid #1565c0;outline-offset:2px}\
+:where(.holo-sketch-said){margin:6px 0 0 0;font-size:.9em}:where(.holo-sketch-how){display:none;margin:4px 0 0 0;font-size:.9em}:where(.holo-sketch-sheet:focus-visible~.holo-sketch-how){display:block}\
+:where(.holo-sketch-pen){display:none;pointer-events:none}:where(.holo-sketch-sheet:focus-visible .holo-sketch-pen){display:inline}\
+:where(.holo-sketch-tools){display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-top:8px}:where(.holo-sketch-tools[hidden]){display:none}\
+:where(.holo-sketch-choices){display:flex;flex-wrap:wrap;gap:2px}\
+:where(.holo-sketch-choice){position:relative;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;cursor:pointer}\
+:where(.holo-sketch-choice input){position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}\
+:where(.holo-sketch-swatch){display:block;width:26px;height:26px;border-radius:50%;box-shadow:0 0 0 1px #767676}:where(.holo-sketch-line){display:block;width:26px;border-radius:99px;background:currentColor}\
+:where(.holo-sketch-choice input:checked+span){box-shadow:0 0 0 2px #fff,0 0 0 5px currentColor}:where(.holo-sketch-choice input:focus-visible+span){outline:3px dashed currentColor;outline-offset:7px}\
+:where(.holo-sketch-do){font:inherit;color:inherit;cursor:pointer;background:transparent;border:1px solid currentColor;border-radius:6px;min-height:44px;padding:0 14px}\
 :where(.holo-table-wrap){overflow-x:auto;max-width:100%}:where(.holo-Table){border-collapse:collapse;min-width:100%}\
 :where(.holo-Table caption){text-align:left;font-weight:bold;padding:0 0 8px 0}:where(.holo-Table th,.holo-Table td){text-align:left;padding:8px 12px;border-bottom:1px solid color-mix(in srgb,currentColor 25%,transparent)}\
 :where(.holo-Table th){font-weight:bold}\
@@ -99,7 +111,7 @@ transition:left .12s linear,top .12s linear,transform .12s linear}\
 /// Entoure, dans le HTML en cours de fabrication, la condition d'un bloc `If` : `site_html`
 /// la remplace par « hidden » quand elle est fausse au départ. Ce caractère ne peut pas venir
 /// d'un texte de l'auteur : `echapper` le retire.
-const MARK: char = '\u{1}';
+pub(crate) const MARK: char = '\u{1}';
 
 /// Fabrique la page. `base` est le dossier du fichier `.holo`, pour retrouver ses images.
 /// Le fichier doit avoir passé les vérifications (`crate::verifier_page`).
@@ -453,6 +465,8 @@ fn new_tab_text() -> &'static str {
 
 fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start: Option<&Start>) -> Result<String, Error> {
     set_language(program);
+    // Une zone de dessin qui montre une valeur partagée n'a pas d'outils de dessin (ADR-115).
+    crate::sketch::set_page(program);
     // Les valeurs à virgule (ADR-066) se montrent avec leurs chiffres.
     crate::format::set_decimals(crate::state::decimals(program));
     // Les valeurs qui peuvent descendre sous zéro (ADR-102) se montrent avec leur signe.
@@ -598,7 +612,9 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
         || !program.shared.is_empty()
         || body.contains("data-browser-capability=")
         // Une liste qu'on réordonne (ADR-105) : un glissement ne se rejoue pas, le moteur arrive tout de suite.
-        || !crate::reorder::reorderable(program).is_empty();
+        || !crate::reorder::reorderable(program).is_empty()
+        // Une zone de dessin (ADR-115) : le moteur arrive tout de suite, pour qu'on puisse dessiner.
+        || body.contains("data-sketch=");
     // Une page qui lit la place du visiteur (ADR-106) : le moteur la suit dès l'arrivée.
     let live = live || crate::scroll::reads(program);
     let live = if live { " data-live" } else { "" };
@@ -845,6 +861,7 @@ pub fn plain_text(text: &str, shown: &crate::state::State, texts: &crate::state:
 /// le genre et la valeur d'un champ, une case cochée, une place sur un plateau.
 fn fill_marks(html: String, shown: &crate::state::State, texts: &crate::state::Texts, responses: &[(String, bool)]) -> String {
     let start_text = |name: &str| texts.iter().find(|(known, _)| known == name).map(|(_, text)| text.as_str());
+    let french = LANGUAGE.with(|l| l.borrow().is_empty() || l.borrow().starts_with("fr"));
     {
         let mut output = String::with_capacity(html.len());
         for (rank, chunk) in html.split(MARK).enumerate() {
@@ -922,6 +939,12 @@ fn fill_marks(html: String, shown: &crate::state::State, texts: &crate::state::T
                 // Le temps d'un chronomètre (ADR-089), écrit dans la langue de la page.
                 let value = shown.iter().find(|(known, _)| known == name).map_or(0, |(_, v)| *v);
                 output.push_str(&crate::format::format_value(name, value, "stopwatch", &crate::format::language()));
+            } else if let Some(name) = chunk.strip_prefix('~') {
+                // Les traits d'une zone de dessin (ADR-115), d'après son texte de départ, déjà relu.
+                output.push_str(&crate::sketch::shown(name, start_text(name).unwrap_or(""), '~', french));
+            } else if let Some(name) = chunk.strip_prefix('+') {
+                // Ce qui a été dessiné, dit avec des mots (ADR-115) : le lecteur d'écran le lit.
+                output.push_str(&escape(&crate::sketch::shown(name, start_text(name).unwrap_or(""), '+', french)));
             } else if let Some(name) = chunk.strip_prefix('@') {
                 // La place d'un bloc sur un plateau : la valeur de départ, de 0 à 100.
                 let value = shown.iter().find(|(known, _)| known == name).map_or(0, |(_, v)| *v);
@@ -1287,6 +1310,12 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
         "Embed" => {
             let french = LANGUAGE.with(|l| l.borrow().is_empty() || l.borrow().starts_with("fr"));
             output.push_str(&crate::embed::html(block, &classes, &name, base, french)?);
+        }
+        // La zone de dessin du visiteur (ADR-115) : ses traits viennent de sa valeur, posés par
+        // `fill_marks` ; les mots de ses outils suivent la langue de la page.
+        "Sketch" => {
+            let french = LANGUAGE.with(|l| l.borrow().is_empty() || l.borrow().starts_with("fr"));
+            output.push_str(&crate::sketch::html(block, &classes, &name, french)?);
         }
         // Des scènes qui s'enchaînent, l'une après l'autre, au même endroit (ADR-034).
         "Scenes" => {

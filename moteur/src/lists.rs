@@ -875,8 +875,11 @@ pub fn arbitrate(program: &Program, numbers: &State, texts: &Texts, lists: &List
                     Some(Value::Name(other)) => read_text(other, &texts),
                     _ => None,
                 };
+                // Un dessin (ADR-115) prend un autre dessin tel quel : il a ses propres bornes, et
+                // `write_all` le relit strictement avant de l'écrire.
+                let limit = if crate::sketch::is_drawing(program, value) { usize::MAX } else { crate::state::TEXT_MAX };
                 if let (Some(new_one), Some((_, place))) = (new_one, texts.iter_mut().find(|(n, _)| n == value)) {
-                    *place = new_one.chars().filter(|c| *c == '\n' || !c.is_control()).take(crate::state::TEXT_MAX).collect();
+                    *place = new_one.chars().filter(|c| *c == '\n' || !c.is_control()).take(limit).collect();
                 }
             } else if let (true, Some(Value::Integer(n))) = (verb == "add" || verb == "sub", argument) {
                 // Une date avance ou recule de jours entiers (ADR-067) ; une date vide ne bouge pas.

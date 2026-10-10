@@ -1,0 +1,64 @@
+// Leçon 138 — Une zone de dessin : le visiteur dessine
+//
+// Ce qu'on apprend :
+//   Sketch(value: drawing, label: "…") : une zone où le visiteur dessine, au doigt, à la souris,
+//   au stylet, ou au clavier. Toi, tu n'écris aucun code de dessin.
+//   Chaque trait devient une donnée, rangée dans un texte de la page (state: State(drawing: "")) :
+//   le moteur le lisse, le simplifie, et le refuse s'il sort des bornes (200 traits, 12 000 octets).
+//   Les outils sont là d'office : la couleur, l'épaisseur, « Annuler », « Effacer ». colors: et
+//   thickness: disent ce qui est proposé ; export: [svg, png] permet d'enregistrer l'image.
+//   keep: [drawing] garde le dessin d'une visite à l'autre ; un Form l'envoie (required: true :
+//   un trait au moins) ; Shared le partage, par un toucher, comme les autres valeurs partagées.
+//   Le nom (label:) est obligatoire, et le moteur dit au lecteur d'écran ce qui a été dessiné :
+//   « 3 traits (2 en noir, 1 en rouge), en haut à gauche. »
+//
+// À essayer :
+//   Sur un téléphone, dessine au doigt sur la feuille, puis glisse à côté : la page défile.
+//   Au clavier : Tab jusqu'à la feuille, Entrée, les flèches, Entrée ; puis Ctrl+Z.
+//   Recharge la page : ton chat est encore là. Écris colors: ["yellow"] : le moteur refuse, on
+//   la verrait mal sur la feuille blanche.
+//   Avec holo serve, ouvre la page dans deux onglets : « Le mettre au mur » le montre aux deux.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 138 : une zone de dessin",
+  state: State(drawing: "", name: "", signature: "", sent: 0),
+  shared: Shared(wall: ""),
+  keep: [drawing],
+  children: [
+    H1("Dessine un chat"),
+    P("Au doigt, à la souris, au stylet, ou au clavier. Ton dessin reste là si tu reviens."),
+    Sketch(name: Cat, value: drawing, label: "Ton dessin : un chat", export: [svg, png]),
+    If(drawing, not: "", children: [
+      Button(name: Wall, text: "Le mettre au mur"),
+    ]),
+
+    H2("Le mur"),
+    P("Chacun y voit le dernier chat qu'on y a mis, en direct."),
+    Sketch(value: wall, label: "Le mur : le dernier chat qu'on y a mis"),
+
+    H2("Signer le livre d'or"),
+    Form(name: Book, children: [
+      Input(value: name, label: "Ton prénom", required: true),
+      Sketch(value: signature, label: "Ta signature", width: 600, height: 200, colors: ["navy", "#1a1a1a"], thickness: [3, 6], required: true),
+      Button(name: Sign, text: "Signer"),
+    ]),
+    If(sent, is: 1, children: [ P("Merci : ta signature est partie.") ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 124 : une citation courte, le titre d'une œuvre", to: "124-une-citation-courte.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+  rules: [
+    On(Wall.tap, effect: wall.set(drawing)),
+    On(Sign.tap, effect: Book.send),
+    On(Book.sent, effect: [sent.set(1), signature.set("")]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+Sketch { border: 1px solid #E9B44C; border-radius: 12px; padding: 12px; }

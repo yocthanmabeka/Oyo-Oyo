@@ -162,7 +162,7 @@ const COLORS: &[&str] = &[
 /// La couleur d'une valeur, en rouge, vert, bleu (0 à 255) : une couleur nommée, `#abc`,
 /// `#aabbcc`, ou une variable qui en porte une. `None` pour ce qui n'est pas une couleur pleine
 /// (un dégradé, une image, `transparent`, une couleur à demi transparente).
-fn rgb(value: &str, variables: &[(String, String)]) -> Option<[f64; 3]> {
+pub(crate) fn rgb(value: &str, variables: &[(String, String)]) -> Option<[f64; 3]> {
     let value = value.trim();
     if value.starts_with("--") {
         let (_, v) = variables.iter().find(|(n, _)| n == value)?;
@@ -190,7 +190,7 @@ fn rgb(value: &str, variables: &[(String, String)]) -> Option<[f64; 3]> {
 }
 
 /// Le contraste de deux couleurs, de 1 à 21, comme le calcule le WCAG.
-fn contrast(a: [f64; 3], b: [f64; 3]) -> f64 {
+pub(crate) fn contrast(a: [f64; 3], b: [f64; 3]) -> f64 {
     let luminance = |c: [f64; 3]| {
         let l = |v: f64| {
             let v = v / 255.0;
@@ -740,6 +740,8 @@ mod tests {
             // Se souvenir le temps d'une visite, un formulaire en deux pages (ADR-113).
             include_str!("../../exemples/lecons/136-se-souvenir-le-temps-d-une-visite.holo"),
             include_str!("../../exemples/lecons/136-inscription/etape-2.holo"),
+            // Une zone de dessin : le visiteur dessine, le moteur garde des traits bornés (ADR-115).
+            include_str!("../../exemples/lecons/138-une-zone-de-dessin.holo"),
             // Les données d'un autre site, lues par le serveur de l'auteur (ADR-116).
             include_str!("../../exemples/lecons/139-les-donnees-d-un-autre-site.holo"),
             // Une page dans la page : une carte et une vidéo d'autres sites, derrière leur façade (ADR-117).
@@ -771,6 +773,10 @@ mod tests {
         }
         // Les calculs sur les heures : now, Minutes, une durée, une heure, un décalage (ADR-109).
         for word in ["Minutes(", "{now:time}", ":duration}", ":time}", ".add(15min)", ".sub(1h)", ".set(now)", "If(now, under:"] {
+            assert!(source.contains(word), "« {word} » manque dans l'exemple");
+        }
+        // Une zone de dessin : sa feuille, ses couleurs, ses épaisseurs, l'image enregistrée, l'envoi, le partage (ADR-115).
+        for word in ["Sketch(", "colors: [", "thickness: [", "export: [svg, png]", "width: 600, height: 200", "required: true)", "wall.set(drawing)", "If(drawing, not: \"\""] {
             assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
         // Une page dans la page : les sites permis, l'image de la façade (ADR-117).

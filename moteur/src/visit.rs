@@ -171,6 +171,10 @@ fn number(program: &Program, name: &str, value: &Json) -> Option<u64> {
 /// une vraie date) : s'il en ressort changé, il n'est pas pris. Une page qui ne fait que le
 /// montrer (un récapitulatif) le prend tel quel.
 fn text_fits(program: &Program, name: &str, text: &str) -> bool {
+    // Un dessin (ADR-115) : seulement un dessin juste pour sa feuille, relu strictement.
+    if let Some(sheet) = crate::sketch::sheet_of(program, name) {
+        return crate::sketch::clean(&sheet, text).is_some();
+    }
     if text.chars().count() > crate::state::TEXT_MAX || text.chars().any(|c| c.is_control() && c != '\n') {
         return false;
     }

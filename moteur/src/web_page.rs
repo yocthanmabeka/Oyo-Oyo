@@ -293,6 +293,25 @@ pub fn input(source: &str, state: &str, name: &str, written: &str) -> String {
     crate::input(source, state, name, written)
 }
 
+/// Un trait arrivé de la zone de dessin `name` (ADR-115) : le nouvel état, ou ce qu'on dit au
+/// visiteur quand le trait n'est pas gardé (une exception).
+#[wasm_bindgen]
+pub fn sketch_stroke(source: &str, state: &str, name: &str, color: &str, thickness: u32, points: &str) -> Result<String, JsValue> {
+    crate::sketch_stroke(source, state, name, color, thickness, points).map_err(|reason| JsValue::from_str(&reason))
+}
+
+/// Ce que montre la zone de dessin `name` pour cet état (ADR-115) : ses traits, puis sa description.
+#[wasm_bindgen]
+pub fn sketch_view(source: &str, state: &str, name: &str) -> String {
+    crate::sketch_view(source, state, name)
+}
+
+/// L'image enregistrée de la zone de dessin `name` (ADR-115), en SVG, fabriquée par le moteur.
+#[wasm_bindgen]
+pub fn sketch_svg(source: &str, state: &str, name: &str) -> String {
+    crate::sketch_svg(source, state, name)
+}
+
 /// D'où viennent les données de la page, et à quel rythme.
 #[wasm_bindgen]
 pub fn data(source: &str) -> String {

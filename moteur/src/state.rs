@@ -802,6 +802,13 @@ pub fn take_values(program: &Program, state: &State, texts: &Texts, json: &str) 
             Datum::Decimal(_) => {}
             Datum::Text(text) => {
                 // Le nom du membre connecté ne vient que du serveur (ADR-081), jamais de données.
+                // Un dessin reçu (ADR-115) : relu strictement pour sa feuille ; faux, il ne change pas.
+                if let Some(sheet) = crate::sketch::sheet_of(program, &key) {
+                    if let (Some(drawn), Some((_, place))) = (crate::sketch::clean(&sheet, &text), texts.iter_mut().find(|(known, _)| *known == key)) {
+                        *place = drawn;
+                    }
+                    continue;
+                }
                 if let Some((_, place)) = texts.iter_mut().find(|(known, _)| *known == key && !crate::account::GIVEN.contains(&known.as_str())) {
                     *place = clean(&text, TEXT_MAX);
                 }
@@ -1083,6 +1090,9 @@ pub fn write_texts(texts: &Texts) -> String {
 /// Relit les textes d'un état. Seuls ceux que la page déclare sont repris, et bornés.
 pub fn reread_texts(program: &Program, written: &str) -> Texts {
     let mut texts = initial_texts(program);
+    // Les dessins (ADR-115) se relisent strictement, avec leurs propres bornes : un dessin faux
+    // garde son départ.
+    let sheets = crate::sketch::sheets(program);
     for chunk in written.split(';') {
         if let Some((name, code)) = chunk.split_once("='") {
             // La date du jour ne se relit pas : le moteur la redonne. Le nom du membre connecté
@@ -1092,6 +1102,12 @@ pub fn reread_texts(program: &Program, written: &str) -> Texts {
                 continue;
             }
             if name == crate::dates::TODAY || crate::account::GIVEN.contains(&name) {
+                continue;
+            }
+            if let Some(sheet) = sheets.iter().find(|sheet| sheet.value == name) {
+                if let (Some((_, place)), Some(drawn)) = (texts.iter_mut().find(|(known, _)| known == name), decode(code).and_then(|text| crate::sketch::clean(sheet, &text))) {
+                    *place = drawn;
+                }
                 continue;
             }
             if let (Some((_, place)), Some(text)) = (texts.iter_mut().find(|(known, _)| known == name), decode(code)) {
@@ -1129,6 +1145,13 @@ pub fn choice_options(block: &Block) -> Vec<&str> {
 /// qu'un champ présente, et pas plus longue que ce champ ne le permet.
 pub fn input_text(program: &Program, texts: &Texts, name: &str, written: &str) -> Texts {
     let mut texts = texts.clone();
+    // Un dessin (ADR-115) : seulement un dessin juste pour sa feuille, sinon il ne change pas.
+    if let Some(sheet) = crate::sketch::sheet_of(program, name) {
+        if let (Some(drawn), Some((_, place))) = (crate::sketch::clean(&sheet, written), texts.iter_mut().find(|(known, _)| known == name)) {
+            *place = drawn;
+        }
+        return texts;
+    }
     let mut length = None;
     let mut lines = false;
     let mut choice: Option<Vec<String>> = None;
@@ -1216,7 +1239,8 @@ pub fn submission(program: &Program, state: &State, texts: &Texts, form_name: &s
     let form = crate::rules::named_block(program, form_name).filter(|b| b.name == "Form")?;
     let mut names: Vec<&str> = Vec::new();
     let _ = for_each_block(form, &mut |block| {
-        if matches!(block.name.as_str(), "Input" | "Checkbox" | "Choice" | "Slider") {
+        // Une zone de dessin envoie son dessin (ADR-115).
+        if matches!(block.name.as_str(), "Input" | "Checkbox" | "Choice" | "Slider" | "Sketch") {
             if let Some(Value::Name(value)) = block.argument("value").map(|a| &a.value) {
                 if !names.contains(&value.as_str()) {
                     names.push(value);
@@ -1254,7 +1278,7 @@ pub fn submission(program: &Program, state: &State, texts: &Texts, form_name: &s
 fn form_fields(form: &Block) -> Vec<(&Block, &str)> {
     let mut fields: Vec<(&Block, &str)> = Vec::new();
     let _ = for_each_block(form, &mut |block| {
-        if matches!(block.name.as_str(), "Input" | "Checkbox" | "Choice" | "Slider") {
+        if matches!(block.name.as_str(), "Input" | "Checkbox" | "Choice" | "Slider" | "Sketch") {
             if let Some(Value::Name(value)) = block.argument("value").map(|a| &a.value) {
                 if !fields.iter().any(|(_, known)| *known == value) {
                     fields.push((block, value.as_str()));
@@ -1310,6 +1334,9 @@ pub fn form_errors(program: &Program, numbers: &State, texts: &Texts, form_name:
         let message = match (block.name.as_str(), text, number) {
             ("Checkbox", _, Some(0)) if required => Some(say("Cette case doit être cochée.".into(), "This box must be checked.".into())),
             ("Choice", Some(""), _) if required => Some(say("Choisis une réponse.".into(), "Choose an answer.".into())),
+            // Une zone de dessin obligatoire (ADR-115) : un trait au moins.
+            ("Sketch", Some(""), _) if required => Some(say("Dessine avant d'envoyer.".into(), "Draw before sending.".into())),
+            ("Sketch", _, _) => None,
             (_, Some(t), _) if required && t.trim().is_empty() => Some(say("Ce champ est obligatoire.".into(), "This field is required.".into())),
             (_, Some(""), _) => None,
             (_, Some(t), _) if kind == "email" && !is_email(t.trim()) => Some(say("Écris une adresse e-mail, comme nom@exemple.fr.".into(), "Enter an email address, like name@example.com.".into())),
@@ -1372,6 +1399,18 @@ pub fn check_submission(program: &Program, json: &str) -> Vec<(String, String)> 
     for (_, value) in &fields {
         let sent = values.iter().find(|(k, _)| k == value).map(|(_, v)| v);
         let places = places(program, value);
+        // Un dessin (ADR-115) : relu strictement pour sa feuille, comme d'où qu'il vienne.
+        if let Some(sheet) = crate::sketch::sheet_of(program, value) {
+            match sent {
+                Some(Json::Text(t)) => match (crate::sketch::clean(&sheet, t), texts.iter_mut().find(|(n, _)| n == value)) {
+                    (Some(drawn), Some((_, place))) => *place = drawn,
+                    _ => errors.push((value.to_string(), "un dessin de cette feuille attendu".into())),
+                },
+                None => {}
+                Some(_) => errors.push((value.to_string(), "un dessin attendu".into())),
+            }
+            continue;
+        }
         if let Some((_, place)) = texts.iter_mut().find(|(n, _)| n == value) {
             match sent {
                 Some(Json::Text(t)) if t.chars().count() <= TEXT_MAX => *place = t.clone(),

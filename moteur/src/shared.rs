@@ -181,7 +181,9 @@ pub fn written(program: &Program, numbers: &State, texts: &Texts, lists: &crate:
         if let Some((_, value)) = numbers.iter().find(|(known, _)| known == name) {
             chunks.push(format!("{name}={value}"));
         } else if let Some((_, text)) = texts.iter().find(|(known, _)| known == name) {
-            chunks.push(format!("{name}='{}", crate::state::encode(&cut(text))));
+            // Un dessin partagé (ADR-115) a ses propres bornes : il n'est pas coupé.
+            let text = if crate::sketch::is_drawing(program, name) { text.clone() } else { cut(text) };
+            chunks.push(format!("{name}='{}", crate::state::encode(&text)));
         } else if let Some((_,values))=lists.iter().find(|(n,_)|n==name){
             chunks.push(crate::lists::write(&vec![(name.clone(),values.clone())]));
         }
@@ -206,6 +208,7 @@ pub fn merged(program: &Program, numbers: &State, texts: &Texts, lists: &crate::
     let texts = texts
         .iter()
         .map(|(name, text)| match given_texts.iter().find(|(known, _)| known == name).filter(|_| is_shared(name)) {
+            Some((_, given)) if crate::sketch::is_drawing(program, name) => (name.clone(), given.clone()),
             Some((_, given)) => (name.clone(), cut(given)),
             None => (name.clone(), text.clone()),
         })
