@@ -9,8 +9,9 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 ## 2026-10-10 — Les fusions de la matinée, et l'outil de fusion réparé (le style diff3)
 
 - Fait (la session du PC) :
-  - Fusionnées dans `main` : la 256 (le partage, #236, la session du nuage), la 257 (réordonner, #234), la 258 (la grille, #233) et la 261 (la vibration, #239, la session du nuage). Chaque fois par `outils/fusionner.sh`, après les trois tests verts.
-  - En cours : la 260 (les nombres négatifs, #231), à jour avec `main` et qui repasse ses tests ; la 259 (mélanger des sons, #241). Celle-ci est en conflit depuis la 258 : la session du nuage y fusionne `main` elle-même, comme elle l'a demandé dans l'issue 255. Je ne touche plus aux branches de ses PR.
+  - Fusionnées dans `main`, chaque fois par `outils/fusionner.sh` après les trois tests verts : la 256 (le partage, #236, la session du nuage), la 257 (réordonner, #234), la 258 (la grille, #233), la 261 (la vibration, #239, la session du nuage), la 260 (les nombres négatifs, #231) et la 259 (mélanger des sons, #241, la session du nuage). Six des douze dernières dettes sont dans `main`.
+  - J'ai relu en entier la PR 259 de la session du nuage avant sa fusion : le fondu est borné de 100 ms à 5 s, le volume suivi va de 0 à 100 et il est vérifié avec les autres valeurs, et aucun son ne part avant un geste du visiteur.
+  - Quand une PR de la session du nuage est en conflit, elle y fusionne `main` elle-même, comme elle l'a demandé dans l'issue 255 : je ne touche plus aux branches de ses PR.
   - Trois agents relancés après la limite de séance, chacun à partir de ce qui était sauvé sur GitHub : 237 (les filtres), puis 240 (les formes découpées) ; 235 (le défilement et `sticky`) ; 232 (les textes), puis 238 (les heures). Les 246 et 247 suivront.
   - Les dossiers des agents arrêtés sont effacés. Avant, j'ai vérifié que le dernier commit de chacun était sur une branche de GitHub. Un dossier, verrouillé par un processus, partira au redémarrage du PC.
 - Erreur : mon outil de fusion a cassé trois fois des fichiers partagés, en fusionnant `main` dans une branche de PR :
@@ -22,6 +23,7 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
   - Essayé sur le cas exact qui avait cassé (la grille, d43ab50, avec `main`) : tous les fichiers sont résolus ; le guide fait 2 741 lignes, soit les 2 697 de `main` et les 44 de la branche ; `browser-tests.mjs` fait 2 155 lignes, soit 2 105 et 50 ; `node --check` passe ; 154 barrières de code, en paires ; le chapitre de la grille est entier.
   - Puis employé pour la 260.
   - La règle est écrite dans `AGENTS.md` pour toutes les IA (« Fusionner `main` dans sa branche sans rien perdre »), et donnée aux agents.
+- Erreur d'ordre : je voulais faire passer la 259 avant la 260, pour que la session du nuage n'ait pas à refaire sa mise à jour. J'ai arrêté la boucle qui attendait la 260, mais pas le script de fusion qu'elle avait déjà lancé. Ce script a fusionné la 260 vers 11 h 20 UTC, dès ses tests verts. La 259 est retombée en conflit, et la session du nuage y a refait la fusion de `main` (b4cc27d). Rien de cassé : `main` est restée verte. Depuis, quand j'arrête une boucle, j'arrête aussi les scripts qu'elle a lancés, et je vérifie qu'il n'en reste aucun.
 - Reste :
   - dettes : 232, 235, 237, 238 et 240 (les agents du PC), 242 (la session du nuage) ;
   - fonctions ouvertes : 246 et 247 (le PC), 248 à 252 (la session du nuage), 253 avec la 3D ;
