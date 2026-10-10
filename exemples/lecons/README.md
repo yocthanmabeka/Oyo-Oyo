@@ -134,6 +134,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 124 | [Une citation courte, le titre d'une œuvre](124-une-citation-courte.holo) | `<<bonjour>>` : les guillemets de la langue de la page ; `_Les Misérables_` ; `Quote(by:, work:)` |
 | 130 | [Partager la page](130-partager-la-page.holo) | `Device(kind: share)`, `Partage.request` : la feuille de partage du téléphone, avec le titre et l'adresse ; sur un ordinateur, l'adresse copiée ; `done`, `failed`, et la feuille fermée qui n'est pas une panne |
 | 128 | [Réordonner une liste](128-reordonner-une-liste.holo) | `Repeat(over: tableaux, reorder: true, …)` : la poignée ⠿ à la souris et au doigt ; « Monter » et « Descendre » au doigt, au clavier et au lecteur d'écran, qui annonce la nouvelle place ; sans JavaScript aussi |
+| 139 | [Les données d'un autre site](139-les-donnees-d-un-autre-site.holo) | `Data(from: "https://…")` : ton serveur lit l'autre site pour la page, jamais le navigateur du visiteur ; `holo-data/sites.txt` permet le site et range sa clé ; gardé un moment ; `done`, `failed`, `refresh`, et sans JavaScript aussi |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 
