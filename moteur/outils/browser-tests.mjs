@@ -700,6 +700,9 @@ const tests = [
       seen.machines = await p.value(`["train", "left", "wait", "concert"].map((n) => document.querySelector('[data-state="' + n + '"]').getAttribute("datetime")).join(" ")`);
       // Le compte n'est dans aucune région que le lecteur d'écran annonce, et la page ne dit rien quand il change.
       seen.live = await p.value(`[...document.querySelectorAll('[data-format="duration"]')].some((t) => t.closest('[aria-live], [role="status"], [role="alert"], [role="log"], [role="timer"], [role="marquee"]'))`);
+      // L'audit axe-core de la leçon, la copie locale, comme pour les autres leçons.
+      await p.value(readFileSync(join(engine, "node_modules", "axe-core", "axe.min.js"), "utf8") + "\n;0");
+      seen.axe = await p.value(`axe.run(document, { resultTypes: ["violations"] }).then((r) => r.violations.map((v) => v.id).join(", "))`);
       const said = () => p.value(`document.getElementById("announcement")?.textContent ?? ""`);
       const before = await said();
       // L'onglet revient à 18 h 44, puis 18 h 45, puis 18 h 46 : le compte suit l'horloge tout de suite.
@@ -726,7 +729,12 @@ const tests = [
       seen.later = await p.until(has("La réunion commence à 14:15."), 3000);
       await p.click('[data-name="Earlier"]');
       seen.earlier = await p.until(has("La réunion commence à 13:15."), 3000);
+      // Sur un téléphone (360 de large) : rien ne déborde, les boutons passent à la ligne.
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 360, height: 760, deviceScaleFactor: 2, mobile: true });
+      await p.open(lesson, 600);
+      seen.phone = await p.value("document.documentElement.scrollWidth <= innerWidth + 1");
     } finally {
+      await b.send("Emulation.clearDeviceMetricsOverride");
       await b.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: script });
       await b.send("Emulation.setTimezoneOverride", { timezoneId: "" });
     }
@@ -744,9 +752,9 @@ const tests = [
       await b.send("Emulation.setScriptExecutionDisabled", { value: false });
       served.stop();
     }
-    const ok = seen.real === 68 * 1440 + 5 * 60 && seen.now && seen.train && seen.concert && seen.machines === "18:45 PT2H15M P68DT5H 2026-12-31T20:30" && seen.live === false
+    const ok = seen.real === 68 * 1440 + 5 * 60 && seen.now && seen.train && seen.concert && seen.machines === "18:45 PT2H15M P68DT5H 2026-12-31T20:30" && seen.live === false && seen.axe === "" && seen.phone
       && seen.oneMinute && seen.leaving && seen.tomorrow && seen.quiet && seen.night && seen.clockIn && seen.later && seen.earlier && seen.servedStart && seen.served;
-    return [ok, `Paris, 24 octobre 16 h 30 : « Il est … » ${seen.now} ; le train dans 2 h et 15 min : ${seen.train} ; le concert dans 68 j et 5 h (Date compte ${seen.real} min) : ${seen.concert} ; pour les machines : ${seen.machines} ; région vivante : ${seen.live} ; l'onglet revient à 18:44 (1 min), 18:45 (maintenant), 18:46 (demain, dans 1 j et 59 min) : ${seen.oneMinute}, ${seen.leaving}, ${seen.tomorrow} ; rien d'annoncé : ${seen.quiet} ; de nuit, 8 h : ${seen.night} ; pointé à 18:46 : ${seen.clockIn} ; au clavier 14:15 : ${seen.later}, à la souris 13:15 : ${seen.earlier} ; sans JavaScript, 8 h et 30 min puis 8 h, 14:15 : ${seen.servedStart}, ${seen.served}`];
+    return [ok, `Paris, 24 octobre 16 h 30 : « Il est … » ${seen.now} ; le train dans 2 h et 15 min : ${seen.train} ; le concert dans 68 j et 5 h (Date compte ${seen.real} min) : ${seen.concert} ; pour les machines : ${seen.machines} ; région vivante : ${seen.live} ; l'onglet revient à 18:44 (1 min), 18:45 (maintenant), 18:46 (demain, dans 1 j et 59 min) : ${seen.oneMinute}, ${seen.leaving}, ${seen.tomorrow} ; rien d'annoncé : ${seen.quiet} ; de nuit, 8 h : ${seen.night} ; pointé à 18:46 : ${seen.clockIn} ; au clavier 14:15 : ${seen.later}, à la souris 13:15 : ${seen.earlier} ; sans JavaScript, 8 h et 30 min puis 8 h, 14:15 : ${seen.servedStart}, ${seen.served} ; téléphone, rien ne déborde : ${seen.phone} ; axe-core : ${seen.axe || "zéro défaut"}`];
   }],
   ["une grille : une case sur deux colonnes et deux lignes, des zones dans l'ordre de lecture ; rien ne déborde sur un téléphone (leçon 127)", async (p, b) => {
     const faults = [];
