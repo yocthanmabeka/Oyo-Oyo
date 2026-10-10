@@ -121,6 +121,9 @@ pub fn site_html_from(program: &Program, page: &Block, base: &str, title: &str, 
     // Les cases placées dans une grille (ADR-104) : leurs règles, seulement si la page en a.
     let cells = crate::grid::css(program);
     let html = if cells.is_empty() { html } else { html.replacen("</style>", &format!("{cells}</style>"), 1) };
+    // Un bloc qui reste à l'écran (ADR-106) : son style, seulement si la page en a un.
+    let sticky = crate::scroll::css(program);
+    let html = if sticky.is_empty() { html } else { html.replacen("</style>", &format!("{sticky}</style>"), 1) };
     if movements.is_empty() && !html.contains("holo-Scene") {
         return Ok(html);
     }
@@ -563,6 +566,8 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
         || body.contains("data-browser-capability=")
         // Une liste qu'on réordonne (ADR-105) : un glissement ne se rejoue pas, le moteur arrive tout de suite.
         || !crate::reorder::reorderable(program).is_empty();
+    // Une page qui lit la place du visiteur (ADR-106) : le moteur la suit dès l'arrivée.
+    let live = live || crate::scroll::reads(program);
     let live = if live { " data-live" } else { "" };
     // Qui grossit la page quand on zoome (ADR-069) ? Par défaut, le navigateur, comme pour
     // n'importe quel site : la page reste à sa place. Le moteur, seulement si l'auteur l'a
@@ -1138,6 +1143,16 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
         output.push_str(&format!("<div class=\"{}\" style=\"{}\">", cell.class, cell.style));
         render(&Value::Block(remainder), output, worlds, base, parent)?;
         output.push_str("</div>");
+        return Ok(());
+    }
+    // Un bloc qui reste à l'écran (ADR-106) : fabriqué sans son réglage, puis marqué sur sa propre
+    // balise, ou sur celle de son mouvement s'il bouge ; une enveloppe changerait sa place.
+    if let Some(edge) = crate::scroll::sticky_of(block) {
+        let mut remainder = block.clone();
+        remainder.arguments.retain(|a| a.name.as_deref() != Some("sticky"));
+        let mut inside = String::new();
+        render(&Value::Block(remainder), &mut inside, worlds, base, parent)?;
+        output.push_str(&crate::scroll::with_sticky(&inside, edge));
         return Ok(());
     }
     // Un bloc qui bouge (enter:, loop:) : on le fabrique sans ses mouvements, puis on

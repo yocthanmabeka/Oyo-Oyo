@@ -393,6 +393,11 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
     if matches!(name, "grid-column" | "grid-row" | "grid-area" | "grid-template-areas" | "grid-column-start" | "grid-column-end" | "grid-row-start" | "grid-row-end") {
         return refusal(format!("« {name} » place une case de grille : la place se dit sur le bloc, columnSpan: 2, rowSpan: 2, ou une zone, Grid(areas: [\"top top\", \"menu main\"]) puis area: menu (ADR-104)"));
     }
+    // Un bloc qui reste à l'écran se dit sur le bloc, posé directement dans la page (ADR-106) :
+    // ni `position: sticky`, ni un bloc fixé qui sort du fil de la page (`position: fixed`).
+    if name == "position" && matches!(setting.value.trim(), "sticky" | "fixed") {
+        return refusal(format!("« position: {} » : un style ne dit que l'apparence ; un bloc qui reste à l'écran se dit sur le bloc, posé directement dans la page : écris « sticky: top » ou « sticky: bottom » (ADR-106)", setting.value.trim()));
+    }
     if LAYOUT.contains(&name) {
         return refusal(format!(
             "« {name} » règle la disposition, pas l'apparence : un style ne dit que l'apparence, la disposition vient des blocs (ADR-017)"

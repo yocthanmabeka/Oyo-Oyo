@@ -3,7 +3,7 @@
 //! ```holo
 //! Page(
 //!   children: [
-//!     Progress(value: scroll, max: 100, label: "Lecture", sticky: top),
+//!     Row(sticky: top, children: [ Progress(value: scroll, max: 100, label: "Lecture") ]),
 //!     H1("Un long article", name: Top),
 //!     If(scroll, over: 10, children: [ A("↑ Retour en haut", to: "#Top", sticky: bottom) ]),
 //!   ],
@@ -16,16 +16,17 @@
 //!   jamais la changer : c'est le navigateur qui la donne au moteur quand le visiteur défile, au
 //!   plus dix fois par seconde, jamais à chaque pixel (`page-engine.js`), et seulement à une page
 //!   qui la lit. Sans JavaScript, elle vaut 0 : la page arrive en haut, et ne dépend pas d'elle
-//!   pour se lire.
+//!   pour se lire. Des données reçues ne la changent pas (`state::take_values`).
 //! - `sticky: top | bottom` : un bloc posé directement dans la page (ou `Header`, `Footer`)
 //!   reste à l'écran, en haut ou en bas, pendant qu'on défile ; c'est le `position: sticky` du
 //!   CSS, en pur CSS, donc aussi sans JavaScript. Une exception étroite au refus de `position`
 //!   (ADR-017) : ni décalage, ni ordre de superposition, rien d'autre ; un bloc par bord ; jamais
-//!   plus du quart de l'écran ; il ne cache jamais ce qui a le focus (`scroll-padding`).
+//!   plus du cinquième de la hauteur de l'écran ; rien ne reste sur un écran de moins de 480px de
+//!   haut, ni pendant qu'on écrit avec le clavier de l'écran, ni sur papier ; il ne cache jamais
+//!   ce qui a le focus (`scroll-padding`).
 
 use crate::holo::{Argument, Block, Error, Program, Target, Value};
 use crate::rules::for_each_block;
-use crate::state::State;
 
 /// La place du visiteur dans la page, une valeur que le moteur donne : on la lit, on ne la change pas.
 pub const NAME: &str = "scroll";
@@ -33,25 +34,38 @@ pub const NAME: &str = "scroll";
 /// Les deux bords où un bloc reste à l'écran.
 pub const EDGES: &[&str] = &["top", "bottom"];
 
-/// La part de l'écran qu'un bloc qui reste peut prendre, au plus : le quart.
-pub const SHARE: &str = "25vh";
+/// La part de la hauteur de l'écran qu'un bloc qui reste peut prendre, au plus, en pour cent : le
+/// cinquième. Avec un bloc en haut et un en bas, il reste toujours plus de la moitié de l'écran.
+pub const SHARE: u32 = 20;
+
+/// Sous cette hauteur d'écran, en pixels, aucun bloc ne reste : un téléphone couché, une page
+/// grossie à 200 % ou plus (WCAG 1.4.10), où il prendrait la place de la lecture.
+pub const LOWEST: u32 = 480;
 
 /// Les blocs qui ne restent pas à l'écran : ils ne se voient pas eux-mêmes, ou ont déjà leur place.
-const NOT_STICKY: &[&str] = &["If", "Repeat", "Dialog", "Sound", "Main", "Item", "Point", "Scenes", "Scene", "Module", "Data", "Filter", "Days", "Font", "Abbreviation", "Term"];
+const NOT_STICKY: &[&str] = &["If", "Repeat", "Dialog", "Main", "Item", "Point", "Scenes", "Scene", "Module", "Data", "Filter", "Days", "Font", "Abbreviation", "Term"];
 
-/// Le style d'un bloc qui reste à l'écran, écrit seulement quand la page en a un. En `:where()`,
-/// pour qu'un style de l'auteur (son fond, sa marge) l'emporte toujours ; la part de l'écran et la
-/// marge laissée au focus, elles, ne se changent pas. Sur un écran bas (un téléphone couché, le
-/// clavier qui réduit la page), sous le clavier de l'écran (`holo-keyboard`, posé par la page) et à
-/// l'impression, le bloc rend sa place. En bas, il laisse la place du bouton rond du moteur.
-const CSS: &str = ":where([data-sticky]){position:sticky;z-index:1;background:var(--holo-sticky-background,Canvas)}\
-:where([data-sticky=top]){top:0}:where([data-sticky=bottom]){bottom:0;padding-right:72px}\
-.holo-Page [data-sticky]{max-height:25vh;overflow-y:auto}\
-html:has([data-sticky=top]){scroll-padding-top:var(--holo-sticky-top,25vh)}\
-html:has([data-sticky=bottom]){scroll-padding-bottom:var(--holo-sticky-bottom,25vh)}\
-@media (max-height:480px){.holo-Page [data-sticky]{position:static;max-height:none}html:has([data-sticky]){scroll-padding:0}}\
-.holo-keyboard [data-sticky]{position:static}\
-@media print{.holo-Page [data-sticky]{position:static;max-height:none}}";
+/// Le style d'un bloc qui reste à l'écran, écrit seulement quand la page en a un, et seulement sur
+/// un écran assez haut (sur papier, sur un écran bas, le bloc garde sa place dans la page) :
+/// - sa place, en haut ou en bas ; en bas, au-dessus des touches à l'écran (`--holo-keys`, ADR-069) ;
+/// - sa hauteur, le cinquième de l'écran au plus (ce qui dépasse défile dans le bloc) ;
+/// - son fond, en `:where()` pour qu'un style de l'auteur l'emporte : sans fond, le texte qui
+///   passe dessous se lirait à travers ;
+/// - la marge laissée au focus (WCAG 2.4.11) : la hauteur du bloc, mesurée par la page
+///   (`--holo-sticky-top`, `--holo-sticky-bottom`), sinon le cinquième de l'écran ; un bloc caché
+///   par un `If` faux n'en demande pas ;
+/// - le bouton rond du moteur monte au-dessus d'un bloc resté en bas (sauf quand les touches à
+///   l'écran sont là : le bloc est alors au-dessus d'elles) ;
+/// - le clavier de l'écran ouvert sur un champ (`holo-keyboard`, posé par la page) : le bloc
+///   reprend sa place, pour ne pas cacher ce qu'on écrit.
+const CSS: &str = "@media screen and (min-height:481px){\
+.holo-Page [data-sticky]{position:sticky;z-index:3;max-height:20vh;max-height:20svh;overflow-y:auto}\
+.holo-Page [data-sticky=top]{top:0}.holo-Page [data-sticky=bottom]{bottom:var(--holo-keys,0px)}\
+:where(.holo-Page [data-sticky]){background:var(--holo-sticky-background,Canvas)}\
+html:not(.holo-keyboard):has(.holo-Page [data-sticky=top]:not([hidden] *)){scroll-padding-top:calc(var(--holo-sticky-top,20svh) + 8px)}\
+html:not(.holo-keyboard):has(.holo-Page [data-sticky=bottom]:not([hidden] *)){scroll-padding-bottom:calc(var(--holo-sticky-bottom,20svh) + var(--holo-keys,0px) + 8px)}\
+html:not(:has(#keys:not([hidden]))) #menu{bottom:calc(12px + var(--holo-sticky-bottom,0px))}\
+html.holo-keyboard .holo-Page [data-sticky]{position:static;max-height:none;overflow-y:visible}";
 
 /// La page lit-elle `scroll` : dans un texte (`{scroll}`), une condition, une comparaison, une
 /// barre (`Progress(value: scroll)`), une demande (`best.set(scroll)`) ?
@@ -134,19 +148,6 @@ pub fn inject(program: &mut Program) -> Result<(), Error> {
     Ok(())
 }
 
-/// Des données reçues (`Data`) ne changent pas la place du visiteur : elle reste celle d'avant.
-/// Seul le navigateur la donne.
-pub fn kept(program: &Program, before: &State, mut after: State) -> State {
-    if !reads(program) {
-        return after;
-    }
-    let place = before.iter().find(|(name, _)| name == NAME).map_or(0, |(_, value)| *value);
-    if let Some((_, slot)) = after.iter_mut().find(|(name, _)| name == NAME) {
-        *slot = place;
-    }
-    after
-}
-
 /// Le bord où un bloc reste à l'écran : `sticky: top` ou `sticky: bottom`.
 pub fn sticky_of(block: &Block) -> Option<&str> {
     match &block.argument("sticky")?.value {
@@ -189,6 +190,9 @@ pub fn check(program: &Program) -> Result<(), Error> {
         if NOT_STICKY.contains(&block.name.as_str()) {
             return refusal(format!("« {}(sticky: …) » : un {} ne reste pas à l'écran ; mets « sticky » sur un bloc qui se voit, posé dans la page", block.name, block.name));
         }
+        if block.name == "Sound" && block.argument("label").is_none() {
+            return refusal("« Sound(sticky: …) » : un son sans lecteur ne se voit pas ; donne-lui un lecteur, label: \"…\", pour qu'il reste à l'écran".into());
+        }
         if !allowed.contains(&(block as *const Block)) {
             return refusal(format!("« sticky » garde à l'écran un bloc posé directement dans la page, ou Header et Footer : « {} » est rangé dans un autre bloc ; mets « sticky » sur le bloc de la page qui le contient", block.name));
         }
@@ -210,12 +214,13 @@ pub fn with_sticky(html: &str, edge: &str) -> String {
 
 /// Le style des blocs qui restent à l'écran, quand la page en a : leur place, leur part de
 /// l'écran, la marge laissée au focus ; et leur fond, quand l'auteur n'en donne pas : celui de la
-/// page (une couleur, ou une variable), aussi dans le thème sombre ; sinon celui du navigateur.
-/// Sans fond, le texte qui passe dessous se lirait à travers. Vide pour une page sans `sticky`.
+/// page (une couleur, ou une variable), aussi dans le thème sombre. Un fond de page qui n'est pas
+/// une couleur (un dégradé, une image) : celui du navigateur, avec son texte (`Canvas`,
+/// `CanvasText`), toujours lisible ensemble. Vide pour une page sans `sticky`.
 pub fn css(program: &Program) -> String {
     let mut sticky = false;
     let _ = for_each_block(&program.root, &mut |block| {
-        sticky |= block.argument("sticky").is_some();
+        sticky |= sticky_of(block).is_some();
         Ok(())
     });
     if !sticky {
@@ -224,32 +229,34 @@ pub fn css(program: &Program) -> String {
     let color = |settings: &[crate::holo::Setting]| {
         let value = settings.iter().find(|s| s.name == "background")?.value.trim().to_string();
         if crate::styles::is_color(&value) {
-            Some(value)
+            Some(Some(value))
         } else if value.starts_with("--") && crate::styles::variables_of(&value) == [value.as_str()] {
-            Some(format!("var({value})"))
+            Some(Some(format!("var({value})")))
         } else {
-            None
+            // Un dégradé, une image : pas une couleur.
+            Some(None)
         }
     };
     let mut css = String::from(CSS);
     for rule in program.styles.iter().filter(|rule| matches!(&rule.target, Target::Type(t) if t == "Page")) {
-        if let Some(value) = color(&rule.settings) {
-            css.push_str(&format!(".holo-Page{{--holo-sticky-background:{value}}}"));
+        match color(&rule.settings) {
+            Some(Some(value)) => css.push_str(&format!(".holo-Page{{--holo-sticky-background:{value}}}")),
+            Some(None) => css.push_str(":where(.holo-Page [data-sticky]){color:CanvasText}"),
+            None => {}
         }
         for (_, settings, _) in rule.states.iter().filter(|(state, ..)| state == "dark") {
-            if let Some(value) = color(settings) {
+            if let Some(Some(value)) = color(settings) {
                 css.push_str(&format!("@media (prefers-color-scheme:dark){{.holo-Page{{--holo-sticky-background:{value}}}}}"));
             }
         }
     }
+    css.push('}');
     css
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    const ARTICLE: &str = r#"Page(
+    const ARTICLE: &str = r##"Page(
   title: "Read {scroll} %",
   state: State(done: 0),
   children: [
@@ -263,7 +270,7 @@ mod tests {
 )
 Page { background: #101020; color: white; dark: { background: --night; } --night: #000010; }
 .bar { padding: 8px 0; }
-.up { background: #E9B44C; color: #101020; }"#;
+.up { background: #E9B44C; color: #101020; }"##;
 
     #[test]
     fn scroll_is_given_by_the_browser_and_watched_by_the_rules() {
@@ -291,6 +298,11 @@ Page { background: #101020; color: white; dark: { background: --night; } --night
         let data = "Page(data: Data(from: \"d.json\"), state: State(n: 0), children: [ P(\"{scroll} {n}\") ])";
         let received = crate::receive(data, &crate::scrolled(data, &crate::initial_state(data), 30), "{\"scroll\": 77, \"n\": 2}");
         assert!(received.contains("scroll=30") && received.contains("n=2"), "{received}");
+        // Un essai écrit fait défiler la page : `scroll 95` (holo test).
+        let played = crate::tools::play(ARTICLE, "scroll 95\nexpect scroll = 95\nexpect done = 1\nscroll 0\nexpect done = 1").unwrap();
+        assert_eq!(played.failure, None);
+        let refused = crate::tools::play("Page(children: [ P(\"x\") ])", "scroll 50").unwrap();
+        assert!(refused.failure.is_some_and(|(line, message)| line == 1 && message.contains("ne lit pas « scroll »")));
         // Une page sans scroll ni sticky n'a rien de plus : ni valeur, ni style, ni moteur tout de suite.
         let plain = crate::flat_view("Page(children: [ P(\"x\") ])", "").unwrap();
         assert!(!plain.contains("scroll") && !plain.contains("data-sticky") && !plain.contains(" data-live"), "{plain}");
@@ -301,33 +313,45 @@ Page { background: #101020; color: white; dark: { background: --night; } --night
         let html = crate::flat_view(ARTICLE, "").unwrap();
         // Le bloc garde sa balise et sa place ; il est marqué, en haut ou en bas.
         assert!(html.contains(r#"<div data-sticky="top" class="holo-Row holo-s-bar""#), "{html}");
-        assert!(html.contains(r#"<a data-sticky="bottom" class="holo-A holo-s-up" href="#Top">↑ Back to top</a>"#), "{html}");
-        // Le style : la place, le quart de l'écran au plus, le focus jamais caché, un écran trop bas
-        // ou le clavier ouvert qui rendent sa place au bloc ; à l'impression aussi.
+        assert!(html.contains(r##"<a data-sticky="bottom" class="holo-A holo-s-up" href="#Top">↑ Back to top</a>"##), "{html}");
+        // Le style : seulement sur un écran assez haut ; la place, le cinquième de l'écran au plus,
+        // le focus jamais caché, le bouton du moteur au-dessus du bloc du bas, le clavier ouvert
+        // qui rend sa place au bloc.
         for rule in [
-            ":where([data-sticky]){position:sticky;",
-            ".holo-Page [data-sticky]{max-height:25vh;overflow-y:auto}",
-            "html:has([data-sticky=top]){scroll-padding-top:var(--holo-sticky-top,25vh)}",
-            "html:has([data-sticky=bottom]){scroll-padding-bottom:var(--holo-sticky-bottom,25vh)}",
-            "@media (max-height:480px){",
-            ".holo-keyboard [data-sticky]{position:static}",
-            "@media print{",
+            "@media screen and (min-height:481px){",
+            ".holo-Page [data-sticky]{position:sticky;z-index:3;max-height:20vh;max-height:20svh;overflow-y:auto}",
+            ".holo-Page [data-sticky=bottom]{bottom:var(--holo-keys,0px)}",
+            "{scroll-padding-top:calc(var(--holo-sticky-top,20svh) + 8px)}",
+            "{scroll-padding-bottom:calc(var(--holo-sticky-bottom,20svh) + var(--holo-keys,0px) + 8px)}",
+            "#menu{bottom:calc(12px + var(--holo-sticky-bottom,0px))}",
+            "html.holo-keyboard .holo-Page [data-sticky]{position:static;",
         ] {
             assert!(html.contains(rule), "{rule}\n{html}");
         }
-        // Le fond de la page, aussi dans le thème sombre, quand le bloc n'a pas le sien.
-        assert!(html.contains(".holo-Page{--holo-sticky-background:#101020}@media (prefers-color-scheme:dark){.holo-Page{--holo-sticky-background:var(--night)}}"), "{html}");
+        // Le fond de la page, aussi dans le thème sombre, quand le bloc n'a pas le sien ; et la
+        // règle du média se referme après lui.
+        assert!(html.contains(".holo-Page{--holo-sticky-background:#101020}@media (prefers-color-scheme:dark){.holo-Page{--holo-sticky-background:var(--night)}}}"), "{html}");
+        // Un fond de page en dégradé : le fond et le texte du navigateur, toujours lisibles ensemble.
+        let gradient = crate::flat_view("Page(children: [ Header(sticky: top, children: [ Text(\"x\") ]) ])\nPage { background: linear-gradient(to bottom, #101020, #303060); color: white; }", "").unwrap();
+        assert!(gradient.contains(":where(.holo-Page [data-sticky]){color:CanvasText}") && !gradient.contains("--holo-sticky-background:linear"), "{gradient}");
         // Header et Footer posés dans la page ; un bloc sous un If ou dans Main.
         let landmarks = "Page(children: [ Header(sticky: top, children: [ Text(\"Studio\") ]), Main(children: [ P(\"x\") ]), Footer(sticky: bottom, children: [ Text(\"©\") ]) ])";
         let html = crate::flat_view(landmarks, "").unwrap();
         assert!(html.contains(r#"<header data-sticky="top" class="holo-Header">"#) && html.contains(r#"<footer data-sticky="bottom" class="holo-Footer">"#), "{html}");
-        assert!(!html.contains("--holo-sticky-background"), "{html}");
+        assert!(!html.contains(".holo-Page{--holo-sticky-background"), "{html}");
         // Un bloc qui reste n'est pas une page vivante : le CSS suffit, le moteur attend un geste.
         assert!(!html.contains(" data-live"), "{html}");
         crate::check_page("Page(children: [ Main(children: [ If(n, is: 0, children: [ P(\"x\", sticky: top) ], else: [ P(\"y\") ]) ]) ], state: State(n: 0))").unwrap();
+        // Un lecteur de son reste en bas, comme un lecteur de musique.
+        crate::check_page("Page(children: [ Sound(source: \"a.mp3\", label: \"Le podcast\", sticky: bottom) ])").unwrap();
         // Un bloc qui bouge et qui reste : marqué sur son enveloppe de mouvement, qui tient sa place.
         let moving = crate::flat_view("Page(children: [ H1(\"x\", sticky: top, enter: Enter(y: 4px)) ])", "").unwrap();
         assert!(moving.contains(" data-sticky=\"top\""), "{moving}");
+        // Un composant : le réglage est sur son bloc racine, et il se pose dans la page.
+        let component = "Page(components: [ Component(name: Bar, children: [ Header(sticky: top, children: [ Text(\"x\") ]) ]) ], children: [ Bar() ])";
+        assert!(crate::flat_view(component, "").unwrap().contains(r#"<header data-sticky="top""#));
+        // Un monde seul n'a pas de bloc qui reste.
+        assert!(crate::check("Point(name: W, seed: 1, inside: World(children: [ P(\"x\", sticky: top) ]))").unwrap_err().message.contains("posé directement dans la page"));
         // Un style de l'auteur ne dit pas « position » : le réglage est sur le bloc.
         let error = crate::check_page("Page(children: [ P.bar(\"x\") ])\n.bar { position: sticky; }").unwrap_err();
         assert!(error.message.contains("écris « sticky: top »"), "{error}");
@@ -346,12 +370,16 @@ Page { background: #101020; color: white; dark: { background: --night; } --night
             ("Point(name: W, seed: 1, inside: World(children: [ P(\"{scroll}\") ]))", "se lit dans Page"),
             ("Page(children: [ P(\"x\", sticky: middle) ])", "attend top ou bottom"),
             ("Page(children: [ P(\"x\", sticky: \"top\") ])", "attend top ou bottom"),
+            ("Page(children: [ P(\"x\", sticky: true) ])", "attend top ou bottom"),
             ("Page(children: [ Row(children: [ P(\"x\", sticky: top) ]) ])", "posé directement dans la page"),
-            ("Page(children: [ Header(children: [ Nav(sticky: top, children: [ A(\"x\", to: \"#X\") ]) ]), H2(\"X\", name: X) ])", "posé directement dans la page"),
+            ("Page(children: [ Header(children: [ Nav(sticky: top, children: [ A(\"x\", to: \"#X\") ]) ]), H1(\"X\", name: X) ])", "posé directement dans la page"),
             ("Page(state: State(n: 0), children: [ If(n, is: 0, sticky: top, children: [ P(\"x\") ]) ])", "un If ne reste pas à l'écran"),
+            ("Page(children: [ Main(sticky: top, children: [ P(\"x\") ]) ])", "un Main ne reste pas à l'écran"),
+            ("Page(children: [ Sound(name: Ding, source: \"a.mp3\", sticky: bottom) ])", "un son sans lecteur ne se voit pas"),
             ("Page(children: [ P(\"a\", sticky: top), P(\"b\", sticky: top) ])", "un seul bloc qui reste en haut"),
             ("Page(children: [ Point(name: P1, seed: 1, inside: World(children: [ P(\"x\", sticky: top) ])) ])", "posé directement dans la page"),
             ("Page(children: [ P(\"x\") ], rules: [ On(P.tap, sticky: top, effect: x.add(1)) ])", "n'a pas de paramètre « sticky »"),
+            ("Page(components: [ Component(name: Bar, children: [ Text(\"x\") ]) ], children: [ Bar(sticky: top) ])", "écris « sticky » dans le composant"),
         ] {
             let error = crate::check_page(source).err().unwrap_or_else(|| panic!("accepté : {source}"));
             assert!(error.message.contains(message), "{source}\n→ {error}");
