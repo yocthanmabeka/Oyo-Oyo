@@ -976,6 +976,30 @@ const tests = [
       for (let i = 0; i < 10 && (await step(true)) !== "Ce que c'est"; i++);
       check("le clavier passe par le bas de la page et revient en haut", walk.includes("Leçon 1 : une page →") && walk.some((n) => n.startsWith("Les Perséides")) && walk.at(-1) === "Ce que c'est", walk);
       summary.keyboard = walk.join(" → ");
+      // Le piège connu d'un en-tête collé : un lien à l'écran, mais sous la barre (ou sous le bouton
+      // du bas). Le navigateur le croit visible et ne défile pas ; la marge laissée au focus le fait
+      // défiler. On pose le lien sous la barre, puis sous le bouton, et on y va avec Tab.
+      const wiki = `document.querySelector('a[href^="https://fr.wikipedia"]')`;
+      const under = [];
+      for (const [edge, at] of [["top", "20"], ["bottom", "innerHeight - 20"]]) {
+        await p.value(`scrollBy(0, ${wiki}.getBoundingClientRect().${edge} - (${at}))`);
+        await pause(500);
+        await p.value(`document.querySelector('a[href="#Ou"]').focus({ preventScroll: true })`);
+        await tab(false);
+        const f = await focused();
+        under.push(`${edge === "top" ? "sous la barre" : "sous le bouton"} : ${f.hidden || "visible"}`);
+        if (!f.name.startsWith("Les Perséides") || f.hidden) faults.push(`Tab vers un lien posé ${edge === "top" ? "sous la barre" : "sous le bouton du bas"} : « ${f.name} » ${f.hidden} ${JSON.stringify(f.at)}`);
+      }
+      // Un bloc qui apparaît (le bouton du bas, quand on passe 10 %) sur ce qui a le focus : ce
+      // qu'on voyait revient au-dessus de lui.
+      await p.value(`scrollTo(0, 0)`);
+      await pause(500);
+      await p.value(`${wiki}.focus({ preventScroll: true }); scrollBy(0, ${wiki}.getBoundingClientRect().bottom - (innerHeight - 20))`);
+      await pause(700);
+      const appeared = await focused();
+      under.push(`un bouton qui apparaît : ${appeared.hidden || "visible"}`);
+      if (appeared.hidden) faults.push(`un bloc qui apparaît sur le lien qui a le focus : « ${appeared.name} » ${appeared.hidden} ${JSON.stringify(appeared.at)}`);
+      summary.under = under.join(", ");
       errors("ordinateur");
       // 7. Sur un téléphone (360 × 780) : la barre prend moins du cinquième de l'écran ; rien ne déborde.
       await b.send("Emulation.setDeviceMetricsOverride", { width: 360, height: 780, deviceScaleFactor: 2, mobile: true });
@@ -1027,7 +1051,7 @@ const tests = [
     } finally {
       await b.send("Emulation.clearDeviceMetricsOverride");
     }
-    return [faults.length === 0, faults.length ? faults.join("\n      ") : `ordinateur : ${summary.half} ; ${summary.rate} ; retour en haut ; « Quand les voir » : ${summary.anchor} ; clavier : ${summary.keyboard}, rien de caché ; téléphone : ${summary.phone}, ${summary.tall}, clavier de l'écran : l'en-tête reprend sa place ; couché : rien ne reste ; sans JavaScript : ${summary.withoutScript}`];
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : `ordinateur : ${summary.half} ; ${summary.rate} ; retour en haut ; « Quand les voir » : ${summary.anchor} ; clavier : ${summary.keyboard}, rien de caché ; ${summary.under} ; téléphone : ${summary.phone}, ${summary.tall}, clavier de l'écran : l'en-tête reprend sa place ; couché : rien ne reste ; sans JavaScript : ${summary.withoutScript}`];
   }],
   ["faire vibrer le téléphone : un toucher, une rencontre, le mouvement réduit, un navigateur sans vibreur (leçon 133)", async (p, b) => {
     const lesson = "/exemples/lecons/133-faire-vibrer-le-telephone.holo";
