@@ -1,6 +1,6 @@
 # ADR-106 — Où en est le visiteur dans la page, et un bloc qui reste à l'écran : `scroll`, `sticky: top | bottom`
 
-- Statut : ACCEPTÉ (fait et validé : Yocthan, 2026-10-09, « tu le valides déjà, tu le fais déjà »)
+- Statut : ACCEPTÉ (fait et validé : Yocthan, 2026-10-09, « tu le valides déjà, tu le fais déjà » ; essayé et validé par Yocthan le 2026-10-10 : « J'ai fait les essais, c'est déjà parfait »)
 - Date : 2026-10-10
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'issue #235 (« Dernière dette du web : la position du défilement comme valeur »), dans la file des dernières dettes du web ouverte par Yocthan le 2026-10-09 ; le grand tableau du web (`docs/01-holocode/TABLEAU-WEB.md` : « défilement (scroll) … En partie … Pas encore la position du défilement comme valeur ») ; `docs/01-holocode/COMPARAISON-WEB.md` (« Approche, position du défilement : manque ») ; la piste 6 de l'exploration du web complet (`proposals/Claude/exploration-web-complet-2026-10/piste-06.md`, options G2 `{scroll}` et G3 `Header(stick: true)`) ; `ADR-017` (un style ne dit que l'apparence : `position` refusé) ; `ADR-035` (refuser une mécanique, jamais une capacité) ; `ADR-061` (`Enter(…, inView: true)`, sans écouter le défilement) ; `ADR-039` et `ADR-081` (des valeurs données par le moteur ou par le serveur, lues sans être changées) ; la règle de parité de Yocthan (2026-10-07 : ce qui existe sur l'ordinateur existe sur le téléphone, et l'inverse).
