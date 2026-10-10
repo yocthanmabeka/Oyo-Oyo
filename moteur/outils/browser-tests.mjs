@@ -810,8 +810,8 @@ const tests = [
       // 1. Le champ, tel que le moteur le pose (avec le panneau des valeurs, ?values).
       await q.open(`/${lesson}?values`);
       if (!(await q.until("window.__holoStarted"))) return [false, "le moteur n'est pas arrivé"];
-      const attributes = await q.value(`[${field}.type, ${field}.autocomplete, ${field}.getAttribute("aria-required"), ${field}.hasAttribute("maxlength"), ${field}.hasAttribute("name"), ${field}.hasAttribute("data-bind"), ${field}.disabled].join(" ")`);
-      check("le champ", attributes === "password new-password true false false false false", attributes);
+      const attributes = await q.value(`[${field}.type, ${field}.autocomplete, ${field}.getAttribute("aria-required"), ${field}.spellcheck, ${field}.hasAttribute("maxlength"), ${field}.hasAttribute("name"), ${field}.hasAttribute("data-bind"), ${field}.disabled].join(" ")`);
+      check("le champ", attributes === "password new-password true false false false false false", attributes);
       check("le bouton « Montrer », montré par la page légère", await q.value(`!${reveal}.hidden && ${reveal}.offsetHeight > 0`), "caché");
       check("le lecteur d'écran, au départ", (await revealSaid()) === "Montrer le mot de passe, false", await revealSaid());
       // 2. Le collage : le presse-papiers du navigateur, puis Ctrl+V dans le champ. Rien ne l'empêche.

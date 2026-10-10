@@ -271,7 +271,10 @@ pub fn is_code(code: &str) -> bool {
 
 /// Le champ, tel que la page le montre. Sans `name` ni `data-bind` : aucun formulaire ordinaire ne
 /// l'envoie, et le moteur du navigateur ne le range dans aucune valeur. Sans `maxlength` : un mot
-/// de passe collé n'est jamais coupé en silence (le moteur dit qu'il est trop long). Le bouton
+/// de passe collé n'est jamais coupé en silence (le moteur dit qu'il est trop long). Sans
+/// correcteur : montré, le champ devient un texte, et un correcteur d'orthographe « amélioré »
+/// (celui de Chrome, l'éditeur d'Edge) en enverrait le contenu à un service en ligne ; ni
+/// majuscule ni correction automatiques sur un téléphone, qui changeraient le mot de passe. Le bouton
 /// « Montrer » attend la page légère, qui le montre (sans JavaScript, il ne pourrait rien faire) ;
 /// la note dit pourquoi le champ est fermé, hors HTTPS.
 pub fn html(block: &Block, classes: &str, form_name: &str, french: bool) -> String {
@@ -295,7 +298,7 @@ pub fn html(block: &Block, classes: &str, form_name: &str, french: bool) -> Stri
         Kind::Current => (String::new(), String::new()),
     };
     format!(
-        "<div class=\"{classes} holo-password\"{name}><label><span>{}</span><input type=\"password\" id=\"{id}\" class=\"holo-secret\" data-secret=\"{}\" data-form=\"{}\" autocomplete=\"{}\" aria-required=\"true\"{described}></label>\
+        "<div class=\"{classes} holo-password\"{name}><label><span>{}</span><input type=\"password\" id=\"{id}\" class=\"holo-secret\" data-secret=\"{}\" data-form=\"{}\" autocomplete=\"{}\" spellcheck=\"false\" autocapitalize=\"none\" autocorrect=\"off\" aria-required=\"true\"{described}></label>\
 <button type=\"button\" class=\"holo-reveal\" aria-pressed=\"false\" aria-controls=\"{id}\" aria-label=\"{show_said}\" hidden>{show}</button>{hint}\
 <p class=\"holo-password-note\" id=\"{id}-note\" hidden>{}</p></div>",
         escape(label),
@@ -405,7 +408,7 @@ mod password_tests {
         // aucun empêchement du collage ; `autocomplete` posé par le moteur.
         let html = crate::flat_view(&source, "").unwrap();
         let field = html.split("<input type=\"password\"").nth(1).unwrap().split('>').next().unwrap();
-        assert!(field.contains("data-secret=\"new\"") && field.contains("autocomplete=\"new-password\"") && field.contains("aria-required=\"true\""), "{field}");
+        assert!(field.contains("data-secret=\"new\"") && field.contains("autocomplete=\"new-password\" spellcheck=\"false\" autocapitalize=\"none\" autocorrect=\"off\"") && field.contains("aria-required=\"true\""), "{field}");
         for absent in ["data-bind", " name=", " value=", "maxlength", "minlength", "onpaste", "oncopy", "readonly", "disabled"] {
             assert!(!field.contains(absent), "{absent} : {field}");
         }
@@ -526,9 +529,9 @@ mod password_tests {
         // Règles 4 et 5 : `autocomplete` juste ; le bouton « Montrer » nommé, avec son état, relié au
         // champ, montré par la page légère ; l'explication d'un nouveau mot de passe reliée au champ.
         let current = crate::flat_view(&members(FORM_CURRENT), "").unwrap();
-        assert!(current.contains("<div class=\"holo-Input holo-password\"><label><span>Ton mot de passe</span><input type=\"password\" id=\"holo-password-Login\" class=\"holo-secret\" data-secret=\"current\" data-form=\"Login\" autocomplete=\"current-password\" aria-required=\"true\"></label><button type=\"button\" class=\"holo-reveal\" aria-pressed=\"false\" aria-controls=\"holo-password-Login\" aria-label=\"Montrer le mot de passe\" hidden>Montrer</button><p class=\"holo-password-note\" id=\"holo-password-Login-note\" hidden>"), "{current}");
+        assert!(current.contains("<div class=\"holo-Input holo-password\"><label><span>Ton mot de passe</span><input type=\"password\" id=\"holo-password-Login\" class=\"holo-secret\" data-secret=\"current\" data-form=\"Login\" autocomplete=\"current-password\" spellcheck=\"false\" autocapitalize=\"none\" autocorrect=\"off\" aria-required=\"true\"></label><button type=\"button\" class=\"holo-reveal\" aria-pressed=\"false\" aria-controls=\"holo-password-Login\" aria-label=\"Montrer le mot de passe\" hidden>Montrer</button><p class=\"holo-password-note\" id=\"holo-password-Login-note\" hidden>"), "{current}");
         let new = crate::flat_view(&public(FORM_NEW), "").unwrap();
-        assert!(new.contains("autocomplete=\"new-password\" aria-required=\"true\" aria-describedby=\"holo-password-Login-hint\" data-hint=\"holo-password-Login-hint\">"), "{new}");
+        assert!(new.contains("autocomplete=\"new-password\" spellcheck=\"false\" autocapitalize=\"none\" autocorrect=\"off\" aria-required=\"true\" aria-describedby=\"holo-password-Login-hint\" data-hint=\"holo-password-Login-hint\">"), "{new}");
         assert!(new.contains("<p class=\"holo-password-hint\" id=\"holo-password-Login-hint\">12 caractères au moins : une phrase que toi seul connais est un bon mot de passe.</p>"), "{new}");
         let english = crate::flat_view(&public(FORM_NEW).replace("title: \"Essai\",", "title: \"Essai\", lang: \"en\","), "").unwrap();
         assert!(english.contains("aria-label=\"Show password\" hidden>Show</button>") && english.contains("At least 12 characters"), "{english}");
