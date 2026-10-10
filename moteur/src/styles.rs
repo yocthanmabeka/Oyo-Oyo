@@ -678,6 +678,8 @@ mod tests {
             include_str!("../../exemples/lecons/123-des-suggestions-dans-un-champ.holo"),
             // Une citation courte, le titre d'une œuvre (ADR-101).
             include_str!("../../exemples/lecons/124-une-citation-courte.holo"),
+            // Travailler un texte : majuscules, longueur, couper, découper (ADR-103).
+            include_str!("../../exemples/lecons/126-travailler-un-texte.holo"),
             // Une grille qui place ses cases : plusieurs colonnes ou lignes, des zones (ADR-104).
             include_str!("../../exemples/lecons/127-une-grille-et-ses-zones.holo"),
             // Partager la page : la feuille du téléphone, sinon l'adresse copiée (ADR-107).
@@ -691,8 +693,10 @@ mod tests {
             // Se souvenir le temps d'une visite, un formulaire en deux pages (ADR-113).
             include_str!("../../exemples/lecons/136-se-souvenir-le-temps-d-une-visite.holo"),
             include_str!("../../exemples/lecons/136-inscription/etape-2.holo"),
-            // Travailler un texte : majuscules, longueur, couper, découper (ADR-103).
-            include_str!("../../exemples/lecons/126-travailler-un-texte.holo"),
+            // Les données d'un autre site, lues par le serveur de l'auteur (ADR-116).
+            include_str!("../../exemples/lecons/139-les-donnees-d-un-autre-site.holo"),
+            // Une page dans la page : une carte et une vidéo d'autres sites, derrière leur façade (ADR-117).
+            include_str!("../../exemples/lecons/140-une-page-dans-la-page.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();
@@ -710,6 +714,10 @@ mod tests {
         }
         // Une grille qui place ses cases (ADR-104).
         for word in ["columnSpan:", "rowSpan:", "areas:", "area:"] {
+            assert!(source.contains(word), "« {word} » manque dans l'exemple");
+        }
+        // Une page dans la page : les sites permis, l'image de la façade (ADR-117).
+        for word in ["embeds:", "Embed(", "image: \"140-carte.svg\""] {
             assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
         // Travailler un texte (ADR-103).
