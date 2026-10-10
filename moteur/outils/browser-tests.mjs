@@ -955,10 +955,10 @@ const tests = [
       m = await seen();
       check("retour en haut", m.scrollY === 0 && m.percent === "0" && m.back === null, m);
       // 5. Un lien vers un endroit de la page : le titre s'arrête juste sous la barre (scroll-padding).
-      await tapAt('a[href="#Ou"]');
+      await tapAt('a[href="#Quand"]');
       await pause(700);
-      const title = await p.value(`(() => { const t = document.getElementById("Ou").getBoundingClientRect(); const bar = document.querySelector('[data-sticky="top"]').getBoundingClientRect(); return [Math.round(t.top), Math.round(bar.bottom)]; })()`);
-      check("le titre « Où les voir » juste sous la barre", title[0] >= title[1] && title[0] - title[1] <= 32, title);
+      const title = await p.value(`(() => { const t = document.getElementById("Quand").getBoundingClientRect(); const bar = document.querySelector('[data-sticky="top"]').getBoundingClientRect(); return [Math.round(t.top), Math.round(bar.bottom)]; })()`);
+      check("le titre « Quand les voir » juste sous la barre", title[0] >= title[1] && title[0] - title[1] <= 32, title);
       summary.anchor = `titre à ${title[0]}px, barre jusqu'à ${title[1]}px`;
       // 6. Le clavier : Tab de lien en lien jusqu'au bas, puis Maj + Tab jusqu'en haut ; aucun lien
       // ne passe sous un bloc qui reste à l'écran (WCAG 2.4.11).
@@ -1027,7 +1027,7 @@ const tests = [
     } finally {
       await b.send("Emulation.clearDeviceMetricsOverride");
     }
-    return [faults.length === 0, faults.length ? faults.join("\n      ") : `ordinateur : ${summary.half} ; ${summary.rate} ; retour en haut ; « Où les voir » : ${summary.anchor} ; clavier : ${summary.keyboard}, rien de caché ; téléphone : ${summary.phone}, ${summary.tall}, clavier de l'écran : l'en-tête reprend sa place ; couché : rien ne reste ; sans JavaScript : ${summary.withoutScript}`];
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : `ordinateur : ${summary.half} ; ${summary.rate} ; retour en haut ; « Quand les voir » : ${summary.anchor} ; clavier : ${summary.keyboard}, rien de caché ; téléphone : ${summary.phone}, ${summary.tall}, clavier de l'écran : l'en-tête reprend sa place ; couché : rien ne reste ; sans JavaScript : ${summary.withoutScript}`];
   }],
   ["faire vibrer le téléphone : un toucher, une rencontre, le mouvement réduit, un navigateur sans vibreur (leçon 133)", async (p, b) => {
     const lesson = "/exemples/lecons/133-faire-vibrer-le-telephone.holo";

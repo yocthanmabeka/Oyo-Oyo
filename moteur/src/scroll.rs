@@ -59,7 +59,7 @@ const NOT_STICKY: &[&str] = &["If", "Repeat", "Dialog", "Main", "Item", "Point",
 /// - le clavier de l'écran ouvert sur un champ (`holo-keyboard`, posé par la page) : le bloc
 ///   reprend sa place, pour ne pas cacher ce qu'on écrit.
 const CSS: &str = "@media screen and (min-height:481px){\
-.holo-Page [data-sticky]{position:sticky;z-index:3;max-height:20vh;max-height:20svh;overflow-y:auto}\
+.holo-Page [data-sticky]{position:sticky;z-index:3;box-sizing:border-box;max-height:20vh;max-height:20svh;overflow-y:auto}\
 .holo-Page [data-sticky=top]{top:0}.holo-Page [data-sticky=bottom]{bottom:var(--holo-keys,0px)}\
 :where(.holo-Page [data-sticky]){background:var(--holo-sticky-background,Canvas)}\
 html:not(.holo-keyboard):has(.holo-Page [data-sticky=top]:not([hidden] *)){scroll-padding-top:calc(var(--holo-sticky-top,20svh) + 8px)}\
@@ -319,7 +319,7 @@ Page { background: #101020; color: white; dark: { background: --night; } --night
         // qui rend sa place au bloc.
         for rule in [
             "@media screen and (min-height:481px){",
-            ".holo-Page [data-sticky]{position:sticky;z-index:3;max-height:20vh;max-height:20svh;overflow-y:auto}",
+            ".holo-Page [data-sticky]{position:sticky;z-index:3;box-sizing:border-box;max-height:20vh;max-height:20svh;overflow-y:auto}",
             ".holo-Page [data-sticky=bottom]{bottom:var(--holo-keys,0px)}",
             "{scroll-padding-top:calc(var(--holo-sticky-top,20svh) + 8px)}",
             "{scroll-padding-bottom:calc(var(--holo-sticky-bottom,20svh) + var(--holo-keys,0px) + 8px)}",
