@@ -1,0 +1,57 @@
+// Leçon 137 — Un mot de passe que la page ne lit jamais
+//
+// Ce qu'on apprend :
+//   Input(type: password, new: true, label: "…")   un mot de passe que le visiteur choisit
+//   Input(type: password, label: "…")              le mot de passe de son compte (la suite)
+//   Le champ se pose dans un formulaire, sans valeur : ni une règle, ni un texte {…}, ni l'état
+//   ne le lisent ; keep, visit, l'adresse et les valeurs partagées non plus. Il part seulement
+//   avec son formulaire, vers le serveur de ce site, en HTTPS (ou sur ce PC).
+//   holo serve n'en garde que l'empreinte (Argon2id, comme les comptes) : l'auteur du site ne
+//   peut pas le lire. Le mot de passe d'un compte, il le vérifie, puis l'oublie.
+//   Le moteur pose le reste : coller est toujours permis ; « Montrer » le fait voir, au doigt, à
+//   la souris et au clavier ; le gestionnaire de mots de passe sait quoi proposer ; aucune règle
+//   de composition : 12 caractères au moins, 128 au plus, et rien n'est coupé en silence.
+//   Un champ ordinaire qui demande un mot de passe est refusé : il le mettrait à l'écran, dans
+//   l'adresse ou dans la base, en clair.
+//
+// À essayer (le mot de passe demande holo serve ; depuis le dossier moteur :
+//   target/release/holo serve ../exemples/lecons 8090, puis http://localhost:8090/137-un-mot-de-passe.holo) :
+//   Écris un nom de carnet et un mot de passe trop court : le moteur le dit sous le champ.
+//   Colle une longue phrase, touche « Montrer » pour la relire, puis « Protéger ».
+//   target/release/holo messages ../exemples/lecons : le carnet est là, son mot de passe aussi,
+//   mais seulement son empreinte.
+//   Depuis un téléphone, en http://<adresse du PC>:8090 : le champ reste fermé, et dit pourquoi.
+//   Puis crée un compte, et ouvre la suite : on y confirme une action avec son mot de passe.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 137 : un mot de passe que la page ne lit jamais",
+  state: State(title: "", sent: 0, failed: 0),
+  children: [
+    H1("Protéger un carnet"),
+    P("Le mot de passe part seulement vers ce site. Son auteur n'en reçoit que l'empreinte : il ne peut pas le lire."),
+    Form(name: Protect, children: [
+      Input(value: title, label: "Le nom du carnet", required: true, max: 60),
+      Input(type: password, new: true, label: "Un mot de passe pour ce carnet"),
+      Button(name: Send, text: "Protéger"),
+    ]),
+    If(sent, is: 1, children: [ P("Le carnet « {title} » est protégé.") ]),
+    If(failed, is: 1, children: [ P("Le carnet n'est pas parti : réessaie plus tard.") ]),
+    A("La suite : confirmer avec le mot de passe de son compte →", to: "137-mot-de-passe/annuler.holo"),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 124 : une citation courte, le titre d'une œuvre", to: "124-une-citation-courte.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+  rules: [
+    On(Send.tap, effect: Protect.send),
+    On(Protect.sent, effect: [sent.set(1), failed.set(0)]),
+    On(Protect.failed, effect: [failed.set(1), sent.set(0)]),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

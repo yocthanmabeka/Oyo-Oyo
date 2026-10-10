@@ -307,6 +307,12 @@ async function receiveMessage(req, res, url, pageHolo, model = null, preread = n
   let submission;
   try { submission = JSON.parse(body.toString("utf8")); } catch { return respond(res, 400, "message illisible"); }
   if (typeof submission?.form !== "string" || typeof submission.values !== "object" || submission.values === null || Array.isArray(submission.values)) return respond(res, 400, "message mal formé");
+  // Un mot de passe (ADR-114) : ce serveur d'essai ne sait ni le vérifier ni en garder l'empreinte.
+  // Il ne le passe à personne, ne l'écrit nulle part, et dit qu'il faut holo serve.
+  if (Object.hasOwn(submission, "password")) {
+    console.log(`Mot de passe refusé : ${url} (${submission.form}), il demande holo serve`);
+    return respond(res, 501, "un formulaire avec un mot de passe demande holo serve : il n'en garde que l'empreinte (ADR-114)");
+  }
   // Les champs, vérifiés à nouveau par le moteur (ADR-068) : obligatoires, e-mail, longueurs,
   // bornes. La page peut être contournée ; le serveur, non.
   if (renderer) {

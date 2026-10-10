@@ -1,0 +1,38 @@
+// La suite de la leçon 137 — Confirmer avec le mot de passe de son compte
+//
+// Sur une page réservée aux membres (access: members), Input(type: password, label: "…")
+// demande le mot de passe du compte du visiteur. holo serve le vérifie, contre son empreinte
+// Argon2id, comme pour se connecter, avec le même frein : cinq essais ratés, puis une attente.
+// Juste, le formulaire part, sans le mot de passe ; faux, le moteur le dit sous le champ.
+// Créer un compte et se connecter restent les pages du moteur (leçon 104).
+//
+// À essayer : crée un compte (/account/signup), puis reviens ici. Tape un mauvais mot de passe,
+// puis le bon : la réservation est annulée.
+
+Page(
+  title: "Leçon 137 : confirmer avec son mot de passe",
+  access: members,
+  state: State(booked: 1),
+  children: [
+    H1("Ma réservation"),
+    If(booked, is: 1, children: [
+      P("Bonjour, {account} : une place t'attend à l'atelier de samedi."),
+      Form(name: Cancel, children: [
+        Input(type: password, label: "Ton mot de passe, pour confirmer"),
+        Button(name: Confirm, text: "Annuler ma réservation"),
+      ]),
+    ], else: [
+      P("Ta réservation est annulée."),
+    ]),
+
+    Hr(),
+    A("← Protéger un carnet", to: "../137-un-mot-de-passe.holo"),
+  ],
+  rules: [
+    On(Confirm.tap, effect: Cancel.send),
+    On(Cancel.sent, effect: booked.set(0)),
+  ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }

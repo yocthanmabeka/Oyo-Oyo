@@ -11,6 +11,7 @@
     visit_names, to_visit, from_visit,
     reads_scroll, scrolled,
     module_check,
+    password_errors,
   } from "/pkg-light/holo_engine.js";
   let host = null;
   const prepareHost = async () => {
@@ -1798,21 +1799,28 @@
     const form = formElement(formName);
     if (!form) return 0;
     const errors = form_errors(source, states.get(path) ?? "", formName).split("\n").filter(Boolean).map((line) => line.split("|"));
+    // Le mot de passe (ADR-114) : le moteur ne reçoit que sa longueur, en caractères (des points de
+    // code, comme le fait NIST), et si la page est sûre ; jamais le mot de passe lui-même.
+    const secret = form.querySelector("input[data-secret]");
+    if (secret) errors.push(...password_errors(source, formName, [...secret.value].length, window.isSecureContext).split("\n").filter(Boolean).map((line) => line.split("|")));
     for (const old of form.querySelectorAll(".holo-error")) old.remove();
     for (const field of form.querySelectorAll("[aria-invalid]")) {
       field.removeAttribute("aria-invalid");
       field.removeAttribute("aria-describedby");
     }
+    // Le mot de passe garde son explication (12 caractères au moins…).
+    if (secret?.dataset.hint && !secret.disabled) secret.setAttribute("aria-describedby", secret.dataset.hint);
     let first = null;
     for (const [bind, message] of errors) {
       const group = form.querySelector(`[data-group="${CSS.escape(bind)}"]`);
-      const field = group ?? form.querySelector(`[data-bind="${CSS.escape(bind)}"]`);
+      const field = group ?? (bind === "holo-password" ? secret : form.querySelector(`[data-bind="${CSS.escape(bind)}"]`));
       if (!field) continue;
       const id = `holo-error-${formName}-${bind}`;
       const note = Object.assign(document.createElement("p"), { className: "holo-error", id, textContent: message });
-      (group ?? field.closest("label") ?? field).after(note);
+      if (field === secret) secret.closest(".holo-password").append(note);
+      else (group ?? field.closest("label") ?? field).after(note);
       field.setAttribute("aria-invalid", "true");
-      field.setAttribute("aria-describedby", id);
+      field.setAttribute("aria-describedby", field === secret && secret.dataset.hint ? `${secret.dataset.hint} ${id}` : id);
       first ??= group ? group.querySelector("input") : field;
     }
     if (focus && first) {
@@ -1828,8 +1836,17 @@
     const form = formElement(formName);
     if (form) form.dataset.tried = "1";
     if (showFormErrors(formName, true)) return;
-    const body = submission(source, states.get(path) ?? "", formName);
+    let body = submission(source, states.get(path) ?? "", formName);
     if (!body) return;
+    // Le mot de passe (ADR-114) : lu ici, au moment de partir, et seulement ici. Il part dans
+    // l'envoi, à côté des valeurs, jamais parmi elles. Montré, il est d'abord caché de nouveau :
+    // un gestionnaire de mots de passe reconnaît son champ, et le navigateur ne le garde pas
+    // comme un texte ordinaire.
+    const secret = form?.querySelector("input[data-secret]");
+    if (secret) {
+      hideSecret(secret);
+      body = `${body.slice(0, -1)},"password":${JSON.stringify(secret.value)}}`;
+    }
     submissionsInProgress.add(formName);
     form?.setAttribute("aria-busy", "true");
     const for_ = path;
@@ -1846,15 +1863,42 @@
     // 15 secondes au plus (ADR-068) : un serveur qui ne répond pas est un échec.
     const stop = new AbortController();
     const late = setTimeout(() => stop.abort(), 15000);
+    let refusal = "";
     try {
       // À l'adresse de la page : pour un modèle (ADR-078), le serveur y retrouve les valeurs.
       const response = await fetch(addressOf(path), { ...request, signal: stop.signal });
       arrived = response.ok;
+      // Un mot de passe refusé par le serveur (ce n'est pas celui du compte, le frein…) : son
+      // message, écrit par le moteur dans la langue de la page, va sous le champ.
+      if (secret && [401, 422, 429].includes(response.status)) {
+        refusal = (await response.text()).split("\n").find((line) => line.startsWith("holo-password|"))?.slice("holo-password|".length) ?? "";
+      }
     } catch { /* pas de réseau, pas de serveur pour recevoir, ou trop lent */ }
     clearTimeout(late);
     submissionsInProgress.delete(formName);
     form?.removeAttribute("aria-busy");
+    // Parti ou refusé, le mot de passe ne reste pas dans le champ.
+    if (secret && (arrived || refusal)) secret.value = "";
+    if (refusal) {
+      if (for_ === path) refuseSecret(form, formName, secret, refusal);
+      return;
+    }
     if (for_ === path) emit(`${formName}.${arrived ? "sent" : "failed"}`);
+  }
+  // Le mot de passe caché de nouveau, et son bouton « Montrer » relâché (ADR-114).
+  function hideSecret(secret) {
+    secret.type = "password";
+    secret.closest(".holo-password")?.querySelector(".holo-reveal")?.setAttribute("aria-pressed", "false");
+  }
+  // Le refus du serveur sous le champ, relié à lui ; le clavier y revient, le lecteur d'écran le dit.
+  function refuseSecret(form, formName, secret, message) {
+    for (const old of form.querySelectorAll(".holo-error")) old.remove();
+    const id = `holo-error-${formName}-holo-password`;
+    secret.closest(".holo-password").append(Object.assign(document.createElement("p"), { className: "holo-error", id, textContent: message }));
+    secret.setAttribute("aria-invalid", "true");
+    secret.setAttribute("aria-describedby", secret.dataset.hint ? `${secret.dataset.hint} ${id}` : id);
+    secret.focus();
+    announce(message);
   }
 
   // Un fichier choisi (ADR-059) : la page vérifie sa sorte et sa taille tout de suite, et le dit
@@ -2473,6 +2517,13 @@
     });
     // Écrire dans un champ, cocher une case : c'est l'arbitre du moteur qui change la valeur.
     root.addEventListener("input", (event) => {
+      // Le mot de passe (ADR-114) n'est rangé nulle part ; après un premier essai d'envoi, ses
+      // messages suivent ce qu'on corrige, comme ceux des autres champs.
+      if (event.target.matches?.("input[data-secret]")) {
+        const form = event.target.closest(".holo-Form");
+        if (form?.dataset.tried) showFormErrors(form.dataset.name, false);
+        return;
+      }
       const field = event.target.closest("[data-bind]");
       if (!field) return;
       const written = field.type === "checkbox" ? (field.checked ? "1" : "0") : field.type === "file" ? allowedFile(field) : field.value;

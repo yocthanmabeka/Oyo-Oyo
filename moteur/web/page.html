@@ -295,8 +295,41 @@
       facade.replaceWith(frame);
       frame.focus();
     };
+    // Le champ mot de passe (ADR-114). Son bouton « Montrer » : un vrai bouton, au doigt, à la
+    // souris et au clavier, qui dit son état au lecteur d'écran (enfoncé ou non) ; son nom ne change
+    // pas. Sans JavaScript, il ne pourrait rien faire : il reste caché. Rien n'empêche jamais de
+    // coller un mot de passe.
+    const revealSecret = (event) => {
+      // Ce toucher est celui du bouton : il ne part pas au moteur comme le toucher d'un bloc.
+      event.stopPropagation();
+      const button = event.currentTarget;
+      const secret = document.getElementById(button.getAttribute("aria-controls"));
+      if (!secret || secret.disabled) return;
+      const shown = button.getAttribute("aria-pressed") !== "true";
+      secret.type = shown ? "text" : "password";
+      button.setAttribute("aria-pressed", String(shown));
+    };
+    // Hors HTTPS, et hors de ce PC, le navigateur le sait (isSecureContext) : le champ se ferme, et
+    // sa note dit pourquoi. Un mot de passe ne s'y écrit pas : il passerait en clair sur le réseau.
+    const closeSecret = (secret) => {
+      secret.disabled = true;
+      secret.setAttribute("aria-describedby", `${secret.id}-note`);
+      const box = secret.closest(".holo-password");
+      box?.querySelector(".holo-password-note")?.removeAttribute("hidden");
+      const reveal = box?.querySelector(".holo-reveal");
+      if (reveal) Object.assign(reveal, { hidden: true, disabled: true });
+    };
     // Aussi après chaque morceau de page fabriqué par le moteur. Et le volume des sons (ADR-061).
     window.__holoWatchEntrances = (inside = root) => {
+      for (const secret of inside.querySelectorAll("input[data-secret]")) {
+        // Avec JavaScript, c'est le moteur qui l'envoie : il n'a plus de nom de formulaire.
+        secret.removeAttribute("name");
+        if (!window.isSecureContext && !secret.disabled) closeSecret(secret);
+      }
+      for (const reveal of inside.querySelectorAll(".holo-reveal[hidden]:not([disabled])")) {
+        reveal.hidden = false;
+        reveal.addEventListener("click", revealSecret);
+      }
       for (const facade of inside.querySelectorAll(".holo-embed-load[hidden]")) {
         facade.hidden = false;
         facade.addEventListener("click", openEmbed);

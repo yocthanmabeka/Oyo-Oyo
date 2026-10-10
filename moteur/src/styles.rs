@@ -738,6 +738,9 @@ mod tests {
             // Se souvenir le temps d'une visite, un formulaire en deux pages (ADR-113).
             include_str!("../../exemples/lecons/136-se-souvenir-le-temps-d-une-visite.holo"),
             include_str!("../../exemples/lecons/136-inscription/etape-2.holo"),
+            // Le champ mot de passe (ADR-114) : Input(type: password, new: true), et le mot de passe du compte.
+            include_str!("../../exemples/lecons/137-un-mot-de-passe.holo"),
+            include_str!("../../exemples/lecons/137-mot-de-passe/annuler.holo"),
             // Les données d'un autre site, lues par le serveur de l'auteur (ADR-116).
             include_str!("../../exemples/lecons/139-les-donnees-d-un-autre-site.holo"),
             // Une page dans la page : une carte et une vidéo d'autres sites, derrière leur façade (ADR-117).
@@ -765,6 +768,10 @@ mod tests {
         }
         // Où en est le visiteur, un bloc qui reste à l'écran (ADR-106).
         for word in ["{scroll}", "value: scroll", "If(scroll", "sticky: top", "sticky: bottom"] {
+            assert!(source.contains(word), "« {word} » manque dans l'exemple");
+        }
+        // Le champ mot de passe : un nouveau, et celui du compte sur une page réservée (ADR-114).
+        for word in ["Input(type: password, new: true", "Input(type: password, label:", "access: members"] {
             assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
         // Une page dans la page : les sites permis, l'image de la façade (ADR-117).
