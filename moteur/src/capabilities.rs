@@ -1,4 +1,5 @@
-//! Capacités du navigateur, explicites et bornées (propositions ADR-093 à ADR-096).
+//! Capacités du navigateur, explicites et bornées (propositions ADR-093 à ADR-096 ; la notification
+//! push, ADR-119).
 use crate::holo::{Block, Error, Program, Value};
 use crate::{lists, modules, rules, state};
 pub const BLOCKS: &[&str] = &["Transfer", "Device", "Notification", "Offline"];
@@ -51,6 +52,49 @@ fn heard_of<'a>(program: &'a Program, name: &str) -> Vec<&'a str> {
         Ok(())
     });
     heard
+}
+/// Les règles `On` qui demandent `action` à ce bloc, et le signal de chacune : `On(Post.tap,
+/// effect: [posts.add(1), News.send])` → `Post.tap` pour `News` et `send`.
+fn triggers_of<'a>(program: &'a Program, name: &str, action: &str) -> Vec<&'a str> {
+    let mut found = Vec::new();
+    let wanted = format!("{name}.{action}");
+    let _ = rules::for_each_block(&program.root, &mut |rule| {
+        let asks = match rule.argument("effect").map(|a| &a.value) {
+            Some(Value::List(vs)) => vs.iter().any(|v| matches!(v, Value::Name(n) if *n == wanted)),
+            Some(Value::Name(n)) => *n == wanted,
+            _ => false,
+        };
+        if let (true, "On", Some(Value::Name(signal))) = (asks, rule.name.as_str(), rule.arguments.iter().find(|a| a.name.is_none()).map(|a| &a.value)) {
+            found.push(signal.as_str());
+        }
+        Ok(())
+    });
+    found
+}
+/// Une notification qui prévient aussi quand la page est fermée (ADR-119) : `Notification(push: true)`.
+pub fn is_push(block: &Block) -> bool {
+    block.name == "Notification" && matches!(block.argument("push").map(|a| &a.value), Some(Value::Bool(true)))
+}
+/// Les notifications push d'une page (ADR-119) : leur nom, leur titre et leur texte, tels que
+/// l'auteur les a écrits. Rien d'autre ne part jamais dans un message.
+pub fn push_blocks(program: &Program) -> Vec<(String, String, String)> {
+    let mut found = Vec::new();
+    let _ = rules::for_each_block(&program.root, &mut |block| {
+        if is_push(block) {
+            found.push((rules::name_of(block).unwrap_or("").to_string(), text(block, "title").unwrap_or("").to_string(), text(block, "body").unwrap_or("").to_string()));
+        }
+        Ok(())
+    });
+    found
+}
+/// Les notifications push qu'un toucher envoie (ADR-119) : `On(Post.tap, effect: [posts.add(1),
+/// News.send])` → `News`. C'est holo serve qui les envoie, quand il accepte le toucher.
+pub fn push_sent(program: &Program, signal: &str) -> Vec<String> {
+    rules::effects(program, signal)
+        .into_iter()
+        .filter_map(|effect| effect.strip_suffix(".send").map(str::to_string))
+        .filter(|name| rules::named_block(program, name).is_some_and(is_push))
+        .collect()
 }
 /// Ce nom est-il celui d'une vibration (ADR-110) ? Elle se joue alors comme un son, là où un son se joue.
 pub fn vibrates(program: &Program, name: &str) -> bool {
@@ -140,6 +184,32 @@ pub fn check(program: &Program) -> Result<(), Error> {
                 _ => return Err(error("« Device(kind: …) » attend position, clipboard, camera, microphone, share ou vibration ; caméra et microphone donnent un aperçu local, le partage envoie le titre et l'adresse de la page, une vibration se sent : sans value")),
             },
             "Notification" => {
+                // Prévenir aussi quand la page est fermée (ADR-119) : le visiteur s'abonne sur un toucher
+                // (request), se désabonne (stop) ; holo serve prévient les abonnés (send) quand il
+                // accepte un toucher qui change une valeur partagée, le seul qu'il voit toujours passer.
+                let name = rules::name_of(block).unwrap_or("");
+                match block.argument("push").map(|a| &a.value) {
+                    None => {
+                        if let Some(action) = asked_of(program, name).into_iter().find(|a| matches!(*a, "request" | "send")) {
+                            return Err(error(&format!("« {name}.{action} » : une notification locale se montre par {name}.show, page ouverte ; pour prévenir aussi quand la page est fermée, ajoute push: true")));
+                        }
+                    }
+                    Some(Value::Bool(true)) => {
+                        if block.argument("after").is_some() {
+                            return Err(error("une notification push part quand holo serve l'envoie, après un toucher : sans « after: » ; un rappel à heure fixe, page ouverte, reste une notification sans push"));
+                        }
+                        if asked_of(program, name).contains(&"show") {
+                            return Err(error(&format!("« {name}.show » : une notification push ne se montre pas d'ici ; {name}.request abonne le visiteur, {name}.send prévient les abonnés, {name}.stop désabonne")));
+                        }
+                        for signal in triggers_of(program, name, "send") {
+                            let shared = crate::state::touched_ones(program, crate::lists::signal_and_line(signal).0).iter().any(|v| program.shared.contains(v)) || crate::shared::changes_shared_line(program, signal);
+                            if !shared {
+                                return Err(error(&format!("« {name}.send » part de holo serve, avec un changement partagé : écris-le dans la règle d'un bouton qui change une valeur de Shared, comme On(Post.tap, effect: [posts.add(1), {name}.send])")));
+                            }
+                        }
+                    }
+                    Some(_) => return Err(error("« push: » attend true : Notification(…, push: true) prévient aussi quand la page est fermée ; sans push, la notification reste locale")),
+                }
                 if !text(block, "title").is_some_and(|s| !s.trim().is_empty() && s.chars().count() <= 100)
                     || block.argument("body").is_some() && !text(block, "body").is_some_and(|s| s.chars().count() <= 200) {
                     return Err(error("une notification attend un titre de 100 caractères au plus et un texte de 200 caractères au plus"));
@@ -183,11 +253,16 @@ pub fn html(block: &Block) -> String {
         let durations = pattern(block).unwrap_or_default();
         parts.push(format!("\"pattern\":[{}]", durations.iter().map(u64::to_string).collect::<Vec<_>>().join(",")));
     }
+    // Une notification push (ADR-119) : la page s'abonne chez holo serve, qui seul envoie.
+    if is_push(block) {
+        parts.push("\"push\":true".into());
+    }
     parts.push(format!("\"type\":{}", crate::json_text(&block.name)));
     // Sans JavaScript, le partage dit comment partager quand même (ADR-107) ; rien ne vibre (ADR-110).
     let without_script = match word(block, "kind") {
         Some("share") => "Sans JavaScript, ce bouton ne partage pas : copie l'adresse de la page dans la barre du navigateur, ou prends « Partager » dans son menu.",
         Some("vibration") => "Sans JavaScript, le téléphone ne vibre pas ; le reste de la page reste lisible.",
+        _ if is_push(block) => "Sans JavaScript, cette page ne peut pas te prévenir quand elle est fermée ; tout le reste marche, et elle montre les nouveautés quand tu la rouvres.",
         _ => "Cette capacité demande JavaScript ; le reste de la page reste lisible.",
     };
     format!("<section class=\"holo-{}\" data-name=\"{}\" data-browser-capability=\"{}\"><p>{}</p><p role=\"status\" aria-live=\"polite\" data-capability-status>Prêt.</p><span data-capability-preview></span><noscript>{without_script}</noscript></section>",
@@ -348,5 +423,43 @@ mod tests {
             let error = crate::check_page(&page(device)).unwrap_err();
             assert!(error.message.contains(why), "{device} : {error}");
         }
+    }
+    #[test]
+    fn a_push_notification_is_asked_by_a_tap_and_sent_with_a_shared_change() {
+        // Prévenir quand la page est fermée (ADR-119) : s'abonner et se désabonner sur un toucher ;
+        // prévenir les abonnés depuis la règle d'un bouton qui change une valeur partagée.
+        let good = r#"Page(state: State(mine: 0), shared: Shared(posts: 0), children: [H1("Le club"), P("{posts}"), Button(name: Post, text: "Épingler"), Button(name: Mine, text: "À moi"), Notification(name: News, label: "Être prévenu", title: "Le club", body: "Un nouveau message.", push: true), Button(name: Follow, text: "Me prévenir"), Button(name: Unfollow, text: "Ne plus me prévenir")], rules: [On(Post.tap, effect: [posts.add(1), News.send]), On(Mine.tap, effect: mine.add(1)), On(Follow.tap, effect: News.request), On(Unfollow.tap, effect: News.stop)])"#;
+        let program = crate::check_page(good).unwrap();
+        assert_eq!(super::push_blocks(&program), [("News".to_string(), "Le club".to_string(), "Un nouveau message.".to_string())]);
+        assert_eq!(super::push_sent(&program, "Post.tap"), ["News"]);
+        assert!(super::push_sent(&program, "Follow.tap").is_empty() && super::push_sent(&program, "Mine.tap").is_empty());
+        // La page dit seulement qu'elle prévient ; sans JavaScript, elle dit ce qui manque.
+        let html = crate::flat_view(good, "").unwrap();
+        assert!(html.contains("&quot;push&quot;:true") && html.contains("<noscript>Sans JavaScript, cette page ne peut pas te prévenir quand elle est fermée"), "{html}");
+        for (bad, why) in [
+            // Jamais d'une minuterie, d'une règle qui guette, ni de la fin d'autre chose.
+            (good.replace("On(Follow.tap, effect: News.request)", "Every(10s, effect: News.request)"), "un geste du visiteur"),
+            (good.replace("On(Follow.tap, effect: News.request)", "When(posts, over: 3, effect: News.request)"), "un geste du visiteur"),
+            (good.replace("On(Follow.tap, effect: News.request)", "On(News.done, effect: News.request)"), "le toucher d'un bouton"),
+            (good.replace("On(Post.tap, effect: [posts.add(1), News.send])", "On(Post.tap, effect: posts.add(1)), Every(1s, effect: News.send)"), "un geste du visiteur"),
+            (good.replace("On(Post.tap, effect: [posts.add(1), News.send])", "On(Post.tap, effect: posts.add(1)), When(posts, over: 3, effect: News.send)"), "un geste du visiteur"),
+            // Prévenir part de holo serve avec un changement partagé, le seul toucher qu'il voit toujours.
+            (good.replace("On(Mine.tap, effect: mine.add(1))", "On(Mine.tap, effect: [mine.add(1), News.send])"), "avec un changement partagé"),
+            // Une notification push ne se montre pas d'ici, n'attend pas ; push vaut true ou rien.
+            (good.replace("On(Unfollow.tap, effect: News.stop)", "On(Unfollow.tap, effect: News.show)"), "ne se montre pas d'ici"),
+            (good.replace("push: true", "push: true, after: 3s"), "sans « after: »"),
+            (good.replace("push: true", "push: false"), "« push: » attend true"),
+            (good.replace("push: true", "push: yes"), "« push: » attend true"),
+            // Une notification locale ne s'abonne pas et ne prévient personne.
+            (good.replace(", push: true", ""), "ajoute push: true"),
+            (good.replace("On(Post.tap, effect: [posts.add(1), News.send])", "On(Post.tap, effect: posts.add(1))").replace(", push: true", ""), "ajoute push: true"),
+            (good.replace("News.request", "News.play"), "capacité inconnue"),
+        ] {
+            let error = crate::check_page(&bad).unwrap_err();
+            assert!(error.message.contains(why), "{bad} : {error}");
+        }
+        // Le premier hors-ligne ne garde pas une page qui prévient.
+        let offline = good.replace("Button(name: Follow", "Offline(name: Copy, label: \"Copie\", files: []), Button(name: Follow");
+        assert!(crate::check_page(&offline).is_err());
     }
 }

@@ -106,6 +106,9 @@ pub fn prepare(base: &Connection, now: u64) -> Result<(), String> {
     base.execute("DELETE FROM sessions WHERE seen < ?1 OR created < ?2 OR (pending = 1 AND created < ?3)", params![ago(SESSION_IDLE), ago(SESSION_MAX), ago(PENDING_MAX)]).map_err(|e| e.to_string())?;
     base.execute("DELETE FROM attempts WHERE updated < ?1", params![ago(24 * 3600)]).map_err(|e| e.to_string())?;
     crate::passkeys::prepare(base,now)?;
+    // Les abonnements aux notifications push (ADR-119) : leurs tables existent aussi dans une
+    // vieille sauvegarde, pour qu'un compte effacé y perde les siens.
+    crate::push::prepare(base)?;
     Ok(())
 }
 
@@ -935,6 +938,8 @@ fn erase_in(base: &mut Connection, member: &Member, at: u64, extra_files: &[Stri
     tx.execute("DELETE FROM passkey_challenges WHERE account=?1",params![member.id]).map_err(|e|e.to_string())?;
     tx.execute("DELETE FROM recoveries WHERE account=?1",params![member.id]).map_err(|e|e.to_string())?;
     tx.execute("DELETE FROM visits WHERE visitor=?1",params![member.visit_key()]).map_err(|e|e.to_string())?;
+    // Ses abonnements aux notifications push (ADR-119) partent avec lui.
+    tx.execute("DELETE FROM push_follows WHERE visitor=?1",params![member.visit_key()]).map_err(|e|e.to_string())?;
     tx.execute("DELETE FROM messages WHERE account=?1",params![member.id]).map_err(|e|e.to_string())?;
     tx.execute("DELETE FROM attempts WHERE key=?1 OR key=?2 OR key=?3 OR key=?4",params![name_key(&member.name),format!("code:{}",member.id),format!("delete:{}",member.id),format!("passkey:{}",member.id)]).map_err(|e|e.to_string())?;
     tx.execute("DELETE FROM accounts WHERE id=?1",params![member.id]).map_err(|e|e.to_string())?;
@@ -1451,6 +1456,35 @@ mod tests {
             assert_eq!(db.query_row("SELECT COUNT(*) FROM accounts WHERE id=?1",params![bob.id],|r|r.get::<_,i64>(0)).unwrap(),1);
         }
         let new=sign_up(&site,"Erase",password);assert!(member_of(&site,&new).unwrap().id>member.id);
+        drop(site);std::fs::remove_dir_all(folder).unwrap();
+    }
+
+    #[test]
+    fn erasing_an_account_forgets_its_push_subscriptions() {
+        // Les abonnements aux notifications push d'un compte (ADR-119) partent avec lui, dans la
+        // base et dans les sauvegardes, même une sauvegarde faite avant que les notifications existent.
+        let (site,folder)=site();let password="une phrase locale pour effacer";
+        let cookie=sign_up(&site,"Erase",password);let member=member_of(&site,&cookie).unwrap();
+        let other=sign_up(&site,"Remain",password);let bob=member_of(&site,&other).unwrap();
+        {
+            let base=site.base.lock().unwrap();
+            for (endpoint,visitor) in [("https://fcm.googleapis.com/fcm/send/a",member.visit_key()),("https://web.push.apple.com/b",member.visit_key()),("https://fcm.googleapis.com/fcm/send/c",bob.visit_key())] {
+                base.execute("INSERT INTO push_follows(endpoint,page,name,visitor,p256dh,auth,created) VALUES(?1,'/club.holo','News',?2,x'04',x'00',1)",params![endpoint,visitor]).unwrap();
+            }
+        }
+        let backup=crate::server::backup(&folder).unwrap();
+        // Une sauvegarde d'avant les notifications : la même, sans leurs tables.
+        let old=backup.with_file_name("site-2020-01-01-0000-00.sqlite");
+        std::fs::copy(&backup,&old).unwrap();
+        Connection::open(&old).unwrap().execute_batch("DROP TABLE push_follows; DROP TABLE push_keys;").unwrap();
+        assert_eq!(Connection::open(&backup).unwrap().query_row("SELECT COUNT(*) FROM push_follows WHERE visitor=?1",params![member.visit_key()],|r|r.get::<_,i64>(0)).unwrap(),2);
+        let body=format!("confirm=Erase&password={password}");
+        assert_eq!(site.answer(&ask("POST","/account/delete",&cookie,body.as_bytes())).status,200);
+        let data=folder.join(crate::server::DATA_FOLDER);
+        for db in [Connection::open(data.join("site.sqlite")).unwrap(),Connection::open(&backup).unwrap(),Connection::open(&old).unwrap()] {
+            assert_eq!(db.query_row("SELECT COUNT(*) FROM push_follows WHERE visitor=?1",params![member.visit_key()],|r|r.get::<_,i64>(0)).unwrap(),0);
+        }
+        assert_eq!(Connection::open(data.join("site.sqlite")).unwrap().query_row("SELECT COUNT(*) FROM push_follows WHERE visitor=?1",params![bob.visit_key()],|r|r.get::<_,i64>(0)).unwrap(),1);
         drop(site);std::fs::remove_dir_all(folder).unwrap();
     }
 

@@ -641,6 +641,7 @@ dependencies = [
  "js-sys",
  "p256",
  "qrcode",
+ "ring",
  "rusqlite",
  "sha1",
  "sha2",

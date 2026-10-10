@@ -45,7 +45,8 @@ fn capabilities(block: &str) -> &'static [&'static str] {
         "Transfer" => &["import", "export"],
         // Une vibration se joue comme un son : Buzz.play (ADR-110).
         "Device" => &["request", "write", "stop", "play"],
-        "Notification" => &["show", "stop"],
+        // Une notification push (ADR-119) : s'abonner sur un toucher, se désabonner, prévenir les abonnés.
+        "Notification" => &["show", "stop", "request", "send"],
         "Offline" => &["save", "remove"],
         // Relire les données : On(Retry.tap, effect: Stock.refresh) (ADR-064).
         "Data" => &["refresh"],

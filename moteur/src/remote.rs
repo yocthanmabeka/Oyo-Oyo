@@ -1022,6 +1022,49 @@ pub fn download(address: &str, max: usize, fake: Option<&FakeSite>) -> Result<Ve
     read_capped(response.body_mut().as_reader(), max).map_err(said)
 }
 
+/// Ce qu'on lit, au plus, de la réponse d'un service de notification : elle ne sert qu'à son code.
+pub const PUSH_ANSWER_MAX: usize = 4096;
+
+/// Envoie un message à un service de notification (ADR-119) : une demande POST, par le même chemin
+/// sûr que les données d'un autre site. L'adresse a été lue strictement par l'appelant (un service
+/// connu, en HTTPS) ; le nom est résolu et chaque adresse vérifiée, la connexion se fait à l'adresse
+/// vérifiée (règle 2, `SafeResolver`) ; aucune redirection suivie (règle 3) ; 4 s pour se connecter,
+/// 8 s en tout, 4 Ko lus de la réponse au plus, puis jetés (règle 4) ; ni proxy, ni cookie, ni
+/// compression, notre `User-Agent` (règle 7). Rend le code de la réponse ; une erreur n'en dit que
+/// la raison, jamais l'adresse (elle est propre à un visiteur).
+pub fn post(address: &str, host: &str, headers: &[(String, String)], body: &[u8], fake: Option<&FakeSite>) -> Result<u16, Failure> {
+    let config = |https_only: bool| {
+        ureq::Agent::config_builder()
+            .https_only(https_only)
+            .proxy(None)
+            .max_redirects(0)
+            .http_status_as_error(false)
+            .timeout_connect(Some(CONNECT_TIMEOUT))
+            .timeout_global(Some(TOTAL_TIMEOUT))
+            .max_idle_connections(0)
+            .max_idle_connections_per_host(0)
+            .user_agent(USER_AGENT)
+            .accept_encoding("")
+            .build()
+    };
+    // L'interrupteur des essais : un nom en `.test`, lu en HTTP clair sur ce PC (`FakeSite`).
+    let (agent, url) = match fake {
+        Some(site) if site.host == host => (
+            ureq::Agent::with_parts(config(false), ureq::unversioned::transport::DefaultConnector::default(), LoopbackResolver(site.port)),
+            address.replacen(&format!("https://{}", site.host), &format!("http://{}:{}", site.host, site.port), 1),
+        ),
+        _ => (ureq::Agent::with_parts(config(true), ureq::unversioned::transport::DefaultConnector::default(), SafeResolver { lookup: system_lookup(), allowed: is_public }), address.to_string()),
+    };
+    let mut call = agent.post(&url);
+    for (name, value) in headers {
+        call = call.header(name, value);
+    }
+    let mut response = call.send(body).map_err(|error| failure_of(&error))?;
+    let status = response.status().as_u16();
+    let _ = read_capped(response.body_mut().as_reader(), PUSH_ANSWER_MAX);
+    Ok(status)
+}
+
 /// Pour les essais de holo serve : un `Remote` dont le transport est un faux, qui note chaque
 /// demande, et dont le journal est gardé.
 #[cfg(test)]

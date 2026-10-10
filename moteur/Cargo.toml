@@ -57,6 +57,13 @@ sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
 # (webpki-roots) ; sans compression, sans cookies, sans proxy. Seulement pour le PC.
 ureq = { version = "=3.4.2", default-features = false, features = ["rustls"] }
 
+# Prévenir un visiteur quand sa page est fermée (ADR-119) : chiffrer le message pour son navigateur
+# (RFC 8291 : ECDH P-256, HKDF-SHA-256, AES-128-GCM) et signer la demande au service de notification
+# (VAPID, RFC 8292 : ES256). `ring` est déjà compilé avec ureq et rustls : la même version, aucun
+# paquet de plus. Accord de Yocthan le 2026-10-10 (« tu as toutes mes autorisations »), pour
+# holo serve seulement, jamais dans le WebAssembly.
+ring = { version = "=0.17.14", default-features = false }
+
 [profile.release]
 opt-level = "s"
 lto = true

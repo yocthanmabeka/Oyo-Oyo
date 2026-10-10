@@ -82,6 +82,9 @@ pub struct Site {
     /// Les copies des modules venus d'ailleurs (ADR-118) : celle qui manque est téléchargée une
     /// fois, vérifiée, rangée à côté de la page.
     pub(crate) copies: crate::copies::Copies,
+    /// Les notifications push (ADR-119) : celles qu'un toucher accepté a demandées, qui attendent
+    /// leur envoi par un fil à part, et ce qui les porte aux services de notification.
+    pub(crate) push: crate::push::Push,
 }
 
 /// Les pages ouvertes en direct, et le numéro de la prochaine.
@@ -184,7 +187,9 @@ impl Site {
         }
         let remote = crate::remote::Remote::open(&folder)?;
         let copies = crate::copies::Copies::open(remote.fake.clone());
-        Ok(Site { passkeys_origin: crate::passkeys::configured_origin()?, folder, web: web.to_path_buf(), base: Mutex::new(base), gestures: Mutex::new(()), lives: Arc::default(), remote, copies })
+        // L'interrupteur des essais (ADR-116) sert aussi de faux service de notification (ADR-119).
+        let push = crate::push::Push::new(remote.fake.clone());
+        Ok(Site { passkeys_origin: crate::passkeys::configured_origin()?, folder, web: web.to_path_buf(), base: Mutex::new(base), gestures: Mutex::new(()), lives: Arc::default(), remote, copies, push })
     }
 
     /// Répond à une demande. Tout passe par ici : c'est ce que les essais éprouvent.
@@ -197,6 +202,11 @@ impl Site {
         let path = if path == "/" { "/index.holo".to_string() } else { path };
         // L'adresse telle qu'elle est dans l'URL, encodée : les valeurs d'un modèle en viennent (ADR-078).
         let raw = ask.url.split(['?', '#']).next().unwrap_or("/");
+        // S'abonner aux notifications push d'une page, et son manifeste (ADR-119) : à sa propre
+        // adresse, `?push` et `?manifest`.
+        if let Some(reply) = self.push_reply(ask, &path, raw) {
+            return reply;
+        }
         match ask.method {
             "GET" | "HEAD" => self.get(ask, &path, raw),
             "POST" => self.gesture(ask, &path, raw),
@@ -345,6 +355,7 @@ impl Site {
             if accepted {
                 visit.state = without_sounds(&after);
                 self.changed(&base, &key, &source, &current, &visit.state, version);
+                self.push_after(&source, &key, tap, &visitor);
             }
             if accepted { tap } else { "" }
         };
@@ -359,7 +370,10 @@ impl Site {
         // Un toucher qui envoie un formulaire (`On(Send.tap, effect: Contact.send)`) : le serveur
         // vérifie, range le message, puis `Contact.sent` ; ou garde les messages d'erreur.
         // Un toucher renvoyé par le moteur (`?mirror`, ADR-081) : le moteur a déjà fait l'envoi.
-        for form in crate::effects(&source, signal).iter().filter(|_| !mirror).filter_map(|effect| effect.strip_suffix(".send")) {
+        // « News.send » d'une notification push (ADR-119) n'est pas un formulaire : holo serve l'a
+        // mis en attente plus haut, avec le geste partagé.
+        let pushed = crate::push_names(&source);
+        for form in crate::effects(&source, signal).iter().filter(|_| !mirror).filter_map(|effect| effect.strip_suffix(".send")).filter(|name| !pushed.iter().any(|p| p == name)) {
             visit.tried.retain(|tried| tried != form);
             if !crate::form_errors(&source, &visit.state, form).is_empty() {
                 visit.tried.push(form.to_string());
@@ -456,7 +470,10 @@ impl Site {
         // Le membre connecté (ADR-081) : le moteur du navigateur lit son nom, et renvoie ses touchers
         // au serveur, qui les garde sous son compte.
         let signed = member.map(|member| format!("<meta name=\"holo-account\" content=\"{}\">", crate::flat::escape(&member.name))).unwrap_or_default();
-        let template = template.replacen("<title>HoloCode</title>", &format!("<title>HoloCode</title><meta name=\"holo-file\" content=\"{}\">{signed}", crate::flat::escape(holo)), 1);
+        // Une page qui prévient page fermée (ADR-119) dit son manifeste : sur l'iPhone, seule une page
+        // ajoutée à l'écran d'accueil, qui s'ouvre comme une application, reçoit des notifications.
+        let installable = if crate::push_names(&source).is_empty() { String::new() } else { format!("<link rel=\"manifest\" href=\"{}?{}\">", crate::flat::escape(&shared_key(holo, values)), crate::push::MANIFEST_QUERY) };
+        let template = template.replacen("<title>HoloCode</title>", &format!("<title>HoloCode</title><meta name=\"holo-file\" content=\"{}\">{signed}{installable}", crate::flat::escape(holo)), 1);
         // Les valeurs partagées du moment, gardées pour cette adresse (ADR-079).
         let mut visit = visit;
         if !crate::shared_names(&source).is_empty() {
@@ -591,6 +608,7 @@ impl Site {
             version = self.changed(&base, &key, &source, &current, &after, version);
             visit.state = saved;
             store_in(&base, &visitor, path, &visit);
+            self.push_after(&source, &key, signal, &visitor);
         } else if member.is_some() {
             // Le refus ne valide pas non plus les saisies jointes ; la réponse rend l'état gardé.
             after = before;
@@ -603,6 +621,112 @@ impl Site {
         }
         headers.extend(common_headers());
         Reply { status: if accepted { 200 } else { 409 }, headers, body: body.into_bytes() }
+    }
+
+    /// `?push` et `?manifest`, à l'adresse d'une page qui a une notification push (ADR-119) : GET
+    /// `?push` rend la clé publique du site ; POST `?push` abonne ou désabonne ce navigateur ; GET
+    /// `?manifest` rend le manifeste qui laisse installer la page. Les mêmes refus que pour une page :
+    /// introuvable, réservée aux membres. `None` : ni l'un ni l'autre n'est demandé.
+    fn push_reply(&self, ask: &Ask, path: &str, raw: &str) -> Option<Reply> {
+        let query = query_of(ask.url);
+        if query != crate::push::QUERY && query != crate::push::MANIFEST_QUERY {
+            return None;
+        }
+        let Some((file, holo, values)) = self.locate(path, raw).filter(|(_, holo, _)| holo.ends_with(".holo")) else { return Some(Reply::text(404, "introuvable")) };
+        let member = crate::accounts::member_of(self, ask.cookie);
+        if member.is_none() && members_only(&file, &values) {
+            return Some(Reply::text(401, "page réservée aux membres : connecte-toi d'abord"));
+        }
+        let Ok(source) = source_for(&file, &values, member.as_ref()) else { return Some(Reply::text(404, "introuvable")) };
+        let names = crate::push_names(&source);
+        if names.is_empty() {
+            return Some(Reply::text(404, "cette page n'a pas de notification push"));
+        }
+        // L'adresse sous laquelle la page garde ses valeurs partagées : celle des abonnements.
+        let page = shared_key(&holo, &values);
+        let json = |status: u16, kind: &str, body: String| {
+            let mut headers = vec![("Content-Type".to_string(), format!("{kind}; charset=utf-8"))];
+            headers.extend(common_headers());
+            Reply { status, headers, body: body.into_bytes() }
+        };
+        Some(match (ask.method, query) {
+            ("GET" | "HEAD", crate::push::MANIFEST_QUERY) => json(200, "application/manifest+json", crate::push::manifest(&crate::page_title(&source, &crate::initial_state(&source)), &page)),
+            ("GET" | "HEAD", _) => match self.base.lock().map_err(|_| "base indisponible".to_string()).and_then(|base| crate::push::public_key(&base)) {
+                Ok(key) => json(200, "application/json", format!("{{\"key\":{}}}", crate::json_text(&key))),
+                Err(reason) => Reply::text(500, &reason),
+            },
+            ("POST", crate::push::QUERY) => self.push_follow(ask, &page, &names, member.as_ref()),
+            _ => Reply::text(405, "seuls GET, et POST pour ?push, sont reçus"),
+        })
+    }
+
+    /// S'abonner ou se désabonner (ADR-119) : seulement depuis la page de ce site (son moteur, en
+    /// JSON), trente demandes par minute et par adresse IP au plus (le frein des comptes). Un
+    /// abonnement vérifié est rangé sous le visiteur (son compte, sinon son cookie) ; se désabonner
+    /// ne demande que l'adresse de l'abonnement, et rend ce qu'il en reste sur ce site.
+    fn push_follow(&self, ask: &Ask, page: &str, names: &[String], member: Option<&crate::accounts::Member>) -> Reply {
+        if ask.origin.is_empty() || ask.origin.split("://").nth(1) != Some(ask.host) {
+            return Reply::text(403, "un abonnement se demande depuis la page de ce site");
+        }
+        if !ask.content_type.starts_with("application/json") {
+            return Reply::text(415, "un abonnement s'envoie en JSON");
+        }
+        let asked = match crate::push::read_request(ask.body) {
+            Ok(asked) => asked,
+            Err(reason) => return Reply::text(400, &reason),
+        };
+        if !names.iter().any(|name| name == asked.name()) {
+            return Reply::text(400, "cette page n'a pas de notification push de ce nom");
+        }
+        let now = now();
+        let Ok(base) = self.base.lock() else { return Reply::text(500, "base indisponible") };
+        if !crate::accounts::ip_allowed(&base, &client_address(self, ask), now) {
+            let mut reply = Reply::text(429, "Trop de demandes depuis cette adresse : attends une minute.");
+            reply.headers.push(("Retry-After".into(), "60".into()));
+            return reply;
+        }
+        match asked {
+            crate::push::Asked::Unfollow { name, endpoint } => {
+                let left = crate::push::unfollow(&base, page, &name, &endpoint);
+                let mut headers = vec![("Content-Type".to_string(), "application/json; charset=utf-8".to_string())];
+                headers.extend(common_headers());
+                Reply { status: 200, headers, body: format!("{{\"left\":{left}}}").into_bytes() }
+            }
+            crate::push::Asked::Follow { name, endpoint, p256dh, auth } => {
+                let subscription = match crate::push::subscription(&endpoint, &p256dh, &auth, self.push.fake.as_ref()) {
+                    Ok(subscription) => subscription,
+                    Err(reason) => return Reply::text(400, &reason),
+                };
+                let (visitor, new_visitor) = match visit_key(member, ask.cookie) {
+                    Some(key) => (key, false),
+                    None => (new_visitor(), true),
+                };
+                if let Err((status, reason)) = crate::push::follow(&base, page, &name, &visitor, &crate::push::contact(ask.origin), &subscription, now) {
+                    return Reply::text(status, &reason);
+                }
+                let mut headers = common_headers();
+                if new_visitor {
+                    headers.push(("Set-Cookie".into(), format!("{COOKIE}={visitor}; Path=/; HttpOnly; SameSite=Lax; Max-Age={FORGET_AFTER}")));
+                }
+                Reply { status: 204, headers, body: Vec::new() }
+            }
+        }
+    }
+
+    /// Les notifications push qu'un toucher accepté demande (`On(Post.tap, effect: [posts.add(1),
+    /// News.send])`, ADR-119) : mises en attente pour le fil des notifications, avec le visiteur qui
+    /// a touché. Rien ne part d'ici : aucun réseau sous le verrou de la base.
+    fn push_after(&self, source: &str, page: &str, signal: &str, visitor: &str) {
+        let signal = signal.split('#').next().unwrap_or(signal);
+        let sent = crate::push_sent(source, signal);
+        if sent.is_empty() {
+            return;
+        }
+        for (name, title, body) in crate::push_blocks(source) {
+            if sent.contains(&name) {
+                self.push.ask(page, &name, &title, &body, visitor);
+            }
+        }
     }
 
     /// Les valeurs partagées après un geste accepté : si elles ont changé, elles sont rangées sous
@@ -915,6 +1039,11 @@ pub fn serve(folder: &Path, web: &Path, port: u16) -> Result<(), String> {
     for line in site.remote.announce(&site.folder) {
         println!("{line}");
     }
+    // Les notifications push (ADR-119) : un fil à part les envoie, jamais sous un verrou.
+    if let Some(fake) = &site.push.fake {
+        println!("Notifications   : ESSAIS SEULEMENT : {} est aussi accepté comme service de notification, en HTTP clair sur ce PC. Jamais pour un vrai site.", fake.host);
+    }
+    crate::push::start(Arc::clone(&site));
     // Une sauvegarde au départ si la dernière a plus d'un jour, puis une par jour (ADR-076).
     {
         let site = Arc::clone(&site);

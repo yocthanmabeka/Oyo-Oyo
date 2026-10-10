@@ -96,7 +96,8 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     ("Transfer", &["name", "label", "file", "values"]),
     // La durée d'une vibration (ADR-110) : for: 200ms, ou for: [100ms, 50ms, 100ms].
     ("Device", &["name", "label", "kind", "value", "for"]),
-    ("Notification", &["name", "label", "title", "body", "after"]),
+    // Prévenir aussi quand la page est fermée (ADR-119) : push: true.
+    ("Notification", &["name", "label", "title", "body", "after", "push"]),
     ("Offline", &["name", "label", "files"]),
     // Un texte découpé en liste (ADR-103) : Split(name: tags, from: keywords, by: ",").
     ("Split", crate::text::SPLIT_PARAMS),

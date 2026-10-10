@@ -87,6 +87,10 @@ pub mod remote;
 // fois par holo serve. Sur le PC seulement (l'empreinte y est calculée avec sha2).
 #[cfg(not(target_arch = "wasm32"))]
 pub mod copies;
+// Prévenir un visiteur quand sa page est fermée (ADR-119) : les clés VAPID du site, le chiffrement
+// des messages, les abonnements et leur envoi. Seulement holo serve, sur le PC (ring).
+#[cfg(not(target_arch = "wasm32"))]
+pub mod push;
 
 use holo::{Error, Program, Value};
 use universe::PointDecl;
@@ -353,6 +357,22 @@ pub fn visitor_gesture(source: &str, state: &str, fields: &[(String, String)]) -
 /// Les effets que les règles du fichier demandent pour un signal, comme `Open.tap`.
 pub fn effects(source: &str, signal: &str) -> Vec<String> {
     check_page(source).map(|program| rules::effects(&program, signal)).unwrap_or_default()
+}
+
+/// Les notifications push d'une page (ADR-119), par leur nom ; aucune si elle n'en a pas.
+pub fn push_names(source: &str) -> Vec<String> {
+    push_blocks(source).into_iter().map(|(name, _, _)| name).collect()
+}
+
+/// Les notifications push d'une page (ADR-119) : leur nom, leur titre et leur texte.
+pub fn push_blocks(source: &str) -> Vec<(String, String, String)> {
+    check_page(source).map(|program| capabilities::push_blocks(&program)).unwrap_or_default()
+}
+
+/// Les notifications push qu'un toucher envoie (ADR-119) : `On(Post.tap, effect: [posts.add(1),
+/// News.send])` → `News`.
+pub fn push_sent(source: &str, signal: &str) -> Vec<String> {
+    check_page(source).map(|program| capabilities::push_sent(&program, signal)).unwrap_or_default()
 }
 
 /// Les valeurs que la page partage (ADR-079), `seats;likes` ; vide si elle n'en partage pas.

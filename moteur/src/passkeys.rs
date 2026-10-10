@@ -35,11 +35,12 @@ fn origin_for(site:&Site,ask:&Ask)->Option<String>{
  (host=="localhost").then_some(origin)
 }
 fn random(bytes:usize)->Result<Vec<u8>,String>{let mut b=vec![0;bytes];getrandom::getrandom(&mut b).map_err(|e|e.to_string())?;Ok(b)}
-fn b64(b:&[u8])->String{
+// Le base64url sans remplissage, strict : aussi celui des notifications push (ADR-119).
+pub(crate) fn b64(b:&[u8])->String{
  const A:&[u8]=b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
  let mut s=String::new();for c in b.chunks(3){let v=(u32::from(c[0])<<16)|(u32::from(*c.get(1).unwrap_or(&0))<<8)|u32::from(*c.get(2).unwrap_or(&0));s.push(A[(v>>18)as usize]as char);s.push(A[((v>>12)&63)as usize]as char);if c.len()>1{s.push(A[((v>>6)&63)as usize]as char);}if c.len()>2{s.push(A[(v&63)as usize]as char);}}s
 }
-fn un64(s:&str,max:usize)->Option<Vec<u8>>{
+pub(crate) fn un64(s:&str,max:usize)->Option<Vec<u8>>{
  if s.len()>max.div_ceil(3)*4||s.len()%4==1{return None;}
  let mut out=Vec::new();let(mut v,mut bits)=(0u32,0usize);
  for c in s.bytes(){let n=match c{b'A'..=b'Z'=>c-b'A',b'a'..=b'z'=>c-b'a'+26,b'0'..=b'9'=>c-b'0'+52,b'-'=>62,b'_'=>63,_=>return None};v=(v<<6)|u32::from(n);bits+=6;if bits>=8{bits-=8;out.push((v>>bits)as u8);v&=(1<<bits)-1;}}
