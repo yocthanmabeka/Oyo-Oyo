@@ -117,7 +117,7 @@ Page(
   - « Précédent » deux fois : la page 1 suit, rendue par le cache puis rechargée ;
   - un nouvel onglet ne les a pas, et n'y fait même pas venir le moteur ;
   - « Recommencer » est retenu ;
-  - des valeurs abîmées ou étrangères sont ignorées, sans erreur, et laissées telles quelles ;
+  - des valeurs abîmées ou étrangères sont ignorées, sans erreur, et laissées telles quelles, dont une valeur sur deux lignes qui voudrait en glisser une autre (le moteur écrit chaque valeur sur une seule ligne) ;
   - une page où `prenom` est un nombre l'ignore ;
   - aucun cookie, rien d'envoyé au serveur.
 - Leçon `136-se-souvenir-le-temps-d-une-visite.holo`, et sa seconde page `136-inscription/etape-2.holo`.
