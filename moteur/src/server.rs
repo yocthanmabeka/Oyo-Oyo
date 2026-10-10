@@ -233,6 +233,7 @@ impl Site {
                 Ok(html) => {
                     let mut reply = Reply { status: 200, headers: vec![("Content-Type".into(), "text/html; charset=utf-8".into())], body: html.into_bytes() };
                     reply.headers.extend(headers);
+                    reply.headers.push(frame_policy(&file, &values, member.as_ref()));
                     reply
                 }
                 Err(message) => Reply::text(500, &message),
@@ -952,6 +953,14 @@ fn without_sounds(state: &str) -> String {
 /// Les en-têtes de toute réponse : pas de devinette sur le type, pas de cache périmé.
 fn common_headers() -> Vec<(String, String)> {
     vec![("Cache-Control".into(), "no-cache".into()), ("X-Content-Type-Options".into(), "nosniff".into()), ("Referrer-Policy".into(), "same-origin".into())]
+}
+
+/// Les cadres qu'une page peut charger (ADR-117) : le navigateur n'accepte une page intégrée que
+/// d'un site que la page liste (`embeds:`), et aucune pour une page qui n'en liste pas. C'est le
+/// navigateur qui tient cette règle, même si une page se trompait.
+fn frame_policy(file: &Path, values: &[(String, String)], member: Option<&crate::accounts::Member>) -> (String, String) {
+    let policy = source_for(file, values, member).map_or_else(|_| crate::embed::frame_policy(&[]), |source| crate::frame_policy(&source));
+    ("Content-Security-Policy".into(), policy)
 }
 
 /// Les en-têtes d'une réponse faite pour un membre connecté (ADR-081) : elle porte son nom et ses
@@ -1835,6 +1844,33 @@ mod visit_tests {
         let html = String::from_utf8(page.body).unwrap();
         assert!(html.contains(" data-visit-names=\"prenom personnes atelier\"") && html.contains("value=\"1\""), "{html}");
         assert!(String::from_utf8(source.body).unwrap().starts_with("// Leçon 136"));
+        let _ = std::fs::remove_dir_all(folder);
+    }
+}
+
+#[cfg(test)]
+mod embed_tests {
+    use super::*;
+
+    #[test]
+    fn a_page_says_which_sites_it_may_embed() {
+        // Règle 4 : holo serve dit au navigateur de n'accepter un cadre que d'un site que la page liste
+        // (ADR-117) ; aucun, pour une page qui n'en liste pas. Le fichier, demandé par le moteur, n'en a
+        // pas besoin : ce n'est pas une page.
+        let folder = std::env::temp_dir().join(format!("holo-serve-{}", new_visitor()));
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(folder.join("zoo.holo"), include_str!("../../exemples/lecons/140-une-page-dans-la-page.holo")).unwrap();
+        std::fs::write(folder.join("page.holo"), include_str!("../../exemples/lecons/01-page.holo")).unwrap();
+        let site = Site::open(&folder, &Path::new(env!("CARGO_MANIFEST_DIR")).join("web")).unwrap();
+        let ask = |url, accept| Ask { method: "GET", url, accept, cookie: "", content_type: "", origin: "", host: "localhost:8080", referer: "", peer: "127.0.0.1", forwarded: "", body: b"" };
+        let policy = |reply: &Reply| reply.headers.iter().filter(|(name, _)| name == "Content-Security-Policy").map(|(_, value)| value.clone()).collect::<Vec<_>>();
+        let zoo = site.answer(&ask("/zoo.holo", "text/html"));
+        assert_eq!(policy(&zoo), ["frame-src https://www.openstreetmap.org https://www.youtube-nocookie.com"]);
+        // La page arrive avec ses façades, sans aucun cadre.
+        let html = String::from_utf8(zoo.body).unwrap();
+        assert!(html.contains("class=\"holo-embed-load\"") && !html.contains("<iframe"), "{html}");
+        assert_eq!(policy(&site.answer(&ask("/page.holo", "text/html"))), ["frame-src 'none'"]);
+        assert!(policy(&site.answer(&ask("/zoo.holo", "text/plain"))).is_empty());
         let _ = std::fs::remove_dir_all(folder);
     }
 }

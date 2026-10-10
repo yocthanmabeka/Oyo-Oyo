@@ -691,6 +691,8 @@ mod tests {
             // Se souvenir le temps d'une visite, un formulaire en deux pages (ADR-113).
             include_str!("../../exemples/lecons/136-se-souvenir-le-temps-d-une-visite.holo"),
             include_str!("../../exemples/lecons/136-inscription/etape-2.holo"),
+            // Une page dans la page : une carte et une vidéo d'autres sites, derrière leur façade (ADR-117).
+            include_str!("../../exemples/lecons/140-une-page-dans-la-page.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();
@@ -708,6 +710,10 @@ mod tests {
         }
         // Une grille qui place ses cases (ADR-104).
         for word in ["columnSpan:", "rowSpan:", "areas:", "area:"] {
+            assert!(source.contains(word), "« {word} » manque dans l'exemple");
+        }
+        // Une page dans la page : les sites permis, l'image de la façade (ADR-117).
+        for word in ["embeds:", "Embed(", "image: \"140-carte.svg\""] {
             assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
     }
