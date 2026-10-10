@@ -1,6 +1,6 @@
 # ADR-110 — Faire vibrer le téléphone : `Device(kind: vibration)`
 
-- Statut : ACCEPTÉ (Yocthan, 2026-10-09 : « tu le valides déjà, tu le fais déjà »)
+- Statut : ACCEPTÉ (Yocthan, 2026-10-09 : « tu le valides déjà, tu le fais déjà » ; essayé et validé par Yocthan le 2026-10-10 : « je viens de faire tous les essais et je valide »)
 - Date : 2026-10-09
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'issue #239 (« Dernière dette du web : la vibration du téléphone »), l'une des douze dernières dettes du web, validées d'avance par Yocthan le 2026-10-09 ; le grand tableau du web, où « géolocalisation, caméra, vibration » était « en partie » (« Pas encore la vibration ») ; `ADR-094` (l'appareil), `ADR-061` (un son joué par une règle de temps ou une règle qui guette), `ADR-107` (le partage, la sorte d'avant).
