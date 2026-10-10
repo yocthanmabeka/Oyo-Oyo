@@ -139,6 +139,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 131 | [Des filtres d'image](131-des-filtres-d-image.holo) | `grayscale`, `saturate`, `brightness`, `contrast`, `hue`, `blur` dans le style d'une image, d'une forme ou d'un dessin, un réglage par effet ; `hover: { grayscale: 0; }` garde le reste ; `backdrop-blur` : la page floue derrière une fenêtre ; jamais sur un texte |
 | 133 | [Faire vibrer le téléphone](133-faire-vibrer-le-telephone.holo) | `Device(kind: vibration, for: 200ms)`, `Petite.play` : un toucher, une rencontre, `for: [100ms, 80ms, 100ms]` ; rien avant le premier toucher, ni sous le mouvement réduit ; le signe toujours à l'écran |
 | 135 | [Mélanger des sons](135-melanger-des-sons.holo) | Plusieurs sons à la fois ; `Sound(fade: 2s)` : un fondu à l'entrée et à la sortie ; `Sound(volume: pluie)` et une glissière par son : une table de mixage ; jamais un son avant un geste |
+| 136 | [Se souvenir le temps d'une visite](136-se-souvenir-le-temps-d-une-visite.holo) | `visit: [prenom, personnes, atelier]` : un formulaire en deux pages (la seconde : `136-inscription/etape-2.holo`) ; les valeurs suivent le visiteur dans le même onglet, effacées à sa fermeture ; aucun cookie |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 
