@@ -335,6 +335,21 @@ mod tests {
     }
 
     #[test]
+    fn on_a_board_a_wave_meets_like_a_square() {
+        // Une rencontre (`When(A, meets: B)`, ADR-032) : B arrive en biais contre le coin du carré A.
+        // La vague, presque carrée, le touche par son coin ; l'hexagone, l'étoile, le cœur, comme le
+        // triangle, sont un rond un peu plus petit que leur carré, qui ne l'atteint pas.
+        let met = |form: &str| {
+            let source = format!("Page(state: State(n: 0, bx: 50), children: [ Button(name: Go, text: \"Go\"), Board(height: 100px, children: [ Shape(name: A, form: square, size: 40px, x: 0, y: 0), Shape(name: B, form: {form}, size: 40px, x: bx, y: 60) ]) ], rules: [ On(Go.tap, effect: bx.set(6)), When(A, meets: B, effect: n.add(1)) ])");
+            let program = crate::check_page(&source).unwrap();
+            let start = crate::state::initial(&program).unwrap();
+            let after = crate::state::arbitrate(&program, &start, &crate::state::initial_texts(&program), "Go.tap");
+            after.iter().find(|(name, _)| name == "n").map(|(_, n)| *n)
+        };
+        assert_eq!(["square", "wave", "circle", "triangle", "hexagon", "star", "heart"].map(met), [Some(1), Some(1), Some(0), Some(0), Some(0), Some(0), Some(0)]);
+    }
+
+    #[test]
     fn only_the_shapes_of_the_page_are_drawn_inside_their_button() {
         let program = crate::holo::read("Page(children: [ Shape(form: circle), Shape(name: S, form: star), Shape(form: star), Shape(form: wave) ])").unwrap();
         let css = shapes_css(&program);

@@ -2285,7 +2285,7 @@ Image { width: 120px; aspect-ratio: 1; }
 ```
 
 - **`form:`**, dans un style, découpe une image ou un dessin : `circle` (un rond ; un ovale sur un bloc plus large que haut, et `aspect-ratio: 1` en fait un rond), `hexagon`, `star`, `heart`, `triangle`, `diamond` (un losange), `wave` (le bas du bloc ondule, sur son dixième, en deux vagues), et `square` (rien n'est découpé : il défait une forme donnée par un style plus général). La forme suit la taille du bloc ; aucun tracé ne s'écrit à la main.
-- **`Shape(form:)`** prend les mêmes huit formes : `Shape(form: heart, color: "#FF4D6D")`.
+- **`Shape(form:)`** prend les mêmes huit formes : `Shape(form: heart, color: "#FF4D6D")`. Sur un plateau, une rencontre (`When(A, meets: B)`) prend la vague pour un carré, et l'hexagone, l'étoile, le cœur pour un rond un peu plus petit, comme le triangle.
 - **Une image ou un dessin, jamais un texte** : un bloc qui porte un texte, un bouton, une vidéo ou les pièces d'un plateau serait coupé avec eux. Pour un titre sur une bannière qui ondule, une `Stack` : l'image découpée dessous, le titre dessus.
 - **Le cadre de focus se voit toujours.** Une `Shape` qu'on touche le garde autour d'elle, et se touche sur tout son carré, au doigt comme à la souris. Une image découpée qui a le focus du clavier (une règle l'écoute au survol) se montre entière, avec son cadre.
 - **Le rond garde son bord et son ombre** (`border`, `box-shadow`) : ils suivent sa courbe. Les autres formes les couperaient : ils sont refusés, même venus d'un autre style ; `border: none;` et `box-shadow: none;` les retirent.
