@@ -1193,7 +1193,7 @@ const tests = [
       await pause(500);
       const afterKey = await q.value("location.href");
       const stayedAfterKey = afterKey === `${served.base}/${lesson}`;
-      if (!stayedAfterKey) return [false, `pendant la touche, la page intégrée a emmené la page de l'auteur vers ${afterKey} ; la fausse carte voit : ${JSON.stringify(mapSaid)} ; cadre : ${mapAttributes}`];
+      if (!stayedAfterKey) return [false, `avant le toucher, demandes vers l'autre site : ${before[0]} (Fetch), ${before[1]} (réseau), page sans cadre ni adresse de l'autre site : ${untouched} ; pendant la touche, la page intégrée a emmené la page de l'auteur vers ${afterKey} ; cadre : ${mapAttributes}`];
       // 5. Au doigt : toucher la façade de la vidéo.
       let fingerFrame = false;
       try {
