@@ -952,7 +952,7 @@ const tests = [
     const faults = [];
     const check = (name, ok, seen) => { if (!ok) faults.push(`${name} : ${seen}`); };
     // Les découpes que reçoit la page : le nombre de sommets de chaque polygone, ou « none ».
-    const cuts = () => p.value(`(() => {
+    const cuts = (where = p) => where.value(`(() => {
       const of = (e, pseudo) => { const c = getComputedStyle(e, pseudo).clipPath; return c.startsWith("polygon(") ? c.split(",").length : c; };
       const images = ["rond", "ruche", "etoile", "coeur", "vague"].map((n) => { const e = document.querySelector(".holo-s-" + n); return e ? n + ":" + of(e) + (n === "rond" ? " " + getComputedStyle(e).borderRadius : "") : n + ":absente"; });
       const shapes = [...document.querySelectorAll(".holo-Shape")].map((e) => ([...e.classList].find((c) => c.startsWith("holo-forme-")) ?? "?").slice(11) + ":" + of(e) + "/" + of(e, "::before"));
@@ -1064,19 +1064,23 @@ const tests = [
     } finally {
       await b.send("Emulation.clearDeviceMetricsOverride");
     }
-    // Sans JavaScript : les mêmes découpes, et au clavier l'image découpée se montre entière.
+    // Sans JavaScript, la page de holo serve (ADR-074) : les mêmes découpes, et au clavier l'image
+    // découpée se montre entière. Ce n'est que du CSS, écrit par le serveur.
+    const served = await startHoloServe(["134-decouper-une-forme.holo", "paysage.svg"]);
+    const q = page(b, served.base);
     let withoutScript = "", focusedWithout = "";
     try {
       await b.send("Emulation.setScriptExecutionDisabled", { value: true });
-      await p.open(lesson, 300);
-      withoutScript = await cuts();
-      for (let i = 0; i < 40 && !(await p.value(`document.activeElement === document.querySelector(".holo-s-ruche")`)); i++) await p.key("Tab", "Tab", 9);
-      focusedWithout = await p.value(`(() => { const e = document.querySelector(".holo-s-ruche"); return document.activeElement === e ? getComputedStyle(e).clipPath : "pas atteinte"; })()`);
+      await q.open("/134-decouper-une-forme.holo", 300);
+      withoutScript = await cuts(q);
+      for (let i = 0; i < 40 && !(await q.value(`document.activeElement === document.querySelector(".holo-s-ruche")`)); i++) await q.key("Tab", "Tab", 9);
+      focusedWithout = await q.value(`(() => { const e = document.querySelector(".holo-s-ruche"); return document.activeElement === e ? getComputedStyle(e).clipPath : "pas atteinte"; })()`);
     } finally {
       await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      served.stop();
     }
     check("sans JavaScript", withoutScript === expected && focusedWithout === "none", `${withoutScript} ; au focus : ${focusedWithout}`);
-    return [faults.length === 0, faults.length ? faults.join("\n      ") : `${seen} ; lecteur d'écran : un bouton « Etoile », les images nommées ; au clavier : l'étoile (${star.seen}), l'image en hexagone (${hexagon.seen}) ; touchée au clavier ${keyboard}, à la souris ${mouse} (le coin compris), au doigt ${finger} ; axe-core : zéro défaut ; téléphone : rien ne déborde ; sans JavaScript : les mêmes découpes, au focus « ${focusedWithout} »`];
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : `${seen} ; lecteur d'écran : un bouton « Etoile », les images nommées ; au clavier : l'étoile (${star.seen}), l'image en hexagone (${hexagon.seen}) ; touchée au clavier ${keyboard}, à la souris ${mouse} (le coin compris), au doigt ${finger} ; axe-core : zéro défaut ; téléphone : rien ne déborde ; sans JavaScript (holo serve) : les mêmes découpes, au focus « ${focusedWithout} »`];
   }],
   ["mélanger des sons : deux à la fois, le fondu qui monte puis descend, le volume qui suit sa glissière (leçon 135)", async (p, b) => {
     await p.open("/exemples/lecons/135-melanger-des-sons.holo");
