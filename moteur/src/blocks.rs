@@ -89,7 +89,8 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     ("Font", &["family", "source"]),
     // Une abréviation et son sens, déclarés une fois pour la page (ADR-098).
     ("Abbreviation", &[]),
-    ("Module", &["name", "source", "input", "output", "time", "memory"]),
+    // Un module venu d'ailleurs (ADR-118) : l'empreinte de son fichier, son adresse, sa licence.
+    ("Module", &["name", "source", "input", "output", "time", "memory", "sha256", "from", "license"]),
     // Les données de la page (ADR-030) ; leur nom, que les règles écoutent (ADR-064).
     ("Data", &["name", "from", "every"]),
     ("Transfer", &["name", "label", "file", "values"]),
