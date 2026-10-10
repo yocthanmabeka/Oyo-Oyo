@@ -1,6 +1,6 @@
 # ADR-109 — Les calculs sur les heures : une heure, un moment, `now`, `Minutes`, `{left:duration}`
 
-- Statut : ACCEPTÉ (Yocthan, 2026-10-09 : « tu le valides déjà, tu le fais déjà »)
+- Statut : ACCEPTÉ (Yocthan, 2026-10-09 : « tu le valides déjà, tu le fais déjà » ; essayé et validé par Yocthan le 2026-10-10 : « valide tous les essais. J'ai déjà testé »)
 - Date : 2026-10-10
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'issue #238 (« Dernière dette du web : les calculs sur les heures »), dans la file des dernières dettes du web ouverte par Yocthan le 2026-10-09 ; le grand tableau du web, où `Date` était « en partie » (« pas encore d'heure seule qui se compare, ni de compte à rebours en heures et minutes », `docs/01-holocode/TABLEAU-WEB.md`) ; les dates (`ADR-067`) ; l'heure du visiteur (`ADR-039`) ; les secondes et le chronomètre (`ADR-089`) ; les formats après deux-points (`ADR-043`) ; les nombres négatifs (`ADR-102`) ; une date pour les machines (`ADR-098`) ; le champ heure (`ADR-042`) ; l'écriture des noms (`ADR-016`, `ADR-037`) ; la règle de parité de Yocthan (2026-10-07).

@@ -1,6 +1,6 @@
 # ADR-118 — Des modules venus d'ailleurs, avec leur empreinte : `Module(from:, sha256:, license:)`
 
-- Statut : ACCEPTÉ (Yocthan a dit « Oui » le 2026-10-09 à l'ouverture sous ces conditions)
+- Statut : ACCEPTÉ (Yocthan a dit « Oui » le 2026-10-09 à l'ouverture sous ces conditions ; essayé et validé par Yocthan le 2026-10-10 : « valide tous les essais. J'ai déjà testé »)
 - Date : 2026-10-10
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'issue #250 (« des modules venus d'ailleurs, avec leur empreinte »), l'une des huit fonctions ouvertes sous conditions (issues 246 à 253) ; les deux avis, avec leurs sources : `proposals/Claude/contraintes-2026-10-09/README.md` (fonction 5 : event-stream en 2018, ua-parser-js en 2021, xz en 2024, S16 à S20 ; « la copie rangée dans le projet, avec son empreinte ») et `proposals/Gemini/contraintes-2026-10-09/README.md` (fonction 5 : les mêmes attaques, l'intégrité des sous-ressources du W3C, la boîte de WebAssembly ; « une copie locale ou une adresse HTTPS avec son empreinte ») ; `ADR-011` (partie C, les deux étages), `ADR-045` et `ADR-077` (les modules enfermés et leurs deux contrats), `ADR-116` (le chemin sûr vers un autre site, `holo serve`), `ADR-117` (rien vers l'autre site sans le choix du visiteur), `ADR-037` (l'écriture des noms), `ADR-017` (l'apparence dans les styles).

@@ -1,6 +1,6 @@
 # ADR-111 — Découper une forme : `form:` dans les styles, huit formes nommées
 
-- Statut : ACCEPTÉ (Yocthan, 2026-10-09 : « tu le valides déjà, tu le fais déjà »)
+- Statut : ACCEPTÉ (Yocthan, 2026-10-09 : « tu le valides déjà, tu le fais déjà » ; essayé et validé par Yocthan le 2026-10-10 : « valide tous les essais. J'ai déjà testé »)
 - Date : 2026-10-10
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'issue #240 (« Dernière dette du web : découper une forme (clip-path) »), l'une des douze dernières dettes du web, validées d'avance par Yocthan le 2026-10-09 ; le grand tableau du web, où `clip-path` était « en partie » (« `Shape(form:)` : quatre formes ») ; `ADR-032` (`Shape` et ses quatre formes), `ADR-017` (l'apparence dans les styles), `ADR-036` (les états d'un style), `ADR-041` (le CSS utile, où `clip-path` était « plus tard »), `ADR-069` (`aspect-ratio`), `ADR-108` (les filtres, et leur cadre de focus) ; une remarque de la session du PC, en faisant les filtres : « une forme qu'on touche en triangle ou en losange n'a pas de cadre de focus visible : `clip-path` le coupe (vu dans Chrome). Noté pour la 240. »
