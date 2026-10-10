@@ -608,13 +608,21 @@ pub fn keypresses(source: &str) -> String {
 
 /// Ce que la page doit savoir pour faire tourner un module (ADR-045) : son fichier, le nombre
 /// qu'il reçoit (pour cet état), son temps en millisecondes et sa mémoire en pages de 64 Ko.
-/// `somme.wasm|10|100|16`. Vide si aucun module ne porte ce nom.
+/// `somme.wasm|10|100|16`. Vide si aucun module ne porte ce nom. Pour un module venu d'ailleurs,
+/// son empreinte suit, écrite pour l'intégrité de `fetch` : `…|16|1|sha256-…` (ADR-118).
 pub fn module_info(source: &str, state: &str, name: &str) -> String {
     let Ok(program) = check_page(source) else { return String::new() };
     let numbers = state::reread(&program, state);
     let Some(module) = modules::modules(&program).ok().and_then(|m| m.into_iter().find(|m| m.name == name)) else { return String::new() };
     let entry = module.inputs.first().and_then(|e| numbers.iter().find(|(c, _)| c == e)).map_or(0, |(_, v)| *v);
-    format!("{}|{entry}|{}|{}|{}", module.source, module.time, module.pages, u8::from(module.simple(&program)))
+    let integrity = module.sha256.map(|sha256| format!("|{}", modules::integrity(sha256))).unwrap_or_default();
+    format!("{}|{entry}|{}|{}|{}{integrity}", module.source, module.time, module.pages, u8::from(module.simple(&program)))
+}
+
+/// Ce que la boîte refuse dans un fichier de module, avant de le lancer (ADR-118) : vide s'il ne
+/// demande rien de plus que sa mémoire de `pages` pages, sinon la raison (`modules::check_wasm`).
+pub fn module_check(bytes: &[u8], pages: u32) -> String {
+    modules::check_wasm(bytes, u64::from(pages)).err().unwrap_or_default()
 }
 
 /// Le module du premier contrat a rendu son nombre : le nouvel état, après `Nom.done`.

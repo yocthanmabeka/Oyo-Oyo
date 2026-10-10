@@ -168,6 +168,12 @@ pub fn module_received(source: &str, state: &str, name: &str, json: &str) -> Res
     crate::module_received(source, state, name, json).map_err(|reason| JsValue::from_str(&reason))
 }
 
+/// Ce que la boîte refuse dans un fichier de module, avant de le lancer : vide, ou la raison (ADR-118).
+#[wasm_bindgen]
+pub fn module_check(bytes: &[u8], pages: u32) -> String {
+    crate::module_check(bytes, pages)
+}
+
 /// Les formes d'un dessin venues d'une liste, pour cet état (ADR-088).
 #[wasm_bindgen]
 pub fn shapes_html(source: &str, state: &str, list: &str) -> String {
