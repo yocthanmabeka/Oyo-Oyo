@@ -203,6 +203,10 @@ fn value_names<'a>(program: &Program, parameter: &str, value: &'a Value) -> Resu
         if sort_of(program, name).is_none() {
             return Err(format!("« Module({parameter}: …) » : « {name} » n'est pas une valeur de la page ; un module reçoit et rend des nombres, des textes ou des listes déclarés dans State"));
         }
+        // Le moment présent (ADR-109), donné par le moteur comme la date du jour.
+        if parameter == "output" && *name == crate::hours::NOW {
+            return Err("« now » est le moment présent, donné par le moteur : un module ne l'écrit pas".into());
+        }
         if parameter == "output" && (crate::state::CLOCK.contains(name) || *name == crate::dates::TODAY) {
             return Err(format!("« {name} » est l'heure ou la date du visiteur, donnée par le moteur : un module ne l'écrit pas"));
         }

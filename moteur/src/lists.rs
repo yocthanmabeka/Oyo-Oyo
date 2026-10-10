@@ -679,8 +679,17 @@ pub fn check_request(request: &Block, program: &Program, rule: &Block, in_line: 
         }
     } else if is_text(value) {
         match (verb, request.arguments.as_slice()) {
+            // Une heure reçoit une heure qui existe à l'horloge (ADR-109) : « 25:99 » n'en est pas une.
+            ("set", [Argument { name: None, value: Value::Text(t), .. }]) if crate::hours::is_hour(program, value) && !t.is_empty() && crate::hours::minutes_of_day(t).is_none() => {
+                Err(error(format!("« {value}.set(\"{t}\") » : « {value} » est une heure ; elle reçoit une heure « HH:MM », de 00:00 à 23:59, ou now")))
+            }
             ("set", [Argument { name: None, value: Value::Text(t), .. }]) if t.chars().count() <= crate::state::TEXT_MAX => Ok(()),
             ("set", [Argument { name: None, value: Value::Name(other), .. }]) if is_text(other) || (other == "item" && in_line.is_some()) => Ok(()),
+            // Une heure ou un moment avance ou recule d'une durée écrite avec son unité, ou d'un nombre
+            // de minutes de la page (ADR-109) : meeting.add(15min), meeting.sub(2h), end.add(length).
+            ("add" | "sub", [Argument { name: None, value: amount, .. }]) if crate::hours::is_time(program, value) => crate::hours::check_shift(program, value, verb, amount).map_err(error),
+            ("add" | "sub", _) if crate::hours::is_time(program, value) => Err(error(format!("« {value}.{verb} » ajoute ou retire une durée : {value}.{verb}(15min), {value}.{verb}(2h)"))),
+            _ if crate::hours::is_time(program, value) => Err(error(format!("« {value} » est une heure : on demande {value}.set(now), {value}.set(\"18:45\"), {value}.add(15min) ou {value}.sub(1h)"))),
             // Une date avance ou recule de jours entiers : due.add(7), due.sub(1) (ADR-067).
             ("add" | "sub", [Argument { name: None, value: Value::Integer(n), .. }]) if crate::dates::is_date(program, value) && *n <= 3_660_000 => Ok(()),
             ("add" | "sub", _) if crate::dates::is_date(program, value) => Err(error(format!("« {value}.{verb} » ajoute ou retire des jours à une date : {value}.{verb}(7)"))),
@@ -845,6 +854,12 @@ pub fn arbitrate(program: &Program, numbers: &State, texts: &Texts, lists: &List
                     }
                     ("clear", _) => elements.clear(),
                     _ => {}
+                }
+            } else if let Some(moved) = crate::hours::after_request(program, value, verb, argument, &texts, numbers) {
+                // Une heure ou un moment décalé d'une durée ; une heure qui prend celle du moment
+                // présent, `start.set(now)` (ADR-109).
+                if let Some((_, place)) = texts.iter_mut().find(|(n, _)| n == value) {
+                    *place = moved;
                 }
             } else if verb == "set" {
                 let new_one = match argument {

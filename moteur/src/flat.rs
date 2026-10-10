@@ -525,6 +525,16 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
         Some(Value::Text(l)) => l.as_str(),
         _ => "fr",
     };
+    // Une heure, un moment (ADR-109) : `{train:time}` → « 18:45 », `{concert:date}` → « 31 décembre
+    // 2026 », dans la langue de la page ; et pour les machines, `<time datetime="18:45">`.
+    for (name, text) in &texts {
+        for (empty, full_one) in crate::hours::places(name, text, page_language) {
+            body = body.replace(&empty, &full_one);
+            worlds = worlds.replace(&empty, &full_one);
+            header = header.replace(&empty, &full_one);
+            footer = footer.replace(&empty, &full_one);
+        }
+    }
     for (name, text) in &texts {
         let mut places = vec![(format!("<span data-state=\"{name}\"></span>"), format!("<span data-state=\"{name}\">{}</span>", escape(text)))];
         // Une date, aussi pour les machines (ADR-098) : `datetime` quand c'est un jour du calendrier.
@@ -549,6 +559,11 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
     worlds = crate::format::fill(&worlds, &shown, language);
     header = crate::format::fill(&header, &shown, language);
     footer = crate::format::fill(&footer, &shown, language);
+    // Une durée (ADR-109) : `{left:duration}` → « 2 h et 15 min », et `<time datetime="PT2H15M">`.
+    body = crate::hours::fill(&body, &shown, language);
+    worlds = crate::hours::fill(&worlds, &shown, language);
+    header = crate::hours::fill(&header, &shown, language);
+    footer = crate::hours::fill(&footer, &shown, language);
     for (name, value) in shown.clone() {
         let (empty, full_one) = (format!("<span data-state=\"{name}\"></span>"), format!("<span data-state=\"{name}\">{value}</span>"));
         body = body.replace(&empty, &full_one);
@@ -2447,7 +2462,8 @@ fn markdown(text: &str) -> String {
             _ => format.to_string(),
         };
         // Une date montrée (ADR-067) se lit aussi par les machines : `<time datetime="2026-10-10">`.
-        let tag = if crate::dates::FORMATS.contains(&format) { "time" } else { "span" };
+        // Une heure et une durée aussi (ADR-109) : `<time datetime="18:45">`, `<time datetime="PT2H15M">`.
+        let tag = if crate::dates::FORMATS.contains(&format) || crate::hours::FORMATS.contains(&format) { "time" } else { "span" };
         html = html.replace(&format!("{{{name}:{format}}}"), &format!("<{tag} data-state=\"{name}\" data-format=\"{shown}\"></{tag}>"));
     }
     mark_abbreviations(text, html)

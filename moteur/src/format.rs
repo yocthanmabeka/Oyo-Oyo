@@ -126,6 +126,8 @@ pub fn format_value(name: &str, value: u64, format: &str, language: &str) -> Str
                 format!("{minutes:02}:{seconds:02}{decimals}{rest:02}")
             }
         }
+        // Un nombre de minutes, écrit comme une durée (ADR-109) : « 2 h et 15 min », « 2 hr, 15 min ».
+        "duration" => crate::hours::duration(value.min(i64::MAX as u64) as i64, language),
         "name" => {
             let (days, month) = if english { (DAYS_EN, MONTHS_EN) } else { (DAYS_FR, MONTHS_FR) };
             let list: &[&str] = if name == "weekday" { &days } else { &month };

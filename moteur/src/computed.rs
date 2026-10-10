@@ -92,9 +92,10 @@ fn days_blocks(program: &Program) -> Vec<(String, String, String)> {
     blocks(program).into_iter().filter(|b| b.name == "Days").map(|b| (name(b, "name"), name(b, "from"), name(b, "to"))).collect()
 }
 
-/// Le nom des nombres de jours, `Days(name: nights, …)`.
+/// Le nom des nombres de jours, `Days(name: nights, …)` ; et celui des nombres de minutes,
+/// `Minutes(name: left, …)` (ADR-109), des nombres que le moteur calcule de la même façon.
 pub fn days_names(program: &Program) -> Vec<String> {
-    days_blocks(program).into_iter().map(|(name, _, _)| name).collect()
+    days_blocks(program).into_iter().map(|(name, _, _)| name).chain(crate::hours::minutes_names(program)).collect()
 }
 
 /// Les nombres de jours, d'après les dates de la page : de `from` à `to`, 0 si l'une manque, ou si
@@ -110,6 +111,8 @@ pub fn days_values(program: &Program, texts: &Texts) -> State {
             };
             (name, count)
         })
+        // Les nombres de minutes (ADR-109), d'après les heures et les moments de la page.
+        .chain(crate::hours::minutes_values(program, texts))
         .collect()
 }
 
@@ -151,7 +154,7 @@ pub fn check(program: &Program) -> Result<(), Error> {
     let mut known: Vec<String> = Vec::new();
     for item in items {
         let Value::Block(block) = item else {
-            return Err(Error { message: "« computed » ne contient que des « Filter(…) » et des « Days(…) »".into(), pos: argument.pos });
+            return Err(Error { message: "« computed » ne contient que des « Filter(…) », des « Days(…) » et des « Minutes(…) »".into(), pos: argument.pos });
         };
         let error = |message: String| Err(Error { message, pos: block.pos });
         // Les jours entre deux dates (ADR-067) : Days(name: nights, from: arrival, to: departure).
@@ -181,8 +184,18 @@ pub fn check(program: &Program) -> Result<(), Error> {
             known.push(name);
             continue;
         }
+        // Les minutes entre deux heures ou deux moments (ADR-109) : Minutes(name: left, from: now, to: train).
+        if block.name == "Minutes" {
+            let name = crate::hours::check_minutes(program, block)?;
+            let taken = numbers.iter().any(|(n, _)| *n == name) || texts.iter().any(|(n, _)| *n == name) || crate::lists::initial(program).iter().any(|(n, _)| *n == name) || known.contains(&name);
+            if taken {
+                return error(format!("« {name} » est déjà le nom d'une valeur : un nombre de minutes a son propre nom"));
+            }
+            known.push(name);
+            continue;
+        }
         if block.name != "Filter" {
-            return error(format!("« computed » ne contient que des « Filter(…) » et des « Days(…) », pas « {} »", block.name));
+            return error(format!("« computed » ne contient que des « Filter(…) », des « Days(…) » et des « Minutes(…) », pas « {} »", block.name));
         }
         for a in &block.arguments {
             match a.name.as_deref() {

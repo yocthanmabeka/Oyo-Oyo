@@ -170,6 +170,9 @@ pub fn holds(program: &Program, value: &str, comparisons: &[(&str, Term<'_>)], n
                 Term::Number(_) | Term::Decimal { .. } => None,
             };
             match (*word, other) {
+                // Deux heures, deux moments (ADR-109) : plus tard, plus tôt, la même minute ; un
+                // moment face à une heure seule, par son heure ; face à une date, par sa date.
+                (word, Some(other)) if crate::hours::comparable(text, other) => crate::hours::holds(word, text, other),
                 ("is", Some(other)) => text == other,
                 ("not", Some(other)) => text != other,
                 // Deux dates : plus tard, plus tôt (ADR-067). Une date vide ne compare rien.
@@ -247,6 +250,7 @@ pub fn kept_values(program: &Program) -> Result<Vec<String>, Error> {
     let mut kept_values = Vec::new();
     for name in names {
         match name {
+            Value::Name(name) if name == crate::hours::NOW => return Err(error("« keep » : « now » est le moment présent ; il ne se garde pas, le moteur le redonne (ADR-109)".into())),
             Value::Name(name) if CLOCK.contains(&name.as_str()) || name == crate::dates::TODAY => return Err(error(format!("« keep » : « {name} » est l'heure du visiteur, elle ne se garde pas"))),
             Value::Name(name) if crate::computed::is_computed(program, name) => return Err(error(format!("« keep » : « {name} » est une liste calculée ; elle se refait d'après sa source, garde plutôt la source"))),
             Value::Name(name) if declared.iter().any(|(known, _)| known == name) || texts.iter().any(|(known, _)| known == name) || crate::lists::is_list(program, name) => kept_values.push(name.clone()),
@@ -1001,6 +1005,10 @@ pub fn initial_texts(program: &Program) -> Texts {
     if crate::dates::uses_today(program) && !texts.iter().any(|(name, _)| name == crate::dates::TODAY) {
         texts.push((crate::dates::TODAY.to_string(), crate::dates::today()));
     }
+    // Le moment présent (ADR-109), de même : « 2026-10-10T14:30 », donné par le moteur.
+    if crate::hours::uses_now(program) && !texts.iter().any(|(name, _)| name == crate::hours::NOW) {
+        texts.push((crate::hours::NOW.to_string(), crate::hours::now()));
+    }
     texts
 }
 
@@ -1075,6 +1083,10 @@ pub fn reread_texts(program: &Program, written: &str) -> Texts {
         if let Some((name, code)) = chunk.split_once("='") {
             // La date du jour ne se relit pas : le moteur la redonne. Le nom du membre connecté
             // non plus : le serveur le redonne à chaque visite (ADR-081).
+            // Le moment présent non plus (ADR-109) : le moteur le redonne, à la minute.
+            if name == crate::hours::NOW {
+                continue;
+            }
             if name == crate::dates::TODAY || crate::account::GIVEN.contains(&name) {
                 continue;
             }
@@ -1152,7 +1164,8 @@ pub fn input_text(program: &Program, texts: &Texts, name: &str, written: &str) -
             || match kind.as_str() {
                 // Un vrai jour du calendrier, entre `min` et `max` s'ils sont donnés (ADR-067).
                 "date" => crate::dates::days(written).is_some() && date_within(program, name, written),
-                "time" => digits(written, "99:99"),
+                // Une heure qui existe à l'horloge, de 00:00 à 23:59 (ADR-109) : « 25:99 » ne passe plus.
+                "time" => digits(written, "99:99") && crate::hours::minutes_of_day(written).is_some(),
                 _ => written.len() == 7 && written.starts_with('#') && written[1..].chars().all(|c| c.is_ascii_hexdigit()),
             };
         if let (true, Some((_, place))) = (correct, texts.iter_mut().find(|(known, _)| known == name)) {
@@ -1613,6 +1626,10 @@ pub fn reads_seconds(program: &Program) -> bool {
 
 /// Le fichier lit-il l'heure ? La page la tient alors à jour, minute après minute.
 pub fn reads_time(program: &Program) -> bool {
+    // Le moment présent (ADR-109) : la page le redonne au moteur à chaque minute.
+    if crate::hours::uses_now(program) {
+        return true;
+    }
     // La date du jour aussi : la page la tient à jour, et passe minuit (ADR-067).
     !clock_read(program).is_empty() || crate::dates::uses_today(program)
 }
@@ -1632,6 +1649,13 @@ pub fn advance_clock(program: &Program, written: &str) -> State {
                 *place = value;
             }
             if let (Some(code), Some((_, place))) = (value.strip_prefix('\'').filter(|_| name == crate::dates::TODAY), texts_before.iter_mut().find(|(known, _)| known == crate::dates::TODAY)) {
+                if let Some(old) = decode(code) {
+                    *place = old;
+                }
+            }
+            // Le moment d'avant (ADR-109) : pour qu'une règle qui guette « now » se déclenche à la
+            // minute dite, `When(now, is: "07:00", …)`.
+            if let (Some(code), Some((_, place))) = (value.strip_prefix('\'').filter(|_| name == crate::hours::NOW), texts_before.iter_mut().find(|(known, _)| known == crate::hours::NOW)) {
                 if let Some(old) = decode(code) {
                     *place = old;
                 }
@@ -1697,6 +1721,9 @@ fn initial_without_prices(program: &Program) -> Result<State, Error> {
         }
         if name == crate::dates::TODAY {
             return Err(Error { message: "« today » est la date du jour, donnée par le moteur ; choisis un autre nom pour ta valeur (ADR-067)".into(), pos: argument.pos });
+        }
+        if name == crate::hours::NOW {
+            return Err(Error { message: "« now » est le moment présent, donné par le moteur ; choisis un autre nom pour ta valeur (ADR-109)".into(), pos: argument.pos });
         }
         if block.arguments.iter().filter(|a| a.name.as_deref() == Some(name.as_str())).count() > 1 {
             return Err(Error { message: format!("la valeur « {name} » est déclarée deux fois"), pos: argument.pos });
@@ -1898,6 +1925,9 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                     (Some("value"), Value::Name(value)) if CLOCK.contains(&value.as_str()) => {
                         return Err(Error { message: format!("« {}(value: {value}) » : « {value} » est l'heure du visiteur ; on la lit, on ne l'écrit pas", block.name), pos: argument.pos })
                     }
+                    (Some("value"), Value::Name(value)) if value == crate::hours::NOW => {
+                        return Err(Error { message: format!("« {}(value: now) » : « now » est le moment présent ; on le lit, on ne l'écrit pas ; pour le garder, start.set(now) (ADR-109)", block.name), pos: argument.pos })
+                    }
                     (Some("value"), Value::Name(value)) if crate::lists::is_list(program, value) => {
                         return Err(Error { message: format!("« {}(value: {value}) » : « {value} » est une liste ; un champ présente un texte qu'on ajoute ensuite, {value}.push(task)", block.name), pos: argument.pos })
                     }
@@ -2085,10 +2115,10 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
             }
         }
         // Une règle qui guette regarde une valeur : un nombre déclaré ou calculé, ou un texte
-        // (ADR-063).
+        // (ADR-063) ; aussi un nombre de jours ou de minutes (ADR-109), `When(left, is: 0, …)`.
         if block.name == "When" && block.argument("meets").is_none() {
             let (value, _) = condition(block)?;
-            if !to_show(program, &state).iter().any(|(known, _)| known == value) && !is_text(value) {
+            if !to_show(program, &state).iter().any(|(known, _)| known == value) && !is_text(value) && !crate::computed::days_names(program).iter().any(|known| known == value) {
                 return Err(Error { message: format!("« When({value}, …) » : aucune valeur ne s'appelle « {value} » ; déclare-la sur la page, state: State({value}: 0)"), pos: block.pos });
             }
         }
@@ -2129,6 +2159,17 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                     Value::Name(other) if is_text(other) != is_text(value) => {
                         return error(format!("« {value} » est {} et « {other} » {} : on compare deux nombres, ou deux textes", sort(value), sort(other)))
                     }
+                    // Une heure, un moment (ADR-109) : comparés dans le temps, à la minute près.
+                    Value::Name(other) if is_text(value) && is_text(other) && (crate::hours::is_time(program, value) || crate::hours::is_time(program, other)) => {
+                        if let Err(message) = crate::hours::check_comparison(program, value, word, Some(other), None) {
+                            return error(message);
+                        }
+                    }
+                    Value::Text(text) if crate::hours::is_time(program, value) => {
+                        if let Err(message) = crate::hours::check_comparison(program, value, word, None, Some(text)) {
+                            return error(message);
+                        }
+                    }
                     // Plus tard, plus tôt : entre deux dates seulement (ADR-067).
                     Value::Name(other) if is_text(value) && matches!(word, "over" | "under") && !(crate::dates::is_date(program, value) && crate::dates::is_date(program, other)) => {
                         return error(format!("« {word} » compare des nombres, ou deux dates ; un texte se compare par is (égal) ou not (différent) : {}({value}, is: \"…\")", block.name))
@@ -2156,6 +2197,11 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
         let in_model = model_list.is_some();
         let check_text = |text: &str, pos| {
             for (name, format) in crate::format::formats_in(text) {
+                // Une heure, un moment, une durée (ADR-109) : `{train:time}`, `{concert:date}`, `{left:duration}`.
+                if crate::hours::FORMATS.contains(&format) || crate::hours::is_time(program, name) {
+                    crate::hours::check_format(program, name, format).map_err(|message| Error { message, pos })?;
+                    continue;
+                }
                 // Une date se montre dans la langue de la page (ADR-067).
                 if crate::dates::is_date(program, name) {
                     if !crate::dates::FORMATS.contains(&format) {
@@ -2540,7 +2586,11 @@ fn watches(program: &Program, rule: &Block, state: &State, texts: &Texts) -> boo
             }
         });
     }
-    condition(rule).is_ok_and(|(value, comparisons)| holds(program, value, &comparisons, &to_show(program, state), texts))
+    // Les nombres de jours et de minutes, refaits d'après les textes de cette photo (ADR-109) :
+    // `When(left, is: 0, …)` sonne quand le compte arrive à zéro.
+    let mut shown = to_show(program, state);
+    shown.extend(crate::computed::days_values(program, texts));
+    condition(rule).is_ok_and(|(value, comparisons)| holds(program, value, &comparisons, &shown, texts))
 }
 
 /// Les touches du clavier que les règles du fichier écoutent : `On(Key.left, …)`. Les flèches,

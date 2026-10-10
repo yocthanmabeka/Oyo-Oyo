@@ -35,6 +35,8 @@ pub mod grid;
 pub mod seed;
 pub mod holo;
 pub mod history;
+// Les calculs sur les heures : une heure, un moment, now, Minutes, {left:duration} (ADR-109).
+pub mod hours;
 pub mod lists;
 pub mod modules;
 pub mod mosaic;
