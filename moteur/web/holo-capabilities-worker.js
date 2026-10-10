@@ -60,3 +60,19 @@ self.addEventListener("fetch",e=>{
   for(const n of(await caches.keys()).filter(k=>k.startsWith(PREFIX))){const saved=await(await caches.open(n)).match(key);if(saved)return saved;}throw error;
  }})());
 });
+// Une notification push (ADR-119) : le message, chiffré par holo serve pour ce navigateur, arrive
+// déchiffré par le navigateur. Elle se montre toujours (Safari retire la permission d'un site qui
+// reçoit sans montrer), avec son titre et son texte, bornés ; une nouvelle remplace l'ancienne du
+// même sujet. La toucher ouvre la page, de ce site seulement, ou la ramène devant si elle l'est.
+self.addEventListener("push",e=>{
+ let d={};try{d=e.data?.json()??{};}catch{/* un message illisible : la notification générique */}
+ const text=(v,max)=>typeof v==="string"?v.slice(0,max):"";
+ const page=new URL(typeof d.url==="string"&&d.url.startsWith("/")&&!d.url.startsWith("//")?d.url:"/",self.location.origin);
+ e.waitUntil(self.registration.showNotification(text(d.title,100).trim()||"Nouvelle notification",{body:text(d.body,200),tag:"holo-push-"+text(d.tag,32),data:{url:page.pathname+page.search}}));
+});
+self.addEventListener("notificationclick",e=>{
+ e.notification.close();
+ const page=new URL(e.notification.data?.url||"/",self.location.origin);
+ if(page.origin!==self.location.origin)return;
+ e.waitUntil((async()=>{for(const c of await self.clients.matchAll({type:"window",includeUncontrolled:true}))if(new URL(c.url).pathname===page.pathname&&"focus"in c)return c.focus();return self.clients.openWindow(page.href);})());
+});

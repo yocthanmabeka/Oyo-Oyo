@@ -667,6 +667,223 @@ const tests = [
       && added === "none" && titles === "Les Misérables | Les Châtiments";
     return [ok, `lu : « ${said} » ; citations : ${quotes} ; guillemets du navigateur : ${added} ; œuvres : ${titles}`];
   }],
+  ["prévenir quand la page est fermée : rien au chargement ; au toucher, la permission puis l'abonnement avec la clé de holo serve ; le message chiffré de bout en bout et signé, lu par un faux service ; seuls les services connus ; le frein ; un abonnement disparu oublié ; le vrai service worker montre la notification ; le désabonnement marche toujours, même serveur coupé ; l'iPhone non installé (leçon 142, serve)", async (p, b) => {
+    // ADR-119. Un faux service de notification sur ce PC : un petit serveur HTTP de Node, qui note
+    // chaque message, le déchiffre avec la clé du faux navigateur (RFC 8291, par OpenSSL : une autre
+    // façon de faire que celle de holo serve) et vérifie sa signature (RFC 8292). holo serve ne
+    // l'atteint que par l'interrupteur des essais (HOLO_TEST_ONLY_INSECURE_SITE=push.test:<port>).
+    // Aucun vrai service : l'abonnement du navigateur est simulé dans la page (PushManager), avec
+    // les clés du faux navigateur ; le service worker, lui, est le vrai, et reçoit le message déchiffré
+    // par le protocole de Chrome, comme son service le lui remettrait.
+    const { createECDH, createDecipheriv, createPublicKey, hkdfSync, randomBytes, verify } = await import("node:crypto");
+    const binary = ["holo", "holo.exe"].map((name) => join(engine, "target", "release", name)).find(existsSync);
+    if (!binary) return [false, "holo n'est pas construit : cargo build --release --bin holo"];
+    const lesson = "142-prevenir-quand-la-page-est-fermee.holo";
+    const b64u = (bytes) => Buffer.from(bytes).toString("base64url");
+    const browserKeys = () => { const ecdh = createECDH("prime256v1"); ecdh.generateKeys(); return { ecdh, public: ecdh.getPublicKey(), auth: randomBytes(16) }; };
+    const [ada, bob] = [browserKeys(), browserKeys()];
+    // Déchiffrer comme le navigateur de l'abonné (RFC 8291 ; l'enveloppe aes128gcm de la RFC 8188).
+    const open = (keys, body) => {
+      const [salt, size, length] = [body.subarray(0, 16), body.readUInt32BE(16), body[20]];
+      const [asPublic, record] = [body.subarray(21, 21 + length), body.subarray(21 + length)];
+      const ikm = Buffer.from(hkdfSync("sha256", keys.ecdh.computeSecret(asPublic), keys.auth, Buffer.concat([Buffer.from("WebPush: info\0"), keys.public, asPublic]), 32));
+      const cek = Buffer.from(hkdfSync("sha256", ikm, salt, Buffer.from("Content-Encoding: aes128gcm\0"), 16));
+      const nonce = Buffer.from(hkdfSync("sha256", ikm, salt, Buffer.from("Content-Encoding: nonce\0"), 12));
+      const d = createDecipheriv("aes-128-gcm", cek, nonce);
+      d.setAuthTag(record.subarray(record.length - 16));
+      const clear = Buffer.concat([d.update(record.subarray(0, record.length - 16)), d.final()]);
+      if (size !== 4096 || length !== 65 || clear[clear.length - 1] !== 2) throw new Error("enveloppe");
+      return clear.subarray(0, clear.length - 1).toString("utf8");
+    };
+    // Vérifier la signature (RFC 8292) avec la clé publique que holo serve donne aux navigateurs.
+    const signedBy = (authorization, siteKey) => {
+      const found = /^vapid t=([^,]+), k=(.+)$/.exec(authorization ?? "");
+      if (!found || found[2] !== siteKey) return null;
+      const [head, claims, signature] = found[1].split(".");
+      const raw = Buffer.from(siteKey, "base64url");
+      const key = createPublicKey({ key: { kty: "EC", crv: "P-256", x: b64u(raw.subarray(1, 33)), y: b64u(raw.subarray(33, 65)) }, format: "jwk" });
+      if (!verify("sha256", Buffer.from(`${head}.${claims}`), { key, dsaEncoding: "ieee-p1363" }, Buffer.from(signature, "base64url"))) return null;
+      return { head: JSON.parse(Buffer.from(head, "base64url")), claims: JSON.parse(Buffer.from(claims, "base64url")) };
+    };
+    const seen = [];
+    const service = createServer((req, res) => {
+      const chunks = [];
+      req.on("data", (c) => chunks.push(c));
+      req.on("end", () => {
+        seen.push({ url: req.url, method: req.method, headers: req.headers, body: Buffer.concat(chunks) });
+        res.writeHead(req.url === "/wpush/bob" ? 410 : 201);
+        res.end();
+      });
+    });
+    await new Promise((ok) => service.listen(0, "127.0.0.1", ok));
+    const folder = mkdtempSync(join(tmpdir(), "holo-serve-"));
+    writeFileSync(join(folder, lesson), readFileSync(join(repo, "exemples", "lecons", lesson)));
+    const port = 26000 + Math.floor(Math.random() * 2000);
+    const env = { ...process.env, HOLO_TEST_ONLY_INSECURE_SITE: `push.test:${service.address().port}` };
+    delete env.HOLO_ORIGIN;
+    const server = spawn(binary, ["serve", folder, String(port)], { cwd: engine, env, stdio: ["ignore", "pipe", "pipe"] });
+    let output = "";
+    server.stdout.on("data", (d) => { output += d; });
+    server.stderr.on("data", (d) => { output += d; });
+    for (let i = 0; i < 100 && !output.includes(`localhost:${port}`); i++) await pause(100);
+    const base = `http://localhost:${port}`;
+    const q = page(b, base);
+    const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;
+    const status = `document.querySelector('[data-name="News"] [data-capability-status]').textContent`;
+    const settle = async (expression, timeout = 8000) => {
+      for (const end = Date.now() + timeout; Date.now() < end; await pause(200)) if (await q.value(expression).catch(() => false)) return true;
+      return false;
+    };
+    // Le faux navigateur : PushManager simulé (aucun vrai service n'est appelé), son abonnement gardé
+    // dans le stockage de la page comme un navigateur le garde ; la permission demandée est notée,
+    // avec ce que dit le navigateur : un geste du visiteur est-il en cours ?
+    const fakeBrowser = `(() => {
+      const keys = ${JSON.stringify({ endpoint: "https://push.test/wpush/ada", p256dh: b64u(ada.public), auth: b64u(ada.auth) })};
+      const asked = window.__push = { permission: [], subscribe: [], get: 0 };
+      const kept = { get: () => JSON.parse(localStorage.getItem("fake-push") || "null"), set: (v) => v ? localStorage.setItem("fake-push", JSON.stringify(v)) : localStorage.removeItem("fake-push") };
+      Object.defineProperty(Notification, "permission", { configurable: true, get: () => localStorage.getItem("fake-permission") || "default" });
+      Notification.requestPermission = async () => { asked.permission.push(navigator.userActivation.isActive); localStorage.setItem("fake-permission", "granted"); return "granted"; };
+      const subscription = (key) => ({ endpoint: keys.endpoint, options: { applicationServerKey: new Uint8Array(key).buffer, userVisibleOnly: true },
+        toJSON: () => ({ endpoint: keys.endpoint, expirationTime: null, keys: { p256dh: keys.p256dh, auth: keys.auth } }),
+        unsubscribe: async () => { kept.set(null); localStorage.setItem("fake-unsubscribed", String(Number(localStorage.getItem("fake-unsubscribed") || 0) + 1)); return true; } });
+      PushManager.prototype.getSubscription = async function () { asked.get++; const s = kept.get(); return s && subscription(s.key); };
+      PushManager.prototype.subscribe = async function (options) {
+        const key = [...new Uint8Array(options.applicationServerKey)];
+        asked.subscribe.push({ userVisibleOnly: options.userVisibleOnly, key: btoa(String.fromCharCode(...key)).replace(/[+]/g, "-").replace(/[/]/g, "_").replace(/=+$/, "") });
+        kept.set({ key }); return subscription(key);
+      };
+    })();`;
+    const scripts = [(await b.send("Page.addScriptToEvaluateOnNewDocument", { source: fakeBrowser })).result?.identifier];
+    const [browsed, everything] = [[], []];
+    b.on("Network.requestWillBeSent", ({ request }) => { browsed.push(request); everything.push(request.url); });
+    await b.send("Network.enable");
+    // La vraie permission, pour le vrai service worker (la page, elle, voit celle du faux navigateur).
+    await b.send("Browser.grantPermissions", { origin: base, permissions: ["notifications"] });
+    let registration = "";
+    b.on("ServiceWorker.workerRegistrationUpdated", ({ registrations }) => { for (const r of registrations) if (r.scopeURL.startsWith(base) && !r.isDeleted) registration = r.registrationId; });
+    await b.send("ServiceWorker.enable");
+    const axeSource = readFileSync(join(engine, "node_modules", "axe-core", "axe.min.js"), "utf8");
+    try {
+      // 1. Rien au chargement : ni permission, ni abonnement, ni service worker, ni demande à ?push.
+      await q.open(`/${lesson}`, 300);
+      const started = await q.until("window.__holoStarted", 40000);
+      await pause(800);
+      const atLoad = await q.value(`navigator.serviceWorker.getRegistration().then((r) => ({ asked: window.__push.permission.length + window.__push.subscribe.length + window.__push.get, worker: Boolean(r) }))`);
+      const quiet = started && atLoad.asked === 0 && !atLoad.worker && !browsed.some((r) => r.url.includes("?push"));
+      const manifest = await q.value(`document.querySelector('link[rel="manifest"]')?.getAttribute("href") ?? ""`);
+      await q.value(`${axeSource}\n;window.axe.version`);
+      const faults = await q.value('window.axe.run(document, { resultTypes: ["violations"] }).then((r) => r.violations.map((v) => v.id))');
+      const noscript = await q.value(`document.querySelector('[data-name="News"] noscript')?.textContent ?? ""`);
+      // 2. Ada touche « Me prévenir » : la permission pendant son toucher, puis l'abonnement, avec la clé du site.
+      await q.click('[data-name="Follow"]');
+      const followed = await q.until(`${status}.startsWith("Tu seras prévenu")`, 15000);
+      const siteKey = await q.value(`fetch(location.pathname + "?push").then((r) => r.json()).then((j) => j.key)`);
+      const asked = await q.value("window.__push");
+      const subscribed = followed && asked.permission.join() === "true" && asked.subscribe.length === 1 && asked.subscribe[0].userVisibleOnly === true && asked.subscribe[0].key === siteKey;
+      const sentFollow = browsed.find((r) => r.method === "POST" && r.url.endsWith("?push"))?.postData ?? "";
+      // 3. Bob s'abonne aussi, par la même porte ; son service dira plus tard qu'il a disparu (410).
+      const post = (body) => q.value(`fetch(location.pathname + "?push", { method: "POST", headers: { "content-type": "application/json" }, body: ${JSON.stringify(JSON.stringify(body))} }).then(async (r) => r.status + " " + await r.text())`);
+      const bobFollowed = (await post({ follow: "News", endpoint: "https://push.test/wpush/bob", p256dh: b64u(bob.public), auth: b64u(bob.auth) })).startsWith("204");
+      // 4. Ce qui doit être refusé l'est, et rien n'en part vers un service.
+      const keysOf = (k) => ({ p256dh: b64u(k.public), auth: b64u(k.auth) });
+      const offCurve = Buffer.from(ada.public); offCurve[64] ^= 1;
+      const refusals = {};
+      for (const [why, endpoint, extra] of [
+        ["ce PC", "https://127.0.0.1/wpush/x"], ["le nuage", "https://169.254.169.254/latest"], ["localhost", "https://localhost/wpush/x"],
+        ["un autre site", "https://intranet.example/push"], ["en clair", "http://fcm.googleapis.com/fcm/send/x"], ["un faux sous-domaine", "https://fcm.googleapis.com.evil.example/x"],
+        ["une clé hors de la courbe", "https://push.test/wpush/ada", { p256dh: b64u(offCurve) }], ["un secret trop court", "https://push.test/wpush/ada", { auth: b64u(randomBytes(8)) }],
+      ]) refusals[why] = (await post({ follow: "News", endpoint, ...keysOf(ada), ...extra })).split(" ")[0];
+      refusals["un autre site qui abonne"] = String((await fetch(`${base}/${lesson}?push`, { method: "POST", headers: { "content-type": "application/json", origin: "https://evil.example" }, body: JSON.stringify({ follow: "News", endpoint: "https://push.test/wpush/eve", ...keysOf(bob) }) })).status);
+      refusals["sans dire d'où"] = String((await fetch(`${base}/${lesson}?push`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ follow: "News", endpoint: "https://push.test/wpush/eve", ...keysOf(bob) }) })).status);
+      const refused = Object.entries(refusals).every(([why, code]) => code === (why.startsWith("un autre site qui") || why === "sans dire d'où" ? "403" : "400"));
+      await pause(500);
+      const nothingSent = seen.length === 0;
+      // 5. Carol, sans JavaScript et sans cookie (une autre visiteuse), épingle un message : holo serve prévient Ada et Bob.
+      await b.send("Network.clearBrowserCookies");
+      let carol = false;
+      try {
+        await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+        await q.open(`/${lesson}`, 300);
+        await q.click('[data-name="Post"]');
+        carol = await q.until(`document.readyState === "complete" && ${has("Messages épinglés sur le tableau : 1.")}`, 8000);
+      } finally {
+        await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      }
+      for (let i = 0; i < 80 && seen.length < 2; i++) await pause(100);
+      const [toAda, toBob] = [seen.find((r) => r.url === "/wpush/ada"), seen.find((r) => r.url === "/wpush/bob")];
+      let clear = "";
+      try { clear = open(ada, toAda.body); } catch (error) { clear = `illisible (${error.message})`; }
+      const message = (() => { try { return JSON.parse(clear); } catch { return null; } })();
+      const bobReadsAda = (() => { try { open(bob, toAda.body); return true; } catch { return false; } })();
+      const encrypted = Boolean(toAda) && !toAda.body.includes(Buffer.from("Le tableau du club")) && message?.title === "Le tableau du club" && message?.body === "Un nouveau message est épinglé." && message?.url === `/${lesson}` && !bobReadsAda;
+      const signature = toAda && signedBy(toAda.headers.authorization, siteKey);
+      const now = Math.floor(Date.now() / 1000);
+      const signed = signature?.head?.alg === "ES256" && signature.claims.aud === "https://push.test" && signature.claims.exp > now && signature.claims.exp <= now + 24 * 3600;
+      const h = toAda?.headers ?? {};
+      const honest = toAda?.method === "POST" && h["content-encoding"] === "aes128gcm" && h.ttl === "86400" && h.urgency === "normal" && /^[A-Za-z0-9_-]{32}$/.test(h.topic ?? "") && String(h["user-agent"]).startsWith("HoloCode/") && !("cookie" in h) && !("referer" in h);
+      // 6. Le frein : trois autres touchers dans la minute, et rien de plus ne part avant la fin de la minute.
+      for (let i = 0; i < 3; i++) await fetch(`${base}/${lesson}`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: "signal=Post.tap", redirect: "manual" });
+      await pause(2500);
+      const braked = seen.length === 2;
+      const forgotten = output.includes(`Notification    : /${lesson}, News : 1 envoyée, 1 abonnement oublié (le service ne le connaît plus)`);
+      // 7. Le vrai service worker reçoit le message déchiffré : il montre la notification, avec son titre et son texte.
+      await q.open(`/${lesson}`, 300);
+      await q.until("window.__holoStarted", 40000);
+      for (let i = 0; i < 30 && !registration; i++) await pause(100);
+      const delivered = registration ? await b.send("ServiceWorker.deliverPushMessage", { origin: base, registrationId: registration, data: clear }) : null;
+      await pause(1500);
+      const listed = await q.value("navigator.serviceWorker.getRegistration().then((r) => r.getNotifications()).then((a) => a.map((n) => n.title + '|' + n.body + '|' + n.tag)).catch((e) => 'erreur ' + e.message)");
+      const shown = await settle(`navigator.serviceWorker.getRegistration().then((r) => r.getNotifications()).then((all) => all.some((n) => n.title === "Le tableau du club" && n.body === "Un nouveau message est épinglé." && n.tag === "holo-push-" + ${JSON.stringify(message?.tag ?? "")}))`);
+      // 8. Ada se désabonne : holo serve l'oublie, il ne lui reste rien sur ce site, le navigateur se désabonne aussi.
+      browsed.length = 0;
+      await q.click('[data-name="Unfollow"]');
+      const unfollowed = await q.until(`${status}.startsWith("Tu ne seras plus prévenu")`, 10000) && await q.value(`localStorage.getItem("fake-unsubscribed") === "1"`)
+        && browsed.some((r) => r.method === "POST" && r.url.endsWith("?push") && (r.postData ?? "").includes('"unfollow":"News"'));
+      // 9. Sur un iPhone, la page qui n'est pas sur l'écran d'accueil le dit, sans rien demander.
+      await b.send("Emulation.setUserAgentOverride", { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" });
+      scripts.push((await b.send("Page.addScriptToEvaluateOnNewDocument", { source: "delete window.PushManager;" })).result?.identifier);
+      let iphone = "";
+      try {
+        await q.open(`/${lesson}`, 300);
+        await q.until("window.__holoStarted", 40000);
+        const before = (await q.value("window.__push")).permission.length;
+        await q.click('[data-name="Follow"]');
+        await q.until(`${status}.includes("écran d'accueil")`, 8000);
+        iphone = (await q.value(status)) + ((await q.value("window.__push")).permission.length === before ? "" : " (permission demandée !)");
+      } finally {
+        await b.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: scripts.pop() });
+        await b.send("Emulation.setUserAgentOverride", { userAgent: "" });
+      }
+      // 10. Se désabonner marche toujours : Ada se réabonne, holo serve s'arrête, et le navigateur se désabonne quand même.
+      await q.open(`/${lesson}`, 300);
+      await q.until("window.__holoStarted", 40000);
+      await q.click('[data-name="Follow"]');
+      const again = await q.until(`${status}.startsWith("Tu seras prévenu")`, 15000);
+      server.kill();
+      await pause(400);
+      await q.click('[data-name="Unfollow"]');
+      const always = again && await q.until(`${status}.startsWith("Tu ne seras plus prévenu")`, 10000) && await q.value(`localStorage.getItem("fake-unsubscribed") === "2"`);
+      // Le navigateur n'a parlé qu'à holo serve ; le journal ne dit ni l'adresse d'un abonné, ni une clé.
+      const elsewhere = everything.filter((url) => !url.startsWith(base) && !/^(data|blob|about|chrome):/.test(url));
+      const secretFree = ![ "/wpush/ada", "/wpush/bob", b64u(ada.public), b64u(ada.auth) ].some((s) => output.includes(s));
+      const announced = output.includes("Notifications   : ESSAIS SEULEMENT : push.test");
+      const ok = quiet && manifest === `/${lesson}?manifest` && faults.length === 0 && noscript.includes("ne peut pas te prévenir") && subscribed && sentFollow.includes('"follow":"News"')
+        && bobFollowed && refused && nothingSent && carol && encrypted && signed && honest && Boolean(toBob) && braked && forgotten && shown && unfollowed
+        && iphone.startsWith("Sur iPhone et iPad (iOS 16.4 ou plus), ajoute d'abord cette page à l'écran d'accueil") && always && elsewhere.length === 0 && secretFree && announced;
+      return [ok, `au chargement : rien demandé ${quiet} (${JSON.stringify(atLoad)}), manifeste « ${manifest} », axe-core : ${faults.join(", ") || "aucun défaut"}, sans JavaScript : « ${noscript.slice(0, 60)}… » ; au toucher : permission pendant le geste ${asked.permission.join()}, abonnement ${JSON.stringify(asked.subscribe.map((s) => ({ ...s, key: s.key === siteKey ? "la clé de holo serve" : s.key })))}, abonné : ${subscribed} ; Bob abonné : ${bobFollowed} ; refusés : ${JSON.stringify(refusals)}, rien envoyé pour eux : ${nothingSent} ; Carol sans JavaScript : ${carol} ; au faux service : ${seen.map((r) => `${r.method} ${r.url}`).join(", ")} ; déchiffré par la clé d'Ada : ${clear} ; Bob ne le lit pas : ${!bobReadsAda} ; signé (VAPID) : ${signed} (${JSON.stringify(signature?.claims ?? null)}) ; en-têtes : ${honest} ; le frein (trois touchers, rien de plus) : ${braked} ; Bob oublié (410) : ${forgotten} ; le vrai service worker montre la notification : ${shown} (inscription ${registration || "absente"}) ; désabonnée : ${unfollowed} ; iPhone : « ${iphone} » ; serveur coupé, désabonnée quand même : ${always} ; le navigateur ailleurs : ${elsewhere.join(", ") || "jamais"} ; journal sans adresse ni clé : ${secretFree}, interrupteur annoncé : ${announced}${b.errors.length ? ` (${b.errors.join(" | ")})` : ""}`];
+    } finally {
+      for (const identifier of scripts) await b.send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
+      b.on("Network.requestWillBeSent", null);
+      b.on("ServiceWorker.workerRegistrationUpdated", null);
+      await b.send("ServiceWorker.disable");
+      await b.send("Network.disable");
+      await b.send("Browser.resetPermissions");
+      server.kill();
+      service.close();
+      await pause(300);
+      try { rmSync(folder, { recursive: true, force: true }); } catch { /* tant pis */ }
+    }
+  }],
   ["des heures : un compte à rebours qui suit l'horloge, les vraies minutes la nuit du changement d'heure, la langue de la page, au clavier et sans JavaScript (leçon 132)", async (p, b) => {
     const lesson = "/exemples/lecons/132-des-heures.holo";
     const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;

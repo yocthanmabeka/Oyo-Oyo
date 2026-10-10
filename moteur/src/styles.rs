@@ -746,6 +746,8 @@ mod tests {
             include_str!("../../exemples/lecons/140-une-page-dans-la-page.holo"),
             // Un module venu d'ailleurs, avec son empreinte et sa licence (ADR-118).
             include_str!("../../exemples/lecons/141-un-module-venu-d-ailleurs.holo"),
+            // Prévenir quand la page est fermée : une notification push (ADR-119).
+            include_str!("../../exemples/lecons/142-prevenir-quand-la-page-est-fermee.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();
@@ -783,6 +785,10 @@ mod tests {
         }
         // Un module venu d'ailleurs : son adresse, son empreinte, sa licence (ADR-118).
         for word in ["from: \"https://raw.githubusercontent.com/", "sha256:", "license:"] {
+            assert!(source.contains(word), "« {word} » manque dans l'exemple");
+        }
+        // Prévenir quand la page est fermée : s'abonner, se désabonner, prévenir (ADR-119).
+        for word in ["push: true", "News.request", "News.stop", "News.send"] {
             assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
     }

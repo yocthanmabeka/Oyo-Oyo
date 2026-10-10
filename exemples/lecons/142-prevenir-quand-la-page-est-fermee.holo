@@ -1,0 +1,63 @@
+// Leçon 142 — Prévenir quand la page est fermée
+//
+// Ce qu'on apprend :
+//   Notification(…, push: true) : une notification qui arrive même quand la page est fermée, ou
+//   le téléphone en veille. Trois mots dans les règles :
+//     News.request   abonne le visiteur : son navigateur lui demande la permission, seulement
+//                    sur le toucher d'un bouton, jamais à l'ouverture de la page
+//     News.stop      le désabonne, toujours, même si le serveur ne répond pas
+//     News.send      prévient les abonnés ; il s'écrit dans la règle d'un bouton qui change
+//                    une valeur partagée (leçon 101) : posts.add(1), puis News.send
+//   C'est ton serveur, holo serve, qui envoie. Il fabrique ses propres clés, une fois, sans
+//   compte ni contrat chez Google, Apple ou Mozilla, et ne les montre jamais. Le message passe
+//   par le service de notification du navigateur du visiteur (Google pour Chrome, Mozilla pour
+//   Firefox, Apple pour Safari, Microsoft pour Edge) : il est chiffré pour ce navigateur seul,
+//   le service ne fait que le porter. Celui qui touche n'est pas prévenu : il voit déjà.
+//   Une minute au moins entre deux envois : les touchers d'entre-temps n'en font qu'un.
+//   Sur iPhone et iPad (iOS 16.4 et plus), seulement une fois la page ajoutée à l'écran
+//   d'accueil. Quand la page est ouverte, le direct (leçon 101) la tient à jour, comme avant.
+//
+// À essayer :
+//   Avec holo serve, ouvre cette page dans Chrome ou Firefox sur ce PC (http://localhost:…),
+//   touche « Me prévenir », accepte, puis ferme l'onglet. Ouvre la page dans un autre
+//   navigateur et touche « Épingler un message » : la notification arrive. Sur un téléphone,
+//   il faut l'adresse publique HTTPS de ton site (HOLO_ORIGIN). « Ne plus me prévenir »
+//   arrête tout.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 142 : prévenir quand la page est fermée",
+  shared: Shared(posts: 0),
+  children: [
+    H1("Le tableau du club"),
+    P("Messages épinglés sur le tableau : {posts}. Tout le monde voit le même nombre."),
+    Button(name: Post, text: "Épingler un message"),
+
+    H2("Être prévenu, même page fermée"),
+    Notification(name: News, label: "Être prévenu des nouveaux messages, même quand cette page est fermée",
+                 title: "Le tableau du club", body: "Un nouveau message est épinglé.", push: true),
+    Row(gap: 12px, children: [
+      Button(name: Follow, text: "Me prévenir"),
+      Button(name: Unfollow, text: "Ne plus me prévenir"),
+    ]),
+    P("Ton navigateur te demande la permission quand tu touches « Me prévenir », jamais avant. Le message est chiffré pour lui seul. Sur iPhone et iPad, ajoute d'abord cette page à l'écran d'accueil."),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 124 : une citation courte, le titre d'une œuvre", to: "124-une-citation-courte.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+  rules: [
+    On(Post.tap, effect: [posts.add(1), News.send]),
+    On(Follow.tap, effect: News.request),
+    On(Unfollow.tap, effect: News.stop),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+H2 { color: #E9B44C; font-size: 22px; }
+Button { background: #174d70; color: white; padding: 12px; border-radius: 8px; }
+A { color: #8fd3ff; }

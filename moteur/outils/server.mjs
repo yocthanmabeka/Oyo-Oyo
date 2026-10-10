@@ -19,6 +19,9 @@
 //
 // Les données d'un autre site (ADR-116), `Data(from: "https://…")`, ne sont lues que par
 // holo serve : ce serveur répond 501 à `?remote-data`.
+//
+// Les notifications push (ADR-119) n'existent que dans holo serve : ce serveur répond 501 à
+// `?push` et à `?manifest`.
 
 import { createServer } from "node:http";
 import { appendFile, mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
@@ -573,6 +576,9 @@ createServer(async (req, res) => {
     // les sites permis et les clés de holo-data/sites.txt. Ce serveur d'essai le dit ; la page
     // reçoit « failed ».
     if (new URL(req.url, "http://x").search === "?remote-data") return respond(res, 501, "les données d'un autre site demandent holo serve (ADR-116)");
+    // Prévenir quand la page est fermée (ADR-119) : seul holo serve a les clés du site, garde les
+    // abonnements et envoie. La page le dit ; le reste marche.
+    if (["?push", "?manifest"].includes(new URL(req.url, "http://x").search)) return respond(res, 501, "être prévenu page fermée demande holo serve (ADR-119)");
     // Une page qui écoute ses valeurs partagées en direct (ADR-079). Une page réservée aux
     // membres (ADR-081) n'est ni écoutée ni touchée ici : les comptes sont dans holo serve.
     if (req.method === "GET" && /text\/event-stream/.test(req.headers.accept ?? "")) {
