@@ -61,6 +61,8 @@ Les données d'un autre site (`Data(from: "https://…")`, ADR-116) sont lues pa
 
 Paramètres d'adresse utiles : `?zoom=3.4` démarre à un zoom donné (pour les captures), `?world=nom` charge `mondes/nom.holo`.
 
+Chaque page servie dit au navigateur de quels sites elle peut intégrer une page (`Embed`, ADR-117) : `Content-Security-Policy: frame-src https://www.openstreetmap.org …`, seulement les sites de `Page(embeds: […])`, et `frame-src 'none'` pour une page qui n'en liste pas. Le serveur d'essai de Node n'envoie pas cet en-tête.
+
 ## Tester sur le téléphone
 
 1. Lance le serveur sur le PC ; il affiche une adresse `http://192.168.x.x:8080` (ou `10.x.x.x`).
@@ -185,4 +187,5 @@ Repris de la proposition de Gemini, à vérifier sur le téléphone :
 | `src/server.rs`, `src/gestures.rs` | `holo serve` : le serveur en Rust, sa base SQLite, les gestes et les formulaires sans JavaScript (ADR-074, ADR-075) |
 | `src/remote.rs` | Les données d'un autre site, pour `holo serve` (ADR-116) : les sites permis et leurs clés, le refus du réseau privé, le client HTTPS (`ureq` avec `rustls`), ce qui est gardé |
 | `src/bin/holo.rs` | Le moteur en ligne de commande, pour le PC ou un serveur : `cargo build --release --bin holo`, puis `holo check fichier.holo` (vérifier) et `holo html fichier.holo` (écrire le HTML de la page, avec les données de `Data(from:)` si le fichier est rangé à côté, `ADR-064`) |
+| `src/embed.rs` | Une page dans la page (ADR-117) : la liste des sites permis, la lecture stricte de l'adresse, la façade ; la page légère (`web/page.html`) pose la page intégrée, enfermée, au toucher |
 | `outils/build.ps1` | Construction complète |
