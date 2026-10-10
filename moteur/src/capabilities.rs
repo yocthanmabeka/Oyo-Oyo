@@ -23,6 +23,20 @@ pub fn text<'a>(block: &'a Block, key: &str) -> Option<&'a str> {
 pub fn word<'a>(block: &'a Block, key: &str) -> Option<&'a str> {
     match block.argument(key).map(|a| &a.value) { Some(Value::Name(t)) => Some(t), _ => None }
 }
+/// Ce que les règles du fichier demandent à un bloc : `On(Go.tap, effect: Share.request)` → `request`.
+fn asked_of<'a>(program: &'a Program, name: &str) -> Vec<&'a str> {
+    let mut asked = Vec::new();
+    let _ = rules::for_each_block(&program.root, &mut |rule| {
+        let effects: Vec<&Value> = match rule.argument("effect").map(|a| &a.value) { Some(Value::List(vs)) => vs.iter().collect(), Some(v) => vec![v], None => Vec::new() };
+        for effect in effects {
+            if let Some((target, action)) = match effect { Value::Name(n) => n.split_once('.'), _ => None } {
+                if target == name { asked.push(action); }
+            }
+        }
+        Ok(())
+    });
+    asked
+}
 pub fn check(program: &Program) -> Result<(), Error> {
     rules::for_each_block(&program.root, &mut |block| {
         if !BLOCKS.contains(&block.name.as_str()) { return Ok(()); }
@@ -37,6 +51,13 @@ pub fn check(program: &Program) -> Result<(), Error> {
             direct = children.iter().any(|v| matches!(v, Value::Block(b) if std::ptr::eq(b, block)));
         }
         if !direct { return Err(error("Transfer, Device, Notification et Offline se rangent directement dans les enfants de Page")); }
+        // Un partage s'ouvre par request (ADR-107) ; stop, permis partout, oublie un partage en cours.
+        if block.name == "Device" && word(block, "kind") == Some("share") {
+            let name = rules::name_of(block).unwrap_or("");
+            if let Some(action) = asked_of(program, name).into_iter().find(|a| !matches!(*a, "request" | "stop")) {
+                return Err(error(&format!("« {name}.{action} » : un partage s'ouvre par {name}.request, sur le toucher d'un bouton")));
+            }
+        }
         match block.name.as_str() {
             "Transfer" => {
                 for name in names(block)? {
@@ -56,7 +77,9 @@ pub fn check(program: &Program) -> Result<(), Error> {
                     }
                 }
                 Some("camera" | "microphone") if block.argument("value").is_none() => {}
-                _ => return Err(error("« Device(kind: …) » attend position, clipboard, camera ou microphone ; caméra et microphone donnent un aperçu local, sans value")),
+                // Partager la page (ADR-107) : son titre et son adresse ; rien n'est rendu à la page.
+                Some("share") if block.argument("value").is_none() => {}
+                _ => return Err(error("« Device(kind: …) » attend position, clipboard, camera, microphone ou share ; caméra et microphone donnent un aperçu local, le partage envoie le titre et l'adresse de la page : sans value")),
             },
             "Notification" => {
                 if !text(block, "title").is_some_and(|s| !s.trim().is_empty() && s.chars().count() <= 100)
@@ -98,7 +121,12 @@ pub fn html(block: &Block) -> String {
         parts.push(format!("{}:{val}", crate::json_text(key)));
     }
     parts.push(format!("\"type\":{}", crate::json_text(&block.name)));
-    format!("<section class=\"holo-{}\" data-name=\"{}\" data-browser-capability=\"{}\"><p>{}</p><p role=\"status\" aria-live=\"polite\" data-capability-status>Prêt.</p><span data-capability-preview></span><noscript>Cette capacité demande JavaScript ; le reste de la page reste lisible.</noscript></section>",
+    // Sans JavaScript, le partage dit comment partager quand même (ADR-107).
+    let without_script = match word(block, "kind") {
+        Some("share") => "Sans JavaScript, ce bouton ne partage pas : copie l'adresse de la page dans la barre du navigateur, ou prends « Partager » dans son menu.",
+        _ => "Cette capacité demande JavaScript ; le reste de la page reste lisible.",
+    };
+    format!("<section class=\"holo-{}\" data-name=\"{}\" data-browser-capability=\"{}\"><p>{}</p><p role=\"status\" aria-live=\"polite\" data-capability-status>Prêt.</p><span data-capability-preview></span><noscript>{without_script}</noscript></section>",
         block.name, crate::flat::escape(rules::name_of(block).unwrap_or("")), crate::flat::escape(&format!("{{{}}}", parts.join(","))), crate::flat::escape(text(block, "label").unwrap_or("")))
 }
 pub fn export(program: &Program, written: &str, name: &str) -> Result<String, String> {
@@ -191,5 +219,26 @@ mod tests {
         let good = r#"Page(state: State(result: ""), children: [H1("Appareil"), Device(name: Location, kind: position, value: result, label: "Ma position"), Button(name: Ask, text: "Demander")], rules: [On(Ask.tap, effect: Location.request)])"#;
         assert!(crate::check_page(good).is_ok());
         for bad in [good.replace("Ask.tap", "Location.done"), good.replace("kind: position", "kind: arbitrary"), good.replace("value: result", "value: missing")] { assert!(crate::check_page(&bad).is_err()); }
+    }
+    #[test]
+    fn a_page_is_shared_from_a_button_and_nothing_else() {
+        // Partager la page (ADR-107) : sur le toucher d'un bouton ; la page sait que c'est fait, ou raté.
+        let good = r#"Page(state: State(sent: 0, missed: 0), children: [H1("Partage"), Device(name: Share, kind: share, label: "Partager cette page"), Button(name: Go, text: "Partager")], rules: [On(Go.tap, effect: Share.request), On(Share.done, effect: sent.add(1)), On(Share.failed, effect: missed.add(1))])"#;
+        assert!(crate::check_page(good).is_ok());
+        let html = crate::flat_view(good, "").unwrap();
+        assert!(html.contains("&quot;kind&quot;:&quot;share&quot;") && html.contains("<p role=\"status\" aria-live=\"polite\" data-capability-status>"), "{html}");
+        // Sans JavaScript, la page dit comment partager quand même.
+        assert!(html.contains("<noscript>Sans JavaScript, ce bouton ne partage pas : copie l'adresse de la page dans la barre du navigateur"), "{html}");
+        // Jamais d'une minuterie, d'une fin ou d'une règle qui guette ; rien d'autre que s'ouvrir ; aucune valeur rendue.
+        for (bad, why) in [
+            (good.replace("On(Go.tap, effect: Share.request)", "Every(1s, effect: Share.request)"), "un geste du visiteur"),
+            (good.replace("On(Go.tap, effect: Share.request)", "On(Share.done, effect: Share.request)"), "le toucher d'un bouton"),
+            (good.replace("On(Go.tap, effect: Share.request)", "When(sent, is: 1, effect: Share.request)"), "un geste du visiteur"),
+            (good.replace("On(Go.tap, effect: Share.request)", "On(Go.tap, effect: Share.write)"), "un partage s'ouvre par Share.request"),
+            (good.replace("kind: share", "kind: share, value: sent"), "sans value"),
+        ] {
+            let error = crate::check_page(&bad).unwrap_err();
+            assert!(error.message.contains(why), "{bad} : {error}");
+        }
     }
 }

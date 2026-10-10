@@ -666,6 +666,76 @@ const tests = [
       && added === "none" && titles === "Les Misérables | Les Châtiments";
     return [ok, `lu : « ${said} » ; citations : ${quotes} ; guillemets du navigateur : ${added} ; œuvres : ${titles}`];
   }],
+  ["partager la page : la feuille du téléphone avec le titre et l'adresse, sinon l'adresse copiée (leçon 130)", async (p, b) => {
+    const lesson = "/exemples/lecons/130-partager-la-page.holo";
+    const status = `document.querySelector('[data-name="Partage"] [data-capability-status]')`;
+    // Ce que la page montre : la zone d'état, le compte des partages (done), le texte de la panne (failed).
+    const shown = () => p.value(`[${status}.textContent, document.getElementById("page").innerText.match(/Partagée (\\d+) fois/)?.[1] ?? "?", document.getElementById("page").innerText.includes("Le partage n'a pas marché")]`);
+    // Un script posé avant la page, comme le navigateur d'un téléphone ou d'un ordinateur : le
+    // partage du téléphone est remplacé pour l'essai, ou retiré (Chrome sous Windows en a un).
+    const before = async (source) => (await b.send("Page.addScriptToEvaluateOnNewDocument", { source })).result.identifier;
+    const forget = (identifier) => b.send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
+    // 1. Un ordinateur sans partage : l'adresse est copiée, et la page le dit, dans la zone que le
+    // lecteur d'écran lit.
+    let script = await before("delete Navigator.prototype.share; delete Navigator.prototype.canShare;");
+    await b.send("Browser.grantPermissions", { permissions: ["clipboardReadWrite", "clipboardSanitizedWrite"] });
+    let computer;
+    try {
+      await p.open(lesson);
+      if (!(await p.until("window.__holoStarted"))) return [false, "le moteur n'est pas arrivé"];
+      await p.click('[data-name="Envoyer"]');
+      await p.until(`${status}.textContent.includes("copiée")`, 5000);
+      const read = await b.send("Runtime.evaluate", { expression: `navigator.clipboard.readText().then((t) => [t, location.href, ${status}.getAttribute("aria-live")])`, awaitPromise: true, returnByValue: true, userGesture: true });
+      const [clipboard, address, live] = read.result?.result?.value ?? [];
+      computer = { said: await shown(), copied: clipboard === address, clipboard, live };
+    } finally {
+      await forget(script);
+      await b.send("Browser.resetPermissions");
+    }
+    // 2. Un téléphone : navigator.share, remplacé avant la page, doit recevoir le titre et l'adresse,
+    // pendant le toucher même (window.event : l'appel part dans le clic, avant toute attente).
+    script = await before(`window.__shares = []; window.__answer = "ok"; Navigator.prototype.canShare = () => true;
+      Navigator.prototype.share = function (data) {
+        window.__shares.push({ ...data, during: window.event?.type ?? "", active: navigator.userActivation.isActive });
+        return window.__answer === "ok" ? Promise.resolve() : Promise.reject(new DOMException("essai", window.__answer));
+      };`);
+    let phone, violations;
+    try {
+      await p.open(lesson);
+      if (!(await p.until("window.__holoStarted"))) return [false, "le moteur n'est pas arrivé (téléphone)"];
+      await p.click('[data-name="Envoyer"]');
+      await p.until(`${status}.textContent === "Page partagée."`, 5000);
+      const shared = await p.value(`(() => { const s = window.__shares[0] ?? {}; return { title: s.title, url: s.url, sameTitle: s.title === document.title, sameAddress: s.url === location.href, during: s.during, active: s.active, calls: window.__shares.length }; })()`);
+      const done = await shown();
+      // 3. Le visiteur ferme la feuille sans rien choisir : « Partage annulé. », ni done ni failed.
+      await p.value(`window.__answer = "AbortError"`);
+      await p.click('[data-name="Envoyer"]');
+      await p.until(`${status}.textContent === "Partage annulé."`, 5000);
+      const cancelled = await shown();
+      // 4. Une vraie panne : l'adresse est écrite à l'écran, et la page le sait (failed).
+      await p.value(`window.__answer = "NotAllowedError"`);
+      await p.click('[data-name="Envoyer"]');
+      await p.until(`${status}.textContent.includes("Partage impossible")`, 5000);
+      const failed = await shown();
+      phone = { shared, done, cancelled, failed, address: await p.value("location.href"), errors: [...b.errors] };
+      // L'audit d'accessibilité de la page après la panne : le texte de la panne, l'adresse écrite.
+      const { createRequire } = await import("node:module");
+      let axe;
+      try { axe = readFileSync(createRequire(join(engine, "x.js")).resolve("axe-core/axe.min.js"), "utf8"); }
+      catch { return [false, "axe-core absent : « npm install --no-save axe-core@4.10.3 », dans moteur/"]; }
+      await p.value(`${axe}\n;window.axe.version`);
+      violations = await p.value(`window.axe.run(document, { resultTypes: ["violations"] }).then((r) => r.violations.map((v) => v.id + " : " + v.nodes.map((n) => n.html.slice(0, 100)).join(" | ")))`);
+    } finally {
+      await forget(script);
+    }
+    const ok = computer.copied && computer.live === "polite" && computer.said[0] === "Adresse de la page copiée : colle-la où tu veux." && computer.said[1] === "1" && !computer.said[2]
+      && phone.shared.sameTitle && phone.shared.sameAddress && phone.shared.during === "click" && phone.shared.active === true && phone.shared.calls === 1
+      && phone.done[0] === "Page partagée." && phone.done[1] === "1" && !phone.done[2]
+      && phone.cancelled[0] === "Partage annulé." && phone.cancelled[1] === "1" && !phone.cancelled[2]
+      && phone.failed[0] === `Partage impossible ici. L'adresse de la page, à copier : ${phone.address}` && phone.failed[1] === "1" && phone.failed[2]
+      && phone.errors.length === 0 && violations.length === 0;
+    return [ok, `ordinateur : « ${computer.said[0]} », presse-papiers « ${computer.clipboard} », zone ${computer.live}, ${computer.said[1]} partage ; téléphone : share(${JSON.stringify({ title: phone.shared.title, url: phone.shared.url })}) pendant « ${phone.shared.during} » (geste actif : ${phone.shared.active}), « ${phone.done[0]} », ${phone.done[1]} partage ; feuille fermée : « ${phone.cancelled[0]} », ${phone.cancelled[1]} partage, panne montrée : ${phone.cancelled[2]} ; panne : « ${phone.failed[0]} », panne montrée : ${phone.failed[2]} ; erreurs : ${phone.errors.length} ; axe-core : ${violations.length ? violations.join(" ; ") : "zéro défaut"}`];
+  }],
   ["réordonner une liste : la poignée à la souris et au doigt, Monter et Descendre au clavier, annoncés ; sans JavaScript, holo serve (leçon 128, serve)", async (p, b) => {
     const lesson = "/exemples/lecons/128-reordonner-une-liste.holo";
     // L'ordre gardé par un essai précédent (keep) est oublié : la leçon part de son départ.
