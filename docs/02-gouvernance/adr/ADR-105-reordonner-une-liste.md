@@ -1,6 +1,6 @@
 # ADR-105 — Réordonner les lignes d'une liste : `Repeat(over:, reorder: true)`
 
-- Statut : ACCEPTÉ (fait et validé : Yocthan, 2026-10-09, « tu le valides déjà, tu le fais déjà »)
+- Statut : ACCEPTÉ (fait et validé : Yocthan, 2026-10-09, « tu le valides déjà, tu le fais déjà » ; essayé et validé par Yocthan le 2026-10-10 : « je viens de faire tous les essais et je valide »)
 - Date : 2026-10-09
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'issue #234 (« Dernière dette du web : glisser pour réordonner une liste »), dans la file des dernières dettes du web ouverte par Yocthan le 2026-10-09 ; le grand tableau du web, où le glisser-déposer était « en partie » (« Sur un plateau seulement », `docs/01-holocode/TABLEAU-WEB.md`) ; `drag: true` sur un plateau (`ADR-028`) ; les listes qui changent (`ADR-044`, `ADR-051`) et les clés de leurs lignes (`ADR-057`, `ADR-065`) ; les gestes sans JavaScript (`ADR-074`) ; le panier qui suit le compte (`ADR-081`) ; la règle de parité de Yocthan (2026-10-07 : ce qui existe sur l'ordinateur existe sur le téléphone, et l'inverse).

@@ -1,6 +1,6 @@
 # ADR-102 — Des nombres négatifs : `negative: [temperature]`
 
-- Statut : ACCEPTÉ (fait et validé : Yocthan, 2026-10-09, « tu le valides déjà, tu le fais déjà »)
+- Statut : ACCEPTÉ (fait et validé : Yocthan, 2026-10-09, « tu le valides déjà, tu le fais déjà » ; essayé et validé par Yocthan le 2026-10-10 : « je viens de faire tous les essais et je valide »)
 - Date : 2026-10-09
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'issue #231 (« Dernière dette du web : les nombres négatifs »), ajoutée à la file à la demande de Yocthan le 2026-10-09 ; le grand tableau du web, où les variables étaient « en partie » ; `ADR-023` (une valeur ne descend jamais sous 0) ; `ADR-043` (multiplier, diviser, les formats) ; `ADR-066` (les nombres à virgule, qui annonçait : « les nombres négatifs ne sont pas encore là »).
