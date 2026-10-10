@@ -34,8 +34,8 @@ Page(
 
     Hr(),
     Row(gap: 16px, align: between, children: [
-      A("← Leçon 124 : une citation courte, le titre d'une œuvre", to: "124-une-citation-courte.holo"),
-      A("Leçon 1 : une page →", to: "01-page.holo"),
+      A("← Leçon 135 : mélanger des sons", to: "135-melanger-des-sons.holo"),
+      A("Leçon 139 : les données d'un autre site →", to: "139-les-donnees-d-un-autre-site.holo"),
     ]),
   ],
 )

@@ -1065,9 +1065,9 @@ const tests = [
         if (f.hidden) faults.push(`${back ? "Maj + Tab" : "Tab"} : « ${f.name} » ${f.hidden} ${JSON.stringify(f.at)}`);
         return f.name;
       };
-      for (let i = 0; i < 10 && (await step(false)) !== "Leçon 1 : une page →"; i++);
+      for (let i = 0; i < 10 && (await step(false)) !== "Leçon 130 : partager la page →"; i++);
       for (let i = 0; i < 10 && (await step(true)) !== "Ce que c'est"; i++);
-      check("le clavier passe par le bas de la page et revient en haut", walk.includes("Leçon 1 : une page →") && walk.some((n) => n.startsWith("Les Perséides")) && walk.at(-1) === "Ce que c'est", walk);
+      check("le clavier passe par le bas de la page et revient en haut", walk.includes("Leçon 130 : partager la page →") && walk.some((n) => n.startsWith("Les Perséides")) && walk.at(-1) === "Ce que c'est", walk);
       summary.keyboard = walk.join(" → ");
       // Le piège connu d'un en-tête collé : un lien à l'écran, mais sous la barre (ou sous le bouton
       // du bas). Le navigateur le croit visible et ne défile pas ; la marge laissée au focus le fait

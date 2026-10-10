@@ -6,6 +6,23 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Les douze dernières dettes dans `main` : la suite des leçons 124 → 141, et le grand tableau du web (v37)
+
+- Fait (la session du nuage) :
+  - **Les douze dernières dettes du web sont dans `main`** (issues 231 à 242, `ADR-102` à `ADR-113`, leçons 125 à 136), avec trois des fonctions ouvertes : les données d'un autre site, une page dans la page, des modules venus d'ailleurs (`ADR-116` à `ADR-118`, leçons 139 à 141). Les dernières fusionnées ce soir : les heures (PR 272) et découper une forme (PR 273).
+  - **La suite des leçons** : chaque leçon de 124 à 141 mène à la précédente et à la suivante (124 → 125 → … → 136 → 139 → 140 → 141 → 1), au lieu de revenir toutes à la 124 et de mener toutes à la 1. Les leçons 137, 138, 142 et 143 (le mot de passe, la zone de dessin, les notifications, le paiement) prendront leur place dans la suite quand elles seront dans `main`.
+  - **Le grand tableau du web, v37** (la page en ligne « HoloCode face au web », puis `docs/01-holocode/TABLEAU-WEB.md`, refait depuis elle par `outils/web_table.py`) : 21 lignes de mots de plus, **505 mots** (492 décidés, 13 à l'essai : ceux des heures, des formes découpées et des modules venus d'ailleurs, que Yocthan n'a pas encore essayés) ; sur les 135 éléments de HTML, CSS et JavaScript, **121 oui, 7 en partie, 0 non**, 6 refusés exprès, 1 sans objet. Passés à « oui » : `iframe`, `grid`, `filter`, `clip-path`, le défilement, le glisser-déposer, les variables (les nombres négatifs), le texte, `Date`, `fetch` vers un autre site, `sessionStorage` (qui était le dernier « non »), l'import de modules, Web Audio, la vibration, le partage.
+  - Les 7 « en partie » qui restent : trois attendent la 3D (`canvas`/WebGL, la 3D de CSS, WebGL et WebGPU) ; quatre sont les fonctions ouvertes en cours : le mot de passe (246), le dessin du visiteur (247), les notifications envoyées par le serveur (251), le paiement (252).
+- Exécuté (conteneur du nuage) :
+  - `holo check` sur les seize leçons de 124 à 141 : `ok` chaque fois.
+  - `cargo test --release --locked` : **321** passent.
+  - Dans Chrome, « toutes les leçons s'ouvrent, sans erreur » : **139 leçons**, `OK`.
+  - L'essai Chrome de la leçon 129 suivait le clavier jusqu'au dernier lien de la leçon, « Leçon 1 : une page → » ; ce lien mène maintenant à la leçon 130 : l'essai attend « Leçon 130 : partager la page → », et passe.
+  - `python3 outils/web_table.py <la v37> docs/01-holocode/TABLEAU-WEB.md --check` : le fichier est celui que donne la page en ligne.
+- Reste : les fonctions ouvertes 246, 247, 251 (chacune avec un agent) et 252 ; puis leur place dans la suite des leçons et dans le tableau.
+
+---
+
 ## 2026-10-10 — Découper une forme : `form:` dans les styles, huit formes nommées
 
 - Fait (issue #240, reprise par un agent de la session du nuage : l'agent du PC s'était arrêté avant d'écrire quoi que ce soit, puis le PC s'est éteint ; `ADR-111`, ACCEPTÉ : « tu le valides déjà, tu le fais déjà ») :

@@ -51,8 +51,8 @@ Page(
 
     Hr(),
     Row(gap: 16px, align: between, children: [
-      A("← Leçon 124 : une citation courte, le titre d'une œuvre", to: "124-une-citation-courte.holo"),
-      A("Leçon 1 : une page →", to: "01-page.holo"),
+      A("← Leçon 125 : des nombres négatifs", to: "125-des-nombres-negatifs.holo"),
+      A("Leçon 127 : une grille, des cases larges, des zones →", to: "127-une-grille-et-ses-zones.holo"),
     ]),
   ],
   rules: [ On(Publish.tap, effect: posts.push(message)) ],
