@@ -695,6 +695,8 @@ mod tests {
             include_str!("../../exemples/lecons/139-les-donnees-d-un-autre-site.holo"),
             // Une page dans la page : une carte et une vidéo d'autres sites, derrière leur façade (ADR-117).
             include_str!("../../exemples/lecons/140-une-page-dans-la-page.holo"),
+            // Un module venu d'ailleurs, avec son empreinte et sa licence (ADR-118).
+            include_str!("../../exemples/lecons/141-un-module-venu-d-ailleurs.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();
@@ -716,6 +718,10 @@ mod tests {
         }
         // Une page dans la page : les sites permis, l'image de la façade (ADR-117).
         for word in ["embeds:", "Embed(", "image: \"140-carte.svg\""] {
+            assert!(source.contains(word), "« {word} » manque dans l'exemple");
+        }
+        // Un module venu d'ailleurs : son adresse, son empreinte, sa licence (ADR-118).
+        for word in ["from: \"https://raw.githubusercontent.com/", "sha256:", "license:"] {
             assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
     }
