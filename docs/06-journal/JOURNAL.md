@@ -6,6 +6,37 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Des filtres d'image dans les styles : gris, flou, luminosité
+
+- Fait (issue #237, un agent de la session du PC ; `ADR-108`, ACCEPTÉ d'avance par Yocthan : « tu le valides déjà, tu le fais déjà ») :
+  - `grayscale`, `saturate`, `brightness`, `contrast`, `hue`, `blur` dans un style : un réglage par effet, borné, jamais en `%`. Le moteur les compose en un seul `filter`, toujours dans le même ordre ; un état en change un sans effacer les autres (`hover: { grayscale: 0; }` garde le flou).
+  - Seulement sur une image, une forme ou un dessin. Jamais sur un texte, un bouton, un composant ni une vidéo.
+  - Au focus du clavier, le bloc filtré se montre sans filtre (`:focus-visible { filter: none }`) : son cadre de focus reste net.
+  - `backdrop-blur` sur une fenêtre : la page, derrière elle, devient floue (son `::backdrop`).
+  - La leçon 131, le guide (« 6 undequinquagies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons, un essai dans Chrome.
+- Repris du travail sauvé par l'agent arrêté (`wip/langage/filtres-pc`), puis relu contre les règles. Trois changements :
+  - Le premier jet filtrait tout bloc. Il ne mesurait le contraste d'un texte filtré que si le même style donnait ses deux couleurs : un texte dont les couleurs venaient de la page passait donc assombri sans rien dire. Désormais, un filtre ne se pose que sur un bloc sans texte.
+  - Vu dans Chrome (première capture) : un flou brouille le cadre de focus et les commandes d'une vidéo ; `brightness(0.2)` les efface presque ; `clip-path` coupe le cadre tout entier. D'où la vidéo refusée, et le focus sans filtre.
+  - Le verre dépoli (`backdrop-blur` sur un bloc à demi transparent) posait un texte sur un fond inconnu. Il est retiré, et laissé en dette.
+
+![Le cadre de focus (en bleu) sous un filtre : net, brouillé par blur(3px), presque effacé par brightness(0.2), gris, coupé par clip-path ; dessous, les commandes d'une vidéo floutée, puis assombrie](images/2026-10-10-filtres-cadre-de-focus.png)
+
+![La leçon 131 : le lac en gris, assombri, plus vif, flou ; le titre posé sur la photo assombrie](images/2026-10-10-filtres-lecon-131.png)
+
+![La fenêtre ouverte : derrière elle, la page est floue et assombrie](images/2026-10-10-filtres-fenetre-floue.png)
+
+- Erreur : l'exemple du guide du premier jet commençait par un `H2`. Seuls les tests nouveaux avaient tourné ; le test qui relit le guide l'a vu au premier `cargo test` complet. Corrigé (5cba62d).
+- Exécuté, après la fusion de `main` (style diff3 ; les ajouts des deux côtés gardés, rangés par numéro) :
+  - `cargo test --release --locked` et `cargo test` : 259 tests passent.
+  - Dans Chrome, « des filtres d'image … (leçon 131) » passe : `grayscale(1)`, puis `grayscale(0)` sous la souris ; `brightness(0.6) contrast(1.2)`, `saturate(1.8) hue-rotate(30deg)`, `blur(3px)` ; au focus du clavier, `none` ; derrière la fenêtre ouverte, `blur(6px)` ; sans JavaScript, les mêmes filtres.
+  - L'essai sait échouer. Sans la ligne `:focus-visible{filter:none}` du moteur, il rate (« au focus du clavier : focus-visible, grayscale(1) »). Avec l'ancien moteur, la leçon est refusée (« réglage inconnu « grayscale » »).
+  - La suite entière : 86 essais passent, 4 ratent, tous faute d'axe-core sur ce PC (rien n'y est installé ; GitHub l'installe) : « parcours : axe-core… », et les essais des leçons 130, 133 et 135, venus de `main`, qui s'arrêtent à leur audit axe-core.
+- Défauts trouvés, pas corrigés ici :
+  - une forme qu'on touche en triangle ou en losange (`Shape(name:, form: triangle)`) n'a pas de cadre de focus visible : `clip-path` le coupe (vu dans Chrome). Noté pour la 240 (les formes découpées) ;
+  - une fenêtre ouverte se pose en haut à gauche de l'écran, pas au centre (leçon 63 comme leçon 131) : la marge des blocs de la page (`margin: 0 0 16px 0`) remplace le `margin: auto` du navigateur.
+
+---
+
 ## 2026-10-10 — Les fusions de la matinée, et l'outil de fusion réparé (le style diff3)
 
 - Fait (la session du PC) :
