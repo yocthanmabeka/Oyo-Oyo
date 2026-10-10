@@ -1004,6 +1004,17 @@ const tests = [
       under.push(`un bouton qui apparaît : ${appeared.hidden || "visible"}`);
       if (appeared.hidden) faults.push(`un bloc qui apparaît sur le lien qui a le focus : « ${appeared.name} » ${appeared.hidden} ${JSON.stringify(appeared.at)}`);
       summary.under = under.join(", ");
+      // L'audit d'accessibilité de la page, descendue : la barre collée en haut et le bouton collé
+      // en bas, tous deux par-dessus le texte (leur fond, leur contraste, le nom de la barre).
+      const { createRequire } = await import("node:module");
+      let axe;
+      try { axe = readFileSync(createRequire(join(engine, "x.js")).resolve("axe-core/axe.min.js"), "utf8"); }
+      catch { return [false, "axe-core absent : « npm install --no-save axe-core@4.10.3 », dans moteur/"]; }
+      await p.value(`${axe}\n;window.axe.version`);
+      const stuckCount = await p.value(`[...document.querySelectorAll("[data-sticky]")].filter((s) => s.getBoundingClientRect().height > 0 && getComputedStyle(s).position === "sticky").length`);
+      const violations = await p.value(`window.axe.run(document, { resultTypes: ["violations"] }).then((r) => r.violations.map((v) => v.id + " : " + v.nodes.map((n) => n.html.slice(0, 100)).join(" | ")))`);
+      check("axe-core, la barre et le bouton collés à l'écran : aucun défaut", stuckCount === 2 && violations.length === 0, { stuckCount, violations });
+      summary.axe = violations.length ? violations.join(" ; ") : `aucun défaut, ${stuckCount} blocs collés à l'écran`;
       errors("ordinateur");
       // 7. Sur un téléphone (360 × 780) : la barre prend moins du cinquième de l'écran ; rien ne déborde.
       await b.send("Emulation.setDeviceMetricsOverride", { width: 360, height: 780, deviceScaleFactor: 2, mobile: true });
@@ -1080,7 +1091,7 @@ const tests = [
       await b.send("Emulation.setEmulatedMedia", { media: "" });
       await b.send("Emulation.clearDeviceMetricsOverride");
     }
-    return [faults.length === 0, faults.length ? faults.join("\n      ") : `ordinateur : ${summary.half} ; ${summary.rate} ; retour en haut ; « Quand les voir » : ${summary.anchor} ; clavier : ${summary.keyboard}, rien de caché ; ${summary.under} ; téléphone : ${summary.phone}, ${summary.tall}, clavier de l'écran : l'en-tête reprend sa place ; écran bas : ${summary.low} ; sans JavaScript : ${summary.withoutScript}`];
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : `ordinateur : ${summary.half} ; ${summary.rate} ; retour en haut ; « Quand les voir » : ${summary.anchor} ; clavier : ${summary.keyboard}, rien de caché ; ${summary.under} ; axe-core : ${summary.axe} ; téléphone : ${summary.phone}, ${summary.tall}, clavier de l'écran : l'en-tête reprend sa place ; écran bas : ${summary.low} ; sans JavaScript : ${summary.withoutScript}`];
   }],
   ["faire vibrer le téléphone : un toucher, une rencontre, le mouvement réduit, un navigateur sans vibreur (leçon 133)", async (p, b) => {
     const lesson = "/exemples/lecons/133-faire-vibrer-le-telephone.holo";
