@@ -714,6 +714,8 @@ mod tests {
             include_str!("../../exemples/lecons/123-des-suggestions-dans-un-champ.holo"),
             // Une citation courte, le titre d'une œuvre (ADR-101).
             include_str!("../../exemples/lecons/124-une-citation-courte.holo"),
+            // Travailler un texte : majuscules, longueur, couper, découper (ADR-103).
+            include_str!("../../exemples/lecons/126-travailler-un-texte.holo"),
             // Une grille qui place ses cases : plusieurs colonnes ou lignes, des zones (ADR-104).
             include_str!("../../exemples/lecons/127-une-grille-et-ses-zones.holo"),
             // Partager la page : la feuille du téléphone, sinon l'adresse copiée (ADR-107).
@@ -754,6 +756,10 @@ mod tests {
         }
         // Une page dans la page : les sites permis, l'image de la façade (ADR-117).
         for word in ["embeds:", "Embed(", "image: \"140-carte.svg\""] {
+            assert!(source.contains(word), "« {word} » manque dans l'exemple");
+        }
+        // Travailler un texte (ADR-103).
+        for word in [":upper}", ":lower}", ":length}", ":max40}", "Split(", "by: \",\"", "by: \" \""] {
             assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
     }

@@ -62,6 +62,11 @@ pub fn check(program: &Program) -> Result<(), Error> {
         let refusal = |message: String| Err(Error { message, pos: argument.pos });
         match &argument.value {
             Value::Bool(false) => {}
+            // Un texte découpé (ADR-103) garde l'ordre de son texte.
+            Value::Bool(true) if crate::computed::split_source(program, &list).is_some() => {
+                let from = crate::computed::split_source(program, &list).unwrap_or_default();
+                return refusal(format!("« {list} » est découpée dans le texte « {from} » : ses morceaux gardent l'ordre du texte ; pour une liste qu'on réordonne, déclare-la dans State"));
+            }
             Value::Bool(true) if crate::computed::is_computed(program, &list) => {
                 let source = crate::computed::source_of(program, &list).unwrap_or_default();
                 return refusal(format!("« {list} » est une liste calculée : son ordre vient d'elle (sortBy, reverse) ; réordonne sa source, Repeat(over: {source}, reorder: true, …)"));
