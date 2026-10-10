@@ -139,6 +139,8 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 133 | [Faire vibrer le téléphone](133-faire-vibrer-le-telephone.holo) | `Device(kind: vibration, for: 200ms)`, `Petite.play` : un toucher, une rencontre, `for: [100ms, 80ms, 100ms]` ; rien avant le premier toucher, ni sous le mouvement réduit ; le signe toujours à l'écran |
 | 135 | [Mélanger des sons](135-melanger-des-sons.holo) | Plusieurs sons à la fois ; `Sound(fade: 2s)` : un fondu à l'entrée et à la sortie ; `Sound(volume: pluie)` et une glissière par son : une table de mixage ; jamais un son avant un geste |
 | 136 | [Se souvenir le temps d'une visite](136-se-souvenir-le-temps-d-une-visite.holo) | `visit: [prenom, personnes, atelier]` : un formulaire en deux pages (la seconde : `136-inscription/etape-2.holo`) ; les valeurs suivent le visiteur dans le même onglet, effacées à sa fermeture ; aucun cookie |
+| 139 | [Les données d'un autre site](139-les-donnees-d-un-autre-site.holo) | `Data(from: "https://…")` : ton serveur lit l'autre site pour la page, jamais le navigateur du visiteur ; `holo-data/sites.txt` permet le site et range sa clé ; gardé un moment ; `done`, `failed`, `refresh`, et sans JavaScript aussi |
+| 140 | [Une page dans la page](140-une-page-dans-la-page.holo) | `Embed(from:, label:, image:)` et `embeds: [ … ]` : une carte d'OpenStreetMap, une vidéo de YouTube ; rien ne leur est envoyé avant ton toucher ; enfermée, avec son titre, le clavier dedans ; sans JavaScript, un lien |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 
