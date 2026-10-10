@@ -111,6 +111,8 @@ fn unfold_repeat(repeat: &Block) -> Result<(Vec<Value>, Vec<Value>), Error> {
             (Some("children"), Value::List(list)) => model = Some(list),
             (Some("rules"), Value::List(list)) => rules = list.clone(),
             (Some(word @ ("items" | "children" | "rules")), _) => return Err(Error { message: format!("« Repeat({word}: …) » attend une liste entre crochets : {example}"), pos: argument.pos }),
+            // Réordonner (ADR-105) : les éléments écrits dans le fichier ne changent pas pendant la visite.
+            (Some("reorder"), _) => return Err(Error { message: "« reorder » réordonne les lignes d'une liste qui change, déclarée dans State : Repeat(over: tasks, reorder: true, children: [ … ]) ; les Item(…) d'une répétition sont écrits dans le fichier".into(), pos: argument.pos }),
             (Some(other), _) => return Err(Error { message: format!("« Repeat » n'a pas de paramètre « {other} » ; paramètres possibles : items, children, rules"), pos: argument.pos }),
             (None, _) => return Err(Error { message: format!("chaque paramètre de « Repeat » est nommé : {example}"), pos: argument.pos }),
         }
