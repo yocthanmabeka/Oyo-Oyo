@@ -79,6 +79,9 @@ pub struct Site {
     /// Les autres sites que ses pages lisent (ADR-116) : ceux qui sont permis, leurs clés, ce qui
     /// est gardé. Ce serveur seul leur parle, jamais le navigateur du visiteur.
     pub(crate) remote: crate::remote::Remote,
+    /// Les copies des modules venus d'ailleurs (ADR-118) : celle qui manque est téléchargée une
+    /// fois, vérifiée, rangée à côté de la page.
+    pub(crate) copies: crate::copies::Copies,
 }
 
 /// Les pages ouvertes en direct, et le numéro de la prochaine.
@@ -180,7 +183,8 @@ impl Site {
             eprintln!("Effacement en attente : {error}");
         }
         let remote = crate::remote::Remote::open(&folder)?;
-        Ok(Site { passkeys_origin: crate::passkeys::configured_origin()?, folder, web: web.to_path_buf(), base: Mutex::new(base), gestures: Mutex::new(()), lives: Arc::default(), remote })
+        let copies = crate::copies::Copies::open(remote.fake.clone());
+        Ok(Site { passkeys_origin: crate::passkeys::configured_origin()?, folder, web: web.to_path_buf(), base: Mutex::new(base), gestures: Mutex::new(()), lives: Arc::default(), remote, copies })
     }
 
     /// Répond à une demande. Tout passe par ici : c'est ce que les essais éprouvent.
@@ -201,7 +205,15 @@ impl Site {
     }
 
     fn get(&self, ask: &Ask, path: &str, raw: &str) -> Reply {
-        let Some((file, holo, values)) = self.locate(path, raw) else { return Reply::text(404, "introuvable") };
+        let Some((file, holo, values)) = self.locate(path, raw) else {
+            // La copie d'un module venu d'ailleurs qui manque (ADR-118) : téléchargée une fois.
+            if let Some(bytes) = self.copies.missing(&self.folder, path) {
+                let mut headers = vec![("Content-Type".to_string(), "application/wasm".to_string())];
+                headers.extend(common_headers());
+                return Reply { status: 200, headers, body: bytes };
+            }
+            return Reply::text(404, "introuvable");
+        };
         // Une page qui offre une copie hors-ligne (`Offline`, ADR-096) est servie comme les autres :
         // avec les valeurs du visiteur, et ses boutons marchent sans JavaScript. La copie, elle, est
         // demandée par le service worker sans cookie : le serveur, qui ne connaît pas ce visiteur,

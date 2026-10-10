@@ -2444,6 +2444,48 @@ Page(
 
 La leçon est `140-une-page-dans-la-page.holo`.
 
+## 6 undesexagies. Un module venu d'ailleurs, avec son empreinte
+
+Un module (chapitre 6 duodevicies) écrit par quelqu'un d'autre : sa copie est rangée à côté de la page, avec l'adresse d'où il vient, son empreinte et sa licence (`ADR-118`).
+
+```holo
+module "primes.wasm"
+Page(
+  title: "Primes",
+  state: State(n: 1000, count: 0, refused: 0),
+  modules: [
+    Module(
+      name: Primes,
+      source: "primes.wasm",
+      from: "https://modules.example.org/primes/1.0/primes.wasm",
+      sha256: "128c62eaf00efe6eb9f2a1a2f95b311367166bfdae9c38c4a90cca7e8c8d0561",
+      license: "MIT",
+      input: n,
+      output: count,
+    ),
+  ],
+  children: [
+    H1("Primes"),
+    Button(name: Go, text: "Count"),
+    P("{count} prime numbers up to {n}"),
+    If(refused, is: 1, children: [ P("The module did not run.") ]),
+  ],
+  rules: [ On(Go.tap, effect: Primes.run), On(Primes.failed, effect: refused.set(1)) ],
+)
+```
+
+- **`source:`**, comme pour tout module : la copie, rangée à côté de la page. C'est elle, et seulement elle, que reçoit le navigateur du visiteur.
+- **`sha256:`** : l'empreinte du fichier, 64 chiffres et lettres (de 0 à 9, de a à f), celle que donne l'auteur du module sur sa page, comme la donnent `sha256sum`, `Get-FileHash` sous Windows, et `holo check`. Une empreinte exacte : ni version, ni intervalle (`^1.2`), ni « la dernière ».
+- **`from:`** : l'adresse d'où vient le module, en HTTPS, qui finit par `.wasm`, lue strictement comme celle des données d'un autre site. Elle ne s'écrit qu'avec son empreinte : une adresse sans empreinte est refusée.
+- **`license:`** : sa licence, telle que son auteur la donne (`"MIT"`, `"Apache-2.0"`…). Un module qui a une empreinte dit sa licence.
+- **La copie qui manque** : `holo serve` la télécharge une fois, à la première demande, par le même chemin sûr que les données d'un autre site (HTTPS, rien vers ce PC ni le réseau privé, 4 Mo au plus), vérifie son empreinte, et la range à côté de la page ; son journal le dit. Garde la copie avec ton projet. Le navigateur du visiteur ne va jamais chez l'autre site : l'autre site n'apprend rien des visiteurs, et la page marche même s'il disparaît.
+- **Avant chaque lancement**, le navigateur vérifie l'empreinte du fichier lui-même (l'intégrité de `fetch`), aussi quand on essaie la page sur un téléphone du même Wi-Fi (`http://192.168.…`), là où `crypto.subtle` manque. Un fichier qui a changé n'est pas lancé : `Primes.failed`.
+- **La même boîte que les autres modules**, et rien de plus : sa mémoire, son temps, ni réseau, ni page, ni heure. Le moteur lit le fichier avant de le lancer, dans la page comme dans `holo check` : un module qui demande autre chose que sa mémoire (une fonction, une table, un autre module), qui fabrique sa propre mémoire, qui emploie des objets du navigateur hors de sa mémoire (WasmGC) ou une table sans plafond, est refusé. Un module n'en charge donc jamais un autre : pas de dépendances en chaîne, pas de catalogue.
+- **Ce qui est dit** : en bas de la page, à tes visiteurs, le fichier, sa licence et le site d'où il vient (« Module « primes.wasm », venu de modules.example.org — licence : MIT »), lisible au lecteur d'écran et sans JavaScript ; s'il est refusé, la même ligne dit pourquoi. À toi, `holo check` dit son poids, son contrat, sa licence et « empreinte vérifiée », et refuse une copie qui a changé, avec son empreinte réelle.
+- Refusés, avec la raison : une adresse sans empreinte ; une empreinte sans licence ; une empreinte qui n'a pas 64 chiffres hexadécimaux, ou écrite `sha256-…` ; `http://`, une adresse IP, `localhost`, un port, `nom@`, une valeur `{…}`, une adresse qui ne finit pas par `.wasm` ; une licence vide, ou de plus de 64 caractères ; une copie rangée dans un dossier ; un même fichier avec deux empreintes.
+
+La leçon est `141-un-module-venu-d-ailleurs.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo
@@ -3093,6 +3135,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Une valeur partagée par tous les visiteurs, vue en direct | `shared: Shared(seats: 20)`, `seats.sub(1)` par un toucher | fait |
 | Une liste partagée, une ligne désignée par sa clé ; un texte partagé confirmé | `Shared(groceries: [ Item(…) ])`, `push`, `remove(item)`, `item.done.set(1)`, `clear()` ; `Input(value: title)` et `title.set(title)` | fait, avec `holo serve` (`ADR-080`) |
 | Du code enfermé (un module WebAssembly) | `module "…"`, `Module(…)`, `run`, `done`, `failed` | fait |
+| Un module écrit par quelqu'un d'autre, avec son empreinte et sa licence | `Module(from: "https://….wasm", sha256: "…", license: "MIT")`, la copie à côté de la page | fait (`ADR-118`) |
 | Une fenêtre, un pli, une glissière, une barre | `Dialog`, `Details`, `Slider`, `Progress` | fait |
 | Réagir au zoom par une règle (« quand on zoome, alors… ») | aucun | à faire |
 | Ranger côte à côte, l'un sous l'autre, en grille | `Row`, `Column`, `Grid` | fait |

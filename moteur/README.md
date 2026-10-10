@@ -61,6 +61,8 @@ Les données d'un autre site (`Data(from: "https://…")`, ADR-116) sont lues pa
 
 Paramètres d'adresse utiles : `?zoom=3.4` démarre à un zoom donné (pour les captures), `?world=nom` charge `mondes/nom.holo`.
 
+Un module venu d'ailleurs (`Module(from: "https://….wasm", sha256: "…", license: "…")`, ADR-118) dont la copie manque à côté de la page est téléchargé une fois par `holo serve`, à la première demande, par le même chemin sûr que les données d'un autre site (redirections suivies, cinq au plus, en HTTPS : le fichier est épinglé par son empreinte) ; vérifié, il est rangé à côté de la page, et le journal le dit : garde la copie avec ton projet. Le navigateur du visiteur ne va jamais chez l'autre site. L'interrupteur des essais (`HOLO_TEST_ONLY_INSECURE_SITE`) vaut aussi pour lui. Le serveur d'essai de Node ne télécharge rien : la copie doit être là.
+
 Chaque page servie dit au navigateur de quels sites elle peut intégrer une page (`Embed`, ADR-117) : `Content-Security-Policy: frame-src https://www.openstreetmap.org …`, seulement les sites de `Page(embeds: […])`, et `frame-src 'none'` pour une page qui n'en liste pas. Le serveur d'essai de Node n'envoie pas cet en-tête.
 
 ## Tester sur le téléphone
@@ -188,4 +190,5 @@ Repris de la proposition de Gemini, à vérifier sur le téléphone :
 | `src/remote.rs` | Les données d'un autre site, pour `holo serve` (ADR-116) : les sites permis et leurs clés, le refus du réseau privé, le client HTTPS (`ureq` avec `rustls`), ce qui est gardé |
 | `src/bin/holo.rs` | Le moteur en ligne de commande, pour le PC ou un serveur : `cargo build --release --bin holo`, puis `holo check fichier.holo` (vérifier) et `holo html fichier.holo` (écrire le HTML de la page, avec les données de `Data(from:)` si le fichier est rangé à côté, `ADR-064`) |
 | `src/embed.rs` | Une page dans la page (ADR-117) : la liste des sites permis, la lecture stricte de l'adresse, la façade ; la page légère (`web/page.html`) pose la page intégrée, enfermée, au toucher |
+| `src/copies.rs` | Les modules venus d'ailleurs (ADR-118), sur le PC : `holo check` vérifie la copie (empreinte, poids, ce qu'elle demande à la boîte) ; `holo serve` télécharge une fois celle qui manque (`remote::download`), la vérifie et la range à côté de la page. La boîte elle-même (`modules::check_wasm`) lit chaque fichier avant qu'il tourne, aussi dans la page |
 | `outils/build.ps1` | Construction complète |
