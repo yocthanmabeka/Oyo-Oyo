@@ -2200,6 +2200,46 @@ Page(
 
 La leçon est `136-se-souvenir-le-temps-d-une-visite.holo`, avec sa seconde page, `136-inscription/etape-2.holo`.
 
+## 6 duodesexagies. Une page dans la page : `Embed`
+
+Une carte, une vidéo, une publication d'un autre site, posée dans la page. Rien ne part vers l'autre site avant que le visiteur la touche (`ADR-117`).
+
+```holo
+Page(
+  title: "A trip to the zoo",
+  embeds: ["www.openstreetmap.org", "www.youtube-nocookie.com"],
+  children: [
+    H1("A trip to the zoo"),
+    Embed(
+      from: "https://www.openstreetmap.org/export/embed.html?bbox=-117.1570%2C32.7310%2C-117.1410%2C32.7400&layer=mapnik",
+      label: "Map: the San Diego Zoo",
+      image: "map.svg",
+    ),
+    Embed.video(
+      from: "https://www.youtube-nocookie.com/embed/jNQXAC9IVRw",
+      label: "Video: Me at the zoo, the first video on YouTube (2005)",
+      image: "video.svg",
+    ),
+  ],
+)
+.video { aspect-ratio: 4/3; }
+```
+
+- **`Embed(from:, label:, image:)`** : la page d'un autre site. `from:` est son adresse, en HTTPS. `label:` est son titre, obligatoire : le lecteur d'écran le dit, c'est aussi le texte du bouton qui la charge et le titre du cadre. `image:` est l'image de la façade, rangée à côté du fichier ; sans elle, la façade montre le titre sur un fond uni.
+- **`embeds: [ … ]`**, sur la page : les seuls sites permis, chacun écrit en entier, sans `https://` (16 au plus). Le moteur compare le nom exactement : `youtube-nocookie.com` n'est pas `www.youtube-nocookie.com`. Chaque site de la liste sert à au moins un `Embed`.
+- **Rien ne part vers l'autre site avant le toucher.** La page arrive avec une façade : l'image de ton site, le titre, et « Charger depuis www.openstreetmap.org », sur un vrai bouton. Ni cadre, ni connexion préparée d'avance, ni miniature chargée chez l'autre site.
+- **Au toucher**, au doigt, à la souris, avec Entrée ou Espace, la page de l'autre site prend la place de la façade, et le clavier y entre.
+  - Elle est enfermée : elle ne voit pas ta page, n'ouvre pas de fenêtre et ne peut pas emmener ta page ailleurs. Elle n'a ni caméra, ni micro, ni position ; seulement le plein écran.
+  - Elle apprend de quel site vient le visiteur, jamais l'adresse de ta page.
+  - Une vidéo attend un second toucher, dans son lecteur : elle ne part jamais seule.
+- **La taille suit l'écran** : toute la largeur, en 16/9. Un style la change : `.video { aspect-ratio: 4/3; }`.
+- **Sans JavaScript**, la façade est un lien vers la page de l'autre site, avec le titre, qui s'ouvre dans un nouvel onglet.
+- **`holo serve`** dit au navigateur de n'accepter un cadre que de ces sites (`Content-Security-Policy: frame-src`), et aucun pour une page qui n'en liste pas.
+- Une fois chargée, la page intégrée peut pister le visiteur, comme tout site qu'il ouvre : c'est pour cela que rien ne se charge avant son choix. Même `youtube-nocookie.com` garde un identifiant.
+- Refusés, avec la raison : `http://`, `javascript:`, `data:` ; une adresse IP, `localhost`, un nom du réseau local ; un port, `nom@`, une valeur `{…}` ; un site absent de la liste, même un sous-domaine d'un site listé ; un titre vide ; une image qui n'est pas rangée à côté ; dans la liste, `https://…`, `*`, un site écrit deux fois, un site qui ne sert pas ; `embeds:` dans un monde.
+
+La leçon est `140-une-page-dans-la-page.holo`.
+
 ## 6 quinvicies. Des formulaires qui vérifient
 
 ```holo
@@ -2679,6 +2719,7 @@ Toutes les limites, telles que le moteur les applique (chacune refusée avec un 
 | Le temps | `Every` et `After` : de 100 ms à 3 600 s ; `Data(every:)` : de 1 s à 3 600 s |
 | Les données reçues (`Data`) | 64 Ko : au-delà, elles sont refusées, et la lecture s'arrête dès qu'elles dépassent ; 10 secondes pour arriver ; une lecture à la fois, une seconde au moins entre deux (`ADR-064`) |
 | Les modules | 8 par page ; un fichier de 4 Mo, refusé dès qu'il dépasse ; un temps de 10 ms à 5 s ; une mémoire de 64 Ko à 16 Mo |
+| Les pages intégrées (`ADR-117`) | 16 sites permis par page ; une adresse de 2 048 caractères ; un titre de 200 caractères |
 | Un fichier envoyé par un formulaire | 10 Mo au plus (`max:` de 1 KB à 10 MB) |
 | La vue points | 200 000 points à l'écran |
 
@@ -2765,6 +2806,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Une liste, une liste numérotée, un bouton | `List`, `List(ordered: true)`, `Button` | fait |
 | Un lien classique (on change de page) | `A("texte", to: "adresse")` | fait |
 | Passer dans un autre fichier sans changer de page | `Point(inside: "fichier.holo")` | fait |
+| La page d'un autre site, dans la page : une carte, une vidéo, derrière sa façade | `Embed(from:, label:, image:)`, `Page(embeds: [ … ])` | fait (`ADR-117`) |
 | Ressortir d'un monde | dézoomer, ou la capacité `leave` | fait |
 | L'apparence | les styles : `P { color: … }`, `.card { … }` | fait |
 | Un point, un monde | `Point`, `World`, `seed`, `brightness`, `color`, `palette` | fait |
@@ -2863,6 +2905,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 - Pour les capacités du navigateur (`ADR-093` à `ADR-096`) : la caméra ne prend pas de photo, le microphone ne donne pas de son ; pas de rappel après la fermeture de la page (il faudrait un serveur de « push ») ; pas d'import en CSV ni par glisser-déposer ; pas de copie hors-ligne d'une page qui a un compte, un formulaire ou des valeurs partagées, ni d'envoi mis en attente.
 - Pour les listes de définitions (`ADR-097`) : pas de liste de termes qui change pendant la visite (`Repeat(over:)`), ni de définition faite de plusieurs paragraphes.
 - Pour les nombres négatifs (`ADR-102`) : une glissière, une valeur partagée, l'adresse et un fichier exporté ne prennent pas encore de nombre négatif.
+- Pour les pages intégrées (`ADR-117`) : refermer une page intégrée pour revenir à sa façade ; une miniature cherchée par le serveur de l'auteur ; `frame-src` aussi avec le serveur d'essai ; un essai sur les vrais sites, sur un téléphone.
 - Pour les valeurs : une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
