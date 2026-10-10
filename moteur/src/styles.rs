@@ -408,6 +408,11 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
     if matches!(name, "grid-column" | "grid-row" | "grid-area" | "grid-template-areas" | "grid-column-start" | "grid-column-end" | "grid-row-start" | "grid-row-end") {
         return refusal(format!("« {name} » place une case de grille : la place se dit sur le bloc, columnSpan: 2, rowSpan: 2, ou une zone, Grid(areas: [\"top top\", \"menu main\"]) puis area: menu (ADR-104)"));
     }
+    // Un bloc qui reste à l'écran se dit sur le bloc, posé directement dans la page (ADR-106) :
+    // ni `position: sticky`, ni un bloc fixé qui sort du fil de la page (`position: fixed`).
+    if name == "position" && matches!(setting.value.trim(), "sticky" | "fixed") {
+        return refusal(format!("« position: {} » : un style ne dit que l'apparence ; un bloc qui reste à l'écran se dit sur le bloc, posé directement dans la page : écris « sticky: top » ou « sticky: bottom » (ADR-106)", setting.value.trim()));
+    }
     if LAYOUT.contains(&name) {
         return refusal(format!(
             "« {name} » règle la disposition, pas l'apparence : un style ne dit que l'apparence, la disposition vient des blocs (ADR-017)"
@@ -714,6 +719,8 @@ mod tests {
             include_str!("../../exemples/lecons/123-des-suggestions-dans-un-champ.holo"),
             // Une citation courte, le titre d'une œuvre (ADR-101).
             include_str!("../../exemples/lecons/124-une-citation-courte.holo"),
+            // Travailler un texte : majuscules, longueur, couper, découper (ADR-103).
+            include_str!("../../exemples/lecons/126-travailler-un-texte.holo"),
             // Une grille qui place ses cases : plusieurs colonnes ou lignes, des zones (ADR-104).
             include_str!("../../exemples/lecons/127-une-grille-et-ses-zones.holo"),
             // Partager la page : la feuille du téléphone, sinon l'adresse copiée (ADR-107).
@@ -726,6 +733,8 @@ mod tests {
             include_str!("../../exemples/lecons/132-des-heures.holo"),
             // Faire vibrer le téléphone, d'un toucher ou d'une règle de jeu (ADR-110).
             include_str!("../../exemples/lecons/133-faire-vibrer-le-telephone.holo"),
+            // Où en est le visiteur, un bloc qui reste à l'écran (ADR-106).
+            include_str!("../../exemples/lecons/129-une-barre-de-lecture.holo"),
             // Mélanger des sons : un fondu, un volume qui suit une valeur (ADR-112).
             include_str!("../../exemples/lecons/135-melanger-des-sons.holo"),
             // Se souvenir le temps d'une visite, un formulaire en deux pages (ADR-113).
@@ -754,12 +763,20 @@ mod tests {
         for word in ["columnSpan:", "rowSpan:", "areas:", "area:"] {
             assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
+        // Où en est le visiteur, un bloc qui reste à l'écran (ADR-106).
+        for word in ["{scroll}", "value: scroll", "If(scroll", "sticky: top", "sticky: bottom"] {
+            assert!(source.contains(word), "« {word} » manque dans l'exemple");
+        }
         // Les calculs sur les heures : now, Minutes, une durée, une heure, un décalage (ADR-109).
         for word in ["Minutes(", "{now:time}", ":duration}", ":time}", ".add(15min)", ".sub(1h)", ".set(now)", "If(now, under:"] {
             assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
         // Une page dans la page : les sites permis, l'image de la façade (ADR-117).
         for word in ["embeds:", "Embed(", "image: \"140-carte.svg\""] {
+            assert!(source.contains(word), "« {word} » manque dans l'exemple");
+        }
+        // Travailler un texte (ADR-103).
+        for word in [":upper}", ":lower}", ":length}", ":max40}", "Split(", "by: \",\"", "by: \" \""] {
             assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
     }

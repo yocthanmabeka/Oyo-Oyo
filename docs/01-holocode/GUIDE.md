@@ -2004,6 +2004,46 @@ Page(
 
 La leçon est `125-des-nombres-negatifs.holo`.
 
+## 6 quaterquadragies. Travailler un texte : des majuscules, sa longueur, le couper, le découper
+
+Un compteur sous un message, un code en capitales, l'aperçu d'un texte long, des étiquettes écrites d'une traite (`ADR-103`).
+
+```holo
+Page(
+  title: "Message",
+  state: State(code: "ab-12", message: "", keywords: "art, painting, Paris", posts: []),
+  computed: [
+    Split(name: tags, from: keywords, by: ","),
+    Split(name: words, from: message, by: " "),
+  ],
+  children: [
+    Input(value: code, label: "Your discount code"),
+    P("Printed as: {code:upper}"),
+    Input(value: message, label: "Your message", lines: 3, max: 140),
+    P("{message:length} characters out of 140, {words} word(s)."),
+    P("Preview: {message:max40}"),
+    Button(name: Publish, text: "Publish"),
+    Repeat(over: posts, children: [ P("{item:max40}") ]),
+    Input(value: keywords, label: "Keywords, separated by commas"),
+    P("{tags} tag(s)"),
+    Repeat(over: tags, children: [ Text("#{item:lower}") ]),
+  ],
+  rules: [ On(Publish.tap, effect: posts.push(message)) ],
+)
+```
+
+- **`{code:upper}`**, **`{code:lower}`** : le texte en majuscules, en minuscules, dans la langue de la page : « ß » devient « SS » ; en turc et en azéri (`Page(lang: "tr")`), « i » devient « İ » ; en grec, les accents tombent en majuscules. Ce que le visiteur a écrit ne change pas : seulement ce qu'on montre. Pour l'allure d'un bloc entier, le style `text-transform: uppercase` suffit.
+- **`{message:length}`** : le nombre de caractères, comme une personne les compte. 👍🏽, 🇫🇷, 👨‍👩‍👧, « é » écrit en deux morceaux et « क्षि » comptent chacun pour un, comme `Intl.Segmenter` (en JavaScript, `"👍".length` vaut 2).
+- **`{message:max40}`** : au plus 40 caractères, « … » compris, de `max2` à `max2000`. Plus long, le texte est coupé à la fin d'un mot quand on garde ainsi au moins la moitié de la place, sinon au milieu du mot, jamais au milieu d'une lettre ; « … » dit qu'il continue.
+- **Partout où un texte se montre** : dans une phrase, dans le titre de l'onglet (`Page(title: "Code {code:upper}")`), dans les lignes d'une liste pour un champ (`{item.title:max40}`) ou pour le texte de l'élément (`{item:upper}`), et sans JavaScript, avec `holo serve`.
+- **`Split(name: tags, from: keywords, by: ",")`**, dans `computed: [ … ]` : le texte découpé en liste, qui le suit pendant qu'on écrit. Chaque morceau perd ses blancs autour ; les morceaux vides sont oubliés ; deux cents au plus. `{tags}` compte les morceaux ; `Repeat(over: tags)` les montre ; un `Filter(from: tags, …)` écrit après lui les trie ou les cherche.
+- **`by:`** : `","` coupe aux virgules de toutes les écritures (« 北京，上海、广州 » donne trois morceaux) ; `";"` aux points-virgules ; `" "` aux blancs (des mots : `{words}` les compte) ; `lines` à chaque ligne d'un texte long ; un autre texte, de un à dix signes, tel qu'il est écrit, `by: " - "`.
+- La valeur montrée a son propre nom dans l'état, `code:upper`, `message:length` : `?values` la montre ; l'arbitre ne la relit jamais.
+- Refusés, avec la raison : un format de texte sur un nombre, une liste (son nombre s'écrit `{tasks}`) ou une date ; `{code:uppercase}` (écris `upper`), `{bio:max1}` ; `{item:upper}` hors d'une répétition ; un `Split` sans `from` ou sans `by`, un séparateur vide, un `from` qui n'est pas un texte ; changer ou réordonner une liste découpée (on change son texte).
+- Pas encore : une condition sur une longueur ; la limite d'un champ (`max:`) compte encore les signes écrits, un émoji peut y compter pour plus d'un.
+
+La leçon est `126-travailler-un-texte.holo`.
+
 ## 6 quinquadragies. Une grille qui place ses cases : plusieurs colonnes, des zones
 
 Une case plus grande que les autres, et une page dessinée avec des mots (`ADR-104`).
@@ -2072,6 +2112,40 @@ Page(
 - Pas encore : faire passer une ligne d'une liste à une autre (des colonnes de tâches) ; « tout en haut » d'un seul geste ; changer l'allure de la poignée et des boutons par un style.
 
 La leçon est `128-reordonner-une-liste.holo`.
+
+## 6 septemquadragies. Où en est le visiteur, un bloc qui reste à l'écran : `scroll`, `sticky:`
+
+Une barre de lecture qui se remplit, un bouton « Retour en haut » qui n'apparaît qu'après avoir descendu, un en-tête qui reste en haut pendant qu'on défile (`ADR-106`).
+
+```holo
+Page(
+  title: "Shooting stars",
+  children: [
+    H1("Shooting stars", name: Top),
+    Row(sticky: top, gap: 12px, children: [
+      Progress(value: scroll, max: 100, label: "Reading"),
+      Text("{scroll} %"),
+    ]),
+    P("A shooting star is a grain of dust that burns in the air, a hundred kilometres above us."),
+    H2("When to see them", name: Season),
+    P("The Perseids come in August, the Geminids in December."),
+    If(scroll, over: 10, children: [
+      Row(sticky: bottom, children: [ A("↑ Back to top", to: "#Top") ]),
+    ]),
+  ],
+)
+```
+
+- **`scroll`** : où en est le visiteur dans la page, de 0 (tout en haut) à 100 (tout en bas), en pour cent entiers ; 0 pour une page qui tient dans l'écran. On la lit comme une autre valeur : `{scroll}`, `If(scroll, over: 10, …)`, `Progress(value: scroll, max: 100, …)`, `When(scroll, over: 89, effect: …)`. On ne la change jamais : c'est le navigateur qui la donne quand on défile, au plus dix fois par seconde, et seulement à une page qui la lit. Des données reçues ne la changent pas.
+- **`sticky: top`** ou **`sticky: bottom`**, sur un bloc posé directement dans la page (au besoin sous un `If`, ou dans `Main`), ou sur `Header` et `Footer` : il reste en haut ou en bas de l'écran pendant qu'on défile, et garde sa place dans la page et dans l'ordre de lecture. C'est du CSS : il marche aussi sans JavaScript. Un bloc par bord : pour en garder plusieurs, on les range ensemble, `Row(sticky: top, children: [ … ])`. Pour un composant, `sticky` s'écrit sur son bloc racine.
+- **Il ne cache jamais ce qui a le focus** : la page laisse au focus la place du bloc (`scroll-padding`), mesurée. Tab, Maj + Tab et un lien vers un endroit de la page (`A(to: "#Season")`) s'arrêtent sous la barre, au-dessus du bloc du bas.
+- **Sur un téléphone** : un bloc qui reste prend au plus le cinquième de la hauteur de l'écran ; ce qui dépasse défile dans le bloc. Sur un écran de 480px de haut ou moins (un téléphone couché, une page grossie à 200 %), pendant qu'on écrit avec le clavier de l'écran, et sur papier, il reprend sa place dans la page. Le bouton rond du moteur monte au-dessus d'un bloc resté en bas.
+- **Son fond** : sans style, celui de la page, pour que le texte qui passe dessous ne se lise pas à travers ; un style le change, `.bar { background: #1a1a2e; }`.
+- **Sans JavaScript**, `scroll` vaut 0 : la barre est vide, le bouton ne vient pas ; le bloc reste quand même à l'écran, et la page se lit entière.
+- **Un essai écrit** fait défiler la page : `scroll 50`, puis `expect scroll = 50`.
+- Refusés, avec la raison : déclarer `scroll`, la changer, la garder (`keep`), la retenir le temps d'une visite (`visit`), la mettre dans l'adresse ; un autre bord (`sticky: middle`) ; un bloc rangé dans un autre (`Row`, `Header`, un monde) ; `sticky` sur `If`, `Repeat`, `Dialog`, `Main`, `Point`, ou un son sans lecteur ; deux blocs au même bord ; `position: sticky` ou `position: fixed` dans un style, avec le bon mot.
+
+La leçon est `129-une-barre-de-lecture.holo`.
 
 ## 6 duodequinquagies. Partager la page : `Device(kind: share)`
 
@@ -2889,6 +2963,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Scenes` | `children`, `height`, `repeat`, `name` | Dans `children` |
 | `Scene` | `for`, `children`, `name` | Dans `Scenes` |
 | `Enter`, `Loop` | `opacity`, `x`, `y`, `scale`, `rotate`, `flip`, `tilt`, `blur`, `hue`, `round`, `at`, `for`, `ease`, `letters`, `each` ; `back` pour `Loop` | Dans `enter:` et `loop:`, sur tout bloc qui se voit |
+| `sticky:` (un réglage) | `top` ou `bottom` | Sur un bloc posé directement dans la page, ou `Header` et `Footer` ; un par bord (`ADR-106`) |
 | `Hr` | aucun | Dans `children` |
 | `Quote` | le texte entre guillemets, `by` | Dans `children` |
 | `Code` | le texte entre guillemets | Dans `children` |
@@ -2982,6 +3057,8 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Le toucher | le signal `tap` | fait |
 | Le son | `Sound(name:, source:, volume:, loop:)`, les capacités `play` et `stop` | fait |
 | Apparaître en descendant | `Enter(…, inView: true)` | fait |
+| Où en est le visiteur dans la page : une barre de lecture, un « Retour en haut » | `scroll`, de 0 à 100 | fait (`ADR-106`) |
+| Un bloc qui reste à l'écran pendant qu'on défile, en haut ou en bas | `sticky: top`, `sticky: bottom` | fait (`ADR-106`) |
 | Des tailles qui suivent le visiteur, tout l'écran | les pixels écrits en `rem`, `height: screen` | fait |
 | La vue points au lecteur d'écran | rien à écrire | fait |
 | Une forme simple | `Shape(form:, color:, size:)` | fait |
@@ -3010,6 +3087,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Multiplier, diviser | les demandes `mul`, `div` | fait |
 | Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait |
 | Une valeur qui descend sous zéro : une température, un solde | `negative: [temperature]`, et le signe moins de la langue de la page | fait (`ADR-102`) |
+| Travailler un texte : des majuscules, sa longueur, le couper, le découper en liste | `{code:upper}`, `{code:lower}`, `{message:length}`, `{bio:max40}`, `Split(name:, from:, by:)` | fait (`ADR-103`) |
 | Une liste qui change pendant la visite | `State(tasks: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` | fait |
 | Une liste d'articles à champs, aussi reçue du serveur | `State(articles: [ Item(…) ])`, `{item.title}`, `push(Item(…))`, `Data` | fait |
 | Une valeur partagée par tous les visiteurs, vue en direct | `shared: Shared(seats: 20)`, `seats.sub(1)` par un toucher | fait |
@@ -3035,7 +3113,9 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 - Pour les capacités du navigateur (`ADR-093` à `ADR-096`) : la caméra ne prend pas de photo, le microphone ne donne pas de son ; pas de rappel après la fermeture de la page (il faudrait un serveur de « push ») ; pas d'import en CSV ni par glisser-déposer ; pas de copie hors-ligne d'une page qui a un compte, un formulaire ou des valeurs partagées, ni d'envoi mis en attente.
 - Pour les listes de définitions (`ADR-097`) : pas de liste de termes qui change pendant la visite (`Repeat(over:)`), ni de définition faite de plusieurs paragraphes.
 - Pour les nombres négatifs (`ADR-102`) : une glissière, une valeur partagée, l'adresse et un fichier exporté ne prennent pas encore de nombre négatif.
+- Pour les textes (`ADR-103`) : une condition sur une longueur ; une limite de champ (`max:`) qui compte les lettres comme `{message:length}` ; rejoindre une liste en un texte.
 - Pour les valeurs : une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
 - Les garde-fous de zoom pour un `Point` seul : ils sont encore fixés dans le moteur.
+- Pour la place du visiteur et les blocs qui restent (`ADR-106`) : sans JavaScript, `scroll` vaut 0 ; pas de place dans un bloc qui défile lui-même ; le cinquième de l'écran et le seuil de 480px ne se règlent pas ; `sticky:` ne se donne pas à l'appel d'un composant.

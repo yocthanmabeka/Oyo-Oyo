@@ -191,6 +191,14 @@ pub fn play(source: &str, test: &str) -> Result<Test, crate::holo::Error> {
                 state = crate::input(source, &state, name, text);
             }
             "receive" => state = crate::receive(source, &state, remainder),
+            // Le visiteur défile (ADR-106) : `scroll 50`, de 0 (en haut de la page) à 100 (tout en bas).
+            "scroll" => {
+                let Ok(place @ 0..=100) = remainder.parse::<u64>() else { return failure("« scroll » s'écrit : scroll 50, de 0 (en haut de la page) à 100 (tout en bas)".into()) };
+                if !crate::scroll::reads(&program) {
+                    return failure("cette page ne lit pas « scroll » : rien à faire défiler pour elle".into());
+                }
+                state = crate::scrolled(source, &state, place);
+            }
             "expect" => {
                 let Some((name, expected)) = remainder.split_once('=') else { return failure("« expect » s'écrit : expect cart = 12000".into()) };
                 let (name, expected) = (name.trim(), expected.trim());
@@ -200,7 +208,7 @@ pub fn play(source: &str, test: &str) -> Result<Test, crate::holo::Error> {
                     return failure(format!("« {name} » vaut {}, et l'essai attendait {expected}", if expected.starts_with('"') { format!("\"{seen}\"") } else { seen }));
                 }
             }
-            _ => return failure(format!("ligne inconnue « {line} » ; on écrit : tap, signal, type, receive, expect")),
+            _ => return failure(format!("ligne inconnue « {line} » ; on écrit : tap, signal, type, receive, scroll, expect")),
         }
         succeeded += 1;
     }

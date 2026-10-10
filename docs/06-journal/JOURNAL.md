@@ -6,6 +6,71 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Où en est le visiteur, un bloc qui reste à l'écran : `scroll`, `sticky:`
+
+- Fait (issue #235, reprise par un agent de la session du PC après trois arrêts à la limite de séance, depuis `wip/defilement` puis `wip/langage/defilement` ; rendue par la session du PC quand le PC s'est éteint (c931455), et finie par la session du nuage ; `ADR-106`, ACCEPTÉ : « tu le valides déjà, tu le fais déjà ») :
+  - `scroll`, de 0 (en haut de la page) à 100 (tout en bas), en pour cent entiers : la page la lit (`{scroll}`, `If(scroll, over: 10, …)`, `Progress(value: scroll)`, `When`), ne la change jamais ; le navigateur la donne au plus dix fois par seconde, et seulement à une page qui la lit ; des données reçues ne la changent pas ; sans JavaScript, elle vaut 0.
+  - `sticky: top | bottom` sur un bloc posé directement dans la page, ou sur `Header` et `Footer` : du CSS (`position: sticky`), qui marche sans JavaScript. Une exception étroite à `ADR-017` : un bord, un bloc par bord, ni décalage ni superposition ; `position` reste refusé dans un style, avec le bon mot.
+  - Le moteur garantit ce que le CSS laisse à l'auteur : un fond d'office, la marge du focus (`scroll-padding`, mesurée par la page ; WCAG 2.4.11), le cinquième de l'écran au plus, rien sous 480px de haut, ni pendant qu'on écrit avec le clavier de l'écran, ni sur papier (tout le style tient sous une seule règle, `@media screen and (min-height: 481px)`, fabriquée à partir des deux bornes du moteur : hors d'elle, ni la place, ni la marge du focus), le bouton ☰ au-dessus du bloc du bas. Un bloc qui apparaît sur ce qui a le focus le laisse visible.
+  - `holo test` sait faire défiler : `scroll 50`.
+  - La leçon 129 (une barre de lecture, un retour en haut ; précédente : 124, suivante : 1) et son essai écrit ; une page d'essai avec un en-tête trop haut ; le guide (« 6 septemquadragies », et des lignes aux § 10, 10 bis et 11), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+  - La session du nuage a fini le travail rendu par la session du PC. La règle des 480px et du papier, déjà fabriquée à partir de `SHARE` et `LOWEST` par c931455, est relue et prouvée : un essai du moteur à part (`nothing_sticks_on_a_low_screen_nor_on_paper` : la règle de média s'ouvre au début du style et se referme sur son dernier caractère, seules les deux bornes y sont écrites, rien ne colle ailleurs dans la page) ; dans Chrome, couché, grossi à 200 % (360 × 400) et sur papier, plus deux regards de plus (au départ, aucune marge du focus en bas tant que le bouton est caché ; clavier de l'écran ouvert, aucune marge du focus). L'essai sait échouer sans la règle, et il a maintenant son audit axe-core. Puis `main` fusionnée trois fois (PR 259, 260, 262, 263, 264, puis 266, puis 265), et `visit: [scroll]` refusé (la mémoire de visite, `ADR-113`, arrivée avec elle). L'ADR, le guide et la leçon disent aussi le papier et la borne exacte (480px ou moins).
+- Exécuté, dans `moteur/`, par la session du nuage (conteneur Linux, Chromium 1194) :
+  - `cargo test --release --locked scroll::`, avant la fusion : 4 passent, dont `nothing_sticks_on_a_low_screen_nor_on_paper` ;
+  - l'essai Chrome de la leçon 129, seul (les deux WebAssembly, `holo` et les liaisons reconstruits) : OK ; couché, `static`, barre à −228px, marge 0/0 ; grossi à 200 %, `static`, barre à −233px, marge 0/0 ; papier, `static`, marge `auto` ; sans JavaScript, marge du focus 148px ;
+  - la règle de média rendue toujours vraie un instant (`all and (min-height:0px)`), puis remise : l'essai seul RATÉ (couché et grossi, `sticky`, barre à 0px, marge 62/58 ; papier, `sticky`, 62px), et `cargo test --release --locked scroll::tests` : 2 ratés ;
+  - après la première fusion de `main`, `cargo test --release --locked` : 282 passent ; après le refus de `visit: [scroll]`, `cargo test --release --locked -- scroll:: visit` : 18 passent ;
+  - après la seconde fusion (PR 266), la preuve complète, une seule à la fois dans le conteneur : `cargo test --release --locked`, 288 passent ; `cargo test`, 288 ; les deux WebAssembly, `holo` et les liaisons se construisent ; la suite Chrome entière, 89 essais sur 93, dont la leçon 129, et 134 leçons qui s'ouvrent sans erreur. Les ratés : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264), les trois du conteneur ; et « comptes : effacement confirmé… » (« database is locked » : l'essai écrit dans la base SQLite pendant que `holo serve` y écrit encore ; vu une fois, sous charge ; passe relancé seul) ;
+  - l'audit axe-core 4.10.3 ajouté à l'essai de la leçon 129, relancé seul : OK, aucun défaut, deux blocs collés à l'écran ;
+  - `holo check ../exemples/lecons/129-une-barre-de-lecture.holo` : ok ; `holo test` avec son essai écrit : ok, 7 lignes jouées ; `visit: [scroll]` : refusé, avec sa raison ;
+  - `main` fusionnée une troisième fois juste avant d'envoyer (PR 265, des documents seulement), sans conflit.
+- ![La leçon 129 sur un ordinateur, à mi-page : la barre de lecture collée en haut, « Retour en haut » collé en bas, le bouton ☰ au-dessus](images/2026-10-10-defilement-ordinateur.png)
+- ![La même leçon sur un téléphone de 360px : la barre prend 55px, le bouton du bas reste au-dessus du bord](images/2026-10-10-defilement-telephone.png)
+- Erreurs en route :
+  - les essais hérités de la sauvegarde n'avaient jamais été compilés : la chaîne `r#"…"#` se fermait sur `"#Top"` ;
+  - `Progress(grow:)` est refusé : la leçon élargit la barre par un style ;
+  - le premier essai d'ancre visait « Où les voir », trop près du bas pour que la page défile jusque-là ;
+  - l'en-tête trop haut faisait 172px au lieu de 156 : la borne ne comptait pas ses marges intérieures (`box-sizing: border-box`) ;
+  - un Tab vers un lien hors de l'écran passait même sans la marge du focus, parce que Chrome le centre : l'essai pose maintenant le lien sous la barre, puis sous le bouton du bas, avant d'y aller ;
+  - la borne du rythme comptait une seconde fixe : elle compte le temps vraiment passé, pour une machine lente ;
+  - après le troisième arrêt, la relecture de la session du PC a trouvé les deux bornes du téléphone (le cinquième, 480px) écrites deux fois, en constantes et en dur dans le CSS, et l'essai Chrome qui ne regardait l'écran bas que d'un œil (`position` seulement, sur le téléphone couché) : le style se fabrique maintenant à partir de `SHARE` et `LOWEST`, le test du moteur vérifie que rien ne colle hors de la règle de média, et l'essai Chrome joue le téléphone couché, la page grossie à 200 % et le papier (la barre part avec la page, aucune marge du focus ne reste posée) ;
+  - (la session du nuage) cette relecture disait aussi la règle de média absente : elle était là depuis le premier commit du moteur (`@media screen and (min-height:481px)`, le papier exclu par `screen`) ; manquaient les bornes fabriquées à partir des constantes (c931455) et des essais qui le prouvent (finis ici) ;
+  - dans la copie du nuage, les WebAssembly dataient d'avant le travail (sans `reads_scroll`) : reconstruits avant l'essai Chrome ;
+  - les noms `header` et `stuck` servaient déjà dans l'essai Chrome (l'en-tête trop haut, le papier) quand le regard sur le clavier et l'audit axe-core les ont repris : renommés (`node --check` refuse une constante déclarée deux fois) ;
+  - à la fusion de `main`, la résolution habituelle du journal aurait doublé le `---` entre deux entrées, et celle du guide n'aurait gardé que le chapitre, pas les lignes des tableaux : fusion faite à la main, en diff3 (le guide s'est fusionné seul) ;
+  - après la fusion, `visit: [scroll]` était accepté : le moteur pose `scroll` dans `State`, et la mémoire de visite l'aurait reprise d'une autre page à l'arrivée ; refusé dans `scroll.rs`, avec sa raison ;
+  - `main` a bougé (PR 266, `Embed`) pendant que la preuve complète attendait son tour : la preuve retirée de la file avant d'avoir rien lancé, `main` fusionnée de nouveau, la preuve relancée sur le code fusionné.
+- Reste : l'essai sur le téléphone de Yocthan (le clavier de l'écran, TalkBack, couché) ; les dettes de l'ADR (une barre en CSS sans JavaScript, un bloc qui défile lui-même, le cinquième et les 480px qui ne se règlent pas) ; la suite des leçons (124 → 129 → 1), refaite quand les douze dettes seront dans `main` ; le grand tableau du web : « défilement (scroll) » peut passer de « En partie » à « Oui ».
+
+---
+
+## 2026-10-10 — Travailler un texte : des majuscules, sa longueur, le couper, le découper
+
+- Fait (issue #232 ; `ADR-103`, ACCEPTÉ d'avance par Yocthan : « tu le valides déjà, tu le fais déjà ») : le travail d'un agent de la session du PC (`wip/langage/textes`, af8bd0d), relu par elle, puis fini par la session du nuage quand le PC s'est éteint (passation dans #255).
+  - Quatre formats de texte (`ADR-043`) : `{code:upper}` et `{code:lower}`, dans la langue de la page (« ß » → « SS » ; en turc, « i » → « İ » ; en grec, les accents tombent en majuscules et le sigma final s'écrit « ς ») ; `{message:length}`, les caractères comptés comme une personne les compte ; `{message:max40}`, au plus 40 caractères, coupé à la fin d'un mot si l'on garde ainsi la moitié de la place, jamais au milieu d'une lettre, avec « … ».
+  - Un caractère est une grappe de graphèmes d'Unicode (UAX #29), comme `Intl.Segmenter` : 👍🏽, 🇫🇷, 👨‍👩‍👧, « é » écrit en deux morceaux, « क्षि » comptent chacun pour un. La table des lettres (Unicode 16.0, 711 plages, moins de 3 Ko) est fabriquée par `moteur/outils/graphemes.py`.
+  - `computed: [ Split(name: tags, from: keywords, by: ",") ]` : une liste calculée qui suit son texte ; les blancs autour retirés, les morceaux vides oubliés, deux cents au plus ; `","` coupe aux virgules de toutes les écritures (, ، 、 ， …), `";"` aux points-virgules, `" "` aux blancs, `lines` à chaque ligne.
+  - Partout où un texte se montre : une phrase, le titre de l'onglet, une ligne de liste (`{item.title:max40}`), et sans JavaScript (`holo serve`).
+  - La leçon 126, le guide (« 6 quaterquadragies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons, un essai dans Chrome.
+- Fini par la session du nuage :
+  - `main` fusionnée (les PR 256 à 263) : NOMS, l'essai Chrome et `styles.rs` résolus en gardant les deux côtés, rangés par numéro ; le guide sans conflit.
+  - puis `main` de nouveau (les PR 264, 266 et 265), en style diff3 : dans `blocks.rs`, `Split` et `Embed` (la #266) gardés tous les deux, dans la ligne `BLOCKS` et à la fin des réglages des blocs ; les lignes de NOMS et de `styles.rs` rangées par numéro ; le fichier des essais vérifié ligne à ligne (celui de `main`, plus l'essai des textes) ; `cargo test --release --locked` : **291** passent.
+  - cette entrée du journal, la preuve complète, la preuve que l'essai sait échouer, la PR.
+- Exécuté (conteneur du nuage, Linux, Chromium 1194) :
+  - après la fusion de `main` : `cargo test --release --locked`, **268** passent, 0 échec.
+  - L'essai Chrome sait échouer : le moteur changé un instant pour compter les points de code au lieu des lettres (`count` → `text.chars().count()`), reconstruit, l'essai seul rate : « compté "👍🏽🇫🇷" : 4 au lieu de 2 », « "été" : 5 au lieu de 3 », « "👨‍👩‍👧 et 🏴󠁧󠁢󠁳󠁣󠁴󠁿" : 16 au lieu de 6 », et de même pour le devanagari, le coréen, l'arabe, le tamoul et le thaï. Le code remis (`git checkout`).
+  - La preuve complète (`check-locked.sh`, sur 672ed1a) : `cargo test --release --locked` et `cargo test`, **268** passent ; les deux WebAssembly, `holo` et les liaisons se construisent ; la suite Chrome (`CI=1`, axe-core 4.10.3) : **88 essais sur 91**, dont celui de la leçon 126 (« au départ : AB-12 », les huit textes difficiles comptés comme `Intl.Segmenter`, « 北京，上海、 广州,, » en trois étiquettes, et sans JavaScript « ISTANBUL ILIK ») ; 132 leçons s'ouvrent sans erreur. Les 3 ratés sont ceux du conteneur : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium). `holo check` sur la leçon 126 : `ok`.
+- Erreurs en route : l'agent de la session du PC a été arrêté vers 15 h, avant le journal et la preuve complète ; puis le PC s'est éteint (plus de charge). Rien n'était perdu : tout était sur `wip/langage/textes`.
+- Reste (les dettes de l'`ADR-103`) :
+  - la limite d'un champ (`max:`) compte encore en signes écrits, pas en lettres : à aligner, avec le `maxlength` du navigateur ;
+  - une condition sur une longueur (`If` sur `{message:length}`) ;
+  - rejoindre une liste en un texte, une majuscule seulement au début, le grec ancien et la règle du point en lituanien ;
+  - `{item:upper}` dans une répétition écrite dans le fichier (`Repeat(items: …)`) ;
+  - refaire la table quand Unicode changera (`python moteur/outils/graphemes.py`) ;
+  - le grand tableau du web (« texte : majuscules, longueur, découper » passe à « Oui ») et la suite des leçons, refaits à la fin.
+
+---
+
 ## 2026-10-10 — La passation : le PC s'éteint, la session du nuage reprend tout
 
 - Fait (la session du nuage) :

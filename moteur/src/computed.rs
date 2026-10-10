@@ -116,9 +116,21 @@ pub fn days_values(program: &Program, texts: &Texts) -> State {
         .collect()
 }
 
+/// Les `Split` de la page (ADR-103) : (nom, texte découpé, séparateur).
+pub fn splits(program: &Program) -> Vec<(String, String, Option<crate::text::Separator>)> {
+    blocks(program).into_iter().filter(|b| b.name == "Split").map(crate::text::read_split).collect()
+}
+
+/// Le texte dont une liste est découpée, si c'est un `Split` (ADR-103).
+pub fn split_source(program: &Program, name: &str) -> Option<String> {
+    splits(program).into_iter().find(|(n, _, _)| n == name).map(|(_, from, _)| from)
+}
+
 /// Le nom des listes calculées.
 pub fn names(program: &Program) -> Vec<String> {
-    filters(program).into_iter().map(|f| f.name).collect()
+    let mut names: Vec<String> = filters(program).into_iter().map(|f| f.name).collect();
+    names.extend(splits(program).into_iter().map(|(name, _, _)| name));
+    names
 }
 
 /// Le nom des totaux des listes calculées, `total: matching` : des nombres que la page montre.
@@ -127,7 +139,7 @@ pub fn total_names(program: &Program) -> Vec<String> {
 }
 
 pub fn is_computed(program: &Program, name: &str) -> bool {
-    filters(program).iter().any(|f| f.name == name)
+    filters(program).iter().any(|f| f.name == name) || split_source(program, name).is_some()
 }
 
 /// La liste déclarée dont part une liste calculée (en remontant les filtres posés l'un sur l'autre).
@@ -154,7 +166,7 @@ pub fn check(program: &Program) -> Result<(), Error> {
     let mut known: Vec<String> = Vec::new();
     for item in items {
         let Value::Block(block) = item else {
-            return Err(Error { message: "« computed » ne contient que des « Filter(…) », des « Days(…) » et des « Minutes(…) »".into(), pos: argument.pos });
+            return Err(Error { message: "« computed » ne contient que des « Filter(…) », des « Days(…) », des « Split(…) » et des « Minutes(…) »".into(), pos: argument.pos });
         };
         let error = |message: String| Err(Error { message, pos: block.pos });
         // Les jours entre deux dates (ADR-067) : Days(name: nights, from: arrival, to: departure).
@@ -184,6 +196,12 @@ pub fn check(program: &Program) -> Result<(), Error> {
             known.push(name);
             continue;
         }
+        // Un texte découpé en liste (ADR-103) : Split(name: tags, from: keywords, by: ",").
+        if block.name == "Split" {
+            let taken = |name: &str| numbers.iter().any(|(n, _)| n == name) || texts.iter().any(|(n, _)| n == name) || crate::lists::initial(program).iter().any(|(n, _)| n == name) || known.iter().any(|k| k == name);
+            known.push(crate::text::check_split(program, block, &taken)?);
+            continue;
+        }
         // Les minutes entre deux heures ou deux moments (ADR-109) : Minutes(name: left, from: now, to: train).
         if block.name == "Minutes" {
             let name = crate::hours::check_minutes(program, block)?;
@@ -195,7 +213,7 @@ pub fn check(program: &Program) -> Result<(), Error> {
             continue;
         }
         if block.name != "Filter" {
-            return error(format!("« computed » ne contient que des « Filter(…) », des « Days(…) » et des « Minutes(…) », pas « {} »", block.name));
+            return error(format!("« computed » ne contient que des « Filter(…) », des « Days(…) », des « Split(…) » et des « Minutes(…) », pas « {} »", block.name));
         }
         for a in &block.arguments {
             match a.name.as_deref() {
@@ -338,6 +356,12 @@ pub fn totals(program: &Program, numbers: &State, texts: &Texts, lists: &Lists) 
 pub fn apply_with_totals(program: &Program, numbers: &State, texts: &Texts, lists: &Lists) -> (Lists, State) {
     let mut computed: Lists = Vec::new();
     let mut totals: State = Vec::new();
+    // Les textes découpés d'abord (ADR-103) : ils ne dépendent que des textes, et un filtre peut
+    // partir d'eux.
+    for (name, from, by) in splits(program) {
+        let text = texts.iter().find(|(n, _)| *n == from).map_or("", |(_, t)| t.as_str());
+        computed.push((name, by.map(|by| crate::text::split(text, &by)).unwrap_or_default()));
+    }
     for filter in filters(program) {
         let source = lists.iter().chain(computed.iter()).find(|(n, _)| *n == filter.from).map(|(_, e)| e.clone()).unwrap_or_default();
         let text_value = |name: &str| texts.iter().find(|(n, _)| n == name).map(|(_, v)| v.clone());

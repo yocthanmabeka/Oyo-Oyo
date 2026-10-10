@@ -198,6 +198,53 @@
         entry.target.classList.toggle("holo-narrow", width < 20 * rem);
       }
     });
+    // Un bloc qui reste à l'écran (ADR-106) : sa hauteur, mesurée, devient la marge que le
+    // navigateur laisse au focus et aux liens vers un endroit de la page (scroll-padding) ; ce
+    // qu'on atteint au clavier ne passe jamais dessous (WCAG 2.4.11). Le bouton rond du moteur
+    // monte au-dessus d'un bloc resté en bas. Sans JavaScript, la marge est la plus grande place
+    // qu'un tel bloc peut prendre : le cinquième de l'écran.
+    const measureSticky = () => {
+      for (const edge of ["top", "bottom"]) {
+        const block = root.querySelector(`.holo-Page [data-sticky="${edge}"]`);
+        if (!block) {
+          document.documentElement.style.removeProperty(`--holo-sticky-${edge}`);
+          continue;
+        }
+        const height = getComputedStyle(block).position === "sticky" ? block.getBoundingClientRect().height : 0;
+        document.documentElement.style.setProperty(`--holo-sticky-${edge}`, `${Math.ceil(height)}px`);
+      }
+      // Un bloc qui vient d'apparaître (un If devenu vrai en descendant) ne cache pas non plus ce
+      // qui a le focus : ce qu'on voyait en partie revient dans la marge. Ce qu'on a laissé hors
+      // de l'écran en défilant y reste.
+      const focused = document.activeElement;
+      if (!focused || !root.contains(focused) || focused.closest("[data-sticky]") || !focused.matches(":focus-visible")) return;
+      const place = focused.getBoundingClientRect();
+      if (place.bottom <= 0 || place.top >= innerHeight) return;
+      const stuck = [...root.querySelectorAll(".holo-Page [data-sticky]")].filter((b) => getComputedStyle(b).position === "sticky").map((b) => b.getBoundingClientRect()).filter((r) => r.height > 0);
+      if (stuck.some((r) => place.top < r.bottom && place.bottom > r.top)) focused.scrollIntoView({ block: "nearest" });
+    };
+    const stickyBlocks = "ResizeObserver" in window && new ResizeObserver(measureSticky);
+    const watchSticky = () => {
+      if (!stickyBlocks) return;
+      stickyBlocks.disconnect();
+      for (const block of root.querySelectorAll(".holo-Page [data-sticky]")) stickyBlocks.observe(block);
+      measureSticky();
+    };
+    addEventListener("resize", measureSticky, { passive: true });
+    // Le clavier de l'écran (ADR-106) : ouvert sur un champ, il prend une grande part de l'écran ;
+    // un bloc resté en haut ou en bas reprend alors sa place dans la page, pour ne jamais cacher ce
+    // qu'on écrit. Un pincement qui grossit la page n'est pas le clavier (visualViewport.scale).
+    const typing = () => document.activeElement?.matches?.("input:not([type=checkbox],[type=radio],[type=range],[type=color],[type=file],[type=button],[type=submit]),textarea,select,[contenteditable]") ?? false;
+    const keyboard = () => {
+      const view = window.visualViewport;
+      const open = Boolean(view) && typing() && view.height * view.scale < innerHeight * 0.75;
+      if (document.documentElement.classList.contains("holo-keyboard") === open) return;
+      document.documentElement.classList.toggle("holo-keyboard", open);
+      measureSticky();
+    };
+    window.visualViewport?.addEventListener("resize", keyboard);
+    addEventListener("focusin", keyboard);
+    addEventListener("focusout", () => setTimeout(keyboard, 0));
     // Les cases d'une grille : ses enfants, ou ceux d'un bloc invisible (If, Repeat) posé dedans.
     const gridItems = (parent) => [...parent.children].flatMap((child) => (getComputedStyle(child).display === "contents" ? gridItems(child) : [child]));
     // Dans un Row ou un Column (ADR-090), seulement les cases qui reçoivent une part de la place :
@@ -264,6 +311,8 @@
         const share = shares();
         for (const line of inside.querySelectorAll(".holo-Row,.holo-Column")) for (const cell of gridItems(line)) if (cell.matches(share)) cells.observe(cell);
       }
+      // Les blocs qui restent à l'écran de la page refaite (ADR-106).
+      if (inside === root) watchSticky();
     };
     window.__holoWatchEntrances();
     const waiting = (window.__holoWaiting = []);

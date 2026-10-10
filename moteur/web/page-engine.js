@@ -9,6 +9,7 @@
     shared_names, with_shared, touches_shared, capability_export, capability_received,
     suggestions_html,
     visit_names, to_visit, from_visit,
+    reads_scroll, scrolled,
     set_zone, format_hour,
   } from "/pkg-light/holo_engine.js";
   let host = null;
@@ -388,6 +389,8 @@
     const shown = touchOnly.matches && listenedKeys.length > 0;
     keysBar.hidden = !shown;
     document.body.style.paddingBottom = "";
+    // Un bloc resté en bas de l'écran se pose au-dessus des touches (ADR-106).
+    document.documentElement.style.removeProperty("--holo-keys");
     if (!shown) return;
     // Les flèches d'abord, rangées comme sur un clavier ; puis les autres, dans l'ordre du fichier.
     const arrows = ["left", "up", "down", "right"].filter((key) => listenedKeys.includes(key));
@@ -401,6 +404,7 @@
     }
     // Les touches ne cachent jamais le bas de la page : on peut toujours y descendre.
     document.body.style.paddingBottom = `${keysBar.offsetHeight + 24}px`;
+    document.documentElement.style.setProperty("--holo-keys", `${keysBar.offsetHeight + 12}px`);
   }
   touchOnly.addEventListener("change", setKeysBar);
   {
@@ -552,6 +556,7 @@
     waitings = [];
     setDelays();
     followTime();
+    followScroll();
     listenedKeys = keypresses(source).split(";").filter(Boolean);
     setShortcutsButton();
     setKeysBar();
@@ -632,6 +637,42 @@
       if (after && after !== before) changeState(after);
       followTime();
     }, wait);
+  }
+  // La place du visiteur dans la page (ADR-106) : `scroll`, de 0 (en haut) à 100 (tout en bas),
+  // donnée au moteur quand il défile, au plus dix fois par seconde (jamais à chaque pixel : le
+  // téléphone ne ralentit pas), et seulement à une page qui la lit. La dernière place est toujours
+  // donnée, même quand le visiteur s'arrête entre deux battements ; une page qui tient dans
+  // l'écran est en haut : 0.
+  let scrollFollowed = null;
+  function followScroll() {
+    if (scrollFollowed) {
+      removeEventListener("scroll", scrollFollowed);
+      removeEventListener("resize", scrollFollowed);
+      clearTimeout(scrollFollowed.later);
+      scrollFollowed = null;
+    }
+    if (!reads_scroll(source)) return;
+    const owner = path;
+    let last = 0;
+    const follow = () => {
+      if (!follow.later) follow.later = setTimeout(give, Math.max(0, 100 - (performance.now() - last)));
+    };
+    const give = () => {
+      follow.later = 0;
+      last = performance.now();
+      if (owner !== path || inPoints || inWorld) return;
+      window.__holoScrollsGiven = (window.__holoScrollsGiven ?? 0) + 1; // combien de fois la place a été donnée (pour les essais)
+      const room = document.documentElement.scrollHeight - innerHeight;
+      const place = room > 0 ? Math.min(100, Math.max(0, Math.round((scrollY / room) * 100))) : 0;
+      const before = states.get(path) ?? "";
+      const after = store(scrolled(source, before, place));
+      if (after && after !== before) changeState(after);
+    };
+    follow.later = 0;
+    scrollFollowed = follow;
+    addEventListener("scroll", follow, { passive: true });
+    addEventListener("resize", follow, { passive: true });
+    give();
   }
   // Un compte qui suit l'horloge (ADR-109) : quand l'onglet revient au premier plan, l'heure est
   // redonnée tout de suite, sans attendre la minute suivante (un navigateur ralentit les minuteries
