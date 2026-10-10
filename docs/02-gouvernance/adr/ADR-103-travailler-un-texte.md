@@ -1,6 +1,6 @@
 # ADR-103 — Travailler un texte : des majuscules, sa longueur, le couper, le découper
 
-- Statut : ACCEPTÉ (fait et validé : Yocthan, 2026-10-09, « tu le valides déjà, tu le fais déjà »)
+- Statut : ACCEPTÉ (fait et validé : Yocthan, 2026-10-09, « tu le valides déjà, tu le fais déjà » ; essayé et validé par Yocthan le 2026-10-10 : « J'ai fait les essais, c'est déjà parfait »)
 - Date : 2026-10-10
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'issue #232 (« Dernière dette du web : travailler un texte (majuscules, longueur, découper) »), l'une des douze dernières dettes du web, validées d'avance par Yocthan le 2026-10-09 ; le grand tableau du web, où « texte (majuscules, longueur, découper) » était « en partie » ; `ADR-043` (les formats après deux-points), `ADR-062` (les listes calculées), `ADR-063` (comparer des textes, à la lettre près), `ADR-041` (`text-transform`), `ADR-068` (la longueur d'un champ).

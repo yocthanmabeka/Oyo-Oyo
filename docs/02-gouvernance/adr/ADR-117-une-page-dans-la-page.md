@@ -1,6 +1,6 @@
 # ADR-117 — Une page dans la page : `Embed(from:, label:, image:)` et `Page(embeds:)`
 
-- Statut : ACCEPTÉ (Yocthan a dit « Oui » le 2026-10-09 à l'ouverture sous ces conditions)
+- Statut : ACCEPTÉ (Yocthan a dit « Oui » le 2026-10-09 à l'ouverture sous ces conditions ; essayé et validé par Yocthan le 2026-10-10 : « J'ai fait les essais, c'est déjà parfait »)
 - Date : 2026-10-10
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'issue #249 (« une page dans la page (vidéos, cartes, publications) »), l'une des huit fonctions ouvertes sous conditions (issues 246 à 253) ; les deux avis, avec leurs sources : `proposals/Claude/contraintes-2026-10-09/README.md` (fonction 1 : le détournement de clic et `frame-ancestors`, S1 à S3 ; le pistage d'une vidéo intégrée, même en `youtube-nocookie.com`, S4 et S5 ; la façade, S6 ; le titre d'un cadre, WCAG 4.1.2, S7) et `proposals/Gemini/contraintes-2026-10-09/README.md` (fonction 1 : OWASP, le `sandbox` de HTML, la CNIL sur les traceurs, WCAG 4.1.2, la façade de Lighthouse) ; `ADR-017` (l'apparence dans les styles), `ADR-038` (une vidéo jamais lancée seule, le texte d'une image obligatoire), `ADR-073` (un lien vers un nouvel onglet), `ADR-074` (`holo serve`), `ADR-116` (les données d'un autre site, lues par le serveur).

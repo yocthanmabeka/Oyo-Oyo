@@ -1,6 +1,6 @@
 # ADR-108 — Les filtres d'image dans les styles : `grayscale`, `saturate`, `brightness`, `contrast`, `hue`, `blur`, et `backdrop-blur`
 
-- Statut : ACCEPTÉ (fait et validé : Yocthan, 2026-10-09, « tu le valides déjà, tu le fais déjà »)
+- Statut : ACCEPTÉ (fait et validé : Yocthan, 2026-10-09, « tu le valides déjà, tu le fais déjà » ; essayé et validé par Yocthan le 2026-10-10 : « J'ai fait les essais, c'est déjà parfait »)
 - Date : 2026-10-10
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'issue #237 (« Dernière dette du web : les filtres d'image dans les styles (flou, gris, luminosité) »), dans la file des dernières dettes du web ouverte par Yocthan le 2026-10-09 ; le grand tableau du web, où `filter` était « en partie » (« `blur`, `hue` dans `Enter` et `Loop` », `docs/01-holocode/TABLEAU-WEB.md`) ; les styles qui ne disent que l'apparence, tout vérifié (`ADR-017`) ; le lot 4 du CSS utile, où `rotate` et `scale` sont déjà des réglages à part (`ADR-041`) ; le mouvement, où `blur` et `hue` existent déjà (`ADR-034`) ; le contraste vérifié par le moteur (`ADR-055`) ; l'écriture des noms (`ADR-016`, `ADR-037`) ; la règle de parité de Yocthan (2026-10-07).
