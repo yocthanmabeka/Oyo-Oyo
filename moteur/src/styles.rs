@@ -674,6 +674,8 @@ mod tests {
             include_str!("../../exemples/lecons/123-des-suggestions-dans-un-champ.holo"),
             // Une citation courte, le titre d'une œuvre (ADR-101).
             include_str!("../../exemples/lecons/124-une-citation-courte.holo"),
+            // Réordonner les lignes d'une liste (ADR-105).
+            include_str!("../../exemples/lecons/128-reordonner-une-liste.holo"),
             // Mélanger des sons : un fondu, un volume qui suit une valeur (ADR-112).
             include_str!("../../exemples/lecons/135-melanger-des-sons.holo"),
         ];
