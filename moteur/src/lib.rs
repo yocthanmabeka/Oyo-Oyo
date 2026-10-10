@@ -73,6 +73,10 @@ pub mod passkeys;
 // (ADR-116) : les sites permis, les clés, le client HTTPS, ce qui est gardé. Sur le PC seulement.
 #[cfg(not(target_arch = "wasm32"))]
 pub mod remote;
+// Les copies des modules venus d'ailleurs (ADR-118) : vérifiées par holo check, téléchargées une
+// fois par holo serve. Sur le PC seulement (l'empreinte y est calculée avec sha2).
+#[cfg(not(target_arch = "wasm32"))]
+pub mod copies;
 
 use holo::{Error, Program, Value};
 use universe::PointDecl;
@@ -617,6 +621,19 @@ pub fn module_info(source: &str, state: &str, name: &str) -> String {
     let entry = module.inputs.first().and_then(|e| numbers.iter().find(|(c, _)| c == e)).map_or(0, |(_, v)| *v);
     let integrity = module.sha256.map(|sha256| format!("|{}", modules::integrity(sha256))).unwrap_or_default();
     format!("{}|{entry}|{}|{}|{}{integrity}", module.source, module.time, module.pages, u8::from(module.simple(&program)))
+}
+
+/// Les modules de la page, vérifiés dans leur fichier, rangé à côté d'elle (ADR-118) : une ligne
+/// par module (son poids, son contrat, sa licence, son empreinte vérifiée, d'où il vient), ou
+/// l'erreur qui le refuse, à la ligne de son `Module(…)`. Pour `holo check`, sur le PC.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn check_module_files(program: &Program, folder: &std::path::Path) -> Result<Vec<String>, Error> {
+    let declared = modules::modules(program)?;
+    let blocks: Vec<&holo::Block> = match program.root.argument("modules").map(|a| &a.value) {
+        Some(Value::List(list)) => list.iter().filter_map(|value| if let Value::Block(block) = value { Some(block) } else { None }).collect(),
+        _ => Vec::new(),
+    };
+    declared.iter().zip(blocks).map(|(module, block)| copies::report(module, folder).map_err(|message| Error { message, pos: block.pos })).collect()
 }
 
 /// Ce que la boîte refuse dans un fichier de module, avant de le lancer (ADR-118) : vide s'il ne
