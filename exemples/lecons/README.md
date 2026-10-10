@@ -144,6 +144,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 136 | [Se souvenir le temps d'une visite](136-se-souvenir-le-temps-d-une-visite.holo) | `visit: [prenom, personnes, atelier]` : un formulaire en deux pages (la seconde : `136-inscription/etape-2.holo`) ; les valeurs suivent le visiteur dans le même onglet, effacées à sa fermeture ; aucun cookie |
 | 139 | [Les données d'un autre site](139-les-donnees-d-un-autre-site.holo) | `Data(from: "https://…")` : ton serveur lit l'autre site pour la page, jamais le navigateur du visiteur ; `holo-data/sites.txt` permet le site et range sa clé ; gardé un moment ; `done`, `failed`, `refresh`, et sans JavaScript aussi |
 | 140 | [Une page dans la page](140-une-page-dans-la-page.holo) | `Embed(from:, label:, image:)` et `embeds: [ … ]` : une carte d'OpenStreetMap, une vidéo de YouTube ; rien ne leur est envoyé avant ton toucher ; enfermée, avec son titre, le clavier dedans ; sans JavaScript, un lien |
+| 141 | [Un module venu d'ailleurs](141-un-module-venu-d-ailleurs.holo) | `Module(from:, sha256:, license:)` : un module écrit par quelqu'un d'autre, sa copie à côté de la page, son empreinte vérifiée avant chaque lancement ; `holo serve` va chercher la copie qui manque, jamais le navigateur ; la même boîte que les autres modules ; sa licence dite aux visiteurs |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.
 

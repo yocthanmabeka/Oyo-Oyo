@@ -92,6 +92,7 @@ transition:left .12s linear,top .12s linear,transform .12s linear}\
 :where(.holo-move){flex:none;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:2rem;min-height:2rem;padding:0 4px;font:inherit;line-height:1;color:inherit;background:transparent;border:1px solid color-mix(in srgb,currentColor 45%,transparent);border-radius:6px;cursor:pointer}\
 :where(.holo-grip){cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;border-style:dashed}:where(html:not(.holo-js) .holo-grip){display:none}\
 :where(.holo-Lines>.holo-line:first-child .holo-up,.holo-Lines>.holo-line:last-child .holo-down){opacity:.4}.holo-movable.holo-dragging{outline:2px dashed currentColor;outline-offset:2px}.holo-movable.holo-dragging .holo-grip{cursor:grabbing}\
+:where(.holo-Page>.holo-modules){display:block;box-sizing:border-box;max-width:var(--holo-width,640px);margin:32px auto 0;font-size:0.85em}:where(.holo-modules>p){margin:0 0 4px 0}\
 @media print{:where(.holo-move){display:none!important}}\
 @media print{:where(.holo-Dialog:not([open]),.holo-Video,audio){display:none!important}:where(.holo-Page){min-height:0}:where(.holo-Page a[href^=\"http\"])::after{content:\" (\" attr(href) \")\";font-size:.85em}}";
 
@@ -646,6 +647,8 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
     // Les suggestions des champs (ADR-100) : chaque datalist une seule fois, après le pied de page.
     // Il ne se voit pas ; les champs s'y relient par `list`, ceux des lignes d'une liste aussi.
     footer.push_str(&datalists(program, page)?);
+    // Les modules venus d'ailleurs, leur licence et leur site, dits aux visiteurs (ADR-118).
+    footer.push_str(&crate::modules::notice(program, LANGUAGE.with(|l| l.borrow().starts_with("fr") || l.borrow().is_empty())));
     // Les valeurs que la page retient le temps de la visite (ADR-113). Comme `keep`, elles ne la
     // rendent pas vivante : la page légère regarde si l'onglet en retient déjà pour elle, et
     // seulement alors fait venir le moteur, qui les reprend.

@@ -959,6 +959,69 @@ fn pages_reading_other_sites(folder: &Path) -> Vec<(String, String)> {
     found
 }
 
+/// Un module venu d'ailleurs (ADR-118) : le temps de son téléchargement, en tout (4 Mo sur une
+/// connexion lente), et les redirections suivies, au plus.
+pub const MODULE_TIMEOUT: Duration = Duration::from_secs(60);
+pub const MODULE_REDIRECTS_MAX: u32 = 5;
+
+/// Télécharge un module venu d'ailleurs, une fois, pour holo serve (ADR-118) : le même chemin sûr
+/// que les données d'un autre site. L'adresse est lue strictement (règle 1) ; le nom est résolu
+/// et chaque adresse vérifiée, la connexion se fait à l'adresse vérifiée (règle 2, `SafeResolver`) ;
+/// ni proxy, ni cookie, ni compression, notre `User-Agent` (règle 7) ; `max` octets au plus,
+/// coupés au-delà (règle 4). Aucune clé : un module n'en demande pas, et `holo-data/sites.txt`
+/// ne le concerne pas, puisque son empreinte décide.
+///
+/// Deux différences avec les données, parce que le fichier est épinglé par son empreinte, que
+/// holo serve vérifie ensuite (`copies`) : les redirections sont suivies (cinq au plus, chacune
+/// en HTTPS et vérifiée comme la première : les fichiers d'une version sur GitHub passent par une
+/// redirection) ; et le délai est d'une minute en tout.
+pub fn download(address: &str, max: usize, fake: Option<&FakeSite>) -> Result<Vec<u8>, String> {
+    let checked = remote_address(address)?;
+    let host = checked.host.clone();
+    let config = |https_only: bool| {
+        ureq::Agent::config_builder()
+            .https_only(https_only)
+            .proxy(None)
+            .max_redirects(MODULE_REDIRECTS_MAX)
+            .http_status_as_error(false)
+            .timeout_connect(Some(CONNECT_TIMEOUT))
+            .timeout_global(Some(MODULE_TIMEOUT))
+            .max_idle_connections(0)
+            .max_idle_connections_per_host(0)
+            .user_agent(USER_AGENT)
+            .accept("application/wasm")
+            .accept_encoding("")
+            .build()
+    };
+    // L'interrupteur des essais : un nom en `.test`, lu en HTTP clair sur ce PC (`FakeSite`).
+    let (agent, url) = match fake {
+        Some(site) if site.host == host => (
+            ureq::Agent::with_parts(config(false), ureq::unversioned::transport::DefaultConnector::default(), LoopbackResolver(site.port)),
+            address.replacen(&format!("https://{}", site.host), &format!("http://{}:{}", site.host, site.port), 1),
+        ),
+        _ => (ureq::Agent::with_parts(config(true), ureq::unversioned::transport::DefaultConnector::default(), SafeResolver { lookup: system_lookup(), allowed: is_public }), address.to_string()),
+    };
+    let said = |failure: Failure| match failure {
+        Failure::TooBig => format!("{host} envoie plus de {} Mo : coupé, rien n'est pris", max / 1_000_000),
+        Failure::Timeout => format!("{host} n'a pas tout envoyé à temps ({} s pour se connecter, {} s en tout)", CONNECT_TIMEOUT.as_secs(), MODULE_TIMEOUT.as_secs()),
+        other => Refusal::of(other, &host).to_string(),
+    };
+    let mut response = agent.get(&url).call().map_err(|error| match error {
+        ureq::Error::TooManyRedirects => format!("{host} redirige plus de {MODULE_REDIRECTS_MAX} fois"),
+        ureq::Error::RequireHttpsOnly(_) => format!("{host} redirige vers une adresse qui n'est pas en HTTPS"),
+        error => said(failure_of(&error)),
+    })?;
+    let status = response.status().as_u16();
+    if status != 200 {
+        return Err(format!("{host} a répondu {status} au lieu de 200"));
+    }
+    // Une taille annoncée trop grande : refusée avant de rien lire.
+    if response.body().content_length().is_some_and(|length| length > max as u64) {
+        return Err(said(Failure::TooBig));
+    }
+    read_capped(response.body_mut().as_reader(), max).map_err(said)
+}
+
 /// Pour les essais de holo serve : un `Remote` dont le transport est un faux, qui note chaque
 /// demande, et dont le journal est gardé.
 #[cfg(test)]

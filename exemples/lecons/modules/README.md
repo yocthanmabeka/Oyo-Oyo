@@ -1,4 +1,4 @@
-# Les modules des leçons 69, 97 et 110
+# Les modules des leçons 69, 97, 110 et 141
 
 Trois modules d'essai, une dizaine de lignes de Rust chacun, sans bibliothèque (`no_std`) :
 
@@ -37,3 +37,13 @@ rustc --edition 2021 --target wasm32-unknown-unknown -O --crate-type cdylib -C p
 ```text
 rustc --edition 2021 --target wasm32-unknown-unknown -O --crate-type cdylib -C panic=abort -C link-arg=--import-memory -C link-arg=--strip-all -C link-arg=-zstack-size=65536 fleur.rs -o ../110-fleur.wasm
 ```
+
+## Un module venu d'ailleurs (leçon 141, ADR-118)
+
+- `premiers.rs` : combien de nombres premiers jusqu'à n (le premier contrat). La leçon le déclare comme un module venu d'ailleurs : son adresse sur GitHub (`from:`), son empreinte (`sha256:`) et sa licence (`license:`, celle du dépôt).
+
+```text
+rustc --edition 2021 --target wasm32-unknown-unknown -O --crate-type cdylib -C panic=abort -C link-arg=--import-memory -C link-arg=--strip-all -C link-arg=-zstack-size=65536 premiers.rs -o ../141-premiers.wasm
+```
+
+Son empreinte change si on le fabrique à nouveau avec un autre Rust (rustc 1.94.1 ici) : `holo check ../141-un-module-venu-d-ailleurs.holo` donne alors la nouvelle, à écrire dans la leçon.
