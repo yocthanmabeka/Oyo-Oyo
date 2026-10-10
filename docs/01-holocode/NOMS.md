@@ -67,6 +67,8 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `Grid(areas: ["top top", "menu main"])`, `area: menu` | `grid-template-areas`, `grid-area` | repris, dans les blocs : les blocs s'écrivent dans l'ordre des zones, celui de la lecture ; une faute de nom, une zone qui n'est pas un rectangle sont refusées ; sur un téléphone, les zones s'empilent dans cet ordre (`ADR-104`) |
 | `Device(kind: share)`, `request` | `navigator.share()`, `navigator.canShare()`, `navigator.clipboard.writeText()` | repris : le mot du web, comme une sorte d'appareil ; le titre et l'adresse de la page, dans le toucher même ; sans feuille de partage, l'adresse copiée ; la feuille fermée n'est pas une panne (`ADR-107`) |
 | `reorder: true` dans `Repeat(over:)` | `draggable="true"`, `dragstart`, `dragover`, `drop`, `dataTransfer`, et le code qui range le tableau ; ou une bibliothèque (SortableJS) | changé : le mot de Flutter (`ReorderableListView`) ; un réglage, rien à programmer ; la poignée, « Monter » et « Descendre » viennent du moteur, au doigt, à la souris, au clavier, au lecteur d'écran qui entend la nouvelle place, et sans JavaScript ; l'arbitre change la liste (`ADR-105`) |
+| `sticky: top`, `sticky: bottom` sur un bloc posé directement dans la page, ou sur `Header` et `Footer` | `position: sticky; top: 0` (ou `bottom: 0`), `z-index`, `scroll-padding-top` écrit à la main | repris : le mot du CSS, avec son sens (le bloc garde sa place, et reste quand on défile), devenu un réglage du bloc ; le bord dans la valeur ; ni décalage, ni superposition, ni bloc fixé ; le fond, la marge laissée au focus et la part de l'écran (le cinquième au plus) viennent du moteur (`ADR-106`) |
+| `scroll` (de 0 à 100) | `scrollY / (scrollHeight - innerHeight)`, recalculé à chaque événement `scroll` ; `animation-timeline: scroll()` | changé : une valeur en pour cent, lue comme les autres et jamais changée par la page ; donnée au plus dix fois par seconde, seulement à une page qui la lit (`ADR-106`) |
 | `Device(kind: vibration, for: 200ms)`, `play`, `stop` | `navigator.vibrate()` | repris : le mot du web, comme une sorte d'appareil ; se joue comme un son, là où un son se joue, après le premier toucher ; des durées avec leur unité, une seconde en tout ; rien sous le mouvement réduit ; ne dit rien en retour (`ADR-110`) |
 | `Enter` | `@keyframes` + `animation` (de… vers…), ou `element.animate()` | changé : on écrit seulement d'où le bloc part |
 | `Loop` | `animation: … infinite alternate` | changé : on écrit seulement où il va |
@@ -273,6 +275,7 @@ Les quatorze noms que Codex et Gemini contestaient sont tranchés depuis le 2026
 | `ew-resize`, `col-resize` et les autres curseurs d'étirement | Rien à étirer sans disposition à la main. |
 | `var`, `let`, `function`, `this`, `null`, `undefined`, `NaN` | Pas de variables libres ; une valeur est déclarée et bornée. |
 | `noscript` | Sans objet. |
+| `position: sticky`, `position: fixed`, `top`, `bottom`, `z-index` dans un style | Un bloc qui reste à l'écran se dit sur le bloc : `sticky: top` ou `sticky: bottom`, posé directement dans la page (`ADR-106`) ; un bloc fixé, sorti du fil de la page et posé par-dessus le texte, ne se fait pas. |
 
 ### Pas encore là
 

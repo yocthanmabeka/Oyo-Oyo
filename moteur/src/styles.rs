@@ -691,6 +691,8 @@ mod tests {
             include_str!("../../exemples/lecons/128-reordonner-une-liste.holo"),
             // Faire vibrer le téléphone, d'un toucher ou d'une règle de jeu (ADR-110).
             include_str!("../../exemples/lecons/133-faire-vibrer-le-telephone.holo"),
+            // Où en est le visiteur, un bloc qui reste à l'écran (ADR-106).
+            include_str!("../../exemples/lecons/129-une-barre-de-lecture.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();
@@ -708,6 +710,10 @@ mod tests {
         }
         // Une grille qui place ses cases (ADR-104).
         for word in ["columnSpan:", "rowSpan:", "areas:", "area:"] {
+            assert!(source.contains(word), "« {word} » manque dans l'exemple");
+        }
+        // Où en est le visiteur, un bloc qui reste à l'écran (ADR-106).
+        for word in ["{scroll}", "value: scroll", "If(scroll", "sticky: top", "sticky: bottom"] {
             assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
     }
