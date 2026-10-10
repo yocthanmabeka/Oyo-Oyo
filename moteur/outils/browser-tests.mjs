@@ -943,6 +943,79 @@ const tests = [
       && violations.length === 0;
     return [ok, `avant tout toucher : ${phone.untouched} vibration ; puis ${phone.buzz.map((m) => `[${m}]`).join(", ")} (le toucher, puis la rencontre), ${phone.tries} demandées, ${phone.caught} prise ; mouvement réduit : « ${reduced.said} », ${reduced.buzz - phone.buzz.length} vibration de plus, ${reduced.tries} demandées ; sans vibreur : navigator.vibrate ${iphone.vibrate}, « ${iphone.said} », ${iphone.tries} demandée, ${iphone.caught} prise, ${iphone.errors.length} erreur ; axe-core : ${violations.length ? violations.join(" ; ") : "zéro défaut"}`];
   }],
+  ["mélanger des sons : deux à la fois, le fondu qui monte puis descend, le volume qui suit sa glissière (leçon 135)", async (p, b) => {
+    await p.open("/exemples/lecons/135-melanger-des-sons.holo");
+    const audio = (name) => `document.querySelector('audio[data-name="${name}"]')`;
+    // Ce qu'on entend d'un son : son volume × son fondu, lus dans les gains du mélangeur (Web Audio).
+    const heard = (name) => p.value(`window.__holoMixer?.(${JSON.stringify(name)}).heard ?? -1`);
+    const shows = (text) => p.value(`document.getElementById("page").innerText.includes(${JSON.stringify(text)})`);
+    // Le lecteur d'écran : chaque glissière a son nom. Et l'audit axe-core de la leçon.
+    const { nodes } = (await b.send("Accessibility.getFullAXTree")).result;
+    const sliders = nodes.filter((n) => !n.ignored && n.role?.value === "slider").map((n) => n.name?.value).join(", ");
+    await p.value(readFileSync(join(engine, "node_modules", "axe-core", "axe.min.js"), "utf8") + "\n;0");
+    const faults = await p.value(`axe.run(document, { resultTypes: ["violations"] }).then((r) => r.violations.map((v) => v.id).join(", "))`);
+    // Un premier toucher fait venir le moteur : « Tout arrêter » n'a rien à arrêter, et ne
+    // réveille pas le mélangeur.
+    await p.click('[data-name="Silence"]');
+    const arrived = await p.until(`${audio("Pluie")}.dataset.level === "0.6"`);
+    const asleep = await p.value(`window.__holoMixer("Pluie").state`);
+    // La pluie monte en 2 secondes jusqu'à son volume, 60 sur 100 : écoutée à plusieurs moments.
+    await p.click('[data-name="LancerPluie"]');
+    await p.until(`!${audio("Pluie")}.paused`, 5000);
+    const rising = [];
+    for (let i = 0; i < 4; i++) {
+      rising.push(await heard("Pluie"));
+      await pause(400);
+    }
+    const climbing = rising.filter((v) => v < 0.595);
+    const rose = climbing.length >= 3 && climbing[0] < 0.3 && climbing.every((v, i) => i === 0 || v > climbing[i - 1]);
+    const full = await p.until(`Math.abs(window.__holoMixer("Pluie").heard - 0.6) < 0.005`, 4000);
+    // Le vent part à son tour : les deux jouent ensemble, et la pluie ne baisse pas.
+    await p.click('[data-name="LancerVent"]');
+    const together = await p.until(`!${audio("Pluie")}.paused && !${audio("Vent")}.paused && window.__holoMixer("Vent").heard > 0`, 5000);
+    const rainKept = await heard("Pluie");
+    const said = (await shows("La pluie joue.")) && (await shows("Le vent souffle."));
+    // La glissière de la pluie, au clavier : Page suivante quatre fois, de 60 à 20. Le volume glisse
+    // jusque-là, et la page montre la valeur.
+    await p.value(`document.querySelector('input[data-bind="pluie"]').focus()`);
+    for (let i = 0; i < 4; i++) await p.key("PageDown", "PageDown", 34);
+    const followed = await p.until(`Math.abs(window.__holoMixer("Pluie").heard - 0.2) < 0.005`, 3000);
+    const twenty = await shows("20 sur 100");
+    // Arrêter la pluie : elle descend pendant 2 secondes en jouant encore, puis se met en pause et
+    // revient au début. Le vent continue.
+    await p.click('[data-name="ArreterPluie"]');
+    const falling = [];
+    for (let i = 0; i < 3; i++) {
+      await pause(450);
+      falling.push([await heard("Pluie"), await p.value(`${audio("Pluie")}.paused`)]);
+    }
+    const fading = falling.filter(([, paused]) => !paused).map(([v]) => v);
+    const fell = fading.length >= 2 && fading.every((v, i) => v < 0.2 && v > 0 && (i === 0 || v < fading[i - 1]));
+    const stopped = await p.until(`${audio("Pluie")}.paused && ${audio("Pluie")}.currentTime === 0`, 3000);
+    const windOn = await p.value(`!${audio("Vent")}.paused`);
+    // Tout arrêter : le vent s'éteint en 3 secondes, puis le mélangeur s'endort.
+    await p.click('[data-name="Silence"]');
+    const sleeping = await p.until(`${audio("Vent")}.paused && window.__holoMixer("Vent").state === "suspended"`, 6000);
+    const round = (v) => Number(v).toFixed(2).replace(".", ",");
+    const ok = sliders === "Volume de la pluie, Volume du vent" && faults === "" && arrived && asleep === "absent" && rose && full && together
+      && Math.abs(rainKept - 0.6) < 0.005 && said && followed && twenty && fell && stopped && windOn && sleeping;
+    return [ok, `glissières : ${sliders} ; axe-core : ${faults || "aucun défaut"} ; mélangeur avant le premier son : ${asleep} ; la pluie monte : ${rising.map(round).join(" → ")}, puis 0,60 : ${full} ; avec le vent, les deux jouent : ${together} (pluie à ${round(rainKept)}) ; écrit à l'écran : ${said} ; glissière à 20 au clavier : ${followed} (${twenty}) ; arrêtée, elle descend en jouant : ${falling.map(([v, paused]) => `${round(v)}${paused ? " (en pause)" : ""}`).join(" → ")}, puis en pause au début : ${stopped} ; le vent continue : ${windOn} ; tout arrêté, le mélangeur s'endort : ${sleeping}`];
+  }],
+  ["un son ne part jamais avant un geste du visiteur, même là où le navigateur le permettrait (ADR-112)", async (p) => {
+    // Ce Chrome joue un son sans geste (--autoplay-policy=no-user-gesture-required) : seul le moteur
+    // peut l'empêcher. La règle de temps de la page demande deux sons toutes les 400 ms.
+    await p.open("/exemples/.essais-navigateur/son-avant-un-geste.holo", 600);
+    const sounds = `[...document.querySelectorAll("audio")].map((a) => a.dataset.name + (a.played.length ? " entendu" : " muet")).join(", ")`;
+    const asked = await p.until(`/demandé les sons ([3-9]|\\d\\d+) fois/.test(document.getElementById("page").innerText)`, 15000);
+    const before = await p.value(sounds);
+    const mixer = await p.value(`window.__holoMixer?.("Tac").state`);
+    // Un toucher : les sons partent au tour suivant de la règle.
+    await p.click('[data-name="Toucher"]');
+    const heard = await p.until(`[...document.querySelectorAll("audio")].every((a) => a.played.length > 0)`, 5000);
+    const after = await p.value(sounds);
+    const ok = asked && before === "Tic muet, Tac muet" && mixer === "absent" && heard;
+    return [ok, `demandés au moins 3 fois sans geste : ${asked} ; avant un geste : ${before}, mélangeur ${mixer} ; après un toucher : ${after}`];
+  }],
   ["se souvenir le temps d'une visite : d'une page à l'autre du site, pas dans un autre onglet (leçon 136)", async (p, b) => {
     const first = "/exemples/lecons/136-se-souvenir-le-temps-d-une-visite.holo";
     const second = "/exemples/lecons/136-inscription/etape-2.holo";

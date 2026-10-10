@@ -137,6 +137,7 @@ La référence complète reste le [guide](../../docs/01-holocode/GUIDE.md).
 | 130 | [Partager la page](130-partager-la-page.holo) | `Device(kind: share)`, `Partage.request` : la feuille de partage du téléphone, avec le titre et l'adresse ; sur un ordinateur, l'adresse copiée ; `done`, `failed`, et la feuille fermée qui n'est pas une panne |
 | 128 | [Réordonner une liste](128-reordonner-une-liste.holo) | `Repeat(over: tableaux, reorder: true, …)` : la poignée ⠿ à la souris et au doigt ; « Monter » et « Descendre » au doigt, au clavier et au lecteur d'écran, qui annonce la nouvelle place ; sans JavaScript aussi |
 | 133 | [Faire vibrer le téléphone](133-faire-vibrer-le-telephone.holo) | `Device(kind: vibration, for: 200ms)`, `Petite.play` : un toucher, une rencontre, `for: [100ms, 80ms, 100ms]` ; rien avant le premier toucher, ni sous le mouvement réduit ; le signe toujours à l'écran |
+| 135 | [Mélanger des sons](135-melanger-des-sons.holo) | Plusieurs sons à la fois ; `Sound(fade: 2s)` : un fondu à l'entrée et à la sortie ; `Sound(volume: pluie)` et une glissière par son : une table de mixage ; jamais un son avant un geste |
 | 136 | [Se souvenir le temps d'une visite](136-se-souvenir-le-temps-d-une-visite.holo) | `visit: [prenom, personnes, atelier]` : un formulaire en deux pages (la seconde : `136-inscription/etape-2.holo`) ; les valeurs suivent le visiteur dans le même onglet, effacées à sa fermeture ; aucun cookie |
 
 Règle du projet : chaque notion ajoutée au langage reçoit sa leçon, dans la même pull request.

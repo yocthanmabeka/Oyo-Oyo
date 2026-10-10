@@ -2141,6 +2141,39 @@ Page(
 
 La leçon est `133-faire-vibrer-le-telephone.holo`.
 
+## 6 terquinquagies. Mélanger des sons
+
+Plusieurs sons à la fois, chacun avec son volume, un fondu à l'entrée et à la sortie (`ADR-112`).
+
+```holo
+Page(
+  title: "Rain and wind",
+  state: State(rain: 60, wind: 30),
+  children: [
+    Sound(name: Rain, source: "rain.wav", loop: true, fade: 2s, volume: rain),
+    Sound(name: Wind, source: "wind.wav", loop: true, fade: 3s, volume: wind),
+    Slider(value: rain, label: "Rain volume", min: 0, max: 100),
+    Slider(value: wind, label: "Wind volume", min: 0, max: 100),
+    Row(gap: 12px, children: [
+      Button(name: Start, text: "Rain and wind"),
+      Button(name: Quiet, text: "Silence"),
+    ]),
+  ],
+  rules: [
+    On(Start.tap, effect: [Rain.play, Wind.play]),
+    On(Quiet.tap, effect: [Rain.stop, Wind.stop]),
+  ],
+)
+```
+
+- **Plusieurs sons à la fois** : rien de nouveau. Chaque `Sound` est une piste ; `[Rain.play, Wind.play]` les fait entendre ensemble.
+- **`fade: 2s`** : `play` fait monter le son du silence jusqu'à son volume en 2 secondes ; `stop` le fait descendre jusqu'au silence en 2 secondes, puis le met en pause et le ramène au début. De `100ms` à `5s`.
+- **`volume: rain`** : le volume suit une valeur de la page, un nombre entier de 0 (muet) à 100 (le plus fort), comme une glissière. Quand elle change, le volume glisse jusqu'à elle, sans claquer ; elle ne dépasse jamais 100. Une glissière par son fait une table de mixage, au doigt, à la souris et au clavier. Un volume écrit reste de 0 à 1 : `volume: 0.4`.
+- **Jamais un son avant un geste** : avant le premier toucher, clic ou touche du visiteur sur la page, le moteur ne joue aucun son, même si une règle de temps le demande, même si le navigateur le permettrait.
+- Un lecteur (`Sound(label:)`) reste dans la main du visiteur : `fade:` et un volume suivi y sont refusés. Refusés aussi, avec la raison : un fondu hors de 100ms à 5s ; un volume qui suit un texte, une liste, un nombre à virgule, une valeur inconnue ou qui part au-dessus de 100.
+
+Cette écriture est décidée (`ADR-112`). La leçon est `135-melanger-des-sons.holo`.
+
 ## 6 quaterquinquagies. Se souvenir le temps d'une visite : `visit`
 
 Un formulaire en plusieurs pages : ce qu'on écrit à l'étape 1 se retrouve à l'étape 2, et quand on revient en arrière (`ADR-113`).

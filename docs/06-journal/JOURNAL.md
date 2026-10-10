@@ -53,6 +53,31 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Mélanger des sons : un fondu, un volume qui suit une valeur
+
+- Fait (issue #241, la session du nuage ; `ADR-112`, ACCEPTÉ d'avance par Yocthan : « tu le valides déjà, tu le fais déjà ») :
+  - Vérifié d'abord dans Chrome, avec le moteur de `main` (leçon 79) : deux sons différents jouent déjà ensemble, aucun n'est mis en pause ; un même son relancé repart du début. Plusieurs sons à la fois ne demandent donc aucun mot nouveau.
+  - `Sound(fade: 2s)` : le son monte du silence jusqu'à son volume quand il commence ; `stop` le fait descendre jusqu'au silence en jouant encore, puis le met en pause au début. De 100ms à 5s.
+  - `Sound(volume: pluie)` : le volume suit une valeur de la page, de 0 à 100, et glisse jusqu'à elle en un dixième de seconde ; la valeur ne dépasse jamais 100. Une glissière par son fait une table de mixage.
+  - Le mélangeur de la page (Web Audio, deux gains par son) : il naît au premier son mélangé et s'endort quand aucun ne joue ; un son d'un autre serveur n'y passe pas. Sur iPhone, `audio.volume` ne se règle pas, un gain si (pas essayé ici).
+  - Jamais un son avant un geste du visiteur, même si le navigateur le permet : le moteur oublie la demande.
+  - Un lecteur (`Sound(label:)`) ne change pas : `fade:` et un volume suivi y sont refusés.
+  - La leçon 135, avec deux ambiances fabriquées par un petit programme (du bruit filtré qui boucle sans couture : une pluie, un vent, 44 Ko chacune) ; une page d'essai, `son-avant-un-geste.holo` ; le guide (chapitre « 6 terquinquagies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+- Exécuté :
+  - `cargo test --release --locked` → 241 tests passent après la fusion de `main` (237 avant ; deux nouveaux : `a_sound_fades_in_and_out`, `a_sound_follows_a_value_of_the_page`) ; `cargo test` (debug) → 241 ;
+  - `holo check` sur la leçon 135 et la page d'essai → `ok` ;
+  - dans Chrome, les deux essais nouveaux passent : la pluie mesurée 0,05 → 0,17 → 0,29 → 0,41, puis 0,60 ; avec le vent, les deux jouent ; la glissière à 20 au clavier, le volume suit ; arrêtée, la pluie descend 0,14 → 0,09 → 0,05 en jouant, puis se met en pause au début, et le vent continue ; tout arrêté, le mélangeur s'endort ; axe-core sans défaut. Avant un geste, la règle a demandé les sons trois fois : aucun entendu, pas de mélangeur ; après un toucher, les deux ;
+  - ils savent échouer, avant et après la fusion de `main` : sans le fondu (0,60 dès le départ), sans le volume suivi (la pluie à 1,00), sans le fondu de sortie (en pause tout de suite), sans la règle stricte (les deux sons entendus avant tout geste) : RATÉ chaque fois ;
+  - sous la vraie politique de Chrome (`document-user-activation-required`), le premier toucher rejoué après l'arrivée du moteur : la pluie monte (0,02 → 0,14 → 0,26 → 0,38) ; sans geste, rien ;
+  - la suite entière, après la fusion de `main` (PR 257) : 82 essais `OK` sur 85 (avant : 81 sur 84) ; les 3 ratés propres au conteneur : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 ».
+- Erreurs en route :
+  - mon premier mélangeur se réveillait sur un `stop` d'un son qui n'avait jamais joué (« Tout arrêter », touché en premier), et restait éveillé pour rien : un `stop` ne crée plus rien ;
+  - la limite de séance a coupé le travail, puis le conteneur a redémarré, pendant la relance de « pincer à deux doigts » ; rien n'était envoyé, la reprise est partie des commits ;
+  - la PR 257 a apporté un `follow` (une constante d'un bloc intérieur) : ma fonction s'appelle désormais `followVolume`, pour ne pas être masquée à la lecture.
+- Reste : un écho et les autres effets ; `fadeIn:` et `fadeOut:` séparés ; le volume écrit seul passe encore par `audio.volume` (sans effet sur iPhone) ; essayer à l'oreille sur le téléphone de Yocthan, et sur un iPhone ; la leçon 135 revient à la 124 et mène à la 1, en attendant que la suite 124 → … → 136 → 1 soit refaite.
+
+---
+
 
 ---
 

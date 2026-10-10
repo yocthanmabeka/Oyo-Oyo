@@ -278,6 +278,10 @@ pub(crate) fn ceiling(program: &Program, name: &str) -> u64 {
                 ceiling = ceiling.min(100);
             }
         }
+        // Une valeur qui règle le volume d'un son (ADR-112) : de 0 (muet) à 100 (le plus fort).
+        if block.name == "Sound" && matches!(block.argument("volume").map(|a| &a.value), Some(Value::Name(value)) if value == name) {
+            ceiling = ceiling.min(100);
+        }
         Ok(())
     });
     ceiling
@@ -1948,6 +1952,29 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
             };
             if block.name == "Slider" && integer("min").unwrap_or(0) >= integer("max").unwrap_or(100) {
                 return Err(Error { message: "« Slider » : min doit être plus petit que max".into(), pos: block.pos });
+            }
+        }
+        // Un son dont le volume suit une valeur de la page (ADR-112) : un nombre entier déclaré,
+        // de 0 (muet) à 100 (le plus fort), comme une glissière.
+        if let (true, Some(Argument { value: Value::Name(value), pos, .. })) = (block.name == "Sound", block.argument("volume")) {
+            let fault = if is_text(value) {
+                Some(format!("« {value} » est un texte"))
+            } else if crate::lists::is_list(program, value) {
+                Some(format!("« {value} » est une liste"))
+            } else if places(program, value) > 0 {
+                Some(format!("« {value} » a des chiffres après la virgule"))
+            } else {
+                match state.iter().find(|(known, _)| known == value).map(|(_, start)| *start) {
+                    None => Some(format!("aucune valeur ne s'appelle « {value} »")),
+                    Some(start) if start > 100 => Some(format!("« {value} » part de {start}")),
+                    Some(_) => None,
+                }
+            };
+            if let Some(fault) = fault {
+                return Err(Error {
+                    message: format!("« Sound(volume: {value}) » : {fault} ; un volume qui suit une valeur la lit de 0 (muet) à 100 (le plus fort), comme une glissière : state: State({value}: 50), puis Slider(value: {value}, label: \"…\")"),
+                    pos: *pos,
+                });
             }
         }
         // Une règle qui guette regarde une valeur : un nombre déclaré ou calculé, ou un texte
