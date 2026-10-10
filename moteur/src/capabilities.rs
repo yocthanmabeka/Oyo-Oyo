@@ -196,7 +196,7 @@ pub fn html(block: &Block) -> String {
 pub fn export(program: &Program, written: &str, name: &str) -> Result<String, String> {
     let b = rules::named_block(program, name).filter(|b| b.name == "Transfer" || b.name == "Device").ok_or("aucun transfert de ce nom")?;
     let values = if b.name == "Device" { vec![word(b, "value").ok_or("aucun texte à écrire")?] } else { names(b).map_err(|e| e.message)? };
-    let module = modules::Module { name, source: "", inputs: values, outputs: vec![], time: 100, pages: 1 };
+    let module = modules::Module { name, source: "", inputs: values, outputs: vec![], time: 100, pages: 1, sha256: None, from: None, license: None };
     let json = modules::input_json(program, &state::reread(program, written), &state::reread_texts(program, written), &lists::reread(program, written), &module);
     if json.len() > BYTES_MAX { return Err("transfert de plus de 64 Ko".into()); }
     Ok(json)

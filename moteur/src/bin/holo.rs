@@ -26,6 +26,19 @@
 use std::io::Read;
 use std::process::ExitCode;
 
+/// La page vérifiée, puis les fichiers de ses modules, à côté d'elle (ADR-118) : leur poids, leur
+/// licence, leur empreinte, ce qu'ils demandent à la boîte. Sur le PC seulement.
+fn module_files(source: &str, here: &std::path::Path) -> Result<Vec<String>, holo_engine::holo::Error> {
+    let program = holo_engine::check_page(source)?;
+    #[cfg(not(target_arch = "wasm32"))]
+    return holo_engine::check_module_files(&program, here);
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (program, here);
+        Ok(Vec::new())
+    }
+}
+
 fn main() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     // Les mots du langage, pour l'extension VS Code (ADR-046).
@@ -206,7 +219,14 @@ fn main() -> ExitCode {
     }
     // Pour un éditeur : la même réponse que celle de l'éditeur du navigateur (ADR-046).
     if from_editor && command == "check" {
-        let response = holo_engine::check_text(&source);
+        let mut response = holo_engine::check_text(&source);
+        // Les fichiers des modules, à côté de la page (ADR-118) : une empreinte qui ne correspond
+        // pas, ou un module qui demande plus que sa mémoire, se voit aussi dans l'éditeur.
+        if response == "ok" {
+            if let Err(error) = module_files(&source, &here) {
+                response = error.to_string();
+            }
+        }
         println!("{response}");
         return if response.starts_with("ok") { ExitCode::SUCCESS } else { ExitCode::FAILURE };
     }
@@ -267,7 +287,8 @@ fn main() -> ExitCode {
     // garde : la page est fabriquée avec elles (ADR-079).
     let shared = std::env::var("HOLO_SHARED").ok().filter(|_| command == "html" && !holo_engine::shared_names(&source).is_empty());
     let result = match command {
-        "check" => holo_engine::check_page(&source).map(|_| "ok".to_string()),
+        // Puis les fichiers des modules (ADR-118) : leur poids, leur licence, leur empreinte.
+        "check" => module_files(&source, &here).map(|lines| std::iter::once("ok".to_string()).chain(lines).collect::<Vec<_>>().join("\n")),
         _ if shared.is_some() => holo_engine::shared_page(&source, folder, shared.as_deref().unwrap_or("")),
         // Pour le serveur : les fichiers qu'un formulaire de la page peut envoyer (ADR-059).
         "files" => holo_engine::files_for_server(&source),

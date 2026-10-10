@@ -1,0 +1,70 @@
+// Leçon 141 — Un module venu d'ailleurs, avec son empreinte
+//
+// Ce qu'on apprend :
+//   Un module (leçon 69) peut avoir été écrit par quelqu'un d'autre. On écrit alors, en plus :
+//     from: "https://…"    l'adresse d'où il vient : en HTTPS, un fichier .wasm
+//     sha256: "…"          son empreinte : 64 chiffres et lettres (de 0 à 9, de a à f), celle
+//                          que donne son auteur ; holo check te dit celle du fichier
+//     license: "…"         sa licence, telle que son auteur la donne : MIT, Apache-2.0…
+//   La copie est rangée à côté de la page (source:). Si elle manque, holo serve la télécharge une
+//   fois depuis from:, vérifie son empreinte et la range à côté de la page. Le navigateur du
+//   visiteur ne va jamais chez l'autre site, et la page marche même si ce site disparaît.
+//   Avant chaque lancement, le navigateur vérifie l'empreinte : un fichier qui a changé n'est pas
+//   lancé. Le module reste dans la même boîte que les autres (leçon 69) : sa mémoire, son temps,
+//   et rien d'autre. Un module qui demande autre chose (le réseau, la page, un autre module) est
+//   refusé avant de tourner : un module n'en charge donc jamais un autre.
+//   Sa licence, et le site d'où il vient, sont dits à tes visiteurs, en bas de la page. Son poids
+//   t'est dit par holo check.
+//   Ce module-ci vient du dépôt de HoloCode, sur GitHub : sa licence est celle du dépôt.
+//
+// À essayer :
+//   Lance holo check sur cette leçon : il dit le poids du module, sa licence, et « empreinte
+//   vérifiée ». Change une lettre de sha256: : holo check refuse, et dans la page, le module
+//   n'est plus lancé ; le bas de la page dit pourquoi. Puis retire sha256: : une adresse sans
+//   empreinte est refusée.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+module "141-premiers.wasm"
+
+Page(
+  title: "Leçon 141 : un module venu d'ailleurs",
+  state: State(n: 1000, premiers: 0, compte: 0, pas: 0),
+  modules: [
+    Module(
+      name: Premiers,
+      source: "141-premiers.wasm",
+      from: "https://raw.githubusercontent.com/yocthanmabeka/Oyo-Oyo/main/exemples/lecons/141-premiers.wasm",
+      sha256: "128c62eaf00efe6eb9f2a1a2f95b311367166bfdae9c38c4a90cca7e8c8d0561",
+      license: "Tous droits réservés",
+      input: n,
+      output: premiers,
+      time: 1s,
+    ),
+  ],
+  children: [
+    H1("Un module venu d'ailleurs"),
+    P("Ce module compte les nombres premiers. Il n'a pas été écrit dans cette page : il vient d'un autre site, avec son empreinte, et ton navigateur la vérifie avant de le lancer."),
+    Input(value: n, label: "Les nombres premiers jusqu'à…", max: 100000),
+    Button(name: Compter, text: "Compter"),
+    If(compte, is: 1, children: [ P.ok("Il y en a {premiers:number}.") ]),
+    If(pas, is: 1, children: [ P.non("Le module n'a pas tourné. S'il a été refusé, le bas de la page dit pourquoi.") ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 124 : une citation courte, le titre d'une œuvre", to: "124-une-citation-courte.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+  rules: [
+    On(Compter.tap, effect: [compte.set(0), pas.set(0), Premiers.run]),
+    On(Premiers.done, effect: compte.set(1)),
+    On(Premiers.failed, effect: pas.set(1)),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+A { color: #8fd3ff; }
+.ok { color: #7be38f; }
+.non { color: #ffb3b3; }
