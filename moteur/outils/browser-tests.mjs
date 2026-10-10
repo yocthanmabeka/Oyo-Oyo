@@ -1120,12 +1120,16 @@ const tests = [
     const fake = `<!doctype html><meta charset="utf-8"><title>Faux site</title><button>Dans la page intégrée</button><script>
       const tell = (what) => parent.postMessage({ fake: true, ...what }, "*");
       let page; try { page = parent.document.title; } catch { page = "fermée"; }
-      let popup; try { popup = String(window.open("https://pirate.example.org/")); } catch { popup = "refusée"; }
-      try { top.location.href = "https://pirate.example.org/"; } catch { /* la page de l'auteur reste */ }
       const features = document.featurePolicy ? document.featurePolicy.allowedFeatures().filter((f) => ["fullscreen", "camera", "microphone", "geolocation", "autoplay", "payment"].includes(f)).sort().join(",") : "?";
-      tell({ ready: true, referrer: document.referrer, page, popup, features });
+      tell({ ready: true, referrer: document.referrer, page, features });
       navigator.geolocation.getCurrentPosition(() => tell({ position: "donnée" }), (e) => tell({ position: "refusée (" + e.code + ")" }));
-      addEventListener("keydown", (e) => tell({ key: e.key }));
+      // Une touche est un vrai geste du visiteur : sans l'enfermement, la page intégrée pourrait alors
+      // ouvrir une fenêtre, et emmener la page de l'auteur ailleurs.
+      addEventListener("keydown", (e) => {
+        let popup; try { popup = String(window.open("https://pirate.example.org/fenetre")); } catch { popup = "refusée"; }
+        tell({ key: e.key, popup });
+        try { top.location.href = "https://pirate.example.org/dessus"; } catch { /* la page de l'auteur reste */ }
+      });
     </script>`;
     const served = await startHoloServe([lesson, "140-carte.svg", "140-video.svg"]);
     const q = page(b, served.base);
@@ -1174,8 +1178,8 @@ const tests = [
       }
       // 4. Au clavier : Tab jusqu'à la façade de la carte, puis Entrée.
       for (let i = 0; i < 20 && !(await q.value(`document.activeElement?.matches(".holo-embed-load")`)); i++) await q.key("Tab", "Tab", 9);
-      const focusedFacade = await q.value(`document.activeElement?.dataset.label ?? ""`);
-      await q.key("Enter", "Enter", 13, "\r");
+      const focusedFacade = await q.value(`document.activeElement?.matches(".holo-embed-load") ? document.activeElement.dataset.label : "(le clavier n'atteint pas la façade)"`);
+      if (focusedFacade === "Carte : le zoo de San Diego") await q.key("Enter", "Enter", 13, "\r");
       const mapFrame = await q.until(`document.querySelector('iframe[src^="https://www.openstreetmap.org/"]')`, 5000);
       const mapAttributes = await q.value(`(() => { const f = document.querySelector('iframe[src^="https://www.openstreetmap.org/"]'); return f && [f.getAttribute("sandbox"), f.getAttribute("allow"), f.getAttribute("referrerpolicy"), f.title, f.src].join(" | "); })()`);
       const inside = await q.value(`document.activeElement?.tagName === "IFRAME" && document.activeElement.src.startsWith("https://www.openstreetmap.org/")`);
@@ -1214,7 +1218,7 @@ const tests = [
       faults.push(...(await audit("après le toucher")));
       // 8. Sans JavaScript : un lien vers la page de l'autre site, avec le titre, dans un nouvel onglet ;
       // pas de bouton, pas de cadre, rien vers l'autre site.
-      const beforeLinks = asked.length;
+      const beforeLinks = [asked.length, sent.filter((url) => elsewhere.test(url)).length];
       let links = "";
       let linkNames = "";
       let withoutScript = "";
@@ -1229,7 +1233,26 @@ const tests = [
       } finally {
         await b.send("Emulation.setScriptExecutionDisabled", { value: false });
       }
-      const afterLinks = asked.length - beforeLinks;
+      const afterLinks = asked.length - beforeLinks[0] + sent.filter((url) => elsewhere.test(url)).length - beforeLinks[1];
+      // 9. Une page intégrée de la même origine que la page de l'auteur (un auteur qui listerait son
+      // propre site) perd le second droit : elle ne garderait pas son enfermement. La leçon est servie
+      // à une adresse en HTTPS (Fetch prend chaque fichier à holo serve), et une façade vise une page
+      // de cette même adresse.
+      const home = "https://zoo.example.org";
+      b.on("Fetch.requestPaused", ({ requestId, request }) => {
+        if (!request.url.startsWith(`${home}/`)) return b.send("Fetch.fulfillRequest", { requestId, responseCode: 404, body: "" });
+        (async () => {
+          const reply = await fetch(served.base + request.url.slice(home.length), { headers: { accept: request.headers.Accept ?? "*/*" } });
+          const responseHeaders = [...reply.headers].filter(([name]) => ["content-type", "content-security-policy"].includes(name)).map(([name, value]) => ({ name, value }));
+          await b.send("Fetch.fulfillRequest", { requestId, responseCode: reply.status, responseHeaders, body: Buffer.from(await reply.arrayBuffer()).toString("base64") });
+        })();
+      });
+      await b.send("Fetch.enable", { patterns: [{ urlPattern: `${home}/*` }] });
+      const z = page(b, home);
+      await z.open(`/${lesson}`);
+      await z.value(`document.querySelector(".holo-embed-load").dataset.embed = location.origin + "/meme-origine"`);
+      await z.click(".holo-embed-load");
+      const sameOrigin = await z.value(`(document.querySelector('iframe[src="${home}/meme-origine"]')?.getAttribute("sandbox") ?? "(aucun cadre)") + " (page " + location.origin + ")"`);
       const origin = `${served.base}/`;
       const ok = policy === "frame-src https://www.openstreetmap.org https://www.youtube-nocookie.com"
         && before[0] === 0 && before[1] === 0 && untouched && images === "true,true" && shown === "true,true"
@@ -1238,13 +1261,14 @@ const tests = [
         && focusedFacade === "Carte : le zoo de San Diego" && mapFrame && inside && mapReady && typed
         && mapAttributes === `allow-scripts allow-same-origin | fullscreen | strict-origin | Carte : le zoo de San Diego | ${map}`
         && mapSaid.referrer === origin && mapSaid.page === "fermée" && mapSaid.popup === "null" && mapSaid.features === "fullscreen" && mapSaid.position === "refusée (1)"
+        && sameOrigin === "allow-scripts (page https://zoo.example.org)"
         && fingerFrame && videoSaid.ready === true && videoSaid.page === "fermée"
         && reached.join(" ; ") === `Document ${map} (Referer : ${origin}) ; Document ${video} (Referer : ${origin})`
         && stayed && refused === "frame-src https://pirate.example.org"
         && links === `${map} | _blank | noopener noreferrer || ${video} | _blank | noopener noreferrer`
         && linkNames === "Carte : le zoo de San Diego, ouvrir sur www.openstreetmap.org, dans un nouvel onglet | Vidéo : Me at the zoo, la première vidéo publiée sur YouTube (2005), ouvrir sur www.youtube-nocookie.com, dans un nouvel onglet"
         && withoutScript === "none,none / 0" && afterLinks === 0 && !faults.length;
-      return [ok, `frame-src : ${policy} ; avant le toucher, demandes vers l'autre site : ${before[0]} (Fetch), ${before[1]} (réseau), page sans cadre ni adresse de l'autre site : ${untouched}, images de la façade chez holo serve : ${images}, façades montrées : ${shown} ; lecteur d'écran : ${buttons.join(" | ")} ; téléphone : ${phoneSize} ; au clavier, la façade « ${focusedFacade} », puis Entrée : cadre ${mapFrame} (${mapAttributes}), le clavier dedans : ${inside}, la touche k reçue : ${typed} ; la fausse carte voit : ${JSON.stringify(mapSaid)} ; au doigt, la vidéo : ${fingerFrame} (${JSON.stringify(videoSaid)}) ; arrivé à l'autre site : ${reached.join(" ; ") || "rien"} ; la page de l'auteur reste : ${stayed} ; un cadre non listé : ${refused || "pas refusé"} ; sans JavaScript : ${links} (${linkNames}) ; boutons et cadres : ${withoutScript}, demandes : ${afterLinks} ; axe-core : ${faults.join(", ") || "aucun défaut, avant et après le toucher"}`];
+      return [ok, `frame-src : ${policy} ; avant le toucher, demandes vers l'autre site : ${before[0]} (Fetch), ${before[1]} (réseau), page sans cadre ni adresse de l'autre site : ${untouched}, images de la façade chez holo serve : ${images}, façades montrées : ${shown} ; lecteur d'écran : ${buttons.join(" | ")} ; téléphone : ${phoneSize} ; au clavier, la façade « ${focusedFacade} », puis Entrée : cadre ${mapFrame} (${mapAttributes}), le clavier dedans : ${inside}, la touche k reçue : ${typed} ; la fausse carte voit : ${JSON.stringify(mapSaid)} ; au doigt, la vidéo : ${fingerFrame} (${JSON.stringify(videoSaid)}) ; arrivé à l'autre site : ${reached.join(" ; ") || "rien"} ; la page de l'auteur reste : ${stayed} ; un cadre non listé : ${refused || "pas refusé"} ; une adresse de la même origine : sandbox « ${sameOrigin} » ; sans JavaScript : ${links} (${linkNames}) ; boutons et cadres : ${withoutScript}, demandes : ${afterLinks} ; axe-core : ${faults.join(", ") || "aucun défaut, avant et après le toucher"}`];
     } finally {
       await b.send("Fetch.disable");
       b.on("Fetch.requestPaused", null);
