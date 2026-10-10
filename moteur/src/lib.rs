@@ -48,8 +48,14 @@ pub mod rules;
 pub mod repeat;
 // Réordonner les lignes d'une liste (ADR-105) : Repeat(over: tasks, reorder: true).
 pub mod reorder;
+// Les filtres d'image dans les styles (ADR-108) : grayscale, blur, brightness… et backdrop-blur.
+pub mod filters;
 pub mod shared;
 pub mod styles;
+// Travailler un texte (ADR-103) : {code:upper}, {message:length}, {bio:max40}, Split ; et la table
+// des lettres d'Unicode, pour les compter comme une personne.
+pub mod graphemes;
+pub mod text;
 pub mod universe;
 pub mod view;
 // La mémoire de visite (ADR-113) : visit: [prenom], d'une page à l'autre du site, dans l'onglet.
@@ -502,7 +508,10 @@ fn write_all(program: &Program, numbers: &state::State, texts: &state::Texts, li
     let mut totals = totals;
     totals.extend(computed::days_values(program, texts));
     let totals = state::write(&totals);
-    [state::write(&state::to_show(program, numbers)), state::write_texts(texts), lists::write(lists), computed, totals, sounds].into_iter().filter(|chunk| !chunk.is_empty()).collect::<Vec<_>>().join(";")
+    // Les textes travaillés (ADR-103) : `code:upper='ADA`, `message:length=12`, que la page montre
+    // telles quelles ; jamais relus.
+    let worked = text::written(program, texts);
+    [state::write(&state::to_show(program, numbers)), state::write_texts(texts), lists::write(lists), computed, totals, worked, sounds].into_iter().filter(|chunk| !chunk.is_empty()).collect::<Vec<_>>().join(";")
 }
 
 /// Les valeurs d'une page à leur départ, écrites `cart=0;likes=3`, suivies de celles que le

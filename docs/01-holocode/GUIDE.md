@@ -298,6 +298,7 @@ Réglages connus :
 | `box-shadow`, `text-shadow` | Décalage, flou, couleur : `0 4px 12px #00000066` ; trois au plus ; ou `none` |
 | `rotate`, `scale` | Une pose : `-3deg` ; `1.05` |
 | `transition` | La durée du passage d'une allure à l'autre : `0.3s` ; ou `none` |
+| `grayscale`, `saturate`, `brightness`, `contrast`, `hue`, `blur`, `backdrop-blur` | Les filtres d'image (`ADR-108`), sur une image, une forme ou un dessin : un réglage par effet, `grayscale: 1`, `brightness: 0.6`, `blur: 3px` ; `backdrop-blur` sur une fenêtre ; voir « 6 undequinquagies » |
 
 **Les variables.** Une couleur ou une taille nommée une fois, dans le style de `Page`, puis employée partout, sans `var( )` :
 
@@ -2003,6 +2004,46 @@ Page(
 
 La leçon est `125-des-nombres-negatifs.holo`.
 
+## 6 quaterquadragies. Travailler un texte : des majuscules, sa longueur, le couper, le découper
+
+Un compteur sous un message, un code en capitales, l'aperçu d'un texte long, des étiquettes écrites d'une traite (`ADR-103`).
+
+```holo
+Page(
+  title: "Message",
+  state: State(code: "ab-12", message: "", keywords: "art, painting, Paris", posts: []),
+  computed: [
+    Split(name: tags, from: keywords, by: ","),
+    Split(name: words, from: message, by: " "),
+  ],
+  children: [
+    Input(value: code, label: "Your discount code"),
+    P("Printed as: {code:upper}"),
+    Input(value: message, label: "Your message", lines: 3, max: 140),
+    P("{message:length} characters out of 140, {words} word(s)."),
+    P("Preview: {message:max40}"),
+    Button(name: Publish, text: "Publish"),
+    Repeat(over: posts, children: [ P("{item:max40}") ]),
+    Input(value: keywords, label: "Keywords, separated by commas"),
+    P("{tags} tag(s)"),
+    Repeat(over: tags, children: [ Text("#{item:lower}") ]),
+  ],
+  rules: [ On(Publish.tap, effect: posts.push(message)) ],
+)
+```
+
+- **`{code:upper}`**, **`{code:lower}`** : le texte en majuscules, en minuscules, dans la langue de la page : « ß » devient « SS » ; en turc et en azéri (`Page(lang: "tr")`), « i » devient « İ » ; en grec, les accents tombent en majuscules. Ce que le visiteur a écrit ne change pas : seulement ce qu'on montre. Pour l'allure d'un bloc entier, le style `text-transform: uppercase` suffit.
+- **`{message:length}`** : le nombre de caractères, comme une personne les compte. 👍🏽, 🇫🇷, 👨‍👩‍👧, « é » écrit en deux morceaux et « क्षि » comptent chacun pour un, comme `Intl.Segmenter` (en JavaScript, `"👍".length` vaut 2).
+- **`{message:max40}`** : au plus 40 caractères, « … » compris, de `max2` à `max2000`. Plus long, le texte est coupé à la fin d'un mot quand on garde ainsi au moins la moitié de la place, sinon au milieu du mot, jamais au milieu d'une lettre ; « … » dit qu'il continue.
+- **Partout où un texte se montre** : dans une phrase, dans le titre de l'onglet (`Page(title: "Code {code:upper}")`), dans les lignes d'une liste pour un champ (`{item.title:max40}`) ou pour le texte de l'élément (`{item:upper}`), et sans JavaScript, avec `holo serve`.
+- **`Split(name: tags, from: keywords, by: ",")`**, dans `computed: [ … ]` : le texte découpé en liste, qui le suit pendant qu'on écrit. Chaque morceau perd ses blancs autour ; les morceaux vides sont oubliés ; deux cents au plus. `{tags}` compte les morceaux ; `Repeat(over: tags)` les montre ; un `Filter(from: tags, …)` écrit après lui les trie ou les cherche.
+- **`by:`** : `","` coupe aux virgules de toutes les écritures (« 北京，上海、广州 » donne trois morceaux) ; `";"` aux points-virgules ; `" "` aux blancs (des mots : `{words}` les compte) ; `lines` à chaque ligne d'un texte long ; un autre texte, de un à dix signes, tel qu'il est écrit, `by: " - "`.
+- La valeur montrée a son propre nom dans l'état, `code:upper`, `message:length` : `?values` la montre ; l'arbitre ne la relit jamais.
+- Refusés, avec la raison : un format de texte sur un nombre, une liste (son nombre s'écrit `{tasks}`) ou une date ; `{code:uppercase}` (écris `upper`), `{bio:max1}` ; `{item:upper}` hors d'une répétition ; un `Split` sans `from` ou sans `by`, un séparateur vide, un `from` qui n'est pas un texte ; changer ou réordonner une liste découpée (on change son texte).
+- Pas encore : une condition sur une longueur ; la limite d'un champ (`max:`) compte encore les signes écrits, un émoji peut y compter pour plus d'un.
+
+La leçon est `126-travailler-un-texte.holo`.
+
 ## 6 quinquadragies. Une grille qui place ses cases : plusieurs colonnes, des zones
 
 Une case plus grande que les autres, et une page dessinée avec des mots (`ADR-104`).
@@ -2104,6 +2145,43 @@ Page(
 - Refusés : `Share.write` (un partage s'ouvre, il ne s'écrit pas) ; `value:` (le partage ne rend rien à la page).
 
 La leçon est `130-partager-la-page.holo`.
+
+## 6 undequinquagies. Des filtres d'image : gris, flou, luminosité
+
+Une photo en gris qui reprend ses couleurs au survol, une image assombrie sous un titre, la page qui devient floue derrière une fenêtre (`ADR-108`).
+
+```holo
+Page(
+  title: "The lake",
+  children: [
+    H1("The lake"),
+    Image.gray(source: "lake.jpg", alt: "The lake at dawn"),
+    Stack(children: [
+      Image.dimmed(source: "lake.jpg", alt: ""),
+      H2("The lake, at dawn"),
+    ]),
+    Button(name: Open, text: "Open"),
+    Dialog(name: Window, children: [ P("Behind, the page is blurred."), Button(name: Close, text: "Close") ]),
+  ],
+  rules: [ On(Open.tap, effect: Window.open), On(Close.tap, effect: Window.close) ],
+)
+
+.gray { grayscale: 1; transition: 0.4s; hover: { grayscale: 0; } active: { grayscale: 0; } }
+.dimmed { brightness: 0.5; }
+Dialog { backdrop-blur: 6px; }
+```
+
+- **Six réglages**, dans un style comme dans ses états : `grayscale` (de 0, les couleurs, à 1, tout gris), `saturate` (de 0 à 3 ; 1 ne change rien), `brightness` (de 0.2 à 3 ; 1 ne change rien, moins assombrit, plus éclaircit), `contrast` (de 0.2 à 3), `hue` (un angle : les couleurs tournent sur le cercle des teintes, comme dans `Enter`), `blur` (de 0 à 100px). Ce sont les mots du CSS, et des nombres comme `opacity` : jamais `100%`.
+- **Sur une image, une forme ou un dessin** (`Image`, `Shape`, `Drawing`), qui ne portent pas de texte. Jamais sur un bloc qui porte un texte ou un bouton (un paragraphe, une carte, un composant) : assombri ou flou, il se lirait mal, et le contraste vérifié (`ADR-055`) deviendrait faux. Les couleurs d'un texte se changent par `color` et `background`. Jamais sur une vidéo non plus : ses commandes et ses sous-titres seraient filtrés avec elle.
+- **Chaque réglage est à part.** `hover: { grayscale: 0; }` rend les couleurs et garde le flou écrit à côté : le moteur compose les réglages en un seul `filter`, toujours dans le même ordre (gris, saturation, luminosité, contraste, teinte, flou). En CSS, `filter` est une liste, et un état qui en change un l'efface entière.
+- **`backdrop-blur: 6px`**, sur une fenêtre (`Dialog`) : la page, derrière elle, devient floue, en plus de s'assombrir. Il s'écrit dans le style de la fenêtre lui-même, pas dans un état.
+- **Au clavier**, une forme filtrée qu'on touche se montre sans filtre quand elle a le focus : son cadre de focus reste net (un flou le brouillerait, une luminosité basse l'effacerait). Un filtre écrit dans `focus:` est donc refusé.
+- Le passage d'une allure à l'autre (`transition`, ou le survol et l'appui) adoucit aussi les filtres ; un visiteur qui demande moins de mouvement ne voit pas de passage. Le survol n'existe qu'avec une souris : au doigt, l'état `active:` (pendant l'appui) fait la même chose.
+- C'est du CSS : sans JavaScript, la page fabriquée par le serveur est filtrée de la même façon.
+- Refusés, avec le bon mot : `filter` et `backdrop-filter` écrits comme en CSS ; une valeur hors des bornes ou en `%` ; un filtre sur un texte, un bouton ou une vidéo ; un filtre au focus ; `backdrop-blur` ailleurs que sur une fenêtre.
+- Pas encore : `sepia`, `invert`, une ombre qui suit la forme (`drop-shadow`), le verre dépoli sur un bloc posé sur une image ; dans `Enter` et `Loop`, seuls le flou et la teinte bougent.
+
+La leçon est `131-des-filtres-d-image.holo`.
 
 ## 6 unquinquagies. Faire vibrer le téléphone : `Device(kind: vibration)`
 
@@ -2952,6 +3030,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | L'approche d'un personnage, en profondeur | aucun | à faire |
 | Écrire une fois, répéter pour chaque élément | `Repeat(items: [ Item(…) ], children: [ … ])`, `item` | fait |
 | Une couleur nommée, le thème sombre, le téléphone | `--or`, `dark: { … }`, `phone: { … }` | fait |
+| Un filtre d'image : gris, saturation, luminosité, contraste, teinte, flou ; la page floue derrière une fenêtre | `grayscale`, `saturate`, `brightness`, `contrast`, `hue`, `blur` dans le style d'une image, d'une forme, d'un dessin ; `backdrop-blur` dans celui d'une `Dialog` | fait (`ADR-108`) |
 | Sa propre police | `fonts: [ Font(family:, source:) ]` | fait |
 | Une police du moteur, pour toutes les écritures | `fonts: [ Font(family: "Inter") ]` | fait (`ADR-092`) |
 | Envoyer un formulaire | `Form(name:)`, `Contact.send`, `sent`, `failed` | fait |
@@ -2968,6 +3047,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Multiplier, diviser | les demandes `mul`, `div` | fait |
 | Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait |
 | Une valeur qui descend sous zéro : une température, un solde | `negative: [temperature]`, et le signe moins de la langue de la page | fait (`ADR-102`) |
+| Travailler un texte : des majuscules, sa longueur, le couper, le découper en liste | `{code:upper}`, `{code:lower}`, `{message:length}`, `{bio:max40}`, `Split(name:, from:, by:)` | fait (`ADR-103`) |
 | Une liste qui change pendant la visite | `State(tasks: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` | fait |
 | Une liste d'articles à champs, aussi reçue du serveur | `State(articles: [ Item(…) ])`, `{item.title}`, `push(Item(…))`, `Data` | fait |
 | Une valeur partagée par tous les visiteurs, vue en direct | `shared: Shared(seats: 20)`, `seats.sub(1)` par un toucher | fait |
@@ -2994,6 +3074,7 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 - Pour les capacités du navigateur (`ADR-093` à `ADR-096`) : la caméra ne prend pas de photo, le microphone ne donne pas de son ; pas de rappel après la fermeture de la page (il faudrait un serveur de « push ») ; pas d'import en CSV ni par glisser-déposer ; pas de copie hors-ligne d'une page qui a un compte, un formulaire ou des valeurs partagées, ni d'envoi mis en attente.
 - Pour les listes de définitions (`ADR-097`) : pas de liste de termes qui change pendant la visite (`Repeat(over:)`), ni de définition faite de plusieurs paragraphes.
 - Pour les nombres négatifs (`ADR-102`) : une glissière, une valeur partagée, l'adresse et un fichier exporté ne prennent pas encore de nombre négatif.
+- Pour les textes (`ADR-103`) : une condition sur une longueur ; une limite de champ (`max:`) qui compte les lettres comme `{message:length}` ; rejoindre une liste en un texte.
 - Pour les valeurs : une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.

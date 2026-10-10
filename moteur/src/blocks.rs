@@ -4,7 +4,7 @@
 use crate::holo::{Block, Error, Program, Value};
 
 /// `Text` est du texte sans rôle ; `P`, `H1`, `H2` et `H3` sont un `Text` avec un rôle (ADR-020).
-pub const BLOCKS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Component", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop", "H4", "H5", "H6", "Main", "Nav", "Header", "Footer", "Aside", "Stack", "Video", "Table", "Choice", "After", "Repeat", "Item", "Font", "Slider", "Progress", "Details", "Dialog", "Form", "Module", "Filter", "Days", "Drawing", "Rect", "Circle", "Line", "Path", "Chart", "Shared", "Stopwatch", "Transfer", "Device", "Notification", "Offline", "Term", "Address", "Abbreviation", "Fields", "Embed"];
+pub const BLOCKS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Component", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop", "H4", "H5", "H6", "Main", "Nav", "Header", "Footer", "Aside", "Stack", "Video", "Table", "Choice", "After", "Repeat", "Item", "Font", "Slider", "Progress", "Details", "Dialog", "Form", "Module", "Filter", "Days", "Drawing", "Rect", "Circle", "Line", "Path", "Chart", "Shared", "Stopwatch", "Transfer", "Device", "Notification", "Offline", "Term", "Address", "Abbreviation", "Fields", "Embed", "Split"];
 
 /// Le titre le plus profond : `H6`, comme en HTML (correction d'ADR-020 du 2026-10-06 ; les
 /// longs documents en ont besoin). Le numéro dit toujours la place dans le plan, jamais la taille.
@@ -98,6 +98,8 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     ("Device", &["name", "label", "kind", "value", "for"]),
     ("Notification", &["name", "label", "title", "body", "after"]),
     ("Offline", &["name", "label", "files"]),
+    // Un texte découpé en liste (ADR-103) : Split(name: tags, from: keywords, by: ",").
+    ("Split", crate::text::SPLIT_PARAMS),
     // Une page dans la page (ADR-117) : son adresse, son titre, l'image de sa façade.
     ("Embed", &["name", "from", "label", "image"]),
 ];
@@ -125,6 +127,10 @@ fn check_settings(block: &Block, parent: &str) -> Result<(), Error> {
             // Un nom de bloc commence par une majuscule, comme un bloc : ce qu'on touche a une
             // majuscule, ce qui change (une valeur) n'en a pas. `Filter(name: found)` nomme une
             // liste, donc une valeur : en minuscules (lot 2 du web).
+            // Un texte découpé nomme aussi une liste (ADR-103) : `Split(name: tags)`.
+            if name == "name" && block.name == "Split" {
+                continue;
+            }
             if name == "name" && block.name != "Filter" && block.name != "Days" {
                 if let crate::holo::Value::Name(given) = &argument.value {
                     if given.starts_with(|c: char| c.is_ascii_lowercase()) || given.contains('_') {

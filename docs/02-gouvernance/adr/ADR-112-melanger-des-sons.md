@@ -1,6 +1,6 @@
 # ADR-112 — Mélanger des sons : plusieurs à la fois, un fondu (`fade:`), un volume qui suit une valeur (`volume: pluie`)
 
-- Statut : ACCEPTÉ (Yocthan, 2026-10-09 : « tu le valides déjà, tu le fais déjà »)
+- Statut : ACCEPTÉ (Yocthan, 2026-10-09 : « tu le valides déjà, tu le fais déjà » ; essayé et validé par Yocthan le 2026-10-10 : « je viens de faire tous les essais et je valide »)
 - Date : 2026-10-09
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'issue #241 (« Dernière dette du web : mélanger des sons ») ; le grand tableau du web, où le son était « en partie » : `Sound(volume:, loop:)`, `play`, `stop` (`ADR-031`, `ADR-061`).

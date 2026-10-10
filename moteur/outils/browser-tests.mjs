@@ -1425,6 +1425,84 @@ const tests = [
       served.stop();
     }
   }],
+  ["travailler un texte : des majuscules dans la langue, les caractères comptés comme Intl.Segmenter, un aperçu coupé, découper ; sans JavaScript aussi (leçon 126, serve)", async (p, b) => {
+    const lesson = "126-travailler-un-texte.holo";
+    const faults = [];
+    const check = (name, ok, seen) => { if (!ok) faults.push(`${name} : ${seen}`); };
+    const shown = (q, key) => q.value(`document.querySelector('[data-state="${key}"]')?.textContent ?? "(absent)"`);
+    const tags = (q) => q.value(`[...document.querySelectorAll('[data-list="tags"] .holo-Text')].map((t) => t.textContent).join(" ")`);
+    // Écrire dans un champ comme une main : le choisir, tout sélectionner, taper.
+    const write = async (bind, text) => {
+      await p.value(`(() => { const f = document.querySelector('[data-bind="${bind}"]'); f.focus(); f.select(); return true; })()`);
+      await b.send("Input.insertText", { text });
+      await pause(250);
+    };
+    // 1. La page fabriquée par le serveur montre déjà les textes travaillés, avant le moteur.
+    await p.open(`/exemples/lecons/${lesson}`);
+    const start = [await shown(p, "code:upper"), await shown(p, "message:length"), await shown(p, "message:max40"), await shown(p, "words"), await tags(p)];
+    check("au départ", start.join(" | ") === "AB-12 | 71 | Bonjour à tous, voici mon premier… | 13 | #art #peinture #paris", start.join(" | "));
+    // 2. Le visiteur écrit : la valeur montrée suit ; ce qu'il a écrit reste tel quel dans le champ.
+    await write("code", "straße");
+    const upper = await p.until(`document.querySelector('[data-state="code:upper"]').textContent === "STRASSE"`, 20000);
+    check("majuscules", upper && (await p.value(`document.querySelector('[data-bind="code"]').value`)) === "straße", await shown(p, "code:upper"));
+    // 3. Les caractères comptés comme Intl.Segmenter les compte, et non comme JavaScript (« .length »).
+    const corpus = ["👍🏽🇫🇷", "été", "👨‍👩‍👧 et 🏴󠁧󠁢󠁳󠁣󠁴󠁿", "क्षि नमस्ते", "한국어 한", "مَرْحَبًا", "தமிழ் กำ", "deux\nlignes"];
+    const counted = [];
+    for (const text of corpus) {
+      await write("message", text);
+      const expected = await p.value(`[...new Intl.Segmenter("fr", { granularity: "grapheme" }).segment(document.querySelector('[data-bind="message"]').value)].length`);
+      await p.until(`document.querySelector('[data-state="message:length"]').textContent === "${expected}"`, 3000);
+      const engine = await shown(p, "message:length");
+      const js = await p.value(`document.querySelector('[data-bind="message"]').value.length`);
+      counted.push(`${JSON.stringify(text)} ${engine}/${expected} (JS ${js})`);
+      check(`compté ${JSON.stringify(text)}`, engine === String(expected), `${engine} au lieu de ${expected}`);
+    }
+    // 4. L'aperçu, au plus 40 caractères « … » compris, ne coupe jamais une lettre en deux.
+    await write("message", "é".repeat(50));
+    await p.until(`document.querySelector('[data-state="message:max40"]').textContent.endsWith("…")`, 3000);
+    const cut = await p.value(`(() => { const t = document.querySelector('[data-state="message:max40"]').textContent; const s = [...new Intl.Segmenter("fr", { granularity: "grapheme" }).segment(t)].map((x) => x.segment); return [s.length, s.slice(0, -1).every((x) => x === "é"), s.at(-1)]; })()`);
+    check("aperçu coupé entre deux lettres", cut[0] === 40 && cut[1] && cut[2] === "…", JSON.stringify(cut));
+    // 5. Publier : la ligne montre l'aperçu de l'élément, coupé à la fin d'un mot.
+    await write("message", "Un message assez long pour être coupé à la fin d'un mot, voici la suite.");
+    await p.click('[data-name="Publish"]');
+    const posted = await p.until(`document.querySelector('[data-list="posts"] .holo-P')?.textContent === "Un message assez long pour être coupé à…"`, 5000);
+    check("une ligne publiée, coupée", posted, await p.value(`document.querySelector('[data-list="posts"]')?.textContent`));
+    // 6. Découper : les virgules du chinois aussi ; les morceaux vides oubliés ; le compte suit.
+    await write("keywords", "北京，上海、 广州,,");
+    const split = await p.until(`document.querySelector('[data-state="tags"]').textContent === "3"`, 3000);
+    check("découpé", split && (await tags(p)) === "#北京 #上海 #广州", `${await shown(p, "tags")} : ${await tags(p)}`);
+    // 7. Rien d'annoncé à chaque lettre : aucune zone vivante autour des valeurs montrées.
+    const live = await p.value(`[...document.querySelectorAll('[data-state*=":"]')].filter((e) => e.closest("[aria-live], [role=status], [role=alert], [role=log]")).length`);
+    check("pas de zone vivante", live === 0, `${live} valeur(s) dans une zone vivante`);
+    check("aucune erreur", b.errors.length === 0, b.errors.join(" | "));
+    // L'audit axe-core, quand sa copie locale est là (GitHub l'installe).
+    let audit = "axe-core absent ici";
+    const axeFile = join(engine, "node_modules", "axe-core", "axe.min.js");
+    if (existsSync(axeFile)) {
+      await p.value(readFileSync(axeFile, "utf8") + "\n;0");
+      audit = await p.value(`axe.run(document, { resultTypes: ["violations"] }).then((r) => r.violations.map((v) => v.id).join(", "))`);
+      check("axe-core", audit === "", audit);
+      audit = audit || "zéro défaut";
+    }
+    // 8. Sans JavaScript, avec holo serve : le champ part au serveur avec « Publier », et la page
+    // revient avec les textes travaillés par le même moteur.
+    const served = await startHoloServe([lesson]);
+    const q = page(b, served.base);
+    let withoutScript = [];
+    try {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+      await q.open(`/${lesson}`, 300);
+      await q.value(`(() => { document.querySelector('[data-bind="code"]').value = "istanbul ılık"; document.querySelector('[data-bind="keywords"]').value = "Un, DEUX ,trois"; return true; })()`);
+      await q.click('[data-name="Publish"]');
+      await q.until(`document.readyState === "complete" && document.querySelector('[data-state="code:upper"]')?.textContent === "ISTANBUL ILIK"`, 5000);
+      withoutScript = [await shown(q, "code:upper"), await shown(q, "tags"), await tags(q), await q.value(`document.querySelector('[data-list="posts"] .holo-P')?.textContent ?? ""`)];
+    } finally {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      served.stop();
+    }
+    check("sans JavaScript", withoutScript.join(" | ") === "ISTANBUL ILIK | 3 | #un #deux #trois | Bonjour à tous, voici mon premier…", withoutScript.join(" | "));
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : `au départ : ${start.join(" | ")} ; « straße » → STRASSE ; compté comme Intl.Segmenter : ${counted.join(", ")} ; aperçu de « é » × 50 : ${cut[0]} lettres, jamais coupées ; publié, coupé à la fin d'un mot ; « 北京，上海、 广州,, » → 3 étiquettes ; aucune zone vivante ; axe-core : ${audit} ; sans JavaScript : ${withoutScript.join(" | ")}`];
+  }],
   ["un module venu d'ailleurs : son empreinte vérifiée par le navigateur avant chaque lancement, même sur une adresse du réseau local ; holo serve le télécharge une fois, jamais le navigateur ; ce qui demande plus que sa mémoire est refusé ; sa licence dite aux visiteurs (leçon 141, serve)", async (p, b) => {
     // ADR-118. Un faux « autre site » sur ce PC, qui note chaque demande reçue : holo serve ne
     // l'atteint que par l'interrupteur des essais (HOLO_TEST_ONLY_INSECURE_SITE=modules.test:<port>).
@@ -2808,6 +2886,68 @@ const tests = [
       served.stop();
     }
     return [faults.length === 0, faults.length ? faults.join("\n      ") : "sans JavaScript, deux touchers gardés ; avec, les mêmes valeurs ; la copie prête, avec celles d'un premier visiteur ; sous le service worker, la page passe par lui, le direct et le geste partagé à côté"];
+  }],
+  ["des filtres d'image : gris, puis les couleurs sous la souris ; assombri, vif, flou ; sans filtre au focus du clavier ; la page floue derrière une fenêtre ; sans JavaScript aussi (leçon 131)", async (p, b) => {
+    // ADR-108 : un réglage par effet, composés par le moteur en un seul `filter`, sur une image,
+    // une forme ou un dessin ; au focus du clavier, le bloc se montre sans filtre ; `backdrop-blur`
+    // sur une fenêtre floute la page derrière elle (son `::backdrop`).
+    const lesson = "/exemples/lecons/131-des-filtres-d-image.holo";
+    const filter = (q, selector) => q.value(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); return e ? getComputedStyle(e).filter : "absent"; })()`);
+    await p.open(lesson);
+    const gray = await filter(p, ".holo-s-gris");
+    const dim = await filter(p, ".holo-s-sombre");
+    const vivid = await filter(p, ".holo-s-vive");
+    const blurred = await filter(p, ".holo-s-floue");
+    // Le passage d'une allure à l'autre couvre aussi le filtre.
+    const eased = await p.value(`document.querySelector(".holo-s-gris") ? getComputedStyle(document.querySelector(".holo-s-gris")).transitionProperty : "absent"`);
+    // La souris se pose sur l'image grise : elle reprend ses couleurs, en douceur.
+    const box = await p.value(`(() => { const e = document.querySelector(".holo-s-gris"); if (!e) return null; const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+    // Le survol n'existe qu'avec une souris (`@media (hover:hover)`, ADR-036). Chrome sans écran,
+    // sous Linux (ce conteneur, les machines de GitHub), dit n'en avoir aucune, et le protocole ne
+    // sait pas lui en donner une (`Emulation.setEmulatedMedia` n'y change rien) : sans souris, on
+    // lit la règle du survol dans la feuille de style de la page.
+    const mouse = await p.value(`matchMedia("(hover: hover)").matches`);
+    let colored = false;
+    if (box && mouse) {
+      await b.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: box[0], y: box[1] });
+      colored = await p.until(`getComputedStyle(document.querySelector(".holo-s-gris")).filter === "grayscale(0)"`, 5000);
+      await b.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
+      await p.until(`getComputedStyle(document.querySelector(".holo-s-gris")).filter === "grayscale(1)"`, 5000);
+    } else if (box) {
+      colored = await p.value(`[...document.styleSheets].some((sheet) => [...sheet.cssRules].some((rule) => rule.media?.mediaText === "(hover: hover)" && [...rule.cssRules].some((inner) => inner.selectorText === ".holo-s-gris:hover" && inner.style.filter === "grayscale(0)")))`);
+    }
+    // Au clavier : l'image grise, rendue atteignable comme une forme qu'on touche, reçoit le focus
+    // par Tab ; elle se montre alors sans filtre, son cadre de focus net. La souris est partie.
+    let focused = "pas atteinte";
+    if (box) {
+      await p.value(`(() => { const e = document.querySelector(".holo-s-gris"); e.tabIndex = 0; document.activeElement?.blur(); return true; })()`);
+      for (let i = 0; i < 40 && !(await p.value(`document.activeElement === document.querySelector(".holo-s-gris")`)); i++) await p.key("Tab", "Tab", 9);
+      if (await p.value(`document.activeElement === document.querySelector(".holo-s-gris")`)) {
+        await p.until(`getComputedStyle(document.querySelector(".holo-s-gris")).filter === "none"`, 3000);
+        focused = await p.value(`(() => { const e = document.querySelector(".holo-s-gris"); return (e.matches(":focus-visible") ? "focus-visible, " : "focus sans cadre, ") + getComputedStyle(e).filter; })()`);
+      }
+    }
+    // La fenêtre s'ouvre : derrière elle, la page est floue.
+    let opened = false;
+    let behind = "absent";
+    if (await p.value(`!!document.querySelector('[data-name="Ouvrir"]')`)) {
+      await p.click('[data-name="Ouvrir"]');
+      opened = await p.until(`!!document.querySelector("dialog[open]")`, 10000);
+      behind = await p.value(`(() => { const d = document.querySelector("dialog.holo-Dialog"); return d ? getComputedStyle(d, "::backdrop").backdropFilter : "absent"; })()`);
+    }
+    // Sans JavaScript : la page fabriquée par le serveur porte les mêmes filtres.
+    let withoutScript = "absent";
+    try {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+      await p.open(lesson, 300);
+      withoutScript = `${await filter(p, ".holo-s-gris")} | ${await filter(p, ".holo-s-sombre")} | ${await filter(p, ".holo-s-floue")}`;
+    } finally {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+    }
+    const ok = gray === "grayscale(1)" && colored && dim === "brightness(0.6) contrast(1.2)" && vivid === "saturate(1.8) hue-rotate(30deg)" && blurred === "blur(3px)"
+      && eased.includes("filter") && focused === "focus-visible, none" && opened && behind === "blur(6px)"
+      && withoutScript === "grayscale(1) | brightness(0.6) contrast(1.2) | blur(3px)";
+    return [ok, `gris : ${gray}, sous la souris : ${mouse ? (colored ? "grayscale(0)" : "resté gris") : (colored ? "pas de souris dans ce Chrome, la règle du survol lue : grayscale(0)" : "pas de souris dans ce Chrome, et pas de règle du survol")} ; assombri : ${dim} ; vif : ${vivid} ; flou : ${blurred} ; transition : ${eased} ; au focus du clavier : ${focused} ; fenêtre ${opened ? "ouverte" : "fermée"}, derrière : ${behind} ; sans JavaScript : ${withoutScript}`];
   }],
 ];
 

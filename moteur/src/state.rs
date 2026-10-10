@@ -1031,7 +1031,7 @@ fn without_fields(text: &str) -> String {
             return output;
         };
         let inside = &after[1..end];
-        if inside != "item" && !inside.starts_with("item.") {
+        if inside != "item" && !inside.starts_with("item.") && !inside.starts_with("item:") {
             output.push_str(&after[..=end]);
         }
         remainder = &after[end + 1..];
@@ -2163,8 +2163,20 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                     }
                     continue;
                 }
+                // Un texte travaillé (ADR-103) : upper, lower, length, max40, sur un texte de la page,
+                // ou sur le texte de l'élément d'une ligne (`{item:upper}`, vérifié plus bas).
+                if crate::text::is_format(format) {
+                    if is_text(name) || name == "item" {
+                        continue;
+                    }
+                    let sort = if crate::lists::is_list(program, name) { format!("une liste ; son nombre d'éléments s'écrit {{{name}}}") } else { "un nombre".to_string() };
+                    return Err(Error { message: format!("« {{{name}:{format}}} » : « {name} » est {sort} ; upper, lower, length et max40 travaillent un texte"), pos });
+                }
+                if let Some(message) = crate::text::misspelled(name, format) {
+                    return Err(Error { message, pos });
+                }
                 if !crate::format::is_format(format) {
-                    return Err(Error { message: format!("« {{{name}:{format}}} » : format inconnu ; formats possibles : 00 (zéros devant), number (1 234), cents (12,50), name (le nom du jour ou du mois)"), pos });
+                    return Err(Error { message: format!("« {{{name}:{format}}} » : format inconnu ; formats possibles : 00 (zéros devant), number (1 234), cents (12,50), name (le nom du jour ou du mois) ; pour un texte : upper, lower, length, max40"), pos });
                 }
                 if format == "name" && name != "weekday" && name != "month" {
                     return Err(Error { message: format!("« {{{name}:name}} » : seuls weekday et month ont un nom (mardi, octobre)"), pos });
@@ -2194,15 +2206,21 @@ pub fn check_state(program: &Program) -> Result<State, Error> {
                         _ => {}
                     }
                     if let Some(f) = format {
-                        if !crate::format::is_format(&f) || f == "name" {
-                            return Err(Error { message: format!("« {{item.{field}:{f}}} » : format inconnu ; pour un champ : 00, number, cents"), pos });
+                        if (!crate::format::is_format(&f) || f == "name") && !crate::text::is_format(&f) {
+                            return Err(Error { message: format!("« {{item.{field}:{f}}} » : format inconnu ; pour un champ : 00, number, cents, ou pour un texte : upper, lower, length, max40"), pos });
                         }
+                    }
+                }
+                // Le texte de l'élément, travaillé (ADR-103) : `{item:upper}`, `{item:max20}`.
+                for (name, format) in crate::format::formats_in(text) {
+                    if name == "item" && !crate::text::is_format(format) {
+                        return Err(Error { message: crate::text::misspelled(name, format).unwrap_or_else(|| format!("« {{item:{format}}} » : pour le texte de l'élément, les formats sont upper, lower, length et max40")), pos });
                     }
                 }
             }
             let text = if in_model { without_fields(text) } else { text.to_string() };
             let text = text.as_str();
-            if text.contains("{item.") || text.contains("{item}") {
+            if text.contains("{item.") || text.contains("{item}") || text.contains("{item:") {
                 return Err(Error { message: "« {item…} » montre un champ de l'élément : il n'a de sens que dans une répétition, Repeat(items: [ … ], children: [ … ])".into(), pos });
             }
             names_in(text).into_iter().find(|name| !showable.iter().any(|(known, _)| known == name)).map_or(Ok(()), |name| {
