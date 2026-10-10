@@ -324,7 +324,8 @@ pub fn check_wasm(bytes: &[u8], pages: u64) -> Result<Offer, String> {
                         let what = match kind {
                             0x00 => "une fonction",
                             0x01 => "une table",
-                            0x02 => "une seconde mémoire",
+                            0x02 if memory => "une seconde mémoire",
+                            0x02 => "une mémoire, sous un autre nom que env.memory",
                             0x03 => "une valeur globale",
                             _ => "une chose inconnue",
                         };
@@ -854,7 +855,7 @@ pub(crate) mod foreign_tests {
             (module(vec![one_number()], vec![memory(1), import("env", "g", &[0x03, 0x7f, 0x00])], vec![], vec![export("run", 0)]), "« env.g » (une valeur globale)"),
             (module(vec![one_number()], vec![memory(1), import("env", "t", &[0x01, 0x70, 0x00, 0x01])], vec![], vec![export("run", 0)]), "« env.t » (une table)"),
             (module(vec![one_number()], vec![memory(1), memory(1)], vec![], vec![export("run", 0)]), "(une seconde mémoire)"),
-            (module(vec![one_number()], vec![import("autre", "memory", &[0x02, 0x00, 0x01])], vec![], vec![export("run", 0)]), "« autre.memory »"),
+            (module(vec![one_number()], vec![import("autre", "memory", &[0x02, 0x00, 0x01])], vec![], vec![export("run", 0)]), "« autre.memory » (une mémoire, sous un autre nom que env.memory)"),
             (module(vec![one_number()], vec![], vec![(5, items(&[vec![0x00, 0x01]]))], vec![export("run", 0)]), "fabrique sa propre mémoire"),
             (module(vec![one_number()], vec![memory(17)], vec![], vec![export("run", 0)]), "au moins 17 pages"),
             (module(vec![one_number()], vec![import("env", "memory", &[0x02, 0x01, 0x01, 0x02])], vec![], vec![export("run", 0)]), "au plus 2 pages"),

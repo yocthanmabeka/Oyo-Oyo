@@ -1887,13 +1887,14 @@
       // fichier qui diffère. Il le fait aussi sur une adresse du réseau local (http://192.168.…),
       // où crypto.subtle n'existe pas. La copie vient toujours du site de l'auteur.
       const address = folderOf(path) + file;
-      const response = await fetch(address, integrity ? { integrity } : {}).catch(async () => {
-        // Refusé : si le fichier est bien là, c'est qu'il a changé.
-        if (integrity && (await fetch(address, { method: "HEAD" }).then((r) => r.ok, () => false))) {
-          result = { ok: false, reason: "l'empreinte ne correspond pas : ce fichier n'est pas celui que l'auteur a vérifié ; il n'est pas lancé", why: "changed" };
-        }
-        return null;
-      });
+      const read = () => fetch(address, integrity ? { integrity } : {}).catch(() => null);
+      let response = await read();
+      // Refusé, et pourtant le fichier est là : une seconde lecture dit s'il manquait encore (holo
+      // serve venait de le ranger) ou s'il a changé.
+      if (!response && integrity && (await fetch(address, { method: "HEAD" }).then((r) => r.ok, () => false))) {
+        response = await read();
+        if (!response) result = { ok: false, reason: "l'empreinte ne correspond pas : ce fichier n'est pas celui que l'auteur a vérifié ; il n'est pas lancé", why: "changed" };
+      }
       // Un module de 4 Mo au plus : au-delà, il n'est pas téléchargé plus loin.
       const bytes = response?.ok ? await readCapped(response, 4e6) : null;
       // La boîte lit le fichier avant de le lancer : rien d'autre que sa mémoire (ADR-118).

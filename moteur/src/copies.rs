@@ -11,8 +11,8 @@
 
 use std::collections::HashMap;
 use std::io::{Read, Write};
-use std::path::Path;
-use std::sync::Mutex;
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, PoisonError, TryLockError};
 
 use sha2::{Digest, Sha256};
 
@@ -20,6 +20,10 @@ use crate::modules::{check_wasm, Module, Offer, BYTES_MAX};
 
 /// Les pages regardées dans un dossier, au plus, pour trouver celle qui déclare une copie.
 const PAGES_SEEN_MAX: usize = 500;
+/// Ce que déclarent les pages d'un dossier est gardé cinq secondes (en ms), pour 64 dossiers au
+/// plus : un visiteur qui demande des `.wasm` absents ne fait pas relire les pages à chaque fois.
+const DECLARED_FOR: u64 = 5_000;
+const FOLDERS_KEPT_MAX: usize = 64;
 /// Après un téléchargement raté, une adresse n'est pas redemandée avant une minute (en ms).
 pub const RETRY_AFTER: u64 = 60_000;
 
@@ -91,6 +95,7 @@ pub fn report(module: &Module, folder: &Path) -> Result<String, String> {
 }
 
 /// Ce qu'une page déclare d'une copie qui manque : de quoi la télécharger et la vérifier.
+#[derive(Clone)]
 struct Wanted {
     page: String,
     from: String,
@@ -99,29 +104,35 @@ struct Wanted {
     pages: u64,
 }
 
-/// La page du dossier qui déclare `file` avec une adresse (`from`), s'il y en a une.
-fn declared(folder: &Path, file: &str) -> Option<Wanted> {
-    let mut entries: Vec<_> = std::fs::read_dir(folder).ok()?.flatten().collect();
-    entries.sort_by_key(std::fs::DirEntry::file_name);
-    for entry in entries.into_iter().take(PAGES_SEEN_MAX) {
-        let page = entry.file_name().to_string_lossy().into_owned();
-        if page.starts_with('.') || !page.ends_with(".holo") || !entry.metadata().is_ok_and(|meta| meta.is_file() && meta.len() <= 262_144) {
+/// Les modules venus d'une adresse (`from`) que déclarent les pages d'un dossier : leur fichier,
+/// et de quoi le télécharger et le vérifier. Les 500 premières pages, par leur nom.
+fn declared_in(folder: &Path) -> Vec<(String, Wanted)> {
+    let Ok(entries) = std::fs::read_dir(folder) else { return Vec::new() };
+    let mut pages: Vec<_> = entries
+        .flatten()
+        .filter(|entry| {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            !name.starts_with('.') && name.ends_with(".holo")
+        })
+        .collect();
+    pages.sort_by_key(std::fs::DirEntry::file_name);
+    let mut found: Vec<(String, Wanted)> = Vec::new();
+    for entry in pages.into_iter().take(PAGES_SEEN_MAX) {
+        if !entry.metadata().is_ok_and(|meta| meta.is_file() && meta.len() <= 262_144) {
             continue;
         }
         let Ok(text) = std::fs::read_to_string(entry.path()) else { continue };
         let Ok(program) = crate::holo::read(&text) else { continue };
         let Ok(modules) = crate::modules::modules(&program) else { continue };
-        if let Some(module) = modules.iter().find(|module| module.source == file && module.from.is_some()) {
-            return Some(Wanted {
-                page,
-                from: module.from?.to_string(),
-                sha256: module.sha256?.to_ascii_lowercase(),
-                license: module.license.unwrap_or_default().to_string(),
-                pages: module.pages,
-            });
+        for module in modules {
+            let (Some(from), Some(sha256)) = (module.from, module.sha256) else { continue };
+            if !found.iter().any(|(file, _)| file == module.source) {
+                let page = entry.file_name().to_string_lossy().into_owned();
+                found.push((module.source.to_string(), Wanted { page, from: from.to_string(), sha256: sha256.to_ascii_lowercase(), license: module.license.unwrap_or_default().to_string(), pages: module.pages }));
+            }
         }
     }
-    None
+    found
 }
 
 /// Range une copie vérifiée à côté de la page : d'abord dans un fichier caché (jamais servi), puis
@@ -154,6 +165,7 @@ pub struct Copies {
     log: Box<dyn Fn(&str) + Send + Sync>,
     busy: Mutex<()>,
     failed: Mutex<HashMap<String, u64>>,
+    declared: Mutex<HashMap<PathBuf, (u64, Vec<(String, Wanted)>)>>,
 }
 
 impl Copies {
@@ -169,7 +181,24 @@ impl Copies {
 
     /// Les mêmes, avec un téléchargement, une horloge et un journal à soi (les essais).
     pub fn with_parts(download: Box<dyn Fn(&str) -> Result<Vec<u8>, String> + Send + Sync>, clock: Box<dyn Fn() -> u64 + Send + Sync>, log: Box<dyn Fn(&str) + Send + Sync>) -> Copies {
-        Copies { download, clock, log, busy: Mutex::new(()), failed: Mutex::default() }
+        Copies { download, clock, log, busy: Mutex::new(()), failed: Mutex::default(), declared: Mutex::default() }
+    }
+
+    /// Ce qu'une page du dossier déclare de `file`, s'il vient d'une adresse : relu au plus toutes
+    /// les cinq secondes. Rien pour un dossier qui n'existe pas (il n'est pas gardé).
+    fn wanted(&self, folder: &Path, file: &str) -> Option<Wanted> {
+        if !folder.is_dir() {
+            return None;
+        }
+        let now = (self.clock)();
+        let mut kept = self.declared.lock().unwrap_or_else(PoisonError::into_inner);
+        if !kept.get(folder).is_some_and(|(at, _)| now < at + DECLARED_FOR) {
+            if kept.len() >= FOLDERS_KEPT_MAX {
+                kept.clear();
+            }
+            kept.insert(folder.to_path_buf(), (now, declared_in(folder)));
+        }
+        kept.get(folder)?.1.iter().find(|(declared, _)| declared == file).map(|(_, wanted)| wanted.clone())
     }
 
     /// La copie d'un module qui manque, demandée à `path` (comme `/lecons/141-premiers.wasm`) dans
@@ -187,14 +216,19 @@ impl Copies {
             return None;
         }
         let here = parts.iter().fold(folder.to_path_buf(), |path, part| path.join(part));
-        let wanted = declared(&here, file)?;
-        let Ok(_one) = self.busy.try_lock() else { return None };
+        let wanted = self.wanted(&here, file)?;
+        // Une seule à la fois ; une autre demande, pendant ce temps, reçoit 404 tout de suite.
+        let _one = match self.busy.try_lock() {
+            Ok(one) => one,
+            Err(TryLockError::Poisoned(poisoned)) => poisoned.into_inner(),
+            Err(TryLockError::WouldBlock) => return None,
+        };
         // Une autre demande vient peut-être de la ranger.
         if let Ok(bytes) = read_module(&here.join(file)) {
             return Some(bytes);
         }
         let now = (self.clock)();
-        if self.failed.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).get(&wanted.from).is_some_and(|at| now < at + RETRY_AFTER) {
+        if self.failed.lock().unwrap_or_else(PoisonError::into_inner).get(&wanted.from).is_some_and(|at| now < at + RETRY_AFTER) {
             return None;
         }
         let module = Module { name: "", source: file, inputs: Vec::new(), outputs: Vec::new(), time: 0, pages: wanted.pages, sha256: Some(&wanted.sha256), from: Some(&wanted.from), license: Some(&wanted.license) };
@@ -216,7 +250,7 @@ impl Copies {
                 Some(bytes)
             }
             Err(reason) => {
-                self.failed.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).insert(wanted.from.clone(), now);
+                self.failed.lock().unwrap_or_else(PoisonError::into_inner).insert(wanted.from.clone(), now);
                 (self.log)(&format!("Module          : {shown} : {reason} ; rien n'est rangé, la page recevra « failed »"));
                 None
             }
@@ -371,6 +405,30 @@ mod copies_tests {
         assert_eq!(busy.copies.missing(&here, "/premiers.wasm"), None);
         drop(held);
         assert!(busy.asked.lock().unwrap().is_empty());
+        let _ = std::fs::remove_dir_all(here);
+    }
+
+    #[test]
+    fn a_visitor_asking_for_missing_files_does_not_make_the_server_reread_every_page() {
+        let here = folder();
+        std::fs::write(here.join("primes.holo"), page(&format!(", from: \"{FROM}\", sha256: \"{}\", license: \"MIT\"", sha256_hex(PRIMES)))).unwrap();
+        let b = bench(|_| Err("modules.exemple.org est introuvable (nom inconnu, ou pas de réseau)".to_string()));
+        assert_eq!(b.copies.missing(&here, "/premiers.wasm"), None);
+        assert_eq!(b.asked.lock().unwrap().len(), 1);
+        // La page change : pendant cinq secondes, ce que les pages déclarent n'est pas relu…
+        std::fs::write(here.join("primes.holo"), page(&format!(", from: \"{FROM}\", sha256: \"{}\", license: \"MIT\"", sha256_hex(PRIMES))).replace("premiers.wasm", "autre.wasm")).unwrap();
+        b.now.store(4_999, Ordering::SeqCst);
+        for _ in 0..20 {
+            assert_eq!(b.copies.missing(&here, "/autre.wasm"), None);
+        }
+        assert_eq!(b.asked.lock().unwrap().len(), 1);
+        // … puis il l'est.
+        b.now.store(5_000, Ordering::SeqCst);
+        assert_eq!(b.copies.missing(&here, "/autre.wasm"), None);
+        assert_eq!(*b.asked.lock().unwrap(), vec![FROM.to_string(), FROM.replace("premiers.wasm", "autre.wasm")]);
+        // Un dossier qui n'existe pas ne coûte rien, et n'est pas gardé.
+        assert_eq!(b.copies.missing(&here, "/nulle-part/premiers.wasm"), None);
+        assert!(!b.copies.declared.lock().unwrap().keys().any(|kept| kept.ends_with("nulle-part")));
         let _ = std::fs::remove_dir_all(here);
     }
 
