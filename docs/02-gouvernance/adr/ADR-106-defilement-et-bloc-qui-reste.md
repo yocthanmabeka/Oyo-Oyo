@@ -85,7 +85,7 @@
   - Sur un ordinateur : la barre vide au départ, nommée « Lecture » pour le lecteur d'écran ; à mi-page, collée en haut, à 50 % ; le bouton collé en bas ; le bouton ☰ au-dessus de lui ; cinquante pas de défilement en une seconde donnent la place dix fois au moteur, et la dernière.
   - « Retour en haut » ramène en haut ; « Quand les voir » pose son titre sous la barre.
   - Tab jusqu'en bas, puis Maj + Tab jusqu'en haut : aucun lien caché. Un lien posé sous la barre, puis sous le bouton du bas, est ramené dans la marge par Tab ; un bouton qui apparaît sur le lien qui a le focus le laisse visible.
-  - Sur un téléphone de 360 × 780 : la barre fait 55 pixels ; un en-tête beaucoup trop haut est borné à 156 pixels et défile dedans ; le clavier de l'écran (imité) lui rend sa place, refermé il reste de nouveau. Couché (780 × 360), rien ne reste.
+  - Sur un téléphone de 360 × 780 : la barre fait 55 pixels ; un en-tête beaucoup trop haut est borné à 156 pixels et défile dedans ; le clavier de l'écran (imité) lui rend sa place, refermé il reste de nouveau. Couché (780 × 360) ou grossi à 200 % (360 × 400) : rien ne reste, la barre part avec la page quand on descend, aucune marge du focus ne reste posée ; sur papier (le média « print » émulé), elle garde sa place, et reste de nouveau à l'écran.
   - Sans JavaScript : la barre reste en haut, vide, sans bouton, et la marge du focus vaut 148 pixels.
   - L'essai rate avec le moteur de `main` (« « Row » n'a pas de paramètre « sticky » ») ; sans le frein (49 envois pour 50 pas) ; sans la marge du focus (le titre sous la barre, le lien sous le bouton) ; sans le retour du focus (le lien reste sous le bouton qui apparaît).
 - Leçon `129-une-barre-de-lecture.holo`, et son essai écrit `129-une-barre-de-lecture.test`.

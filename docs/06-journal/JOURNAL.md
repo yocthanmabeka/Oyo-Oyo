@@ -8,10 +8,10 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ## 2026-10-10 — Où en est le visiteur, un bloc qui reste à l'écran : `scroll`, `sticky:`
 
-- Fait (issue #235, reprise par un agent de la session du PC après deux arrêts à la limite de séance, depuis `wip/defilement` ; `ADR-106`, ACCEPTÉ : « tu le valides déjà, tu le fais déjà ») :
+- Fait (issue #235, reprise par un agent de la session du PC après trois arrêts à la limite de séance, depuis `wip/defilement` puis `wip/langage/defilement` ; `ADR-106`, ACCEPTÉ : « tu le valides déjà, tu le fais déjà ») :
   - `scroll`, de 0 (en haut de la page) à 100 (tout en bas), en pour cent entiers : la page la lit (`{scroll}`, `If(scroll, over: 10, …)`, `Progress(value: scroll)`, `When`), ne la change jamais ; le navigateur la donne au plus dix fois par seconde, et seulement à une page qui la lit ; des données reçues ne la changent pas ; sans JavaScript, elle vaut 0.
   - `sticky: top | bottom` sur un bloc posé directement dans la page, ou sur `Header` et `Footer` : du CSS (`position: sticky`), qui marche sans JavaScript. Une exception étroite à `ADR-017` : un bord, un bloc par bord, ni décalage ni superposition ; `position` reste refusé dans un style, avec le bon mot.
-  - Le moteur garantit ce que le CSS laisse à l'auteur : un fond d'office, la marge du focus (`scroll-padding`, mesurée par la page ; WCAG 2.4.11), le cinquième de l'écran au plus, rien sous 480px de haut ni pendant qu'on écrit avec le clavier de l'écran, le bouton ☰ au-dessus du bloc du bas. Un bloc qui apparaît sur ce qui a le focus le laisse visible.
+  - Le moteur garantit ce que le CSS laisse à l'auteur : un fond d'office, la marge du focus (`scroll-padding`, mesurée par la page ; WCAG 2.4.11), le cinquième de l'écran au plus, rien sous 480px de haut, ni pendant qu'on écrit avec le clavier de l'écran, ni sur papier (tout le style tient sous une seule règle, `@media screen and (min-height: 481px)`, fabriquée à partir des deux bornes du moteur : hors d'elle, ni la place, ni la marge du focus), le bouton ☰ au-dessus du bloc du bas. Un bloc qui apparaît sur ce qui a le focus le laisse visible.
   - `holo test` sait faire défiler : `scroll 50`.
   - La leçon 129 (une barre de lecture, un retour en haut ; précédente : 124, suivante : 1) et son essai écrit ; une page d'essai avec un en-tête trop haut ; le guide (« 6 septemquadragies », et des lignes aux § 10, 10 bis et 11), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
 - Exécuté, dans `moteur/` : RÉSULTATS
@@ -23,7 +23,8 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
   - le premier essai d'ancre visait « Où les voir », trop près du bas pour que la page défile jusque-là ;
   - l'en-tête trop haut faisait 172px au lieu de 156 : la borne ne comptait pas ses marges intérieures (`box-sizing: border-box`) ;
   - un Tab vers un lien hors de l'écran passait même sans la marge du focus, parce que Chrome le centre : l'essai pose maintenant le lien sous la barre, puis sous le bouton du bas, avant d'y aller ;
-  - la borne du rythme comptait une seconde fixe : elle compte le temps vraiment passé, pour une machine lente.
+  - la borne du rythme comptait une seconde fixe : elle compte le temps vraiment passé, pour une machine lente ;
+  - après le troisième arrêt, la relecture de la session du PC a trouvé les deux bornes du téléphone (le cinquième, 480px) écrites deux fois, en constantes et en dur dans le CSS, et l'essai Chrome qui ne regardait l'écran bas que d'un œil (`position` seulement, sur le téléphone couché) : le style se fabrique maintenant à partir de `SHARE` et `LOWEST`, le test du moteur vérifie que rien ne colle hors de la règle de média, et l'essai Chrome joue le téléphone couché, la page grossie à 200 % et le papier (la barre part avec la page, aucune marge du focus ne reste posée).
 - Reste : l'essai sur le téléphone de Yocthan (le clavier de l'écran, TalkBack, couché) ; les dettes de l'ADR (une barre en CSS sans JavaScript, un bloc qui défile lui-même, le cinquième et les 480px qui ne se règlent pas) ; le grand tableau du web : « défilement (scroll) » peut passer de « En partie » à « Oui ».
 
 ---

@@ -1030,11 +1030,34 @@ const tests = [
       const closed = await p.value(`[document.documentElement.classList.contains("holo-keyboard"), getComputedStyle(document.querySelector('[data-sticky="top"]')).position]`);
       check("le clavier de l'écran : l'en-tête reprend sa place, puis reste de nouveau", typing[0] === true && typing[1] === "static" && closed[0] === false && closed[1] === "sticky", { typing, closed });
       errors("en-tête trop haut");
-      // 9. Un téléphone couché (780 × 360) : l'écran est trop bas, rien ne reste.
-      await b.send("Emulation.setDeviceMetricsOverride", { width: 780, height: 360, deviceScaleFactor: 2, mobile: true });
+      // 9. Un écran trop bas : un téléphone couché (780 × 360), une page grossie à 200 % (un
+      // téléphone de 720 × 800 vu à 360 × 400). Rien ne reste : la barre reprend sa place dans la
+      // page, part avec elle quand on descend, et aucune marge du focus ne reste posée.
+      const low = [];
+      for (const [name, metrics] of [["couché", { width: 780, height: 360, deviceScaleFactor: 2, mobile: true }], ["grossi à 200 %", { width: 360, height: 400, deviceScaleFactor: 2, mobile: true }]]) {
+        await b.send("Emulation.setDeviceMetricsOverride", metrics);
+        await p.open(lesson);
+        await p.until("window.__holoStarted");
+        await p.value("scrollTo(0, 300)");
+        await pause(400);
+        m = await seen();
+        check(`${name} : rien ne reste, la barre part avec la page, pas de marge du focus`, m.bar?.position === "static" && m.bar.top < 0 && m.padding[0] === 0 && m.padding[1] === 0, m);
+        low.push(`${name} : ${m.bar?.position}, barre à ${m.bar?.top}px, marge ${m.padding?.join("/")}`);
+      }
+      // Sur papier (le média « print », émulé sur l'écran d'ordinateur) : la barre garde sa place,
+      // sans marge du focus ; de retour à l'écran, elle reste de nouveau.
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 1000, height: 700, deviceScaleFactor: 1, mobile: false });
       await p.open(lesson);
-      const lying = await p.value(`getComputedStyle(document.querySelector('[data-sticky="top"]')).position`);
-      check("téléphone couché : rien ne reste", lying === "static", lying);
+      await p.until("window.__holoStarted");
+      const stuck = `[getComputedStyle(document.querySelector('[data-sticky="top"]')).position, getComputedStyle(document.documentElement).scrollPaddingTop]`;
+      await b.send("Emulation.setEmulatedMedia", { media: "print" });
+      await pause(200);
+      const paper = await p.value(stuck);
+      await b.send("Emulation.setEmulatedMedia", { media: "" });
+      await pause(200);
+      const screen = await p.value(stuck);
+      check("sur papier : la barre garde sa place ; à l'écran, elle reste de nouveau", paper[0] === "static" && paper[1] === "auto" && screen[0] === "sticky" && screen[1] !== "auto", { paper, screen });
+      summary.low = `${low.join(" ; ")} ; papier : ${paper[0]}, marge ${paper[1]}`;
       // 10. Sans JavaScript : la barre reste en haut (du CSS), vide ; pas de bouton ; la marge du
       // focus est le cinquième de l'écran.
       await b.send("Emulation.setDeviceMetricsOverride", { width: 1000, height: 700, deviceScaleFactor: 1, mobile: false });
@@ -1050,9 +1073,10 @@ const tests = [
         await b.send("Emulation.setScriptExecutionDisabled", { value: false });
       }
     } finally {
+      await b.send("Emulation.setEmulatedMedia", { media: "" });
       await b.send("Emulation.clearDeviceMetricsOverride");
     }
-    return [faults.length === 0, faults.length ? faults.join("\n      ") : `ordinateur : ${summary.half} ; ${summary.rate} ; retour en haut ; « Quand les voir » : ${summary.anchor} ; clavier : ${summary.keyboard}, rien de caché ; ${summary.under} ; téléphone : ${summary.phone}, ${summary.tall}, clavier de l'écran : l'en-tête reprend sa place ; couché : rien ne reste ; sans JavaScript : ${summary.withoutScript}`];
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : `ordinateur : ${summary.half} ; ${summary.rate} ; retour en haut ; « Quand les voir » : ${summary.anchor} ; clavier : ${summary.keyboard}, rien de caché ; ${summary.under} ; téléphone : ${summary.phone}, ${summary.tall}, clavier de l'écran : l'en-tête reprend sa place ; écran bas : ${summary.low} ; sans JavaScript : ${summary.withoutScript}`];
   }],
   ["faire vibrer le téléphone : un toucher, une rencontre, le mouvement réduit, un navigateur sans vibreur (leçon 133)", async (p, b) => {
     const lesson = "/exemples/lecons/133-faire-vibrer-le-telephone.holo";

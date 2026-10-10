@@ -45,27 +45,39 @@ pub const LOWEST: u32 = 480;
 /// Les blocs qui ne restent pas à l'écran : ils ne se voient pas eux-mêmes, ou ont déjà leur place.
 const NOT_STICKY: &[&str] = &["If", "Repeat", "Dialog", "Main", "Item", "Point", "Scenes", "Scene", "Module", "Data", "Filter", "Days", "Font", "Abbreviation", "Term"];
 
-/// Le style d'un bloc qui reste à l'écran, écrit seulement quand la page en a un, et seulement sur
-/// un écran assez haut (sur papier, sur un écran bas, le bloc garde sa place dans la page) :
+/// Le style d'un bloc qui reste à l'écran, écrit seulement quand la page en a un, et tout entier
+/// sous une seule règle de média, fabriquée à partir des deux bornes du moteur : l'écran seulement
+/// (`screen` : sur papier, rien ne colle, le bloc garde sa place dans la page) et assez haut
+/// (`min-height`, un pixel au-dessus de `LOWEST` : couché ou grossi, le bloc reprend sa place).
+/// Hors de la règle, rien ne reste : ni la place, ni la marge du focus, ni la part de l'écran.
+/// Dedans :
 /// - sa place, en haut ou en bas ; en bas, au-dessus des touches à l'écran (`--holo-keys`, ADR-069) ;
-/// - sa hauteur, le cinquième de l'écran au plus (ce qui dépasse défile dans le bloc) ;
+/// - sa hauteur, `SHARE` pour cent de l'écran au plus (ce qui dépasse défile dans le bloc) ;
 /// - son fond, en `:where()` pour qu'un style de l'auteur l'emporte : sans fond, le texte qui
 ///   passe dessous se lirait à travers ;
 /// - la marge laissée au focus (WCAG 2.4.11) : la hauteur du bloc, mesurée par la page
-///   (`--holo-sticky-top`, `--holo-sticky-bottom`), sinon le cinquième de l'écran ; un bloc caché
+///   (`--holo-sticky-top`, `--holo-sticky-bottom`), sinon la plus grande permise ; un bloc caché
 ///   par un `If` faux n'en demande pas ;
 /// - le bouton rond du moteur monte au-dessus d'un bloc resté en bas (sauf quand les touches à
 ///   l'écran sont là : le bloc est alors au-dessus d'elles) ;
 /// - le clavier de l'écran ouvert sur un champ (`holo-keyboard`, posé par la page) : le bloc
 ///   reprend sa place, pour ne pas cacher ce qu'on écrit.
-const CSS: &str = "@media screen and (min-height:481px){\
-.holo-Page [data-sticky]{position:sticky;z-index:3;box-sizing:border-box;max-height:20vh;max-height:20svh;overflow-y:auto}\
-.holo-Page [data-sticky=top]{top:0}.holo-Page [data-sticky=bottom]{bottom:var(--holo-keys,0px)}\
-:where(.holo-Page [data-sticky]){background:var(--holo-sticky-background,Canvas)}\
-html:not(.holo-keyboard):has(.holo-Page [data-sticky=top]:not([hidden] *)){scroll-padding-top:calc(var(--holo-sticky-top,20svh) + 8px)}\
-html:not(.holo-keyboard):has(.holo-Page [data-sticky=bottom]:not([hidden] *)){scroll-padding-bottom:calc(var(--holo-sticky-bottom,20svh) + var(--holo-keys,0px) + 8px)}\
-html:not(:has(#keys:not([hidden]))) #menu{bottom:calc(12px + var(--holo-sticky-bottom,0px))}\
-html.holo-keyboard .holo-Page [data-sticky]{position:static;max-height:none;overflow-y:visible}";
+///
+/// La règle reste ouverte : `css()` y ajoute le fond de la page, puis la referme.
+fn sticky_css() -> String {
+    let share = SHARE;
+    let tall = LOWEST + 1;
+    format!(
+        "@media screen and (min-height:{tall}px){{\
+.holo-Page [data-sticky]{{position:sticky;z-index:3;box-sizing:border-box;max-height:{share}vh;max-height:{share}svh;overflow-y:auto}}\
+.holo-Page [data-sticky=top]{{top:0}}.holo-Page [data-sticky=bottom]{{bottom:var(--holo-keys,0px)}}\
+:where(.holo-Page [data-sticky]){{background:var(--holo-sticky-background,Canvas)}}\
+html:not(.holo-keyboard):has(.holo-Page [data-sticky=top]:not([hidden] *)){{scroll-padding-top:calc(var(--holo-sticky-top,{share}svh) + 8px)}}\
+html:not(.holo-keyboard):has(.holo-Page [data-sticky=bottom]:not([hidden] *)){{scroll-padding-bottom:calc(var(--holo-sticky-bottom,{share}svh) + var(--holo-keys,0px) + 8px)}}\
+html:not(:has(#keys:not([hidden]))) #menu{{bottom:calc(12px + var(--holo-sticky-bottom,0px))}}\
+html.holo-keyboard .holo-Page [data-sticky]{{position:static;max-height:none;overflow-y:visible}}"
+    )
+}
 
 /// La page lit-elle `scroll` : dans un texte (`{scroll}`), une condition, une comparaison, une
 /// barre (`Progress(value: scroll)`), une demande (`best.set(scroll)`) ?
@@ -237,7 +249,7 @@ pub fn css(program: &Program) -> String {
             Some(None)
         }
     };
-    let mut css = String::from(CSS);
+    let mut css = sticky_css();
     for rule in program.styles.iter().filter(|rule| matches!(&rule.target, Target::Type(t) if t == "Page")) {
         match color(&rule.settings) {
             Some(Some(value)) => css.push_str(&format!(".holo-Page{{--holo-sticky-background:{value}}}")),
@@ -250,6 +262,7 @@ pub fn css(program: &Program) -> String {
             }
         }
     }
+    // La règle de média se referme après le fond : tout le style tient dedans.
     css.push('}');
     css
 }
@@ -328,8 +341,12 @@ Page { background: #101020; color: white; dark: { background: --night; } --night
         ] {
             assert!(html.contains(rule), "{rule}\n{html}");
         }
-        // Les deux bornes écrites dans le style sont celles que le moteur annonce.
-        assert!(html.contains(&format!("max-height:{}svh", super::SHARE)) && html.contains(&format!("(min-height:{}px)", super::LOWEST + 1)), "{html}");
+        // Tout le style tient sous la règle de média, pour l'écran seulement et un pixel au-dessus
+        // de LOWEST : sur papier ou sur un écran bas, rien ne colle, et aucune marge du focus ne
+        // reste posée. Les deux bornes écrites sont celles que le moteur annonce.
+        let media = html.find(&format!("@media screen and (min-height:{}px){{", super::LOWEST + 1)).unwrap_or_else(|| panic!("{html}"));
+        assert!(!html[..media].contains("position:sticky") && !html[..media].contains("scroll-padding"), "{html}");
+        assert!(html.contains(&format!("max-height:{}svh", super::SHARE)) && html.contains(&format!("scroll-padding-top:calc(var(--holo-sticky-top,{}svh)", super::SHARE)), "{html}");
         // Le fond de la page, aussi dans le thème sombre, quand le bloc n'a pas le sien ; et la
         // règle du média se referme après lui.
         assert!(html.contains(".holo-Page{--holo-sticky-background:#101020}@media (prefers-color-scheme:dark){.holo-Page{--holo-sticky-background:var(--night)}}}"), "{html}");
