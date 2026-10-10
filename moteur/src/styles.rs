@@ -40,6 +40,8 @@ enum Shape {
     Count(u32, u32),
     /// La forme du curseur : un mot, ou une image rangée à côté, `url("viseur.png")` (ADR-069).
     Cursor,
+    /// Une distance en pixels, entre deux bornes : `blur: 4px` (ADR-108).
+    Pixels(f64, f64),
 }
 
 /// Les réglages connus : l'apparence, avec les noms du CSS de base.
@@ -84,6 +86,16 @@ const SETTINGS: &[(&str, Shape)] = &[
     ("white-space", Shape::Word(&["normal", "nowrap", "pre-line", "pre-wrap"])),
     ("line-clamp", Shape::Count(1, 20)),
     ("cursor", Shape::Cursor),
+    // Les filtres d'image (ADR-108) : un réglage par effet, composés par le moteur en un seul
+    // `filter` ; des nombres comme `opacity`, jamais `100%`. `hue` est le mot d'`Enter`.
+    ("grayscale", Shape::Fraction),
+    ("saturate", Shape::Number(0.0, 3.0)),
+    ("brightness", Shape::Number(0.2, 3.0)),
+    ("contrast", Shape::Number(0.2, 3.0)),
+    ("hue", Shape::Angle),
+    ("blur", Shape::Pixels(0.0, 100.0)),
+    // Sur une fenêtre, la page derrière elle devient floue (ADR-108).
+    ("backdrop-blur", Shape::Pixels(0.0, 100.0)),
     // Découper une image ou un dessin en une forme nommée, avec les mots de `Shape(form:)` (ADR-111).
     ("form", Shape::Word(crate::forms::FORMS)),
 ];
@@ -261,6 +273,9 @@ pub fn check_styles(program: &Program) -> Result<(), Error> {
         }
         check_contrast(rule, &variables)?;
         check_parity(rule, program)?;
+        // Les filtres (ADR-108) : sur une image, une forme ou un dessin, jamais sur un texte ; le
+        // flou de derrière, sur une fenêtre.
+        crate::filters::check(rule, program)?;
         // Les formes (ADR-111) : sur une image ou un dessin, ni sous la souris ni au focus, et rien
         // que la découpe couperait en silence.
         crate::forms::check(rule, program)?;
@@ -398,6 +413,11 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
     if matches!(name, "grid-column" | "grid-row" | "grid-area" | "grid-template-areas" | "grid-column-start" | "grid-column-end" | "grid-row-start" | "grid-row-end") {
         return refusal(format!("« {name} » place une case de grille : la place se dit sur le bloc, columnSpan: 2, rowSpan: 2, ou une zone, Grid(areas: [\"top top\", \"menu main\"]) puis area: menu (ADR-104)"));
     }
+    // Un bloc qui reste à l'écran se dit sur le bloc, posé directement dans la page (ADR-106) :
+    // ni `position: sticky`, ni un bloc fixé qui sort du fil de la page (`position: fixed`).
+    if name == "position" && matches!(setting.value.trim(), "sticky" | "fixed") {
+        return refusal(format!("« position: {} » : un style ne dit que l'apparence ; un bloc qui reste à l'écran se dit sur le bloc, posé directement dans la page : écris « sticky: top » ou « sticky: bottom » (ADR-106)", setting.value.trim()));
+    }
     if LAYOUT.contains(&name) {
         return refusal(format!(
             "« {name} » règle la disposition, pas l'apparence : un style ne dit que l'apparence, la disposition vient des blocs (ADR-017)"
@@ -405,6 +425,13 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
     }
     if name == "background-color" {
         return refusal("« background-color » s'écrit « background » : une seule écriture par réglage".into());
+    }
+    // Les filtres (ADR-108) s'écrivent réglage par réglage, jamais en liste comme `filter`.
+    if name == "filter" {
+        return refusal("« filter » s'écrit réglage par réglage : « grayscale: 1 », « saturate: 1.5 », « brightness: 0.8 », « contrast: 1.2 », « hue: 30deg », « blur: 4px » ; le moteur les compose, et un état en change un sans effacer les autres (ADR-108)".into());
+    }
+    if name == "backdrop-filter" {
+        return refusal("« backdrop-filter » s'écrit « backdrop-blur: 8px », sur une fenêtre : la page, derrière elle, devient floue (ADR-108)".into());
     }
     // Découper : une forme nommée, jamais un tracé écrit à la main (ADR-111). `clip` est l'ancien
     // réglage du CSS, déjà abandonné par le web.
@@ -463,11 +490,20 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
         }
         Shape::Count(min, max) => value.parse::<u32>().is_ok_and(|v| (*min..=*max).contains(&v)),
         Shape::Cursor => CURSORS.contains(&value) || cursor_image(value).is_some(),
+        Shape::Pixels(min, max) => pixels(value).is_some_and(|v| (*min..=*max).contains(&v)),
     };
     if correct {
         return Ok(());
     }
     let expected = match shape {
+        // Les filtres (ADR-108) : ce que vaut 1, et ce que font moins et plus.
+        Shape::Fraction if name == "grayscale" => "un nombre de 0 (les couleurs) à 1 (tout gris), comme « 1 »".to_string(),
+        Shape::Number(min, max) if name == "saturate" => format!("un nombre de {min} (tout gris) à {max} (des couleurs plus vives) : 1 ne change rien, comme « 1.5 »"),
+        Shape::Number(min, max) if name == "brightness" => format!("un nombre de {min} à {max} : 1 ne change rien, moins assombrit, plus éclaircit, comme « 0.6 »"),
+        Shape::Number(min, max) if name == "contrast" => format!("un nombre de {min} à {max} : 1 ne change rien, moins aplatit, plus accentue, comme « 1.2 »"),
+        Shape::Angle if name == "hue" => "un angle de -360deg à 360deg : les couleurs tournent sur le cercle des teintes, comme « 30deg »".to_string(),
+        Shape::Pixels(min, max) if name == "backdrop-blur" => format!("un flou en pixels, de {min} à {max}px, comme « 8px » : la page, derrière la fenêtre, devient floue"),
+        Shape::Pixels(min, max) => format!("un flou en pixels, de {min} à {max}px, comme « 4px »"),
         Shape::Word(possible) if name == "form" => format!("une forme nommée : {} ; pas de tracé écrit à la main (ADR-111)", possible.join(", ")),
         Shape::Color => "une couleur, comme « gray » ou « #E9B44C »".to_string(),
         Shape::Size if name == "height" => "une taille, comme « 16px » ou « 50% », ou « screen » : tout l'écran".to_string(),
@@ -530,6 +566,11 @@ pub(crate) fn cursor_image(value: &str) -> Option<&str> {
     let inside = value.strip_prefix("url(")?.strip_suffix(')')?.trim().trim_matches('"');
     let image = [".png", ".svg", ".cur"].iter().any(|end| inside.ends_with(end));
     (image && crate::flat::path_on(inside)).then_some(inside)
+}
+
+/// `4px` → 4 ; `0` → 0 ; jamais négatif (ADR-108).
+fn pixels(value: &str) -> Option<f64> {
+    signed_pixels(value).filter(|v| *v >= 0.0)
 }
 
 /// `-0.5px` → -0.5.
@@ -694,14 +735,20 @@ mod tests {
             include_str!("../../exemples/lecons/123-des-suggestions-dans-un-champ.holo"),
             // Une citation courte, le titre d'une œuvre (ADR-101).
             include_str!("../../exemples/lecons/124-une-citation-courte.holo"),
+            // Travailler un texte : majuscules, longueur, couper, découper (ADR-103).
+            include_str!("../../exemples/lecons/126-travailler-un-texte.holo"),
             // Une grille qui place ses cases : plusieurs colonnes ou lignes, des zones (ADR-104).
             include_str!("../../exemples/lecons/127-une-grille-et-ses-zones.holo"),
             // Partager la page : la feuille du téléphone, sinon l'adresse copiée (ADR-107).
             include_str!("../../exemples/lecons/130-partager-la-page.holo"),
             // Réordonner les lignes d'une liste (ADR-105).
             include_str!("../../exemples/lecons/128-reordonner-une-liste.holo"),
+            // Les filtres d'image dans les styles (ADR-108).
+            include_str!("../../exemples/lecons/131-des-filtres-d-image.holo"),
             // Faire vibrer le téléphone, d'un toucher ou d'une règle de jeu (ADR-110).
             include_str!("../../exemples/lecons/133-faire-vibrer-le-telephone.holo"),
+            // Où en est le visiteur, un bloc qui reste à l'écran (ADR-106).
+            include_str!("../../exemples/lecons/129-une-barre-de-lecture.holo"),
             // Découper une image ou une forme : un rond, un hexagone, une vague (ADR-111).
             include_str!("../../exemples/lecons/134-decouper-une-forme.holo"),
             // Mélanger des sons : un fondu, un volume qui suit une valeur (ADR-112).
@@ -711,6 +758,8 @@ mod tests {
             include_str!("../../exemples/lecons/136-inscription/etape-2.holo"),
             // Les données d'un autre site, lues par le serveur de l'auteur (ADR-116).
             include_str!("../../exemples/lecons/139-les-donnees-d-un-autre-site.holo"),
+            // Une page dans la page : une carte et une vidéo d'autres sites, derrière leur façade (ADR-117).
+            include_str!("../../exemples/lecons/140-une-page-dans-la-page.holo"),
         ];
         for lesson in lessons {
             crate::check_page(lesson).unwrap();
@@ -728,6 +777,18 @@ mod tests {
         }
         // Une grille qui place ses cases (ADR-104).
         for word in ["columnSpan:", "rowSpan:", "areas:", "area:"] {
+            assert!(source.contains(word), "« {word} » manque dans l'exemple");
+        }
+        // Où en est le visiteur, un bloc qui reste à l'écran (ADR-106).
+        for word in ["{scroll}", "value: scroll", "If(scroll", "sticky: top", "sticky: bottom"] {
+            assert!(source.contains(word), "« {word} » manque dans l'exemple");
+        }
+        // Une page dans la page : les sites permis, l'image de la façade (ADR-117).
+        for word in ["embeds:", "Embed(", "image: \"140-carte.svg\""] {
+            assert!(source.contains(word), "« {word} » manque dans l'exemple");
+        }
+        // Travailler un texte (ADR-103).
+        for word in [":upper}", ":lower}", ":length}", ":max40}", "Split(", "by: \",\"", "by: \" \""] {
             assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
     }
@@ -822,6 +883,33 @@ mod tests {
         assert!(refused("Button { phone: { display: none; } }\n.note { color: red; }\n.menu { color: red; }\n.card { color: red; }").contains("cacherait « Button » sur un téléphone"));
         assert!(refused(".menu { computer: { display: none; } }\n.note { color: red; }\n.card { color: red; }").contains("cacherait « A » sur un ordinateur"));
         assert!(refused(".card { narrow: { display: none; } }\n.note { color: red; }\n.menu { color: red; }").contains("dans une case étroite"));
+    }
+
+    #[test]
+    fn the_filters_of_adr_108() {
+        // Acceptés : les six réglages et le flou de derrière, dans un style et dans ses états.
+        let page = |styles: &str| format!("Page(children: [ Image.photo(source: \"a.png\", alt: \"\"), P.card(\"y\"), Dialog(name: D, children: [ P(\"z\") ]) ])\n.card {{ color: gray; }}\n{styles}");
+        assert!(check(&page(".photo { grayscale: 1; saturate: 1.8; brightness: 0.6; contrast: 1.2; hue: 30deg; blur: 3px; transition: 0.4s; hover: { grayscale: 0; blur: 0; } }")).is_ok());
+        let wide = check(&page(".photo { opacity: 1; }\nDialog { backdrop-blur: 6px; }\nImage { blur: 100px; brightness: 0.2; contrast: 3; saturate: 0; hue: -360deg; }"));
+        assert!(wide.is_ok(), "{wide:?}");
+        // Refusés, avec le bon mot : les listes du CSS, les bornes, les pourcentages.
+        let refused = |styles: &str| check(&page(styles)).unwrap_err().message;
+        assert!(refused("Image { filter: grayscale(1); }").contains("« grayscale: 1 »"));
+        assert!(refused("Dialog { backdrop-filter: blur(8px); }").contains("« backdrop-blur: 8px »"));
+        assert!(refused("Image { grayscale: 100%; }").contains("de 0 (les couleurs) à 1 (tout gris)"));
+        assert!(refused("Image { grayscale: 2; }").contains("tout gris"));
+        assert!(refused("Image { brightness: 0; }").contains("1 ne change rien, moins assombrit"));
+        assert!(refused("Image { contrast: 4; }").contains("de 0.2 à 3"));
+        assert!(refused("Image { saturate: -1; }").contains("de 0 (tout gris) à 3"));
+        assert!(refused("Image { hue: 90; }").contains("cercle des teintes"));
+        assert!(refused("Image { blur: 4; }").contains("un flou en pixels, de 0 à 100px"));
+        assert!(refused("Image { blur: 101px; }").contains("de 0 à 100px"));
+        assert!(refused("Image { blur: -1px; }").contains("un flou en pixels"));
+        assert!(refused("Image { blur: 10%; }").contains("un flou en pixels"));
+        assert!(refused("Dialog { backdrop-blur: 200px; }").contains("la page, derrière la fenêtre, devient floue"));
+        // Un texte n'est jamais filtré : ni assombri, ni flou (le contraste resterait faux, ADR-055).
+        assert!(refused("P { brightness: 0.4; }").contains("un filtre se pose sur une image, une forme ou un dessin"));
+        assert!(refused("P { hover: { blur: 2px; } }").contains("sur « P »"));
     }
 
     #[test]

@@ -47,6 +47,13 @@ grid-template-columns:repeat(auto-fill,minmax(min(100%,max(7.5rem,calc((100% - (
 :where(.holo-Choice input){accent-color:currentColor;width:18px;height:18px;margin:0}\
 :where(label.holo-Choice){flex-direction:column;align-items:flex-start;gap:4px}:where(.holo-Choice select){font:inherit;color:inherit;background:transparent;border:1px solid currentColor;border-radius:6px;padding:6px 10px}\
 :where(.holo-Video){display:block;width:100%;max-width:640px;border-radius:12px;background:black}\
+:where(.holo-Embed){display:block;position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:12px;background:#1d1d29}\
+:where(.holo-embed-load,.holo-embed-link){position:absolute;inset:0;width:100%;height:100%;box-sizing:border-box;display:flex;align-items:flex-end;margin:0;padding:12px;\
+border:0;background:none;color:#fff;font:inherit;text-align:left;text-decoration:none;cursor:pointer}:where(.holo-embed-load[hidden]){display:none}\
+:where(.holo-embed-image){position:absolute;inset:0;width:100%;height:100%;object-fit:cover}\
+:where(.holo-embed-text){position:relative;display:flex;flex-direction:column;gap:2px;max-width:100%;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.78)}\
+:where(.holo-embed-label){font-weight:bold}:where(.holo-embed-site){font-size:.85em}\
+:where(.holo-embed-load:focus-visible){outline:3px solid #fff;outline-offset:-3px;box-shadow:inset 0 0 0 6px #000}:where(.holo-embed-frame){display:block;width:100%;height:100%;border:0}\
 :where(.holo-table-wrap){overflow-x:auto;max-width:100%}:where(.holo-Table){border-collapse:collapse;min-width:100%}\
 :where(.holo-Table caption){text-align:left;font-weight:bold;padding:0 0 8px 0}:where(.holo-Table th,.holo-Table td){text-align:left;padding:8px 12px;border-bottom:1px solid color-mix(in srgb,currentColor 25%,transparent)}\
 :where(.holo-Table th){font-weight:bold}\
@@ -119,6 +126,9 @@ pub fn site_html_from(program: &Program, page: &Block, base: &str, title: &str, 
     // Les cases placées dans une grille (ADR-104) : leurs règles, seulement si la page en a.
     let cells = crate::grid::css(program);
     let html = if cells.is_empty() { html } else { html.replacen("</style>", &format!("{cells}</style>"), 1) };
+    // Un bloc qui reste à l'écran (ADR-106) : son style, seulement si la page en a un.
+    let sticky = crate::scroll::css(program);
+    let html = if sticky.is_empty() { html } else { html.replacen("</style>", &format!("{sticky}</style>"), 1) };
     if movements.is_empty() && !html.contains("holo-Scene") {
         return Ok(html);
     }
@@ -531,6 +541,14 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
             footer = footer.replace(empty, full_one);
         }
     }
+    // Les textes travaillés (ADR-103), à leur départ : `{code:upper}`, `{message:length}`,
+    // `{bio:max40}`. Leur valeur montrée a son propre nom dans l'état, `code:upper`.
+    for (key, worked) in crate::text::shown_values(program, &texts) {
+        let (empty, full_one) = (format!("<span data-state=\"{key}\"></span>"), format!("<span data-state=\"{key}\">{}</span>", escape(&worked)));
+        for html in [&mut body, &mut worlds, &mut header, &mut footer] {
+            *html = html.replace(&empty, &full_one);
+        }
+    }
     // Les valeurs à format, à leur départ, dans la langue de la page.
     let language = match program.root.argument("lang").map(|a| &a.value) {
         Some(Value::Text(l)) => l.as_str(),
@@ -563,6 +581,8 @@ fn raw_site_html(program: &Program, page: &Block, base: &str, title: &str, start
         || body.contains("data-browser-capability=")
         // Une liste qu'on réordonne (ADR-105) : un glissement ne se rejoue pas, le moteur arrive tout de suite.
         || !crate::reorder::reorderable(program).is_empty();
+    // Une page qui lit la place du visiteur (ADR-106) : le moteur la suit dès l'arrivée.
+    let live = live || crate::scroll::reads(program);
     let live = if live { " data-live" } else { "" };
     // Qui grossit la page quand on zoome (ADR-069) ? Par défaut, le navigateur, comme pour
     // n'importe quel site : la page reste à sa place. Le moteur, seulement si l'auteur l'a
@@ -774,6 +794,12 @@ pub fn plain_text(text: &str, shown: &crate::state::State, texts: &crate::state:
         };
         let inside = &remainder[..end];
         let (name, format) = inside.split_once(':').map_or((inside, None), |(name, format)| (name, Some(format)));
+        // Un texte travaillé (ADR-103) : « {code:upper} » dans le titre de l'onglet aussi.
+        if let Some(worked) = format.and_then(|f| crate::text::shown_in(name, f, texts)) {
+            output.push_str(&worked);
+            remainder = &remainder[end + 1..];
+            continue;
+        }
         if let Some((_, text)) = texts.iter().find(|(known, _)| known == name) {
             output.push_str(text);
         } else if let Some((_, value)) = shown.iter().find(|(known, _)| known == name) {
@@ -979,17 +1005,27 @@ fn css(program: &Program, base: &str) -> String {
             // Une forme (ADR-111) : la découpe et les coins, ensemble.
             "form" => crate::forms::declaration(&setting.value),
             "max-width" if page => format!("--holo-width:{};", css_value(setting, base)),
+            // Les filtres (ADR-108) sont composés plus bas, en un seul `filter` ; le flou de
+            // derrière va sur le `::backdrop` de la fenêtre.
+            name if crate::filters::is_filter(name) || name == crate::filters::BACKDROP => String::new(),
             name => format!("{name}:{};", css_value(setting, base)),
         };
+        let filters = |state: Option<&[crate::holo::Setting]>| crate::filters::declaration(&rule.settings, state, &|s| css_value(s, base));
         for setting in &rule.settings {
             output.push_str(&declaration(setting));
         }
+        output.push_str(&filters(None));
         // Un style qui change au survol ou à l'appui passe d'un aspect à l'autre en douceur,
         // à moins que l'auteur n'ait dit sa propre durée (`transition:`).
         if rule.states.iter().any(|(state, ..)| state == "hover" || state == "active") && !rule.settings.iter().any(|r| r.name == "transition") {
-            output.push_str("transition:background .15s,color .15s,border-color .15s,opacity .15s,box-shadow .15s,scale .15s,rotate .15s;");
+            output.push_str("transition:background .15s,color .15s,border-color .15s,opacity .15s,box-shadow .15s,scale .15s,rotate .15s,filter .15s;");
         }
         output.push('}');
+        // Derrière une fenêtre (ADR-108), le flou vaut pour toute la page : son `::backdrop`.
+        if let Some(behind) = rule.settings.iter().find(|s| s.name == crate::filters::BACKDROP) {
+            let backdrop = selector.split(',').map(|s| format!("{s}::backdrop")).collect::<Vec<_>>().join(",");
+            output.push_str(&format!("{backdrop}{{{}}}", crate::filters::backdrop_declaration(&css_value(behind, base))));
+        }
         // Les états (ADR-036). Le survol n'existe qu'avec une souris : sur un écran tactile, il
         // resterait collé après un toucher. Le focus est celui du clavier. Le thème sombre suit
         // le choix du visiteur ; « phone » vaut pour un écran plus étroit que la page (ADR-041) ;
@@ -998,7 +1034,8 @@ fn css(program: &Program, base: &str) -> String {
         // page marque elle-même ces cases (`holo-narrow`) : en CSS, une case ne peut pas se
         // mesurer elle-même, seulement ce qu'elle contient, et l'auteur s'y tromperait.
         for (state, settings, _) in &rule.states {
-            let body: String = settings.iter().map(&declaration).collect();
+            // Un état qui change un filtre reçoit la liste entière, recomposée (ADR-108).
+            let body: String = settings.iter().map(&declaration).collect::<String>() + &filters(Some(settings.as_slice()));
             let rule_state = match state.as_str() {
                 "hover" => format!("@media (hover:hover){{{}:hover{{{body}}}}}", selector.split(',').map(str::to_string).collect::<Vec<_>>().join(":hover,")),
                 "focus" => format!("{}:focus-visible{{{body}}}", selector.split(',').collect::<Vec<_>>().join(":focus-visible,")),
@@ -1011,6 +1048,11 @@ fn css(program: &Program, base: &str) -> String {
                 _ => format!("{}:active{{{body}}}", selector.split(',').collect::<Vec<_>>().join(":active,")),
             };
             output.push_str(&rule_state);
+        }
+        // Au clavier (ADR-108), un bloc filtré qui a le focus se montre sans filtre : son cadre
+        // de focus reste net. Écrit après les états, il passe avant le survol et l'appui.
+        if crate::filters::filtered(rule) {
+            output.push_str(&format!("{}:focus-visible{{filter:none}}", selector.split(',').collect::<Vec<_>>().join(":focus-visible,")));
         }
         // Au clavier (ADR-111), un bloc découpé en polygone qui a le focus se montre entier : la
         // découpe couperait son cadre de focus. Écrit après les états, et plus précis qu'eux.
@@ -1043,7 +1085,7 @@ fn css_value(setting: &crate::holo::Setting, base: &str) -> String {
     }
     // Une durée de passage : elle vaut pour tout ce qui change d'allure.
     if setting.name == "transition" && value != "none" {
-        return ["background", "color", "border-color", "opacity", "box-shadow", "scale", "rotate", "letter-spacing"].iter().map(|p| format!("{p} {value}")).collect::<Vec<_>>().join(",");
+        return ["background", "color", "border-color", "opacity", "box-shadow", "scale", "rotate", "letter-spacing", "filter"].iter().map(|p| format!("{p} {value}")).collect::<Vec<_>>().join(",");
     }
     // Une taille écrite en pixels suit le réglage « texte plus grand » du visiteur, comme le texte
     // (ADR-061) : 16px = 1rem. Les traits, les ombres et l'écart entre les lettres restent en pixels.
@@ -1174,6 +1216,16 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
         output.push_str("</div>");
         return Ok(());
     }
+    // Un bloc qui reste à l'écran (ADR-106) : fabriqué sans son réglage, puis marqué sur sa propre
+    // balise, ou sur celle de son mouvement s'il bouge ; une enveloppe changerait sa place.
+    if let Some(edge) = crate::scroll::sticky_of(block) {
+        let mut remainder = block.clone();
+        remainder.arguments.retain(|a| a.name.as_deref() != Some("sticky"));
+        let mut inside = String::new();
+        render(&Value::Block(remainder), &mut inside, worlds, base, parent)?;
+        output.push_str(&crate::scroll::with_sticky(&inside, edge));
+        return Ok(());
+    }
     // Un bloc qui bouge (enter:, loop:) : on le fabrique sans ses mouvements, puis on
     // l'enveloppe dans eux (ADR-034).
     if let Some((movements, remainder)) = crate::movement::of_block(block)? {
@@ -1218,6 +1270,12 @@ fn render(value: &Value, output: &mut String, worlds: &mut String, base: &str, p
     }
     match block.name.as_str() {
         "Transfer" | "Device" | "Notification" | "Offline" => output.push_str(&crate::capabilities::html(block)),
+        // Une page dans la page (ADR-117) : derrière sa façade, rien ne part vers l'autre site avant le
+        // toucher du visiteur. Les mots de la façade suivent la langue de la page.
+        "Embed" => {
+            let french = LANGUAGE.with(|l| l.borrow().is_empty() || l.borrow().starts_with("fr"));
+            output.push_str(&crate::embed::html(block, &classes, &name, base, french)?);
+        }
         // Des scènes qui s'enchaînent, l'une après l'autre, au même endroit (ADR-034).
         "Scenes" => {
             let mut height = 480.0;
@@ -2065,6 +2123,10 @@ fn lines(repeat: &Block, list: &str, base: &str) -> Result<String, Error> {
                     let inside = &after[1..end];
                     if inside == "item" {
                         output.push(ELEMENT);
+                    } else if let Some(format) = inside.strip_prefix("item:") {
+                        // Le texte de l'élément, travaillé (ADR-103) : `{item:upper}`, `{item:max20}`.
+                        output.push_str(&format!("{FIELD}{}{FIELD}", shown_ones.len()));
+                        shown_ones.push((String::new(), Some(format.to_string())));
                     } else if let Some(field) = inside.strip_prefix("item.") {
                         let (name, format) = field.split_once(':').map_or((field, None), |(n, f)| (n, Some(f.to_string())));
                         output.push_str(&format!("{FIELD}{}{FIELD}", shown_ones.len()));
@@ -2140,6 +2202,13 @@ fn lines(repeat: &Block, list: &str, base: &str) -> Result<String, Error> {
             }
         }
         let mut line = line.replace(ELEMENT, &escape(&crate::lists::text_of(element)));
+        // Un champ travaillé, ou le texte de l'élément (ADR-103) : `{item.title:upper}`, `{item:max20}`.
+        for (i, (name, format)) in shown_ones.iter().enumerate() {
+            if let Some(format) = format.as_deref().filter(|f| crate::text::is_format(f)) {
+                let raw = if name.is_empty() { crate::lists::text_of(element) } else { fields.iter().find(|(c, _)| c == name).map(|(_, v)| v.clone()).unwrap_or_default() };
+                line = line.replace(&format!("{FIELD}{i}{FIELD}"), &escape(&crate::text::apply(&raw, format, &crate::format::language())));
+            }
+        }
         for (i, (name, format)) in shown_ones.iter().enumerate() {
             let raw = fields.iter().find(|(c, _)| c == name).map(|(_, v)| v.clone()).unwrap_or_default();
             let shows = match (format, raw.parse::<u64>()) {
@@ -2418,6 +2487,13 @@ fn markdown(text: &str) -> String {
     for name in crate::state::names_in(text) {
         if crate::format::can_be_negative(name) && crate::format::decimal_places(name) == 0 {
             html = html.replace(&format!("<span data-state=\"{name}\"></span>"), &format!("<span data-state=\"{name}\" data-format=\"d0\"></span>"));
+        }
+    }
+    // Un texte travaillé (ADR-103) : sa valeur montrée a son propre nom dans l'état, `code:upper`,
+    // que la page écrit telle quelle.
+    for (name, format) in crate::format::formats_in(text) {
+        if crate::text::is_format(format) {
+            html = html.replace(&format!("{{{name}:{format}}}"), &format!("<span data-state=\"{name}:{format}\"></span>"));
         }
     }
     // `{minute:00}` : la valeur, avec son format (ADR-043).
@@ -2972,6 +3048,30 @@ H1 { colour: red; }").split(" : ").next(), Some("ligne 2, colonne 6"));
             let error = crate::check_page(source).err().or_else(|| crate::flat_view(source, "").err()).unwrap_or_else(|| panic!("accepté : {source}"));
             assert!(error.message.contains(message), "{source}\n→ {error}");
         }
+    }
+
+    #[test]
+    fn the_filters_reach_the_browser() {
+        // ADR-108 : un seul `filter`, dans l'ordre ; un état qui en change un garde les autres ;
+        // au focus du clavier, sans filtre ; le flou de derrière, avec son préfixe, sur le
+        // `::backdrop` de la fenêtre seulement.
+        let source = "Page(children: [ Image.photo(source: \"a.png\", alt: \"\"), Shape.cible(name: Cible, form: circle), Dialog(name: D, children: [ P(\"y\") ]) ])\n\
+            .photo { blur: 3px; grayscale: 1; hue: 30deg; hover: { grayscale: 0; } active: { opacity: 0.8; } }\n\
+            .cible { saturate: 0.5; transition: 0.3s; }\n\
+            Dialog { backdrop-blur: 6px; background: navy; color: white; }\n\
+            Image { brightness: 0.6; contrast: 1.2; saturate: 1.8; }";
+        let html = crate::flat_view(source, "/ex/").unwrap();
+        for expected in [
+            ".holo-s-photo{filter:grayscale(1) hue-rotate(30deg) blur(3px);transition:background .15s,color .15s,border-color .15s,opacity .15s,box-shadow .15s,scale .15s,rotate .15s,filter .15s;}",
+            "@media (hover:hover){.holo-s-photo:hover{filter:grayscale(0) hue-rotate(30deg) blur(3px);}}",
+            ".holo-s-photo:active{opacity:0.8;}.holo-s-photo:focus-visible{filter:none}",
+            ".holo-Image{filter:saturate(1.8) brightness(0.6) contrast(1.2);}.holo-Image:focus-visible{filter:none}",
+            ".holo-s-cible{transition:background 0.3s,color 0.3s,border-color 0.3s,opacity 0.3s,box-shadow 0.3s,scale 0.3s,rotate 0.3s,letter-spacing 0.3s,filter 0.3s;filter:saturate(0.5);}.holo-s-cible:focus-visible{filter:none}",
+            ".holo-Dialog{background:navy;color:white;}.holo-Dialog::backdrop{-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);}",
+        ] {
+            assert!(html.contains(expected), "manque : {expected}\n{html}");
+        }
+        assert!(!html.contains("grayscale:") && !html.contains(".holo-Dialog:focus-visible"), "{html}");
     }
 
     #[test]

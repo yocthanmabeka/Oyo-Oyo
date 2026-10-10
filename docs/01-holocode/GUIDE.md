@@ -298,6 +298,7 @@ Réglages connus :
 | `box-shadow`, `text-shadow` | Décalage, flou, couleur : `0 4px 12px #00000066` ; trois au plus ; ou `none` |
 | `rotate`, `scale` | Une pose : `-3deg` ; `1.05` |
 | `transition` | La durée du passage d'une allure à l'autre : `0.3s` ; ou `none` |
+| `grayscale`, `saturate`, `brightness`, `contrast`, `hue`, `blur`, `backdrop-blur` | Les filtres d'image (`ADR-108`), sur une image, une forme ou un dessin : un réglage par effet, `grayscale: 1`, `brightness: 0.6`, `blur: 3px` ; `backdrop-blur` sur une fenêtre ; voir « 6 undequinquagies » |
 
 **Les variables.** Une couleur ou une taille nommée une fois, dans le style de `Page`, puis employée partout, sans `var( )` :
 
@@ -2004,6 +2005,46 @@ Page(
 
 La leçon est `125-des-nombres-negatifs.holo`.
 
+## 6 quaterquadragies. Travailler un texte : des majuscules, sa longueur, le couper, le découper
+
+Un compteur sous un message, un code en capitales, l'aperçu d'un texte long, des étiquettes écrites d'une traite (`ADR-103`).
+
+```holo
+Page(
+  title: "Message",
+  state: State(code: "ab-12", message: "", keywords: "art, painting, Paris", posts: []),
+  computed: [
+    Split(name: tags, from: keywords, by: ","),
+    Split(name: words, from: message, by: " "),
+  ],
+  children: [
+    Input(value: code, label: "Your discount code"),
+    P("Printed as: {code:upper}"),
+    Input(value: message, label: "Your message", lines: 3, max: 140),
+    P("{message:length} characters out of 140, {words} word(s)."),
+    P("Preview: {message:max40}"),
+    Button(name: Publish, text: "Publish"),
+    Repeat(over: posts, children: [ P("{item:max40}") ]),
+    Input(value: keywords, label: "Keywords, separated by commas"),
+    P("{tags} tag(s)"),
+    Repeat(over: tags, children: [ Text("#{item:lower}") ]),
+  ],
+  rules: [ On(Publish.tap, effect: posts.push(message)) ],
+)
+```
+
+- **`{code:upper}`**, **`{code:lower}`** : le texte en majuscules, en minuscules, dans la langue de la page : « ß » devient « SS » ; en turc et en azéri (`Page(lang: "tr")`), « i » devient « İ » ; en grec, les accents tombent en majuscules. Ce que le visiteur a écrit ne change pas : seulement ce qu'on montre. Pour l'allure d'un bloc entier, le style `text-transform: uppercase` suffit.
+- **`{message:length}`** : le nombre de caractères, comme une personne les compte. 👍🏽, 🇫🇷, 👨‍👩‍👧, « é » écrit en deux morceaux et « क्षि » comptent chacun pour un, comme `Intl.Segmenter` (en JavaScript, `"👍".length` vaut 2).
+- **`{message:max40}`** : au plus 40 caractères, « … » compris, de `max2` à `max2000`. Plus long, le texte est coupé à la fin d'un mot quand on garde ainsi au moins la moitié de la place, sinon au milieu du mot, jamais au milieu d'une lettre ; « … » dit qu'il continue.
+- **Partout où un texte se montre** : dans une phrase, dans le titre de l'onglet (`Page(title: "Code {code:upper}")`), dans les lignes d'une liste pour un champ (`{item.title:max40}`) ou pour le texte de l'élément (`{item:upper}`), et sans JavaScript, avec `holo serve`.
+- **`Split(name: tags, from: keywords, by: ",")`**, dans `computed: [ … ]` : le texte découpé en liste, qui le suit pendant qu'on écrit. Chaque morceau perd ses blancs autour ; les morceaux vides sont oubliés ; deux cents au plus. `{tags}` compte les morceaux ; `Repeat(over: tags)` les montre ; un `Filter(from: tags, …)` écrit après lui les trie ou les cherche.
+- **`by:`** : `","` coupe aux virgules de toutes les écritures (« 北京，上海、广州 » donne trois morceaux) ; `";"` aux points-virgules ; `" "` aux blancs (des mots : `{words}` les compte) ; `lines` à chaque ligne d'un texte long ; un autre texte, de un à dix signes, tel qu'il est écrit, `by: " - "`.
+- La valeur montrée a son propre nom dans l'état, `code:upper`, `message:length` : `?values` la montre ; l'arbitre ne la relit jamais.
+- Refusés, avec la raison : un format de texte sur un nombre, une liste (son nombre s'écrit `{tasks}`) ou une date ; `{code:uppercase}` (écris `upper`), `{bio:max1}` ; `{item:upper}` hors d'une répétition ; un `Split` sans `from` ou sans `by`, un séparateur vide, un `from` qui n'est pas un texte ; changer ou réordonner une liste découpée (on change son texte).
+- Pas encore : une condition sur une longueur ; la limite d'un champ (`max:`) compte encore les signes écrits, un émoji peut y compter pour plus d'un.
+
+La leçon est `126-travailler-un-texte.holo`.
+
 ## 6 quinquadragies. Une grille qui place ses cases : plusieurs colonnes, des zones
 
 Une case plus grande que les autres, et une page dessinée avec des mots (`ADR-104`).
@@ -2073,6 +2114,40 @@ Page(
 
 La leçon est `128-reordonner-une-liste.holo`.
 
+## 6 septemquadragies. Où en est le visiteur, un bloc qui reste à l'écran : `scroll`, `sticky:`
+
+Une barre de lecture qui se remplit, un bouton « Retour en haut » qui n'apparaît qu'après avoir descendu, un en-tête qui reste en haut pendant qu'on défile (`ADR-106`).
+
+```holo
+Page(
+  title: "Shooting stars",
+  children: [
+    H1("Shooting stars", name: Top),
+    Row(sticky: top, gap: 12px, children: [
+      Progress(value: scroll, max: 100, label: "Reading"),
+      Text("{scroll} %"),
+    ]),
+    P("A shooting star is a grain of dust that burns in the air, a hundred kilometres above us."),
+    H2("When to see them", name: Season),
+    P("The Perseids come in August, the Geminids in December."),
+    If(scroll, over: 10, children: [
+      Row(sticky: bottom, children: [ A("↑ Back to top", to: "#Top") ]),
+    ]),
+  ],
+)
+```
+
+- **`scroll`** : où en est le visiteur dans la page, de 0 (tout en haut) à 100 (tout en bas), en pour cent entiers ; 0 pour une page qui tient dans l'écran. On la lit comme une autre valeur : `{scroll}`, `If(scroll, over: 10, …)`, `Progress(value: scroll, max: 100, …)`, `When(scroll, over: 89, effect: …)`. On ne la change jamais : c'est le navigateur qui la donne quand on défile, au plus dix fois par seconde, et seulement à une page qui la lit. Des données reçues ne la changent pas.
+- **`sticky: top`** ou **`sticky: bottom`**, sur un bloc posé directement dans la page (au besoin sous un `If`, ou dans `Main`), ou sur `Header` et `Footer` : il reste en haut ou en bas de l'écran pendant qu'on défile, et garde sa place dans la page et dans l'ordre de lecture. C'est du CSS : il marche aussi sans JavaScript. Un bloc par bord : pour en garder plusieurs, on les range ensemble, `Row(sticky: top, children: [ … ])`. Pour un composant, `sticky` s'écrit sur son bloc racine.
+- **Il ne cache jamais ce qui a le focus** : la page laisse au focus la place du bloc (`scroll-padding`), mesurée. Tab, Maj + Tab et un lien vers un endroit de la page (`A(to: "#Season")`) s'arrêtent sous la barre, au-dessus du bloc du bas.
+- **Sur un téléphone** : un bloc qui reste prend au plus le cinquième de la hauteur de l'écran ; ce qui dépasse défile dans le bloc. Sur un écran de 480px de haut ou moins (un téléphone couché, une page grossie à 200 %), pendant qu'on écrit avec le clavier de l'écran, et sur papier, il reprend sa place dans la page. Le bouton rond du moteur monte au-dessus d'un bloc resté en bas.
+- **Son fond** : sans style, celui de la page, pour que le texte qui passe dessous ne se lise pas à travers ; un style le change, `.bar { background: #1a1a2e; }`.
+- **Sans JavaScript**, `scroll` vaut 0 : la barre est vide, le bouton ne vient pas ; le bloc reste quand même à l'écran, et la page se lit entière.
+- **Un essai écrit** fait défiler la page : `scroll 50`, puis `expect scroll = 50`.
+- Refusés, avec la raison : déclarer `scroll`, la changer, la garder (`keep`), la retenir le temps d'une visite (`visit`), la mettre dans l'adresse ; un autre bord (`sticky: middle`) ; un bloc rangé dans un autre (`Row`, `Header`, un monde) ; `sticky` sur `If`, `Repeat`, `Dialog`, `Main`, `Point`, ou un son sans lecteur ; deux blocs au même bord ; `position: sticky` ou `position: fixed` dans un style, avec le bon mot.
+
+La leçon est `129-une-barre-de-lecture.holo`.
+
 ## 6 duodequinquagies. Partager la page : `Device(kind: share)`
 
 Le bouton « Partager » du téléphone, dans la page (`ADR-107`) : le visiteur envoie la page à un ami, par un message ou un e-mail.
@@ -2105,6 +2180,43 @@ Page(
 - Refusés : `Share.write` (un partage s'ouvre, il ne s'écrit pas) ; `value:` (le partage ne rend rien à la page).
 
 La leçon est `130-partager-la-page.holo`.
+
+## 6 undequinquagies. Des filtres d'image : gris, flou, luminosité
+
+Une photo en gris qui reprend ses couleurs au survol, une image assombrie sous un titre, la page qui devient floue derrière une fenêtre (`ADR-108`).
+
+```holo
+Page(
+  title: "The lake",
+  children: [
+    H1("The lake"),
+    Image.gray(source: "lake.jpg", alt: "The lake at dawn"),
+    Stack(children: [
+      Image.dimmed(source: "lake.jpg", alt: ""),
+      H2("The lake, at dawn"),
+    ]),
+    Button(name: Open, text: "Open"),
+    Dialog(name: Window, children: [ P("Behind, the page is blurred."), Button(name: Close, text: "Close") ]),
+  ],
+  rules: [ On(Open.tap, effect: Window.open), On(Close.tap, effect: Window.close) ],
+)
+
+.gray { grayscale: 1; transition: 0.4s; hover: { grayscale: 0; } active: { grayscale: 0; } }
+.dimmed { brightness: 0.5; }
+Dialog { backdrop-blur: 6px; }
+```
+
+- **Six réglages**, dans un style comme dans ses états : `grayscale` (de 0, les couleurs, à 1, tout gris), `saturate` (de 0 à 3 ; 1 ne change rien), `brightness` (de 0.2 à 3 ; 1 ne change rien, moins assombrit, plus éclaircit), `contrast` (de 0.2 à 3), `hue` (un angle : les couleurs tournent sur le cercle des teintes, comme dans `Enter`), `blur` (de 0 à 100px). Ce sont les mots du CSS, et des nombres comme `opacity` : jamais `100%`.
+- **Sur une image, une forme ou un dessin** (`Image`, `Shape`, `Drawing`), qui ne portent pas de texte. Jamais sur un bloc qui porte un texte ou un bouton (un paragraphe, une carte, un composant) : assombri ou flou, il se lirait mal, et le contraste vérifié (`ADR-055`) deviendrait faux. Les couleurs d'un texte se changent par `color` et `background`. Jamais sur une vidéo non plus : ses commandes et ses sous-titres seraient filtrés avec elle.
+- **Chaque réglage est à part.** `hover: { grayscale: 0; }` rend les couleurs et garde le flou écrit à côté : le moteur compose les réglages en un seul `filter`, toujours dans le même ordre (gris, saturation, luminosité, contraste, teinte, flou). En CSS, `filter` est une liste, et un état qui en change un l'efface entière.
+- **`backdrop-blur: 6px`**, sur une fenêtre (`Dialog`) : la page, derrière elle, devient floue, en plus de s'assombrir. Il s'écrit dans le style de la fenêtre lui-même, pas dans un état.
+- **Au clavier**, une forme filtrée qu'on touche se montre sans filtre quand elle a le focus : son cadre de focus reste net (un flou le brouillerait, une luminosité basse l'effacerait). Un filtre écrit dans `focus:` est donc refusé.
+- Le passage d'une allure à l'autre (`transition`, ou le survol et l'appui) adoucit aussi les filtres ; un visiteur qui demande moins de mouvement ne voit pas de passage. Le survol n'existe qu'avec une souris : au doigt, l'état `active:` (pendant l'appui) fait la même chose.
+- C'est du CSS : sans JavaScript, la page fabriquée par le serveur est filtrée de la même façon.
+- Refusés, avec le bon mot : `filter` et `backdrop-filter` écrits comme en CSS ; une valeur hors des bornes ou en `%` ; un filtre sur un texte, un bouton ou une vidéo ; un filtre au focus ; `backdrop-blur` ailleurs que sur une fenêtre.
+- Pas encore : `sepia`, `invert`, une ombre qui suit la forme (`drop-shadow`), le verre dépoli sur un bloc posé sur une image ; dans `Enter` et `Loop`, seuls le flou et la teinte bougent.
+
+La leçon est `131-des-filtres-d-image.holo`.
 
 ## 6 unquinquagies. Faire vibrer le téléphone : `Device(kind: vibration)`
 
@@ -2287,6 +2399,46 @@ autre.exemple.org X-Api-Key: ta-clé
 - Avec le serveur d'essai (`node outils/server.mjs`), les données d'un autre site n'arrivent pas : seul holo serve les lit.
 
 La leçon est `139-les-donnees-d-un-autre-site.holo`.
+
+## 6 duodesexagies. Une page dans la page : `Embed`
+
+Une carte, une vidéo, une publication d'un autre site, posée dans la page. Rien ne part vers l'autre site avant que le visiteur la touche (`ADR-117`).
+
+```holo
+Page(
+  title: "A trip to the zoo",
+  embeds: ["www.openstreetmap.org", "www.youtube-nocookie.com"],
+  children: [
+    H1("A trip to the zoo"),
+    Embed(
+      from: "https://www.openstreetmap.org/export/embed.html?bbox=-117.1570%2C32.7310%2C-117.1410%2C32.7400&layer=mapnik",
+      label: "Map: the San Diego Zoo",
+      image: "map.svg",
+    ),
+    Embed.video(
+      from: "https://www.youtube-nocookie.com/embed/jNQXAC9IVRw",
+      label: "Video: Me at the zoo, the first video on YouTube (2005)",
+      image: "video.svg",
+    ),
+  ],
+)
+.video { aspect-ratio: 4/3; }
+```
+
+- **`Embed(from:, label:, image:)`** : la page d'un autre site. `from:` est son adresse, en HTTPS. `label:` est son titre, obligatoire : le lecteur d'écran le dit, c'est aussi le texte du bouton qui la charge et le titre du cadre. `image:` est l'image de la façade, rangée à côté du fichier ; sans elle, la façade montre le titre sur un fond uni.
+- **`embeds: [ … ]`**, sur la page : les seuls sites permis, chacun écrit en entier, sans `https://` (16 au plus). Le moteur compare le nom exactement : `youtube-nocookie.com` n'est pas `www.youtube-nocookie.com`. Chaque site de la liste sert à au moins un `Embed`.
+- **Rien ne part vers l'autre site avant le toucher.** La page arrive avec une façade : l'image de ton site, le titre, et « Charger depuis www.openstreetmap.org », sur un vrai bouton. Ni cadre, ni connexion préparée d'avance, ni miniature chargée chez l'autre site.
+- **Au toucher**, au doigt, à la souris, avec Entrée ou Espace, la page de l'autre site prend la place de la façade, et le clavier y entre.
+  - Elle est enfermée : elle ne voit pas ta page, n'ouvre pas de fenêtre et ne peut pas emmener ta page ailleurs. Elle n'a ni caméra, ni micro, ni position ; seulement le plein écran.
+  - Elle apprend de quel site vient le visiteur, jamais l'adresse de ta page.
+  - Une vidéo attend un second toucher, dans son lecteur : elle ne part jamais seule.
+- **La taille suit l'écran** : toute la largeur, en 16/9. Un style la change : `.video { aspect-ratio: 4/3; }`.
+- **Sans JavaScript**, la façade est un lien vers la page de l'autre site, avec le titre, qui s'ouvre dans un nouvel onglet.
+- **`holo serve`** dit au navigateur de n'accepter un cadre que de ces sites (`Content-Security-Policy: frame-src`), et aucun pour une page qui n'en liste pas.
+- Une fois chargée, la page intégrée peut pister le visiteur, comme tout site qu'il ouvre : c'est pour cela que rien ne se charge avant son choix. Même `youtube-nocookie.com` garde un identifiant.
+- Refusés, avec la raison : `http://`, `javascript:`, `data:` ; une adresse IP, `localhost`, un nom du réseau local ; un port, `nom@`, une valeur `{…}` ; un site absent de la liste, même un sous-domaine d'un site listé ; un titre vide ; une image qui n'est pas rangée à côté ; dans la liste, `https://…`, `*`, un site écrit deux fois, un site qui ne sert pas ; `embeds:` dans un monde.
+
+La leçon est `140-une-page-dans-la-page.holo`.
 
 ## 6 quinvicies. Des formulaires qui vérifient
 
@@ -2807,6 +2959,7 @@ Une unité se colle au nombre : `500KB`, jamais `500 KB`.
 | `Scenes` | `children`, `height`, `repeat`, `name` | Dans `children` |
 | `Scene` | `for`, `children`, `name` | Dans `Scenes` |
 | `Enter`, `Loop` | `opacity`, `x`, `y`, `scale`, `rotate`, `flip`, `tilt`, `blur`, `hue`, `round`, `at`, `for`, `ease`, `letters`, `each` ; `back` pour `Loop` | Dans `enter:` et `loop:`, sur tout bloc qui se voit |
+| `sticky:` (un réglage) | `top` ou `bottom` | Sur un bloc posé directement dans la page, ou `Header` et `Footer` ; un par bord (`ADR-106`) |
 | `Hr` | aucun | Dans `children` |
 | `Quote` | le texte entre guillemets, `by` | Dans `children` |
 | `Code` | le texte entre guillemets | Dans `children` |
@@ -2900,6 +3053,8 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Le toucher | le signal `tap` | fait |
 | Le son | `Sound(name:, source:, volume:, loop:)`, les capacités `play` et `stop` | fait |
 | Apparaître en descendant | `Enter(…, inView: true)` | fait |
+| Où en est le visiteur dans la page : une barre de lecture, un « Retour en haut » | `scroll`, de 0 à 100 | fait (`ADR-106`) |
+| Un bloc qui reste à l'écran pendant qu'on défile, en haut ou en bas | `sticky: top`, `sticky: bottom` | fait (`ADR-106`) |
 | Des tailles qui suivent le visiteur, tout l'écran | les pixels écrits en `rem`, `height: screen` | fait |
 | La vue points au lecteur d'écran | rien à écrire | fait |
 | Une forme simple | `Shape(form:, color:, size:)` | fait |
@@ -2911,6 +3066,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | L'approche d'un personnage, en profondeur | aucun | à faire |
 | Écrire une fois, répéter pour chaque élément | `Repeat(items: [ Item(…) ], children: [ … ])`, `item` | fait |
 | Une couleur nommée, le thème sombre, le téléphone | `--or`, `dark: { … }`, `phone: { … }` | fait |
+| Un filtre d'image : gris, saturation, luminosité, contraste, teinte, flou ; la page floue derrière une fenêtre | `grayscale`, `saturate`, `brightness`, `contrast`, `hue`, `blur` dans le style d'une image, d'une forme, d'un dessin ; `backdrop-blur` dans celui d'une `Dialog` | fait (`ADR-108`) |
 | Sa propre police | `fonts: [ Font(family:, source:) ]` | fait |
 | Une police du moteur, pour toutes les écritures | `fonts: [ Font(family: "Inter") ]` | fait (`ADR-092`) |
 | Envoyer un formulaire | `Form(name:)`, `Contact.send`, `sent`, `failed` | fait |
@@ -2927,6 +3083,7 @@ Tout ce que le moteur sait faire doit avoir son mot dans le langage. Voici où l
 | Multiplier, diviser | les demandes `mul`, `div` | fait |
 | Écrire un nombre joliment | `{minute:00}`, `{n:number}`, `{n:cents}`, `{weekday:name}` | fait |
 | Une valeur qui descend sous zéro : une température, un solde | `negative: [temperature]`, et le signe moins de la langue de la page | fait (`ADR-102`) |
+| Travailler un texte : des majuscules, sa longueur, le couper, le découper en liste | `{code:upper}`, `{code:lower}`, `{message:length}`, `{bio:max40}`, `Split(name:, from:, by:)` | fait (`ADR-103`) |
 | Une liste qui change pendant la visite | `State(tasks: [])`, `push`, `remove(item)`, `clear`, `Repeat(over:)` | fait |
 | Une liste d'articles à champs, aussi reçue du serveur | `State(articles: [ Item(…) ])`, `{item.title}`, `push(Item(…))`, `Data` | fait |
 | Une valeur partagée par tous les visiteurs, vue en direct | `shared: Shared(seats: 20)`, `seats.sub(1)` par un toucher | fait |
@@ -2952,7 +3109,9 @@ L'exemple le plus complet : [`exemples/boutique-comparee/boutique.holo`](../../e
 - Pour les capacités du navigateur (`ADR-093` à `ADR-096`) : la caméra ne prend pas de photo, le microphone ne donne pas de son ; pas de rappel après la fermeture de la page (il faudrait un serveur de « push ») ; pas d'import en CSV ni par glisser-déposer ; pas de copie hors-ligne d'une page qui a un compte, un formulaire ou des valeurs partagées, ni d'envoi mis en attente.
 - Pour les listes de définitions (`ADR-097`) : pas de liste de termes qui change pendant la visite (`Repeat(over:)`), ni de définition faite de plusieurs paragraphes.
 - Pour les nombres négatifs (`ADR-102`) : une glissière, une valeur partagée, l'adresse et un fichier exporté ne prennent pas encore de nombre négatif.
+- Pour les textes (`ADR-103`) : une condition sur une longueur ; une limite de champ (`max:`) qui compte les lettres comme `{message:length}` ; rejoindre une liste en un texte.
 - Pour les valeurs : une heure seule (« 14:30 ») ne se compare pas ; une valeur calculée d'après d'autres (un total qui suit tout seul) reste à faire, hors `Filter` et `Days` ; une fiche de liste ne prend pas de nombre à virgule (son prix s'écrit en centimes, `{item.price:cents}`).
 - Le reste du Markdown (seuls le gras et l'italique sont rendus).
 - Entrer dans un point écrit à l'intérieur d'un monde.
 - Les garde-fous de zoom pour un `Point` seul : ils sont encore fixés dans le moteur.
+- Pour la place du visiteur et les blocs qui restent (`ADR-106`) : sans JavaScript, `scroll` vaut 0 ; pas de place dans un bloc qui défile lui-même ; le cinquième de l'écran et le seuil de 480px ne se règlent pas ; `sticky:` ne se donne pas à l'appel d'un composant.

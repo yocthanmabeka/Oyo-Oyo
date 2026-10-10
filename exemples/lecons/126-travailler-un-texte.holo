@@ -1,0 +1,66 @@
+// Leçon 126 — Travailler un texte : des majuscules, sa longueur, le couper, le découper
+//
+// Ce qu'on apprend :
+//   {code:upper} montre un texte en majuscules, {code:lower} en minuscules, dans la langue de la
+//   page : « ß » devient « SS », et en turc « i » devient « İ ». Ce que le visiteur a écrit ne
+//   change pas : seulement ce qu'on montre.
+//   {message:length} compte ses caractères comme une personne les compte : un émoji, un drapeau,
+//   une lettre accentuée comptent chacun pour un (JavaScript en compterait parfois quatre).
+//   {message:max40} : au plus 40 caractères. Plus long, le texte est coupé à la fin d'un mot, jamais
+//   au milieu d'une lettre, et « … » dit qu'il continue. Dans une ligne : {item:max40}.
+//   computed: [ Split(name: tags, from: keywords, by: ",") ] découpe un texte en liste : chaque
+//   morceau sans ses blancs, les morceaux vides oubliés, les virgules de toutes les écritures
+//   (, ، 、 ，). by: " " coupe aux blancs (des mots), by: lines à chaque ligne. {tags} compte les morceaux.
+//
+// À essayer :
+//   Écris un message avec des émojis 👍🏽🇫🇷 : chacun compte pour un. Écris « 北京，上海、广州 »
+//   dans les mots-clés : trois étiquettes. Puis Page(lang: "tr", …) et le code « istanbul ».
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 126 : travailler un texte",
+  state: State(
+    code: "ab-12",
+    message: "Bonjour à tous, voici mon premier tableau, peint au bord de la rivière.",
+    keywords: "art, peinture, Paris",
+    posts: [],
+  ),
+  computed: [
+    Split(name: words, from: message, by: " "),
+    Split(name: tags, from: keywords, by: ","),
+  ],
+  children: [
+    H1("Travailler un texte"),
+
+    H2("Des majuscules"),
+    Input(value: code, label: "Ton code de réduction"),
+    P("Tel qu'on l'imprime : {code:upper}"),
+
+    H2("Une longueur, un aperçu"),
+    Input(value: message, label: "Ton message", lines: 3, max: 140),
+    P("{message:length} caractères sur 140, {words} mot(s)."),
+    P("Aperçu : {message:max40}"),
+    Button(name: Publish, text: "Publier"),
+    Repeat(over: posts, children: [ P.post("{item:max40}") ]),
+
+    H2("Découper"),
+    Input(value: keywords, label: "Mots-clés, séparés par des virgules"),
+    P("{tags} étiquette(s) :"),
+    Repeat(over: tags, empty: "Aucune étiquette.", children: [ Text.tag("#{item:lower}") ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 124 : une citation courte, le titre d'une œuvre", to: "124-une-citation-courte.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+  rules: [ On(Publish.tap, effect: posts.push(message)) ],
+)
+Page { background: #101020; color: white; font-family: Georgia, serif; max-width: 720px; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+H2 { color: #E9B44C; font-size: 20px; }
+Button { background: #E9B44C; color: #101020; font-weight: bold; padding: 10px 18px; border-radius: 999px; }
+A { color: #8fd3ff; }
+.post { border: 1px solid #E9B44C; border-radius: 8px; padding: 4px 12px; }
+.tag { color: #8fd3ff; font-family: monospace; }

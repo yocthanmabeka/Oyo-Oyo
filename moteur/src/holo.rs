@@ -804,6 +804,9 @@ pub fn read(source: &str) -> Result<Program, Error> {
     // donné par le serveur ne peut être ni dans State ni dans Shared.
     let account = provided.iter().find(|(name, _)| *name == crate::account::ACCOUNT_FILE).map(|(_, text)| *text);
     crate::account::inject(&mut program, account)?;
+    // La place du visiteur dans la page (ADR-106), si elle la lit : donnée par le navigateur, à 0
+    // au départ, comme si la page l'avait déclarée dans State.
+    crate::scroll::inject(&mut program)?;
     Ok(program)
 }
 

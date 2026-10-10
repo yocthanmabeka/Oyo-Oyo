@@ -1,0 +1,79 @@
+// Leçon 129 — Une barre de lecture, un retour en haut
+//
+// Ce qu'on apprend :
+//   scroll : où en est le visiteur dans la page, de 0 (tout en haut) à 100 (tout en bas). La page
+//   la lit comme ses autres valeurs : {scroll}, If(scroll, over: 10, …), Progress(value: scroll).
+//   Elle ne la change jamais : c'est le navigateur qui la donne quand on défile, au plus dix fois
+//   par seconde, pour ne pas ralentir le téléphone.
+//   sticky: top, sticky: bottom : un bloc posé directement dans la page reste à l'écran, en haut
+//   ou en bas, pendant qu'on défile. Il ne prend jamais plus du cinquième de l'écran, et ne cache
+//   jamais ce qu'on atteint au clavier (Tab) ou par un lien vers un endroit de la page.
+//   Ici, la barre de lecture reste en haut. Le bouton « Retour en haut » n'apparaît qu'après avoir
+//   un peu descendu, et reste en bas.
+//   Sans JavaScript, la barre reste en haut aussi, mais elle est vide, et le bouton ne vient pas :
+//   la page se lit quand même tout entière.
+//
+// À essayer :
+//   Descends : la barre se remplit, le pourcentage suit, et le bouton apparaît en bas. Touche-le :
+//   te voilà en haut. Touche « Quand les voir » : le titre s'arrête juste sous la barre. Avec Tab, va
+//   de lien en lien : aucun ne passe sous la barre ni sous le bouton.
+//   Sur un téléphone couché, rien ne reste à l'écran : il est trop bas. Regarde l'aperçu avant
+//   impression : sur papier, la barre garde sa place, sous le titre.
+//
+// (Les styles tout en bas servent à rendre la leçon lisible : voir la leçon 5.)
+
+Page(
+  title: "Leçon 129 : une barre de lecture, un retour en haut",
+  children: [
+    H1("Les étoiles filantes", name: Haut),
+    Row.lecture(sticky: top, gap: 12px, children: [
+      Progress(value: scroll, max: 100, label: "Lecture"),
+      Text("{scroll} %"),
+    ]),
+
+    P("Une nuit d'été, loin des lumières de la ville, on voit parfois un trait de lumière traverser le ciel en une seconde. On l'appelle une étoile filante ; ce n'est pourtant pas une étoile."),
+    List(children: [
+      A("Ce que c'est", to: "#CeQueCest"),
+      A("Quand les voir", to: "#Quand"),
+      A("Où les voir", to: "#Ou"),
+    ]),
+
+    H2("Ce que c'est", name: CeQueCest),
+    P("Une étoile filante est un grain de poussière venu de l'espace, souvent plus petit qu'un grain de sable. Il entre dans l'air de la Terre à plus de quarante kilomètres par seconde."),
+    P("Si vite, l'air devant lui se tasse et chauffe : le grain brûle, et l'air brille sur son passage. C'est cette lueur que l'on voit, à une centaine de kilomètres au-dessus de nos têtes."),
+    P("La plupart de ces grains viennent de comètes. Une comète qui passe près du Soleil perd un peu de sa poussière, qui reste sur son chemin comme les miettes d'un pain qu'on emporte."),
+
+    H2("Quand les voir", name: Quand),
+    P("Chaque année, la Terre traverse les mêmes chemins de poussière, aux mêmes dates : ce sont les pluies d'étoiles filantes. Les plus connues portent le nom de la constellation d'où elles semblent venir."),
+    P("Les Perséides arrivent en août, autour du 12 : par une nuit sans lune, on peut en compter une par minute. Les Léonides passent en novembre, les Géminides en décembre, souvent les plus belles de l'année."),
+    P("Le meilleur moment est la seconde moitié de la nuit, quand notre côté de la Terre fait face au chemin de poussière, comme le pare-brise d'une voiture qui roule sous la pluie."),
+
+    H2("Où les voir", name: Ou),
+    P("Il faut un ciel noir : la campagne, la montagne, la mer. Les lumières d'une ville effacent toutes les étoiles filantes, sauf les plus brillantes."),
+    P("Allonge-toi sur le dos, les pieds vers l'est, et regarde le ciel entier plutôt qu'un seul point. Tes yeux ont besoin d'une vingtaine de minutes pour s'habituer au noir : ne regarde pas ton téléphone pendant ce temps."),
+    A("Les Perséides, sur Wikipédia", to: "https://fr.wikipedia.org/wiki/Pers%C3%A9ides", newTab: true),
+
+    H2("Un vœu", name: Voeu),
+    P("On dit qu'il faut faire un vœu quand on voit une étoile filante, sans le dire à personne. Elle ne dure qu'une seconde : mieux vaut l'avoir choisi avant."),
+    P("Les plus gros grains donnent des boules de feu, plus brillantes que Vénus, qui laissent parfois une traînée visible plusieurs secondes. On en voit quelques-unes par an, si l'on regarde souvent le ciel."),
+
+    If(scroll, over: 10, children: [
+      Row.bas(sticky: bottom, children: [ A.retour("↑ Retour en haut", to: "#Haut") ]),
+    ]),
+
+    Hr(),
+    Row(gap: 16px, align: between, children: [
+      A("← Leçon 124 : une citation courte, le titre d'une œuvre", to: "124-une-citation-courte.holo"),
+      A("Leçon 1 : une page →", to: "01-page.holo"),
+    ]),
+  ],
+)
+
+Page { background: #101020; color: white; font-family: Georgia, serif; padding: 24px 16px; }
+H1 { color: #E9B44C; font-size: 28px; }
+H2 { color: #E9B44C; font-size: 22px; }
+A { color: #8fd3ff; }
+.lecture { padding: 8px 0; box-shadow: 0 6px 8px #00000066; }
+Progress { width: 80%; }
+.bas { padding: 8px 0; }
+.retour { background: #E9B44C; color: #101020; padding: 8px 16px; border-radius: 999px; }

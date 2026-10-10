@@ -198,6 +198,53 @@
         entry.target.classList.toggle("holo-narrow", width < 20 * rem);
       }
     });
+    // Un bloc qui reste à l'écran (ADR-106) : sa hauteur, mesurée, devient la marge que le
+    // navigateur laisse au focus et aux liens vers un endroit de la page (scroll-padding) ; ce
+    // qu'on atteint au clavier ne passe jamais dessous (WCAG 2.4.11). Le bouton rond du moteur
+    // monte au-dessus d'un bloc resté en bas. Sans JavaScript, la marge est la plus grande place
+    // qu'un tel bloc peut prendre : le cinquième de l'écran.
+    const measureSticky = () => {
+      for (const edge of ["top", "bottom"]) {
+        const block = root.querySelector(`.holo-Page [data-sticky="${edge}"]`);
+        if (!block) {
+          document.documentElement.style.removeProperty(`--holo-sticky-${edge}`);
+          continue;
+        }
+        const height = getComputedStyle(block).position === "sticky" ? block.getBoundingClientRect().height : 0;
+        document.documentElement.style.setProperty(`--holo-sticky-${edge}`, `${Math.ceil(height)}px`);
+      }
+      // Un bloc qui vient d'apparaître (un If devenu vrai en descendant) ne cache pas non plus ce
+      // qui a le focus : ce qu'on voyait en partie revient dans la marge. Ce qu'on a laissé hors
+      // de l'écran en défilant y reste.
+      const focused = document.activeElement;
+      if (!focused || !root.contains(focused) || focused.closest("[data-sticky]") || !focused.matches(":focus-visible")) return;
+      const place = focused.getBoundingClientRect();
+      if (place.bottom <= 0 || place.top >= innerHeight) return;
+      const stuck = [...root.querySelectorAll(".holo-Page [data-sticky]")].filter((b) => getComputedStyle(b).position === "sticky").map((b) => b.getBoundingClientRect()).filter((r) => r.height > 0);
+      if (stuck.some((r) => place.top < r.bottom && place.bottom > r.top)) focused.scrollIntoView({ block: "nearest" });
+    };
+    const stickyBlocks = "ResizeObserver" in window && new ResizeObserver(measureSticky);
+    const watchSticky = () => {
+      if (!stickyBlocks) return;
+      stickyBlocks.disconnect();
+      for (const block of root.querySelectorAll(".holo-Page [data-sticky]")) stickyBlocks.observe(block);
+      measureSticky();
+    };
+    addEventListener("resize", measureSticky, { passive: true });
+    // Le clavier de l'écran (ADR-106) : ouvert sur un champ, il prend une grande part de l'écran ;
+    // un bloc resté en haut ou en bas reprend alors sa place dans la page, pour ne jamais cacher ce
+    // qu'on écrit. Un pincement qui grossit la page n'est pas le clavier (visualViewport.scale).
+    const typing = () => document.activeElement?.matches?.("input:not([type=checkbox],[type=radio],[type=range],[type=color],[type=file],[type=button],[type=submit]),textarea,select,[contenteditable]") ?? false;
+    const keyboard = () => {
+      const view = window.visualViewport;
+      const open = Boolean(view) && typing() && view.height * view.scale < innerHeight * 0.75;
+      if (document.documentElement.classList.contains("holo-keyboard") === open) return;
+      document.documentElement.classList.toggle("holo-keyboard", open);
+      measureSticky();
+    };
+    window.visualViewport?.addEventListener("resize", keyboard);
+    addEventListener("focusin", keyboard);
+    addEventListener("focusout", () => setTimeout(keyboard, 0));
     // Les cases d'une grille : ses enfants, ou ceux d'un bloc invisible (If, Repeat) posé dedans.
     const gridItems = (parent) => [...parent.children].flatMap((child) => (getComputedStyle(child).display === "contents" ? gridItems(child) : [child]));
     // Dans un Row ou un Column (ADR-090), seulement les cases qui reçoivent une part de la place :
@@ -215,8 +262,45 @@
       for (const style of root.querySelectorAll("style")) { try { visit(style.sheet?.cssRules ?? []); } catch { /* feuille illisible */ } }
       return selectors.join(",");
     };
+    // Une page dans la page (ADR-117). Le moteur fabrique une façade : une image du site de
+    // l'auteur, le titre, et le site qui se chargera, sur un bouton caché. La page légère le montre ;
+    // rien ne part vers l'autre site avant qu'on le touche, au doigt, à la souris ou au clavier.
+    // Alors la page de l'autre site prend sa place, enfermée, avec son titre pour le lecteur
+    // d'écran, et le clavier y entre. Sans JavaScript, le bouton reste caché : un lien le remplace.
+    const openEmbed = (event) => {
+      // Ce toucher est celui de la façade : il ne part pas au moteur comme le toucher d'un bloc.
+      event.stopPropagation();
+      const facade = event.currentTarget;
+      let address;
+      try { address = new URL(facade.dataset.embed); } catch { return; }
+      if (address.protocol !== "https:") return;
+      const frame = document.createElement("iframe");
+      // Le moins de droits pour qu'une vidéo ou une carte marche : ses scripts, et son origine à
+      // elle (ses propres réglages, chez elle). Rien d'autre : ni formulaire, ni fenêtre, ni
+      // navigation de cette page, ni caméra, micro ou position ; seulement le plein écran,
+      // qu'on demande d'un geste dans la page intégrée. Une adresse de la même origine que cette
+      // page perdrait son enfermement : elle n'a pas le second droit.
+      frame.setAttribute("sandbox", address.origin === location.origin ? "allow-scripts" : "allow-scripts allow-same-origin");
+      frame.setAttribute("allow", "fullscreen");
+      // L'autre site apprend de quel site vient le visiteur (un lecteur vidéo le demande), jamais
+      // l'adresse de la page.
+      frame.setAttribute("referrerpolicy", "strict-origin");
+      frame.title = facade.dataset.label;
+      frame.className = "holo-embed-frame";
+      // Tout est réglé avant que le cadre entre dans la page : sa première demande part enfermée.
+      frame.src = address.href;
+      // La page de l'autre site arrive dans un autre processus du navigateur, qui peut perdre le
+      // clavier en route : arrivée, elle le reçoit, si le visiteur ne l'a pas mis ailleurs.
+      frame.addEventListener("load", () => { if (document.activeElement === frame) frame.contentWindow?.focus(); }, { once: true });
+      facade.replaceWith(frame);
+      frame.focus();
+    };
     // Aussi après chaque morceau de page fabriqué par le moteur. Et le volume des sons (ADR-061).
     window.__holoWatchEntrances = (inside = root) => {
+      for (const facade of inside.querySelectorAll(".holo-embed-load[hidden]")) {
+        facade.hidden = false;
+        facade.addEventListener("click", openEmbed);
+      }
       for (const block of inside.querySelectorAll(".holo-in-view:not(.holo-seen)")) {
         if (watcher) watcher.observe(block);
         else block.classList.add("holo-seen");
@@ -227,6 +311,8 @@
         const share = shares();
         for (const line of inside.querySelectorAll(".holo-Row,.holo-Column")) for (const cell of gridItems(line)) if (cell.matches(share)) cells.observe(cell);
       }
+      // Les blocs qui restent à l'écran de la page refaite (ADR-106).
+      if (inside === root) watchSticky();
     };
     window.__holoWatchEntrances();
     const waiting = (window.__holoWaiting = []);

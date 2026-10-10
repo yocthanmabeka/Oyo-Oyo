@@ -1,6 +1,6 @@
 # ADR-104 — Une grille qui place ses cases : `columnSpan:`, `rowSpan:`, `Grid(areas:)` et `area:`
 
-- Statut : ACCEPTÉ (fait et validé : Yocthan, 2026-10-09, « tu le valides déjà, tu le fais déjà »)
+- Statut : ACCEPTÉ (fait et validé : Yocthan, 2026-10-09, « tu le valides déjà, tu le fais déjà » ; essayé et validé par Yocthan le 2026-10-10 : « je viens de faire tous les essais et je valide »)
 - Date : 2026-10-09
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'issue #233 (« Dernière dette du web : une grille : une case sur plusieurs colonnes, des zones nommées ») ; le grand tableau du web, où `grid` était « en partie » (« Pas de zones nommées ni de case sur deux colonnes », `docs/01-holocode/TABLEAU-WEB.md`) ; `ADR-024` (la disposition), `ADR-069` (la mise en page, `narrow:`) ; la piste 4 de l'exploration du web complet (`proposals/Claude/exploration-web-complet-2026-10/piste-04.md`), qui écartait `span: 2` « tant qu'on ne sait pas éviter » le débordement sur un téléphone.

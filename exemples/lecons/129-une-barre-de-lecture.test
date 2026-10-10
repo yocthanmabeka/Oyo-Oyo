@@ -1,0 +1,8 @@
+// La page part d'en haut ; descendre jusqu'à la moitié, puis tout en bas, puis remonter.
+expect scroll = 0
+scroll 50
+expect scroll = 50
+scroll 100
+expect scroll = 100
+scroll 0
+expect scroll = 0

@@ -56,6 +56,8 @@ pub fn check(program: &Program) -> Result<(), Error> {
                 }
                 // Sa place dans une grille (ADR-104) : vérifiée avec la grille, dans grid.rs.
                 (Some(word), _) if crate::grid::CELL_PARAMS.contains(&word) => {}
+                // Un bloc qui reste à l'écran (ADR-106) : vérifié dans scroll.rs.
+                (Some("sticky"), _) => {}
                 (Some("label"), _) => return Err(Error { message: "« Stopwatch(label: …) » attend un texte entre guillemets : ce que le lecteur d'écran annonce".into(), pos: argument.pos }),
                 (Some("value"), _) => return Err(Error { message: format!("« Stopwatch(value: …) » attend le nom d'un nombre de la page : {example}"), pos: argument.pos }),
                 (Some(other), _) => return Err(Error { message: format!("« Stopwatch » n'a pas de paramètre « {other} » ; paramètres possibles : name, value, label"), pos: argument.pos }),

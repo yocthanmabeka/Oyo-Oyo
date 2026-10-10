@@ -6,6 +6,171 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Où en est le visiteur, un bloc qui reste à l'écran : `scroll`, `sticky:`
+
+- Fait (issue #235, reprise par un agent de la session du PC après trois arrêts à la limite de séance, depuis `wip/defilement` puis `wip/langage/defilement` ; rendue par la session du PC quand le PC s'est éteint (c931455), et finie par la session du nuage ; `ADR-106`, ACCEPTÉ : « tu le valides déjà, tu le fais déjà ») :
+  - `scroll`, de 0 (en haut de la page) à 100 (tout en bas), en pour cent entiers : la page la lit (`{scroll}`, `If(scroll, over: 10, …)`, `Progress(value: scroll)`, `When`), ne la change jamais ; le navigateur la donne au plus dix fois par seconde, et seulement à une page qui la lit ; des données reçues ne la changent pas ; sans JavaScript, elle vaut 0.
+  - `sticky: top | bottom` sur un bloc posé directement dans la page, ou sur `Header` et `Footer` : du CSS (`position: sticky`), qui marche sans JavaScript. Une exception étroite à `ADR-017` : un bord, un bloc par bord, ni décalage ni superposition ; `position` reste refusé dans un style, avec le bon mot.
+  - Le moteur garantit ce que le CSS laisse à l'auteur : un fond d'office, la marge du focus (`scroll-padding`, mesurée par la page ; WCAG 2.4.11), le cinquième de l'écran au plus, rien sous 480px de haut, ni pendant qu'on écrit avec le clavier de l'écran, ni sur papier (tout le style tient sous une seule règle, `@media screen and (min-height: 481px)`, fabriquée à partir des deux bornes du moteur : hors d'elle, ni la place, ni la marge du focus), le bouton ☰ au-dessus du bloc du bas. Un bloc qui apparaît sur ce qui a le focus le laisse visible.
+  - `holo test` sait faire défiler : `scroll 50`.
+  - La leçon 129 (une barre de lecture, un retour en haut ; précédente : 124, suivante : 1) et son essai écrit ; une page d'essai avec un en-tête trop haut ; le guide (« 6 septemquadragies », et des lignes aux § 10, 10 bis et 11), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons.
+  - La session du nuage a fini le travail rendu par la session du PC. La règle des 480px et du papier, déjà fabriquée à partir de `SHARE` et `LOWEST` par c931455, est relue et prouvée : un essai du moteur à part (`nothing_sticks_on_a_low_screen_nor_on_paper` : la règle de média s'ouvre au début du style et se referme sur son dernier caractère, seules les deux bornes y sont écrites, rien ne colle ailleurs dans la page) ; dans Chrome, couché, grossi à 200 % (360 × 400) et sur papier, plus deux regards de plus (au départ, aucune marge du focus en bas tant que le bouton est caché ; clavier de l'écran ouvert, aucune marge du focus). L'essai sait échouer sans la règle, et il a maintenant son audit axe-core. Puis `main` fusionnée trois fois (PR 259, 260, 262, 263, 264, puis 266, puis 265), et `visit: [scroll]` refusé (la mémoire de visite, `ADR-113`, arrivée avec elle). L'ADR, le guide et la leçon disent aussi le papier et la borne exacte (480px ou moins).
+- Exécuté, dans `moteur/`, par la session du nuage (conteneur Linux, Chromium 1194) :
+  - `cargo test --release --locked scroll::`, avant la fusion : 4 passent, dont `nothing_sticks_on_a_low_screen_nor_on_paper` ;
+  - l'essai Chrome de la leçon 129, seul (les deux WebAssembly, `holo` et les liaisons reconstruits) : OK ; couché, `static`, barre à −228px, marge 0/0 ; grossi à 200 %, `static`, barre à −233px, marge 0/0 ; papier, `static`, marge `auto` ; sans JavaScript, marge du focus 148px ;
+  - la règle de média rendue toujours vraie un instant (`all and (min-height:0px)`), puis remise : l'essai seul RATÉ (couché et grossi, `sticky`, barre à 0px, marge 62/58 ; papier, `sticky`, 62px), et `cargo test --release --locked scroll::tests` : 2 ratés ;
+  - après la première fusion de `main`, `cargo test --release --locked` : 282 passent ; après le refus de `visit: [scroll]`, `cargo test --release --locked -- scroll:: visit` : 18 passent ;
+  - après la seconde fusion (PR 266), la preuve complète, une seule à la fois dans le conteneur : `cargo test --release --locked`, 288 passent ; `cargo test`, 288 ; les deux WebAssembly, `holo` et les liaisons se construisent ; la suite Chrome entière, 89 essais sur 93, dont la leçon 129, et 134 leçons qui s'ouvrent sans erreur. Les ratés : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264), les trois du conteneur ; et « comptes : effacement confirmé… » (« database is locked » : l'essai écrit dans la base SQLite pendant que `holo serve` y écrit encore ; vu une fois, sous charge ; passe relancé seul) ;
+  - l'audit axe-core 4.10.3 ajouté à l'essai de la leçon 129, relancé seul : OK, aucun défaut, deux blocs collés à l'écran ;
+  - `holo check ../exemples/lecons/129-une-barre-de-lecture.holo` : ok ; `holo test` avec son essai écrit : ok, 7 lignes jouées ; `visit: [scroll]` : refusé, avec sa raison ;
+  - `main` fusionnée une troisième fois juste avant d'envoyer (PR 265, des documents seulement), sans conflit.
+- ![La leçon 129 sur un ordinateur, à mi-page : la barre de lecture collée en haut, « Retour en haut » collé en bas, le bouton ☰ au-dessus](images/2026-10-10-defilement-ordinateur.png)
+- ![La même leçon sur un téléphone de 360px : la barre prend 55px, le bouton du bas reste au-dessus du bord](images/2026-10-10-defilement-telephone.png)
+- Erreurs en route :
+  - les essais hérités de la sauvegarde n'avaient jamais été compilés : la chaîne `r#"…"#` se fermait sur `"#Top"` ;
+  - `Progress(grow:)` est refusé : la leçon élargit la barre par un style ;
+  - le premier essai d'ancre visait « Où les voir », trop près du bas pour que la page défile jusque-là ;
+  - l'en-tête trop haut faisait 172px au lieu de 156 : la borne ne comptait pas ses marges intérieures (`box-sizing: border-box`) ;
+  - un Tab vers un lien hors de l'écran passait même sans la marge du focus, parce que Chrome le centre : l'essai pose maintenant le lien sous la barre, puis sous le bouton du bas, avant d'y aller ;
+  - la borne du rythme comptait une seconde fixe : elle compte le temps vraiment passé, pour une machine lente ;
+  - après le troisième arrêt, la relecture de la session du PC a trouvé les deux bornes du téléphone (le cinquième, 480px) écrites deux fois, en constantes et en dur dans le CSS, et l'essai Chrome qui ne regardait l'écran bas que d'un œil (`position` seulement, sur le téléphone couché) : le style se fabrique maintenant à partir de `SHARE` et `LOWEST`, le test du moteur vérifie que rien ne colle hors de la règle de média, et l'essai Chrome joue le téléphone couché, la page grossie à 200 % et le papier (la barre part avec la page, aucune marge du focus ne reste posée) ;
+  - (la session du nuage) cette relecture disait aussi la règle de média absente : elle était là depuis le premier commit du moteur (`@media screen and (min-height:481px)`, le papier exclu par `screen`) ; manquaient les bornes fabriquées à partir des constantes (c931455) et des essais qui le prouvent (finis ici) ;
+  - dans la copie du nuage, les WebAssembly dataient d'avant le travail (sans `reads_scroll`) : reconstruits avant l'essai Chrome ;
+  - les noms `header` et `stuck` servaient déjà dans l'essai Chrome (l'en-tête trop haut, le papier) quand le regard sur le clavier et l'audit axe-core les ont repris : renommés (`node --check` refuse une constante déclarée deux fois) ;
+  - à la fusion de `main`, la résolution habituelle du journal aurait doublé le `---` entre deux entrées, et celle du guide n'aurait gardé que le chapitre, pas les lignes des tableaux : fusion faite à la main, en diff3 (le guide s'est fusionné seul) ;
+  - après la fusion, `visit: [scroll]` était accepté : le moteur pose `scroll` dans `State`, et la mémoire de visite l'aurait reprise d'une autre page à l'arrivée ; refusé dans `scroll.rs`, avec sa raison ;
+  - `main` a bougé (PR 266, `Embed`) pendant que la preuve complète attendait son tour : la preuve retirée de la file avant d'avoir rien lancé, `main` fusionnée de nouveau, la preuve relancée sur le code fusionné.
+- Reste : l'essai sur le téléphone de Yocthan (le clavier de l'écran, TalkBack, couché) ; les dettes de l'ADR (une barre en CSS sans JavaScript, un bloc qui défile lui-même, le cinquième et les 480px qui ne se règlent pas) ; la suite des leçons (124 → 129 → 1), refaite quand les douze dettes seront dans `main` ; le grand tableau du web : « défilement (scroll) » peut passer de « En partie » à « Oui ».
+
+---
+
+## 2026-10-10 — Travailler un texte : des majuscules, sa longueur, le couper, le découper
+
+- Fait (issue #232 ; `ADR-103`, ACCEPTÉ d'avance par Yocthan : « tu le valides déjà, tu le fais déjà ») : le travail d'un agent de la session du PC (`wip/langage/textes`, af8bd0d), relu par elle, puis fini par la session du nuage quand le PC s'est éteint (passation dans #255).
+  - Quatre formats de texte (`ADR-043`) : `{code:upper}` et `{code:lower}`, dans la langue de la page (« ß » → « SS » ; en turc, « i » → « İ » ; en grec, les accents tombent en majuscules et le sigma final s'écrit « ς ») ; `{message:length}`, les caractères comptés comme une personne les compte ; `{message:max40}`, au plus 40 caractères, coupé à la fin d'un mot si l'on garde ainsi la moitié de la place, jamais au milieu d'une lettre, avec « … ».
+  - Un caractère est une grappe de graphèmes d'Unicode (UAX #29), comme `Intl.Segmenter` : 👍🏽, 🇫🇷, 👨‍👩‍👧, « é » écrit en deux morceaux, « क्षि » comptent chacun pour un. La table des lettres (Unicode 16.0, 711 plages, moins de 3 Ko) est fabriquée par `moteur/outils/graphemes.py`.
+  - `computed: [ Split(name: tags, from: keywords, by: ",") ]` : une liste calculée qui suit son texte ; les blancs autour retirés, les morceaux vides oubliés, deux cents au plus ; `","` coupe aux virgules de toutes les écritures (, ، 、 ， …), `";"` aux points-virgules, `" "` aux blancs, `lines` à chaque ligne.
+  - Partout où un texte se montre : une phrase, le titre de l'onglet, une ligne de liste (`{item.title:max40}`), et sans JavaScript (`holo serve`).
+  - La leçon 126, le guide (« 6 quaterquadragies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons, un essai dans Chrome.
+- Fini par la session du nuage :
+  - `main` fusionnée (les PR 256 à 263) : NOMS, l'essai Chrome et `styles.rs` résolus en gardant les deux côtés, rangés par numéro ; le guide sans conflit.
+  - puis `main` de nouveau (les PR 264, 266 et 265), en style diff3 : dans `blocks.rs`, `Split` et `Embed` (la #266) gardés tous les deux, dans la ligne `BLOCKS` et à la fin des réglages des blocs ; les lignes de NOMS et de `styles.rs` rangées par numéro ; le fichier des essais vérifié ligne à ligne (celui de `main`, plus l'essai des textes) ; `cargo test --release --locked` : **291** passent.
+  - cette entrée du journal, la preuve complète, la preuve que l'essai sait échouer, la PR.
+- Exécuté (conteneur du nuage, Linux, Chromium 1194) :
+  - après la fusion de `main` : `cargo test --release --locked`, **268** passent, 0 échec.
+  - L'essai Chrome sait échouer : le moteur changé un instant pour compter les points de code au lieu des lettres (`count` → `text.chars().count()`), reconstruit, l'essai seul rate : « compté "👍🏽🇫🇷" : 4 au lieu de 2 », « "été" : 5 au lieu de 3 », « "👨‍👩‍👧 et 🏴󠁧󠁢󠁳󠁣󠁴󠁿" : 16 au lieu de 6 », et de même pour le devanagari, le coréen, l'arabe, le tamoul et le thaï. Le code remis (`git checkout`).
+  - La preuve complète (`check-locked.sh`, sur 672ed1a) : `cargo test --release --locked` et `cargo test`, **268** passent ; les deux WebAssembly, `holo` et les liaisons se construisent ; la suite Chrome (`CI=1`, axe-core 4.10.3) : **88 essais sur 91**, dont celui de la leçon 126 (« au départ : AB-12 », les huit textes difficiles comptés comme `Intl.Segmenter`, « 北京，上海、 广州,, » en trois étiquettes, et sans JavaScript « ISTANBUL ILIK ») ; 132 leçons s'ouvrent sans erreur. Les 3 ratés sont ceux du conteneur : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium). `holo check` sur la leçon 126 : `ok`.
+- Erreurs en route : l'agent de la session du PC a été arrêté vers 15 h, avant le journal et la preuve complète ; puis le PC s'est éteint (plus de charge). Rien n'était perdu : tout était sur `wip/langage/textes`.
+- Reste (les dettes de l'`ADR-103`) :
+  - la limite d'un champ (`max:`) compte encore en signes écrits, pas en lettres : à aligner, avec le `maxlength` du navigateur ;
+  - une condition sur une longueur (`If` sur `{message:length}`) ;
+  - rejoindre une liste en un texte, une majuscule seulement au début, le grec ancien et la règle du point en lituanien ;
+  - `{item:upper}` dans une répétition écrite dans le fichier (`Repeat(items: …)`) ;
+  - refaire la table quand Unicode changera (`python moteur/outils/graphemes.py`) ;
+  - le grand tableau du web (« texte : majuscules, longueur, découper » passe à « Oui ») et la suite des leçons, refaits à la fin.
+
+---
+
+## 2026-10-10 — La passation : le PC s'éteint, la session du nuage reprend tout
+
+- Fait (la session du nuage) :
+  - Vers 16 h 35 UTC, le PC de Yocthan n'avait plus de charge. Sa session a tout envoyé sur GitHub, a rendu chacune de ses tâches sur son issue (`etat:a-prendre`, avec l'état exact) et a écrit la passation dans #255, comme le prévoit `AGENTS.md` (« Si le PC s'arrête »). La session du nuage a tout repris.
+  - Les fusions, dans l'ordre que demandait la session du PC : la #264 (les données d'un autre site, 4e20d04), la #266 (une page dans la page, e464d7f), puis la #265 (les sept nouveautés essayées et validées par Yocthan, 105bda7). Les issues 248 et 249 sont fermées.
+  - Les tâches reprises, chacune sur une branche sans `wip/` :
+    - #237 (les filtres), sur `langage/filtres`, partie de `wip/langage/filtres` ;
+    - #232 (travailler un texte), sur `langage/textes`, partie de `wip/langage/textes` ;
+    - #235 (le défilement), sur `langage/defilement`, partie de `wip/langage/defilement` : un agent finit la règle des 480 px et du papier ;
+    - #240 (découper une forme), sur `langage/formes-decoupees` : l'agent du PC s'était arrêté avant d'écrire, un agent du nuage la fait.
+- Les accords de Yocthan, le 2026-10-10, à la session du nuage : « tu as toutes mes autorisations », et « valide toutes les essais au cas où ils sont déjà là parce que j'ai tout testé déjà ». C'était la réponse aux deux questions posées : fusionner les PR vertes et relues sans attendre, et employer `ring` (déjà compilé avec `ureq`, la #264) dans `holo serve` seulement, pour chiffrer (251) et vérifier une signature (252).
+- Erreurs en route :
+  - Le système de permissions de la session du nuage a refusé la première fusion de la #264 : la demande venait de la session du PC, pas de Yocthan. Rien n'a été contourné. Yocthan a donné son accord lui-même, et la fusion est passée. Une session ne tient jamais l'accord de Yocthan d'une autre session, seulement de lui.
+  - Après la #264, la fusion de `main` dans la #266 a perdu une accolade. Les deux essais Chrome, ajoutés au même endroit, finissaient par les mêmes deux lignes (la fin d'un bloc `finally`, puis celle de l'essai), et l'outil de fusion de la session du nuage, écrit pour l'ancien style de conflit, n'en remettait qu'une. `node --check` l'a vu avant l'envoi. Le fichier a été rendu, puis vérifié ligne à ligne : celui de `main`, plus l'essai de la 249. L'outil fusionne maintenant en style diff3, comme le dit `AGENTS.md`, et a été éprouvé sur ce cas exact.
+  - Le Chrome sans écran de Linux n'a pas de souris : un style au survol (`@media (hover:hover)`) ne s'y voit jamais, et `Emulation.setEmulatedMedia` n'y change rien. L'essai des filtres lit maintenant la règle dans la feuille de style quand il n'y a pas de souris.
+- Reste :
+  - les PR des filtres, des textes, du défilement et des formes découpées ;
+  - #238 (les heures), #246 (le mot de passe), #247 (la zone de dessin) ;
+  - les fonctions ouvertes : 250 (en cours), 251 et 252 ;
+  - la suite des leçons et le grand tableau du web (v37), quand les douze dettes seront dans `main`.
+
+---
+
+## 2026-10-10 — Des filtres d'image dans les styles : gris, flou, luminosité
+
+- Fait (issue #237, un agent de la session du PC ; `ADR-108`, ACCEPTÉ d'avance par Yocthan : « tu le valides déjà, tu le fais déjà ») :
+  - `grayscale`, `saturate`, `brightness`, `contrast`, `hue`, `blur` dans un style : un réglage par effet, borné, jamais en `%`. Le moteur les compose en un seul `filter`, toujours dans le même ordre ; un état en change un sans effacer les autres (`hover: { grayscale: 0; }` garde le flou).
+  - Seulement sur une image, une forme ou un dessin. Jamais sur un texte, un bouton, un composant ni une vidéo.
+  - Au focus du clavier, le bloc filtré se montre sans filtre (`:focus-visible { filter: none }`) : son cadre de focus reste net.
+  - `backdrop-blur` sur une fenêtre : la page, derrière elle, devient floue (son `::backdrop`).
+  - La leçon 131, le guide (« 6 undequinquagies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons, un essai dans Chrome.
+- Repris du travail sauvé par l'agent arrêté (`wip/langage/filtres-pc`), puis relu contre les règles. Trois changements :
+  - Le premier jet filtrait tout bloc. Il ne mesurait le contraste d'un texte filtré que si le même style donnait ses deux couleurs : un texte dont les couleurs venaient de la page passait donc assombri sans rien dire. Désormais, un filtre ne se pose que sur un bloc sans texte.
+  - Vu dans Chrome (première capture) : un flou brouille le cadre de focus et les commandes d'une vidéo ; `brightness(0.2)` les efface presque ; `clip-path` coupe le cadre tout entier. D'où la vidéo refusée, et le focus sans filtre.
+  - Le verre dépoli (`backdrop-blur` sur un bloc à demi transparent) posait un texte sur un fond inconnu. Il est retiré, et laissé en dette.
+
+![Le cadre de focus (en bleu) sous un filtre : net, brouillé par blur(3px), presque effacé par brightness(0.2), gris, coupé par clip-path ; dessous, les commandes d'une vidéo floutée, puis assombrie](images/2026-10-10-filtres-cadre-de-focus.png)
+
+![La leçon 131 : le lac en gris, assombri, plus vif, flou ; le titre posé sur la photo assombrie](images/2026-10-10-filtres-lecon-131.png)
+
+![La fenêtre ouverte : derrière elle, la page est floue et assombrie](images/2026-10-10-filtres-fenetre-floue.png)
+
+- Erreur : l'exemple du guide du premier jet commençait par un `H2`. Seuls les tests nouveaux avaient tourné ; le test qui relit le guide l'a vu au premier `cargo test` complet. Corrigé (5cba62d).
+- Exécuté, après la fusion de `main` (style diff3 ; les ajouts des deux côtés gardés, rangés par numéro) :
+  - `cargo test --release --locked` et `cargo test` : 259 tests passent.
+  - Dans Chrome, « des filtres d'image … (leçon 131) » passe : `grayscale(1)`, puis `grayscale(0)` sous la souris ; `brightness(0.6) contrast(1.2)`, `saturate(1.8) hue-rotate(30deg)`, `blur(3px)` ; au focus du clavier, `none` ; derrière la fenêtre ouverte, `blur(6px)` ; sans JavaScript, les mêmes filtres.
+  - L'essai sait échouer. Sans la ligne `:focus-visible{filter:none}` du moteur, il rate (« au focus du clavier : focus-visible, grayscale(1) »). Avec l'ancien moteur, la leçon est refusée (« réglage inconnu « grayscale » »).
+  - La suite entière : 86 essais passent, 4 ratent, tous faute d'axe-core sur ce PC (rien n'y est installé ; GitHub l'installe) : « parcours : axe-core… », et les essais des leçons 130, 133 et 135, venus de `main`, qui s'arrêtent à leur audit axe-core.
+- Fini par la session du nuage (le PC s'est éteint ; passation dans #255) :
+  - La preuve complète dans le conteneur du nuage (Linux, Chromium 1194), sur 76d6d8e : `cargo test --release --locked` et `cargo test`, **265** passent ; les deux WebAssembly, `holo` et les liaisons se construisent ; la suite Chrome : 87 essais passent sur 91, 132 leçons s'ouvrent, axe-core 4.10.3 ne trouve aucun défaut. Trois ratés sont ceux du conteneur (« pincer à deux doigts », « la vue points se lit au lecteur d'écran », « parcours 8 et 9 ») ; le quatrième était l'essai des filtres : « sous la souris : resté gris ».
+  - Erreur : ce Chrome sans écran n'a pas de souris (`matchMedia("(hover: hover)")` est faux), donc la règle du survol, posée sous `@media (hover:hover)` (`ADR-036`), ne s'y applique jamais ; et `Emulation.setEmulatedMedia` ne sait pas lui en donner une (essayé). L'essai fait maintenant le vrai survol quand il y a une souris, comme sur le PC ; sinon, il lit la règle dans la feuille de style. Il passe, deux fois de suite, et il sait échouer : la règle du survol retirée du moteur, il rate (« pas de souris dans ce Chrome, et pas de règle du survol ») ; le code remis, il repasse.
+- Défauts trouvés, pas corrigés ici :
+  - une forme qu'on touche en triangle ou en losange (`Shape(name:, form: triangle)`) n'a pas de cadre de focus visible : `clip-path` le coupe (vu dans Chrome). Noté pour la 240 (les formes découpées) ;
+  - une fenêtre ouverte se pose en haut à gauche de l'écran, pas au centre (leçon 63 comme leçon 131) : la marge des blocs de la page (`margin: 0 0 16px 0`) remplace le `margin: auto` du navigateur.
+
+---
+
+## 2026-10-10 — Une page dans la page : `Embed(from:, label:, image:)`
+
+- Fait (issue #249, la session du nuage ; `ADR-117`, ACCEPTÉ) : l'une des huit fonctions ouvertes sous conditions, la page d'un autre site dans la page.
+  - `Embed(from: "https://…", label: "…", image: "…")`, d'un site listé dans `Page(embeds: [ … ])`, comparé exactement, en HTTPS. Le nom que les sites donnent eux-mêmes (« Intégrer », « Embed ») ; les mots repris : `from:`, `label:`, `image:` (la comparaison est dans l'ADR).
+  - Une façade : une image du site de l'auteur, le titre, « Charger depuis www.openstreetmap.org », sur un vrai bouton. Rien ne part vers l'autre site avant le toucher : ni cadre, ni connexion préparée, ni image chargée chez lui ; l'adresse n'est que dans `data-embed`.
+  - Au toucher (doigt, souris, Entrée, Espace), la page légère pose la page intégrée, sans attendre le moteur : `sandbox="allow-scripts allow-same-origin"` (`allow-scripts` seul pour une adresse de la même origine que la page), `allow="fullscreen"`, `referrerpolicy="strict-origin"`, son titre ; le clavier y entre.
+  - Sans JavaScript, un lien dans `noscript`, avec le titre, qui s'ouvre dans un nouvel onglet.
+  - `holo serve` envoie `Content-Security-Policy: frame-src` : les sites listés, `'none'` sinon. Il n'envoyait aucune politique de sécurité du contenu.
+  - La taille suit l'écran : 16/9, un style la change.
+  - La leçon 140 : une carte d'OpenStreetMap et la première vidéo de YouTube, avec deux images de façade de moins de 600 octets. Le guide (chapitre « 6 duodesexagies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons, le README du moteur.
+- Exécuté :
+  - `check-locked.sh` : `cargo test --release --locked` et `cargo test`, **267** tests passent, 0 échec. Nouveaux : les cinq essais de `embed.rs` et `server::embed_tests::a_page_says_which_sites_it_may_embed`.
+  - `holo check` sur la leçon 140 : `ok`.
+  - Dans Chrome, « une page dans la page … (leçon 140, serve) » passe. « L'autre site » est une fausse page, rendue par l'interception des demandes (Fetch), qui dit au parent ce qu'elle voit.
+    - Avant le toucher : 0 demande vers l'autre site (par l'interception et par le réseau), aucun cadre, aucune adresse de l'autre site dans un `src` ou un `href`.
+    - Au clavier, Tab jusqu'à la façade, Entrée : le cadre enfermé, son titre, le clavier dedans (la touche « k » y arrive). Au doigt, la vidéo.
+    - La fausse page : la page de l'auteur lui est fermée ; pendant la touche, ni fenêtre, ni navigation de la page de l'auteur ; seul `fullscreen` ; la position refusée ; elle reçoit `http://localhost:…/`, pas l'adresse de la page.
+    - `frame-src` refuse un cadre non listé ; une adresse de la même origine, sur la leçon servie en HTTPS, n'a que `allow-scripts`.
+    - Sans JavaScript : deux liens nommés, aucun bouton, aucun cadre, aucune demande. axe-core : zéro défaut, avant et après le toucher.
+  - L'essai sait échouer. Chaque mutation a été faite, puis retirée, et l'essai repasse :
+    - le cadre posé d'emblée, comme le web : 2 demandes vers l'autre site avant le toucher ;
+    - sans `frame.focus()` : le clavier n'entre pas ;
+    - sans `sandbox` : pendant une touche, la page intégrée emmène la page de l'auteur vers `https://pirate.example.org/dessus` ;
+    - sans l'en-tête de `holo serve` : pas de `frame-src`, le cadre non listé n'est pas refusé ;
+    - sans la façade : les boutons restent cachés, le clavier ne les atteint pas.
+  - Dans le moteur, `http://` accepté, puis un sous-domaine accepté : `only_https_to_a_listed_site_compared_exactly` rate.
+  - La suite Chrome entière (`CI=1`, axe-core 4.10.3), par `check-locked.sh` (sur 94096fc, puis de nouveau sur fa1606e, après le clavier redonné) : **88 essais sur 91** chaque fois, dont le nouveau ; 132 leçons s'ouvrent sans erreur. Les 3 ratés sont ceux du conteneur : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium).
+- Erreurs en route :
+  - Le nom lu par le lecteur d'écran collait les deux lignes de la façade ; une virgule cachée laissait une espace avant elle (Chrome compte l'élément caché comme un bloc). Le bouton et le lien ont maintenant un nom exact (`aria-label`), qui reprend le texte montré, dans l'ordre.
+  - La fenêtre ouverte sans geste était déjà bloquée par Chrome, enfermée ou non : l'essai ne tranchait pas. La fausse page la tente maintenant pendant une touche, un vrai geste.
+  - La garde de la même origine ne s'éprouvait pas sur `http://localhost` : la page légère refuse d'abord une adresse qui n'est pas en HTTPS. La leçon est servie à une adresse en HTTPS par l'interception, qui prend chaque fichier à `holo serve`.
+  - Le choix de `referrerpolicy` : `no-referrer` aurait fait rater le lecteur de YouTube (« erreur 153 » sans `Referer`, et `Referrer-Policy: same-origin`, l'en-tête de `holo serve`, suffit à la déclencher) ; vu par une recherche, les pages n'étant pas joignables d'ici.
+  - La limite de séance a arrêté l'agent au début, pendant sa lecture ; le conteneur a redémarré, et `main` (les PR 256 à 263) a été fusionnée avant de commencer.
+  - Sur GitHub, le Chrome des machines perdait le clavier : juste après Entrée, le cadre avait le focus, mais la touche « k » n'arrivait pas dans la page intégrée (« la touche k reçue : false », le seul raté de la suite, commit c406cbc), alors que tout passait dans le Chromium du conteneur. La page de l'autre site arrive dans un autre processus du navigateur : quand elle a fini d'arriver, si le clavier est toujours sur le cadre, la page légère le lui redonne (`frame.contentWindow.focus()`). L'essai attend aussi que la fausse page dise qu'elle a le focus, et remet l'onglet au premier plan (un essai d'avant en ouvre un autre). Le conteneur ne reproduit pas ce raté : la preuve que l'essai le voit est le raté de GitHub lui-même. La CI est verte sur fa1606e (les trois travaux), et l'ADR le dit.
+- Reste :
+  - essayer sur les vrais sites, sur un téléphone ;
+  - refermer une page intégrée, et revenir à sa façade ;
+  - `frame-src` aussi avec le serveur d'essai de Node ;
+  - la miniature cherchée par le serveur de l'auteur ;
+  - la suite des leçons (la 140 revient à la 124 et mène à la 1) et le grand tableau du web (`iframe` : « En partie »), refaits à la fin.
+
+---
+
 ## 2026-10-10 — Les données d'un autre site, lues par le serveur de l'auteur : `Data(from: "https://…")`
 
 - Fait (issue #248, prise par un agent de la session du nuage ; `ADR-116`, ACCEPTÉ : Yocthan a dit « Oui » le 2026-10-09 à l'ouverture sous ces conditions) :
@@ -34,6 +199,23 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
   - L'essai de l'ADR-030 refusait toute adresse `https://` : il suit maintenant la règle de l'ADR-116 (HTTP clair refusé).
   - La fusion de `main` (PR 258 à 263, en style diff3) : six conflits, tous des ajouts, gardés des deux côtés et rangés par numéro. Les nombres négatifs (ADR-102) avaient ajouté `Json::Negative` : la réduction le garde, et son essai le vérifie.
 - Reste : choisir et nommer une valeur rangée plus bas dans la réponse (la plupart des services de météo) ; la dernière valeur, avec son âge, pendant une panne ; une clé par variable d'environnement ; un proxy choisi par l'auteur ; les réponses gardées dans la base. Le grand tableau du web : « les données d'un autre serveur » peut passer à « oui ».
+
+---
+
+## 2026-10-10 — Les sept nouveautés du jour, essayées et validées par Yocthan
+
+- Fait (la session du PC) :
+  - La PR 262 (la mémoire de visite, #242, la session du nuage) est fusionnée, après l'avoir relue en entier : chaque valeur relue est vérifiée comme un import, 64 Ko au plus, aucun cookie. Sept des douze dernières dettes sont dans `main` : 231, 233, 234, 236, 239, 241, 242.
+  - Le serveur local de Yocthan (le 8080, dossier `_voir/SPRINT-big-bang`) est passé au `main` du jour (d85f0fe), le moteur reconstruit (`holo.exe`, `web/pkg`, `web/pkg-light`).
+  - Les sept leçons nouvelles s'ouvrent chacune avec son titre, sans erreur (une requête à chacune) : 125 (les nombres négatifs), 127 (la grille), 128 (réordonner une liste), 130 (le partage), 133 (la vibration), 135 (mélanger des sons), 136 (la mémoire de visite). La leçon 127 est montrée dans la pile.
+- **Yocthan les a essayées et les valide** : « je viens de faire tous les essais et je valide ». C'est noté dans le statut des sept décisions (`ADR-102`, `ADR-104`, `ADR-105`, `ADR-107`, `ADR-110`, `ADR-112`, `ADR-113`).
+- État compté, à la demande de Yocthan (« s'il reste combien de pourcents pour la partie web ») : sur les 135 éléments du web du grand tableau, 6 sont refusés exprès et 1 est sans objet, et 3 attendent la 3D. Il reste 125 éléments pour la partie web : 113 sont faits (90 %), 12 restent (10 %). Ce sont 5 dettes (232, 235, 237, 238, 240, chez les agents du PC) et 7 fonctions ouvertes (246 à 252). C'est un compte d'éléments, pas une mesure du travail : le paiement pèse plus que les nombres négatifs.
+- Erreur en route : arrêter la tâche du serveur n'a pas arrêté le programme lui-même (`node outils/server.mjs`), qui écoutait encore le port 8080. Je l'ai vérifié par sa ligne de commande, puis arrêté à la main. C'est le même piège que le script de fusion du matin : l'arrêt d'une tâche en arrière-plan n'arrête pas toujours ce qu'elle a lancé.
+- Reste :
+  - les dettes 232, 235, 237, 238 et 240 ;
+  - les fonctions ouvertes 246 à 252 ;
+  - la suite des leçons et le grand tableau (v37), par la session du nuage, quand les douze dettes seront finies ;
+  - les mesures du téléphone.
 
 ---
 
