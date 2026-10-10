@@ -1,6 +1,6 @@
 # ADR-113 — Se souvenir le temps d'une visite : `visit: [prenom]`
 
-- Statut : ACCEPTÉ (Yocthan, 2026-10-09 : « tu le valides déjà, tu le fais déjà »)
+- Statut : ACCEPTÉ (Yocthan, 2026-10-09 : « tu le valides déjà, tu le fais déjà » ; essayé et validé par Yocthan le 2026-10-10 : « je viens de faire tous les essais et je valide »)
 - Date : 2026-10-09
 - Responsable : Yocthan Mabeka
 - Discussions sources : l'issue #242 (« Dernière dette du web : se souvenir le temps d'une visite (sessionStorage) »), l'une des douze dernières dettes du web, validées d'avance par Yocthan le 2026-10-09 ; le grand tableau du web, où `cookies, sessionStorage` était le seul « non » ; les valeurs gardées (`keep`, `ADR-027`), rangées sous l'adresse de la page (`ADR-090`) ; l'historique dans une page (`address:`, `ADR-091`) ; les valeurs partagées (`shared`, `ADR-079`) ; l'import d'un fichier (`ADR-093`).
