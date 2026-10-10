@@ -73,5 +73,6 @@ H1 { color: #E9B44C; font-size: 28px; }
 H2 { color: #E9B44C; font-size: 22px; }
 A { color: #8fd3ff; }
 .lecture { padding: 8px 0; box-shadow: 0 6px 8px #00000066; }
+Progress { width: 80%; }
 .bas { padding: 8px 0; }
 .retour { background: #E9B44C; color: #101020; padding: 8px 16px; border-radius: 999px; }

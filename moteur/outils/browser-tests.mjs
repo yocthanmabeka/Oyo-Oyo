@@ -942,12 +942,13 @@ const tests = [
       // 3. Au plus dix fois par seconde : cinquante pas de défilement en une seconde ; la dernière
       // place est donnée.
       await p.value("window.__holoScrollsGiven = 0");
-      await p.value("new Promise((done) => { let step = 0; const t = setInterval(() => { scrollBy(0, step < 25 ? 9 : -5); if (++step === 50) { clearInterval(t); done(); } }, 20); })");
+      // Le temps vraiment passé compte : une machine lente met plus d'une seconde à faire les cinquante pas.
+      const elapsed = await p.value("new Promise((done) => { const start = performance.now(); let step = 0; const t = setInterval(() => { scrollBy(0, step < 25 ? 9 : -5); if (++step === 50) { clearInterval(t); done(performance.now() - start); } }, 20); })");
       await pause(500);
       const given = await p.value("window.__holoScrollsGiven");
       m = await seen();
-      check("au plus dix fois par seconde, et la dernière place", given >= 4 && given <= 12 && Number(m.percent) === m.real, { given, percent: m.percent, real: m.real });
-      summary.rate = `${given} fois pour 50 pas en une seconde, finie à ${m.percent} %`;
+      check("au plus dix fois par seconde, et la dernière place", given >= 4 && given <= Math.ceil(elapsed / 100) + 2 && Number(m.percent) === m.real, { given, elapsed: Math.round(elapsed), percent: m.percent, real: m.real });
+      summary.rate = `${given} fois pour 50 pas en ${Math.round(elapsed)} ms, finie à ${m.percent} %`;
       // 4. « Retour en haut » : en haut, la barre vide, le bouton parti.
       await tapAt('[data-sticky="bottom"] a');
       await p.until(`scrollY === 0 && document.querySelector('[data-state="scroll"]')?.textContent === "0"`, 3000);
