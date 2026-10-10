@@ -4,7 +4,7 @@
 use crate::holo::{Block, Error, Program, Value};
 
 /// `Text` est du texte sans rôle ; `P`, `H1`, `H2` et `H3` sont un `Text` avec un rôle (ADR-020).
-pub const BLOCKS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Component", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop", "H4", "H5", "H6", "Main", "Nav", "Header", "Footer", "Aside", "Stack", "Video", "Table", "Choice", "After", "Repeat", "Item", "Font", "Slider", "Progress", "Details", "Dialog", "Form", "Module", "Filter", "Days", "Drawing", "Rect", "Circle", "Line", "Path", "Chart", "Shared", "Stopwatch", "Transfer", "Device", "Notification", "Offline", "Term", "Address", "Abbreviation", "Fields", "Embed", "Split"];
+pub const BLOCKS: &[&str] = &["Page", "Text", "P", "H1", "H2", "H3", "A", "Button", "Image", "List", "Point", "World", "On", "Zoom", "Points", "Relief", "Portals", "State", "Prices", "Row", "Column", "Grid", "If", "Hr", "Quote", "Code", "Every", "Board", "Input", "Checkbox", "When", "Component", "Use", "Data", "Sound", "Shape", "Scenes", "Scene", "Enter", "Loop", "H4", "H5", "H6", "Main", "Nav", "Header", "Footer", "Aside", "Stack", "Video", "Table", "Choice", "After", "Repeat", "Item", "Font", "Slider", "Progress", "Details", "Dialog", "Form", "Module", "Filter", "Days", "Drawing", "Rect", "Circle", "Line", "Path", "Chart", "Shared", "Stopwatch", "Transfer", "Device", "Notification", "Offline", "Term", "Address", "Abbreviation", "Fields", "Embed", "Split", "Minutes"];
 
 /// Le titre le plus profond : `H6`, comme en HTML (correction d'ADR-020 du 2026-10-06 ; les
 /// longs documents en ont besoin). Le numéro dit toujours la place dans le plan, jamais la taille.
@@ -101,6 +101,8 @@ const BLOCK_SETTINGS: &[(&str, &[&str])] = &[
     ("Offline", &["name", "label", "files"]),
     // Un texte découpé en liste (ADR-103) : Split(name: tags, from: keywords, by: ",").
     ("Split", crate::text::SPLIT_PARAMS),
+    // Les minutes entre deux heures ou deux moments (ADR-109) : Minutes(name: left, from: now, to: train).
+    ("Minutes", crate::hours::MINUTES_PARAMS),
     // Une page dans la page (ADR-117) : son adresse, son titre, l'image de sa façade.
     ("Embed", &["name", "from", "label", "image"]),
 ];
@@ -138,7 +140,7 @@ fn check_settings(block: &Block, parent: &str) -> Result<(), Error> {
             if name == "name" && block.name == "Split" {
                 continue;
             }
-            if name == "name" && block.name != "Filter" && block.name != "Days" {
+            if name == "name" && block.name != "Filter" && block.name != "Days" && block.name != "Minutes" {
                 if let crate::holo::Value::Name(given) = &argument.value {
                     if given.starts_with(|c: char| c.is_ascii_lowercase()) || given.contains('_') {
                         let flutter = crate::state::in_flutter(given);

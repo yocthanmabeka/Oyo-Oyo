@@ -218,6 +218,10 @@ pub fn check(program: &Program) -> Result<(), Error> {
         if seen.contains(&name) {
             return error(format!("« negative » : « {name} » est nommé deux fois"));
         }
+        // Le moment présent (ADR-109) est un texte, donné par le moteur.
+        if name == crate::hours::NOW {
+            return error("« negative » : « now » est le moment présent, un texte donné par le moteur ; seul un nombre peut être négatif".into());
+        }
         if state::CLOCK.contains(&name) || name == crate::dates::TODAY {
             return error(format!("« negative » : « {name} » est l'heure du visiteur, donnée par le moteur ; elle ne descend jamais sous zéro"));
         }
@@ -229,6 +233,11 @@ pub fn check(program: &Program) -> Result<(), Error> {
         }
         if crate::lists::is_list(program, name) {
             return error(format!("« negative » : « {name} » est une liste ; seul un nombre peut être négatif"));
+        }
+        // Un nombre de minutes (ADR-109) : il passe sous zéro quand le moment est passé, `negative: [late]`.
+        if crate::hours::minutes_names(program).iter().any(|known| known == name) {
+            seen.push(name);
+            continue;
         }
         if !numbers.iter().any(|(known, _)| known == name) {
             return error(format!("« negative » : aucune valeur ne s'appelle « {name} » ; déclare-la sur la page, state: State({name}: 0)"));
@@ -242,6 +251,10 @@ pub fn check(program: &Program) -> Result<(), Error> {
         // Une liste, un graphique, des dates ou un élément nomment des champs ou des listes, jamais
         // un nombre de la page ; un filtre, seulement par sa limite et son décalage.
         if matches!(block.name.as_str(), "Repeat" | "Chart" | "Days" | "Item") {
+            return Ok(());
+        }
+        // Des minutes (ADR-109) nomment leur nombre et deux heures, jamais un nombre à placer.
+        if block.name == "Minutes" {
             return Ok(());
         }
         for (rank, argument) in block.arguments.iter().enumerate() {

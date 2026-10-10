@@ -96,6 +96,8 @@ const SETTINGS: &[(&str, Shape)] = &[
     ("blur", Shape::Pixels(0.0, 100.0)),
     // Sur une fenêtre, la page derrière elle devient floue (ADR-108).
     ("backdrop-blur", Shape::Pixels(0.0, 100.0)),
+    // Découper une image ou un dessin en une forme nommée, avec les mots de `Shape(form:)` (ADR-111).
+    ("form", Shape::Word(crate::forms::FORMS)),
 ];
 
 const OVERFLOW: &[&str] = &["visible", "hidden", "auto", "scroll"];
@@ -274,6 +276,9 @@ pub fn check_styles(program: &Program) -> Result<(), Error> {
         // Les filtres (ADR-108) : sur une image, une forme ou un dessin, jamais sur un texte ; le
         // flou de derrière, sur une fenêtre.
         crate::filters::check(rule, program)?;
+        // Les formes (ADR-111) : sur une image ou un dessin, ni sous la souris ni au focus, et rien
+        // que la découpe couperait en silence.
+        crate::forms::check(rule, program)?;
         // Les états (hover, focus, active, dark, phone) : chacun une fois, avec des réglages connus.
         for (k, (state, settings, pos)) in rule.states.iter().enumerate() {
             if rule.states[..k].iter().any(|(other, ..)| other == state) {
@@ -428,6 +433,11 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
     if name == "backdrop-filter" {
         return refusal("« backdrop-filter » s'écrit « backdrop-blur: 8px », sur une fenêtre : la page, derrière elle, devient floue (ADR-108)".into());
     }
+    // Découper : une forme nommée, jamais un tracé écrit à la main (ADR-111). `clip` est l'ancien
+    // réglage du CSS, déjà abandonné par le web.
+    if name == "clip-path" || name == "clip" {
+        return refusal(format!("« {name} » s'écrit « form: hexagon » : une forme nommée, parmi {} ; pas de tracé écrit à la main (ADR-111)", crate::forms::FORMS.join(", ")));
+    }
     let Some((_, shape)) = SETTINGS.iter().find(|(known, _)| *known == name) else {
         let known_ones: Vec<&str> = SETTINGS.iter().map(|(n, _)| *n).collect();
         return refusal(format!("réglage inconnu « {name} » ; réglages possibles : {}", known_ones.join(", ")));
@@ -443,6 +453,11 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
     let value = value.as_str();
     // `height: screen` : tout l'écran, au moins (ADR-061).
     if name == "height" && value == "screen" {
+        return Ok(());
+    }
+    // Pas de bord, comme en CSS : `border: none`. Un style qui découpe un bloc en polygone retire
+    // ainsi celui qu'un autre style lui donne, que la découpe couperait (ADR-111).
+    if name == "border" && value == "none" {
         return Ok(());
     }
     let words: Vec<&str> = value.split_whitespace().collect();
@@ -489,6 +504,7 @@ fn check_setting(setting: &Setting, state: Option<&str>, variables: &[(String, S
         Shape::Angle if name == "hue" => "un angle de -360deg à 360deg : les couleurs tournent sur le cercle des teintes, comme « 30deg »".to_string(),
         Shape::Pixels(min, max) if name == "backdrop-blur" => format!("un flou en pixels, de {min} à {max}px, comme « 8px » : la page, derrière la fenêtre, devient floue"),
         Shape::Pixels(min, max) => format!("un flou en pixels, de {min} à {max}px, comme « 4px »"),
+        Shape::Word(possible) if name == "form" => format!("une forme nommée : {} ; pas de tracé écrit à la main (ADR-111)", possible.join(", ")),
         Shape::Color => "une couleur, comme « gray » ou « #E9B44C »".to_string(),
         Shape::Size if name == "height" => "une taille, comme « 16px » ou « 50% », ou « screen » : tout l'écran".to_string(),
         Shape::Size => "une taille, comme « 16px » ou « 50% »".to_string(),
@@ -729,10 +745,14 @@ mod tests {
             include_str!("../../exemples/lecons/128-reordonner-une-liste.holo"),
             // Les filtres d'image dans les styles (ADR-108).
             include_str!("../../exemples/lecons/131-des-filtres-d-image.holo"),
+            // Les calculs sur les heures : un compte à rebours, des heures de travail (ADR-109).
+            include_str!("../../exemples/lecons/132-des-heures.holo"),
             // Faire vibrer le téléphone, d'un toucher ou d'une règle de jeu (ADR-110).
             include_str!("../../exemples/lecons/133-faire-vibrer-le-telephone.holo"),
             // Où en est le visiteur, un bloc qui reste à l'écran (ADR-106).
             include_str!("../../exemples/lecons/129-une-barre-de-lecture.holo"),
+            // Découper une image ou une forme : un rond, un hexagone, une vague (ADR-111).
+            include_str!("../../exemples/lecons/134-decouper-une-forme.holo"),
             // Mélanger des sons : un fondu, un volume qui suit une valeur (ADR-112).
             include_str!("../../exemples/lecons/135-melanger-des-sons.holo"),
             // Se souvenir le temps d'une visite, un formulaire en deux pages (ADR-113).
@@ -768,6 +788,10 @@ mod tests {
         }
         // Où en est le visiteur, un bloc qui reste à l'écran (ADR-106).
         for word in ["{scroll}", "value: scroll", "If(scroll", "sticky: top", "sticky: bottom"] {
+            assert!(source.contains(word), "« {word} » manque dans l'exemple");
+        }
+        // Les calculs sur les heures : now, Minutes, une durée, une heure, un décalage (ADR-109).
+        for word in ["Minutes(", "{now:time}", ":duration}", ":time}", ".add(15min)", ".sub(1h)", ".set(now)", "If(now, under:"] {
             assert!(source.contains(word), "« {word} » manque dans l'exemple");
         }
         // Le champ mot de passe : un nouveau, et celui du compte sur une page réservée (ADR-114).

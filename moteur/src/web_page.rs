@@ -244,6 +244,20 @@ pub fn format_date(text: &str, format: &str, language: &str) -> String {
     crate::dates::format(text, format, language)
 }
 
+/// Le fuseau du visiteur (ADR-109) : la minute présente en temps universel, le décalage de son
+/// horloge, et ses changements d'heure de l'année passée et de l'année qui vient.
+#[wasm_bindgen]
+pub fn set_zone(zone: &str) {
+    crate::hours::set_zone(zone);
+}
+
+/// Une heure, un moment ou une durée dans la langue de la page, puis pour les machines, sur deux
+/// lignes (ADR-109) : « 18:45\n18:45 », « 2 h et 15 min\nPT2H15M ».
+#[wasm_bindgen]
+pub fn format_hour(value: &str, format: &str, language: &str) -> String {
+    crate::hours::shown_and_machine(value, format, language)
+}
+
 /// La page lit-elle l'heure du visiteur ?
 #[wasm_bindgen]
 pub fn reads_time(source: &str) -> bool {

@@ -671,6 +671,95 @@ const tests = [
       && added === "none" && titles === "Les Misérables | Les Châtiments";
     return [ok, `lu : « ${said} » ; citations : ${quotes} ; guillemets du navigateur : ${added} ; œuvres : ${titles}`];
   }],
+  ["des heures : un compte à rebours qui suit l'horloge, les vraies minutes la nuit du changement d'heure, la langue de la page, au clavier et sans JavaScript (leçon 132)", async (p, b) => {
+    const lesson = "/exemples/lecons/132-des-heures.holo";
+    const has = (words) => `document.getElementById("page").innerText.includes(${JSON.stringify(words)})`;
+    // Une horloge que l'essai tient : l'appareil est à Paris, le samedi 24 octobre 2026 à 16 h 30,
+    // la veille du retour à l'heure d'hiver ; l'essai l'avance d'un coup (window.__clock.add), puis
+    // fait revenir l'onglet au premier plan, comme un visiteur qui le retrouve.
+    await b.send("Emulation.setTimezoneOverride", { timezoneId: "Europe/Paris" });
+    const script = (await b.send("Page.addScriptToEvaluateOnNewDocument", { source: `(() => {
+      const Real = Date;
+      let shift = new Real(2026, 9, 24, 16, 30).getTime() - Real.now();
+      window.__clock = { add: (minutes) => { shift += minutes * 60000; } };
+      window.Date = class extends Real {
+        constructor(...given) { if (given.length) super(...given); else super(Real.now() + shift); }
+        static now() { return Real.now() + shift; }
+      };
+    })();` })).result.identifier;
+    const jump = async (minutes) => p.value(`(window.__clock.add(${minutes}), document.dispatchEvent(new Event("visibilitychange")), true)`);
+    const seen = {};
+    try {
+      await p.open(lesson);
+      if (!(await p.until("window.__holoStarted"))) return [false, "le moteur n'est pas arrivé"];
+      // Ce qu'écrirait le navigateur lui-même dans la langue de la page : Intl.DateTimeFormat, Intl.DurationFormat.
+      const intl = (duration) => p.value(`new Intl.DurationFormat("fr", { style: "short" }).format(${JSON.stringify(duration)})`);
+      const clock = await p.value(`new Intl.DateTimeFormat("fr", { timeStyle: "short" }).format(new Date())`);
+      // Les vraies minutes jusqu'au concert, comptées par Date à l'heure de Paris : 68 jours et
+      // 5 heures, dont une rendue la nuit du 25 octobre (à l'horloge, 68 jours et 4 heures).
+      seen.real = await p.value(`Math.round((new Date(2026, 11, 31, 20, 30) - new Date()) / 60000)`);
+      seen.now = await p.value(has(`Il est ${clock}.`));
+      seen.train = await p.until(has(`Le train de 18:45 part dans ${await intl({ hours: 2, minutes: 15 })}.`), 5000);
+      seen.concert = await p.until(has(`à 20:30, commence dans ${await intl({ days: 68, hours: 5 })}.`), 5000);
+      seen.machines = await p.value(`["train", "left", "wait", "concert"].map((n) => document.querySelector('[data-state="' + n + '"]').getAttribute("datetime")).join(" ")`);
+      // Le compte n'est dans aucune région que le lecteur d'écran annonce, et la page ne dit rien quand il change.
+      seen.live = await p.value(`[...document.querySelectorAll('[data-format="duration"]')].some((t) => t.closest('[aria-live], [role="status"], [role="alert"], [role="log"], [role="timer"], [role="marquee"]'))`);
+      // L'audit axe-core de la leçon, la copie locale, comme pour les autres leçons.
+      await p.value(readFileSync(join(engine, "node_modules", "axe-core", "axe.min.js"), "utf8") + "\n;0");
+      seen.axe = await p.value(`axe.run(document, { resultTypes: ["violations"] }).then((r) => r.violations.map((v) => v.id).join(", "))`);
+      const said = () => p.value(`document.getElementById("announcement")?.textContent ?? ""`);
+      const before = await said();
+      // L'onglet revient à 18 h 44, puis 18 h 45, puis 18 h 46 : le compte suit l'horloge tout de suite.
+      await jump(134);
+      seen.oneMinute = await p.until(has(`part dans ${await intl({ minutes: 1 })}.`), 3000);
+      await jump(1);
+      seen.leaving = await p.until(has("Le train de 18:45 part maintenant."), 3000);
+      await jump(1);
+      // Le prochain train, demain à 18 h 45 : la nuit du retour à l'heure d'hiver dure 25 heures,
+      // il reste donc 24 h 59 (à l'horloge, 23 h 59), écrites « 1 j et 59 min ».
+      seen.tomorrow = await p.until(has(`le prochain part demain, dans ${await intl({ days: 1, minutes: 59 })}.`), 3000);
+      seen.quiet = (await said()) === before;
+      // Des heures de travail, de nuit : de 22:00 à 06:00, 8 h.
+      const choose = (bind, hour) => p.value(`(() => { const i = document.querySelector('input[data-bind="${bind}"]'); i.value = "${hour}"; i.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+      await choose("arrival", "22:00");
+      await choose("departure", "06:00");
+      seen.night = await p.until(has(`Temps de travail : ${await intl({ hours: 8 })} (480 minutes).`), 3000);
+      // Pointer l'arrivée, au doigt ou à la souris : l'heure présente (18:46) ; jusqu'à 06:00, 11 h 14.
+      await p.click('[data-name="ClockIn"]');
+      seen.clockIn = await p.until(`document.querySelector('input[data-bind="arrival"]').value === "18:46" && ${has(`Temps de travail : ${await intl({ hours: 11, minutes: 14 })} (674 minutes).`)}`, 3000);
+      // La réunion, au clavier (Entrée sur « Plus tard ») puis à la souris (« Plus tôt »).
+      await p.value(`document.querySelector('[data-name="Later"]').focus()`);
+      await p.key("Enter", "Enter", 13, "\r");
+      seen.later = await p.until(has("La réunion commence à 14:15."), 3000);
+      await p.click('[data-name="Earlier"]');
+      seen.earlier = await p.until(has("La réunion commence à 13:15."), 3000);
+      // Sur un téléphone (360 de large) : rien ne déborde, les boutons passent à la ligne.
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 360, height: 760, deviceScaleFactor: 2, mobile: true });
+      await p.open(lesson, 600);
+      seen.phone = await p.value("document.documentElement.scrollWidth <= innerWidth + 1");
+    } finally {
+      await b.send("Emulation.clearDeviceMetricsOverride");
+      await b.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: script });
+      await b.send("Emulation.setTimezoneOverride", { timezoneId: "" });
+    }
+    // Sans JavaScript, avec holo serve : les heures écrites partent avec le toucher, le serveur compte.
+    const served = await startHoloServe(["132-des-heures.holo"]);
+    const q = page(b, served.base);
+    try {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+      await q.open("/132-des-heures.holo", 300);
+      seen.servedStart = await q.value(has("Temps de travail : 8 h et 30 min (510 minutes)."));
+      await q.value(`(() => { document.querySelector('input[data-bind="arrival"]').value = "22:00"; document.querySelector('input[data-bind="departure"]').value = "06:00"; })()`);
+      await q.click('[data-name="Later"]');
+      seen.served = await q.until(`document.readyState === "complete" && ${has("La réunion commence à 14:15.")} && ${has("Temps de travail : 8 h (480 minutes).")}`, 5000);
+    } finally {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      served.stop();
+    }
+    const ok = seen.real === 68 * 1440 + 5 * 60 && seen.now && seen.train && seen.concert && seen.machines === "18:45 PT2H15M P68DT5H 2026-12-31T20:30" && seen.live === false && seen.axe === "" && seen.phone
+      && seen.oneMinute && seen.leaving && seen.tomorrow && seen.quiet && seen.night && seen.clockIn && seen.later && seen.earlier && seen.servedStart && seen.served;
+    return [ok, `Paris, 24 octobre 16 h 30 : « Il est … » ${seen.now} ; le train dans 2 h et 15 min : ${seen.train} ; le concert dans 68 j et 5 h (Date compte ${seen.real} min) : ${seen.concert} ; pour les machines : ${seen.machines} ; région vivante : ${seen.live} ; l'onglet revient à 18:44 (1 min), 18:45 (maintenant), 18:46 (demain, dans 1 j et 59 min) : ${seen.oneMinute}, ${seen.leaving}, ${seen.tomorrow} ; rien d'annoncé : ${seen.quiet} ; de nuit, 8 h : ${seen.night} ; pointé à 18:46 : ${seen.clockIn} ; au clavier 14:15 : ${seen.later}, à la souris 13:15 : ${seen.earlier} ; sans JavaScript, 8 h et 30 min puis 8 h, 14:15 : ${seen.servedStart}, ${seen.served} ; téléphone, rien ne déborde : ${seen.phone} ; axe-core : ${seen.axe || "zéro défaut"}`];
+  }],
   ["le champ mot de passe : la page ne le lit jamais ; il part seulement vers holo serve, qui n'en garde que l'empreinte ; le collage, « Montrer » au clavier et au lecteur d'écran, autocomplete ; celui du compte vérifié ; hors HTTPS, fermé ; sans JavaScript (leçon 137, serve)", async (p, b) => {
     // ADR-114. Le mot de passe tapé est cherché partout où il ne doit pas être : l'état de la page
     // (le panneau ?values), le stockage du navigateur, l'adresse, le texte et le HTML de la page, les
@@ -1347,6 +1436,144 @@ const tests = [
       && iphone.vibrate === "undefined" && iphone.said === "Ce navigateur ne fait pas vibrer." && iphone.saidGame === "Ce navigateur ne fait pas vibrer." && iphone.tries === "1" && iphone.caught === "1" && iphone.errors.length === 0
       && violations.length === 0;
     return [ok, `avant tout toucher : ${phone.untouched} vibration ; puis ${phone.buzz.map((m) => `[${m}]`).join(", ")} (le toucher, puis la rencontre), ${phone.tries} demandées, ${phone.caught} prise ; mouvement réduit : « ${reduced.said} », ${reduced.buzz - phone.buzz.length} vibration de plus, ${reduced.tries} demandées ; sans vibreur : navigator.vibrate ${iphone.vibrate}, « ${iphone.said} », ${iphone.tries} demandée, ${iphone.caught} prise, ${iphone.errors.length} erreur ; axe-core : ${violations.length ? violations.join(" ; ") : "zéro défaut"}`];
+  }],
+  ["découper une forme : une image en rond, en hexagone, en étoile, en cœur, en vague ; huit formes de Shape ; le cadre de focus se voit autour d'une forme qu'on touche et d'une image découpée ; au doigt, à la souris, au clavier, au lecteur d'écran, et sans JavaScript (leçon 134)", async (p, b) => {
+    // ADR-111 : `form:` dans un style découpe une image ou un dessin ; une Shape en polygone se
+    // dessine dans son bouton, qui n'est jamais découpé lui-même ; au focus du clavier, une image
+    // découpée se montre entière. Sans cela, `clip-path` coupe le cadre de focus (vu dans Chrome).
+    const lesson = "/exemples/lecons/134-decouper-une-forme.holo";
+    const faults = [];
+    const check = (name, ok, seen) => { if (!ok) faults.push(`${name} : ${seen}`); };
+    // Les découpes que reçoit la page : le nombre de sommets de chaque polygone, ou « none ».
+    const cuts = (where = p) => where.value(`(() => {
+      const of = (e, pseudo) => { const c = getComputedStyle(e, pseudo).clipPath; return c.startsWith("polygon(") ? c.split(",").length : c; };
+      const images = ["rond", "ruche", "etoile", "coeur", "vague"].map((n) => { const e = document.querySelector(".holo-s-" + n); return e ? n + ":" + of(e) + (n === "rond" ? " " + getComputedStyle(e).borderRadius : "") : n + ":absente"; });
+      const shapes = [...document.querySelectorAll(".holo-Shape")].map((e) => ([...e.classList].find((c) => c.startsWith("holo-forme-")) ?? "?").slice(11) + ":" + of(e) + "/" + of(e, "::before"));
+      return images.join(" ") + " | " + shapes.join(" ");
+    })()`);
+    const expected = "rond:none 50% ruche:6 etoile:10 coeur:40 vague:35 | circle:none/none square:none/none triangle:none/3 diamond:none/4 hexagon:none/6 star:none/10 heart:none/40 wave:none/35 star:none/10";
+    // Le cadre de focus, vu à l'écran : une capture autour du bloc, avant puis pendant le focus du
+    // clavier, et les pixels qui changent dans la bande de 8 px qui l'entoure. Sans cadre, aucun.
+    const { inflateSync } = await import("node:zlib");
+    const pixels = (png) => {
+      const data = Buffer.from(png, "base64");
+      let [at, width, height, bytes] = [8, 0, 0, 4];
+      const packed = [];
+      while (at < data.length) {
+        const [length, kind] = [data.readUInt32BE(at), data.toString("latin1", at + 4, at + 8)];
+        if (kind === "IHDR") [width, height, bytes] = [data.readUInt32BE(at + 8), data.readUInt32BE(at + 12), data[at + 17] === 6 ? 4 : 3];
+        if (kind === "IDAT") packed.push(data.subarray(at + 8, at + 8 + length));
+        at += 12 + length;
+      }
+      const [raw, stride] = [inflateSync(Buffer.concat(packed)), width * bytes];
+      const out = Buffer.alloc(height * stride);
+      for (let y = 0; y < height; y++) {
+        const filter = raw[y * (stride + 1)];
+        for (let x = 0; x < stride; x++) {
+          const [left, up, corner] = [x >= bytes ? out[y * stride + x - bytes] : 0, y ? out[(y - 1) * stride + x] : 0, x >= bytes && y ? out[(y - 1) * stride + x - bytes] : 0];
+          const guess = left + up - corner;
+          const paeth = Math.abs(guess - left) <= Math.abs(guess - up) && Math.abs(guess - left) <= Math.abs(guess - corner) ? left : Math.abs(guess - up) <= Math.abs(guess - corner) ? up : corner;
+          out[y * stride + x] = (raw[y * (stride + 1) + 1 + x] + [0, left, up, (left + up) >> 1, paeth][filter]) & 255;
+        }
+      }
+      return { width, height, bytes, out };
+    };
+    const shot = async (selector) => {
+      const box = await p.value(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); const r = e.getBoundingClientRect(); return [r.left + scrollX - 8, r.top + scrollY - 8, r.width + 16, r.height + 16]; })()`);
+      return pixels((await b.send("Page.captureScreenshot", { format: "png", clip: { x: box[0], y: box[1], width: box[2], height: box[3], scale: 1 } })).result.data);
+    };
+    const band = (before, during) => {
+      let changed = 0;
+      for (let y = 0; y < before.height; y++) for (let x = 0; x < before.width; x++) {
+        if (x >= 8 && x < before.width - 8 && y >= 8 && y < before.height - 8) continue;
+        const [i, j] = [(y * before.width + x) * before.bytes, (y * during.width + x) * during.bytes];
+        if (Math.abs(before.out[i] - during.out[j]) + Math.abs(before.out[i + 1] - during.out[j + 1]) + Math.abs(before.out[i + 2] - during.out[j + 2]) > 60) changed++;
+      }
+      return changed;
+    };
+    // Tab jusqu'au bloc, depuis rien : le focus du clavier, et le cadre qu'on voit, ou non.
+    const frame = async (selector) => {
+      await p.value(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); e.scrollIntoView({ block: "center" }); document.activeElement?.blur(); return true; })()`);
+      await pause(200);
+      const before = await shot(selector);
+      const reached = `document.activeElement === document.querySelector(${JSON.stringify(selector)})`;
+      for (let i = 0; i < 40 && !(await p.value(reached)); i++) await p.key("Tab", "Tab", 9);
+      if (!(await p.value(reached))) return { visible: false, seen: "pas atteint au clavier" };
+      await pause(200);
+      const changed = band(before, await shot(selector));
+      const state = await p.value(`(() => { const e = document.activeElement; return (e.matches(":focus-visible") ? "focus-visible" : "focus sans focus-visible") + ", découpe " + getComputedStyle(e).clipPath.slice(0, 12); })()`);
+      return { visible: changed >= 40 && state.startsWith("focus-visible"), seen: `${state}, ${changed} pixels du cadre autour` };
+    };
+    const count = () => p.value(`document.getElementById("page").innerText.match(/touché l'étoile (\\d+) fois/)?.[1] ?? "?"`);
+    // La page arrive légère : le moteur vient au premier geste, et le rejoue.
+    await p.open(lesson);
+    const seen = await cuts();
+    check("les découpes", seen === expected, seen);
+    // Le lecteur d'écran : l'étoile est un bouton nommé ; les images gardent leur texte.
+    const { nodes } = (await b.send("Accessibility.getFullAXTree")).result;
+    const said = (role, name) => nodes.some((n) => !n.ignored && n.role?.value === role && n.name?.value === name);
+    check("lecteur d'écran", said("button", "Etoile") && said("image", "Le lac au matin, dans un hexagone") && said("image", "Le lac au matin, dans un cœur"), nodes.filter((n) => !n.ignored && ["button", "image"].includes(n.role?.value)).map((n) => `${n.role.value} « ${n.name?.value} »`).join(", "));
+    // Au clavier : le cadre de la forme qu'on touche se voit autour d'elle, et l'étoile se touche.
+    const star = await frame('[data-name="Etoile"]');
+    check("le cadre de focus de l'étoile", star.visible, star.seen);
+    await p.key("Enter", "Enter", 13, "\r");
+    await p.until(`document.getElementById("page").innerText.includes("touché l'étoile 1 fois")`, 40000);
+    // Le moteur arrivé redessine la page : le clavier revient sur l'étoile, puis Espace.
+    for (let i = 0; i < 40 && !(await p.value(`document.activeElement === document.querySelector('[data-name="Etoile"]')`)); i++) await p.key("Tab", "Tab", 9);
+    await p.key(" ", "Space", 32, " ");
+    await p.until(`document.getElementById("page").innerText.includes("touché l'étoile 2 fois")`, 5000);
+    const keyboard = await count();
+    // L'image découpée qu'une règle écoute au survol : au focus, entière, avec son cadre ; le survol
+    // vient aussi du clavier (ADR-039).
+    const hexagon = await frame(".holo-s-ruche");
+    check("le cadre de focus de l'image découpée", hexagon.visible, hexagon.seen);
+    const hovered = await p.until(`document.getElementById("page").innerText.includes("Six côtés")`, 5000);
+    // À la souris : au milieu de l'étoile, puis dans un coin de son carré, hors de la branche : tout le carré se touche.
+    await p.value(`document.activeElement?.blur()`);
+    await p.click('[data-name="Etoile"]');
+    await p.until(`document.getElementById("page").innerText.includes("touché l'étoile 3 fois")`, 5000);
+    const corner = await p.value(`(() => { const r = document.querySelector('[data-name="Etoile"]').getBoundingClientRect(); return [r.left + 4, r.top + 4]; })()`);
+    for (const type of ["mousePressed", "mouseReleased"]) await b.send("Input.dispatchMouseEvent", { type, x: corner[0], y: corner[1], button: "left", clickCount: 1 });
+    await p.until(`document.getElementById("page").innerText.includes("touché l'étoile 4 fois")`, 5000);
+    const mouse = await count();
+    // Au doigt : un toucher au milieu de l'étoile.
+    const middle = await p.value(`(() => { const r = document.querySelector('[data-name="Etoile"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+    await b.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: middle[0], y: middle[1], id: 1 }] });
+    await b.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await p.until(`document.getElementById("page").innerText.includes("touché l'étoile 5 fois")`, 5000);
+    const finger = await count();
+    check("au clavier (Entrée, Espace), à la souris (le milieu, un coin), au doigt", keyboard === "2" && mouse === "4" && finger === "5" && hovered, `clavier ${keyboard}, souris ${mouse}, doigt ${finger}, survol au clavier : ${hovered}`);
+    if (b.errors.length) faults.push(`erreurs : ${b.errors.join(" | ")}`);
+    // L'audit d'accessibilité de la leçon.
+    await p.value(readFileSync(join(engine, "node_modules", "axe-core", "axe.min.js"), "utf8") + "\n;0");
+    const violations = await p.value(`window.axe.run(document, { resultTypes: ["violations"] }).then((r) => r.violations.map((v) => v.id + " : " + v.nodes.map((n) => n.html.slice(0, 80)).join(" | ")))`);
+    check("axe-core", violations.length === 0, violations.join(" ; "));
+    // Sur un téléphone (360 de large) : rien ne déborde.
+    try {
+      await b.send("Emulation.setDeviceMetricsOverride", { width: 360, height: 760, deviceScaleFactor: 2, mobile: true });
+      await p.open(lesson, 600);
+      const wide = await p.value("document.documentElement.scrollWidth");
+      check("téléphone : rien ne déborde", wide <= 360, `${wide} px pour 360`);
+    } finally {
+      await b.send("Emulation.clearDeviceMetricsOverride");
+    }
+    // Sans JavaScript, la page de holo serve (ADR-074) : les mêmes découpes, et au clavier l'image
+    // découpée se montre entière. Ce n'est que du CSS, écrit par le serveur.
+    const served = await startHoloServe(["134-decouper-une-forme.holo", "paysage.svg"]);
+    const q = page(b, served.base);
+    let withoutScript = "", focusedWithout = "";
+    try {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: true });
+      await q.open("/134-decouper-une-forme.holo", 300);
+      withoutScript = await cuts(q);
+      for (let i = 0; i < 40 && !(await q.value(`document.activeElement === document.querySelector(".holo-s-ruche")`)); i++) await q.key("Tab", "Tab", 9);
+      focusedWithout = await q.value(`(() => { const e = document.querySelector(".holo-s-ruche"); return document.activeElement === e ? getComputedStyle(e).clipPath : "pas atteinte"; })()`);
+    } finally {
+      await b.send("Emulation.setScriptExecutionDisabled", { value: false });
+      served.stop();
+    }
+    check("sans JavaScript", withoutScript === expected && focusedWithout === "none", `${withoutScript} ; au focus : ${focusedWithout}`);
+    return [faults.length === 0, faults.length ? faults.join("\n      ") : `${seen} ; lecteur d'écran : un bouton « Etoile », les images nommées ; au clavier : l'étoile (${star.seen}), l'image en hexagone (${hexagon.seen}) ; touchée au clavier ${keyboard}, à la souris ${mouse} (le coin compris), au doigt ${finger} ; axe-core : zéro défaut ; téléphone : rien ne déborde ; sans JavaScript (holo serve) : les mêmes découpes, au focus « ${focusedWithout} »`];
   }],
   ["mélanger des sons : deux à la fois, le fondu qui monte puis descend, le volume qui suit sa glissière (leçon 135)", async (p, b) => {
     await p.open("/exemples/lecons/135-melanger-des-sons.holo");

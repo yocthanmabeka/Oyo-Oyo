@@ -6,6 +6,79 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Découper une forme : `form:` dans les styles, huit formes nommées
+
+- Fait (issue #240, reprise par un agent de la session du nuage : l'agent du PC s'était arrêté avant d'écrire quoi que ce soit, puis le PC s'est éteint ; `ADR-111`, ACCEPTÉ : « tu le valides déjà, tu le fais déjà ») :
+  - `form:` dans un style découpe une image ou un dessin : c'est le mot de `Shape(form:)`, avec ses valeurs. Comparé, dans l'ADR, avec `clip-path` tel quel, `clip-path: hexagon`, `shape:`, `cut:`, un paramètre d'`Image` et un bloc `Cut`.
+  - Huit formes d'un seul mot : `circle`, `square`, `triangle`, `diamond`, et quatre nouvelles, `hexagon`, `star`, `heart`, `wave`. Ce sont des découpes fixes du moteur (`moteur/src/forms.rs`), en pourcentages de la boîte : elles suivent le bloc. Le rond arrondit les coins (`border-radius: 50%`) : son bord, son ombre et son cadre de focus suivent sa courbe.
+  - Le cadre de focus. En faisant les filtres, la session du PC avait vu qu'une `Shape(name:, form: triangle)` n'en avait aucun : `clip-path` le coupe. Désormais, une `Shape` en polygone se dessine dans son bouton (`::before`), qui n'est jamais découpé lui-même : son cadre se voit autour d'elle, et tout son carré se touche. Une image ou un dessin découpés se montrent entiers au focus du clavier (`:focus-visible { clip-path: none }`, écrit après les états).
+  - Refusés, avec la raison : `clip-path`, `clip`, `form: polygon(…)` ; `form` sur un texte, un conteneur, une vidéo, dans le style d'une `Shape`, au survol, à l'appui, au focus ; `border-radius` avec `form` ; une ombre ou un bord sur un polygone, même donnés par un autre style (le moteur suit la cascade et dit quoi retirer) ; un fond, une ombre ou un bord sur une `Shape` en polygone. `border: none` est maintenant accepté, comme en CSS.
+  - Sur un plateau, une rencontre (`When(A, meets: B)`) prend la vague pour un carré (`state.rs`) ; l'hexagone, l'étoile et le cœur, comme le triangle, pour un rond un peu plus petit.
+  - La leçon 134 : une bannière qui ondule sous un titre ; une photo en rond, en hexagone, en étoile, en cœur ; les huit formes de `Shape` ; une étoile à toucher. Liens vers la 124 et la 1.
+  - Le guide (chapitre « 6 duoquinquagies », et une ligne au chapitre des formes), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons ; l'éditeur propose les quatre mots nouveaux.
+- Exécuté, dans `moteur/` :
+  - `cargo test --release --locked` : les cinq essais nouveaux passent (quatre dans `forms.rs`, un dans `flat.rs`). Celui des rencontres rate sans la ligne de la vague dans `state.rs` (« left: [Some(1), Some(0), … » : la vague ne touche pas le coin). L'essai qui prenait l'hexagone pour une forme inconnue prend maintenant le pentagone. 282 essais avant la première fusion de `main`, 303 après, 314 après la deuxième (avec l'essai des rencontres), 321 après la troisième.
+  - L'essai Chrome nouveau passe seul :
+    - les découpes reçues (6, 10, 40 et 35 sommets) et la `Shape` jamais découpée ;
+    - le cadre de focus, vu sur des captures : 316 pixels changent autour de l'étoile, 508 autour de l'image en hexagone ;
+    - Entrée et Espace, la souris (le milieu, puis un coin du carré), le doigt ; le lecteur d'écran ; axe-core ; un téléphone de 360 px ; `holo serve` sans JavaScript.
+  - Il sait échouer, essayé deux fois (avant et après la fusion de `main`), le code remis ensuite :
+    - la `Shape` découpée elle-même, comme avant : « le cadre de focus de l'étoile : focus-visible, découpe polygon(50% , 0 pixels du cadre autour », et le coin du carré ne répond plus ;
+    - sans la règle du focus : « le cadre de focus de l'image découpée : focus-visible, découpe polygon(25% , 0 pixels du cadre autour », et sans JavaScript l'image reste découpée au focus.
+  - `holo check` sur la leçon 134 et sur l'exemple de l'ADR : ok.
+  - Trois preuves complètes, `check-locked.sh`, une après chaque fusion de `main` :
+    - sur c10f258 (les PR 265 à 269 fusionnées) : `cargo test --release --locked` → 303 essais passent ; `cargo test` (debug) → 303 ; la suite Chrome entière (`CI=1`, axe-core 4.10.3) : 93 essais sur 96, 137 leçons ouvertes sans erreur ;
+    - sur 30c0bea (la PR 270 fusionnée, et l'essai des rencontres) : 314 et 314 ; 94 essais sur 97, 138 leçons ;
+    - sur 2a0b244 (les PR 271 et 272 fusionnées ; depuis, seulement ce journal) : `cargo test --release --locked` → 321 essais passent ; `cargo test` (debug) → 321 ; la suite Chrome entière : 95 essais sur 98, 139 leçons ouvertes sans erreur ;
+    - chaque fois : les deux WebAssembly, `holo` et les liaisons se construisent ; l'essai nouveau passe ; l'audit axe-core des parcours ne trouve aucun défaut ; les trois ratés sont ceux de ce conteneur, « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium).
+- Erreurs en route :
+  - Dans l'essai Chrome, Entrée envoyée sans son caractère (`"\r"`) ne touche pas un bouton : corrigé.
+  - Le premier « accepté » de mon essai Rust était un vrai refus : l'ombre donnée par `Image` à l'image découpée en hexagone. La vérification avait raison ; c'est l'essai qui a été corrigé.
+  - `border: none` était refusé par le moteur. Il est accepté, pour que le style qui découpe puisse retirer le bord donné par un autre style.
+  - La fusion de `main` (PR 265 à 269) a laissé deux conflits que le script ne prévoit pas :
+    - dans `flat.rs` : la règle du focus des filtres et celle des formes, écrites au même endroit ;
+    - dans `styles.rs` : cinq ajouts des deux côtés.
+    Tous sont gardés des deux côtés, celui de `main` d'abord. Le message de la fusion gardait les lignes « # Conflicts » après les deux lignes de fin : corrigé avant l'envoi.
+  - La limite d'usage du compte a arrêté l'agent vers 19 h 15 ; la preuve lancée juste avant a fini seule, complète, à 19 h 26. Reprise à 21 h 37 : `main` avait reçu les PR 271 et 272, fusionnées sans conflit imprévu ; la preuve a été refaite.
+  - Un lancement de `remerge.sh` sans argument, depuis le dossier de travail, hors de tout dépôt git : il s'est arrêté sans rien toucher (vérifié).
+- Reste : d'autres formes (pentagone, octogone, flèche, bulle) ; une forme qu'on oriente ; la vague en haut d'un bloc ; une ombre et un bord qui suivent un polygone ; découper un conteneur sans couper son texte ; passer d'une forme à l'autre en douceur. La ligne `clip-path` du grand tableau du web peut passer à « oui ».
+
+![La leçon 134 : la bannière qui ondule sous son titre, la photo en rond, en hexagone, en étoile, en cœur, les huit formes de Shape, l'étoile à toucher](images/2026-10-10-formes-lecon-134.png)
+
+![L'étoile qu'on touche, au focus du clavier : son cadre se voit autour d'elle](images/2026-10-10-formes-cadre-de-focus.png)
+
+---
+
+## 2026-10-10 — Les calculs sur les heures : un compte à rebours qui suit l'horloge
+
+- Fait (issue #238, un agent de la session du nuage, qui l'a reprise quand le PC s'est éteint ; `ADR-109`, ACCEPTÉ d'avance par Yocthan : « tu le valides déjà, tu le fais déjà ») :
+  - Une heure est un texte « HH:MM », un moment « AAAA-MM-JJTHH:MM », sans fuseau caché ; `now` est le moment présent, donné par l'appareil, comme `today`.
+  - `Minutes(name: left, from: now, to: train)`, à côté de `Days` : entre deux moments, les vraies minutes ; vers une heure seule, jusqu'à la prochaine fois que l'horloge la montre (de 22:00 à 06:00 : 8 h). Sous zéro avec `negative: [late]`.
+  - `{left:duration}` et `{train:time}`, écrits comme `Intl.DurationFormat` et `Intl.DateTimeFormat`, dans huit langues, « 0 min » à zéro, et pour les machines (`<time datetime="PT2H15M">`).
+  - `meeting.add(15min)`, `meeting.sub(2h)` : les unités `min` et `h` du langage servent enfin. `arrival.set(now)`. `If(now, under: train)`, `When(now, is: "07:00")`, `When(left, is: 0)`.
+  - La page cherche les changements d'heure du fuseau du visiteur d'après l'appareil et les donne au moteur, qui n'embarque aucune base des fuseaux ; elle redonne l'heure dès que l'onglet revient au premier plan. Le compte n'est jamais décompté, et jamais annoncé au lecteur d'écran.
+  - En chemin : un champ heure acceptait « 25:99 » ; il ne l'accepte plus.
+  - La leçon 132, le guide (« 6 quinquagies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons, un essai dans Chrome.
+- Comparé avant de choisir (dans l'ADR) : un texte plutôt qu'une sorte nouvelle de valeur (comme les dates) ; `now` plutôt qu'un bloc `Clock` ; `Minutes` plutôt que `Duration` ou `Hours` ; les changements d'heure donnés par la page plutôt que compter à l'horloge (une nuit de 7 h dirait 6 h) ou embarquer la base des fuseaux ; `add(15min)` plutôt que `add(15)` ; le style « short » du CLDR plutôt que « 2 h 15 », qui n'existe qu'en français.
+- Erreurs en route :
+  - L'essai Chrome attendait « 23 h 59 » entre samedi 18 h 46 et le train de dimanche 18 h 45. Le moteur disait « 1 j et 59 min » : la nuit du retour à l'heure d'hiver dure 25 heures. Le moteur avait raison ; c'est l'attente de l'essai qui comptait à l'horloge. Corrigée, avec la raison écrite à côté.
+  - La première version prenait toujours la première fois d'une heure répétée : à 2 h 30 (la seconde fois), « la prochaine fois que l'horloge montre 2 h 45 » tombait le lendemain. Elle cherche maintenant la seconde fois avant le lendemain (essai du moteur).
+  - Une règle qui guettait un nombre de jours ou de minutes (`When(left, is: 0)`) était refusée, et n'aurait jamais sonné : les règles qui guettent ne voyaient pas ces nombres. Elles les voient maintenant.
+- Exécuté (conteneur du nuage, Linux, Chromium 1194) :
+  - `cargo test --release hours` : les sept essais du module passent (lire et écrire, les huit langues comparées à `Intl`, le fuseau de Paris, les comptes de la page, la page fabriquée, le formulaire sans JavaScript, vingt-cinq refus).
+  - `holo check` sur la leçon 132 et sur l'exemple de l'ADR : `ok`, `ok`.
+  - L'essai Chrome nouveau, seul : `OK` (« Il est 16:30. », le train dans « 2 h et 15 min », le concert dans « 68 j et 5 h », comme les compte `Date` : 98 220 minutes ; `datetime` : `18:45 PT2H15M P68DT5H 2026-12-31T20:30` ; aucune région vivante ; l'onglet revient à 18 h 44, 18 h 45, 18 h 46 ; rien d'annoncé ; la nuit, 8 h ; pointé à 18:46 ; au clavier, 14:15 ; à la souris, 13:15 ; sans JavaScript avec `holo serve`, « 8 h et 30 min » puis « 8 h » et 14:15 ; à 360 de large, rien ne déborde ; axe-core 4.10.3, zéro défaut).
+  - Il sait échouer, deux fois, chaque mutation retirée ensuite (le fichier rendu est identique à celui d'avant, vérifié par `cmp`) : sans `giveZone` (les changements d'heure du visiteur), il rate (« le concert … : false », `P68DT4H`, « demain, dans 1 j et 59 min : false ») ; sans l'écouteur `visibilitychange`, il rate (« l'onglet revient à 18:44, 18:45, 18:46 : false, false, false »).
+  - `main` fusionnée deux fois (style diff3 ; les PR 268, 269 puis 270 sont arrivées pendant le travail, avec du code du moteur) ; les conflits de `blocks.rs`, `computed.rs`, `styles.rs` et `page-engine.js` réglés à la main en gardant les deux côtés, rangés par numéro. Après chaque fusion : `node --check`, le fichier des essais égal à celui de `main` plus les 89 lignes du nouvel essai, un nombre pair de barrières dans le guide (178) et ses chapitres dans l'ordre.
+  - La preuve complète (`check-locked.sh`) sur 0715cb8, `main` (14fe307) fusionnée : `cargo test --release --locked`, **316** passent ; `cargo test`, **316** ; les deux WebAssembly, `holo` et les liaisons se construisent ; la suite Chrome : **94 essais sur 97**, dont le nouveau, 138 leçons s'ouvrent sans erreur, l'audit axe-core des parcours ne trouve aucun défaut. Les trois ratés sont ceux du conteneur : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium).
+- Reste :
+  - un moment avec son fuseau (« …Z », « +01:00 »), un champ pour un moment, les bornes d'un champ heure, une heure dans les éléments d'une liste, les secondes dans un compte, les variantes régionales des langues ;
+  - la lecture au TalkBack de « 2 h et 15 min », sur le téléphone de Yocthan ;
+  - la ligne `Date` du grand tableau du web, à passer à « oui » à la prochaine publication ;
+  - la suite des leçons (124 → … → 136 → 1), quand les douze dettes seront dans `main`.
+
+---
+
 ## 2026-10-10 — Les cinq nouveautés de l'après-midi, essayées et validées par Yocthan
 
 - Fait (la session du nuage) :

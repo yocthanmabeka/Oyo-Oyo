@@ -28,6 +28,8 @@ pub mod state;
 pub mod stopwatch;
 pub mod files;
 pub mod fonts;
+// Découper une forme (ADR-111) : `form: hexagon` dans un style, huit formes nommées.
+pub mod forms;
 pub mod format;
 pub mod gestures;
 // Une grille qui place ses cases : plusieurs colonnes ou lignes, des zones nommées (ADR-104).
@@ -35,6 +37,8 @@ pub mod grid;
 pub mod seed;
 pub mod holo;
 pub mod history;
+// Les calculs sur les heures : une heure, un moment, now, Minutes, {left:duration} (ADR-109).
+pub mod hours;
 pub mod lists;
 pub mod modules;
 pub mod mosaic;
@@ -262,6 +266,8 @@ pub fn vocabulary() -> String {
             "true", "false", "item", "circle", "square", "triangle", "diamond", "start", "center", "end", "between", "topLeft", "top", "topRight", "left", "right", "bottomLeft", "bottom",
             "bottomRight", "linear", "smooth", "out", "in", "back", "spring", "bounce", "forever", "grid", "row", "column", "diagonal", "date", "time", "color", "none", "uppercase",
             "lowercase", "capitalize", "underline", "line-through", "bold", "italic", "normal", "solid", "dashed", "dotted", "members", "everyone",
+            // Les formes de plus (ADR-111), pour `Shape(form:)` et `form:` dans un style.
+            "hexagon", "star", "heart", "wave",
         ]),
         list(&["count", "total", "year", "month", "day", "weekday", "hour", "minute", "account", "signedIn", "scroll"]),
         list(format::FORMATS),

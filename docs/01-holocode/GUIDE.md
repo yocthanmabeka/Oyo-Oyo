@@ -1101,6 +1101,7 @@ Page(
 
 - Une forme qui a un nom se touche, comme un bouton : `On(Target.tap, …)`.
 - Elle se place sur un plateau comme un point : `x`, `y`, `drag`.
+- Depuis `ADR-111`, quatre formes de plus : `hexagon`, `star`, `heart`, `wave` ; et `form:` découpe une image dans un style (chapitre 6 duoquinquagies).
 
 **Comparer à une autre valeur, fixer d'après une autre valeur.** Là où l'on écrit un nombre, on peut écrire le nom d'une valeur :
 
@@ -2217,6 +2218,51 @@ Dialog { backdrop-blur: 6px; }
 
 La leçon est `131-des-filtres-d-image.holo`.
 
+## 6 quinquagies. Des heures : un compte à rebours, `Minutes`, `{left:duration}`
+
+Compter les heures et les minutes entre deux moments, ajouter une durée à une heure, écrire « le train part dans 2 h et 15 min » (`ADR-109`).
+
+```holo
+Page(
+  title: "The train",
+  state: State(train: "18:45", concert: "2026-12-31T20:30", arrival: "09:00", departure: "17:30", meeting: "14:00"),
+  computed: [
+    Minutes(name: left, from: now, to: train),
+    Minutes(name: wait, from: now, to: concert),
+    Minutes(name: worked, from: arrival, to: departure),
+  ],
+  children: [
+    P("It is {now:time}."),
+    If(now, under: train, children: [ P("The {train:time} train leaves in {left:duration}.") ]),
+    P("The concert, on {concert:weekday} {concert:date} at {concert:time}, starts in {wait:duration}."),
+    Input(value: arrival, label: "Arrival", type: time),
+    Input(value: departure, label: "Departure", type: time),
+    Button(name: ClockIn, text: "Clock in"),
+    P("Worked: {worked:duration}."),
+    Button(name: Later, text: "15 min later"),
+    P("The meeting starts at {meeting:time}."),
+  ],
+  rules: [
+    On(ClockIn.tap, effect: arrival.set(now)),
+    On(Later.tap, effect: meeting.add(15min)),
+  ],
+)
+```
+
+- **Une heure est un texte « HH:MM »**, celui que donne un champ heure (`Input(type: time)`) ; **un moment, un texte « AAAA-MM-JJTHH:MM »**, une date et une heure. Sans fuseau : c'est l'heure de l'horloge du visiteur.
+- **`now`** est le moment présent, donné par l'appareil du visiteur, comme `today` ; la page le tient à jour à chaque minute. On ne le déclare pas, on ne le garde pas.
+- **`Minutes(name: left, from: now, to: train)`**, dans `computed: [ … ]`, compte les minutes, comme `Days` compte les jours. Entre deux moments, ce sont les vraies minutes, même la nuit du changement d'heure (à Paris, la nuit du 25 octobre 2026, de 22 h à 4 h : 7 h). Vers une heure seule, le compte avance jusqu'à la prochaine fois que l'horloge la montre : de 22:00 à 06:00, 8 h ; de `now` à « 18:45 », jusqu'à ce soir, ou demain si l'heure est passée. Il vaut 0 si une valeur manque ou si le moment est passé, sauf avec `negative: [left]` (`ADR-102`).
+- Le compte se montre en minutes (`{left}`), se compare (`If(left, under: 60)`), se guette (`When(left, is: 0, effect: …)`) et sert dans une demande (`pay.mul(worked)`).
+- **`{left:duration}`** l'écrit dans la langue de la page, comme `Intl.DurationFormat` : « 2 h et 15 min », « 2 hr, 15 min », « 3 j, 4 h et 5 min », et « 0 min » à zéro. **`{train:time}`** écrit une heure : « 18:45 », « 6:45 PM » en anglais. Un moment se montre aussi par sa date : `{concert:date}`, `{concert:weekday}`. Tous se lisent aussi par les machines (`<time datetime="PT2H15M">`).
+- **Une heure avance d'une durée écrite avec son unité** : `meeting.add(15min)`, `meeting.sub(2h)`, ou d'un nombre de minutes de la page, `end.add(length)`. Une heure seule fait le tour du cadran (23:50 + 15min = 00:05) ; un moment change de jour. `arrival.set(now)` y met l'heure présente.
+- **Deux heures se comparent** : `If(now, under: train)`, `If(now, over: "18:45")`, `When(now, is: "07:00", effect: …)`. Un moment face à une heure seule se compare par son heure.
+- **Le compte suit l'horloge** : la page redonne l'heure au moteur au début de chaque minute, et dès que l'onglet revient au premier plan. Il n'est jamais décompté, donc il ne dérive pas. Un lecteur d'écran ne l'entend pas à chaque minute : on le lit en arrivant dessus.
+- Sans JavaScript, `holo serve` fabrique la page avec ses comptes, et recompte une heure écrite dans un champ ; `now` y est l'heure du serveur.
+- Refusés, avec le bon mot : `now` déclaré, gardé ou écrit ; `meeting.add(15)` sans unité, ou à la seconde ; `{train:duration}` (pour une heure, `{train:time}`) ; une heure seule comparée à une date ; un champ heure à « 25:99 ».
+- Pas encore : un moment avec son fuseau (« …Z », « +01:00 »), un champ pour un moment, les bornes d'un champ heure, une heure dans les éléments d'une liste, les secondes dans un compte.
+
+La leçon est `132-des-heures.holo`.
+
 ## 6 unquinquagies. Faire vibrer le téléphone : `Device(kind: vibration)`
 
 Une courte vibration dit « c'est fait » sans qu'on regarde l'écran : un bouton qui répond, une prise dans un jeu (`ADR-110`). Elle accompagne toujours un signe à l'écran.
@@ -2252,6 +2298,46 @@ Page(
 - Refusés, avec la raison : `for:` sans unité, nul, trop long, ou sur une autre sorte d'appareil ; `Buzz.request` ; `play` sur une autre sorte ; `value:`.
 
 La leçon est `133-faire-vibrer-le-telephone.holo`.
+
+## 6 duoquinquagies. Découper une forme : `form:`
+
+Une photo ronde, une galerie en hexagones, une bannière dont le bas ondule : un style découpe une image en une forme nommée (`ADR-111`).
+
+```holo
+Page(
+  title: "Our team",
+  state: State(stars: 0),
+  children: [
+    H1("Our team"),
+    Row(gap: 16px, children: [
+      Image.round(source: "ada.jpg", alt: "Ada, who paints"),
+      Image.hive(source: "lin.jpg", alt: "Lin, who frames"),
+    ]),
+    Stack(children: [
+      Image.banner(source: "lake.jpg", alt: ""),
+      H2("The lake, at dawn"),
+    ]),
+    Text("Stars: {stars}."),
+    Shape(name: Star, form: star, color: "#E9B44C", size: 64px),
+  ],
+  rules: [ On(Star.tap, effect: stars.add(1)) ],
+)
+
+Image { width: 120px; aspect-ratio: 1; }
+.round { form: circle; border: 3px solid white; }
+.hive { form: hexagon; }
+.banner { width: 100%; aspect-ratio: 3/1; form: wave; }
+```
+
+- **`form:`**, dans un style, découpe une image ou un dessin : `circle` (un rond ; un ovale sur un bloc plus large que haut, et `aspect-ratio: 1` en fait un rond), `hexagon`, `star`, `heart`, `triangle`, `diamond` (un losange), `wave` (le bas du bloc ondule, sur son dixième, en deux vagues), et `square` (rien n'est découpé : il défait une forme donnée par un style plus général). La forme suit la taille du bloc ; aucun tracé ne s'écrit à la main.
+- **`Shape(form:)`** prend les mêmes huit formes : `Shape(form: heart, color: "#FF4D6D")`. Sur un plateau, une rencontre (`When(A, meets: B)`) prend la vague pour un carré, et l'hexagone, l'étoile, le cœur pour un rond un peu plus petit, comme le triangle.
+- **Une image ou un dessin, jamais un texte** : un bloc qui porte un texte, un bouton, une vidéo ou les pièces d'un plateau serait coupé avec eux. Pour un titre sur une bannière qui ondule, une `Stack` : l'image découpée dessous, le titre dessus.
+- **Le cadre de focus se voit toujours.** Une `Shape` qu'on touche le garde autour d'elle, et se touche sur tout son carré, au doigt comme à la souris. Une image découpée qui a le focus du clavier (une règle l'écoute au survol) se montre entière, avec son cadre.
+- **Le rond garde son bord et son ombre** (`border`, `box-shadow`) : ils suivent sa courbe. Les autres formes les couperaient : ils sont refusés, même venus d'un autre style ; `border: none;` et `box-shadow: none;` les retirent.
+- Une forme peut changer dans `phone:`, `computer:`, `narrow:`, `dark:` ou `print:` ; jamais au survol ni à l'appui (au bord de la forme, le bloc clignoterait), ni au focus (le moteur le montre déjà entier).
+- Refusés, avec la raison : `clip-path` et `clip` (« s'écrit `form: hexagon` ») ; `form: polygon(…)` ; `form` sur un texte, un conteneur, une vidéo, ou dans le style d'une `Shape` (sa forme s'écrit sur elle) ; `border-radius` avec `form` dans le même style ; un fond, une ombre ou un bord sur une `Shape` en polygone (sa couleur : `Shape(color:)`).
+
+Cette écriture est décidée (`ADR-111`). La leçon est `134-decouper-une-forme.holo`.
 
 ## 6 terquinquagies. Mélanger des sons
 
