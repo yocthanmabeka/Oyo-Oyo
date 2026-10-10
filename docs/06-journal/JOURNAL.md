@@ -6,6 +6,29 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Les fusions de la matinée, et l'outil de fusion réparé (le style diff3)
+
+- Fait (la session du PC) :
+  - Fusionnées dans `main` : la 256 (le partage, #236, la session du nuage), la 257 (réordonner, #234), la 258 (la grille, #233) et la 261 (la vibration, #239, la session du nuage). Chaque fois par `outils/fusionner.sh`, après les trois tests verts.
+  - En cours : la 260 (les nombres négatifs, #231), à jour avec `main` et qui repasse ses tests ; la 259 (mélanger des sons, #241). Celle-ci est en conflit depuis la 258 : la session du nuage y fusionne `main` elle-même, comme elle l'a demandé dans l'issue 255. Je ne touche plus aux branches de ses PR.
+  - Trois agents relancés après la limite de séance, chacun à partir de ce qui était sauvé sur GitHub : 237 (les filtres), puis 240 (les formes découpées) ; 235 (le défilement et `sticky`) ; 232 (les textes), puis 238 (les heures). Les 246 et 247 suivront.
+  - Les dossiers des agents arrêtés sont effacés. Avant, j'ai vérifié que le dernier commit de chacun était sur une branche de GitHub. Un dossier, verrouillé par un processus, partira au redémarrage du PC.
+- Erreur : mon outil de fusion a cassé trois fois des fichiers partagés, en fusionnant `main` dans une branche de PR :
+  - le guide de la 256 (un chapitre au milieu d'un exemple ; la session du nuage l'a réparé, 58c2b2d) ;
+  - un essai de `browser-tests.mjs` sans sa ligne de fermeture `}],` (62cbece) ;
+  - le guide de la 258 (le chapitre de la grille coupé, réparé en 674f11d). Le test du moteur qui relit les exemples du guide l'a vu (« ligne 18, colonne 1 : caractère inattendu « # » ») ; rien de cassé n'est entré dans `main`.
+- La cause : deux branches ajoutent chacune un bloc au même endroit, et ces blocs finissent par les mêmes lignes (`  }],`, une barrière de code, une fin de tableau). Avec le style de conflit par défaut, git sort ces lignes du conflit et ne les garde qu'une fois. Garder « les deux côtés » laisse alors un bloc sans sa fin. Ma première réparation, remettre ces lignes entre les deux blocs, marchait pour le guide mais pas pour les essais.
+- La réparation : fusionner en style diff3 (`git -c merge.conflictstyle=diff3 merge origin/main`). Git ne rogne plus les lignes communes : chaque côté du conflit est complet, et garder les deux est juste. L'outil refuse aussi un conflit où l'ancêtre commun avait du texte, car c'est une modification des deux côtés : elle se règle à la main.
+  - Essayé sur le cas exact qui avait cassé (la grille, d43ab50, avec `main`) : tous les fichiers sont résolus ; le guide fait 2 741 lignes, soit les 2 697 de `main` et les 44 de la branche ; `browser-tests.mjs` fait 2 155 lignes, soit 2 105 et 50 ; `node --check` passe ; 154 barrières de code, en paires ; le chapitre de la grille est entier.
+  - Puis employé pour la 260.
+  - La règle est écrite dans `AGENTS.md` pour toutes les IA (« Fusionner `main` dans sa branche sans rien perdre »), et donnée aux agents.
+- Reste :
+  - dettes : 232, 235, 237, 238 et 240 (les agents du PC), 242 (la session du nuage) ;
+  - fonctions ouvertes : 246 et 247 (le PC), 248 à 252 (la session du nuage), 253 avec la 3D ;
+  - à la fin, la session du nuage refait la suite des leçons et le grand tableau.
+
+---
+
 ## 2026-10-10 — Faire vibrer le téléphone : `Device(kind: vibration)`
 
 - Fait (issue #239, la session du nuage ; `ADR-110`, ACCEPTÉ) :
