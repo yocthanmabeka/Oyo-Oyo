@@ -20,7 +20,13 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
   - `cargo test --release` : les essais nouveaux passent du premier coup, puis huit mutations ont été essayées et retirées, une à la fois, et chacune fait rater au moins un essai : le proxy de l'environnement, un résolveur qui ne vérifie plus, dix redirections, la lecture non coupée, plus rien de gardé, la clé dans la page acceptée, la clé recopiée acceptée, un sous-domaine deviné ;
   - l'essai Chrome nouveau passe seul (sept lectures par holo serve, une seule demande à l'autre site) ; il rate quand on retire la route `?remote-data` (« relues sans échec : false ») ou la demande du serveur (« arrivées : false, 0 demande ») ;
   - `holo check` sur la leçon 139 : ok ;
-  - la preuve complète, `check-locked.sh`, après la fusion de `main` : RÉSULTATS.
+  - dix-sept essais Rust nouveaux : quatorze dans `remote.rs`, un dans `state.rs`, un dans `lib.rs`, un dans `server.rs` ;
+  - la preuve complète, `check-locked.sh`, après la fusion de `main` (PR 258 à 263) : `cargo test --release --locked` → 272 essais passent ; `cargo test` → 272 ; dans Chrome, 87 essais sur 90 ;
+  - la preuve complète, de nouveau, après la seconde fusion de `main` (PR 262 ; commit 4363055) :
+    - `cargo test --release --locked` → 278 essais passent ; `cargo test` → 278 ;
+    - les deux WebAssembly, `holo` et les liaisons se construisent ;
+    - la suite Chrome entière : 88 essais sur 91 passent ; 132 leçons s'ouvrent sans erreur, la 139 comprise ; l'audit axe-core des parcours : zéro défaut ;
+    - les trois ratés sont ceux de ce conteneur : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium).
 - Erreurs en route :
   - La limite de séance a coupé le travail deux fois, et le conteneur a redémarré : les fichiers étaient intacts ; les constructions ont été relancées.
   - Un envoi de sauvegarde sur `wip/…` a été refusé par la garde des permissions : pas de contournement ; les commits locaux ont suffi.
