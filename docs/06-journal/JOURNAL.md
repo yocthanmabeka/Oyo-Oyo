@@ -6,6 +6,32 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-10 — Travailler un texte : des majuscules, sa longueur, le couper, le découper
+
+- Fait (issue #232 ; `ADR-103`, ACCEPTÉ d'avance par Yocthan : « tu le valides déjà, tu le fais déjà ») : le travail d'un agent de la session du PC (`wip/langage/textes`, af8bd0d), relu par elle, puis fini par la session du nuage quand le PC s'est éteint (passation dans #255).
+  - Quatre formats de texte (`ADR-043`) : `{code:upper}` et `{code:lower}`, dans la langue de la page (« ß » → « SS » ; en turc, « i » → « İ » ; en grec, les accents tombent en majuscules et le sigma final s'écrit « ς ») ; `{message:length}`, les caractères comptés comme une personne les compte ; `{message:max40}`, au plus 40 caractères, coupé à la fin d'un mot si l'on garde ainsi la moitié de la place, jamais au milieu d'une lettre, avec « … ».
+  - Un caractère est une grappe de graphèmes d'Unicode (UAX #29), comme `Intl.Segmenter` : 👍🏽, 🇫🇷, 👨‍👩‍👧, « é » écrit en deux morceaux, « क्षि » comptent chacun pour un. La table des lettres (Unicode 16.0, 711 plages, moins de 3 Ko) est fabriquée par `moteur/outils/graphemes.py`.
+  - `computed: [ Split(name: tags, from: keywords, by: ",") ]` : une liste calculée qui suit son texte ; les blancs autour retirés, les morceaux vides oubliés, deux cents au plus ; `","` coupe aux virgules de toutes les écritures (, ، 、 ， …), `";"` aux points-virgules, `" "` aux blancs, `lines` à chaque ligne.
+  - Partout où un texte se montre : une phrase, le titre de l'onglet, une ligne de liste (`{item.title:max40}`), et sans JavaScript (`holo serve`).
+  - La leçon 126, le guide (« 6 quaterquadragies »), `NOMS.md`, `DECISIONS.md`, le sommaire des leçons, un essai dans Chrome.
+- Fini par la session du nuage :
+  - `main` fusionnée (les PR 256 à 263) : NOMS, l'essai Chrome et `styles.rs` résolus en gardant les deux côtés, rangés par numéro ; le guide sans conflit.
+  - cette entrée du journal, la preuve complète, la preuve que l'essai sait échouer, la PR.
+- Exécuté (conteneur du nuage, Linux, Chromium 1194) :
+  - après la fusion de `main` : `cargo test --release --locked`, **268** passent, 0 échec.
+  - L'essai Chrome sait échouer : le moteur changé un instant pour compter les points de code au lieu des lettres (`count` → `text.chars().count()`), reconstruit, l'essai seul rate : « compté "👍🏽🇫🇷" : 4 au lieu de 2 », « "été" : 5 au lieu de 3 », « "👨‍👩‍👧 et 🏴󠁧󠁢󠁳󠁣󠁴󠁿" : 16 au lieu de 6 », et de même pour le devanagari, le coréen, l'arabe, le tamoul et le thaï. Le code remis (`git checkout`).
+  - La preuve complète (`check-locked.sh`, sur 672ed1a) : `cargo test --release --locked` et `cargo test`, **268** passent ; les deux WebAssembly, `holo` et les liaisons se construisent ; la suite Chrome (`CI=1`, axe-core 4.10.3) : **88 essais sur 91**, dont celui de la leçon 126 (« au départ : AB-12 », les huit textes difficiles comptés comme `Intl.Segmenter`, « 北京，上海、 广州,, » en trois étiquettes, et sans JavaScript « ISTANBUL ILIK ») ; 132 leçons s'ouvrent sans erreur. Les 3 ratés sont ceux du conteneur : « pincer à deux doigts » (passe relancé seul), « la vue points se lit au lecteur d'écran », « parcours 8 et 9 » (la vidéo H.264 ne joue pas dans ce Chromium). `holo check` sur la leçon 126 : `ok`.
+- Erreurs en route : l'agent de la session du PC a été arrêté vers 15 h, avant le journal et la preuve complète ; puis le PC s'est éteint (plus de charge). Rien n'était perdu : tout était sur `wip/langage/textes`.
+- Reste (les dettes de l'`ADR-103`) :
+  - la limite d'un champ (`max:`) compte encore en signes écrits, pas en lettres : à aligner, avec le `maxlength` du navigateur ;
+  - une condition sur une longueur (`If` sur `{message:length}`) ;
+  - rejoindre une liste en un texte, une majuscule seulement au début, le grec ancien et la règle du point en lituanien ;
+  - `{item:upper}` dans une répétition écrite dans le fichier (`Repeat(items: …)`) ;
+  - refaire la table quand Unicode changera (`python moteur/outils/graphemes.py`) ;
+  - le grand tableau du web (« texte : majuscules, longueur, découper » passe à « Oui ») et la suite des leçons, refaits à la fin.
+
+---
+
 ## 2026-10-10 — Se souvenir le temps d'une visite : `Page(visit: [prenom])`
 
 - Fait (issue #242, la session du nuage ; `ADR-113`, ACCEPTÉ) : le dernier « non » du grand tableau du web, `sessionStorage`.
