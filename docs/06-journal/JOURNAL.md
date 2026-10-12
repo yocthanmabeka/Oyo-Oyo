@@ -6,6 +6,24 @@ Pour l'état courant en un coup d'œil, voir [`AGENTS.md`](../../AGENTS.md) à l
 
 ---
 
+## 2026-10-12 — Le dépôt disposé pour la candidature au programme Claude for Open Source
+
+- Demandé par Yocthan : auditer le dépôt et compléter seulement ce qui manque, sans réécrire ce qui existe, sans coder (« aujourd'hui on ne code rien, dispose juste le projet pour la candidature »). Trois décisions prises par lui après que les conséquences lui ont été dites, écrites dans `ADR-122` : la **licence MIT** (le dépôt disait « tous droits réservés » ; passer en MIT ne se reprend pas pour les copies déjà faites), le **nom `Metaverse_007`** pour le dépôt et tous les textes, et l'**objectif 2030** en deux temps (le web fini ; la 3D et le jeu à plusieurs d'ici 2030 ; le navigateur et le matériel propres au projet au-delà).
+- Fait (branche `candidature/claude-for-open-source`, une PR, rien fusionné) :
+  - `LICENSE` : le texte MIT seul, pour que GitHub le reconnaisse ; les polices gardent la SIL OFL, dit dans le `README`.
+  - `CODE_OF_CONDUCT.md` : le Contributor Covenant 2.1, le texte anglais fait foi, un préambule en français, le signalement par le profil GitHub de Yocthan ou une issue « Conduite ».
+  - `CONTRIBUTING.md`, complété à la fin : lancer les essais du moteur (construire, `cargo test --release --locked`, la suite Chrome, axe-core) et proposer une pull request, en français puis en anglais ; l'ancien texte est intact.
+  - `README.md` : un « Quick start » en anglais en haut, « référentiel public » au lieu de « privé », une feuille de route courte avec l'objectif 2030, une note datée au-dessus de l'« État actuel » (qui décrivait encore le prototype Python de septembre) renvoyant à `AGENTS.md`, une section « Licence et conduite ». `README.en.md` : la traduction entière, reliée dans les deux sens.
+  - `AGENTS.md` (le nom, la licence, l'état au 2026-10-12), `GEMINI.md` et `GITHUB-SYNC-POLICY.md` : le nouveau nom.
+  - Deux issues existantes étiquetées `good first issue` : #275 (un bogue de `keep` avec `holo serve`) et #184 (les mesures du téléphone). Il n'y en avait pas d'autres simples ; Yocthan n'a pas voulu qu'on en crée depuis les dettes.
+  - Les textes de la candidature, en anglais, avec les chiffres du jour (816 commits, 223 PR fusionnées, 141 leçons, 107 fiches, 0 étoile) : `docs/05-discussions/candidatures/2026-10-12-claude-for-open-source.md`.
+- Pas fait, et pourquoi :
+  - **le renommage du dépôt sur GitHub** : la commande (`gh repo rename`) a été refusée à la session par sa garde des ressources partagées ; Yocthan le fait lui-même dans les réglages du dépôt (Settings → General → Repository name), ou autorise la commande. Les textes supposent le renommage fait le jour même.
+  - les adresses écrites dans le code (`moteur/src/remote.rs`, le `User-Agent`) et dans la leçon 141 (un module chargé depuis GitHub) gardent `Oyo-Oyo` : aucun code touché, et la redirection les fait marcher ; à changer à la prochaine PR qui touche ces fichiers.
+- Relevé du dépôt le même jour : la session du nuage a tout fusionné le 10 au soir (PR 264 à 274 : les douze dernières dettes, les données d'un autre site, une page dans la page, les modules venus d'ailleurs, la suite des leçons 124 → 141, le grand tableau v38 : 121 éléments du web sur 135 en « oui », 0 « non »). En pause : #246, #247, #251 (commitées, sans PR), puis #275 et #252.
+
+---
+
 ## 2026-10-10 — Les douze dernières dettes dans `main` : la suite des leçons 124 → 141, et le grand tableau du web (v38), tout essayé et validé par Yocthan
 
 - Fait (la session du nuage) :
