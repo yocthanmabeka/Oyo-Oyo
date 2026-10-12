@@ -1,25 +1,21 @@
-Copyright (c) 2026 Yocthan Mabeka. Tous droits réservés.
+MIT License
 
-Ce dépôt est public pour qu'on puisse le lire. Il n'est donné sous aucune licence libre.
-Sans l'accord écrit de son auteur, rien de ce qu'il contient (le code, le langage HoloCode,
-le moteur, les documents, les leçons, les images) ne peut être copié, modifié, redistribué
-ni utilisé ailleurs, en tout ou en partie.
+Copyright (c) 2026 Yocthan Mabeka
 
-Les fichiers qui portent leur propre licence la gardent : par exemple la police Carlito
-(exemples/lecons/carlito.woff2), sous la licence SIL Open Font License 1.1
-(exemples/lecons/carlito-LICENCE.txt), et les polices du moteur (moteur/web/fonts/), chacune
-sous la licence SIL Open Font License 1.1 (le fichier LICENSE.txt de son dossier).
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
----
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-Copyright (c) 2026 Yocthan Mabeka. All rights reserved.
-
-This repository is public so that it can be read. No license is granted. Without the
-author's written permission, none of its contents (the code, the HoloCode language, the
-engine, the documents, the lessons, the images) may be copied, modified, redistributed or
-used elsewhere, in whole or in part.
-
-Files that carry their own license keep it: for example the Carlito font
-(exemples/lecons/carlito.woff2), under the SIL Open Font License 1.1
-(exemples/lecons/carlito-LICENCE.txt), and the engine's fonts (moteur/web/fonts/), each under
-the SIL Open Font License 1.1 (the LICENSE.txt file in its folder).
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
